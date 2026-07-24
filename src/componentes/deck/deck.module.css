@@ -1,0 +1,103 @@
+.slide {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: var(--superficie);
+  color: var(--texto);
+  font-family: var(--fuente-texto);
+  padding: 4.5% 5%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+/* Decisión de marca (24-jul): el degradado de cada UDN se pinta EXACTO
+   (--gradiente, sin ajustar) y nunca lleva texto encima. La portada usa la
+   superficie sólida (--superficie/--texto, ya validadas ≥4.5:1 en
+   temas.test.ts) para el bloque de título, y reserva el degradado a una
+   banda puramente decorativa (.portadaFranja) sin contenido. */
+.portadaCuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Bleed a los tres bordes libres del slide: el padding de .slide (4.5% 5%)
+   se cancela con margin negativo del mismo signo, así la banda toca los
+   bordes y se lee como un bloque intencional, no un recorte accidental.
+   aria-hidden en el JSX: nunca puede llevar texto. */
+.portadaFranja {
+  height: 16cqw;
+  margin: 0 -5% -4.5%;
+  background: var(--gradiente);
+}
+
+.titulo {
+  font-family: var(--fuente-display);
+  font-weight: 700;
+  font-size: 4.2cqw;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tituloPortada { font-size: 7.5cqw; }
+
+.subtitulo {
+  font-size: 2.4cqw;
+  /* --primario-sobre-superficie: el primario de marca ajustado para
+     contrastar ≥4.5:1 contra la --superficie activa (ver ProveedorTema.tsx).
+     El subtítulo vive siempre sobre superficie sólida, nunca sobre el
+     degradado. */
+  color: var(--primario-sobre-superficie);
+  margin-top: 1.2cqw;
+}
+
+.filaKpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 1.6cqw;
+  margin: 3cqw 0;
+}
+
+/* La tarjeta es superficie sólida (--superficie/--texto, validadas ≥4.5:1):
+   ahí vive la cifra, sin esfuerzo de lectura. El degradado de marca EXACTO
+   (--gradiente) queda como acento decorativo en .kpi::before — una barra
+   superior sin ningún texto encima — y el borde usa --primario-sobre-superficie
+   para separar visualmente la tarjeta sin inventar un color nuevo. */
+.kpi {
+  position: relative;
+  background: var(--superficie);
+  color: var(--texto);
+  border: 1px solid var(--primario-sobre-superficie);
+  border-radius: 1.4cqw;
+  padding: 2.8cqw 2.2cqw 2.2cqw;
+  overflow: hidden;
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: .6cqw;
+  background: var(--gradiente);
+}
+
+.kpiValor { font-family: var(--fuente-display); font-size: 4.6cqw; font-weight: 700; line-height: 1; }
+/* Sin opacity: --texto ya está validado a 4.5:1 exacto contra --superficie;
+   una opacidad fraccional acercaría el color visible al fondo y reintroduciría
+   el mismo defecto que el arreglo de legibilidad eliminó. La jerarquía entre
+   valor/delta/rótulo se distingue por tamaño de fuente y, en el delta, por el
+   acento de marca — nunca por opacidad. */
+.kpiDelta { font-size: 1.5cqw; margin-left: .5cqw; color: var(--primario-sobre-superficie); }
+.kpiRotulo { font-size: 1.4cqw; margin-top: .8cqw; }
+
+.columnas { display: grid; grid-template-columns: repeat(var(--columnas-cantidad, 2), 1fr); gap: 3cqw; }
+/* --primario-sobre-superficie es --primario ajustado (mismo matiz/saturación)
+   hasta contrastar ≥4.5:1 contra --superficie; ver ProveedorTema.tsx. Nunca
+   usar --primario directo para texto: no todas las marcas cumplen (Promo
+   Espacio cae a 2.97:1 sobre su superficie clara). */
+.columnaTitulo { color: var(--primario-sobre-superficie); font-weight: 600; font-size: 2cqw; margin-bottom: 1.2cqw; }
+.columnas ul { margin: 0; padding-left: 1.6cqw; }
+.columnas li { font-size: 1.6cqw; line-height: 1.5; margin-bottom: .8cqw; }
