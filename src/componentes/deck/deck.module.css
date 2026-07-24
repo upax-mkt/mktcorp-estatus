@@ -12,8 +12,8 @@
 }
 
 .slideOscuro {
-  background: var(--gradiente);
-  color: var(--texto);
+  background: var(--gradiente-texto);
+  color: var(--texto-sobre-gradiente);
 }
 
 .titulo {
@@ -29,7 +29,10 @@
 
 .subtitulo {
   font-size: 2.4cqw;
-  color: var(--primario);
+  /* --subtitulo-sobre-gradiente es --primario cuando contrasta ≥4.5:1 contra
+     el degradado ajustado, o --texto-sobre-gradiente si no: ProveedorTema lo
+     calcula por marca, este color nunca se elige a ciegas. */
+  color: var(--subtitulo-sobre-gradiente);
   margin-top: 1.2cqw;
 }
 
@@ -41,17 +44,21 @@
 }
 
 .kpi {
-  background: var(--gradiente);
+  background: var(--gradiente-texto);
   border-radius: 1.4cqw;
   padding: 2.2cqw;
   color: var(--texto-sobre-gradiente);
 }
 
 .kpiValor { font-family: var(--fuente-display); font-size: 4.6cqw; font-weight: 700; line-height: 1; }
-.kpiDelta { font-size: 1.5cqw; opacity: .85; margin-left: .5cqw; }
-.kpiRotulo { font-size: 1.4cqw; margin-top: .8cqw; opacity: .9; }
+/* Sin opacity: el degradado ya está ajustado para 4.5:1 exacto contra
+   --texto-sobre-gradiente; una opacidad fraccional acerca el color visible al
+   fondo y reintroduce el mismo defecto que este arreglo elimina. La jerarquía
+   entre valor/delta/rótulo se distingue por tamaño de fuente, no por opacidad. */
+.kpiDelta { font-size: 1.5cqw; margin-left: .5cqw; }
+.kpiRotulo { font-size: 1.4cqw; margin-top: .8cqw; }
 
-.columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 3cqw; }
+.columnas { display: grid; grid-template-columns: repeat(var(--columnas-cantidad, 2), 1fr); gap: 3cqw; }
 .columnaTitulo { color: var(--primario); font-weight: 600; font-size: 2cqw; margin-bottom: 1.2cqw; }
 .columnas ul { margin: 0; padding-left: 1.6cqw; }
 .columnas li { font-size: 1.6cqw; line-height: 1.5; margin-bottom: .8cqw; }
