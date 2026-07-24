@@ -2,19 +2,21 @@ import type { ComponentType } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { Portada } from './layouts/Portada'
 import { KpisFilaDosColumnas } from './layouts/KpisFilaDosColumnas'
+import { LayoutSeguro } from './layouts/LayoutSeguro'
 
 type ComponenteLayout = ComponentType<{ decision: DecisionSlide }>
 
-/** Los layouts implementados hasta ahora. Se irá llenando con el resto del catálogo. */
-const REGISTRO: Partial<Record<DecisionSlide['layout'], ComponenteLayout>> = {
+/** Los layouts implementados hasta ahora. Se irá llenando con el resto del catálogo.
+ *  Fuente única: src/motor/catalogo.ts lee este registro, no lo duplica. */
+export const REGISTRO_LAYOUTS: Partial<Record<DecisionSlide['layout'], ComponenteLayout>> = {
   'portada': Portada,
   'kpis-fila-dos-columnas': KpisFilaDosColumnas,
 }
 
 export function Slide({ decision }: { decision: DecisionSlide }) {
-  const Componente = REGISTRO[decision.layout]
+  const Componente = REGISTRO_LAYOUTS[decision.layout]
   if (!Componente) {
-    throw new Error(`El layout "${decision.layout}" todavía no tiene componente`)
+    return <LayoutSeguro decision={decision} motivo={`El layout "${decision.layout}" aún no tiene componente`} />
   }
   return <Componente decision={decision} />
 }
