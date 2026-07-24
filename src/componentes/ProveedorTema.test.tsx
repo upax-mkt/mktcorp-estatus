@@ -35,26 +35,6 @@ describe('ProveedorTema', () => {
     }
   })
 
-  // NOTA DE CORRECCIÓN (fix legibilidad de gradiente): esta prueba asumía que
-  // --texto-sobre-gradiente era siempre textoSobreOscura — ese era exactamente
-  // el defecto (1.63:1 de contraste real en NeraCode, casi invisible). Ahora
-  // se elige el candidato con mejor contraste mínimo contra las paradas del
-  // degradado (mejorTextoSobre): para NeraCode gana textoSobreClara (#07184F,
-  // mínimo 2.01:1) sobre textoSobreOscura (#FFFFFF, mínimo 1.63:1). Ver
-  // src/lib/superficie-texto.test.ts y la prueba de las 10 marcas más abajo,
-  // que es la que impide que el defecto original vuelva.
-  it('inyecta el texto sobre gradiente elegido por mejor contraste mínimo, no siempre textoSobreOscura', () => {
-    const tema = obtenerTema('neracode')
-    render(
-      <ProveedorTema tema={tema} superficie="clara">
-        <i />
-      </ProveedorTema>,
-    )
-    expect(screen.getByTestId('tema').style.getPropertyValue('--texto-sobre-gradiente')).toBe(
-      tema.textoSobreClara,
-    )
-  })
-
   it('renderiza a sus hijos', () => {
     render(
       <ProveedorTema tema={obtenerTema('ceci')} superficie="clara">
@@ -65,33 +45,27 @@ describe('ProveedorTema', () => {
   })
 })
 
-// Éste es el corazón del arreglo: para las 10 salas del registro, el color de
-// --texto-sobre-gradiente debe contrastar ≥ 4.5:1 contra TODAS Y CADA UNA de
-// las paradas de --gradiente-texto (el degradado ya ajustado para llevar
-// texto encima, no el --gradiente de marca puro). Antes del fix, portadas y
-// KPIs pintaban texto sobre el degradado de marca sin ajustar: NeraCode caía
-// a 1.63:1, Marketing United a 1.27:1, UiX a 1.67:1 — prácticamente
-// invisibles. Este test es el que impide que ese defecto vuelva.
+// Decisión de marca (24-jul): el degradado se pinta SIEMPRE exacto y nunca
+// lleva texto. Este test reemplaza al que verificaba contraste texto-sobre-
+// degradado (retirado junto con --gradiente-texto y --texto-sobre-gradiente,
+// ver superficie-texto.ts): ahora lo que hay que impedir que vuelva es que
+// alguien "ajuste" --gradiente para hacerle sitio a texto. Para las 10 salas,
+// --gradiente debe reproducir cada parada de tema.gradiente sin alterar
+// ningún dígito.
 describe.each(Object.values(TEMAS))(
-  '$nombre: --texto-sobre-gradiente contrasta ≥4.5:1 contra --gradiente-texto',
+  '$nombre: --gradiente reproduce el degradado de marca EXACTO, sin ajustar',
   (tema) => {
-    it('cada parada del degradado ajustado cumple el mínimo WCAG', () => {
+    it('cada parada de --gradiente coincide con tema.gradiente', () => {
       render(
         <ProveedorTema tema={tema} superficie="clara">
           <i />
         </ProveedorTema>,
       )
       const estilo = screen.getByTestId('tema').style
-      const textoSobreGradiente = estilo.getPropertyValue('--texto-sobre-gradiente')
-      const gradienteTexto = estilo.getPropertyValue('--gradiente-texto')
-      const paradas = gradienteTexto.match(/#[0-9A-Fa-f]{6}/g) ?? []
+      const gradiente = estilo.getPropertyValue('--gradiente')
+      const paradas = gradiente.match(/#[0-9A-Fa-f]{6}/g) ?? []
 
-      // Si esto falla, algo rompió el parseo del token CSS, no el contraste.
-      expect(paradas.length).toBeGreaterThanOrEqual(tema.gradiente.length)
-
-      for (const parada of paradas) {
-        expect(contraste(textoSobreGradiente, parada)).toBeGreaterThanOrEqual(4.5)
-      }
+      expect(paradas).toEqual(tema.gradiente)
     })
   },
 )

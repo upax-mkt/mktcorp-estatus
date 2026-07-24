@@ -1,34 +1,5 @@
 import { contraste, hexAHsl, hslAHex } from './color'
 
-/**
- * De entre los candidatos de color de texto, devuelve el que tenga el mayor
- * contraste MÍNIMO contra todas las paradas del degradado. Optimiza el peor
- * caso (la parada donde el texto es menos legible), no el promedio: un
- * candidato que promedie alto pero sea ilegible en una sola parada pierde
- * frente a uno más parejo.
- */
-export function mejorTextoSobre(paradas: string[], candidatos: string[]): string {
-  if (candidatos.length === 0) {
-    throw new Error('mejorTextoSobre requiere al menos un candidato')
-  }
-  if (paradas.length === 0) {
-    return candidatos[0]
-  }
-
-  let mejor = candidatos[0]
-  let mejorContrasteMinimo = -Infinity
-
-  for (const candidato of candidatos) {
-    const contrasteMinimo = Math.min(...paradas.map((parada) => contraste(candidato, parada)))
-    if (contrasteMinimo > mejorContrasteMinimo) {
-      mejorContrasteMinimo = contrasteMinimo
-      mejor = candidato
-    }
-  }
-
-  return mejor
-}
-
 const ITERACIONES_BUSQUEDA_BINARIA = 40
 
 /**
@@ -39,12 +10,15 @@ const ITERACIONES_BUSQUEDA_BINARIA = 40
  * o blanco puros del mismo matiz/saturación) alcanza el mínimo, devuelve ese
  * extremo — nunca falla.
  *
- * Es la maquinaria compartida detrás de `ajustarGradienteParaTexto` (una
- * parada de degradado ajustada contra el texto fijo) y de
- * `--primario-sobre-superficie` en ProveedorTema (el primario de marca
- * ajustado contra la superficie fija): mismo problema — un color de marca
- * que debe volverse legible sin perder su identidad — a dos niveles
- * distintos del render.
+ * Es la maquinaria detrás de `--primario-sobre-superficie` en ProveedorTema
+ * (el primario de marca ajustado contra la superficie activa): un color de
+ * marca que debe volverse legible como texto sin perder su identidad.
+ *
+ * Nota histórica: hasta la decisión de marca del 24-jul, esta misma función
+ * también ajustaba las paradas del degradado para llevar texto encima
+ * (`ajustarGradienteParaTexto`, ya retirada). Esa ruta se cerró: el degradado
+ * ahora se pinta siempre exacto y nunca lleva texto, así que el único
+ * consumidor que queda es --primario-sobre-superficie.
  */
 export function ajustarColorParaContraste(color: string, contra: string, minimo: number): string {
   if (contraste(color, contra) >= minimo) return color
@@ -78,19 +52,4 @@ export function ajustarColorParaContraste(color: string, contra: string, minimo:
   }
 
   return hslAHex(h, s, hastaL)
-}
-
-/**
- * Devuelve las paradas del degradado ajustadas en luminosidad —conservando su
- * matiz y su saturación— hasta que cada una alcance `minimo` (por defecto
- * 4.5, el umbral WCAG AA para texto normal) de contraste contra `texto`.
- * La identidad de marca se reconoce por el matiz: oscurecer o aclarar una
- * parada la mantiene reconocible, cambiar el matiz la destruye.
- */
-export function ajustarGradienteParaTexto(
-  paradas: string[],
-  texto: string,
-  minimo = 4.5,
-): string[] {
-  return paradas.map((parada) => ajustarColorParaContraste(parada, texto, minimo))
 }
