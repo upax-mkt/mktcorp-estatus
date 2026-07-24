@@ -89,4 +89,78 @@ describe('BarrasComparadas', () => {
       expect(Number(rect.getAttribute('height'))).toBeGreaterThanOrEqual(0)
     }
   })
+
+  it('un cuadrante enteramente en cero mantiene barras planas y no dibuja una línea base engañosa', () => {
+    const datosCero = {
+      categorias: ['ene', 'feb', 'mar'],
+      series: [{ etiqueta: 'Nulo', valores: [0, 0, 0] }],
+    }
+    const { container } = render(<BarrasComparadas datos={datosCero} alto={200} />)
+    const barras = screen.getAllByTestId('barra')
+    expect(barras).toHaveLength(3)
+    for (const barra of barras) {
+      expect(Number(barra.getAttribute('height'))).toBe(0)
+    }
+    expect(container.querySelector('[data-testid="linea-cero"]')).not.toBeInTheDocument()
+  })
+
+  it('con valores negativos, ninguna etiqueta de valor queda a menos de 12px de la etiqueta de categoría de su grupo', () => {
+    const datosNegativos = {
+      categorias: ['ene', 'feb', 'mar'],
+      series: [{ etiqueta: 'Caída %', valores: [-20, -45, -10] }],
+    }
+    render(<BarrasComparadas datos={datosNegativos} alto={200} />)
+    for (let i = 0; i < datosNegativos.categorias.length; i++) {
+      const yCategoria = Number(screen.getByText(datosNegativos.categorias[i]).getAttribute('y'))
+      const valor = datosNegativos.series[0].valores[i]
+      const yValor = Number(screen.getByText(valor.toLocaleString('es-MX')).getAttribute('y'))
+      expect(Math.abs(yCategoria - yValor)).toBeGreaterThanOrEqual(12)
+    }
+  })
+
+  it('una serie con etiqueta larga no produce texto que se salga del ancho del viewBox en la leyenda', () => {
+    const ancho = 640
+    const datosEtiquetaLarga = {
+      categorias: ['ene', 'feb'],
+      series: [
+        { etiqueta: 'Pipeline generado acumulado 2026 vs 2025', valores: [10, 20] },
+        { etiqueta: 'Orgánico 2026', valores: [5, 8] },
+      ],
+    }
+    const { container } = render(<BarrasComparadas datos={datosEtiquetaLarga} alto={200} ancho={ancho} />)
+
+    // La leyenda vive en su propio <g> trasladado; sumamos ese translate al
+    // x del <text> y a una estimación (generosa, no medición real de
+    // navegador) del ancho del texto ya truncado para confirmar que no cruza
+    // el borde derecho del viewBox.
+    const svg = container.querySelector('svg')
+    const gsDeNivelSuperior = Array.from(svg?.querySelectorAll(':scope > g') ?? [])
+    const gLeyenda = gsDeNivelSuperior[gsDeNivelSuperior.length - 1]
+    expect(gsDeNivelSuperior.length).toBe(2)
+    const transform = gLeyenda!.getAttribute('transform') ?? ''
+    const match = transform.match(/translate\(([^,]+),/)
+    const translateX = Number(match?.[1])
+    expect(Number.isFinite(translateX)).toBe(true)
+
+    const textos = Array.from(gLeyenda!.querySelectorAll('text'))
+    expect(textos.length).toBe(2)
+
+    // El texto de la etiqueta larga debe haberse truncado (no aparece
+    // completo) y terminar en puntos suspensivos.
+    const textoLargo = textos.find((t) => t.textContent?.startsWith('Pipeline'))
+    expect(textoLargo).toBeDefined()
+    expect(textoLargo!.textContent).not.toBe(datosEtiquetaLarga.series[0].etiqueta)
+    expect(textoLargo!.textContent?.endsWith('…')).toBe(true)
+
+    // 7.0px/caracter: un poco más pesimista que el factor que usa el propio
+    // componente (fontSize 11 * 0.62 ≈ 6.8px/caracter) para dejar margen de
+    // seguridad, sin ser un número irreal para el ancho promedio de un
+    // caracter a este tamaño de fuente.
+    const ANCHO_ESTIMADO_POR_CARACTER = 7.0
+    for (const texto of textos) {
+      const x = Number(texto.getAttribute('x'))
+      const anchoEstimado = (texto.textContent?.length ?? 0) * ANCHO_ESTIMADO_POR_CARACTER
+      expect(translateX + x + anchoEstimado).toBeLessThanOrEqual(ancho)
+    }
+  })
 })
