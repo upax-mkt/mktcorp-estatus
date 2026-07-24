@@ -1,66 +1,89 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
+
+import { slugsDeSalas, obtenerTema } from '@/temas'
 
 export default function Home() {
+  const salas = slugsDeSalas()
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        padding: '2rem',
+      }}
+    >
+      <main
+        style={{
+          maxWidth: '600px',
+          width: '100%',
+          textAlign: 'center',
+        }}
+      >
+        <h1 style={{ marginBottom: '1rem', fontSize: '2rem', fontWeight: 'bold' }}>
+          mktcorp-estatus
+        </h1>
+
+        <p
+          style={{
+            marginBottom: '2rem',
+            fontSize: '1rem',
+            lineHeight: '1.6',
+            color: 'var(--foreground)',
+          }}
+        >
+          Sistema de estatus en vivo de Marketing Corporativo para las salas de Grupo UPAX.
+        </p>
+
+        <nav>
+          <ul
+            style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            {salas.map((slug) => {
+              const tema = obtenerTema(slug)
+              return (
+                <li key={slug}>
+                  <a
+                    href={`/demo/${slug}`}
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: 'var(--background)',
+                      color: 'var(--foreground)',
+                      border: `1px solid var(--foreground)`,
+                      borderRadius: '0.25rem',
+                      textDecoration: 'none',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
+                        'var(--foreground)'
+                      ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--background)'
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
+                        'var(--background)'
+                      ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--foreground)'
+                    }}
+                  >
+                    {tema.nombre}
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
       </main>
     </div>
-  );
+  )
 }
