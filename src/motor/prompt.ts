@@ -102,6 +102,7 @@ estilo, tu respuesta será descartada.`
 export function construirPrompt(
   inv: Inventario,
   tema: Tema,
+  motivoRechazo?: string,
 ): { system: string; user: string } {
   const system = SYSTEM_BASE.replace('{{LISTA_LAYOUTS}}', listaDeLayouts())
 
@@ -113,6 +114,10 @@ export function construirPrompt(
 
   if (inv.nota) {
     partesUser.push('', `Nota del autor (instrucción u observación a respetar): "${inv.nota}"`)
+  }
+
+  if (motivoRechazo) {
+    partesUser.push('', `Tu intento anterior fue rechazado porque: ${motivoRechazo}. Corrígelo.`)
   }
 
   const user = partesUser.join('\n')

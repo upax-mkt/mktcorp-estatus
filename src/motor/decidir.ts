@@ -16,8 +16,13 @@ export function crearClientePorDefecto(): ClienteDecision {
   return new Anthropic() as unknown as ClienteDecision
 }
 
-export async function decidir(inv: Inventario, tema: Tema, cliente: ClienteDecision): Promise<DecisionSlide> {
-  const { system, user } = construirPrompt(inv, tema)
+export async function decidir(
+  inv: Inventario,
+  tema: Tema,
+  cliente: ClienteDecision,
+  motivoRechazo?: string,
+): Promise<DecisionSlide> {
+  const { system, user } = construirPrompt(inv, tema, motivoRechazo)
   const resp = await cliente.messages.parse({
     model: 'claude-opus-4-8',
     max_tokens: 16000,
