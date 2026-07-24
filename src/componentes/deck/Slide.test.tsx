@@ -33,9 +33,9 @@ describe('Slide', () => {
     expect(screen.getByText('Primero')).toBeInTheDocument()
   })
 
-  it('lanza si el layout no tiene componente', () => {
-    expect(() =>
-      pintar({ layout: 'matriz-estados', titulo: 'x', razon: 'y' }),
-    ).toThrow(/matriz-estados/)
+  it('degrada a layout seguro si el layout no tiene componente, sin reventar el deck', () => {
+    pintar({ layout: 'matriz-estados', titulo: 'x', razon: 'y' })
+    const slide = screen.getByRole('region', { name: 'x' })
+    expect(slide).toHaveAttribute('data-degradado', 'true')
   })
 })

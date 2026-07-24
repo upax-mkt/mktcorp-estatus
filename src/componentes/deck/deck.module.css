@@ -101,3 +101,17 @@
 .columnaTitulo { color: var(--primario-sobre-superficie); font-weight: 600; font-size: 2cqw; margin-bottom: 1.2cqw; }
 .columnas ul { margin: 0; padding-left: 1.6cqw; }
 .columnas li { font-size: 1.6cqw; line-height: 1.5; margin-bottom: .8cqw; }
+
+/* Aviso de que un slide se degradó a LayoutSeguro por falta de componente:
+   fondo de acento suave del tema (nunca un color literal), esquina superior,
+   texto legible sobre --superficie. */
+.avisoRevision {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--acento) 18%, var(--superficie));
+  color: var(--texto);
+  font-size: 1.4cqw;
+  font-weight: 600;
+  padding: .8cqw 1.4cqw;
+  border-radius: 1cqw;
+  margin-bottom: 1.6cqw;
+}
