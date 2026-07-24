@@ -53,6 +53,21 @@ describe('validarDecision', () => {
     const v = validarDecision(d, invConDosCifras)
     if (!v.ok) expect(v.motivo.length).toBeGreaterThan(0)
   })
+
+  it('acepta la cifra aunque la IA recorte o reescriba el rótulo — lo sagrado es el valor', () => {
+    const d = { layout: 'kpis-fila-dos-columnas' as const, titulo: 'x',
+      kpis: [
+        { valor: '9.2', rotulo: 'Posición media' },      // el inventario decía "Posición"
+        { valor: '29K', rotulo: 'Impresiones totales' }, // rótulo reescrito y valor en mayúscula
+      ], razon: 'r' }
+    expect(validarDecision(d, invConDosCifras).ok).toBe(true)
+  })
+
+  it('sigue rechazando cuando falta el VALOR de una cifra, no solo el rótulo', () => {
+    const d = { layout: 'kpis-fila-dos-columnas' as const, titulo: 'x',
+      kpis: [{ valor: '9.2', rotulo: 'Posición' }], razon: 'r' }  // falta el 29k
+    expect(validarDecision(d, invConDosCifras).ok).toBe(false)
+  })
 })
 
 describe('aLayoutSeguro', () => {

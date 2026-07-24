@@ -20,7 +20,11 @@ const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
   portada: 'admite "titulo" (obligatorio) y "subtitulo" (opcional, una línea de contexto).',
   'kpis-fila-dos-columnas':
     'admite "kpis" (arreglo de hasta 4, cada uno con "valor", "rotulo" y "delta" opcional) ' +
-    'y/o "columnas" (arreglo de hasta 4, cada una con "titulo" y "puntos" — una lista de líneas cortas).',
+    'y/o "columnas" (arreglo de hasta 4, cada una con "titulo" y "puntos" — una lista de líneas cortas). ' +
+    'REGLA DE COBERTURA: hay 4 espacios de KPI. Cuando el inventario trae 4 cifras o menos, TODAS ' +
+    'van como KPIs — cada cifra del inventario ocupa un espacio, con su valor, rótulo y delta. Ninguna ' +
+    'cifra se omite ni se degrada a texto de las columnas. Las columnas son para el análisis ' +
+    '(hallazgos, acciones), no para esconder una cifra que no cupo.',
 }
 
 const DESCRIPCION_GENERICA =
@@ -104,10 +108,14 @@ tipográfica. El tema visual de la sala ya está resuelto por otra capa del
 sistema y no es tu responsabilidad ni tu decisión.
 
 REGLA DURA DE DATOS — no negociable:
-Nunca pierdas ni alteres una cifra del inventario (ningún valor, delta ni dato
-numérico). Puedes — y debes — recortar y afilar el texto que la rodea; jamás el
-número en sí. Un slide ejecutivo pierde autoridad si una cifra se cae o se
-distorsiona.
+Cada pieza [cifra] del inventario DEBE aparecer en tu slide. Si eliges el layout
+de KPIs, cada cifra ocupa UN espacio de KPI con su valor EXACTO tal como está en
+el inventario — "29k" se queda "29k", "0.9%" se queda "0.9%", no lo reescribas ni
+lo redondees. Hay 4 espacios de KPI: si el inventario trae 4 cifras, van las 4,
+no una ni tres. Los KPIs NO son opcionales cuando el inventario trae cifras: son
+obligatorios. El análisis cualitativo (hallazgos, acciones) va en las columnas;
+las cifras van en los KPIs. Nunca descartes una cifra por priorizar el análisis:
+un slide ejecutivo con 3 de 4 cifras es un slide incompleto y será rechazado.
 
 SIEMPRE incluyes "razon": una frase concreta que explica por qué esta
 composición comunica mejor la señal de este contenido a un director (por qué

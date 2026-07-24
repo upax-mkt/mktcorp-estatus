@@ -18,11 +18,41 @@ function cifrasDelInventario(inv: Inventario) {
 }
 
 /**
- * Una cifra del inventario está cubierta si algún KPI de la decisión coincide
- * con ella por valor y por rótulo — el mismo dato, el mismo nombre.
+ * Normaliza un valor numérico para comparar: sin espacios, sin mayúsculas.
+ * "29k" y "29K", "$4.2 MDP" y "$4.2 mdp" son el mismo dato.
  */
-function cifraCubierta(cifra: { valor: string; rotulo: string }, kpis: DecisionSlide['kpis']) {
-  return (kpis ?? []).some((k) => k.valor === cifra.valor && k.rotulo === cifra.rotulo)
+function normalizarValor(v: string): string {
+  return v.replace(/\s+/g, '').toLowerCase()
+}
+
+/**
+ * Una cifra del inventario está cubierta si algún KPI de la decisión trae el
+ * mismo VALOR — el número es el dato que no se puede perder ni alterar. El
+ * rótulo NO se compara: el prompt instruye a la IA a recortar y afilar los
+ * rótulos con criterio ejecutivo ("Impresiones" puede volverse otro texto),
+ * así que exigir rótulo idéntico haría que un simple recorte se leyera como
+ * cifra perdida. Lo sagrado es el valor, no su nombre.
+ */
+function cifraCubierta(cifra: { valor: string }, decision: DecisionSlide) {
+  const objetivo = normalizarValor(cifra.valor)
+
+  // 1. Como KPI (el caso preferido).
+  if ((decision.kpis ?? []).some((k) => normalizarValor(k.valor) === objetivo)) return true
+
+  // 2. O mencionada dentro del contenido textual del slide. Si la IA reparte el
+  //    dato en una viñeta de análisis ("perdieron 29k impresiones") en vez de
+  //    como KPI, el dato NO se perdió — sigue presente frente al director. La
+  //    regla de negocio es que la cifra no desaparezca, no que sea un KPI.
+  const textos: string[] = []
+  if (decision.subtitulo) textos.push(decision.subtitulo)
+  if (decision.cuerpo) textos.push(...decision.cuerpo)
+  if (decision.columnas) {
+    for (const col of decision.columnas) {
+      textos.push(col.titulo)
+      textos.push(...col.puntos)
+    }
+  }
+  return textos.some((t) => normalizarValor(t).includes(objetivo))
 }
 
 /**
@@ -54,7 +84,7 @@ export function validarDecision(decision: DecisionSlide, inv: Inventario): Vered
 
   if (decision.layout === 'kpis-fila-dos-columnas') {
     const cifras = cifrasDelInventario(inv)
-    const faltantes = cifras.filter((c) => !cifraCubierta(c, decision.kpis))
+    const faltantes = cifras.filter((c) => !cifraCubierta(c, decision))
     if (faltantes.length > 0) {
       const detalle = faltantes.map((c) => `${c.rotulo}: ${c.valor}`).join(', ')
       return { ok: false, motivo: `La decisión de KPIs perdió cifras del inventario: ${detalle}` }
