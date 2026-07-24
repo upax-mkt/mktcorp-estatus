@@ -140,12 +140,76 @@
 .minutaIcono { color: var(--tx-3); }
 .minutaEnviada { font-size: 0.78rem; color: var(--tx-3); }
 
-/* ---- benchmark (placeholder) ---- */
+/* ---- benchmark competitivo ---- */
 .benchmark {
-  border: 1px dashed var(--borde-fuerte); border-radius: 0.9rem;
-  padding: 1.75rem; background: var(--superficie-2);
+  border: 1px solid var(--borde); border-radius: 0.9rem;
+  padding: clamp(1.1rem, 3vw, 1.75rem); background: var(--superficie);
 }
-.benchmarkTitulo { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.4rem; display: flex; align-items: center; gap: 0.6rem; }
-.benchmarkPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); }
-.benchmarkTexto { font-size: 0.9rem; color: var(--tx-2); line-height: 1.5; max-width: 60ch; }
-.benchmarkNota { font-size: 0.78rem; color: var(--tx-3); margin-top: 0.75rem; }
+.benchmarkPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); flex: none; }
+.benchmarkNota { font-size: 0.78rem; color: var(--tx-3); }
+
+/* La lectura de Mkt Corp va primero — es lo que el director quiere leer. */
+.benchmarkLectura {
+  border-left: 3px solid var(--marca); border-radius: 0.3rem;
+  padding: 0.15rem 0 0.15rem 1rem; margin-bottom: 1.5rem;
+  background: color-mix(in oklch, var(--marca) 6%, var(--superficie));
+}
+.benchmarkLecturaEtiqueta {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; color: var(--marca); margin-bottom: 0.4rem;
+}
+.benchmarkLecturaTexto { font-size: 0.95rem; line-height: 1.55; color: var(--tx); max-width: 72ch; }
+
+/* Matriz: dimensiones × (UDN + 5 competidores). Scroll horizontal propio en
+   móvil — nunca desborda la página (spec: "responsivo"). */
+.benchmarkMatrizWrap {
+  overflow-x: auto; border-radius: 0.6rem; border: 1px solid var(--borde);
+  -webkit-overflow-scrolling: touch;
+}
+.benchmarkMatriz {
+  width: 100%; min-width: 760px; border-collapse: collapse; font-size: 0.82rem;
+}
+.benchmarkMatriz thead th {
+  text-align: left; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-2); background: var(--superficie-2);
+  padding: 0.7rem 0.85rem; white-space: nowrap; border-bottom: 1px solid var(--borde-fuerte);
+}
+.benchmarkMatriz td {
+  padding: 0.65rem 0.85rem; border-top: 1px solid var(--borde); vertical-align: middle;
+}
+.benchmarkMatriz tbody tr:hover { background: color-mix(in oklch, var(--superficie-2) 60%, transparent); }
+.benchmarkColDimension {
+  position: sticky; left: 0; z-index: 1; background: var(--superficie-2);
+  min-width: 15rem; max-width: 19rem;
+}
+.benchmarkFilaDimension {
+  position: sticky; left: 0; z-index: 1; background: var(--superficie);
+  font-weight: 500; color: var(--tx); min-width: 15rem; max-width: 19rem; line-height: 1.35;
+}
+.benchmarkMatriz tbody tr:hover .benchmarkFilaDimension {
+  background: color-mix(in oklch, var(--superficie-2) 60%, var(--superficie));
+}
+/* Columna de la propia UDN: se distingue del resto de competidores. */
+.benchmarkColUdn {
+  border-left: 2px solid var(--marca); border-right: 2px solid var(--marca);
+  background: color-mix(in oklch, var(--marca) 5%, var(--superficie));
+}
+.benchmarkColUdnEtiqueta { color: var(--marca); }
+
+/* Chips de valoración: líder destacado con --marca, rezagado tenue. */
+.chip {
+  display: inline-block; font-size: 0.76rem; font-weight: 600;
+  padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap;
+}
+.chipLider {
+  background: color-mix(in oklch, var(--marca) 18%, transparent);
+  color: var(--marca); font-weight: 700;
+}
+.chipPar { background: var(--superficie-2); color: var(--tx-2); }
+.chipRezagado {
+  background: transparent; color: var(--tx-3);
+  border: 1px dashed var(--borde-fuerte); opacity: 0.85;
+}
+
+.benchmarkActualizado { font-size: 0.78rem; color: var(--tx-3); margin-top: 1rem; }

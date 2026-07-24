@@ -8,7 +8,9 @@ import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
 import { moverEstatus, editarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import { obtenerBenchmark } from '@/db/benchmark'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
+import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 
 const FECHA = new Date('2026-07-24T12:00:00')
 
@@ -55,6 +57,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
   const s = await estadoDeSala(slug)
   if (!s) notFound()
+  const benchmark = await obtenerBenchmark(slug)
 
   // ---- Server actions: acuerdos editables (spec §4/§6, tarea "Acuerdos editables") ----
   // Solo el equipo Mkt Corp debería llegar aquí (spec §4: "Solo el equipo Mkt
@@ -203,21 +206,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </div>
         </section>
 
-        {/* Benchmark — placeholder a la espera de la referencia de Franco */}
+        {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}
         <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Benchmark competitivo</h2>
-          <div className={estilos.benchmark}>
-            <div className={estilos.benchmarkTitulo}>
-              <span className={estilos.benchmarkPunto} />
-              {s.nombre} frente a sus 5 competidores
-            </div>
-            <p className={estilos.benchmarkTexto}>
-              El análisis competitivo que Marketing Corp desarrolla y nutre para {s.nombre},
-              siguiendo cinco competidores en el tiempo. Vive aquí, a nivel de sala, para que
-              el director consulte su posición sin depender de una reunión.
-            </p>
-            <p className={estilos.benchmarkNota}>Próximamente · en construcción</p>
-          </div>
+          <h2 className={estilos.seccionTitulo}>
+            Benchmark competitivo
+            {benchmark && <span className={estilos.conteo}>{s.nombre} + {benchmark.competidores.length} competidores</span>}
+          </h2>
+          <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} />
         </section>
       </main>
     </div>
