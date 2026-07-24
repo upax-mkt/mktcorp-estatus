@@ -1,0 +1,133 @@
+/* Hub de Mkt Corp — light cálido tintado hacia la identidad UPAX, tipografía Outfit.
+   Neutros en OKLCH tintados al naranja de marca; el color de cada sala es su identidad. */
+
+.app {
+  --acento: oklch(0.62 0.19 42);          /* naranja UPAX */
+  --acento-suave: oklch(0.62 0.19 42 / 0.1);
+  --fondo: oklch(0.985 0.006 70);
+  --superficie: oklch(1 0 0);
+  --superficie-2: oklch(0.975 0.008 70);
+  --borde: oklch(0.91 0.012 70);
+  --borde-fuerte: oklch(0.84 0.014 70);
+  --tx: oklch(0.26 0.025 55);
+  --tx-2: oklch(0.52 0.02 55);
+  --tx-3: oklch(0.66 0.015 55);
+  --alerta: oklch(0.57 0.2 25);           /* vencido */
+  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
+  --tibia: oklch(0.72 0.13 70);
+  --ok: oklch(0.6 0.12 155);
+  --barra: oklch(0.24 0.03 55);           /* top bar oscura tintada */
+  --barra-tx: oklch(0.96 0.008 70);
+
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- barra superior ---- */
+.barra {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
+  background: var(--barra); color: var(--barra-tx);
+}
+.marca { display: flex; align-items: baseline; gap: 0.6rem; }
+.marcaLogo {
+  font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;
+  display: inline-flex; align-items: center; gap: 0.05em;
+}
+.marcaRayo { color: var(--acento); }
+.marcaSub { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.6; font-weight: 500; }
+.barraDcha { display: flex; align-items: center; gap: 1.25rem; font-size: 0.85rem; }
+.barraLink { color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-weight: 500; }
+.barraLink:hover { opacity: 1; }
+.barraFecha { opacity: 0.5; font-variant-numeric: tabular-nums; }
+
+/* ---- contenedor ---- */
+.main { max-width: 1180px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+
+/* ---- encabezado + pulso ---- */
+.encabezado { margin-bottom: 2.5rem; }
+.saludo { font-size: clamp(1.75rem, 4vw, 2.4rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.4rem; }
+.saludoSub { color: var(--tx-2); font-size: 1rem; margin: 0 0 1.75rem; }
+
+.pulso {
+  display: flex; flex-wrap: wrap; gap: 0 2.5rem;
+  padding: 1.1rem 0; border-top: 1px solid var(--borde); border-bottom: 1px solid var(--borde);
+}
+.pulsoItem { display: flex; flex-direction: column; gap: 0.15rem; }
+.pulsoCifra { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
+.pulsoCifra.alerta { color: var(--alerta); }
+.pulsoLabel { font-size: 0.78rem; color: var(--tx-3); }
+.pulsoDesatendida { margin-left: auto; align-self: center; text-align: right; }
+.pulsoDesatendida .n { font-size: 0.78rem; color: var(--tx-3); }
+.pulsoDesatendida .v { font-size: 0.95rem; font-weight: 600; color: var(--tibia); }
+
+/* ---- disposición dos columnas ---- */
+.cuerpo { display: grid; grid-template-columns: 1fr; gap: 2.5rem; }
+@media (min-width: 940px) { .cuerpo { grid-template-columns: 1.7fr 1fr; } }
+
+.seccionTitulo {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 600; margin: 0 0 1rem;
+}
+.seccionTitulo .conteo { color: var(--tx-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+/* ---- lista de salas ---- */
+.salas { display: flex; flex-direction: column; }
+.sala {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center; gap: 1rem;
+  padding: 1rem 0.75rem;
+  border-top: 1px solid var(--borde);
+  text-decoration: none; color: inherit;
+  transition: background 160ms ease, padding-left 160ms ease;
+}
+.sala:last-child { border-bottom: 1px solid var(--borde); }
+.sala:hover { background: var(--superficie-2); padding-left: 1.1rem; }
+
+.salaCentro { min-width: 0; }
+.salaNombre { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
+.salaPunto { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex: none; }
+.salaMeta { font-size: 0.82rem; color: var(--tx-2); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.salaMeta .sep { color: var(--borde-fuerte); }
+.temp { font-weight: 600; }
+.temp.reciente { color: var(--ok); }
+.temp.tibia { color: var(--tibia); }
+.temp.fria { color: var(--alerta); }
+
+.salaDcha { display: flex; align-items: center; gap: 1.1rem; }
+.chips { display: flex; align-items: center; gap: 0.4rem; }
+.chip {
+  font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 0.15rem 0.5rem; border-radius: 0.4rem;
+  background: var(--superficie-2); color: var(--tx-2); border: 1px solid var(--borde);
+}
+.chip.vencidos { background: var(--alerta-suave); color: var(--alerta); border-color: transparent; }
+.chip.prep { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
+.flecha { color: var(--tx-3); font-size: 1.1rem; transition: transform 160ms ease, color 160ms ease; }
+.sala:hover .flecha { color: var(--acento); transform: translateX(2px); }
+
+/* ---- panel acuerdos en riesgo ---- */
+.riesgo { }
+.riesgoLista { display: flex; flex-direction: column; gap: 0; }
+.riesgoItem {
+  display: grid; grid-template-columns: auto 1fr; gap: 0.7rem;
+  padding: 0.85rem 0; border-top: 1px solid var(--borde);
+  text-decoration: none; color: inherit;
+}
+.riesgoItem:last-child { border-bottom: 1px solid var(--borde); }
+.riesgoItem:hover .riesgoQue { color: var(--acento); }
+.riesgoColor { width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-top: 0.35rem; flex: none; }
+.riesgoQue { font-size: 0.9rem; line-height: 1.35; font-weight: 500; transition: color 160ms ease; }
+.riesgoMeta { font-size: 0.76rem; color: var(--tx-3); margin-top: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.riesgoEstado { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
+.riesgoEstado.vencido { color: var(--alerta); }
+.riesgoEstado.sinfecha { color: var(--tibia); }
+.riesgoSala { color: var(--tx-2); font-weight: 600; }
+
+.vacio { color: var(--tx-3); font-size: 0.9rem; padding: 1rem 0; }

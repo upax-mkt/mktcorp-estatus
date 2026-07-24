@@ -1,65 +1,148 @@
-import { slugsDeSalas, obtenerTema } from '@/temas'
-import styles from './page.module.css'
+import Link from 'next/link'
+import estilos from './hub.module.css'
+import {
+  estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
+  acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes,
+} from '@/datos-ejemplo'
 
-export default function Home() {
-  const salas = slugsDeSalas()
+const FECHA = new Date('2026-07-24T12:00:00')
+
+function fechaLarga(d: Date): string {
+  return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+}
+function textoTemp(dias: number | null): string {
+  if (dias == null) return 'sin sesión aún'
+  if (dias === 0) return 'hoy'
+  if (dias === 1) return 'ayer'
+  return `hace ${dias} días`
+}
+function textoProxima(iso: string | null): string {
+  if (!iso) return 'sin próxima sesión agendada'
+  const d = new Date(iso)
+  const dias = Math.round((d.getTime() - FECHA.getTime()) / 86_400_000)
+  const cuando = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+  return `próxima ${cuando}${dias >= 0 ? ` · en ${dias} d` : ''}`
+}
+
+export default function Hub() {
+  const salas = ordenarPorUrgencia(estadoDeSalas())
+  const riesgo = acuerdosEnRiesgo()
+  const pulso = pulsoDelMes()
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        padding: '2rem',
-      }}
-    >
-      <main
-        style={{
-          maxWidth: '600px',
-          width: '100%',
-          textAlign: 'center',
-        }}
-      >
-        <h1 style={{ marginBottom: '1rem', fontSize: '2rem', fontWeight: 'bold' }}>
-          mktcorp-estatus
-        </h1>
-
-        <p
-          style={{
-            marginBottom: '2rem',
-            fontSize: '1rem',
-            lineHeight: '1.6',
-            color: 'var(--foreground)',
-          }}
-        >
-          Sistema de estatus en vivo de Marketing Corporativo para las salas de Grupo UPAX.
-        </p>
-
-        <nav>
-          <ul
-            style={{
-              listStyle: 'none',
-              padding: 0,
-              margin: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-            }}
-          >
-            {salas.map((slug) => {
-              const tema = obtenerTema(slug)
-              return (
-                <li key={slug}>
-                  <a href={`/demo/${slug}`} className={styles.enlaceSala}>
-                    {tema.nombre}
-                  </a>
-                </li>
-              )
-            })}
-          </ul>
+    <div className={estilos.app}>
+      <header className={estilos.barra}>
+        <div className={estilos.marca}>
+          <span className={estilos.marcaLogo}>M<span className={estilos.marcaRayo}>/</span>C</span>
+          <span className={estilos.marcaSub}>Marketing Corp</span>
+        </div>
+        <nav className={estilos.barraDcha}>
+          <span className={estilos.barraFecha}>{fechaLarga(FECHA)}</span>
         </nav>
+      </header>
+
+      <main className={estilos.main}>
+        <div className={estilos.encabezado}>
+          <h1 className={estilos.saludo}>Salas</h1>
+          <p className={estilos.saludoSub}>El estado de la relación con cada unidad, de un vistazo.</p>
+
+          <div className={estilos.pulso}>
+            <div className={estilos.pulsoItem}>
+              <span className={estilos.pulsoCifra}>{pulso.salas}</span>
+              <span className={estilos.pulsoLabel}>salas</span>
+            </div>
+            <div className={estilos.pulsoItem}>
+              <span className={estilos.pulsoCifra}>{pulso.sesionesUltimos30}</span>
+              <span className={estilos.pulsoLabel}>con sesión este mes</span>
+            </div>
+            <div className={estilos.pulsoItem}>
+              <span className={estilos.pulsoCifra}>{pulso.acuerdosAbiertos}</span>
+              <span className={estilos.pulsoLabel}>acuerdos abiertos</span>
+            </div>
+            <div className={estilos.pulsoItem}>
+              <span className={`${estilos.pulsoCifra} ${pulso.acuerdosVencidos > 0 ? estilos.alerta : ''}`}>
+                {pulso.acuerdosVencidos}
+              </span>
+              <span className={estilos.pulsoLabel}>vencidos</span>
+            </div>
+            {pulso.salaMasDesatendida && (
+              <div className={estilos.pulsoDesatendida}>
+                <div className={estilos.n}>más desatendida</div>
+                <div className={estilos.v}>{pulso.salaMasDesatendida.nombre} · {pulso.salaMasDesatendida.dias} d</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={estilos.cuerpo}>
+          {/* Lista de salas por urgencia */}
+          <section>
+            <h2 className={estilos.seccionTitulo}>
+              Las 10 salas
+              <span className={estilos.conteo}>ordenadas por atención pendiente</span>
+            </h2>
+            <div className={estilos.salas}>
+              {salas.map((s) => {
+                const t = temperatura(s)
+                const abiertos = acuerdosAbiertos(s)
+                const vencidos = acuerdosVencidos(s)
+                return (
+                  <Link key={s.slug} href={`/sala/${s.slug}`} className={estilos.sala}>
+                    <div className={estilos.salaCentro}>
+                      <div className={estilos.salaNombre}>
+                        <span className={estilos.salaPunto} style={{ background: s.color }} />
+                        {s.nombre}
+                      </div>
+                      <div className={estilos.salaMeta}>
+                        <span className={`${estilos.temp} ${estilos[t]}`}>{textoTemp(s.diasDesdeUltima)}</span>
+                        <span className={estilos.sep}>·</span>
+                        <span>{textoProxima(s.proximaSesion)}</span>
+                      </div>
+                    </div>
+                    <div className={estilos.salaDcha}>
+                      <div className={estilos.chips}>
+                        {s.enPreparacion && <span className={estilos.chip + ' ' + estilos.prep}>en preparación</span>}
+                        {vencidos > 0 && <span className={estilos.chip + ' ' + estilos.vencidos}>{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
+                        {abiertos > 0 && <span className={estilos.chip}>{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
+                      </div>
+                      <span className={estilos.flecha}>→</span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* Acuerdos en riesgo */}
+          <aside className={estilos.riesgo}>
+            <h2 className={estilos.seccionTitulo}>
+              Acuerdos en riesgo
+              <span className={estilos.conteo}>{riesgo.length}</span>
+            </h2>
+            {riesgo.length === 0 ? (
+              <p className={estilos.vacio}>Nada vencido ni sin fecha. Todo bajo control.</p>
+            ) : (
+              <div className={estilos.riesgoLista}>
+                {riesgo.map((a) => (
+                  <Link key={a.id} href={`/sala/${a.salaSlug}`} className={estilos.riesgoItem}>
+                    <span className={estilos.riesgoColor} style={{ background: a.salaColor }} />
+                    <div>
+                      <div className={estilos.riesgoQue}>{a.que}</div>
+                      <div className={estilos.riesgoMeta}>
+                        <span className={`${estilos.riesgoEstado} ${a.estatus === 'vencido' ? estilos.vencido : estilos.sinfecha}`}>
+                          {a.estatus === 'vencido' ? 'vencido' : 'sin fecha'}
+                        </span>
+                        <span className={estilos.riesgoSala}>{a.salaNombre}</span>
+                        {a.responsable && a.responsable !== 'por asignar' && <span>· {a.responsable}</span>}
+                        {a.responsable === 'por asignar' && <span>· sin dueño</span>}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </aside>
+        </div>
       </main>
     </div>
   )

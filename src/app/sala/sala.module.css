@@ -1,0 +1,137 @@
+/* Vista de sala — vestida con la identidad de la UDN. El color de marca entra
+   por --marca (inline); el resto son neutros cálidos como en el hub. */
+
+.app {
+  --acento: oklch(0.62 0.19 42);
+  --fondo: oklch(0.985 0.006 70);
+  --superficie: oklch(1 0 0);
+  --superficie-2: oklch(0.975 0.008 70);
+  --borde: oklch(0.91 0.012 70);
+  --borde-fuerte: oklch(0.84 0.014 70);
+  --tx: oklch(0.26 0.025 55);
+  --tx-2: oklch(0.52 0.02 55);
+  --tx-3: oklch(0.66 0.015 55);
+  --alerta: oklch(0.57 0.2 25);
+  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
+  --ok: oklch(0.6 0.12 155);
+  --tibia: oklch(0.72 0.13 70);
+  --barra: oklch(0.24 0.03 55);
+  --barra-tx: oklch(0.96 0.008 70);
+
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- barra superior ---- */
+.barra {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
+  background: var(--barra); color: var(--barra-tx);
+}
+.volver {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-size: 0.88rem; font-weight: 500;
+}
+.volver:hover { opacity: 1; }
+.barraSala { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; margin-left: auto; }
+.barraPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); }
+
+/* ---- encabezado vestido de marca ---- */
+.hero {
+  background: var(--gradiente);
+  color: #fff;
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem);
+}
+.heroInner { max-width: 1080px; margin: 0 auto; }
+.heroKicker { font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.85; font-weight: 600; margin-bottom: 0.6rem; }
+.heroNombre { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1; }
+.heroMeta { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1.5rem; }
+.heroMetaItem { display: flex; flex-direction: column; gap: 0.15rem; }
+.heroMetaV { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.heroMetaL { font-size: 0.75rem; opacity: 0.8; }
+
+/* ---- contenedor ---- */
+.main { max-width: 1080px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.seccion { margin-bottom: 3rem; }
+.seccionTitulo {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 600; margin: 0 0 1rem;
+}
+.seccionTitulo .conteo { color: var(--tx-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+/* ---- acuerdos ---- */
+.acuerdos { display: flex; flex-direction: column; }
+.acuerdo {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 1rem;
+  padding: 1rem 0; border-top: 1px solid var(--borde);
+}
+.acuerdo:last-child { border-bottom: 1px solid var(--borde); }
+.acuerdoEstado {
+  width: 0.65rem; height: 0.65rem; border-radius: 50%; margin-top: 0.4rem; flex: none;
+}
+.acuerdoEstado.abierto { background: var(--marca); }
+.acuerdoEstado.cumplido { background: var(--ok); }
+.acuerdoEstado.vencido { background: var(--alerta); }
+.acuerdoQue { font-size: 0.98rem; line-height: 1.4; font-weight: 500; }
+.acuerdoMeta { font-size: 0.8rem; color: var(--tx-2); margin-top: 0.35rem; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+.acuerdoMeta .sep { color: var(--borde-fuerte); }
+.acuerdoFecha { font-variant-numeric: tabular-nums; }
+.acuerdoFecha.vencida { color: var(--alerta); font-weight: 600; }
+.acuerdoFecha.pordef { color: var(--tibia); font-weight: 600; }
+.acuerdoBadge {
+  align-self: center; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 0.2rem 0.55rem; border-radius: 0.4rem; white-space: nowrap;
+}
+.acuerdoBadge.abierto { background: var(--superficie-2); color: var(--tx-2); }
+.acuerdoBadge.cumplido { background: oklch(0.6 0.12 155 / 0.12); color: var(--ok); }
+.acuerdoBadge.vencido { background: var(--alerta-suave); color: var(--alerta); }
+
+/* ---- presentaciones ---- */
+.presDestacada {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
+  padding: 1.4rem; border-radius: 0.9rem; border: 1px solid var(--borde);
+  background: var(--superficie); text-decoration: none; color: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.presDestacada:hover { border-color: var(--marca); box-shadow: 0 4px 20px oklch(0.26 0.025 55 / 0.06); }
+.presTag { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--marca); font-weight: 700; }
+.presTitulo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0.35rem 0 0.2rem; }
+.presFecha { font-size: 0.82rem; color: var(--tx-2); }
+.presVer {
+  display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.9rem;
+  color: var(--marca); white-space: nowrap;
+}
+.presTimeline { margin-top: 1rem; display: flex; flex-direction: column; }
+.presFila {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.75rem 0.25rem; border-top: 1px solid var(--borde); font-size: 0.9rem;
+}
+.presFila:last-child { border-bottom: 1px solid var(--borde); }
+.presFilaTitulo { color: var(--tx); font-weight: 500; }
+.presFilaFecha { color: var(--tx-3); font-variant-numeric: tabular-nums; font-size: 0.82rem; }
+
+/* ---- minutas ---- */
+.minutas { display: flex; flex-direction: column; }
+.minuta {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde); font-size: 0.92rem;
+}
+.minuta:last-child { border-bottom: 1px solid var(--borde); }
+.minutaIzq { display: flex; align-items: center; gap: 0.7rem; }
+.minutaIcono { color: var(--tx-3); }
+.minutaEnviada { font-size: 0.78rem; color: var(--tx-3); }
+
+/* ---- benchmark (placeholder) ---- */
+.benchmark {
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.9rem;
+  padding: 1.75rem; background: var(--superficie-2);
+}
+.benchmarkTitulo { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.4rem; display: flex; align-items: center; gap: 0.6rem; }
+.benchmarkPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); }
+.benchmarkTexto { font-size: 0.9rem; color: var(--tx-2); line-height: 1.5; max-width: 60ch; }
+.benchmarkNota { font-size: 0.78rem; color: var(--tx-3); margin-top: 0.75rem; }
