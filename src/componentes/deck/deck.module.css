@@ -59,6 +59,10 @@
 .kpiRotulo { font-size: 1.4cqw; margin-top: .8cqw; }
 
 .columnas { display: grid; grid-template-columns: repeat(var(--columnas-cantidad, 2), 1fr); gap: 3cqw; }
-.columnaTitulo { color: var(--primario); font-weight: 600; font-size: 2cqw; margin-bottom: 1.2cqw; }
+/* --primario-sobre-superficie es --primario ajustado (mismo matiz/saturación)
+   hasta contrastar ≥4.5:1 contra --superficie; ver ProveedorTema.tsx. Nunca
+   usar --primario directo para texto: no todas las marcas cumplen (Promo
+   Espacio cae a 2.97:1 sobre su superficie clara). */
+.columnaTitulo { color: var(--primario-sobre-superficie); font-weight: 600; font-size: 2cqw; margin-bottom: 1.2cqw; }
 .columnas ul { margin: 0; padding-left: 1.6cqw; }
 .columnas li { font-size: 1.6cqw; line-height: 1.5; margin-bottom: .8cqw; }

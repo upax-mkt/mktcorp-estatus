@@ -32,27 +32,36 @@ export function mejorTextoSobre(paradas: string[], candidatos: string[]): string
 const ITERACIONES_BUSQUEDA_BINARIA = 40
 
 /**
- * Ajusta una sola parada en luminosidad (conservando matiz y saturación) hasta
- * que contraste ≥ minimo contra el color de texto. Si la parada ya cumple, la
- * devuelve intacta. Si ni siquiera el extremo (negro o blanco puros del mismo
- * matiz/saturación) alcanza el mínimo, devuelve ese extremo — nunca falla.
+ * Ajusta `color` en luminosidad (conservando matiz y saturación) hasta que
+ * contraste ≥ minimo contra `contra` (un color de referencia fijo — texto o
+ * superficie, no importa cuál sea semánticamente: la función es simétrica).
+ * Si `color` ya cumple, lo devuelve intacto. Si ni siquiera el extremo (negro
+ * o blanco puros del mismo matiz/saturación) alcanza el mínimo, devuelve ese
+ * extremo — nunca falla.
+ *
+ * Es la maquinaria compartida detrás de `ajustarGradienteParaTexto` (una
+ * parada de degradado ajustada contra el texto fijo) y de
+ * `--primario-sobre-superficie` en ProveedorTema (el primario de marca
+ * ajustado contra la superficie fija): mismo problema — un color de marca
+ * que debe volverse legible sin perder su identidad — a dos niveles
+ * distintos del render.
  */
-function ajustarParada(parada: string, texto: string, minimo: number): string {
-  if (contraste(parada, texto) >= minimo) return parada
+export function ajustarColorParaContraste(color: string, contra: string, minimo: number): string {
+  if (contraste(color, contra) >= minimo) return color
 
-  const { h, s, l } = hexAHsl(parada)
+  const { h, s, l } = hexAHsl(color)
 
   // Determina hacia qué extremo (L=0 o L=100) crece el contraste, probando
-  // ambos: así no dependemos de asumir qué tan "clara" es la parada original,
+  // ambos: así no dependemos de asumir qué tan "claro" es el color original,
   // sólo de la función `contraste` real.
   const extremoOscuro = hslAHex(h, s, 0)
   const extremoClaro = hslAHex(h, s, 100)
-  const extremoL = contraste(extremoOscuro, texto) >= contraste(extremoClaro, texto) ? 0 : 100
+  const extremoL = contraste(extremoOscuro, contra) >= contraste(extremoClaro, contra) ? 0 : 100
   const extremoHex = extremoL === 0 ? extremoOscuro : extremoClaro
 
   // Ni el extremo alcanza el mínimo: no hay forma de cumplir sin cambiar
-  // matiz/saturación, así que llevamos la parada al extremo y no fallamos.
-  if (contraste(extremoHex, texto) < minimo) return extremoHex
+  // matiz/saturación, así que llevamos el color al extremo y no fallamos.
+  if (contraste(extremoHex, contra) < minimo) return extremoHex
 
   // Búsqueda binaria del punto más cercano a la luminosidad original que
   // todavía cumple el mínimo, para alejarse de la marca lo menos posible.
@@ -61,7 +70,7 @@ function ajustarParada(parada: string, texto: string, minimo: number): string {
   for (let i = 0; i < ITERACIONES_BUSQUEDA_BINARIA; i++) {
     const medioL = (desdeL + hastaL) / 2
     const candidato = hslAHex(h, s, medioL)
-    if (contraste(candidato, texto) >= minimo) {
+    if (contraste(candidato, contra) >= minimo) {
       hastaL = medioL
     } else {
       desdeL = medioL
@@ -83,5 +92,5 @@ export function ajustarGradienteParaTexto(
   texto: string,
   minimo = 4.5,
 ): string[] {
-  return paradas.map((parada) => ajustarParada(parada, texto, minimo))
+  return paradas.map((parada) => ajustarColorParaContraste(parada, texto, minimo))
 }

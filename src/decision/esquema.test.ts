@@ -25,7 +25,8 @@ describe('parsearDecision', () => {
   })
 
   it('rechaza una decisión sin razón', () => {
-    const { razon, ...sinRazon } = VALIDA
+    const sinRazon: Record<string, unknown> = { ...VALIDA }
+    delete sinRazon.razon
     expect(() => parsearDecision(sinRazon)).toThrow()
   })
 

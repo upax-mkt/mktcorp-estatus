@@ -95,3 +95,55 @@ describe.each(Object.values(TEMAS))(
     })
   },
 )
+
+// Éste es el corazón del arreglo de contraste de --primario-sobre-superficie:
+// para las 10 salas del registro y para AMBAS superficies (clara y oscura),
+// el token debe contrastar ≥4.5:1 contra --superficie. Antes del fix,
+// deck.module.css pintaba texto (.columnaTitulo) directo con --primario, sin
+// que nada validara ese par: Promo Espacio caía a 2.97:1 y otras cinco marcas
+// quedaban por debajo de 4.5:1 sobre superficieClara. Este test es lo que
+// impide que ese defecto vuelva.
+describe.each(Object.values(TEMAS))(
+  '$nombre: --primario-sobre-superficie contrasta ≥4.5:1 contra --superficie',
+  (tema) => {
+    it.each(['clara', 'oscura'] as const)('sobre superficie %s', (superficie) => {
+      render(
+        <ProveedorTema tema={tema} superficie={superficie}>
+          <i />
+        </ProveedorTema>,
+      )
+      const estilo = screen.getByTestId('tema').style
+      const primarioSobreSuperficie = estilo.getPropertyValue('--primario-sobre-superficie')
+      const superficieActiva = estilo.getPropertyValue('--superficie')
+
+      expect(primarioSobreSuperficie).toMatch(/^#[0-9A-Fa-f]{6}$/)
+      expect(contraste(primarioSobreSuperficie, superficieActiva)).toBeGreaterThanOrEqual(4.5)
+    })
+  },
+)
+
+describe('--primario-sobre-superficie', () => {
+  it('no toca el primario cuando ya cumple 4.5:1 contra la superficie', () => {
+    // NeraCode: #3E31CC contra superficieClara #FFFFFF da 8.35:1, ya cumple.
+    render(
+      <ProveedorTema tema={obtenerTema('neracode')} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    const estilo = screen.getByTestId('tema').style
+    expect(estilo.getPropertyValue('--primario-sobre-superficie')).toBe('#3E31CC')
+  })
+
+  it('deja --primario intacto (color de marca puro, sin ajustar)', () => {
+    // Promo Espacio: #F94700 sólo da 2.97:1 contra su superficieClara, pero
+    // --primario debe seguir publicando el color de marca puro sin tocar.
+    render(
+      <ProveedorTema tema={obtenerTema('promo-espacio')} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    const estilo = screen.getByTestId('tema').style
+    expect(estilo.getPropertyValue('--primario')).toBe('#F94700')
+    expect(estilo.getPropertyValue('--primario-sobre-superficie')).not.toBe('#F94700')
+  })
+})

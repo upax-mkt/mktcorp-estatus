@@ -4,7 +4,7 @@ Sistema de estatus en vivo de Marketing Corporativo para las salas de Grupo UPAX
 
 ## Stack
 
-- [Next.js](https://nextjs.org) 15+
+- [Next.js](https://nextjs.org) 16
 - TypeScript
 - [Vitest](https://vitest.dev) (testing)
 

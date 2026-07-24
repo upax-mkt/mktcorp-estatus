@@ -1,6 +1,5 @@
-'use client'
-
 import { slugsDeSalas, obtenerTema } from '@/temas'
+import styles from './page.module.css'
 
 export default function Home() {
   const salas = slugsDeSalas()
@@ -53,29 +52,7 @@ export default function Home() {
               const tema = obtenerTema(slug)
               return (
                 <li key={slug}>
-                  <a
-                    href={`/demo/${slug}`}
-                    style={{
-                      display: 'inline-block',
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: 'var(--background)',
-                      color: 'var(--foreground)',
-                      border: `1px solid var(--foreground)`,
-                      borderRadius: '0.25rem',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
-                        'var(--foreground)'
-                      ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--background)'
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.backgroundColor =
-                        'var(--background)'
-                      ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--foreground)'
-                    }}
-                  >
+                  <a href={`/demo/${slug}`} className={styles.enlaceSala}>
                     {tema.nombre}
                   </a>
                 </li>

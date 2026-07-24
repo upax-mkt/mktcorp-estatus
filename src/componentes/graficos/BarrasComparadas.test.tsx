@@ -29,10 +29,35 @@ describe('BarrasComparadas', () => {
     }
   })
 
-  it('la serie más alta ocupa toda la altura útil', () => {
+  // Antes, este caso sólo afirmaba Math.max(alturas) > 0: eso pasa con
+  // cualquier entrada no degenerada y no prueba que la barra del valor
+  // máximo llegue de verdad al borde superior del área de trazado. Ahora
+  // identifica esa barra por su posición real en DATOS (no por buscar la más
+  // alta ya renderizada, que sería circular) y confirma dos cosas: que todas
+  // las barras comparten la misma línea base (el cero del dominio, en el
+  // borde inferior del área útil, porque DATOS no tiene negativos) y que la
+  // barra del valor máximo (2420, 'Total 2026' en 'mar') toca el borde
+  // superior (y=0, el mapeo de escalaLineal para el máximo del dominio) —
+  // es decir, que su altura ocupa el 100% de la altura útil, de borde a borde.
+  it('la barra del valor máximo del conjunto llega al borde superior y ocupa el 100% de la altura útil', () => {
     render(<BarrasComparadas datos={DATOS} alto={200} />)
-    const alturas = screen.getAllByTestId('barra').map((b) => Number(b.getAttribute('height')))
-    expect(Math.max(...alturas)).toBeGreaterThan(0)
+    const barras = screen.getAllByTestId('barra')
+
+    const basesInferiores = barras.map(
+      (b) => Number(b.getAttribute('y')) + Number(b.getAttribute('height')),
+    )
+    for (const base of basesInferiores) {
+      expect(base).toBeCloseTo(basesInferiores[0], 5)
+    }
+
+    // Orden de renderizado: categoría externa, serie interna. El máximo
+    // (2420) vive en la 3ra categoría ('mar', índice 2) y la 1ra serie
+    // ('Total 2026', índice 0) → índice 2*2 + 0 = 4 con 2 series por grupo.
+    const indiceValorMaximo = 4
+    const barraValorMaximo = barras[indiceValorMaximo]
+
+    expect(Number(barraValorMaximo.getAttribute('y'))).toBeCloseTo(0, 5)
+    expect(Number(barraValorMaximo.getAttribute('height'))).toBeCloseTo(basesInferiores[0], 5)
   })
 
   it('muestra la etiqueta de cada serie en la leyenda', () => {
