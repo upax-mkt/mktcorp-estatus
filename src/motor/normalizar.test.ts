@@ -36,4 +36,43 @@ describe('normalizar', () => {
     const entrada = { titulo: 'x', cifras: [{ valor: '1', rotulo: 'a' }] }
     expect(normalizar(entrada)).toEqual(normalizar(entrada))
   })
+
+  it('convierte una tabla de 1 columna de datos (snapshot de un periodo) en una pieza cifra por fila', () => {
+    const inv = normalizar({
+      titulo: 'x',
+      tablas: [[['Métrica', 'Junio'], ['Sesiones', '968'], ['MQLs', '1']]],
+    })
+    const cifras = inv.piezas.filter((p) => p.tipo === 'cifra')
+    expect(cifras).toHaveLength(2)
+    expect(cifras).toContainEqual({ tipo: 'cifra', rotulo: 'Sesiones', valor: '968' })
+    expect(cifras).toContainEqual({ tipo: 'cifra', rotulo: 'MQLs', valor: '1' })
+  })
+
+  it('ignora sin reventar una tabla de solo encabezado (0 columnas de datos)', () => {
+    const inv = normalizar({
+      titulo: 'x',
+      tablas: [[['Métrica']]],
+    })
+    expect(inv.piezas).toHaveLength(0)
+  })
+
+  it('ignora sin reventar una tabla vacía (sin filas de datos)', () => {
+    const inv = normalizar({
+      titulo: 'x',
+      tablas: [[['Métrica', 'Junio']]],
+    })
+    expect(inv.piezas).toHaveLength(0)
+  })
+
+  it('no genera pieza de párrafo cuando el texto está vacío', () => {
+    const inv = normalizar({ titulo: 'x', texto: '' })
+    expect(inv.piezas.some((p) => p.tipo === 'parrafo')).toBe(false)
+    expect(inv.piezas).toHaveLength(0)
+  })
+
+  it('no genera pieza de párrafo cuando el texto es solo espacios en blanco', () => {
+    const inv = normalizar({ titulo: 'x', texto: '   \n\t  ' })
+    expect(inv.piezas.some((p) => p.tipo === 'parrafo')).toBe(false)
+    expect(inv.piezas).toHaveLength(0)
+  })
 })

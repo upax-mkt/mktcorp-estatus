@@ -1,6 +1,7 @@
 import type {
   EntradaCruda,
   Inventario,
+  PiezaCifra,
   PiezaComparativo,
   PiezaInventario,
   PiezaSerie,
@@ -22,15 +23,35 @@ function itemsDeLista(texto: string): string[] {
 }
 
 /**
- * Clasifica una tabla cruda: exactamente dos columnas de datos (además de la
- * etiqueta de fila) → comparativo entre dos periodos; tres o más → serie
- * temporal (una pieza por fila/métrica).
+ * Clasifica una tabla cruda: una sola columna de datos (además de la etiqueta
+ * de fila) → snapshot de un periodo, una pieza `cifra` por fila (no hay dos
+ * periodos que comparar, así que semánticamente son cifras sueltas); dos
+ * columnas → comparativo entre dos periodos; tres o más → serie temporal
+ * (una pieza por fila/métrica). Con 0 columnas de datos, o sin filas, no hay
+ * dato que preservar y la tabla se ignora explícitamente.
  */
 function piezasDeTabla(tabla: string[][]): PiezaInventario[] {
   const [encabezado, ...filas] = tabla
   if (!encabezado) return []
 
   const columnasDeDatos = encabezado.length - 1
+
+  if (columnasDeDatos <= 0 || filas.length === 0) {
+    // Encabezado sin columna de datos (o tabla sin filas): no hay ninguna
+    // cifra que rescatar, así que se ignora a propósito (no es el bug de
+    // "tabla de 1 columna" que se pierde en silencio; aquí no hay nada).
+    return []
+  }
+
+  if (columnasDeDatos === 1) {
+    return filas.map(
+      (fila): PiezaCifra => ({
+        tipo: 'cifra',
+        rotulo: fila[0] ?? '',
+        valor: fila[1] ?? '',
+      }),
+    )
+  }
 
   if (columnasDeDatos === 2) {
     const comparativo: PiezaComparativo = {
@@ -45,19 +66,15 @@ function piezasDeTabla(tabla: string[][]): PiezaInventario[] {
     return [comparativo]
   }
 
-  if (columnasDeDatos >= 3) {
-    const periodos = encabezado.slice(1)
-    return filas.map(
-      (fila): PiezaSerie => ({
-        tipo: 'serie',
-        etiqueta: fila[0] ?? '',
-        periodos,
-        valores: fila.slice(1),
-      }),
-    )
-  }
-
-  return []
+  const periodos = encabezado.slice(1)
+  return filas.map(
+    (fila): PiezaSerie => ({
+      tipo: 'serie',
+      etiqueta: fila[0] ?? '',
+      periodos,
+      valores: fila.slice(1),
+    }),
+  )
 }
 
 /**
@@ -82,7 +99,10 @@ export function normalizar(crudo: EntradaCruda): Inventario {
 
   if (crudo.texto !== undefined) {
     const texto = crudo.texto.trim()
-    if (texto.length > LARGO_PARRAFO) {
+    if (texto.length === 0) {
+      // Texto vacío o solo espacios: no hay dato que preservar, no se genera
+      // una pieza de párrafo vacía que la etapa de IA tendría que filtrar.
+    } else if (texto.length > LARGO_PARRAFO) {
       piezas.push({ tipo: 'parrafo', texto })
     } else if (pareceLista(crudo.texto)) {
       piezas.push({ tipo: 'lista', items: itemsDeLista(crudo.texto) })
