@@ -2,6 +2,11 @@ import type { ComponentType } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { Portada } from './layouts/Portada'
 import { KpisFilaDosColumnas } from './layouts/KpisFilaDosColumnas'
+import { DivisorSeccion } from './layouts/DivisorSeccion'
+import { Cierre } from './layouts/Cierre'
+import { Agenda } from './layouts/Agenda'
+import { TextoMulticolumna } from './layouts/TextoMulticolumna'
+import { ImagenASangre } from './layouts/ImagenASangre'
 import { LayoutSeguro } from './layouts/LayoutSeguro'
 
 type ComponenteLayout = ComponentType<{ decision: DecisionSlide }>
@@ -11,6 +16,11 @@ type ComponenteLayout = ComponentType<{ decision: DecisionSlide }>
 export const REGISTRO_LAYOUTS: Partial<Record<DecisionSlide['layout'], ComponenteLayout>> = {
   'portada': Portada,
   'kpis-fila-dos-columnas': KpisFilaDosColumnas,
+  'divisor-seccion': DivisorSeccion,
+  'cierre': Cierre,
+  'agenda': Agenda,
+  'texto-multicolumna': TextoMulticolumna,
+  'imagen-a-sangre': ImagenASangre,
 }
 
 export function Slide({ decision }: { decision: DecisionSlide }) {

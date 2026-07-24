@@ -25,6 +25,29 @@ const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
     'van como KPIs — cada cifra del inventario ocupa un espacio, con su valor, rótulo y delta. Ninguna ' +
     'cifra se omite ni se degrada a texto de las columnas. Las columnas son para el análisis ' +
     '(hallazgos, acciones), no para esconder una cifra que no cupo.',
+  agenda:
+    'admite "titulo" (obligatorio, p. ej. "Agenda") y "cuerpo" (arreglo de líneas cortas, una por ' +
+    'punto del orden del día). El layout numera cada línea automáticamente — nunca antepongas tú ' +
+    'los números ("1.", "2)") en el texto.',
+  'divisor-seccion':
+    'admite "titulo" (obligatorio, el nombre de la sección que arranca) y "subtitulo" (opcional, ' +
+    'una línea de contexto). Es un separador visual entre bloques de la sesión, no un slide de ' +
+    'contenido: nunca le repartas cifras, columnas ni cuerpo — usa "kpis-fila-dos-columnas" o ' +
+    '"texto-multicolumna" para eso.',
+  'texto-multicolumna':
+    'admite "titulo" y "columnas" (arreglo de 2 a 4, cada una con "titulo" y "puntos" — una lista de ' +
+    'líneas cortas). Úsalo cuando el contenido es puramente cualitativo, sin cifras, organizado en ' +
+    'bloques paralelos (por ejemplo, un tema por UDN o por frente). Si el inventario trae cifras, ' +
+    'esas cifras van en "kpis-fila-dos-columnas", no aquí.',
+  'imagen-a-sangre':
+    'admite "imagen" (obligatoria, la ruta o URL https de la pieza [imagen] del inventario), ' +
+    '"titulo" (obligatorio) y "subtitulo" (opcional) — se superponen sobre la imagen. Elige este ' +
+    'layout únicamente cuando el inventario trae una pieza [imagen] real; nunca inventes una ruta ' +
+    'ni la uses para contenido que no sea, en esencia, esa imagen.',
+  cierre:
+    'admite "titulo" (obligatorio, p. ej. "Gracias" o "Acuerdos") y "subtitulo" (opcional). Cierre ' +
+    'institucional de la sesión — resérvalo para el último slide del deck, nunca para un separador ' +
+    'intermedio (eso es "divisor-seccion").',
 }
 
 const DESCRIPCION_GENERICA =
