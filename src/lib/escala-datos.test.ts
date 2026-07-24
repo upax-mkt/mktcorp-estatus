@@ -48,4 +48,13 @@ describe('derivarEscalaDatos', () => {
   it('es determinista: la misma entrada da la misma salida', () => {
     expect(derivarEscalaDatos('#00CFAB', '#FFFFFF')).toEqual(derivarEscalaDatos('#00CFAB', '#FFFFFF'))
   })
+
+  it.each(['#0000FF', '#1E0FF2', '#770EB3', '#F94700'])(
+    'cumple el umbral incluso sobre superficies saturadas: %s',
+    (superficie) => {
+      for (const color of derivarEscalaDatos('#3E31CC', superficie)) {
+        expect(contraste(color, superficie)).toBeGreaterThanOrEqual(3)
+      }
+    },
+  )
 })

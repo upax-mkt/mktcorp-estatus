@@ -1,4 +1,4 @@
-import { hexAHsl, hslAHex, contraste } from './color'
+import { hexAHsl, hslAHex, contraste, luminancia } from './color'
 
 const CONTRASTE_MINIMO = 3
 const SEPARACION_MATIZ = 360 / 6.4 // ≈56° — con 6 colores garantiza más de 20° entre cualquier par
@@ -11,7 +11,7 @@ const SEPARACION_MATIZ = 360 / 6.4 // ≈56° — con 6 colores garantiza más d
  */
 export function derivarEscalaDatos(primario: string, superficie: string, cantidad = 6): string[] {
   const base = hexAHsl(primario)
-  const superficieClara = hexAHsl(superficie).l >= 50
+  const superficieClara = luminancia(superficie) >= 0.179
 
   return Array.from({ length: cantidad }, (_, i) => {
     const h = (base.h + i * SEPARACION_MATIZ) % 360
@@ -43,6 +43,10 @@ function ajustarPorContraste(
     l += paso
   }
 
-  // Último recurso: el extremo del rango, que siempre contrasta contra su opuesto.
+  // Último recurso: ningún intento cruzó el umbral dentro del rango explorado.
+  // Devolvemos el extremo de luminosidad más alejado de la superficie (8 sobre
+  // clara, 92 sobre oscura), que maximiza el contraste alcanzable en esa
+  // dirección — no garantiza cumplir CONTRASTE_MINIMO para superficies muy
+  // saturadas o de luminancia intermedia.
   return hslAHex(h, s, superficieClara ? 8 : 92)
 }
