@@ -109,7 +109,7 @@ Contrato de salida, validado contra esquema estricto:
 
 ```jsonc
 {
-  "layout": "kpis-fila + dos-columnas",        // del catálogo, no inventado
+  "layout": "kpis-fila-dos-columnas",          // del catálogo, no inventado
   "kpis": [
     { "valor": "9.2", "delta": "-0.3", "rotulo": "Posición media" },
     { "valor": "29k", "delta": "-16%", "rotulo": "Impresiones" }
