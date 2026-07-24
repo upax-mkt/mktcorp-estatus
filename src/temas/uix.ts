@@ -7,6 +7,7 @@ export const uix: Tema = {
   secundario: '#597AFF',
   acento: '#00C4B3',
   superficieClara: '#F0F0F3',
+  // Fondo oscuro derivado por Mkt Corp (no declarado en brandbook). Se sustituye si la marca define el suyo.
   superficieOscura: '#1B1436',
   textoSobreClara: '#1B1436',
   textoSobreOscura: '#FFFFFF',

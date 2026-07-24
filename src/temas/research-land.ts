@@ -7,6 +7,7 @@ export const researchLand: Tema = {
   secundario: '#770EB3',
   acento: '#F7BB11',
   superficieClara: '#FFFFFF',
+  // Fondo oscuro derivado por Mkt Corp (no declarado en brandbook). Se sustituye si la marca define el suyo.
   superficieOscura: '#1A0B33',
   textoSobreClara: '#4D4D4D',
   textoSobreOscura: '#FFFFFF',

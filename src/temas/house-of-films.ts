@@ -1,5 +1,6 @@
 import type { Tema } from './tipos'
 
+// Paleta completa muestreada del PDF por Mkt Corp el 23-jul-2026. Pendiente pedir los valores oficiales a la marca.
 export const houseOfFilms: Tema = {
   slug: 'house-of-films',
   nombre: 'House of Films',
