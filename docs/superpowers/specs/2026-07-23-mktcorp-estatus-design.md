@@ -79,7 +79,15 @@ La pantalla que se abre cada mañana. La unidad no es el documento: es **la rela
 - **En preparación** — borradores con barra de avance y quién los está armando, para que dos personas no preparen lo mismo.
 - **Pulso del mes** — sesiones celebradas, acuerdos cerrados vs abiertos, sala más activa y más silenciosa.
 
-**Vista de sala:** portada con próxima sesión y días desde la última · sus acuerdos con estatus **antes** que las presentaciones · el deck más reciente · línea de tiempo de los anteriores · minutas archivadas. Nada de la maquinaria interna.
+**Vista de sala:** portada con próxima sesión y días desde la última · sus acuerdos con estatus **antes** que las presentaciones · el deck más reciente · línea de tiempo de los anteriores · minutas archivadas · su **Benchmark** (ver abajo). Nada de la maquinaria interna.
+
+### Benchmark competitivo (por sala)
+
+Cada sala tiene un espacio **Benchmark**: el análisis competitivo que Marketing Corporativo desarrolló para esa unidad de negocio, siguiendo **5 competidores** por UDN. No es contenido de una sesión — vive a nivel de la sala, como los acuerdos, y **se nutre en el tiempo** (Mkt Corp lo actualiza conforme evoluciona el mercado). El director entra a su sala y consulta cómo está su UDN frente a sus competidores, sin depender de una reunión.
+
+Modelo de datos (preliminar): pertenece a la **sala**, no a la sesión; guarda los 5 competidores seguidos, las dimensiones comparadas, la lectura de Mkt Corp, y un historial de actualizaciones (para ver la evolución). Editable solo por el equipo interno; visible para el director en su sala.
+
+> **[PENDIENTE — a la espera de referencia]** Franco (24-jul-2026) pidió este espacio y va a pasar la **presentación de benchmark que Mkt Corp ya armó** como ejemplo. Igual que con el deck de NeraCode, esa referencia real define las dimensiones, la estructura y el look antes de diseñar el componente — no se construye por suposición. Al recibirla: extraer las dimensiones reales del benchmark, decidir si el Benchmark reutiliza el motor de maquetación o es una vista propia, y añadir su plan. Es trabajo de una fase posterior; no bloquea la Fase 2.
 
 ## 6. Preparar una sesión
 
