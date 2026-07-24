@@ -26,18 +26,49 @@ const ATRIBUTO_STYLE = /style\s*=/i
 const DECLARACION_CSS =
   /\b(color|background(?:-[\w-]+)?|font(?:-[\w-]+)?|border(?:-[\w-]+)?|margin(?:-[\w-]+)?|padding(?:-[\w-]+)?|width|height|display|position|opacity|text-align|z-index|top|left|right|bottom)\s*:\s*[^;\n]+;/i
 
+/**
+ * Detecta negrita/cursiva de Markdown: un par de `**...**` o `__...__` alrededor
+ * de contenido no vacío. Requiere el delimitador DOBLE y emparejado — un asterisco
+ * o guion bajo suelto (posible en datos o guiones de palabra) nunca dispara esto.
+ */
+const MARKDOWN_ENFASIS = /\*\*[^*\n]+\*\*|__[^_\n]+__/
+
+/**
+ * Detecta encabezados de Markdown: una línea que empieza con 1 a 6 `#` seguidos
+ * de un espacio. Ancla al inicio de línea (`^` con flag `m`) para no atrapar un
+ * `#` que aparezca en medio de una frase (p. ej. "folio #12").
+ */
+const MARKDOWN_ENCABEZADO = /^#{1,6}\s/m
+
+/**
+ * Detecta código de Markdown: cualquier backtick, ya sea un par `` `code` `` o
+ * uno suelto. El contenido real del negocio no usa backticks.
+ */
+const MARKDOWN_CODIGO = /`/
+
+function contieneMarkdown(texto: string): boolean {
+  return MARKDOWN_ENFASIS.test(texto) || MARKDOWN_ENCABEZADO.test(texto) || MARKDOWN_CODIGO.test(texto)
+}
+
 function contieneMarkupOEstilo(texto: string): boolean {
-  return ETIQUETA_HTML.test(texto) || ATRIBUTO_STYLE.test(texto) || DECLARACION_CSS.test(texto)
+  return (
+    ETIQUETA_HTML.test(texto) ||
+    ATRIBUTO_STYLE.test(texto) ||
+    DECLARACION_CSS.test(texto) ||
+    contieneMarkdown(texto)
+  )
 }
 
 /**
  * Validador reutilizable para todo campo de texto libre de cara al equipo.
- * Acota el contrato: la IA reparte contenido, nunca estilo. Rechaza markup HTML
- * y CSS inline; el resto de texto plano (números, símbolos, acentos, guiones,
- * flechas, comas) pasa sin problema.
+ * Acota el contrato: la IA reparte contenido, nunca estilo. Rechaza markup HTML,
+ * CSS inline y sintaxis Markdown de formato (negrita/cursiva, encabezados,
+ * backticks de código); el resto de texto plano (números, símbolos, acentos,
+ * guiones, flechas, comas) pasa sin problema.
  */
 export const TextoPlano = z.string().min(1).refine((texto) => !contieneMarkupOEstilo(texto), {
-  message: 'El contenido debe ser texto plano: sin etiquetas HTML, sin atributos style ni declaraciones CSS.',
+  message:
+    'El contenido debe ser texto plano: sin etiquetas HTML, sin atributos style, sin declaraciones CSS, y sin sintaxis Markdown (negrita/cursiva, encabezados con #, backticks de código).',
 })
 
 const ESQUEMA_PELIGROSO = /^(javascript|data|file):/i

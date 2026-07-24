@@ -16,6 +16,13 @@ describe('construirPrompt', () => {
     expect(system.toLowerCase()).toMatch(/no.*color|nunca.*css|sin estilo/)
   })
 
+  it('prohíbe explícitamente sintaxis Markdown', () => {
+    const { system } = construirPrompt(inv, obtenerTema('neracode'))
+    expect(system).toContain('Markdown')
+    expect(system).toMatch(/\*\*negrita\*\*/)
+    expect(system).toMatch(/backticks/)
+  })
+
   it('incluye la nota del autor cuando existe', () => {
     const { user } = construirPrompt({ ...inv, nota: 'esto va destacado' }, obtenerTema('neracode'))
     expect(user).toContain('esto va destacado')

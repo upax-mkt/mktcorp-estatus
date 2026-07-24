@@ -148,3 +148,74 @@ describe('TextoPlano — cierre de la rendija de markup/estilo en cadenas', () =
     expect(parsearDecision(decisionLegitima).titulo).toBe('Comparativa de resultados: Mayo vs Junio')
   })
 })
+
+describe('TextoPlano — cierre de la rendija de Markdown', () => {
+  it('rechaza negrita Markdown en un valor de KPI', () => {
+    expect(() =>
+      parsearDecision({
+        ...VALIDA,
+        kpis: [{ valor: '**9.2**', delta: '-0.3', rotulo: 'Posición media' }],
+      })
+    ).toThrow()
+  })
+
+  it('rechaza cursiva Markdown con guion bajo emparejado', () => {
+    expect(() =>
+      parsearDecision({ ...VALIDA, subtitulo: 'Esto es __importante__ para el equipo' })
+    ).toThrow()
+  })
+
+  it('rechaza un encabezado Markdown en el título', () => {
+    expect(() => parsearDecision({ ...VALIDA, titulo: '# Focos' })).toThrow()
+  })
+
+  it('rechaza un encabezado Markdown de varios niveles en un punto de columnas', () => {
+    expect(() =>
+      parsearDecision({
+        ...VALIDA,
+        columnas: [{ titulo: 'Hallazgos', puntos: ['### Prioridad alta'] }],
+      })
+    ).toThrow()
+  })
+
+  it('rechaza un valor con backticks de código', () => {
+    expect(() =>
+      parsearDecision({
+        ...VALIDA,
+        kpis: [{ valor: '`9.2`', delta: '-0.3', rotulo: 'Posición media' }],
+      })
+    ).toThrow()
+  })
+
+  it('rechaza un backtick suelto', () => {
+    expect(() => parsearDecision({ ...VALIDA, razon: 'usa el campo `valor` para esto' })).toThrow()
+  })
+
+  it('NO produce falso positivo: contenido real del negocio con %, $, →, guiones y acentos pasa', () => {
+    const decisionLegitima = {
+      layout: 'comparativa-periodos',
+      titulo: 'SQL → Opp',
+      subtitulo: 'Performance · Sitio web',
+      kpis: [
+        { valor: '-16%', delta: '-0.3', rotulo: 'Posición media' },
+        { valor: '9.2', delta: '▲', rotulo: 'Impresiones' },
+        { valor: '$4.2 MDP', delta: '▼', rotulo: 'Facturación' },
+      ],
+      columnas: [
+        {
+          titulo: 'Principales hallazgos',
+          puntos: [
+            'Modelo de staff augmentation, con transición mayo-junio',
+            'El SQL → Opp cayó, pero no es un deterioro generalizado, según el análisis',
+          ],
+        },
+      ],
+      cuerpo: ['Este trimestre, ingresos de $4.2 MDP con un delta de -16% vs mayo (9.2 puntos).'],
+      razon:
+        'Se prioriza la comparativa mayo-junio con foco en staff augmentation y la caída en SQL → Opp, sin perder ninguna cifra.',
+    }
+
+    expect(esDecisionValida(decisionLegitima)).toBe(true)
+    expect(parsearDecision(decisionLegitima).titulo).toBe('SQL → Opp')
+  })
+})
