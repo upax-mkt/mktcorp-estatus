@@ -5,7 +5,7 @@ import estilos from '../sala.module.css'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
-} from '@/datos-ejemplo'
+} from '@/db/consultas'
 
 const FECHA = new Date('2026-07-24T12:00:00')
 
@@ -43,7 +43,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   } catch {
     notFound()
   }
-  const s = estadoDeSala(slug)
+  const s = await estadoDeSala(slug)
   if (!s) notFound()
 
   const estiloMarca = {

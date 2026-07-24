@@ -3,7 +3,7 @@ import estilos from './hub.module.css'
 import {
   estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
   acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes,
-} from '@/datos-ejemplo'
+} from '@/db/consultas'
 
 const FECHA = new Date('2026-07-24T12:00:00')
 
@@ -24,10 +24,13 @@ function textoProxima(iso: string | null): string {
   return `próxima ${cuando}${dias >= 0 ? ` · en ${dias} d` : ''}`
 }
 
-export default function Hub() {
-  const salas = ordenarPorUrgencia(estadoDeSalas())
-  const riesgo = acuerdosEnRiesgo()
-  const pulso = pulsoDelMes()
+export default async function Hub() {
+  const [salasCrudas, riesgo, pulso] = await Promise.all([
+    estadoDeSalas(),
+    acuerdosEnRiesgo(),
+    pulsoDelMes(),
+  ])
+  const salas = ordenarPorUrgencia(salasCrudas)
 
   return (
     <div className={estilos.app}>
