@@ -101,6 +101,14 @@ export const acuerdos = pgTable('acuerdos', {
   estatus: estatusAcuerdoEnum('estatus').notNull().default('abierto'),
   /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
   sesionOrigenId: text('sesion_origen_id').references(() => sesiones.id),
+  /**
+   * Historia de cambios (v1 mínima, spec §4 "historia de cambios"): un jsonb
+   * con un registro por movimiento de estatus o edición — `{ en, estatusAnterior? ,
+   * cambios? }` (ver src/db/acuerdos.ts). No es una tabla aparte a propósito:
+   * el volumen por acuerdo es bajo y no se necesita consultar la historia de
+   * forma independiente todavía.
+   */
+  historia: jsonb('historia').$type<unknown[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

@@ -33,13 +33,52 @@ export interface FilaItemMemoria {
   updatedAt: Date
 }
 
+/** Una entrada de la historia de cambios de un acuerdo — ver src/db/acuerdos.ts. */
+export interface HistoriaAcuerdoMemoria {
+  en: string // ISO
+  estatusAnterior?: string
+  cambios?: unknown
+}
+
+export interface FilaAcuerdoMemoria {
+  id: string
+  salaSlug: string
+  que: string
+  responsable: string
+  squad?: string
+  prioridad?: string
+  fechaCompromiso: Date | null
+  estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
+  /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
+  sesionOrigenId: string | null
+  historia: HistoriaAcuerdoMemoria[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface FilaMinutaMemoria {
+  id: string
+  sesionId: string
+  transcripcion: string | null
+  textoFinal: string | null
+  enviadaA: string[] | null
+  createdAt: Date
+}
+
 const sesiones = new Map<string, FilaSesionMemoria>()
 const items = new Map<string, FilaItemMemoria>()
+const acuerdos = new Map<string, FilaAcuerdoMemoria>()
+const minutas = new Map<string, FilaMinutaMemoria>()
+/** Salas cuyos acuerdos de ejemplo (src/datos-ejemplo.ts) ya se sembraron en `acuerdos`. */
+const salasAcuerdosSembradas = new Set<string>()
 
 /** Sólo para tests: vuelve el store a estado vacío. */
 export function reiniciarStoreMemoria(): void {
   sesiones.clear()
   items.clear()
+  acuerdos.clear()
+  minutas.clear()
+  salasAcuerdosSembradas.clear()
 }
 
 export function insertarSesionMemoria(fila: FilaSesionMemoria): void {
@@ -101,4 +140,55 @@ export function actualizarDecisionItemMemoria(itemId: string, decisionMaquetacio
   if (!fila) return
   fila.decisionMaquetacion = decisionMaquetacion
   fila.updatedAt = new Date()
+}
+
+// ---- Acuerdos ----
+// Cuelgan de la SALA (spec §4), no de la sesión. En modo memoria, la primera
+// vez que se consulta una sala (ver src/db/consultas.ts) se siembra este store
+// con sus acuerdos de ejemplo (src/datos-ejemplo.ts) para que mover un estatus
+// o editar una fecha en dev, sin DATABASE_URL, tenga algo real sobre qué
+// operar — exactamente una vez por sala (`salasAcuerdosSembradas`), para no
+// pisar ediciones ya hechas en siembras posteriores.
+
+export function acuerdosDeSalaYaSembrados(salaSlug: string): boolean {
+  return salasAcuerdosSembradas.has(salaSlug)
+}
+
+export function sembrarAcuerdosDeSalaMemoria(salaSlug: string, filas: FilaAcuerdoMemoria[]): void {
+  if (salasAcuerdosSembradas.has(salaSlug)) return
+  salasAcuerdosSembradas.add(salaSlug)
+  for (const fila of filas) acuerdos.set(fila.id, fila)
+}
+
+export function insertarAcuerdoMemoria(fila: FilaAcuerdoMemoria): void {
+  acuerdos.set(fila.id, fila)
+}
+
+export function obtenerAcuerdoMemoria(id: string): FilaAcuerdoMemoria | undefined {
+  return acuerdos.get(id)
+}
+
+export function listarAcuerdosDeSalaMemoria(salaSlug: string): FilaAcuerdoMemoria[] {
+  return Array.from(acuerdos.values()).filter((a) => a.salaSlug === salaSlug)
+}
+
+export function actualizarAcuerdoMemoria(
+  id: string,
+  cambios: Partial<Omit<FilaAcuerdoMemoria, 'id' | 'salaSlug' | 'createdAt'>>,
+): void {
+  const fila = acuerdos.get(id)
+  if (!fila) return
+  Object.assign(fila, cambios)
+  fila.updatedAt = new Date()
+}
+
+// ---- Minutas ----
+
+export function insertarMinutaMemoria(fila: FilaMinutaMemoria): void {
+  minutas.set(fila.id, fila)
+}
+
+/** Una sesión tiene a lo más una minuta (ligada 1:1, spec §4). */
+export function obtenerMinutaDeSesionMemoria(sesionId: string): FilaMinutaMemoria | undefined {
+  return Array.from(minutas.values()).find((m) => m.sesionId === sesionId)
 }

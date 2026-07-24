@@ -91,6 +91,20 @@
 .acuerdoBadge.cumplido { background: oklch(0.6 0.12 155 / 0.12); color: var(--ok); }
 .acuerdoBadge.vencido { background: var(--alerta-suave); color: var(--alerta); }
 
+/* ---- acuerdos: columna derecha (badge + controles de equipo) ---- */
+.acuerdoDcha { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+
+/* ---- controles de edición (equipo Mkt Corp) — discretos, tarea "Acuerdos editables" ----
+   [PENDIENTE — "Login SSO Slack y tokens de sala"]: ocultar en la sala pública. */
+.controlesEquipo { display: flex; align-items: center; gap: 0.4rem; }
+.selectEstatus, .inputFechaChica {
+  font-family: inherit; font-size: 0.74rem; color: var(--tx-2);
+  background: var(--superficie-2); border: 1px solid var(--borde); border-radius: 0.4rem;
+  padding: 0.2rem 0.35rem; cursor: pointer;
+}
+.selectEstatus:focus, .inputFechaChica:focus { outline: none; border-color: var(--marca); color: var(--tx); }
+.inputFechaChica { font-variant-numeric: tabular-nums; cursor: text; max-width: 8.5rem; }
+
 /* ---- presentaciones ---- */
 .presDestacada {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;

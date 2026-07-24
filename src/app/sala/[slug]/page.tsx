@@ -1,13 +1,23 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../sala.module.css'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
+import { moverEstatus, editarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 
 const FECHA = new Date('2026-07-24T12:00:00')
+
+// La vista de equipo ahora escribe (cambiar estatus, editar fecha) — se
+// necesita fresca en cada carga, no la copia estática que generateStaticParams
+// precalcula. revalidatePath ya invalida esta ruta puntual tras cada acción;
+// esto cubre además cualquier otra entrada (p. ej. abrir el link tras un
+// deploy nuevo sin haber pasado por una acción).
+export const dynamic = 'force-dynamic'
 
 export function generateStaticParams() {
   return slugsDeSalas().map((slug) => ({ slug }))
@@ -45,6 +55,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
   const s = await estadoDeSala(slug)
   if (!s) notFound()
+
+  // ---- Server actions: acuerdos editables (spec §4/§6, tarea "Acuerdos editables") ----
+  // Solo el equipo Mkt Corp debería llegar aquí (spec §4: "Solo el equipo Mkt
+  // Corp mueve el estatus"); sin auth todavía (ver AcuerdoControles.tsx), la
+  // protección real queda pendiente de la tarea de Login SSO.
+
+  async function cambiarEstatusAction(acuerdoId: string, estatus: EstatusAcuerdo) {
+    'use server'
+    await moverEstatus(acuerdoId, estatus)
+    revalidatePath(`/sala/${slug}`)
+    revalidatePath('/')
+  }
+
+  async function editarFechaAction(acuerdoId: string, fecha: string | null) {
+    'use server'
+    await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
+    revalidatePath(`/sala/${slug}`)
+    revalidatePath('/')
+  }
 
   const estiloMarca = {
     '--marca': tema.primario,
@@ -115,7 +144,17 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                         <span className={`${estilos.acuerdoFecha} ${f.clase ? estilos[f.clase] : ''}`}>{f.txt}</span>
                       </div>
                     </div>
-                    <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
+                    <div className={estilos.acuerdoDcha}>
+                      <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
+                      {/* Equipo Mkt Corp: siempre visibles hoy (sin auth aún, ver AcuerdoControles.tsx) */}
+                      <AcuerdoControles
+                        acuerdoId={a.id}
+                        estatusInicial={a.estatus}
+                        fechaInicial={a.fechaCompromiso}
+                        cambiarEstatusAction={cambiarEstatusAction}
+                        editarFechaAction={editarFechaAction}
+                      />
+                    </div>
                   </div>
                 )
               })}

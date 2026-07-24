@@ -14,6 +14,7 @@
 import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
+import * as memoria from './store-memoria'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import * as fallback from '@/datos-ejemplo'
 import type {
@@ -216,24 +217,86 @@ function construirPulso(salas: EstadoSala[]): PulsoDelMes {
   }
 }
 
+// ---- Modo sin DB: acuerdos vivos desde el store en memoria ----
+//
+// fallback.estadoDeSala() siempre devuelve el mismo Acuerdo[] estático (los
+// datos de ejemplo): sin esto, mover un estatus o editar una fecha desde la
+// vista de sala (src/db/acuerdos.ts, sin DATABASE_URL) nunca se reflejaría en
+// pantalla. Se siembra el store en memoria con los acuerdos de ejemplo de esa
+// sala la primera vez que se consulta (una sola vez, ver
+// store-memoria.acuerdosDeSalaYaSembrados) y desde ahí se lee — y escribe —
+// siempre del store, igual que src/db/sesiones.ts hace con sesiones/items.
+
+function acuerdoDeFilaMemoria(a: memoria.FilaAcuerdoMemoria): Acuerdo {
+  return {
+    id: a.id,
+    que: a.que,
+    responsable: a.responsable,
+    squad: a.squad,
+    fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
+    estatus: a.estatus as fallback.EstatusAcuerdo,
+  }
+}
+
+/** Acuerdos vivos de una sala en modo memoria: siembra una vez, lee siempre del store. */
+function acuerdosVivosMemoria(salaSlug: string, semillasFallback: Acuerdo[]): Acuerdo[] {
+  if (!memoria.acuerdosDeSalaYaSembrados(salaSlug)) {
+    const ahora = new Date()
+    memoria.sembrarAcuerdosDeSalaMemoria(
+      salaSlug,
+      semillasFallback.map((a) => ({
+        id: a.id,
+        salaSlug,
+        que: a.que,
+        responsable: a.responsable,
+        squad: a.squad,
+        prioridad: undefined,
+        fechaCompromiso: a.fechaCompromiso ? new Date(a.fechaCompromiso) : null,
+        estatus: a.estatus,
+        sesionOrigenId: null,
+        historia: [],
+        createdAt: ahora,
+        updatedAt: ahora,
+      })),
+    )
+  }
+  // 'cancelado' deja de mostrarse — mismo criterio que el camino con DB (arriba).
+  return memoria
+    .listarAcuerdosDeSalaMemoria(salaSlug)
+    .filter((a) => a.estatus !== 'cancelado')
+    .map(acuerdoDeFilaMemoria)
+}
+
+async function estadoDeSalasMemoria(): Promise<EstadoSala[]> {
+  return fallback
+    .estadoDeSalas()
+    .map((s) => ({ ...s, acuerdos: acuerdosVivosMemoria(s.slug, s.acuerdos) }))
+}
+
+async function estadoDeSalaMemoria(slug: string): Promise<EstadoSala | undefined> {
+  const base = fallback.estadoDeSala(slug)
+  if (!base) return base
+  return { ...base, acuerdos: acuerdosVivosMemoria(slug, base.acuerdos) }
+}
+
 // ---- API pública — misma firma que datos-ejemplo.ts, ahora async ----
 
 export async function estadoDeSalas(): Promise<EstadoSala[]> {
-  if (!hayDB()) return fallback.estadoDeSalas()
+  if (!hayDB()) return estadoDeSalasMemoria()
   return estadoDeSalasDB()
 }
 
 export async function estadoDeSala(slug: string): Promise<EstadoSala | undefined> {
-  if (!hayDB()) return fallback.estadoDeSala(slug)
+  if (!hayDB()) return estadoDeSalaMemoria(slug)
   return estadoDeSalaDB(slug)
 }
 
 export async function acuerdosEnRiesgo(): Promise<AcuerdoEnRiesgo[]> {
-  if (!hayDB()) return fallback.acuerdosEnRiesgo()
+  if (!hayDB()) return construirRiesgo(await estadoDeSalasMemoria())
   return construirRiesgo(await estadoDeSalasDB())
 }
 
 export async function pulsoDelMes(): Promise<PulsoDelMes> {
-  if (!hayDB()) return fallback.pulsoDelMes()
+  if (!hayDB()) return construirPulso(await estadoDeSalasMemoria())
   return construirPulso(await estadoDeSalasDB())
 }

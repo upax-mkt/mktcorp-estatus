@@ -1,0 +1,1 @@
+ALTER TABLE "acuerdos" ADD COLUMN "historia" jsonb DEFAULT '[]'::jsonb NOT NULL;
