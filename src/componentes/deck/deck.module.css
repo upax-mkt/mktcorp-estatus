@@ -1,0 +1,57 @@
+.slide {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: var(--superficie);
+  color: var(--texto);
+  font-family: var(--fuente-texto);
+  padding: 4.5% 5%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.slideOscuro {
+  background: var(--gradiente);
+  color: var(--texto);
+}
+
+.titulo {
+  font-family: var(--fuente-display);
+  font-weight: 700;
+  font-size: 4.2cqw;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tituloPortada { font-size: 7.5cqw; }
+
+.subtitulo {
+  font-size: 2.4cqw;
+  color: var(--primario);
+  margin-top: 1.2cqw;
+}
+
+.filaKpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 1.6cqw;
+  margin: 3cqw 0;
+}
+
+.kpi {
+  background: var(--gradiente);
+  border-radius: 1.4cqw;
+  padding: 2.2cqw;
+  color: var(--texto-sobre-gradiente);
+}
+
+.kpiValor { font-family: var(--fuente-display); font-size: 4.6cqw; font-weight: 700; line-height: 1; }
+.kpiDelta { font-size: 1.5cqw; opacity: .85; margin-left: .5cqw; }
+.kpiRotulo { font-size: 1.4cqw; margin-top: .8cqw; opacity: .9; }
+
+.columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 3cqw; }
+.columnaTitulo { color: var(--primario); font-weight: 600; font-size: 2cqw; margin-bottom: 1.2cqw; }
+.columnas ul { margin: 0; padding-left: 1.6cqw; }
+.columnas li { font-size: 1.6cqw; line-height: 1.5; margin-bottom: .8cqw; }

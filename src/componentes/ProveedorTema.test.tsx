@@ -34,6 +34,18 @@ describe('ProveedorTema', () => {
     }
   })
 
+  it('inyecta el texto sobre gradiente igual al textoSobreOscura del tema', () => {
+    const tema = obtenerTema('neracode')
+    render(
+      <ProveedorTema tema={tema} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    expect(screen.getByTestId('tema').style.getPropertyValue('--texto-sobre-gradiente')).toBe(
+      tema.textoSobreOscura,
+    )
+  })
+
   it('renderiza a sus hijos', () => {
     render(
       <ProveedorTema tema={obtenerTema('ceci')} superficie="clara">

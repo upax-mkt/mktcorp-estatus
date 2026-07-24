@@ -23,6 +23,7 @@ export function ProveedorTema({ tema, superficie, children }: Props) {
     '--gradiente': `linear-gradient(135deg, ${tema.gradiente.join(', ')})`,
     '--fuente-display': familiaCss(tema.familiaDisplay),
     '--fuente-texto': familiaCss(tema.familiaTexto),
+    '--texto-sobre-gradiente': tema.textoSobreOscura,
   }
   datos.forEach((color, i) => { variables[`--dato-${i + 1}`] = color })
 
