@@ -12,6 +12,10 @@ import { obtenerTema } from '@/temas'
  * motor depende de una API key que no siempre existe en ese entorno).
  */
 export const dynamic = 'force-dynamic'
+// El motor llama a Claude 2 veces en serie (~25s). El default serverless de
+// Vercel corta a 10s; se sube al máximo del plan. (Requiere Vercel Pro para 60s;
+// en Hobby el tope es 10s y esta ruta agotaría el tiempo — /demo/{sala} no usa API.)
+export const maxDuration = 60
 
 const SLUG_SALA = 'neracode'
 
