@@ -40,6 +40,7 @@ export default async function Hub() {
           <span className={estilos.marcaSub}>Marketing Corp</span>
         </div>
         <nav className={estilos.barraDcha}>
+          <Link href="/preparar" className={estilos.barraLink}>Preparar</Link>
           <span className={estilos.barraFecha}>{fechaLarga(FECHA)}</span>
         </nav>
       </header>

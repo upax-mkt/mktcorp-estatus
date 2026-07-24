@@ -1,0 +1,203 @@
+/* Flujo de preparación de sesión — mismos neutros OKLCH cálidos y barra
+   oscura que el hub (src/app/hub.module.css) y la vista de sala, para que el
+   chrome de /preparar se lea como parte del mismo sistema. Los layouts del
+   deck maquetado (src/componentes/deck) siguen usando sus propios tokens de
+   tema — aquí solo vive el "chrome" de preparación. */
+
+.app {
+  --acento: oklch(0.62 0.19 42);
+  --acento-suave: oklch(0.62 0.19 42 / 0.1);
+  --fondo: oklch(0.985 0.006 70);
+  --superficie: oklch(1 0 0);
+  --superficie-2: oklch(0.975 0.008 70);
+  --borde: oklch(0.91 0.012 70);
+  --borde-fuerte: oklch(0.84 0.014 70);
+  --tx: oklch(0.26 0.025 55);
+  --tx-2: oklch(0.52 0.02 55);
+  --tx-3: oklch(0.66 0.015 55);
+  --alerta: oklch(0.57 0.2 25);
+  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
+  --ok: oklch(0.6 0.12 155);
+  --ok-suave: oklch(0.6 0.12 155 / 0.12);
+  --tibia: oklch(0.72 0.13 70);
+  --barra: oklch(0.24 0.03 55);
+  --barra-tx: oklch(0.96 0.008 70);
+
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- barra superior ---- */
+.barra {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
+  background: var(--barra); color: var(--barra-tx);
+}
+.volver {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-size: 0.88rem; font-weight: 500;
+}
+.volver:hover { opacity: 1; }
+.barraTitulo { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; margin-left: 0.25rem; }
+.barraDcha { margin-left: auto; display: flex; align-items: center; gap: 0.9rem; }
+
+/* ---- contenedor ---- */
+.main { max-width: 900px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.mainAncho { max-width: 1180px; }
+
+.encabezado {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  margin-bottom: 2rem; flex-wrap: wrap;
+}
+.titulo { font-size: clamp(1.6rem, 4vw, 2.1rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
+.subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; }
+
+/* ---- botón primario ---- */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.65rem 1.15rem; border-radius: 0.6rem; border: none;
+  background: var(--tx); color: var(--fondo);
+  font-family: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  text-decoration: none; transition: opacity 140ms ease, transform 140ms ease;
+}
+.boton:hover { opacity: 0.85; }
+.boton:disabled { opacity: 0.4; cursor: not-allowed; }
+.botonAcento { background: var(--acento); color: white; }
+.botonSecundario { background: var(--superficie); color: var(--tx); border: 1px solid var(--borde-fuerte); }
+.botonSecundario:hover { background: var(--superficie-2); opacity: 1; }
+.botonChico { padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 0.45rem; }
+
+/* ---- lista de sesiones ---- */
+.lista { display: flex; flex-direction: column; }
+.fila {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
+  padding: 1rem 0.9rem; border-top: 1px solid var(--borde);
+  text-decoration: none; color: inherit; transition: background 140ms ease;
+}
+.lista .fila:last-child { border-bottom: 1px solid var(--borde); }
+.fila:hover { background: var(--superficie-2); }
+.filaIzq { min-width: 0; }
+.filaNombre { font-size: 1.02rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
+.filaPunto { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; }
+.filaMeta { font-size: 0.82rem; color: var(--tx-2); margin-top: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.filaMeta .sep { color: var(--borde-fuerte); }
+.filaDcha { display: flex; align-items: center; gap: 1rem; }
+.flecha { color: var(--tx-3); font-size: 1.1rem; }
+
+.vacio {
+  padding: 2.5rem 1rem; text-align: center; color: var(--tx-3); font-size: 0.92rem;
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.8rem;
+}
+
+/* ---- chips de estado ---- */
+.chip {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem; border-radius: 999px;
+  background: var(--superficie-2); color: var(--tx-2); border: 1px solid var(--borde);
+}
+.chip.borrador { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
+.chip.lista { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
+.chip.presentada, .chip.minutada { background: var(--superficie-2); color: var(--tx-2); }
+
+/* ---- barra de avance ---- */
+.avance { display: flex; align-items: center; gap: 0.5rem; min-width: 110px; }
+.avanceBarra { flex: 1; height: 6px; border-radius: 999px; background: var(--borde); overflow: hidden; }
+.avanceRelleno { height: 100%; background: var(--acento); border-radius: 999px; transition: width 200ms ease; }
+.avanceTexto { font-size: 0.76rem; color: var(--tx-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---- formulario "nueva sesión" ---- */
+.form { display: flex; flex-direction: column; gap: 1.75rem; }
+.campo { display: flex; flex-direction: column; gap: 0.6rem; }
+.campoTitulo { font-size: 0.82rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tx-2); }
+
+.salasGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
+.salaOpcion {
+  position: relative; cursor: pointer; border: 1.5px solid var(--borde); border-radius: 0.7rem;
+  padding: 0.75rem 0.85rem; background: var(--superficie); transition: border-color 140ms ease, background 140ms ease;
+  display: flex; align-items: center; gap: 0.55rem;
+}
+.salaOpcion:hover { background: var(--superficie-2); }
+.salaOpcion input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.salaOpcion:has(input:checked) { border-color: var(--sala, var(--acento)); background: color-mix(in srgb, var(--sala, var(--acento)) 8%, var(--superficie)); }
+.salaOpcionPunto { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; background: var(--sala); }
+.salaOpcionNombre { font-size: 0.9rem; font-weight: 600; }
+
+.opcionesFila { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.opcionPill {
+  position: relative; cursor: pointer; border: 1.5px solid var(--borde); border-radius: 999px;
+  padding: 0.5rem 1.1rem; font-size: 0.88rem; font-weight: 600; color: var(--tx-2);
+  background: var(--superficie); transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+.opcionPill input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.opcionPill:has(input:checked) { border-color: var(--acento); color: var(--acento); background: var(--acento-suave); }
+
+.inputTexto, .textarea, .select {
+  width: 100%; font-family: inherit; font-size: 0.92rem; color: var(--tx);
+  background: var(--superficie); border: 1.5px solid var(--borde); border-radius: 0.6rem;
+  padding: 0.65rem 0.8rem; transition: border-color 140ms ease;
+}
+.inputTexto:focus, .textarea:focus, .select:focus { outline: none; border-color: var(--acento); }
+.textarea { resize: vertical; min-height: 4.5rem; line-height: 1.5; }
+.textareaChica { min-height: 3rem; }
+.pistaTextarea { font-size: 0.76rem; color: var(--tx-3); }
+
+/* ---- cabecera de sesión ---- */
+.heroSesion {
+  border-radius: 1rem; padding: clamp(1.25rem, 4vw, 1.75rem); margin-bottom: 2rem;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--sala) 14%, var(--superficie)), var(--superficie));
+  border: 1px solid var(--borde);
+}
+.heroFila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.heroSala { display: flex; align-items: center; gap: 0.6rem; font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; }
+.heroPunto { width: 0.85rem; height: 0.85rem; border-radius: 50%; background: var(--sala); flex: none; }
+.heroMeta { display: flex; gap: 0.9rem; margin-top: 0.6rem; font-size: 0.85rem; color: var(--tx-2); flex-wrap: wrap; }
+.heroMeta .sep { color: var(--borde-fuerte); }
+
+/* ---- cuestionario: tarjetas ---- */
+.tarjetas { display: flex; flex-direction: column; gap: 1.1rem; }
+.tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: 0.9rem; padding: 1.25rem 1.4rem; }
+.tarjeta[data-llenado="true"] { border-color: color-mix(in srgb, var(--ok) 45%, var(--borde)); }
+.tarjetaCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
+.tarjetaNumero {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.7rem; height: 1.7rem; border-radius: 50%; font-size: 0.78rem; font-weight: 700;
+  background: var(--superficie-2); color: var(--tx-2); flex: none;
+}
+.tarjeta[data-llenado="true"] .tarjetaNumero { background: var(--ok-suave); color: var(--ok); }
+.tarjetaTitulo { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
+.tarjetaPregunta { font-size: 0.85rem; color: var(--tx-2); margin: 0.3rem 0 0; line-height: 1.45; }
+.tarjetaAcciones { display: flex; gap: 0.3rem; flex: none; }
+.tarjetaOrden { display: flex; gap: 0.3rem; }
+.botonIcono {
+  width: 1.9rem; height: 1.9rem; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 0.45rem; border: 1px solid var(--borde-fuerte); background: var(--superficie);
+  color: var(--tx-2); cursor: pointer; font-size: 0.85rem; line-height: 1;
+}
+.botonIcono:hover { background: var(--superficie-2); color: var(--tx); }
+.botonIcono:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.tarjetaCampos { display: flex; flex-direction: column; gap: 0.8rem; }
+.campoInline { display: flex; flex-direction: column; gap: 0.35rem; }
+.campoInlineLabel { font-size: 0.74rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tx-3); }
+.tarjetaGuardar { display: flex; justify-content: flex-end; margin-top: 0.4rem; }
+
+/* ---- panel de maquetar ---- */
+.panelMaquetar {
+  position: sticky; bottom: 1rem; margin-top: 2rem;
+  background: var(--barra); color: var(--barra-tx); border-radius: 0.9rem;
+  padding: 1rem 1.3rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  box-shadow: 0 8px 30px oklch(0 0 0 / 0.18);
+}
+.panelMaquetarTexto { font-size: 0.88rem; opacity: 0.85; }
+.panelMaquetarAviso {
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.7rem; padding: 1rem 1.2rem;
+  color: var(--tx-2); font-size: 0.88rem; margin-top: 2rem;
+}
+
+/* ---- deck maquetado ---- */
+.deckLista { display: grid; gap: 1.75rem; }
+.deckSlideWrap { border-radius: 0.6rem; overflow: hidden; box-shadow: 0 1px 3px oklch(0 0 0 / 0.08), 0 0 0 1px var(--borde); }
