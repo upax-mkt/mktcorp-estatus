@@ -21,6 +21,8 @@ export interface Presentacion {
   fecha: string // ISO
   titulo: string
   tipo: 'semanal' | 'mensual'
+  /** La sesión real de la que salió. Sin ella no hay documento que abrir. */
+  sesionId?: string
 }
 
 export interface Minuta {

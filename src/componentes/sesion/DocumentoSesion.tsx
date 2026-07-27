@@ -3,6 +3,7 @@ import type { Acuerdo } from '@/db/consultas'
 import type { Tema } from '@/temas/tipos'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import { SeccionDocumento, anclaDeSeccion } from './SeccionDocumento'
+import { papelDe } from '@/secciones/catalogo'
 import { ModoPresentar } from './ModoPresentar'
 import { fechaBreve } from '@/lib/fecha'
 import estilos from './documento.module.css'
@@ -34,10 +35,13 @@ const ETIQUETA: Record<Acuerdo['estatus'], string> = {
 
 export function DocumentoSesion({ tema, secciones, acuerdos, encabezado }: Props) {
   // El índice se arma con las secciones que tienen entidad propia: la portada
-  // es el encabezado del documento y el propio índice no se lista a sí mismo.
+  // es el encabezado del documento, el cierre es el final —no un destino al
+  // que saltar— y el propio índice no se lista a sí mismo.
+  // Los divisores SÍ entran: son los bloques de la sesión, y saltar a "Outbound
+  // & pipeline" es exactamente lo que alguien quiere hacer desde el índice.
   const indiceGeneral = secciones
     .map((s, i) => ({ titulo: s.decision.titulo, ancla: anclaDeSeccion(i), layout: s.decision.layout }))
-    .filter((e) => e.layout !== 'portada' && e.layout !== 'agenda')
+    .filter((e) => e.layout !== 'portada' && e.layout !== 'cierre' && papelDe(e.layout) !== 'indice')
 
   return (
     <ProveedorTema tema={tema} superficie="clara">

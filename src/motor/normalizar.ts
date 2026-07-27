@@ -2,9 +2,7 @@ import type {
   EntradaCruda,
   Inventario,
   PiezaCifra,
-  PiezaComparativo,
   PiezaInventario,
-  PiezaSerie,
 } from './inventario'
 
 /** Umbral aproximado de largo para distinguir párrafo de lista/texto corto. */
@@ -23,12 +21,18 @@ function itemsDeLista(texto: string): string[] {
 }
 
 /**
- * Clasifica una tabla cruda: una sola columna de datos (además de la etiqueta
- * de fila) → snapshot de un periodo, una pieza `cifra` por fila (no hay dos
- * periodos que comparar, así que semánticamente son cifras sueltas); dos
- * columnas → comparativo entre dos periodos; tres o más → serie temporal
- * (una pieza por fila/métrica). Con 0 columnas de datos, o sin filas, no hay
- * dato que preservar y la tabla se ignora explícitamente.
+ * Clasifica una tabla cruda.
+ *
+ * UNA sola columna de datos (además de la etiqueta de fila) no es una tabla: es
+ * la foto de un periodo, y cada fila es una cifra suelta. Se degrada a piezas
+ * `cifra` a propósito — así entran en la regla dura de "ninguna cifra del
+ * inventario se pierde", que es lo que de verdad protege ese contenido.
+ *
+ * DOS o más columnas de datos SÍ son una tabla, y se conserva entera. Antes se
+ * troceaba en series y la rejilla desaparecía; el resultado era que la app no
+ * podía reproducir una comparativa Mayo|Junio ni aunque el equipo la pegara.
+ *
+ * Con 0 columnas de datos, o sin filas, no hay nada que preservar.
  */
 function piezasDeTabla(tabla: string[][]): PiezaInventario[] {
   const [encabezado, ...filas] = tabla
@@ -36,12 +40,7 @@ function piezasDeTabla(tabla: string[][]): PiezaInventario[] {
 
   const columnasDeDatos = encabezado.length - 1
 
-  if (columnasDeDatos <= 0 || filas.length === 0) {
-    // Encabezado sin columna de datos (o tabla sin filas): no hay ninguna
-    // cifra que rescatar, así que se ignora a propósito (no es el bug de
-    // "tabla de 1 columna" que se pierde en silencio; aquí no hay nada).
-    return []
-  }
+  if (columnasDeDatos <= 0 || filas.length === 0) return []
 
   if (columnasDeDatos === 1) {
     return filas.map(
@@ -53,28 +52,7 @@ function piezasDeTabla(tabla: string[][]): PiezaInventario[] {
     )
   }
 
-  if (columnasDeDatos === 2) {
-    const comparativo: PiezaComparativo = {
-      tipo: 'comparativo',
-      etiqueta: encabezado[0] ?? '',
-      periodos: [encabezado[1], encabezado[2]],
-      series: filas.map((fila) => ({
-        etiqueta: fila[0] ?? '',
-        valores: [fila[1] ?? '', fila[2] ?? ''],
-      })),
-    }
-    return [comparativo]
-  }
-
-  const periodos = encabezado.slice(1)
-  return filas.map(
-    (fila): PiezaSerie => ({
-      tipo: 'serie',
-      etiqueta: fila[0] ?? '',
-      periodos,
-      valores: fila.slice(1),
-    }),
-  )
+  return [{ tipo: 'tabla', columnas: encabezado, filas }]
 }
 
 /**

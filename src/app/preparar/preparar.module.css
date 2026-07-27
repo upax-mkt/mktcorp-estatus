@@ -47,6 +47,10 @@
 
 /* ---- contenedor ---- */
 .main { max-width: 900px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+/* El editor de secciones necesita más sitio: dentro conviven una fila de
+   cuatro campos, una rejilla pegada y la configuración por serie de un
+   gráfico. A 900px eso se apila hasta volverse una columna de cajitas. */
+.mainEditor { max-width: 1120px; }
 .mainAncho { max-width: 1180px; }
 
 .encabezado {
@@ -281,3 +285,20 @@
   border: 1px dashed var(--borde-fuerte); border-radius: 0.7rem;
 }
 .zonaPeligroTexto { font-size: 0.85rem; line-height: 1.5; color: var(--tx-2); max-width: 60ch; }
+
+/* ---- árbol de secciones del editor ---- */
+
+/* Un bloque de la sesión: la sección base y las subsecciones que cuelgan. */
+.bloqueSeccion { display: grid; gap: 0.9rem; }
+
+/* Las subsecciones se sangran y se marcan con una guía a la izquierda: se ve
+   de un vistazo qué cuelga de qué sin tener que leer los títulos. */
+.subsecciones {
+  display: grid;
+  gap: 0.9rem;
+  margin-left: 1.4rem;
+  padding-left: 1.4rem;
+  border-left: 2px solid color-mix(in oklch, var(--sala, #888) 30%, transparent);
+}
+
+.tarjeta[data-sub='true'] { background: color-mix(in oklch, var(--tx) 3%, var(--superficie)); }

@@ -204,8 +204,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {/* Presentaciones */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>Presentaciones</h2>
-          {presReciente && (
-            <Link href={`/demo/${slug}`} className={estilos.presDestacada}>
+          {/* Enlaza a la sesión REAL. Una presentación sin `sesionId` es de
+              los datos de ejemplo (sin DB): se muestra sin enlace en vez de
+              llevar a un documento que no existe. */}
+          {presReciente && presReciente.sesionId && (
+            <Link href={`/sesion/${presReciente.sesionId}`} className={estilos.presDestacada}>
               <div>
                 <div className={estilos.presTag}>Más reciente</div>
                 <h3 className={estilos.presTitulo}>{presReciente.titulo}</h3>

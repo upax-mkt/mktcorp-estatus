@@ -135,6 +135,10 @@ export function actualizarOrdenItemMemoria(itemId: string, orden: number): void 
   fila.updatedAt = new Date()
 }
 
+export function eliminarItemMemoria(itemId: string): void {
+  items.delete(itemId)
+}
+
 export function actualizarDecisionItemMemoria(itemId: string, decisionMaquetacion: unknown): void {
   const fila = items.get(itemId)
   if (!fila) return

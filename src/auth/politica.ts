@@ -19,7 +19,7 @@ import type { Sesion } from './firma'
 const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/retorno']
 
 /** Rutas de solo-equipo, por prefijo de primer segmento. */
-const SECCIONES_DE_EQUIPO = ['preparar', 'motor-demo']
+const SECCIONES_DE_EQUIPO = ['preparar']
 
 /** Primer segmento y resto de una ruta: '/sala/neracode' → ['sala', 'neracode']. */
 function segmentos(ruta: string): string[] {
@@ -58,6 +58,11 @@ export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
   if (partes.length !== 2) return false
   const [seccion, slug] = partes
   if (SECCIONES_DE_EQUIPO.includes(seccion)) return false
-  if (seccion !== 'sala' && seccion !== 'demo') return false
+  // `/sesion/<id>` lleva un id, no un slug: aquí no se puede saber de qué sala
+  // es. Pasa el filtro optimista y la PÁGINA comprueba contra la sesión real
+  // que ese director puede verla — que es donde vive la verificación que
+  // manda, pegada al dato.
+  if (seccion === 'sesion') return true
+  if (seccion !== 'sala') return false
   return puedeVerSala(sesion, slug)
 }

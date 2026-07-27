@@ -6,7 +6,11 @@ import * as normalizarMod from './normalizar'
 const crudo = { titulo: 'Performance', cifras: [{ valor: '9.2', rotulo: 'Posición', delta: '-0.3' }] }
 const valida = { layout: 'kpis-fila-dos-columnas', titulo: 'Performance',
   kpis: [{ valor: '9.2', delta: '-0.3', rotulo: 'Posición' }], razon: 'r' }
-const invalida = { layout: 'matriz-estados', titulo: 'Performance', razon: 'r' }
+// Una sección declarada y vacía. Ya no quedan layouts sin dibujo con los que
+// provocar un rechazo, y perder una cifra tampoco sirve: `sanearDecision` la
+// repone del inventario antes de validar, que es exactamente su trabajo. Un
+// bloque anunciado sin contenido, en cambio, no hay de dónde repararlo.
+const invalida = { layout: 'texto-multicolumna', titulo: 'Performance', columnas: [], razon: 'r' }
 
 describe('maquetarItem', () => {
   it('reintenta cuando la primera decisión no valida y acepta la segunda', async () => {
@@ -23,7 +27,7 @@ describe('maquetarItem', () => {
     const parse = vi.fn().mockResolvedValue({ parsed_output: invalida })
     const r = await maquetarItem(crudo, obtenerTema('neracode'), { messages: { parse } })
     expect(r.degradado).toBe(true)
-    expect(r.motivo).toMatch(/matriz-estados|no implementado/i)
+    expect(r.motivo).toMatch(/columnas viene vacía/i)
   })
 
   it('degrada sin propagar si decidir() lanza en ambos intentos', async () => {
@@ -91,5 +95,52 @@ describe('maquetarSesion', () => {
     expect(resultados[1].degradado).toBe(false)
     expect(resultados[1].decision.layout).toBe('kpis-fila-dos-columnas')
     spy.mockRestore()
+  })
+})
+
+describe('una sección compuesta a mano no pasa por la IA', () => {
+  it('se maqueta sin llamar al modelo ni una vez', async () => {
+    const parse = vi.fn()
+    const resultados = await maquetarSesion(
+      [{
+        titulo: 'Pendientes',
+        seccion: {
+          layout: 'pendientes-semaforo',
+          titulo: 'Pendientes de la sesión pasada',
+          tablas: [{ columnas: ['Responsable', 'Tarea'], filas: [{ celdas: ['Ileana', 'Cerrar el brief'] }] }],
+        },
+      }],
+      'neracode',
+      { messages: { parse } },
+    )
+    expect(parse).not.toHaveBeenCalled()
+    expect(resultados[0].degradado).toBe(false)
+    expect(resultados[0].decision.titulo).toBe('Pendientes de la sesión pasada')
+  })
+
+  it('una sesión entera armada a mano no necesita cliente de IA', async () => {
+    // Sin `cliente` y sin ANTHROPIC_API_KEY, `crearClientePorDefecto()` lanza.
+    // Que esto pase demuestra que ni siquiera se intenta crearlo.
+    const previa = process.env.ANTHROPIC_API_KEY
+    delete process.env.ANTHROPIC_API_KEY
+    try {
+      const resultados = await maquetarSesion(
+        [{ titulo: 'Portada', seccion: { layout: 'portada', titulo: 'Estatus mensual' } }],
+        'neracode',
+      )
+      expect(resultados[0].degradado).toBe(false)
+    } finally {
+      if (previa !== undefined) process.env.ANTHROPIC_API_KEY = previa
+    }
+  })
+
+  it('una sección a medias se degrada diciendo qué le falta, en vez de desaparecer', async () => {
+    const resultados = await maquetarSesion(
+      [{ titulo: 'Cifras', seccion: { layout: 'kpis-fila-dos-columnas', titulo: 'Performance' } }],
+      'neracode',
+      { messages: { parse: vi.fn() } },
+    )
+    expect(resultados[0].degradado).toBe(true)
+    expect(resultados[0].motivo).toContain('al menos una cifra')
   })
 })

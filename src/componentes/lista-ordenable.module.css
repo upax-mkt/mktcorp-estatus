@@ -1,5 +1,7 @@
-/* Envoltura de arrastre del cuestionario. El asa y el número viven en una
-   columna a la izquierda de cada tarjeta; la tarjeta conserva su propio diseño. */
+/* Envoltura de arrastre del editor de secciones. El asa y el número viven en
+   una columna a la izquierda de cada tarjeta; la tarjeta conserva su diseño.
+   El reacomodo de las vecinas lo anima dnd-kit por `transform`/`transition`
+   en línea; aquí solo se viste el asa y el estado de la que se lleva. */
 
 .lista {
   display: grid;
@@ -35,13 +37,26 @@
   width: 1.6rem;
   height: 1.6rem;
   margin-top: 1.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   font-size: 0.95rem;
   line-height: 1;
   color: oklch(0.72 0.015 55);
   border-radius: 0.35rem;
   cursor: grab;
   user-select: none;
+  /* Sin esto, en táctil el navegador interpreta el arrastre como scroll y el
+     asa no llega a activarse nunca. */
+  touch-action: none;
   transition: color 0.15s ease, background 0.15s ease;
+}
+
+.asa:focus-visible {
+  outline: 2px solid oklch(0.62 0.19 42);
+  outline-offset: 2px;
+  color: oklch(0.4 0.02 55);
 }
 
 .asa:hover {
@@ -64,13 +79,15 @@
   opacity: 0.4;
 }
 
-/* Dónde va a caer. */
-.destino {
-  box-shadow: 0 -3px 0 -1px oklch(0.62 0.19 42);
-  transform: translateY(2px);
+/* Lo que sigue al cursor: la tarjeta de verdad, levantada del papel. */
+.sobrevolando {
+  opacity: 1;
+  cursor: grabbing;
+  box-shadow: 0 12px 32px oklch(0.26 0.025 55 / 0.18);
+  transform: scale(1.01);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .fila { transition: none; }
-  .destino { transform: none; }
+  .sobrevolando { transform: none; box-shadow: 0 0 0 2px oklch(0.62 0.19 42); }
 }

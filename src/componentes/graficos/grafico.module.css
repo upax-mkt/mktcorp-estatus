@@ -1,0 +1,169 @@
+/* El envoltorio de un gráfico y sus animaciones de entrada. Los tokens de
+   marca (--texto, --dato-N, --fuente-texto) los publica ProveedorTema; aquí
+   solo se consumen. */
+
+.figura {
+  margin: 0;
+  /* `cqw` no sirve: este componente vive tanto en el deck (un contenedor con
+     container-type) como en el documento (sin él). `em` escala con el
+     contexto tipográfico en los dos. */
+  padding: 0.6em 0 0;
+}
+
+.titulo {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: color-mix(in oklch, var(--texto) 75%, transparent);
+  margin-bottom: 0.5em;
+}
+
+/* ---- animación de entrada ------------------------------------------------
+
+   REGLA DE FONDO: la animación explica el dato, no lo decora. Cada forma se
+   mueve en la dirección en que se lee —las barras crecen desde su base, las
+   líneas se dibujan de izquierda a derecha, los sectores giran desde arriba—
+   así el movimiento cuenta cómo está construido el gráfico.
+
+   El estado FINAL es el que viene del servidor. Estas reglas solo llevan hasta
+   él: sin JavaScript, sin IntersectionObserver o con animación reducida, el
+   gráfico se ve completo igual. Nada de lo que se ve depende de que la
+   animación corra.
+
+   `data-visible` lo pone AlEntrar cuando el gráfico llega a la pantalla. */
+
+.animado {
+  /* Escalonado: cada elemento arranca un poco después que el anterior. Sin
+     esto, veinte barras apareciendo a la vez es un parpadeo, no un gráfico
+     construyéndose. */
+  --paso: 45ms;
+  --duracion: 620ms;
+  /* Salida rápida y frenada larga: el dato "aterriza" en su valor en vez de
+     llegar de golpe. */
+  --curva: cubic-bezier(0.22, 0.68, 0.28, 1);
+}
+
+/* La posición de arranque solo existe cuando hay JavaScript para sacar al
+   gráfico de ella. `data-animar` lo pone AlEntrar al montar en el navegador:
+   en el HTML del servidor, al imprimir o si el script no llega, no hay
+   atributo y el gráfico se ve completo. Sin esta condición, un fallo del
+   observador dejaba el gráfico EN BLANCO delante de un director. */
+.animado[data-animar='true'] :is([data-testid='barra'], [data-testid='sector'], [data-testid='punto'], [data-testid='area']) {
+  opacity: 0;
+}
+
+.animado[data-animar='true'] :is([data-testid='linea'], [data-testid='linea-meta']) {
+  /* pathLength="1" normaliza el largo del trazo, así que la misma regla vale
+     para una línea de 3 puntos y para una de 12. */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.animado[data-animar='true'] text {
+  opacity: 0;
+}
+
+/* --- barras: crecen desde su base --- */
+
+.animado[data-visible='true'] [data-testid='barra'] {
+  transform-box: fill-box;
+  /* Una barra negativa cuelga hacia abajo desde el cero: su base es el borde
+     de arriba. El componente marca cuál es cuál. */
+  transform-origin: center bottom;
+  animation: crecer var(--duracion) var(--curva) backwards;
+  animation-delay: calc(var(--i, 0) * var(--paso));
+}
+
+.animado[data-visible='true'] [data-testid='barra'][data-negativa='true'] {
+  transform-origin: center top;
+}
+
+/* Las horizontales crecen desde la izquierda, que es de donde nacen. */
+.animado[data-visible='true'] [data-testid='barra'][data-horizontal='true'] {
+  transform-origin: left center;
+  animation-name: crecer-ancho;
+}
+
+@keyframes crecer {
+  from { opacity: 1; transform: scaleY(0); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+@keyframes crecer-ancho {
+  from { opacity: 1; transform: scaleX(0); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+
+/* --- líneas: se dibujan de izquierda a derecha --- */
+
+.animado[data-visible='true'] :is([data-testid='linea'], [data-testid='linea-meta']) {
+  animation: trazar calc(var(--duracion) * 1.5) var(--curva) forwards;
+}
+
+@keyframes trazar {
+  to { stroke-dashoffset: 0; }
+}
+
+/* La meta es una referencia, no una medición: entra después de los datos, para
+   que se lea como el listón contra el que se comparan. */
+.animado[data-visible='true'] [data-testid='linea-meta'] {
+  animation-delay: calc(var(--duracion) * 0.45);
+}
+
+/* --- puntos y área: aparecen cuando su línea ya pasó por ahí --- */
+
+.animado[data-visible='true'] [data-testid='punto'] {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: aparecer 260ms ease-out backwards;
+  animation-delay: calc(var(--duracion) * 0.5 + var(--i, 0) * var(--paso));
+}
+
+.animado[data-visible='true'] [data-testid='area'] {
+  animation: fundir 700ms ease-out backwards;
+  animation-delay: calc(var(--duracion) * 0.4);
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: scale(0.2); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fundir {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* --- sectores de dona: giran desde las 12 --- */
+
+.animado[data-visible='true'] [data-testid='sector'] {
+  transform-box: view-box;
+  transform-origin: center;
+  animation: girar 700ms var(--curva) backwards;
+  animation-delay: calc(var(--i, 0) * var(--paso) * 2);
+}
+
+@keyframes girar {
+  from { opacity: 0; transform: rotate(-14deg) scale(0.86); }
+  to   { opacity: 1; transform: rotate(0) scale(1); }
+}
+
+/* --- textos: el último en llegar, cuando su forma ya está --- */
+
+.animado[data-visible='true'] text {
+  animation: fundir 400ms ease-out backwards;
+  animation-delay: calc(var(--duracion) * 0.7);
+}
+
+/* Quien pidió menos movimiento lo ve completo y quieto, sin excepciones. */
+@media (prefers-reduced-motion: reduce) {
+  .animado :is(text, [data-testid='barra'], [data-testid='sector'], [data-testid='punto'], [data-testid='area']) {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+  .animado :is([data-testid='linea'], [data-testid='linea-meta']) {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+}

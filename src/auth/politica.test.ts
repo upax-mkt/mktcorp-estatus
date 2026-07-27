@@ -56,23 +56,25 @@ describe('puedeVerRuta', () => {
   })
 
   it('el equipo entra a todo', () => {
-    for (const ruta of ['/', '/sala/zeus', '/preparar', '/preparar/abc/minuta', '/motor-demo', '/demo/uix']) {
+    for (const ruta of ['/', '/sala/zeus', '/preparar', '/preparar/abc/minuta']) {
       expect(puedeVerRuta(EQUIPO, ruta)).toBe(true)
     }
   })
 
   it('un acceso de sala entra a su sala y a su deck, nada más', () => {
     expect(puedeVerRuta(SALA_NC, '/sala/neracode')).toBe(true)
-    expect(puedeVerRuta(SALA_NC, '/demo/neracode')).toBe(true)
+    // La sesión publicada pasa el filtro optimista; la página comprueba de qué
+    // sala es, porque la ruta lleva un id y no un slug.
+    expect(puedeVerRuta(SALA_NC, '/sesion/abc-123')).toBe(true)
     expect(puedeVerRuta(SALA_NC, '/sala/zeus')).toBe(false)
-    expect(puedeVerRuta(SALA_NC, '/demo/zeus')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/sala/zeus')).toBe(false)
   })
 
   it('un acceso de sala no entra al hub ni a la preparación ni al motor', () => {
     expect(puedeVerRuta(SALA_NC, '/')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/preparar')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/preparar/abc')).toBe(false)
-    expect(puedeVerRuta(SALA_NC, '/motor-demo')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/preparar/abc')).toBe(false)
   })
 
   it('no se deja engañar por un slug que empieza igual que el suyo', () => {

@@ -150,6 +150,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     fecha: isoFecha(s.fecha),
     titulo: tituloDeSesion(s),
     tipo: s.tipo,
+    sesionId: s.id,
   }))
 
   const minutas: Minuta[] = minutasRows.map((m) => ({

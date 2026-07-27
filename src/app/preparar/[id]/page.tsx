@@ -5,25 +5,31 @@ import type { CSSProperties } from 'react'
 import estilos from '../preparar.module.css'
 import {
   obtenerSesion,
-  guardarItemContenido,
   moverItem,
   reordenarItems,
   entradasCrudasDeSesion,
   guardarDecisiones,
-  parsearCifrasTexto,
-  formatearCifrasTexto,
-  type ContenidoItemCrudo,
+  guardarSeccion,
+  anadirSeccion,
+  eliminarSeccion,
+  guardarItemContenido,
 } from '@/db/sesiones'
 import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
+import { maquetarItem } from '@/motor/maquetar'
+import { obtenerTema } from '@/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
+import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
+import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
+import type { BorradorSeccion } from '@/secciones/borrador'
+import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
 
-// El botón "Maquetar" llama al motor (etapa 2, Claude, ~25s en 2 intentos en
-// serie): el default serverless de Vercel (10s) no alcanza.
+// Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
+// el asistente de IA, que sí llama al modelo.
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +39,9 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   presentada: 'presentada',
   minutada: 'minutada',
 }
+
+/** Piezas de la estructura de la reunión: no abren un bloque de contenido. */
+const SIN_SUBSECCIONES: Array<DecisionSlide['layout']> = ['portada', 'agenda', 'cierre']
 
 function etiquetaAlcance(alcance: string): string {
   return alcance === 'todos' ? 'todos los squads' : alcance
@@ -44,41 +53,82 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   if (!sesion) notFound()
 
   // ---- Server actions ----
+  // Cada una exige equipo por su cuenta: una Server Action es un endpoint, y
+  // ocultar el botón en la pantalla no protege nada.
 
-  async function guardarContenido(formData: FormData) {
+  async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const itemId = String(formData.get('itemId') ?? '')
-    const texto = String(formData.get('texto') ?? '').trim()
-    const notaTexto = String(formData.get('nota') ?? '').trim()
-    const cifras = parsearCifrasTexto(String(formData.get('cifras') ?? ''))
+    await guardarSeccion(id, itemId, seccion)
+    revalidatePath(`/preparar/${id}`)
+  }
 
-    const contenido: ContenidoItemCrudo = {}
-    if (texto.length > 0) contenido.texto = texto
-    if (cifras.length > 0) contenido.cifras = cifras
-    if (notaTexto.length > 0) contenido.nota = notaTexto
+  async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
+    'use server'
+    await exigirEquipo()
+    await anadirSeccion(id, layout, nombre)
+    revalidatePath(`/preparar/${id}`)
+  }
 
-    await guardarItemContenido(sesionId, itemId, contenido)
-    revalidatePath(`/preparar/${sesionId}`)
+  async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
+    'use server'
+    await exigirEquipo()
+    await anadirSeccion(id, layout, nombre, padre)
+    revalidatePath(`/preparar/${id}`)
+  }
+
+  async function eliminarSeccionAction(itemId: string) {
+    'use server'
+    await exigirEquipo()
+    await eliminarSeccion(id, itemId)
+    revalidatePath(`/preparar/${id}`)
+  }
+
+  /**
+   * El atajo opcional: texto crudo → propuesta de sección.
+   *
+   * Devuelve la propuesta SIN guardarla. Cae en el formulario del navegador y
+   * ahí se corrige; nadie presenta algo que no revisó. Guarda el texto crudo
+   * para que reabrir el asistente no obligue a volver a pegarlo.
+   */
+  async function proponerAction(itemId: string, texto: string): Promise<BorradorSeccion | { error: string }> {
+    'use server'
+    await exigirEquipo()
+    const sesionActual = await obtenerSesion(id)
+    const item = sesionActual?.items.find((i) => i.id === itemId)
+    if (!item) return { error: 'Esta sección ya no existe.' }
+
+    await guardarItemContenido(id, itemId, { ...item.contenido, texto })
+
+    try {
+      const { crearClientePorDefecto } = await import('@/motor/decidir')
+      const resultado = await maquetarItem(
+        { titulo: item.titulo, texto },
+        obtenerTema(sesionActual!.salaSlug),
+        crearClientePorDefecto(),
+      )
+      // `razon` es la explicación que da el modelo de su decisión. En cuanto
+      // una persona toca la sección, deja de ser suya: se descarta aquí.
+      const { razon: _razon, ...propuesta } = resultado.decision
+      return propuesta
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : String(error)
+      return { error: `No se pudo proponer: ${mensaje}. Puedes armar la sección a mano.` }
+    }
   }
 
   async function subirItem(formData: FormData) {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const itemId = String(formData.get('itemId') ?? '')
-    await moverItem(sesionId, itemId, 'arriba')
-    revalidatePath(`/preparar/${sesionId}`)
+    await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
+    revalidatePath(`/preparar/${id}`)
   }
 
   async function bajarItem(formData: FormData) {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const itemId = String(formData.get('itemId') ?? '')
-    await moverItem(sesionId, itemId, 'abajo')
-    revalidatePath(`/preparar/${sesionId}`)
+    await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
+    revalidatePath(`/preparar/${id}`)
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
@@ -89,19 +139,18 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     revalidatePath(`/preparar/${id}`)
   }
 
-  async function maquetar(formData: FormData) {
+  async function maquetar() {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const sesionActual = await obtenerSesion(sesionId)
+    const sesionActual = await obtenerSesion(id)
     if (!sesionActual) throw new Error('Sesión no encontrada')
 
     const entradas = entradasCrudasDeSesion(sesionActual)
-    if (entradas.length === 0) throw new Error('No hay items llenados para maquetar')
+    if (entradas.length === 0) throw new Error('No hay secciones llenadas que presentar')
 
     const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
-    await guardarDecisiones(sesionId, resultados)
-    redirect(`/preparar/${sesionId}/deck`)
+    await guardarDecisiones(id, resultados)
+    redirect(`/preparar/${id}/deck`)
   }
 
   async function borrarSesionAction() {
@@ -116,6 +165,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // ---- Vista ----
 
   const total = sesion.items.length
+  // Las secciones base son los bloques de la reunión; el resto cuelga de una.
+  const bases = sesion.items.filter((i) => !i.padre)
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -125,14 +176,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         <div className={estilos.barraDcha}>
           {sesion.estado !== 'borrador' && (
             <>
-              <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver deck →</Link>
+              <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver documento →</Link>
               <Link href={`/preparar/${sesion.id}/minuta`} className={estilos.volver}>Minuta →</Link>
             </>
           )}
         </div>
       </header>
 
-      <main className={estilos.main}>
+      <main className={`${estilos.main} ${estilos.mainEditor}`}>
         <div className={estilos.heroSesion}>
           <div className={estilos.heroFila}>
             <div>
@@ -157,113 +208,74 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                     style={{ width: `${total > 0 ? Math.round((sesion.itemsLlenados / total) * 100) : 0}%` }}
                   />
                 </div>
-                <span className={estilos.avanceTexto}>{sesion.itemsLlenados}/{total} llenados</span>
+                <span className={estilos.avanceTexto}>{sesion.itemsLlenados}/{total} listas</span>
               </div>
             </div>
           </div>
         </div>
 
-        <ListaOrdenable ids={sesion.items.map((i) => i.id)} reordenarAction={reordenar}>
-          {sesion.items.map((item, i) => (
-            <form
-              key={item.id}
-              action={guardarContenido}
-              className={estilos.tarjeta}
-              data-llenado={item.llenado ? 'true' : 'false'}
-            >
-              <input type="hidden" name="sesionId" value={sesion.id} />
-              <input type="hidden" name="itemId" value={item.id} />
+        {/* El editor enseña el ÁRBOL de la sesión: las secciones base son los
+            bloques de la reunión y dentro cuelgan sus subsecciones, que es lo
+            que cambia de un mes a otro. El arrastre reordena los bloques; las
+            subsecciones se mueven con las flechas dentro del suyo. */}
+        <ListaOrdenable ids={bases.map((i) => i.id)} reordenarAction={reordenar}>
+          {bases.map((base, i) => {
+            const hijas = sesion.items.filter((h) => h.padre === base.tipo)
+            return (
+              <div key={base.id} className={estilos.bloqueSeccion}>
+                <TarjetaSeccion
+                  item={base}
+                  primera={i === 0}
+                  ultima={i === bases.length - 1}
+                  subirAction={subirItem}
+                  bajarAction={bajarItem}
+                  guardarSeccionAction={guardarSeccionAction}
+                  proponerAction={proponerAction}
+                  eliminarSeccionAction={base.esBase ? undefined : eliminarSeccionAction}
+                />
 
-              <div className={estilos.tarjetaCabecera}>
-                <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'flex-start', minWidth: 0 }}>
-                  <div>
-                    <div className={estilos.tarjetaTitulo}>
-                      {item.titulo}
-                      {item.llenado && <span style={{ color: 'var(--ok)', fontSize: '0.8rem' }}>✓</span>}
-                    </div>
-                    <p className={estilos.tarjetaPregunta}>{item.pregunta}</p>
-                  </div>
-                </div>
-                <div className={estilos.tarjetaAcciones}>
-                  <div className={estilos.tarjetaOrden}>
-                    <button
-                      type="submit"
-                      formAction={subirItem}
-                      className={estilos.botonIcono}
-                      disabled={i === 0}
-                      title="Subir"
-                      aria-label="Subir item"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="submit"
-                      formAction={bajarItem}
-                      className={estilos.botonIcono}
-                      disabled={i === total - 1}
-                      title="Bajar"
-                      aria-label="Bajar item"
-                    >
-                      ↓
-                    </button>
-                  </div>
+                <div className={estilos.subsecciones}>
+                  {hijas.map((hija, j) => (
+                    <TarjetaSeccion
+                      key={hija.id}
+                      item={hija}
+                      primera={j === 0}
+                      ultima={j === hijas.length - 1}
+                      subirAction={subirItem}
+                      bajarAction={bajarItem}
+                      guardarSeccionAction={guardarSeccionAction}
+                      proponerAction={proponerAction}
+                      eliminarSeccionAction={eliminarSeccionAction}
+                      esSub
+                    />
+                  ))}
+                  {/* Portada, Agenda y Cierre no son bloques con contenido
+                      dentro: son piezas sueltas de la estructura de la
+                      reunión, no temas que se abran en subsecciones. */}
+                  {!SIN_SUBSECCIONES.includes(base.contenido.seccion?.layout ?? 'portada') && (
+                      <AnadirSeccion
+                        dentroDe={base.titulo}
+                        anadirAction={anadirSubseccionAction.bind(null, base.tipo)}
+                    />
+                  )}
                 </div>
               </div>
-
-              <div className={estilos.tarjetaCampos}>
-                <div className={estilos.campoInline}>
-                  <span className={estilos.campoInlineLabel}>Contenido</span>
-                  <textarea
-                    name="texto"
-                    defaultValue={item.contenido.texto ?? ''}
-                    className={estilos.textarea}
-                    placeholder="Pega aquí el texto crudo: hallazgos, análisis, contexto…"
-                  />
-                </div>
-                <div className={estilos.campoInline}>
-                  <span className={estilos.campoInlineLabel}>
-                    Cifras (opcional) — una por línea: valor | rótulo | delta
-                  </span>
-                  <textarea
-                    name="cifras"
-                    defaultValue={formatearCifrasTexto(item.contenido.cifras)}
-                    className={`${estilos.textarea} ${estilos.textareaChica}`}
-                    placeholder={'9.2 | Posición media | -0.3\n29k | Impresiones | -16%'}
-                  />
-                  <span className={estilos.pistaTextarea}>Deja vacío si este item no trae cifras.</span>
-                </div>
-                <div className={estilos.campoInline}>
-                  <span className={estilos.campoInlineLabel}>Nota para la IA (opcional)</span>
-                  <input
-                    type="text"
-                    name="nota"
-                    defaultValue={item.contenido.nota ?? ''}
-                    className={estilos.inputTexto}
-                    placeholder="Ej. esto va destacado; no menciones el retraso"
-                  />
-                </div>
-              </div>
-
-              <div className={estilos.tarjetaGuardar}>
-                <button type="submit" className={`${estilos.boton} ${estilos.botonSecundario}`}>
-                  Guardar
-                </button>
-              </div>
-            </form>
-          ))}
+            )
+          })}
         </ListaOrdenable>
+
+        <AnadirSeccion anadirAction={anadirSeccionAction} />
 
         {sesion.itemsLlenados > 0 ? (
           <form action={maquetar} className={estilos.panelMaquetar}>
-            <input type="hidden" name="sesionId" value={sesion.id} />
             <span className={estilos.panelMaquetarTexto}>
-              {sesion.itemsLlenados} de {total} items listos para maquetar.
-              {sesion.estado !== 'borrador' && ' Ya hay un deck maquetado — volver a maquetar lo reemplaza.'}
+              {sesion.itemsLlenados} de {total} secciones listas.
+              {sesion.estado !== 'borrador' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
             </span>
             <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} />
           </form>
         ) : (
-          <p className={estilos.panelMaquetarAviso}>Llena al menos un item para poder maquetar la sesión.</p>
+          <p className={estilos.panelMaquetarAviso}>Llena al menos una sección para poder generar el documento.</p>
         )}
 
         <BorrarSesion borrarAction={borrarSesionAction} />

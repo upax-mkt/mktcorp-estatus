@@ -17,14 +17,30 @@ describe('normalizar', () => {
     expect(inv.piezas.some((p) => p.tipo === 'parrafo')).toBe(true)
   })
 
-  it('convierte una tabla de 2 periodos en un comparativo', () => {
+  it('conserva ENTERA una tabla de 2 periodos, sin trocearla en series', () => {
+    // Antes esto devolvía un `comparativo` y la rejilla se perdía: el modelo
+    // no veía una tabla, así que no podía devolver una. La comparativa
+    // Mayo|Junio del deck real no tenía forma de existir.
     const inv = normalizar({
       titulo: 'x',
       tablas: [[['', 'Mayo', 'Junio'], ['Sesiones', '1366', '968'], ['MQLs', '3', '1']]],
     })
-    const comp = inv.piezas.find((p) => p.tipo === 'comparativo')
-    expect(comp).toBeTruthy()
-    expect(comp).toMatchObject({ periodos: ['Mayo', 'Junio'] })
+    expect(inv.piezas).toEqual([
+      {
+        tipo: 'tabla',
+        columnas: ['', 'Mayo', 'Junio'],
+        filas: [['Sesiones', '1366', '968'], ['MQLs', '3', '1']],
+      },
+    ])
+  })
+
+  it('una tabla de más de 2 periodos también se conserva entera', () => {
+    const inv = normalizar({
+      titulo: 'x',
+      tablas: [[['Canal', 'Abr', 'May', 'Jun'], ['Orgánico', '10', '12', '9']]],
+    })
+    expect(inv.piezas).toHaveLength(1)
+    expect(inv.piezas[0]).toMatchObject({ tipo: 'tabla', columnas: ['Canal', 'Abr', 'May', 'Jun'] })
   })
 
   it('conserva la nota dirigida a la IA', () => {

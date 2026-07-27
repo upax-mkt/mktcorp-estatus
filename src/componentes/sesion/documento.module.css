@@ -283,3 +283,27 @@
 @media (max-width: 720px) {
   .columnas { grid-template-columns: 1fr; }
 }
+
+/* ---- etiqueta de columna y nota al pie ---- */
+
+/* La fecha que acompaña al encabezado de una columna ("Actualizado 12-jun"):
+   informa sin competir, por eso baja de peso y de tamaño. */
+.columnaEtiqueta {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: color-mix(in oklch, var(--texto) 55%, transparent);
+}
+
+/* Sin max-width: la línea que la separa del contenido tiene que cruzar la
+   sección entera. Recortarla a la medida del texto la deja colgando a medio
+   camino y se lee como un borde roto, no como un cierre. */
+.notaPie {
+  margin-top: 1.4rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: color-mix(in oklch, var(--texto) 58%, transparent);
+}

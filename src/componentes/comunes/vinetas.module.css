@@ -1,0 +1,31 @@
+/* Solo lo que el consumidor no puede resolver: la sangría por nivel y el
+   enlace. La tipografía y la viñeta las pone la clase que llega por
+   `className` (ver el comentario de ListaVinetas.tsx). */
+
+.anidada {
+  /* `em` y no `rem`: la sangría se mide contra el texto de ESTE nivel, así
+     escala igual en el deck (que mide en cqw) y en el documento (en rem). */
+  margin-top: 0.35em;
+  padding-left: 1.1em;
+}
+
+/* Un tercer nivel con el mismo punto que el segundo se lee como el mismo
+   nivel. El atributo lo pone la recursión. */
+.anidada[data-nivel='2'] > li::marker {
+  color: color-mix(in oklch, var(--texto) 50%, transparent);
+}
+
+.anidada[data-nivel='3'] {
+  opacity: 0.85;
+}
+
+.enlace {
+  color: var(--primario-sobre-superficie);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+.enlace:hover {
+  text-decoration-thickness: 2px;
+}

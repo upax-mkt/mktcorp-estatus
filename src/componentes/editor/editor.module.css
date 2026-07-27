@@ -1,0 +1,452 @@
+/* El editor de una sección. Consume los tokens de la página de preparación
+   (--sala, --tx, --linea…), no publica ninguno propio: el editor vive dentro
+   del flujo de preparación y tiene que verse parte de él. */
+
+.editor {
+  display: grid;
+  gap: 1rem;
+}
+
+/* ---- campos ---- */
+
+.campo,
+.campoAncho,
+.campoChico,
+.campoMinimo {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.campoAncho { flex: 3 1 12rem; }
+.campoChico { flex: 1 1 7rem; }
+.campoMinimo { flex: 0 1 4.5rem; }
+
+.campo > span,
+.campoAncho > span,
+.campoChico > span,
+.campoMinimo > span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+.editor input[type='text'],
+.editor input:not([type]),
+.editor select,
+.editor textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 18%, transparent);
+  border-radius: 0.5rem;
+  background: var(--superficie, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.editor textarea {
+  resize: vertical;
+  /* Monoespaciada a propósito: aquí se pegan rejillas y se cuenta la sangría.
+     Con una proporcional, dos espacios no se ven como dos espacios. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+.editor input:focus-visible,
+.editor select:focus-visible,
+.editor textarea:focus-visible {
+  outline: 2px solid var(--sala, currentColor);
+  outline-offset: 1px;
+}
+
+.filaCampos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: flex-end;
+}
+
+.filaOpciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+}
+
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.casilla input {
+  width: auto;
+  accent-color: var(--sala, currentColor);
+}
+
+.pista {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  font-style: normal;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+.paraQue {
+  flex: 2 1 14rem;
+  align-self: center;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: color-mix(in oklch, var(--tx, #222) 60%, transparent);
+}
+
+.subtituloCampo {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+/* ---- grupos ---- */
+
+.grupo {
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 13%, transparent);
+  border-radius: 0.6rem;
+  padding: 0.9rem 1rem 1rem;
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.grupoTitulo {
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sala, inherit);
+}
+
+.bloqueCampo {
+  display: grid;
+  gap: 0.8rem;
+}
+
+/* ---- listas repetibles ---- */
+
+.repetible {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.repetibleItem {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border-radius: 0.5rem;
+  background: color-mix(in oklch, var(--tx, #222) 4%, transparent);
+}
+
+.repetibleCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.repetibleIndice {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}
+
+.repetibleAcciones {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.botonIcono {
+  width: 1.7rem;
+  height: 1.7rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 18%, transparent);
+  border-radius: 0.4rem;
+  background: var(--superficie, #fff);
+  color: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.botonIcono:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.botonIcono:not(:disabled):hover {
+  border-color: var(--sala, currentColor);
+}
+
+.botonAnadir {
+  justify-self: start;
+  padding: 0.45rem 0.8rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 28%, transparent);
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.botonAnadir:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+}
+
+.serieNombre {
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding-bottom: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.series {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.3rem;
+}
+
+/* ---- guardar ---- */
+
+.barraGuardar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid color-mix(in oklch, var(--tx, #222) 10%, transparent);
+}
+
+.aviso {
+  font-size: 0.82rem;
+  color: var(--alerta, oklch(0.57 0.2 25));
+}
+
+.listo {
+  font-size: 0.82rem;
+  color: var(--ok, oklch(0.6 0.12 155));
+}
+
+.botonGuardar {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--sala, #333);
+  color: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonGuardar:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---- asistente de IA ---- */
+
+.asistenteAbrir {
+  justify-self: start;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 60%, transparent);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.asistente {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 22%, transparent);
+  border-radius: 0.6rem;
+}
+
+.asistenteCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---- añadir sección ---- */
+
+.botonAnadirSeccion {
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 28%, transparent);
+  border-radius: 0.7rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.botonAnadirSeccion:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+}
+
+.menuSecciones {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 15%, transparent);
+  border-radius: 0.7rem;
+}
+
+.opcionesSeccion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.5rem;
+}
+
+.opcionSeccion {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 13%, transparent);
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcionSeccion:hover:not(:disabled) {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--tx, #222) 4%, transparent);
+}
+
+.opcionSeccion:disabled { opacity: 0.5; cursor: default; }
+
+.opcionNombre {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.opcionParaQue {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: color-mix(in oklch, var(--tx, #222) 58%, transparent);
+}
+
+.confirmar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.botonPeligro {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--alerta, oklch(0.57 0.2 25));
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--alerta, oklch(0.57 0.2 25));
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonPeligro:disabled { opacity: 0.5; cursor: default; }
+
+/* Añadir subsección: más discreto que añadir un bloque — es una acción de
+   dentro, no de la estructura de la reunión. */
+.botonAnadirSub {
+  justify-self: start;
+  padding: 0.5rem 0.9rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 25%, transparent);
+  border-radius: 0.55rem;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 70%, transparent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.botonAnadirSub:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+  color: inherit;
+}
+
+/* ---- plegar y desplegar una sección ---- */
+
+.cabeceraPlegable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.disparador {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border: none;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.disparador:hover { color: inherit; }
+
+.disparador:focus-visible {
+  outline: 2px solid var(--sala, currentColor);
+  outline-offset: 2px;
+  border-radius: 0.3rem;
+}
+
+.flecha {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.flecha[data-abierta='true'] { transform: rotate(90deg); }
+
+.disparadorTexto { text-decoration: underline; text-underline-offset: 0.18em; }
+
+/* Qué hay dentro sin tener que abrir. */
+.resumen {
+  font-size: 0.78rem;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flecha { transition: none; }
+}

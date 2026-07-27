@@ -1,0 +1,403 @@
+/* Piezas de contenido de una sección del documento: tabla, matriz, bloques
+   numerados y cumplimiento. Los tokens de marca (--primario-sobre-superficie,
+   --texto, --superficie, --gradiente, --dato-N) los publica ProveedorTema.
+
+   Nunca --primario directo para texto: no todas las marcas contrastan ≥4.5:1
+   sobre su superficie (Promo Espacio cae a 2.97:1). Ver ProveedorTema.tsx. */
+
+.piezaTitulo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--primario-sobre-superficie);
+  margin-bottom: 0.7rem;
+}
+
+/* ---- tabla ------------------------------------------------------------- */
+
+.tablaEnvoltorio {
+  margin-top: 1.4rem;
+}
+
+/* El scroll horizontal se queda DENTRO de la tabla: una comparativa de ocho
+   columnas no puede hacer que el documento entero se mueva de lado. */
+.tablaScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(0.9rem, 1.4vw, 1rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla th,
+.tabla td {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  vertical-align: top;
+}
+
+.tabla thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--texto) 62%, transparent);
+  border-bottom-color: color-mix(in oklch, var(--texto) 22%, transparent);
+  white-space: nowrap;
+}
+
+/* Alineación por CONTENIDO, no por posición: los números se comparan por su
+   última cifra y van a la derecha; una frase alineada a la derecha es
+   ilegible. El atributo lo pone TablaSeccion celda a celda — en una
+   comparativa la segunda columna es un número, en pendientes es una tarea. */
+.tabla td[data-cifra='true'],
+.tabla th[data-cifra='true'] {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tabla tbody td:has(.semaforo) {
+  white-space: nowrap;
+}
+
+.tabla tbody tr:last-child th,
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* La fila de total no es una fila más: cierra la tabla. */
+.tabla tbody tr[data-destacada='true'] td,
+.tabla tbody tr[data-destacada='true'] th {
+  font-weight: 700;
+  background: color-mix(in oklch, var(--texto) 5%, transparent);
+  border-top: 1px solid color-mix(in oklch, var(--texto) 22%, transparent);
+}
+
+.celdaGrupo {
+  font-weight: 600;
+  vertical-align: top;
+  white-space: nowrap;
+  border-right: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+}
+
+.filaNota {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: normal;
+  color: color-mix(in oklch, var(--texto) 58%, transparent);
+}
+
+/* ---- semáforo ---------------------------------------------------------- */
+
+/* Los tres colores de estado se declaran AQUÍ y no se heredan de la página:
+   la misma tabla se pinta dentro de /preparar y de /demo, que son módulos
+   distintos, y un semáforo gris porque el token no llegó es peor que ninguno.
+   Los valores son los mismos que usa la sala (sala.module.css). */
+.tablaEnvoltorio {
+  --semaforo-listo: oklch(0.6 0.12 155);
+  --semaforo-en-proceso: oklch(0.72 0.13 70);
+  --semaforo-no-realizado: oklch(0.57 0.2 25);
+}
+
+.semaforo {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  vertical-align: baseline;
+  background: color-mix(in oklch, var(--texto) 30%, transparent);
+}
+
+/* Color + posición en la leyenda: el color solo no basta como información
+   (no todo el mundo lo distingue), por eso cada estado lleva SIEMPRE su
+   palabra al lado, tanto en la celda como en la leyenda. */
+.semaforo[data-estado='listo'] { background: var(--semaforo-listo); }
+.semaforo[data-estado='en-proceso'] { background: var(--semaforo-en-proceso); }
+.semaforo[data-estado='no-realizado'] { background: var(--semaforo-no-realizado); }
+
+.leyenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  margin-top: 0.9rem;
+  font-size: 0.8rem;
+  color: color-mix(in oklch, var(--texto) 62%, transparent);
+}
+
+/* ---- matriz ------------------------------------------------------------ */
+
+.matriz td {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.matriz tbody td:not(:first-child) {
+  text-align: center;
+}
+
+.celdaMatriz {
+  font-size: 0.85rem;
+  border-radius: 0.35rem;
+}
+
+/* La intensidad ES el dato: se lee la forma del trimestre antes que la
+   palabra. El texto sigue ahí para que el tono nunca sea la única señal. */
+.celdaMatriz[data-tono='alto'] {
+  background: color-mix(in oklch, var(--primario) 30%, transparent);
+  font-weight: 600;
+}
+.celdaMatriz[data-tono='medio'] {
+  background: color-mix(in oklch, var(--primario) 16%, transparent);
+}
+/* 12% y no 7%: con cuatro niveles, el más bajo tiene que separarse del
+   neutro (que no lleva fondo) o la rejilla se lee como tres estados. */
+.celdaMatriz[data-tono='bajo'] {
+  background: color-mix(in oklch, var(--primario) 12%, transparent);
+}
+.celdaMatriz[data-tono='neutro'] {
+  color: color-mix(in oklch, var(--texto) 60%, transparent);
+}
+
+/* ---- bloques numerados ------------------------------------------------- */
+
+.bloques {
+  list-style: none;
+  counter-reset: bloque;
+  display: grid;
+  gap: 1.1rem;
+  margin-top: 1.4rem;
+}
+
+.bloque {
+  counter-increment: bloque;
+  position: relative;
+  padding: 1.1rem 1.2rem 1.1rem 3.4rem;
+  border: 1px solid color-mix(in oklch, var(--texto) 13%, transparent);
+  border-radius: 0.7rem;
+}
+
+.bloque::before {
+  content: counter(bloque);
+  position: absolute;
+  left: 1.1rem;
+  top: 1rem;
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--primario-sobre-superficie) 55%, transparent);
+}
+
+.bloqueCabecera {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.bloqueTitulo {
+  font-size: clamp(1.05rem, 1.9vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.bloqueEtiqueta {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primario-sobre-superficie);
+  background: color-mix(in oklch, var(--primario) 12%, transparent);
+}
+
+.bloqueParrafo {
+  margin-top: 0.5rem;
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  line-height: 1.55;
+  color: color-mix(in oklch, var(--texto) 85%, transparent);
+  max-width: 68ch;
+}
+
+.bloquePuntos {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.bloquePuntos li {
+  position: relative;
+  padding-left: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.bloquePuntos li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: var(--primario-sobre-superficie);
+}
+
+.bloquePie {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.bloquePieRotulo {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-weight: 700;
+  color: var(--primario-sobre-superficie);
+}
+
+/* ---- meta / real / % --------------------------------------------------- */
+
+.metaReal {
+  margin-top: 1.4rem;
+}
+
+.metaRealFilas {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.metaRealFila {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 8rem) minmax(6rem, auto) 1fr 3.2rem;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+/* La primera fila es el total: pesa más que su desglose. */
+.metaRealFila[data-primera='true'] {
+  font-weight: 700;
+}
+
+.metaRealRotulo {
+  font-size: 0.9rem;
+  color: color-mix(in oklch, var(--texto) 72%, transparent);
+}
+
+.metaRealCifras {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.metaRealMeta {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: color-mix(in oklch, var(--texto) 58%, transparent);
+}
+
+.metaRealBarra {
+  display: block;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--texto) 10%, transparent);
+  overflow: hidden;
+}
+
+.metaRealRelleno {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gradiente);
+}
+
+.metaRealPorcentaje {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+@media (max-width: 40rem) {
+  /* En pantalla angosta la barra se lleva su propia línea antes que
+     estrujar el rótulo hasta partirlo por sílabas. */
+  .metaRealFila {
+    grid-template-columns: 1fr auto;
+  }
+  .metaRealBarra {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---- cifras con desglose ----------------------------------------------- */
+
+.desgloses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin-top: 1.4rem;
+}
+
+.desglose {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid color-mix(in oklch, var(--texto) 13%, transparent);
+  border-radius: 0.7rem;
+}
+
+.desglose[data-destacada='true'] {
+  border-color: color-mix(in oklch, var(--primario) 45%, transparent);
+  background: color-mix(in oklch, var(--primario) 5%, transparent);
+}
+
+.desgloseRotulo {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+.desgloseValor {
+  margin-top: 0.35rem;
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.desglosePartes {
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  font-size: 0.85rem;
+}
+
+.desglosePartes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  color: color-mix(in oklch, var(--texto) 72%, transparent);
+}
+
+.desgloseParteValor {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}
