@@ -40,19 +40,20 @@ describe('completarKpisFaltantes', () => {
     ])
   })
 
-  it('conserva el reparto de la IA cuando ya está completo', () => {
+  it('respeta el orden y los rótulos que eligió la IA, y solo completa los deltas', () => {
     const completa: DecisionSlide = {
       layout: 'kpis-fila-dos-columnas',
       titulo: 'Todo cubierto',
       kpis: [
-        { valor: '29k', rotulo: 'Impresiones' },
-        { valor: '9.2', rotulo: 'Posicion media' },
-        { valor: '412', rotulo: 'Clics' },
         { valor: '12%', rotulo: 'Leads calificados' },
+        { valor: '29k', rotulo: 'Impresiones, mes vs mes' },
       ],
       razon: 'las cuatro',
     }
-    expect(completarKpisFaltantes(completa, CUATRO_CIFRAS)).toEqual(completa)
+    const limpia = completarKpisFaltantes(completa, CUATRO_CIFRAS)
+    // El reparto editorial es del modelo: no se reordena ni se reescriben rótulos.
+    expect(limpia.kpis?.[0]).toEqual({ valor: '12%', rotulo: 'Leads calificados', delta: '+12%' })
+    expect(limpia.kpis?.[1]).toEqual({ valor: '29k', rotulo: 'Impresiones, mes vs mes', delta: '-16%' })
   })
 
   it('no toca layouts que no son de KPIs', () => {
@@ -91,6 +92,43 @@ describe('completarKpisFaltantes', () => {
       layout: 'kpis-fila-dos-columnas', titulo: 'x', razon: 'y',
     }
     expect(completarKpisFaltantes(sinKpis, CUATRO_CIFRAS).kpis).toHaveLength(4)
+  })
+
+  it('repone el delta que el modelo omitió, cuando el valor coincide con el inventario', () => {
+    // Visto en producción: el modelo puso los 4 KPIs pero dejó a Impresiones
+    // sin su -16%, que el equipo sí había capturado.
+    const sinDelta: DecisionSlide = {
+      layout: 'kpis-fila-dos-columnas',
+      titulo: 'x',
+      kpis: [
+        { valor: '29k', rotulo: 'Impresiones' },
+        { valor: '9.2', rotulo: 'Posicion media', delta: '+0.3' },
+      ],
+      razon: 'y',
+    }
+    const completa = completarKpisFaltantes(sinDelta, CUATRO_CIFRAS)
+    expect(completa.kpis?.[0]).toEqual({ valor: '29k', rotulo: 'Impresiones', delta: '-16%' })
+  })
+
+  it('no pisa un delta que el modelo sí puso', () => {
+    const conDelta: DecisionSlide = {
+      layout: 'kpis-fila-dos-columnas',
+      titulo: 'x',
+      kpis: [{ valor: '29k', rotulo: 'Impresiones', delta: 'vs. mayo' }],
+      razon: 'y',
+    }
+    expect(completarKpisFaltantes(conDelta, CUATRO_CIFRAS).kpis?.[0].delta).toBe('vs. mayo')
+  })
+
+  it('no inventa un delta si la cifra del inventario tampoco lo trae', () => {
+    const inv = inventarioCon([['29k', 'Impresiones']])
+    const d: DecisionSlide = {
+      layout: 'kpis-fila-dos-columnas',
+      titulo: 'x',
+      kpis: [{ valor: '29k', rotulo: 'Impresiones' }],
+      razon: 'y',
+    }
+    expect(completarKpisFaltantes(d, inv).kpis?.[0].delta).toBeUndefined()
   })
 
   it('no inventa nada cuando el inventario no trae cifras', () => {

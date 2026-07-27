@@ -258,7 +258,7 @@ describe('lo que el modelo llega a leer del esquema', () => {
 
   it('le dice al modelo que el delta va en su campo y no en el rótulo', () => {
     const kpi = json.properties.kpis?.items?.properties
-    expect(kpi?.delta?.description).toMatch(/nunca dentro del rótulo/i)
+    expect(kpi?.delta?.description).toMatch(/aquí y solo aquí/i)
     expect(kpi?.rotulo?.description).toMatch(/sin la variación/i)
   })
 })

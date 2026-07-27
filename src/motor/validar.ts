@@ -21,7 +21,7 @@ function cifrasDelInventario(inv: Inventario) {
  * Normaliza un valor numérico para comparar: sin espacios, sin mayúsculas.
  * "29k" y "29K", "$4.2 MDP" y "$4.2 mdp" son el mismo dato.
  */
-function normalizarValor(v: string): string {
+export function normalizarValor(v: string): string {
   return v.replace(/\s+/g, '').toLowerCase()
 }
 

@@ -143,7 +143,7 @@ const Kpi = z.object({
     'La cifra, copiada EXACTA del inventario: "29k" se queda "29k", "0.9%" se queda "0.9%". No la reescribas ni la redondees.',
   ),
   delta: TextoPlano.optional().describe(
-    'La variación de esa cifra, tal como viene en el inventario ("-16%", "+0.3"). Va SOLO aquí, nunca dentro del rótulo. Omite el campo si la cifra no trae variación; no inventes una ni escribas relleno.',
+    'La variación de esa cifra, copiada del inventario: "-16%", "+0.3". Si la cifra del inventario trae variación, va aquí y solo aquí — el rótulo lleva únicamente el nombre. Si no trae, omite el campo.',
   ),
   rotulo: TextoPlano.describe(
     'Cómo se llama la cifra, en dos o tres palabras ("Impresiones", "Leads calificados"). Solo el nombre: sin la variación, sin comillas y sin puntos suspensivos.',
@@ -186,8 +186,11 @@ export const EsquemaDecision = z.object({
   imagen: Imagen.optional().describe(
     'La ruta de la pieza [imagen] del inventario, copiada tal cual. Solo si el inventario trae una imagen real; nunca inventes una ruta.',
   ),
+  // Ojo con la redacción: una versión anterior decía «no un relleno como
+  // "placeholder"» y el modelo devolvía exactamente eso — nombrar el ejemplo
+  // negativo se lo pone en la boca. Se describe con un ejemplo de lo correcto.
   razon: TextoPlanoOVacio.describe(
-    'Una frase concreta explicando por qué esta composición comunica mejor la señal: por qué este layout, este título, este reparto. La lee el equipo de Marketing Corporativo para auditar tu decisión, así que escribe la razón de verdad — no un relleno como "placeholder".',
+    'Una frase concreta explicando por qué esta composición comunica mejor la señal de este contenido a un director: por qué este layout, este título, este reparto. Ejemplo: "Las cuatro cifras van como KPIs y el análisis a dos columnas, porque la caída de impresiones es la noticia y el resto la explica." La lee el equipo de Marketing Corporativo para auditar tu decisión.',
   ),
 }).strict()   // strict rechaza cualquier clave extra — incluidos color, css o html
 

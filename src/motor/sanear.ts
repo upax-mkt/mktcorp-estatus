@@ -16,7 +16,7 @@
  */
 import type { DecisionSlide } from '@/decision/esquema'
 import type { Inventario } from './inventario'
-import { cifraCubierta } from './validar'
+import { cifraCubierta, normalizarValor } from './validar'
 
 /**
  * Captura: [1] lo que va antes del campo fugado, [2] el valor del delta.
@@ -109,15 +109,28 @@ const MAX_KPIS = 4
 export function completarKpisFaltantes(decision: DecisionSlide, inv: Inventario): DecisionSlide {
   if (decision.layout !== 'kpis-fila-dos-columnas') return decision
 
-  const kpis = decision.kpis ?? []
-  if (kpis.length >= MAX_KPIS) return decision
+  const cifras = inv.piezas.filter((p) => p.tipo === 'cifra')
 
-  const faltantes = inv.piezas
-    .filter((p) => p.tipo === 'cifra')
-    .filter((c) => !cifraCubierta(c, decision))
-    .slice(0, MAX_KPIS - kpis.length)
+  // 1. Los KPIs que sí puso el modelo, pero a los que se les cayó el delta:
+  //    si su valor coincide con una cifra del inventario que lo traía, se
+  //    repone. El equipo lo capturó; no hay motivo para perderlo.
+  const kpis = (decision.kpis ?? []).map((kpi) => {
+    if (kpi.delta) return kpi
+    const cifra = cifras.find((c) => normalizarValor(c.valor) === normalizarValor(kpi.valor))
+    return cifra?.delta ? { ...kpi, delta: cifra.delta } : kpi
+  })
 
-  if (faltantes.length === 0) return decision
+  // 2. Las cifras que no aparecen por ningún lado del slide, mientras quepan.
+  const faltantes =
+    kpis.length >= MAX_KPIS
+      ? []
+      : cifras
+          .filter((c) => !cifraCubierta(c, decision))
+          .slice(0, MAX_KPIS - kpis.length)
+
+  if (faltantes.length === 0) {
+    return kpis.length === 0 ? decision : { ...decision, kpis }
+  }
 
   return {
     ...decision,
