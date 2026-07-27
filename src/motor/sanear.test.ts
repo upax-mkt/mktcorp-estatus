@@ -215,9 +215,25 @@ describe('sanearDecision', () => {
     expect(sanearDecision(soloEspacios).razon).toBe('El modelo no explicó esta decisión.')
   })
 
+  it('marca también la razón de relleno de una sola palabra', () => {
+    // Vistos en producción: "placeholder" y "x". Mostrárselos al equipo es peor
+    // que decirle que el modelo no explicó nada, porque parecen un dato.
+    for (const relleno of ['x', 'placeholder', 'n/a', '-', 'TODO', 'null']) {
+      const d: DecisionSlide = { layout: 'portada', titulo: 'Estatus', razon: relleno }
+      expect(sanearDecision(d).razon, `"${relleno}" debería marcarse`).toBe(
+        'El modelo no explicó esta decisión.',
+      )
+    }
+  })
+
   it('respeta la razón cuando el modelo sí se explicó', () => {
     const conRazon: DecisionSlide = { layout: 'portada', titulo: 'Estatus', razon: 'abre la sesión' }
     expect(sanearDecision(conRazon).razon).toBe('abre la sesión')
+  })
+
+  it('no marca una explicación real de una sola palabra larga', () => {
+    const d: DecisionSlide = { layout: 'portada', titulo: 'Estatus', razon: 'institucionalidad' }
+    expect(sanearDecision(d).razon).toBe('institucionalidad')
   })
 
   it('descarta un delta fugado que quedaría vacío', () => {

@@ -75,12 +75,26 @@ function sanearKpi(kpi: Kpi): Kpi {
   return delta === undefined ? { valor: kpi.valor, rotulo } : { valor: kpi.valor, rotulo, delta }
 }
 
-/** Lo que se pone cuando el modelo devuelve la razón en blanco. */
+/** Lo que se pone cuando el modelo no explica de verdad su decisión. */
 const SIN_RAZON = 'El modelo no explicó esta decisión.'
+
+/**
+ * Rellenos que el modelo escribe cuando no explica su decisión. Es una lista
+ * cerrada a propósito: un criterio por longitud marcaría como relleno una razón
+ * corta pero real ("portada"), y equivocarse en esa dirección borra información
+ * del equipo. Aquí solo caen cadenas que no significan nada en ningún contexto.
+ */
+const RELLENOS = new Set(['placeholder', 'n/a', 'na', 'tbd', 'todo', 'none', 'null', 'texto', 'string'])
+
+/** true si la razón no explica nada: vacía, un carácter suelto o un relleno conocido. */
+function razonVacia(razon: string): boolean {
+  const limpia = razon.trim().toLowerCase().replace(/[.]+$/, '')
+  return limpia.length <= 2 || RELLENOS.has(limpia)
+}
 
 /** Devuelve la decisión con los KPIs y la razón saneados. No muta la original. */
 export function sanearDecision(decision: DecisionSlide): DecisionSlide {
-  const razon = decision.razon.trim().length > 0 ? decision.razon : SIN_RAZON
+  const razon = razonVacia(decision.razon) ? SIN_RAZON : decision.razon
   if (!decision.kpis || decision.kpis.length === 0) {
     return razon === decision.razon ? decision : { ...decision, razon }
   }
