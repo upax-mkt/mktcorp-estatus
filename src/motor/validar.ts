@@ -33,7 +33,7 @@ function normalizarValor(v: string): string {
  * así que exigir rótulo idéntico haría que un simple recorte se leyera como
  * cifra perdida. Lo sagrado es el valor, no su nombre.
  */
-function cifraCubierta(cifra: { valor: string }, decision: DecisionSlide) {
+export function cifraCubierta(cifra: { valor: string }, decision: DecisionSlide) {
   const objetivo = normalizarValor(cifra.valor)
 
   // 1. Como KPI (el caso preferido).

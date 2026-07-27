@@ -11,7 +11,7 @@ import type { EntradaCruda, Inventario } from './inventario'
 import { normalizar } from './normalizar'
 import { decidir, crearClientePorDefecto, type ClienteDecision } from './decidir'
 import { validarDecision, aLayoutSeguro } from './validar'
-import { sanearDecision } from './sanear'
+import { sanearDecision, completarKpisFaltantes } from './sanear'
 import { obtenerTema } from '@/temas'
 
 export interface ResultadoMaquetacion {
@@ -51,10 +51,12 @@ async function intentarDecision(
     const mensaje = error instanceof Error ? error.message : String(error)
     return { ok: false, motivo: mensaje }
   }
-  // Se limpian los artefactos de serialización (un `delta` que quedó dentro del
-  // rótulo) ANTES de juzgar: gastar un reintento en recolocar una coma sería
-  // caro para lo que se arregla de forma determinista.
-  const decision = sanearDecision(bruta)
+  // Dos arreglos deterministas ANTES de juzgar, por el mismo motivo: lo que se
+  // puede corregir sin inventar nada no merece gastar un reintento de ~12 s ni
+  // acabar en un slide degradado. Primero se recolocan los campos fugados (un
+  // `delta` dentro del rótulo) y después se reponen las cifras que el modelo
+  // dejó fuera, sacándolas del inventario del propio equipo.
+  const decision = completarKpisFaltantes(sanearDecision(bruta), inv)
   const veredicto = validarDecision(decision, inv)
   if (veredicto.ok) {
     return { ok: true, decision }
