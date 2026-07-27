@@ -27,6 +27,8 @@ export interface Minuta {
   fecha: string // ISO
   titulo: string
   enviadaA: number // # de participantes
+  /** Sesión de la que salió: es lo que permite abrirla desde la sala. Los datos de ejemplo no tienen sesión real, por eso es opcional. */
+  sesionId?: string
 }
 
 export interface EstadoSala {

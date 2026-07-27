@@ -192,3 +192,23 @@ export function insertarMinutaMemoria(fila: FilaMinutaMemoria): void {
 export function obtenerMinutaDeSesionMemoria(sesionId: string): FilaMinutaMemoria | undefined {
   return Array.from(minutas.values()).find((m) => m.sesionId === sesionId)
 }
+
+/** Espejo en memoria del borrado real de un acuerdo (ver src/db/acuerdos.ts). */
+export function eliminarAcuerdoMemoria(id: string): void {
+  acuerdos.delete(id)
+}
+
+/** Espejo en memoria del borrado de una minuta (ver src/db/minutas.ts). */
+export function eliminarMinutaDeSesionMemoria(sesionId: string): void {
+  for (const [id, fila] of minutas) {
+    if (fila.sesionId === sesionId) minutas.delete(id)
+  }
+}
+
+/** Espejo en memoria del borrado de una sesión con sus items (ver src/db/sesiones.ts). */
+export function eliminarSesionMemoria(sesionId: string): void {
+  sesiones.delete(sesionId)
+  for (const [id, fila] of items) {
+    if (fila.sesionId === sesionId) items.delete(id)
+  }
+}

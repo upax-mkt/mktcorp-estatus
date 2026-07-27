@@ -136,6 +136,9 @@
   padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde); font-size: 0.92rem;
 }
 .minuta:last-child { border-bottom: 1px solid var(--borde); }
+/* Las que tienen sesión detrás son enlaces: se nota al pasar por encima. */
+a.minuta { text-decoration: none; color: inherit; transition: background 0.15s ease, padding-inline 0.15s ease; }
+a.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .minutaIzq { display: flex; align-items: center; gap: 0.7rem; }
 .minutaIcono { color: var(--tx-3); }
 .minutaEnviada { font-size: 0.78rem; color: var(--tx-3); }
@@ -235,4 +238,60 @@
 
 @media (max-width: 640px) {
   .acceso { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}
+
+/* ---- Alta y borrado de acuerdos (solo equipo) ---- */
+
+.nuevoAcuerdoAbrir {
+  font-family: inherit; font-size: 0.85rem; font-weight: 500;
+  margin-top: 0.9rem; padding: 0.55rem 0.9rem;
+  color: var(--marca); background: none;
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.55rem; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.nuevoAcuerdoAbrir:hover { background: var(--superficie-2); border-color: var(--marca); }
+
+.nuevoAcuerdo {
+  display: grid; gap: 0.6rem;
+  margin-top: 0.9rem; padding: 1rem;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: 0.7rem;
+}
+.nuevoAcuerdoFila { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.nuevoAcuerdoQue, .nuevoAcuerdoCampo {
+  font-family: inherit; font-size: 0.9rem; color: var(--tx);
+  padding: 0.55rem 0.7rem; background: var(--fondo);
+  border: 1px solid var(--borde-fuerte); border-radius: 0.5rem;
+}
+.nuevoAcuerdoQue { width: 100%; }
+.nuevoAcuerdoCampo { flex: 1 1 8rem; min-width: 0; }
+.nuevoAcuerdoQue:focus, .nuevoAcuerdoCampo:focus { outline: none; border-color: var(--marca); }
+.nuevoAcuerdoGuardar {
+  font-family: inherit; font-size: 0.85rem; font-weight: 500;
+  padding: 0.55rem 1.1rem; border: none; border-radius: 0.5rem; cursor: pointer;
+  color: var(--superficie); background: var(--marca);
+}
+.nuevoAcuerdoGuardar:disabled { opacity: 0.6; cursor: default; }
+.nuevoAcuerdoCancelar {
+  font-family: inherit; font-size: 0.85rem; padding: 0.55rem 0.7rem;
+  color: var(--tx-2); background: none; border: none; cursor: pointer;
+}
+
+.botonIconoBorrar {
+  font-family: inherit; font-size: 1rem; line-height: 1;
+  width: 1.6rem; height: 1.6rem; padding: 0;
+  color: var(--tx-3); background: none; border: none; border-radius: 0.35rem; cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.botonIconoBorrar:hover { color: var(--alerta); background: var(--alerta-suave); }
+
+.confirmarBorrado { display: inline-flex; gap: 0.3rem; align-items: center; }
+.botonBorrar {
+  font-family: inherit; font-size: 0.78rem; font-weight: 600;
+  padding: 0.3rem 0.6rem; border: none; border-radius: 0.35rem; cursor: pointer;
+  color: var(--superficie); background: var(--alerta);
+}
+.botonCancelarBorrado {
+  font-family: inherit; font-size: 0.78rem;
+  padding: 0.3rem 0.4rem; color: var(--tx-2);
+  background: none; border: none; cursor: pointer;
 }

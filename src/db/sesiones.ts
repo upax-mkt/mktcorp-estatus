@@ -478,3 +478,29 @@ export function formatearCifrasTexto(cifras: CifraCruda[] | undefined): string {
     .map((c) => [c.valor, c.rotulo, c.delta].filter((v) => v !== undefined && v !== '').join(' | '))
     .join('\n')
 }
+
+/**
+ * Borra una sesión con todo lo que cuelga de ella: sus items (contenido y
+ * decisiones del motor) y su minuta.
+ *
+ * Los acuerdos publicados desde su minuta NO se borran: cuelgan de la sala, no
+ * de la sesión (spec §4) — nacen aquí pero sobreviven a todas las siguientes.
+ * Borrar la sesión que los originó no puede llevárselos por delante.
+ */
+export async function eliminarSesion(sesionId: string): Promise<void> {
+  if (hayDB()) {
+    const conexion = db()
+    // Los acuerdos referencian la sesión de origen: se suelta la referencia
+    // antes de borrar, o la clave foránea lo impide.
+    await conexion
+      .update(esquema.acuerdos)
+      .set({ sesionOrigenId: null })
+      .where(eq(esquema.acuerdos.sesionOrigenId, sesionId))
+    await conexion.delete(esquema.minutas).where(eq(esquema.minutas.sesionId, sesionId))
+    await conexion.delete(esquema.items).where(eq(esquema.items.sesionId, sesionId))
+    await conexion.delete(esquema.sesiones).where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+  memoria.eliminarMinutaDeSesionMemoria(sesionId)
+  memoria.eliminarSesionMemoria(sesionId)
+}

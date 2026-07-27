@@ -243,3 +243,41 @@
   align-self: flex-start; font-size: 0.74rem; font-weight: 700; color: var(--tibia);
   background: color-mix(in srgb, var(--tibia) 14%, var(--superficie)); border-radius: 0.4rem; padding: 0.15rem 0.5rem;
 }
+
+/* ---- Minuta publicada: corregir, borrar y cargar una externa ---- */
+
+.botonPeligro { color: #fff; background: var(--alerta); border-color: transparent; }
+.botonPeligro:hover { filter: brightness(1.06); }
+
+.textareaAlta { min-height: 22rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; line-height: 1.55; }
+
+.minutaAcciones { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+
+.minutaAviso {
+  font-size: 0.82rem; line-height: 1.5; color: var(--tx-2);
+  margin: 0.5rem 0 0.8rem; max-width: 68ch;
+}
+
+.minutaExternaAbrir {
+  font-family: inherit; font-size: 0.85rem;
+  margin-top: 1.5rem; padding: 0.6rem 0.9rem;
+  color: var(--tx-2); background: none;
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.55rem; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.minutaExternaAbrir:hover { color: var(--tx); border-color: var(--sala); }
+
+.minutaExterna {
+  display: grid; gap: 0.5rem;
+  margin-top: 1.5rem; padding: 1.1rem;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: 0.7rem;
+}
+
+/* ---- Borrar una sesión ---- */
+
+.zonaPeligro {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-top: 2.5rem; padding: 1rem 1.15rem;
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.7rem;
+}
+.zonaPeligroTexto { font-size: 0.85rem; line-height: 1.5; color: var(--tx-2); max-width: 60ch; }

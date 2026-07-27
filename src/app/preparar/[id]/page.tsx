@@ -14,10 +14,12 @@ import {
   formatearCifrasTexto,
   type ContenidoItemCrudo,
 } from '@/db/sesiones'
+import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
 import { exigirEquipo } from '@/auth/sesion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
+import { BorrarSesion } from '@/componentes/BorrarSesion'
 import { fechaCompleta } from '@/lib/fecha'
 
 // El botón "Maquetar" llama al motor (etapa 2, Claude, ~25s en 2 intentos en
@@ -100,6 +102,15 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
     await guardarDecisiones(sesionId, resultados)
     redirect(`/preparar/${sesionId}/deck`)
+  }
+
+  async function borrarSesionAction() {
+    'use server'
+    await exigirEquipo()
+    await eliminarSesion(id)
+    revalidatePath('/preparar')
+    revalidatePath('/')
+    redirect('/preparar')
   }
 
   // ---- Vista ----
@@ -254,6 +265,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         ) : (
           <p className={estilos.panelMaquetarAviso}>Llena al menos un item para poder maquetar la sesión.</p>
         )}
+
+        <BorrarSesion borrarAction={borrarSesionAction} />
       </main>
     </div>
   )

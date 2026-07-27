@@ -142,3 +142,20 @@ export async function editarAcuerdo(acuerdoId: string, cambios: CambiosAcuerdo):
     memoria.actualizarAcuerdoMemoria(acuerdoId, { ...cambios, historia })
   }
 }
+
+/**
+ * Borra un acuerdo de verdad, con su historia.
+ *
+ * Distinto de `moverEstatus(id, 'cancelado')`: cancelar es una decisión de
+ * negocio —el acuerdo existió y se dejó sin efecto— y la fila se conserva.
+ * Esto es para lo que nunca debió existir: un duplicado, un error de dedo, una
+ * línea que la IA sacó de una transcripción y no era un acuerdo. No hay
+ * papelera: la vista que llama pide confirmación antes.
+ */
+export async function eliminarAcuerdo(acuerdoId: string): Promise<void> {
+  if (hayDB()) {
+    await db().delete(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId))
+    return
+  }
+  memoria.eliminarAcuerdoMemoria(acuerdoId)
+}

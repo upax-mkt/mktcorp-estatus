@@ -11,6 +11,7 @@ interface Props {
   fechaInicial: string | null // yyyy-mm-dd
   cambiarEstatusAction: (acuerdoId: string, estatus: EstatusAcuerdo) => Promise<void>
   editarFechaAction: (acuerdoId: string, fecha: string | null) => Promise<void>
+  eliminarAction: (acuerdoId: string) => Promise<void>
 }
 
 /**
@@ -29,9 +30,11 @@ export function AcuerdoControles({
   fechaInicial,
   cambiarEstatusAction,
   editarFechaAction,
+  eliminarAction,
 }: Props) {
   const [pending, startTransition] = useTransition()
   const [fecha, setFecha] = useState(fechaInicial ?? '')
+  const [confirmando, setConfirmando] = useState(false)
 
   return (
     <div className={estilos.controlesEquipo} title="Solo equipo Mkt Corp">
@@ -56,6 +59,37 @@ export function AcuerdoControles({
         onChange={(e) => setFecha(e.target.value)}
         onBlur={() => startTransition(() => editarFechaAction(acuerdoId, fecha || null))}
       />
+
+      {/* Borrar es irreversible y no hay papelera: se pide confirmación en el
+          propio sitio, sin un diálogo del navegador que bloquea la página.
+          Cancelar es distinto de borrar y sigue estando en el desplegable: un
+          acuerdo cancelado existió y se dejó sin efecto; uno borrado nunca
+          debió existir (un duplicado, un error de dedo). */}
+      {confirmando ? (
+        <span className={estilos.confirmarBorrado}>
+          <button
+            type="button"
+            className={estilos.botonBorrar}
+            disabled={pending}
+            onClick={() => startTransition(() => eliminarAction(acuerdoId))}
+          >
+            Borrar
+          </button>
+          <button type="button" className={estilos.botonCancelarBorrado} onClick={() => setConfirmando(false)}>
+            No
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          className={estilos.botonIconoBorrar}
+          onClick={() => setConfirmando(true)}
+          title="Eliminar acuerdo"
+          aria-label="Eliminar acuerdo"
+        >
+          ×
+        </button>
+      )}
     </div>
   )
 }

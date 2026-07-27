@@ -3,9 +3,12 @@ import { notFound } from 'next/navigation'
 import type { CSSProperties } from 'react'
 import estilos from '../../preparar.module.css'
 import { obtenerSesion } from '@/db/sesiones'
-import { obtenerMinuta } from '@/db/minutas'
-import { CopiarBoton } from '@/componentes/CopiarBoton'
+import { revalidatePath } from 'next/cache'
+import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
+import { exigirEquipo } from '@/auth/sesion'
 import { MinutaCliente } from './MinutaCliente'
+import { MinutaPublicada } from '@/componentes/MinutaPublicada'
+import { MinutaExternaForm } from '@/componentes/MinutaExternaForm'
 
 // La llamada a Claude (etapa 9, ~similar a la etapa 2 del motor) puede tardar
 // varios segundos: el default serverless de Vercel (10s) no alcanza.
@@ -42,6 +45,29 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
 
   const minutaGuardada = await obtenerMinuta(id)
 
+  // Publicar y corregir son cosas distintas: publicar decide qué acuerdos
+  // nacen (y eso no se repite), corregir solo arregla el texto del correo.
+  async function editarAction(texto: string) {
+    'use server'
+    await exigirEquipo()
+    await editarTextoMinuta(id, texto)
+    revalidatePath(`/preparar/${id}/minuta`)
+  }
+
+  async function eliminarAction() {
+    'use server'
+    await exigirEquipo()
+    await eliminarMinuta(id)
+    revalidatePath(`/preparar/${id}/minuta`)
+  }
+
+  async function cargarExternaAction(texto: string) {
+    'use server'
+    await exigirEquipo()
+    await cargarMinutaExterna(id, texto)
+    revalidatePath(`/preparar/${id}/minuta`)
+  }
+
   return (
     <div className={estilos.app} style={estiloSala}>
       <header className={estilos.barra}>
@@ -62,18 +88,16 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
         </div>
 
         {minutaGuardada ? (
-          <div className={estilos.minutaCorreoWrap}>
-            <div className={estilos.minutaCorreoCabecera}>
-              <span className={estilos.campoInlineLabel}>Texto enviado</span>
-              <CopiarBoton
-                texto={minutaGuardada.textoFinal ?? ''}
-                className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`}
-              />
-            </div>
-            <pre className={estilos.minutaCorreo}>{minutaGuardada.textoFinal}</pre>
-          </div>
+          <MinutaPublicada
+            texto={minutaGuardada.textoFinal ?? ''}
+            editarAction={editarAction}
+            eliminarAction={eliminarAction}
+          />
         ) : (
-          <MinutaCliente sesionId={sesion.id} />
+          <>
+            <MinutaCliente sesionId={sesion.id} />
+            <MinutaExternaForm cargarAction={cargarExternaAction} />
+          </>
         )}
       </main>
     </div>

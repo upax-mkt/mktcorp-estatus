@@ -156,6 +156,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     fecha: isoFecha(m.fecha),
     titulo: tituloDeSesion(m),
     enviadaA: Array.isArray(m.enviadaA) ? m.enviadaA.length : 0,
+    sesionId: m.sesionId,
   }))
 
   // 'cancelado' no existe en el tipo EstatusAcuerdo del shell (solo

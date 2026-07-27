@@ -7,9 +7,10 @@ import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
-import { moverEstatus, editarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
+import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
 import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
@@ -77,6 +78,32 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     revalidatePath('/')
   }
 
+  async function crearAcuerdoAction(datos: {
+    que: string
+    responsable: string
+    squad?: string
+    fechaCompromiso: string | null
+  }) {
+    'use server'
+    await exigirEquipo()
+    await crearAcuerdo(slug, {
+      que: datos.que,
+      responsable: datos.responsable,
+      squad: datos.squad,
+      fechaCompromiso: datos.fechaCompromiso ? new Date(datos.fechaCompromiso) : null,
+    })
+    revalidatePath(`/sala/${slug}`)
+    revalidatePath('/')
+  }
+
+  async function eliminarAcuerdoAction(acuerdoId: string) {
+    'use server'
+    await exigirEquipo()
+    await eliminarAcuerdo(acuerdoId)
+    revalidatePath(`/sala/${slug}`)
+    revalidatePath('/')
+  }
+
   const estiloMarca = {
     '--marca': tema.primario,
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
@@ -134,7 +161,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             Acuerdos
             <span className={estilos.conteo}>{s.acuerdos.length}</span>
           </h2>
-          {s.acuerdos.length === 0 ? (
+          {s.acuerdos.length === 0 && !equipo ? (
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
           ) : (
             <div className={estilos.acuerdos}>
@@ -162,6 +189,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                           fechaInicial={a.fechaCompromiso}
                           cambiarEstatusAction={cambiarEstatusAction}
                           editarFechaAction={editarFechaAction}
+                          eliminarAction={eliminarAcuerdoAction}
                         />
                       )}
                     </div>
@@ -170,6 +198,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               })}
             </div>
           )}
+          {equipo && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
         </section>
 
         {/* Presentaciones */}
@@ -201,15 +230,28 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>Minutas</h2>
           <div className={estilos.minutas}>
-            {s.minutas.map((m) => (
-              <div key={m.fecha} className={estilos.minuta}>
-                <div className={estilos.minutaIzq}>
-                  <span className={estilos.minutaIcono}>▤</span>
-                  <span>{m.titulo}</span>
-                </div>
-                <span className={estilos.minutaEnviada}>{fechaBreveConAnio(m.fecha)} · enviada a {m.enviadaA}</span>
-              </div>
-            ))}
+            {s.minutas.map((m) => {
+              const meta = (
+                <>
+                  <div className={estilos.minutaIzq}>
+                    <span className={estilos.minutaIcono}>▤</span>
+                    <span>{m.titulo}</span>
+                  </div>
+                  <span className={estilos.minutaEnviada}>
+                    {fechaBreveConAnio(m.fecha)} · enviada a {m.enviadaA}
+                  </span>
+                </>
+              )
+              // Las minutas de ejemplo no tienen sesión detrás: se listan sin
+              // enlace en vez de llevar a un 404.
+              return m.sesionId ? (
+                <Link key={m.sesionId} href={`/preparar/${m.sesionId}/minuta`} className={estilos.minuta}>
+                  {meta}
+                </Link>
+              ) : (
+                <div key={m.fecha} className={estilos.minuta}>{meta}</div>
+              )
+            })}
           </div>
         </section>
 

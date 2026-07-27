@@ -114,3 +114,64 @@ export async function obtenerMinuta(sesionId: string): Promise<MinutaGuardada | 
     createdAt: fila.createdAt.toISOString(),
   }
 }
+
+/**
+ * Reescribe el texto de una minuta ya publicada, sin tocar la transcripción
+ * original ni volver a crear acuerdos.
+ *
+ * Publicar y corregir son cosas distintas: al publicar se decide qué acuerdos
+ * nacen (eso no se repite, o se duplicarían); corregir es arreglar una frase
+ * del correo. Por eso esto NO pasa por `guardarMinuta`.
+ */
+export async function editarTextoMinuta(sesionId: string, textoFinal: string): Promise<void> {
+  if (hayDB()) {
+    await db()
+      .update(esquema.minutas)
+      .set({ textoFinal })
+      .where(eq(esquema.minutas.sesionId, sesionId))
+    return
+  }
+  const fila = memoria.obtenerMinutaDeSesionMemoria(sesionId)
+  if (fila) fila.textoFinal = textoFinal
+}
+
+/**
+ * Borra la minuta de una sesión.
+ *
+ * Los acuerdos que se publicaron desde ella NO se borran: ya viven en la sala
+ * y pueden llevar semanas moviéndose. Si alguno tampoco debía existir, se
+ * elimina por su cuenta desde la sala.
+ */
+export async function eliminarMinuta(sesionId: string): Promise<void> {
+  if (hayDB()) {
+    await db().delete(esquema.minutas).where(eq(esquema.minutas.sesionId, sesionId))
+    return
+  }
+  memoria.eliminarMinutaDeSesionMemoria(sesionId)
+}
+
+/**
+ * Registra una minuta escrita fuera de la app (una junta anterior, un correo
+ * que ya existía). No hay transcripción ni acuerdos propuestos por la IA: es
+ * texto que el equipo pega tal cual.
+ */
+export async function cargarMinutaExterna(sesionId: string, textoFinal: string): Promise<void> {
+  await salaDeSesion(sesionId)   // valida que la sesión exista
+  const ahora = new Date()
+  const id = `minuta-externa-${sesionId}-${ahora.getTime()}`
+
+  if (hayDB()) {
+    await db()
+      .insert(esquema.minutas)
+      .values({ id, sesionId, transcripcion: null, textoFinal, enviadaA: [] })
+    return
+  }
+  memoria.insertarMinutaMemoria({
+    id,
+    sesionId,
+    transcripcion: null,
+    textoFinal,
+    enviadaA: [],
+    createdAt: ahora,
+  })
+}
