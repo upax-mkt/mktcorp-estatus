@@ -24,10 +24,15 @@ export async function decidir(
 ): Promise<DecisionSlide> {
   const { system, user } = construirPrompt(inv, tema, motivoRechazo)
   const resp = await cliente.messages.parse({
-    model: 'claude-opus-4-8',
+    // Opus 5 al mismo precio que 4.8 y mejor en salida estructurada, que es
+    // justo donde fallaba: con 4.8 se vieron en producción una `razon` vacía y
+    // un `delta` serializado dentro del rótulo, ambos capaces de tumbar el
+    // slide. `effort: high` porque repartir un slide ejecutivo es una decisión
+    // de criterio, no un formateo — `medium` producía repartos pobres.
+    model: 'claude-opus-5',
     max_tokens: 16000,
     thinking: { type: 'adaptive' },
-    output_config: { effort: 'medium', format: zodOutputFormat(EsquemaDecision) },
+    output_config: { effort: 'high', format: zodOutputFormat(EsquemaDecision) },
     system,
     messages: [{ role: 'user', content: user }],
   })

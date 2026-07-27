@@ -96,7 +96,9 @@ export async function generarMinuta(
   const { system, user } = construirPromptMinuta(sesion, texto)
 
   const resp = await clienteFinal.messages.parse({
-    model: 'claude-opus-4-8',
+    // Mismo modelo que el motor (ver src/motor/decidir.ts). La minuta ya salía
+    // bien con 4.8; se mueve por consistencia y porque Opus 5 cuesta lo mismo.
+    model: 'claude-opus-5',
     max_tokens: 8000,
     thinking: { type: 'adaptive' },
     output_config: { effort: 'medium', format: zodOutputFormat(EsquemaMinuta) },
