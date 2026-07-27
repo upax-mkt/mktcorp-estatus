@@ -11,9 +11,12 @@ Estado del repo: rama `editor-de-secciones`, 457 tests, build y lint limpios.
 ## Cómo se lee este plan
 
 Cada fase se cierra ENTERA antes de abrir la siguiente: se implementa, se
-verifica con un print real, se commitea y se reporta. Nada de saltar entre
-fases. Dentro de una fase, el orden de los puntos es el orden de ejecución —
-están secuenciados por dependencia, no por importancia.
+verifica con un print real y se commitea. Dentro de una fase, el orden de los
+puntos es el orden de ejecución — están secuenciados por dependencia, no por
+importancia.
+
+**No se para entre fases** (Franco, 27-jul): se avanza hasta terminar todo. El
+reporte es al final, o cuando algo se bloquee de verdad.
 
 Marcas: **✅ hecho** · **▶ en curso** · **⏸ bloqueado** · **☐ pendiente**
 
@@ -76,22 +79,42 @@ arquitectura ya lo permite sin código nuevo de cliente.
 
 ---
 
-## FASE 3 — Las salas ⏸ *(bloqueado: almacenamiento)*
+## FASE 3 — Las salas ☐ *(desbloqueado: Blob activo)*
 
-Todo lo que Franco pidió sobre la vista de sala. **Bloqueado por Vercel Blob**:
-sin almacenamiento no hay subida de archivos, y tres de los cuatro módulos la
-necesitan. Provisionarlo es dar de alta un servicio en la cuenta de Franco.
+Todo lo que Franco pidió sobre la vista de sala. Blob `archivos-mktcorp`
+creado, privado y enlazado — los archivos se sirven por URL firmada desde el
+servidor, no por enlace abierto.
+
+**Orden dentro de la fase** (decisión de Franco): las minutas primero, porque
+su parte principal —lightbox y transcripción → IA— no necesitaba
+almacenamiento.
 
 | # | Qué |
 |---|---|
-| ⏸ 3.1 | **Presentaciones.** Subir archivos con título y fecha para las antiguas. Editar y eliminar la lista. Las nuevas serán URLs de la presentación armada en la app (eso ya existe: `/sesion/[id]`). |
-| ⏸ 3.2 | **Minutas.** Lista de anteriores + la última. Al pinchar, se abre en lightbox flotante. Botón para cargar transcripción y generar la minuta con IA — el motor ya existe y funciona. |
-| ⏸ 3.3 | **Archivos de interés.** Presentaciones comerciales, Excel, imágenes, lo que el equipo estime. Mismo módulo de subida que 3.1. |
+| ☐ 3.1 | **Presentaciones.** Subir archivos con título y fecha para las antiguas. Editar y eliminar la lista. Las nuevas serán URLs de la presentación armada en la app (eso ya existe: `/sesion/[id]`). |
+| ☐ 3.2 | **Minutas.** Lista de anteriores + la última. Al pinchar, se abre en lightbox flotante. Botón para cargar transcripción y generar la minuta con IA — el motor ya existe y funciona. |
+| ☐ 3.3 | **Archivos de interés.** Presentaciones comerciales, Excel, imágenes, lo que el equipo estime. Mismo módulo de subida que 3.1. |
 | ☐ 3.4 | **Benchmark.** Resumen en la sala + vista completa en formato web, con el mismo lenguaje que el documento de presentación. **Esta info sí será incrustada, y es lo último que se hace** (decisión de Franco). |
 
 **Nota de 3.2:** el lightbox y el botón de transcripción NO necesitan
 almacenamiento — la minuta es texto y ya se guarda en la base. Esa parte puede
 adelantarse si Franco prefiere no activar Blob todavía.
+
+---
+
+## FASE 3B — Sesiones, calendario y home ☐ *(nuevo, 27-jul)*
+
+Feedback de Franco: el home se ve anticuado y los avisos de sesión salen de la
+nada. Va aquí y no antes porque depende de que exista el registro de sesiones,
+que es lo primero de la fase.
+
+| # | Qué | Por qué |
+|---|---|---|
+| ☐ 3B.1 | **Editor de reuniones.** Registrar a mano una sesión: sala, fecha, hora, tipo, integrantes. Outlook queda para después; el modelo de datos se diseña para que integrarlo luego no obligue a rehacerlo. | Hoy "sin sesión aún" y "próxima sesión" se calculan de las sesiones que existen en la base. No hay forma de AGENDAR una sin empezar a prepararla, así que el aviso nunca puede ser verde. |
+| ☐ 3B.2 | **Los avisos del home salen de ahí.** "Sin sesión aún" / "próxima sesión" dejan de ser un cálculo indirecto y pasan a leer la reunión agendada. | Es lo que Franco pidió literalmente: que se jalen del editor de reuniones. |
+| ☐ 3B.3 | **Calendario** donde el equipo ve las sesiones de un vistazo: mes, las diez salas, qué hay agendado y qué se está preparando. | Diez salas con cadencias distintas no se siguen en una lista. |
+| ☐ 3B.4 | **Rediseñar el módulo de salas del home.** Hoy es una lista de filas y se lee anticuado. | Es la primera pantalla de la app. |
+| ☐ 3B.5 | **Borrador colaborativo visible.** El guardado automático ya existe y varias personas ya pueden editar la misma sesión. Falta que se VEA: quién llenó qué y cuándo, y que el estado de borrador sea explícito mientras se completa. | Franco: "se deben ir guardando como borrador en la medida que las personas (distintas) vayan completando la info". La mitad ya está; falta la señal. |
 
 ---
 
@@ -123,12 +146,24 @@ Lo que queda de la auditoría de UX, ordenado por coste/beneficio.
 
 ---
 
-## Decisiones que necesito de Franco
+## Decisiones ya tomadas
 
-1. **¿Activo Vercel Blob?** Desbloquea la Fase 3 entera menos el benchmark. Lo
-   provisiono yo por CLI, como hice con Neon, pero da de alta un servicio en su
-   cuenta.
-2. **¿Adelanto el lightbox de minutas** (3.2 sin subida) antes que la Fase 2, o
-   se respeta el orden?
+| Cuándo | Qué | Consecuencia |
+|---|---|---|
+| 27-jul | Activar Vercel Blob · **SÍ** | Store `archivos-mktcorp` privado y enlazado. Fase 3 desbloqueada. |
+| 27-jul | Adelantar el lightbox de minutas · **SÍ** | Fase 3 pasa por delante de la Fase 2. |
+| 27-jul | No parar entre fases | Se avanza hasta terminar; el reporte es al final. |
 
-Mientras no haya respuesta, se ejecuta la Fase 1 completa.
+## Pendiente de Franco (no bloquea)
+
+- **`ANTHROPIC_API_KEY` en local.** El CLI de Vercel la borró de `.env.local` al
+  enlazar Blob y no se puede recuperar (está encriptada en Production, y el
+  `pull` devuelve las encriptadas en blanco). **Producción no se ve afectada.**
+  En local, el asistente de IA y la minuta desde transcripción no funcionan
+  hasta reponerla.
+
+## Orden final de ejecución
+
+Fase 1 (gráficos) → Fase 3 (salas: minutas → presentaciones → archivos) →
+Fase 3B (sesiones, calendario, home) → Fase 2 (vista previa) → Fase 4 (editor)
+→ Fase 5 (cascarón) → Benchmark (3.4, lo último).
