@@ -13,10 +13,10 @@
 import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
-import { obtenerBenchmarkEjemplo } from '@/datos-benchmark'
-import type { Benchmark } from '@/datos-benchmark'
+import { obtenerBenchmarkEjemplo } from '@/dominio/benchmark'
+import type { Benchmark } from '@/dominio/benchmark'
 
-export type { Benchmark, FilaDimensionBenchmark, NivelBenchmark } from '@/datos-benchmark'
+export type { Benchmark, FilaDimensionBenchmark, NivelBenchmark } from '@/dominio/benchmark'
 
 function isoFecha(d: Date): string {
   return d.toISOString().slice(0, 10)

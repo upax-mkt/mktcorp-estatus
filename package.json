@@ -10,8 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/db/semilla.ts"
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -69,16 +69,12 @@ const sesiones = new Map<string, FilaSesionMemoria>()
 const items = new Map<string, FilaItemMemoria>()
 const acuerdos = new Map<string, FilaAcuerdoMemoria>()
 const minutas = new Map<string, FilaMinutaMemoria>()
-/** Salas cuyos acuerdos de ejemplo (src/datos-ejemplo.ts) ya se sembraron en `acuerdos`. */
-const salasAcuerdosSembradas = new Set<string>()
-
 /** Sólo para tests: vuelve el store a estado vacío. */
 export function reiniciarStoreMemoria(): void {
   sesiones.clear()
   items.clear()
   acuerdos.clear()
   minutas.clear()
-  salasAcuerdosSembradas.clear()
 }
 
 export function insertarSesionMemoria(fila: FilaSesionMemoria): void {
@@ -147,22 +143,8 @@ export function actualizarDecisionItemMemoria(itemId: string, decisionMaquetacio
 }
 
 // ---- Acuerdos ----
-// Cuelgan de la SALA (spec §4), no de la sesión. En modo memoria, la primera
-// vez que se consulta una sala (ver src/db/consultas.ts) se siembra este store
-// con sus acuerdos de ejemplo (src/datos-ejemplo.ts) para que mover un estatus
-// o editar una fecha en dev, sin DATABASE_URL, tenga algo real sobre qué
-// operar — exactamente una vez por sala (`salasAcuerdosSembradas`), para no
-// pisar ediciones ya hechas en siembras posteriores.
-
-export function acuerdosDeSalaYaSembrados(salaSlug: string): boolean {
-  return salasAcuerdosSembradas.has(salaSlug)
-}
-
-export function sembrarAcuerdosDeSalaMemoria(salaSlug: string, filas: FilaAcuerdoMemoria[]): void {
-  if (salasAcuerdosSembradas.has(salaSlug)) return
-  salasAcuerdosSembradas.add(salaSlug)
-  for (const fila of filas) acuerdos.set(fila.id, fila)
-}
+// Los acuerdos cuelgan de la SALA (spec §4), no de la sesión. El store arranca
+// vacío: solo contiene lo que se haya creado en la app.
 
 export function insertarAcuerdoMemoria(fila: FilaAcuerdoMemoria): void {
   acuerdos.set(fila.id, fila)

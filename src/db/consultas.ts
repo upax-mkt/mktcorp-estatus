@@ -1,7 +1,7 @@
 /**
  * Capa de acceso a datos que consume el shell (hub + vista de sala).
  *
- * Reimplementa las funciones de src/datos-ejemplo.ts, ahora async: si
+ * Reimplementa las funciones de src/dominio/salas.ts, ahora async: si
  * hayDB() consultan Postgres vía Drizzle; si no, delegan al fallback de
  * datos de ejemplo — así producción sin DATABASE_URL sigue mostrando el
  * shell exactamente igual.
@@ -9,14 +9,14 @@
  * Los derivados puros (acuerdosAbiertos, acuerdosVencidos, temperatura,
  * ordenarPorUrgencia) no tocan la base de datos — operan sobre EstadoSala ya
  * resuelto, venga de donde venga — así que se re-exportan tal cual desde
- * datos-ejemplo.ts en vez de duplicar su lógica.
+ * dominio/salas.ts en vez de duplicar su lógica.
  */
 import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { obtenerTema, slugsDeSalas } from '@/temas'
-import * as fallback from '@/datos-ejemplo'
+import * as fallback from '@/dominio/salas'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
@@ -24,7 +24,7 @@ import type {
   Minuta,
   Presentacion,
   PulsoDelMes,
-} from '@/datos-ejemplo'
+} from '@/dominio/salas'
 
 export type {
   Acuerdo,
@@ -35,7 +35,7 @@ export type {
   Presentacion,
   PulsoDelMes,
   Temperatura,
-} from '@/datos-ejemplo'
+} from '@/dominio/salas'
 
 // Derivados puros: misma función, sin importar la fuente de los datos.
 export {
@@ -43,7 +43,7 @@ export {
   acuerdosVencidos,
   temperatura,
   ordenarPorUrgencia,
-} from '@/datos-ejemplo'
+} from '@/dominio/salas'
 
 const MS_POR_DIA = 86_400_000
 
@@ -59,7 +59,7 @@ function isoFecha(d: Date): string {
  * La tabla minutas no guarda un título propio: se deriva de la sesión que
  * la originó, igual que el título de una Presentacion. Si la estructura
  * congelada de la sesión trae un `titulo` explícito se usa; si no, se
- * construye a partir de tipo + fecha (mismo patrón que datos-ejemplo.ts).
+ * construye a partir de tipo + fecha (mismo patrón que dominio/salas.ts).
  */
 function tituloDeSesion(sesion: { tipo: 'semanal' | 'mensual'; fecha: Date; estructura: unknown }): string {
   const estructura = sesion.estructura as { titulo?: unknown } | null
@@ -228,15 +228,13 @@ function construirPulso(salas: EstadoSala[]): PulsoDelMes {
   }
 }
 
-// ---- Modo sin DB: acuerdos vivos desde el store en memoria ----
+// ---- Modo sin DB: todo sale del store en memoria ----
 //
-// fallback.estadoDeSala() siempre devuelve el mismo Acuerdo[] estático (los
-// datos de ejemplo): sin esto, mover un estatus o editar una fecha desde la
-// vista de sala (src/db/acuerdos.ts, sin DATABASE_URL) nunca se reflejaría en
-// pantalla. Se siembra el store en memoria con los acuerdos de ejemplo de esa
-// sala la primera vez que se consulta (una sola vez, ver
-// store-memoria.acuerdosDeSalaYaSembrados) y desde ahí se lee — y escribe —
-// siempre del store, igual que src/db/sesiones.ts hace con sesiones/items.
+// El store arranca VACÍO y solo tiene lo que se haya creado en la app durante
+// esta ejecución del proceso. Antes se sembraba con acuerdos de ejemplo para
+// que la vista de sala tuviera algo sobre lo que operar en dev; eso significaba
+// que la app enseñaba contenido que nadie había escrito. Una sala sin actividad
+// se ve vacía, que es la verdad.
 
 function acuerdoDeFilaMemoria(a: memoria.FilaAcuerdoMemoria): Acuerdo {
   return {
@@ -249,29 +247,8 @@ function acuerdoDeFilaMemoria(a: memoria.FilaAcuerdoMemoria): Acuerdo {
   }
 }
 
-/** Acuerdos vivos de una sala en modo memoria: siembra una vez, lee siempre del store. */
-function acuerdosVivosMemoria(salaSlug: string, semillasFallback: Acuerdo[]): Acuerdo[] {
-  if (!memoria.acuerdosDeSalaYaSembrados(salaSlug)) {
-    const ahora = new Date()
-    memoria.sembrarAcuerdosDeSalaMemoria(
-      salaSlug,
-      semillasFallback.map((a) => ({
-        id: a.id,
-        salaSlug,
-        que: a.que,
-        responsable: a.responsable,
-        squad: a.squad,
-        prioridad: undefined,
-        fechaCompromiso: a.fechaCompromiso ? new Date(a.fechaCompromiso) : null,
-        estatus: a.estatus,
-        sesionOrigenId: null,
-        historia: [],
-        createdAt: ahora,
-        updatedAt: ahora,
-      })),
-    )
-  }
-  // 'cancelado' deja de mostrarse — mismo criterio que el camino con DB (arriba).
+/** Acuerdos vivos de una sala en modo memoria. 'cancelado' deja de mostrarse, igual que con DB. */
+function acuerdosVivosMemoria(salaSlug: string): Acuerdo[] {
   return memoria
     .listarAcuerdosDeSalaMemoria(salaSlug)
     .filter((a) => a.estatus !== 'cancelado')
@@ -279,18 +256,16 @@ function acuerdosVivosMemoria(salaSlug: string, semillasFallback: Acuerdo[]): Ac
 }
 
 async function estadoDeSalasMemoria(): Promise<EstadoSala[]> {
-  return fallback
-    .estadoDeSalas()
-    .map((s) => ({ ...s, acuerdos: acuerdosVivosMemoria(s.slug, s.acuerdos) }))
+  return fallback.estadoDeSalas().map((s) => ({ ...s, acuerdos: acuerdosVivosMemoria(s.slug) }))
 }
 
 async function estadoDeSalaMemoria(slug: string): Promise<EstadoSala | undefined> {
   const base = fallback.estadoDeSala(slug)
   if (!base) return base
-  return { ...base, acuerdos: acuerdosVivosMemoria(slug, base.acuerdos) }
+  return { ...base, acuerdos: acuerdosVivosMemoria(slug) }
 }
 
-// ---- API pública — misma firma que datos-ejemplo.ts, ahora async ----
+// ---- API pública — misma firma que dominio/salas.ts, ahora async ----
 
 export async function estadoDeSalas(): Promise<EstadoSala[]> {
   if (!hayDB()) return estadoDeSalasMemoria()
