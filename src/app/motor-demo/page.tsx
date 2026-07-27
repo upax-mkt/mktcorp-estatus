@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { maquetarSesion, type ResultadoMaquetacion } from '@/motor/maquetar'
+import { MaquetandoAviso } from '@/componentes/deck/MaquetandoAviso'
 import { NC_CRUDO_JUNIO_2026 } from '@/fixtures/nc-crudo-junio-2026'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import { Slide } from '@/componentes/deck/Slide'
@@ -67,11 +69,12 @@ function SlideDelResultado({ resultado, indice }: { resultado: ResultadoMaquetac
   )
 }
 
-export default async function PaginaMotorDemo() {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return <AvisoSinApiKey />
-  }
-
+/**
+ * El trabajo caro, aislado en su propio componente async para que Suspense
+ * pueda mandar el esqueleto de inmediato y transmitir los slides cuando el
+ * motor termine, en vez de dejar la pestaña en blanco medio minuto.
+ */
+async function DeckDelMotor() {
   let resultados: ResultadoMaquetacion[]
   try {
     resultados = await maquetarSesion(NC_CRUDO_JUNIO_2026, SLUG_SALA)
@@ -87,5 +90,17 @@ export default async function PaginaMotorDemo() {
         ))}
       </div>
     </main>
+  )
+}
+
+export default function PaginaMotorDemo() {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return <AvisoSinApiKey />
+  }
+
+  return (
+    <Suspense fallback={<MaquetandoAviso slides={NC_CRUDO_JUNIO_2026.length} />}>
+      <DeckDelMotor />
+    </Suspense>
   )
 }

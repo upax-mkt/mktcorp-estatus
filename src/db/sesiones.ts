@@ -14,12 +14,15 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
+import { esPermutacionValida } from './orden'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import type { EntradaCruda } from '@/motor/inventario'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
 
 export type TipoSesion = 'semanal' | 'mensual'
-export type EstadoSesion = 'borrador' | 'lista' | 'presentada' | 'minutada'
+// Mismo conjunto que el enum de la base (ver src/db/esquema.ts): 'agendada'
+// es la sesión que solo tiene fecha, antes de que nadie empiece a llenarla.
+export type EstadoSesion = 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
 
 export interface CifraCruda {
   valor: string
@@ -338,9 +341,41 @@ export async function guardarItemContenido(
 }
 
 /**
- * Reordena un item de la sesión intercambiando su `orden` con el del vecino
- * inmediato. V1 simple (sin drag&drop, ver spec §6) — suficiente para una
- * agenda de 4 items.
+ * Deja los items de la sesión en el orden exacto de `idsEnOrden`.
+ *
+ * Es lo que persiste el arrastre: mover el tercer item al primer sitio no es
+ * un intercambio con el vecino, así que se reasigna el orden completo (0..n-1).
+ * Se rechaza en silencio cualquier lista que no sea una permutación exacta de
+ * los items de esta sesión — llega del navegador, así que no se confía en ella.
+ */
+export async function reordenarItems(sesionId: string, idsEnOrden: string[]): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) return
+
+  const actuales = sesion.items.map((i) => i.id)
+  if (!esPermutacionValida(actuales, idsEnOrden)) return
+
+  if (hayDB()) {
+    const conexion = db()
+    const ahora = new Date()
+    for (const [posicion, itemId] of idsEnOrden.entries()) {
+      await conexion
+        .update(esquema.items)
+        .set({ orden: posicion, updatedAt: ahora })
+        .where(and(eq(esquema.items.id, itemId), eq(esquema.items.sesionId, sesionId)))
+    }
+    return
+  }
+
+  idsEnOrden.forEach((itemId, posicion) => {
+    memoria.actualizarOrdenItemMemoria(itemId, posicion)
+  })
+}
+
+/**
+ * Reordena un item intercambiando su `orden` con el del vecino inmediato. Es
+ * lo que usan los botones ↑/↓, que siguen siendo el camino accesible por
+ * teclado del que el arrastre es solo un atajo.
  */
 export async function moverItem(
   sesionId: string,

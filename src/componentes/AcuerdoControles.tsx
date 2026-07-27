@@ -18,11 +18,10 @@ interface Props {
  * y editar la fecha compromiso de un acuerdo, discretos dentro de la fila ya
  * existente de `sala/[slug]/page.tsx` — no se rediseña la vista de sala.
  *
- * [PENDIENTE — tarea "Login SSO Slack y tokens de sala"]: hoy no hay auth, así
- * que estos controles se muestran siempre, incluso en el link público de la
- * sala. Cuando exista sesión de equipo, envolver el `<AcuerdoControles>` del
- * padre en `{ esEquipoMktCorp && <AcuerdoControles ... /> }` para que la sala
- * pública (el director) deje de verlos.
+ * Solo se pintan si quien mira es del equipo: la vista de sala los envuelve en
+ * `{equipo && ...}`. Esconderlos es cosmética — lo que de verdad protege es el
+ * `exigirEquipo()` al inicio de cada Server Action, porque una acción es un
+ * endpoint y se puede llamar sin pasar por esta pantalla.
  */
 export function AcuerdoControles({
   acuerdoId,

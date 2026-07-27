@@ -22,7 +22,12 @@ import {
 
 export const cadenciaEnum = pgEnum('cadencia', ['semanal', 'mensual'])
 export const tipoSesionEnum = pgEnum('tipo_sesion', ['semanal', 'mensual'])
+// 'agendada' es una sesión con fecha en el calendario que nadie ha empezado a
+// llenar todavía. Sin ella no se puede distinguir "la próxima sesión es el 19
+// de agosto" de "estamos preparando la sesión", que son cosas distintas para
+// el hub: la primera es una fecha, la segunda es trabajo en curso.
 export const estadoSesionEnum = pgEnum('estado_sesion', [
+  'agendada',
   'borrador',
   'lista',
   'presentada',

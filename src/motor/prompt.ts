@@ -140,6 +140,18 @@ obligatorios. El análisis cualitativo (hallazgos, acciones) va en las columnas;
 las cifras van en los KPIs. Nunca descartes una cifra por priorizar el análisis:
 un slide ejecutivo con 3 de 4 cifras es un slide incompleto y será rechazado.
 
+FORMA DE UN KPI — cada dato en SU campo:
+Un KPI tiene tres campos separados: "valor" (el número), "rotulo" (cómo se
+llama ese número, en dos o tres palabras) y "delta" (la variación, opcional).
+La variación va SIEMPRE en "delta", nunca dentro del texto del rótulo. Así:
+  correcto:   { "valor": "29k", "rotulo": "Impresiones", "delta": "-16%" }
+  incorrecto: { "valor": "29k", "rotulo": "Impresiones -16%" }
+  incorrecto: { "valor": "29k", "rotulo": "Impresiones, delta: -16%" }
+Cuando una cifra del inventario trae delta, ese delta viaja con ella a su KPI:
+no se descarta y no se mezcla con el rótulo. Y si una cifra trae delta, las
+demás también lo llevan si lo tienen — no repartas la variación en unas sí y
+en otras no.
+
 SIEMPRE incluyes "razon": una frase concreta que explica por qué esta
 composición comunica mejor la señal de este contenido a un director (por qué
 este layout, este título, este reparto). Es lo único que el equipo humano lee

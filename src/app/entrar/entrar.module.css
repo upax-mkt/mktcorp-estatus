@@ -1,0 +1,214 @@
+/* Puerta de entrada. Mismos neutros tintados y misma tipografía que el hub:
+   quien llega aquí ya debe reconocer la app antes de estar dentro. */
+
+.pantalla {
+  --acento: oklch(0.62 0.19 42);
+  --fondo: oklch(0.985 0.006 70);
+  --superficie: oklch(1 0 0);
+  --borde: oklch(0.91 0.012 70);
+  --borde-fuerte: oklch(0.84 0.014 70);
+  --tx: oklch(0.26 0.025 55);
+  --tx-2: oklch(0.52 0.02 55);
+  --tx-3: oklch(0.66 0.015 55);
+  --alerta: oklch(0.57 0.2 25);
+  --alerta-suave: oklch(0.57 0.2 25 / 0.08);
+
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tarjeta {
+  width: 100%;
+  max-width: 420px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 40px 36px;
+  box-shadow: 0 1px 2px oklch(0.26 0.025 55 / 0.04), 0 12px 32px oklch(0.26 0.025 55 / 0.06);
+}
+
+.marca {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.marcaLogo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.marcaRayo {
+  color: var(--acento);
+}
+
+.marcaSub {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+}
+
+.titulo {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.subtitulo {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--tx-2);
+  margin-bottom: 28px;
+}
+
+.campo {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.etiqueta {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--tx);
+  background: var(--fondo);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--acento);
+  box-shadow: 0 0 0 3px oklch(0.62 0.19 42 / 0.12);
+}
+
+.boton {
+  width: 100%;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: oklch(1 0 0);
+  background: var(--acento);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.boton:hover {
+  filter: brightness(1.06);
+}
+
+.error {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--alerta);
+  background: var(--alerta-suave);
+  border: 1px solid oklch(0.57 0.2 25 / 0.2);
+  border-radius: 10px;
+}
+
+.separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  font-size: 12px;
+  color: var(--tx-3);
+}
+
+.separador::before,
+.separador::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--borde);
+}
+
+.botonSlack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tx);
+  background: var(--superficie);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.botonSlack:hover {
+  background: var(--fondo);
+}
+
+.pie {
+  margin-top: 28px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--tx-3);
+}
+
+.pieFuerte {
+  color: var(--tx-2);
+  font-weight: 500;
+}
+
+.aviso {
+  padding: 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--tx-2);
+  background: var(--fondo);
+  border: 1px dashed var(--borde-fuerte);
+  border-radius: 10px;
+}
+
+.avisoTitulo {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--tx);
+  background: oklch(0.26 0.025 55 / 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}

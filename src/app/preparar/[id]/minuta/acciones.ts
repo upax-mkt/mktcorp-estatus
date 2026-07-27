@@ -8,6 +8,7 @@
  * Component.
  */
 import { revalidatePath } from 'next/cache'
+import { esEquipo } from '@/auth/sesion'
 import { obtenerSesion } from '@/db/sesiones'
 import { generarMinuta } from '@/minuta/generar'
 import { guardarMinuta, type AcuerdoConfirmado } from '@/db/minutas'
@@ -20,8 +21,16 @@ export interface EstadoGeneracion {
   acuerdosPropuestos?: AcuerdoPropuesto[]
 }
 
+/**
+ * Minutar es trabajo de Mkt Corp. Estas dos acciones devuelven su error en el
+ * resultado en vez de lanzar (MinutaCliente lo pinta), así que el rechazo por
+ * permisos sigue el mismo camino.
+ */
+const SOLO_EQUIPO = 'Esta acción es solo para el equipo de Marketing Corporativo.'
+
 export async function generarMinutaAction(sesionId: string, transcripcion: string): Promise<EstadoGeneracion> {
   try {
+    if (!(await esEquipo())) return { ok: false, error: SOLO_EQUIPO }
     const sesion = await obtenerSesion(sesionId)
     if (!sesion) return { ok: false, error: 'Sesión no encontrada.' }
 
@@ -54,6 +63,7 @@ export async function publicarMinutaAction(
   acuerdosConfirmados: AcuerdoConfirmado[],
 ): Promise<EstadoPublicacion> {
   try {
+    if (!(await esEquipo())) return { ok: false, error: SOLO_EQUIPO }
     const sesion = await obtenerSesion(sesionId)
     if (!sesion) return { ok: false, error: 'Sesión no encontrada.' }
 

@@ -11,8 +11,10 @@ import { moverEstatus, editarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
-
-const FECHA = new Date('2026-07-24T12:00:00')
+import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
+import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
+import { CopiarBoton } from '@/componentes/CopiarBoton'
+import { urlBase } from '@/lib/url-base'
 
 // La vista de equipo ahora escribe (cambiar estatus, editar fecha) — se
 // necesita fresca en cada carga, no la copia estática que generateStaticParams
@@ -25,23 +27,12 @@ export function generateStaticParams() {
   return slugsDeSalas().map((slug) => ({ slug }))
 }
 
-function fechaCorta(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-function fechaBreve(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' })
-}
-function textoUltima(dias: number | null): string {
-  if (dias == null) return 'sin sesión aún'
-  if (dias === 0) return 'hoy'
-  if (dias === 1) return 'ayer'
-  return `hace ${dias} días`
-}
 function textoFechaAcuerdo(a: Acuerdo): { txt: string; clase: string } {
   if (a.fechaCompromiso == null) return { txt: 'por definir', clase: 'pordef' }
-  const d = new Date(a.fechaCompromiso)
-  const txt = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
-  return { txt, clase: a.estatus === 'vencido' ? 'vencida' : '' }
+  return {
+    txt: fechaBreve(a.fechaCompromiso),
+    clase: a.estatus === 'vencido' ? 'vencida' : '',
+  }
 }
 const ETIQUETA_ESTADO: Record<Acuerdo['estatus'], string> = {
   abierto: 'abierto', cumplido: 'cumplido', vencido: 'vencido',
@@ -55,17 +46,24 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   } catch {
     notFound()
   }
+  // El proxy ya filtró, pero esta es la comprobación que cuenta: pegada al
+  // dato, no en la puerta. Un director solo abre su sala.
+  if (!(await puedeVerEstaSala(slug))) notFound()
+
   const s = await estadoDeSala(slug)
   if (!s) notFound()
   const benchmark = await obtenerBenchmark(slug)
+  const equipo = await esEquipo()
+  const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
 
-  // ---- Server actions: acuerdos editables (spec §4/§6, tarea "Acuerdos editables") ----
-  // Solo el equipo Mkt Corp debería llegar aquí (spec §4: "Solo el equipo Mkt
-  // Corp mueve el estatus"); sin auth todavía (ver AcuerdoControles.tsx), la
-  // protección real queda pendiente de la tarea de Login SSO.
+  // ---- Server actions: acuerdos editables (spec §4/§6) ----
+  // "Solo el equipo Mkt Corp mueve el estatus": cada acción lo exige por su
+  // cuenta. Ocultar los controles en la UI no basta — una Server Action es un
+  // endpoint, y quien tenga su id puede llamarla sin pasar por la pantalla.
 
   async function cambiarEstatusAction(acuerdoId: string, estatus: EstatusAcuerdo) {
     'use server'
+    await exigirEquipo()
     await moverEstatus(acuerdoId, estatus)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -73,6 +71,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function editarFechaAction(acuerdoId: string, fecha: string | null) {
     'use server'
+    await exigirEquipo()
     await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -91,7 +90,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   return (
     <div className={estilos.app} style={estiloMarca}>
       <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Salas</Link>
+        {/* El director solo tiene acceso a esta sala: mandarlo al hub sería
+            ofrecerle una puerta que el proxy le cierra en la cara. */}
+        {equipo ? (
+          <Link href="/" className={estilos.volver}>← Salas</Link>
+        ) : (
+          <span className={estilos.volver}>Marketing Corp</span>
+        )}
         <div className={estilos.barraSala}>
           <span className={estilos.barraPunto} />
           {s.nombre}
@@ -105,12 +110,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           <h1 className={estilos.heroNombre}>{s.nombre}</h1>
           <div className={estilos.heroMeta}>
             <div className={estilos.heroMetaItem}>
-              <span className={estilos.heroMetaV}>{textoUltima(s.diasDesdeUltima)}</span>
+              <span className={estilos.heroMetaV}>{textoDiasDesde(s.diasDesdeUltima)}</span>
               <span className={estilos.heroMetaL}>última sesión</span>
             </div>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>
-                {s.proximaSesion ? fechaCorta(s.proximaSesion) : 'por agendar'}
+                {s.proximaSesion ? fechaCompleta(s.proximaSesion) : 'por agendar'}
               </span>
               <span className={estilos.heroMetaL}>próxima sesión</span>
             </div>
@@ -149,14 +154,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                     </div>
                     <div className={estilos.acuerdoDcha}>
                       <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
-                      {/* Equipo Mkt Corp: siempre visibles hoy (sin auth aún, ver AcuerdoControles.tsx) */}
-                      <AcuerdoControles
-                        acuerdoId={a.id}
-                        estatusInicial={a.estatus}
-                        fechaInicial={a.fechaCompromiso}
-                        cambiarEstatusAction={cambiarEstatusAction}
-                        editarFechaAction={editarFechaAction}
-                      />
+                      {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
+                      {equipo && (
+                        <AcuerdoControles
+                          acuerdoId={a.id}
+                          estatusInicial={a.estatus}
+                          fechaInicial={a.fechaCompromiso}
+                          cambiarEstatusAction={cambiarEstatusAction}
+                          editarFechaAction={editarFechaAction}
+                        />
+                      )}
                     </div>
                   </div>
                 )
@@ -173,7 +180,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               <div>
                 <div className={estilos.presTag}>Más reciente</div>
                 <h3 className={estilos.presTitulo}>{presReciente.titulo}</h3>
-                <div className={estilos.presFecha}>{fechaCorta(presReciente.fecha)}</div>
+                <div className={estilos.presFecha}>{fechaCompleta(presReciente.fecha)}</div>
               </div>
               <span className={estilos.presVer}>Ver presentación →</span>
             </Link>
@@ -183,7 +190,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               {presAnteriores.map((p) => (
                 <div key={p.fecha} className={estilos.presFila}>
                   <span className={estilos.presFilaTitulo}>{p.titulo}</span>
-                  <span className={estilos.presFilaFecha}>{fechaBreve(p.fecha)}</span>
+                  <span className={estilos.presFilaFecha}>{fechaBreveConAnio(p.fecha)}</span>
                 </div>
               ))}
             </div>
@@ -200,7 +207,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                   <span className={estilos.minutaIcono}>▤</span>
                   <span>{m.titulo}</span>
                 </div>
-                <span className={estilos.minutaEnviada}>{fechaBreve(m.fecha)} · enviada a {m.enviadaA}</span>
+                <span className={estilos.minutaEnviada}>{fechaBreveConAnio(m.fecha)} · enviada a {m.enviadaA}</span>
               </div>
             ))}
           </div>
@@ -214,6 +221,26 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </h2>
           <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} />
         </section>
+
+        {/* Compartir la sala con su director. Solo lo ve el equipo. */}
+        {equipo && tokenDeAcceso && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
+            <div className={estilos.acceso}>
+              <div className={estilos.accesoTexto}>
+                <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>
+                <p className={estilos.accesoNota}>
+                  Quien tenga este link entra a esta sala —y solo a esta— sin clave: compártelo por
+                  canal privado. Caduca en 30 días y no permite mover acuerdos.
+                </p>
+              </div>
+              <CopiarBoton
+                texto={`${await urlBase()}/sala/${slug}?acceso=${tokenDeAcceso}`}
+                className={estilos.accesoBoton}
+              />
+            </div>
+          </section>
+        )}
       </main>
     </div>
   )

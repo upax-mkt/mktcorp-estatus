@@ -205,3 +205,8 @@ const BENCHMARKS: Record<string, Benchmark> = {
 export function obtenerBenchmarkEjemplo(salaSlug: string): Benchmark | null {
   return BENCHMARKS[salaSlug] ?? null
 }
+
+/** Todos los benchmarks de ejemplo. Lo usa la semilla para poblar la tabla. */
+export function benchmarksDeEjemplo(): Benchmark[] {
+  return Object.values(BENCHMARKS)
+}

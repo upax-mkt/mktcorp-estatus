@@ -1,0 +1,122 @@
+/* Esqueleto de carga del motor. Mismos neutros que el resto de la app; la
+   animación es suave y respeta a quien pide menos movimiento. */
+
+.envoltura {
+  --fondo: oklch(0.985 0.006 70);
+  --superficie: oklch(1 0 0);
+  --hueso: oklch(0.93 0.01 70);
+  --borde: oklch(0.91 0.012 70);
+  --acento: oklch(0.62 0.19 42);
+  --tx: oklch(0.26 0.025 55);
+  --tx-2: oklch(0.52 0.02 55);
+
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  color: var(--tx);
+}
+
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.15rem;
+  margin-bottom: 2rem;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 0.75rem;
+}
+
+.pulso {
+  flex-shrink: 0;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: var(--acento);
+  animation: latido 1.4s ease-in-out infinite;
+}
+
+.avisoTitulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.avisoNota {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--tx-2);
+  max-width: 62ch;
+}
+
+.slides {
+  display: grid;
+  gap: 2rem;
+}
+
+.slide {
+  aspect-ratio: 16 / 9;
+  padding: 2.5rem;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.barraTitulo {
+  width: 55%;
+  height: 1.9rem;
+  border-radius: 0.35rem;
+  background: var(--hueso);
+  animation: respira 1.8s ease-in-out infinite;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.kpi {
+  height: 4.5rem;
+  border-radius: 0.4rem;
+  background: var(--hueso);
+  animation: respira 1.8s ease-in-out infinite;
+}
+
+.kpi:nth-child(2) { animation-delay: 0.12s; }
+.kpi:nth-child(3) { animation-delay: 0.24s; }
+.kpi:nth-child(4) { animation-delay: 0.36s; }
+
+.lineas {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.linea {
+  height: 0.85rem;
+  border-radius: 0.25rem;
+  background: var(--hueso);
+  animation: respira 1.8s ease-in-out infinite;
+}
+
+.lineaCorta { width: 70%; }
+
+@keyframes latido {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+@keyframes respira {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulso, .barraTitulo, .kpi, .linea { animation: none; }
+}

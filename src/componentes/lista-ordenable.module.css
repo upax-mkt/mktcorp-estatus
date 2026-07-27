@@ -1,0 +1,76 @@
+/* Envoltura de arrastre del cuestionario. El asa y el número viven en una
+   columna a la izquierda de cada tarjeta; la tarjeta conserva su propio diseño. */
+
+.lista {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  /* La tercera fila absorbe el alto sobrante para que el asa y el número
+     queden pegados arriba, a la altura del título, y no floten al centro. */
+  grid-template-areas:
+    'asa tarjeta'
+    'num tarjeta'
+    'resto tarjeta';
+  grid-template-rows: auto auto 1fr;
+  align-items: start;
+  gap: 0 0.9rem;
+  border-radius: 0.75rem;
+  transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fila > *:last-child {
+  grid-area: tarjeta;
+  min-width: 0;
+}
+
+.asa {
+  grid-area: asa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-top: 1.6rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: oklch(0.72 0.015 55);
+  border-radius: 0.35rem;
+  cursor: grab;
+  user-select: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.asa:hover {
+  color: oklch(0.4 0.02 55);
+  background: oklch(0.26 0.025 55 / 0.06);
+}
+
+.asa:active {
+  cursor: grabbing;
+}
+
+.posicion {
+  grid-area: num;
+  margin-top: 0.4rem;
+  justify-self: center;
+}
+
+/* La tarjeta que se está arrastrando se atenúa: se ve que salió de su sitio. */
+.arrastrando {
+  opacity: 0.4;
+}
+
+/* Dónde va a caer. */
+.destino {
+  box-shadow: 0 -3px 0 -1px oklch(0.62 0.19 42);
+  transform: translateY(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fila { transition: none; }
+  .destino { transform: none; }
+}

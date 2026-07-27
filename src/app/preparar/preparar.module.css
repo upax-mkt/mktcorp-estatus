@@ -99,6 +99,8 @@
   padding: 0.2rem 0.55rem; border-radius: 999px;
   background: var(--superficie-2); color: var(--tx-2); border: 1px solid var(--borde);
 }
+/* Agendada: solo tiene fecha, nadie la ha empezado. Más tenue que borrador. */
+.chip.agendada { background: var(--superficie-2); color: var(--tx-3); border-color: var(--borde); }
 .chip.borrador { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
 .chip.lista { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
 .chip.presentada, .chip.minutada { background: var(--superficie-2); color: var(--tx-2); }
@@ -158,7 +160,8 @@
 .heroMeta .sep { color: var(--borde-fuerte); }
 
 /* ---- cuestionario: tarjetas ---- */
-.tarjetas { display: flex; flex-direction: column; gap: 1.1rem; }
+/* El contenedor de las tarjetas lo aporta ahora ListaOrdenable (que también
+   añade el asa de arrastre); esta clase quedó sin uso al adoptarlo. */
 .tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: 0.9rem; padding: 1.25rem 1.4rem; }
 .tarjeta[data-llenado="true"] { border-color: color-mix(in srgb, var(--ok) 45%, var(--borde)); }
 .tarjetaCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }

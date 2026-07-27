@@ -1,18 +1,16 @@
 import Link from 'next/link'
 import estilos from './preparar.module.css'
 import { listarSesiones } from '@/db/sesiones'
+import { fechaBreveConAnio } from '@/lib/fecha'
 
 export const dynamic = 'force-dynamic'
 
 const ETIQUETA_ESTADO: Record<string, string> = {
+  agendada: 'agendada',
   borrador: 'borrador',
   lista: 'lista para presentar',
   presentada: 'presentada',
   minutada: 'minutada',
-}
-
-function fechaCorta(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function etiquetaAlcance(alcance: string): string {
@@ -21,7 +19,11 @@ function etiquetaAlcance(alcance: string): string {
 
 export default async function PagPreparar() {
   const sesiones = await listarSesiones()
-  const enPreparacion = sesiones.filter((s) => s.estado === 'borrador' || s.estado === 'lista')
+  // Lo que está por delante (agendado o a medio llenar) contra lo que ya pasó.
+  // Una sesión 'agendada' pertenece aquí: es justo lo que hay que preparar.
+  const enPreparacion = sesiones.filter(
+    (s) => s.estado === 'agendada' || s.estado === 'borrador' || s.estado === 'lista',
+  )
   const resto = sesiones.filter((s) => s.estado === 'presentada' || s.estado === 'minutada')
 
   return (
@@ -62,7 +64,7 @@ export default async function PagPreparar() {
                       <span className={estilos.sep}>·</span>
                       <span>{etiquetaAlcance(s.alcance)}</span>
                       <span className={estilos.sep}>·</span>
-                      <span>{fechaCorta(s.fecha)}</span>
+                      <span>{fechaBreveConAnio(s.fecha)}</span>
                     </div>
                   </div>
                   <div className={estilos.filaDcha}>
@@ -100,7 +102,7 @@ export default async function PagPreparar() {
                     <div className={estilos.filaMeta}>
                       <span>{s.tipo}</span>
                       <span className={estilos.sep}>·</span>
-                      <span>{fechaCorta(s.fecha)}</span>
+                      <span>{fechaBreveConAnio(s.fecha)}</span>
                     </div>
                   </div>
                   <div className={estilos.filaDcha}>

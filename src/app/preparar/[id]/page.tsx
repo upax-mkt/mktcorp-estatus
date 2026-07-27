@@ -7,6 +7,7 @@ import {
   obtenerSesion,
   guardarItemContenido,
   moverItem,
+  reordenarItems,
   entradasCrudasDeSesion,
   guardarDecisiones,
   parsearCifrasTexto,
@@ -14,6 +15,10 @@ import {
   type ContenidoItemCrudo,
 } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
+import { exigirEquipo } from '@/auth/sesion'
+import { BotonMaquetar } from '@/componentes/BotonMaquetar'
+import { ListaOrdenable } from '@/componentes/ListaOrdenable'
+import { fechaCompleta } from '@/lib/fecha'
 
 // El botón "Maquetar" llama al motor (etapa 2, Claude, ~25s en 2 intentos en
 // serie): el default serverless de Vercel (10s) no alcanza.
@@ -31,10 +36,6 @@ function etiquetaAlcance(alcance: string): string {
   return alcance === 'todos' ? 'todos los squads' : alcance
 }
 
-function fechaCorta(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
 export default async function PagSesion({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const sesion = await obtenerSesion(id)
@@ -44,6 +45,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function guardarContenido(formData: FormData) {
     'use server'
+    await exigirEquipo()
     const sesionId = String(formData.get('sesionId') ?? '')
     const itemId = String(formData.get('itemId') ?? '')
     const texto = String(formData.get('texto') ?? '').trim()
@@ -61,6 +63,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function subirItem(formData: FormData) {
     'use server'
+    await exigirEquipo()
     const sesionId = String(formData.get('sesionId') ?? '')
     const itemId = String(formData.get('itemId') ?? '')
     await moverItem(sesionId, itemId, 'arriba')
@@ -69,14 +72,24 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function bajarItem(formData: FormData) {
     'use server'
+    await exigirEquipo()
     const sesionId = String(formData.get('sesionId') ?? '')
     const itemId = String(formData.get('itemId') ?? '')
     await moverItem(sesionId, itemId, 'abajo')
     revalidatePath(`/preparar/${sesionId}`)
   }
 
+  /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
+  async function reordenar(idsEnOrden: string[]) {
+    'use server'
+    await exigirEquipo()
+    await reordenarItems(id, idsEnOrden)
+    revalidatePath(`/preparar/${id}`)
+  }
+
   async function maquetar(formData: FormData) {
     'use server'
+    await exigirEquipo()
     const sesionId = String(formData.get('sesionId') ?? '')
     const sesionActual = await obtenerSesion(sesionId)
     if (!sesionActual) throw new Error('Sesión no encontrada')
@@ -121,7 +134,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                 <span className={estilos.sep}>·</span>
                 <span>{etiquetaAlcance(sesion.alcance)}</span>
                 <span className={estilos.sep}>·</span>
-                <span>{fechaCorta(sesion.fecha)}</span>
+                <span>{fechaCompleta(sesion.fecha)}</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -139,7 +152,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        <div className={estilos.tarjetas}>
+        <ListaOrdenable ids={sesion.items.map((i) => i.id)} reordenarAction={reordenar}>
           {sesion.items.map((item, i) => (
             <form
               key={item.id}
@@ -152,7 +165,6 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
               <div className={estilos.tarjetaCabecera}>
                 <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'flex-start', minWidth: 0 }}>
-                  <span className={estilos.tarjetaNumero}>{i + 1}</span>
                   <div>
                     <div className={estilos.tarjetaTitulo}>
                       {item.titulo}
@@ -228,7 +240,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
               </div>
             </form>
           ))}
-        </div>
+        </ListaOrdenable>
 
         {sesion.itemsLlenados > 0 ? (
           <form action={maquetar} className={estilos.panelMaquetar}>
@@ -237,9 +249,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
               {sesion.itemsLlenados} de {total} items listos para maquetar.
               {sesion.estado !== 'borrador' && ' Ya hay un deck maquetado — volver a maquetar lo reemplaza.'}
             </span>
-            <button type="submit" className={`${estilos.boton} ${estilos.botonAcento}`}>
-              Maquetar →
-            </button>
+            <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} />
           </form>
         ) : (
           <p className={estilos.panelMaquetarAviso}>Llena al menos un item para poder maquetar la sesión.</p>

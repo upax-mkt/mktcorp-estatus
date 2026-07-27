@@ -4,12 +4,14 @@ import type { CSSProperties } from 'react'
 import estilos from '../preparar.module.css'
 import { slugsDeSalas, obtenerTema } from '@/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
+import { exigirEquipo } from '@/auth/sesion'
 
 export const dynamic = 'force-dynamic'
 
 export default function PagNuevaSesion() {
   async function crear(formData: FormData) {
     'use server'
+    await exigirEquipo()
 
     const salaSlug = String(formData.get('salaSlug') ?? '')
     const tipo = (String(formData.get('tipo') ?? 'mensual')) as TipoSesion

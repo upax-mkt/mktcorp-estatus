@@ -9,9 +9,17 @@
  *
  * Uso: `npm run db:seed` (requiere DATABASE_URL en el entorno).
  */
+import { existsSync } from 'node:fs'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import { estadoDeSalas } from '@/datos-ejemplo'
+import { benchmarksDeEjemplo } from '@/datos-benchmark'
+
+// Se corre como script suelto (tsx), fuera del runtime de Next: hay que
+// cargar .env.local a mano. En Vercel/CI la variable ya viene del entorno.
+if (existsSync('.env.local')) {
+  process.loadEnvFile('.env.local')
+}
 
 export async function sembrar(): Promise<void> {
   if (!hayDB()) {
@@ -43,6 +51,26 @@ export async function sembrar(): Promise<void> {
           alcance: 'todos',
           estado: 'minutada',
           estructura: { titulo: p.titulo, origen: 'semilla' },
+        })
+        .onConflictDoNothing({ target: esquema.sesiones.id })
+    }
+
+    // 2b. La próxima sesión, si la sala tiene uná agendada. Sin esto el hub
+    //     diría "sin próxima sesión agendada" en las 10 salas: las
+    //     presentaciones de ejemplo son todas pasadas.
+    if (sala.proximaSesion) {
+      await conexion
+        .insert(esquema.sesiones)
+        .values({
+          id: `semilla-${sala.slug}-proxima`,
+          salaSlug: sala.slug,
+          fecha: new Date(`${sala.proximaSesion}T12:00:00Z`),
+          tipo: sala.cadencia,
+          alcance: 'todos',
+          // Si el ejemplo la marca en preparación, ya se está llenando;
+          // si no, solo está en el calendario.
+          estado: sala.enPreparacion ? 'borrador' : 'agendada',
+          estructura: { origen: 'semilla' },
         })
         .onConflictDoNothing({ target: esquema.sesiones.id })
     }
@@ -84,7 +112,29 @@ export async function sembrar(): Promise<void> {
     }
   }
 
-  console.log(`[semilla] listo: ${salas.length} salas sembradas.`)
+  // 5. Benchmarks — uno por sala que tenga referencia cargada. Sin esto, con
+  //    DATABASE_URL puesta la tabla queda vacía y el espacio Benchmark
+  //    desaparece de la vista de sala (obtenerBenchmark devuelve null).
+  const benchmarks = benchmarksDeEjemplo()
+  if (benchmarks.length > 0) {
+    await conexion
+      .insert(esquema.benchmarks)
+      .values(
+        benchmarks.map((b) => ({
+          id: `semilla-benchmark-${b.salaSlug}`,
+          salaSlug: b.salaSlug,
+          competidores: b.competidores,
+          dimensiones: b.dimensiones,
+          lectura: b.lectura,
+          updatedAt: new Date(b.actualizado),
+        })),
+      )
+      .onConflictDoNothing({ target: esquema.benchmarks.id })
+  }
+
+  console.log(
+    `[semilla] listo: ${salas.length} salas y ${benchmarks.length} benchmarks sembrados.`,
+  )
 }
 
 // Ejecución directa: `npm run db:seed` (vía tsx).

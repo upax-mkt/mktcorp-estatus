@@ -1,0 +1,1 @@
+ALTER TYPE "public"."estado_sesion" ADD VALUE 'agendada' BEFORE 'borrador';

@@ -1,30 +1,26 @@
 import Link from 'next/link'
+import { connection } from 'next/server'
+import { redirect } from 'next/navigation'
 import estilos from './hub.module.css'
 import {
   estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
   acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes,
 } from '@/db/consultas'
-
-const FECHA = new Date('2026-07-24T12:00:00')
-
-function fechaLarga(d: Date): string {
-  return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-}
-function textoTemp(dias: number | null): string {
-  if (dias == null) return 'sin sesión aún'
-  if (dias === 0) return 'hoy'
-  if (dias === 1) return 'ayer'
-  return `hace ${dias} días`
-}
-function textoProxima(iso: string | null): string {
-  if (!iso) return 'sin próxima sesión agendada'
-  const d = new Date(iso)
-  const dias = Math.round((d.getTime() - FECHA.getTime()) / 86_400_000)
-  const cuando = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
-  return `próxima ${cuando}${dias >= 0 ? ` · en ${dias} d` : ''}`
-}
+import { fechaLarga, textoDiasDesde, textoProxima } from '@/lib/fecha'
+import { cerrarSesion } from '@/auth/sesion'
 
 export default async function Hub() {
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
+
+  // El hub muestra el día de hoy y cuenta días contra él: sin esto Next lo
+  // prerenderiza y la app queda congelada en la fecha del build.
+  await connection()
+  const hoy = new Date()
+
   const [salasCrudas, riesgo, pulso] = await Promise.all([
     estadoDeSalas(),
     acuerdosEnRiesgo(),
@@ -41,7 +37,10 @@ export default async function Hub() {
         </div>
         <nav className={estilos.barraDcha}>
           <Link href="/preparar" className={estilos.barraLink}>Preparar</Link>
-          <span className={estilos.barraFecha}>{fechaLarga(FECHA)}</span>
+          <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
+          <form action={salir}>
+            <button type="submit" className={estilos.barraSalir}>Salir</button>
+          </form>
         </nav>
       </header>
 
@@ -98,9 +97,9 @@ export default async function Hub() {
                         {s.nombre}
                       </div>
                       <div className={estilos.salaMeta}>
-                        <span className={`${estilos.temp} ${estilos[t]}`}>{textoTemp(s.diasDesdeUltima)}</span>
+                        <span className={`${estilos.temp} ${estilos[t]}`}>{textoDiasDesde(s.diasDesdeUltima)}</span>
                         <span className={estilos.sep}>·</span>
-                        <span>{textoProxima(s.proximaSesion)}</span>
+                        <span>{textoProxima(s.proximaSesion, hoy)}</span>
                       </div>
                     </div>
                     <div className={estilos.salaDcha}>

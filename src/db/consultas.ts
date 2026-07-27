@@ -75,7 +75,7 @@ interface FilaSesion {
   id: string
   fecha: Date
   tipo: 'semanal' | 'mensual'
-  estado: 'borrador' | 'lista' | 'presentada' | 'minutada'
+  estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
   estructura: unknown
 }
 
@@ -89,6 +89,15 @@ function avancePorEstado(estado: FilaSesion['estado']): number {
   if (estado === 'lista') return 90
   if (estado === 'borrador') return 35
   return 100
+}
+
+/**
+ * Una sesión "en preparación" es la que ya se está llenando. Una sesión
+ * `agendada` todavía no: solo ocupa una fecha en el calendario, y aparece en
+ * el hub como próxima sesión, no como trabajo en curso.
+ */
+function estaEnPreparacion(estado: FilaSesion['estado']): boolean {
+  return estado === 'borrador' || estado === 'lista'
 }
 
 async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
@@ -132,7 +141,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   const futuras = sesiones
     .filter((s) => s.fecha.getTime() > ahora.getTime())
     .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
-  const enPreparacionRows = sesiones.filter((s) => s.estado === 'borrador' || s.estado === 'lista')
+  const enPreparacionRows = sesiones.filter((s) => estaEnPreparacion(s.estado))
 
   const ultima = yaSucedidas[0] // ya viene ordenada desc por fecha
   const proxima = futuras[0]

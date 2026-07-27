@@ -213,3 +213,26 @@
 }
 
 .benchmarkActualizado { font-size: 0.78rem; color: var(--tx-3); margin-top: 1rem; }
+
+/* ---- Acceso del director: el link firmado de esta sala (solo lo ve el equipo) ---- */
+.acceso {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--superficie);
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.75rem;
+}
+.accesoTexto { min-width: 0; }
+.accesoTitulo { font-size: 0.92rem; font-weight: 600; margin-bottom: 0.25rem; }
+.accesoNota { font-size: 0.82rem; line-height: 1.5; color: var(--tx-2); max-width: 52ch; }
+.accesoBoton {
+  flex-shrink: 0;
+  font-family: inherit; font-size: 0.85rem; font-weight: 500;
+  padding: 0.55rem 1.1rem; border-radius: 0.55rem; cursor: pointer;
+  color: var(--superficie); background: var(--marca); border: none;
+  transition: filter 0.15s ease;
+}
+.accesoBoton:hover { filter: brightness(1.08); }
+
+@media (max-width: 640px) {
+  .acceso { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}
