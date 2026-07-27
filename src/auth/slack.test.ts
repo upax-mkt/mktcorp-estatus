@@ -43,6 +43,20 @@ describe('esEquipoPermitido', () => {
   it('rechaza si Slack no devolvió workspace pero sí se exigía uno', () => {
     expect(esEquipoPermitido(undefined, 'T123')).toBe(false)
   })
+
+  it('acepta un ID de organización Enterprise Grid — el caso de UPAX', () => {
+    // Configurado E…, y Slack devuelve el workspace T… más su organización E….
+    // Comparar solo contra el workspace rechazaría a todo el mundo.
+    expect(esEquipoPermitido('T123', 'E081PBW2ZV2', 'E081PBW2ZV2')).toBe(true)
+  })
+
+  it('rechaza una organización distinta a la configurada', () => {
+    expect(esEquipoPermitido('T123', 'E081PBW2ZV2', 'E999OTRA')).toBe(false)
+  })
+
+  it('rechaza cuando se exige una organización y Slack no devuelve ninguna', () => {
+    expect(esEquipoPermitido('T123', 'E081PBW2ZV2')).toBe(false)
+  })
 })
 
 describe('leerIdToken', () => {
@@ -52,17 +66,24 @@ describe('leerIdToken', () => {
     return `${b64({ alg: 'RS256' })}.${b64(carga)}.firma-de-slack`
   }
 
-  it('saca correo, nombre y workspace de la carga', () => {
+  it('saca correo, nombre, workspace y organización de la carga', () => {
     const token = armarToken({
       email: 'franco.cruzat@upax.com.mx',
       name: 'Franco Cruzat',
       'https://slack.com/team_id': 'T123',
+      'https://slack.com/enterprise_id': 'E081PBW2ZV2',
     })
     expect(leerIdToken(token)).toEqual({
       email: 'franco.cruzat@upax.com.mx',
       nombre: 'Franco Cruzat',
       equipo: 'T123',
+      organizacion: 'E081PBW2ZV2',
     })
+  })
+
+  it('deja la organización sin definir cuando el workspace no está en Enterprise Grid', () => {
+    const token = armarToken({ email: 'a@upax.com.mx', 'https://slack.com/team_id': 'T123' })
+    expect(leerIdToken(token)?.organizacion).toBeUndefined()
   })
 
   it('devuelve null si el token no tiene tres partes', () => {
@@ -101,6 +122,19 @@ describe('urlDeAutorizacion', () => {
   it('omite el workspace si no se configuró', () => {
     const url = new URL(
       urlDeAutorizacion({ clientId: 'cid', redirectUri: 'https://app.test/r', state: 's' }),
+    )
+    expect(url.searchParams.has('team')).toBe(false)
+  })
+
+  it('omite el hint cuando lo configurado es una organización Enterprise Grid', () => {
+    // `team` espera un workspace (T…); con un E-ID no significa nada para Slack.
+    const url = new URL(
+      urlDeAutorizacion({
+        clientId: 'cid',
+        redirectUri: 'https://app.test/r',
+        state: 's',
+        equipo: 'E081PBW2ZV2',
+      }),
     )
     expect(url.searchParams.has('team')).toBe(false)
   })

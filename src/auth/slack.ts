@@ -16,13 +16,17 @@
 const AUTORIZACION = 'https://slack.com/openid/connect/authorize'
 const TOKEN = 'https://slack.com/api/openid.connect.token'
 
-/** Claim propio de Slack dentro del id_token. */
+/** Claims propios de Slack dentro del id_token. */
 const CLAIM_EQUIPO = 'https://slack.com/team_id'
+const CLAIM_ORGANIZACION = 'https://slack.com/enterprise_id'
 
 export interface IdentidadSlack {
   email: string
   nombre?: string
+  /** Workspace (empieza por T). */
   equipo?: string
+  /** Organización Enterprise Grid (empieza por E), si el workspace pertenece a una. */
+  organizacion?: string
 }
 
 export function slackConfigurado(): boolean {
@@ -51,9 +55,23 @@ export function esCorreoPermitido(correo: string, dominio: string | undefined): 
   return partes[1] === dominio.trim().toLowerCase()
 }
 
-export function esEquipoPermitido(equipo: string | undefined, exigido: string | undefined): boolean {
+/**
+ * true si quien entra pertenece al espacio de Slack configurado.
+ *
+ * `SLACK_TEAM_ID` acepta las dos formas que Slack usa, porque de fuera no
+ * siempre es obvio cuál se está copiando: un workspace (empieza por T) o una
+ * organización Enterprise Grid (empieza por E). UPAX está en Enterprise Grid,
+ * así que el valor configurado es un E-ID mientras que el `team_id` que
+ * devuelve el login es un T-ID: comparar solo contra uno rechazaría a todo el
+ * mundo. Basta con que coincida cualquiera de los dos.
+ */
+export function esEquipoPermitido(
+  equipo: string | undefined,
+  exigido: string | undefined,
+  organizacion?: string,
+): boolean {
   if (!exigido) return true
-  return equipo === exigido
+  return equipo === exigido || organizacion === exigido
 }
 
 /**
@@ -76,6 +94,8 @@ export function leerIdToken(idToken: string): IdentidadSlack | null {
       email,
       nombre: typeof carga.name === 'string' ? carga.name : undefined,
       equipo: typeof carga[CLAIM_EQUIPO] === 'string' ? (carga[CLAIM_EQUIPO] as string) : undefined,
+      organizacion:
+        typeof carga[CLAIM_ORGANIZACION] === 'string' ? (carga[CLAIM_ORGANIZACION] as string) : undefined,
     }
   } catch {
     return null
@@ -94,7 +114,13 @@ export function urlDeAutorizacion(opciones: {
   url.searchParams.set('client_id', opciones.clientId)
   url.searchParams.set('redirect_uri', opciones.redirectUri)
   url.searchParams.set('state', opciones.state)
-  if (opciones.equipo) url.searchParams.set('team', opciones.equipo)
+  // `team` es solo una ayuda de interfaz para que Slack preseleccione el
+  // workspace, y espera un ID de workspace (T…). Con un ID de organización
+  // Enterprise Grid (E…) no significa nada, así que se omite: la restricción de
+  // verdad la aplica esEquipoPermitido() sobre el token de vuelta.
+  if (opciones.equipo?.toUpperCase().startsWith('T')) {
+    url.searchParams.set('team', opciones.equipo)
+  }
   return url.toString()
 }
 

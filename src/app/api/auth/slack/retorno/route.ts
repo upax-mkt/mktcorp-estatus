@@ -38,7 +38,9 @@ export async function GET(request: Request) {
 
   const identidad = await identidadDesdeCodigo(code, urlDeRetornoSlack(request.url))
   if (!identidad) redirect('/entrar?error=slack')
-  if (!esEquipoPermitido(identidad.equipo, equipoExigido())) redirect('/entrar?error=slack')
+  if (!esEquipoPermitido(identidad.equipo, equipoExigido(), identidad.organizacion)) {
+    redirect('/entrar?error=slack')
+  }
   if (!esCorreoPermitido(identidad.email, dominioExigido())) redirect('/entrar?error=slack')
 
   await abrirSesionEquipo(identidad.email)
