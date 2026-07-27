@@ -123,6 +123,9 @@ describe('sanearDecision', () => {
       'Impresiones", "delta": "-16%"',
       'Impresiones, delta: -16%',
       'Impresiones delta=-16%',
+      // Visto en producción el 27-jul: separado por comas, sin dos puntos.
+      "Impresiones','delta','-16%",
+      'Impresiones", "delta", "-16%',
     ]
     for (const rotulo of variantes) {
       const limpia = sanearDecision(decisionCon([{ valor: '29k', rotulo }]))

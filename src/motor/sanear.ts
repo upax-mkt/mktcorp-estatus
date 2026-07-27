@@ -20,10 +20,25 @@ import { cifraCubierta } from './validar'
 
 /**
  * Captura: [1] lo que va antes del campo fugado, [2] el valor del delta.
- * Exige el separador de campo (dos puntos o igual) para no confundirse con un
- * rótulo que hable de deltas en prosa.
+ *
+ * Dos formas, ambas vistas en producción:
+ *  - separador de campo explícito:  Impresiones','delta':'-16%   ·  delta=-16%
+ *  - separado por comas:            Impresiones','delta','-16%
+ *
+ * La segunda exige que "delta" venga ENTRECOMILLADO, que es la señal de que
+ * es una clave serializada y no prosa: así un rótulo legítimo como "Delta
+ * contra el trimestre" no se toca.
  */
-const DELTA_FUGADO = /^(.*?)["'`]?\s*,?\s*["'`]?delta["'`]?\s*[:=]\s*["'`]?([^"'`]*)["'`]?\s*$/i
+const DELTA_FUGADO = new RegExp(
+  '^(.*?)' +
+    '(?:' +
+    `["'\`]?\\s*,?\\s*["'\`]?delta["'\`]?\\s*[:=]` + // delta: …  |  delta= …
+    '|' +
+    `["'\`]\\s*,\\s*["'\`]delta["'\`]\\s*,` + //        ','delta',…
+    ')' +
+    `\\s*["'\`]?([^"'\`]*)["'\`]?\\s*$`,
+  'i',
+)
 
 /** Comillas, comas y espacios que quedan colgando tras cortar el campo fugado. */
 const BORDES_SUCIOS = /^[\s"'`,]+|[\s"'`,]+$/g
