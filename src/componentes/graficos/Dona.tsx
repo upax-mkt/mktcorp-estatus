@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { DatosGrafico } from './tipos'
 import { formatearValor } from './tipos'
+import estilos from './grafico.module.css'
 
 /**
  * Dona: el reparto de un total entre sus partes.
@@ -8,6 +9,11 @@ import { formatearValor } from './tipos'
  * Una sola serie, un sector por categoría. Si llegan varias series se usa la
  * primera: una dona con dos series no existe: son dos donas, y esa es una
  * decisión de composición que no le toca al gráfico.
+ *
+ * LLEVA SU PROPIA LEYENDA, al revés que los demás. Es la única en la que la
+ * leyenda ES el dato: sin el número al lado, un sector sólo dice "un poco más
+ * de la mitad". Y el porcentaje va escrito, porque estimar una proporción
+ * mirando un arco es justo lo que el ojo hace peor.
  */
 
 interface Props {
@@ -17,7 +23,10 @@ interface Props {
 }
 
 const GROSOR = 0.42
-const FUENTE_LEYENDA = 11
+/** Aire entre el anillo y su leyenda. */
+const SEPARACION_LEYENDA = 40
+const ANCHO_LEYENDA = 230
+const ALTO_LINEA_LEYENDA = 22
 
 /** Punto de la circunferencia para un ángulo dado, en grados desde las 12 en punto. */
 function punto(cx: number, cy: number, radio: number, grados: number) {
@@ -48,11 +57,16 @@ export function Dona({ datos, alto, ancho = 640 }: Props) {
   const valores = categorias.map((_, i) => Math.max(0, serie?.valores[i] ?? 0))
   const total = valores.reduce((suma, v) => suma + v, 0)
 
-  const anchoLeyenda = 170
-  const cx = (ancho - anchoLeyenda) / 2
-  const cy = alto / 2
-  const rExterior = Math.max(0, Math.min(cx, cy) - 12)
+  // El anillo y su leyenda se centran COMO PAREJA. Centrar sólo el anillo en
+  // el ancho sobrante lo dejaba en el tercio izquierdo del lienzo, con un
+  // hueco a la derecha y la leyenda pegada al borde: el dibujo se leía
+  // descuadrado respecto de la columna de texto que tiene encima.
+  const rExterior = Math.max(0, alto / 2 - 12)
   const rInterior = rExterior * (1 - GROSOR)
+  const anchoGrupo = rExterior * 2 + SEPARACION_LEYENDA + ANCHO_LEYENDA
+  const izquierda = Math.max(0, (ancho - anchoGrupo) / 2)
+  const cx = izquierda + rExterior
+  const cy = alto / 2
 
   let acumulado = 0
   const sectores = valores.map((valor, i) => {
@@ -63,7 +77,13 @@ export function Dona({ datos, alto, ancho = 640 }: Props) {
   })
 
   return (
-    <svg width="100%" viewBox={`0 0 ${ancho} ${alto}`} role="img" aria-label="Gráfico de dona">
+    <svg
+      width="100%"
+      viewBox={`0 0 ${ancho} ${alto}`}
+      role="img"
+      aria-label={`Reparto de ${serie?.etiqueta ?? 'un total'} entre ${categorias.join(', ')}`}
+      className={estilos.lienzo}
+    >
       {total > 0 &&
         sectores.map(({ d, i }) => (
           <path
@@ -75,18 +95,36 @@ export function Dona({ datos, alto, ancho = 640 }: Props) {
           />
         ))}
 
-      <g transform={`translate(${ancho - anchoLeyenda},${Math.max(0, cy - categorias.length * 9)})`}>
+      {/* El hueco del centro es donde va el TOTAL. Una dona sin él obliga a
+          sumar de cabeza los números de la leyenda para saber de cuánto se
+          está repartiendo. */}
+      {total > 0 && (
+        <>
+          <text x={cx} y={cy + 2} textAnchor="middle" className={estilos.totalDona}>
+            {serie ? formatearValor(total, serie) : total}
+          </text>
+          {serie?.etiqueta && (
+            <text x={cx} y={cy + 20} textAnchor="middle" className={estilos.etiquetaTotalDona}>
+              {serie.etiqueta}
+            </text>
+          )}
+        </>
+      )}
+
+      <g
+        transform={`translate(${cx + rExterior + SEPARACION_LEYENDA},${
+          cy - (categorias.length * ALTO_LINEA_LEYENDA) / 2 + 4
+        })`}
+      >
         {categorias.map((categoria, i) => (
-          <g key={categoria} transform={`translate(0,${i * 18})`}>
+          <g key={categoria} transform={`translate(0,${i * ALTO_LINEA_LEYENDA})`}>
             <rect width="10" height="10" fill={`var(--dato-${(i % 6) + 1})`} rx="2" />
-            <text
-              x="16"
-              y="9"
-              fill="var(--texto)"
-              fontSize={FUENTE_LEYENDA}
-              fontFamily="var(--fuente-texto)"
-            >
-              {categoria} · {serie ? formatearValor(valores[i], serie) : valores[i]}
+            <text x="18" y="9" className={estilos.rotuloLeyenda}>
+              {categoria}
+            </text>
+            <text x="18" y="9" className={estilos.rotuloValorLeyenda} textAnchor="end" dx={ANCHO_LEYENDA - 18}>
+              {serie ? formatearValor(valores[i], serie) : valores[i]}
+              {total > 0 && ` · ${Math.round((valores[i] / total) * 100)}%`}
             </text>
           </g>
         ))}

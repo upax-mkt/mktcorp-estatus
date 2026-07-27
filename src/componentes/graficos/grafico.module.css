@@ -189,3 +189,120 @@
     animation: none;
   }
 }
+
+/* ---- tipografía y trazos del gráfico ----
+
+   EN CSS Y NO EN ATRIBUTOS. Los `fontSize` de un SVG son unidades de usuario:
+   escalan con el `viewBox`, así que un 9 se renderizaba a 12.8px en el
+   documento y a 6.2px dentro de una columna. Era el único texto de la página
+   que no obedecía a la escala tipográfica, y por eso el gráfico siempre se veía
+   "un poco mal" al lado del texto. Aquí sí hereda del documento. */
+
+.lienzo {
+  font-family: var(--fuente-texto), system-ui, sans-serif;
+  display: block;
+}
+
+.rotuloEje {
+  font-size: 11px;
+  fill: color-mix(in oklch, var(--texto) 68%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.rotuloValor {
+  font-size: 11px;
+  fill: color-mix(in oklch, var(--texto) 78%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.rotuloCategoria {
+  font-size: 12px;
+  fill: color-mix(in oklch, var(--texto) 82%, transparent);
+}
+
+/* La leyenda de la DONA vive dentro del SVG: ahí la leyenda es el dato, no una
+   referencia de color. El nombre y su cifra van en dos columnas alineadas, no
+   en una sola cadena, para que los números se lean en vertical. */
+.rotuloLeyenda {
+  font-size: 12px;
+  fill: color-mix(in oklch, var(--texto) 88%, transparent);
+}
+
+.rotuloValorLeyenda {
+  font-size: 12px;
+  fill: color-mix(in oklch, var(--texto) 62%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalDona {
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.etiquetaTotalDona {
+  font-size: 11px;
+  fill: color-mix(in oklch, var(--texto) 55%, transparent);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rejilla {
+  stroke: var(--texto);
+  stroke-opacity: 0.1;
+  stroke-width: 1;
+}
+
+/* La base sobre la que se apoyan las barras: más firme que la rejilla. */
+.lineaCero {
+  stroke: var(--texto);
+  stroke-opacity: 0.28;
+  stroke-width: 1;
+}
+
+/* ---- leyenda, fuera del SVG ----
+   Dentro no se puede medir el ancho de una cadena, así que había que estimarlo
+   y truncar a ojo reservando el 20% del lienzo por si acaso. En HTML el texto
+   se mide solo, se parte solo y hereda la tipografía del documento. */
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.4rem;
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  font-size: var(--t--1, 0.85rem);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
+}
+
+.leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* La muestra codifica la FORMA además del color: rectángulo para barra, raya
+   para línea, raya partida para meta. El color nunca es la única señal. */
+.muestra {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.muestra[data-forma='linea'] { height: 3px; border-radius: 999px; }
+.muestra[data-forma='linea-punteada'] {
+  height: 0;
+  border-top: 3px dashed currentColor;
+  border-radius: 0;
+  background: none !important;
+}
+
+/* Dos escalas incomparables se apilan: comparten la banda horizontal y cada
+   una tiene su propio eje. Superpuestas fabricaban correlaciones falsas. */
+.facetas {
+  display: grid;
+  gap: 0.4rem;
+}

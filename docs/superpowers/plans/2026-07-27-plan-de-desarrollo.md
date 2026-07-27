@@ -41,7 +41,7 @@ Marcas: **✅ hecho** · **▶ en curso** · **⏸ bloqueado** · **☐ pendient
 
 ---
 
-## FASE 1 — Cerrar los gráficos ▶
+## FASE 1 — Cerrar los gráficos ✅ *(cerrada 27-jul)*
 
 **Por qué primero:** es lo único que Franco ha calificado de "horrible", está a
 medio arreglar, y contiene el riesgo más alto de toda la lista (punto 1.1). Un
@@ -49,18 +49,38 @@ gráfico a medias es peor que uno viejo.
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| ☐ 1.1 | **Paleta que pasa el validador de daltonismo.** Hoy falla a partir de la 3ª serie en las 10 marcas (dos verdes contiguos, ΔE 0.9–2.4). Elegir cada color por máxima distancia perceptual en vez de rotar el matiz 56°. Con test sobre las 10 salas × 2 superficies. | Hoy no duele porque usamos 2 series. El primer gráfico de 4 sale ilegible **en las diez salas a la vez**, y te enteras en la reunión. |
-| ☐ 1.2 | **El doble eje deja de inventar correlaciones.** Dos escalas incomparables no son un gráfico con dos ejes: son dos gráficos apilados que comparten la banda horizontal. | Hoy el punto de Orgánico cae exacto sobre la esquina de la barra de Total en febrero. No es un hallazgo: es que ambos tocan el tope de su eje. El lector concluye algo que el dato no dice. |
-| ☐ 1.3 | **Ejes con números redondos** (0/2.000/4.000/6.000/8.000) y aire sobre la barra más alta. | Hoy dicen `0 / 2.415 / 4.829 / 7.244`: nadie estima nada contra 4.829, y la barra más alta toca el borde. |
-| ☐ 1.4 | **Tipografía del gráfico al sistema del documento.** Los rótulos van a 9 y 11px fijos dentro de un SVG que escala: en dos columnas caen a 6px. Sacarlos a CSS y pasar el ancho real. | Es la razón de que el gráfico siempre se vea "un poco mal" al lado del texto: no pertenece al sistema tipográfico. |
-| ☐ 1.5 | **Alinear el gráfico con la columna del documento.** Hoy empieza 60px a la derecha y termina 247px antes: se lee como una isla pegada. | Mitad de "se ve horrible" es esto, y se nota antes de leer un número. |
-| ☐ 1.6 | **Barras al 24% de su carril, no al 59%**, y extremo redondeado con base a escuadra. | Hoy son un bloque de magenta puro; la línea encima parece decoración sobre un fondo rosa. |
-| ☐ 1.7 | **Leyenda fuera del SVG, a HTML.** Recupera el 20% del ancho y deja de truncarse a ojo. | El truncado estima el ancho de carácter porque dentro de un SVG no se puede medir texto. |
-| ☐ 1.8 | Un negativo en barras horizontales se dibuja como cero pero se rotula negativo. Escala con mínimo y línea de cero. | Mentira silenciosa. Hoy no hay negativos; el esquema los permite. |
-| ☐ 1.9 | Eje sin unidad, triple codificación (eje + rejilla + rótulo por barra), y el 90% del plot vacío cuando la variación es del 4%. | Tres defectos del mismo origen: el eje y los rótulos no se coordinan. |
+| ✅ 1.1 | **Paleta que pasa el validador de daltonismo.** Hoy falla a partir de la 3ª serie en las 10 marcas (dos verdes contiguos, ΔE 0.9–2.4). Elegir cada color por máxima distancia perceptual en vez de rotar el matiz 56°. Con test sobre las 10 salas × 2 superficies. | Hoy no duele porque usamos 2 series. El primer gráfico de 4 sale ilegible **en las diez salas a la vez**, y te enteras en la reunión. |
+| ✅ 1.2 | **El doble eje deja de inventar correlaciones.** Dos escalas incomparables no son un gráfico con dos ejes: son dos gráficos apilados que comparten la banda horizontal. | Hoy el punto de Orgánico cae exacto sobre la esquina de la barra de Total en febrero. No es un hallazgo: es que ambos tocan el tope de su eje. El lector concluye algo que el dato no dice. |
+| ✅ 1.3 | **Ejes con números redondos** (0/2.000/4.000/6.000/8.000) y aire sobre la barra más alta. | Hoy dicen `0 / 2.415 / 4.829 / 7.244`: nadie estima nada contra 4.829, y la barra más alta toca el borde. |
+| ✅ 1.4 | **Tipografía del gráfico al sistema del documento.** Los rótulos van a 9 y 11px fijos dentro de un SVG que escala: en dos columnas caen a 6px. Sacarlos a CSS y pasar el ancho real. | Es la razón de que el gráfico siempre se vea "un poco mal" al lado del texto: no pertenece al sistema tipográfico. |
+| ✅ 1.5 | **Alinear el gráfico con la columna del documento.** Hoy empieza 60px a la derecha y termina 247px antes: se lee como una isla pegada. | Mitad de "se ve horrible" es esto, y se nota antes de leer un número. |
+| ✅ 1.6 | **Barras al 24% de su carril, no al 59%**, y extremo redondeado con base a escuadra. | Hoy son un bloque de magenta puro; la línea encima parece decoración sobre un fondo rosa. |
+| ✅ 1.7 | **Leyenda fuera del SVG, a HTML.** Recupera el 20% del ancho y deja de truncarse a ojo. | El truncado estima el ancho de carácter porque dentro de un SVG no se puede medir texto. |
+| ✅ 1.8 | Un negativo en barras horizontales se dibuja como cero pero se rotula negativo. Escala con mínimo y línea de cero. | Mentira silenciosa. Hoy no hay negativos; el esquema los permite. |
+| ✅ 1.9 | Eje sin unidad, triple codificación (eje + rejilla + rótulo por barra), y el 90% del plot vacío cuando la variación es del 4%. | Tres defectos del mismo origen: el eje y los rótulos no se coordinan. |
 
-**Se cierra con:** print de las tres secciones con gráfico + el validador de
-paleta en verde para las 10 salas.
+**Se cerró con:** print real de las tres secciones con gráfico (sesión de
+prueba sembrada por el mismo camino que el editor, y borrada después) +
+validador de paleta en verde para las 10 salas × 2 superficies.
+
+**Lo que apareció al mirar el print, y también se arregló:**
+
+- La faceta de abajo repintaba su primera serie con `--dato-1` —el color que la
+  leyenda ya le había dado a la primera de arriba—. Dos series distintas del
+  mismo color con una leyenda que decía otra cosa. El color se decide ahora
+  arriba, viendo la lista entera (`ranuraColor`).
+- El eje de meses se escribía DOS veces, una por faceta. Ahora sólo la de
+  abajo; las dos miden igual, que es lo que son: dos magnitudes, no una
+  principal y una nota al pie.
+- Un tope fijo de ancho de barra dejaba seis palitos de 18 unidades en una
+  columna de 960. El tope es ahora proporción del lienzo.
+- Las marcas del eje se reparten el alto disponible: cinco números en una
+  faceta baja apelotonan lo que venían a ordenar.
+- Con líneas el dominio ya no se amplía hasta el múltiplo redondo: los clics
+  vivían entre 412 y 635 y el eje llegaba a 800, así que la línea volvía a
+  salir casi plana.
+- La dona estaba descentrada (se centraba el anillo en el ancho sobrante, no
+  el conjunto anillo + leyenda), sin porcentajes y sin total en el hueco.
 
 ---
 

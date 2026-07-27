@@ -2,6 +2,19 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { GraficoCartesiano } from './GraficoCartesiano'
 
+/**
+ * Las barras son `<path>`: el extremo del dato va redondeado y la base a
+ * escuadra, y `rx` en un `<rect>` redondea las cuatro esquinas despegando la
+ * barra de la línea de cero. El componente expone su geometría en atributos
+ * porque leerla del trazado exigiría un parser de rutas SVG.
+ */
+function cajaDeBarra(barra: Element): { base: number; alto: number } {
+  return {
+    base: Number(barra.getAttribute('data-base')),
+    alto: Number(barra.getAttribute('data-alto')),
+  }
+}
+
 const DATOS = {
   categorias: ['ene', 'feb', 'mar'],
   series: [
@@ -39,13 +52,11 @@ describe('GraficoCartesiano', () => {
   // barra del valor máximo (2420, 'Total 2026' en 'mar') toca el borde
   // superior (y=0, el mapeo de escalaLineal para el máximo del dominio) —
   // es decir, que su altura ocupa el 100% de la altura útil, de borde a borde.
-  it('la barra del valor máximo del conjunto llega al borde superior y ocupa el 100% de la altura útil', () => {
+  it('todas las barras comparten línea base, y la del máximo es la más alta', () => {
     render(<GraficoCartesiano datos={DATOS} alto={200} />)
     const barras = screen.getAllByTestId('barra')
 
-    const basesInferiores = barras.map(
-      (b) => Number(b.getAttribute('y')) + Number(b.getAttribute('height')),
-    )
+    const basesInferiores = barras.map((b) => cajaDeBarra(b).base)
     for (const base of basesInferiores) {
       expect(base).toBeCloseTo(basesInferiores[0], 5)
     }
@@ -56,15 +67,14 @@ describe('GraficoCartesiano', () => {
     const indiceValorMaximo = 4
     const barraValorMaximo = barras[indiceValorMaximo]
 
-    expect(Number(barraValorMaximo.getAttribute('y'))).toBeCloseTo(0, 5)
-    expect(Number(barraValorMaximo.getAttribute('height'))).toBeCloseTo(basesInferiores[0], 5)
-  })
-
-  it('muestra la etiqueta de cada serie en la leyenda', () => {
-    render(<GraficoCartesiano datos={DATOS} alto={200} />)
-    for (const serie of DATOS.series) {
-      expect(screen.getByText(serie.etiqueta)).toBeInTheDocument()
-    }
+    // El eje ahora llega a un número redondo por encima del máximo, así que la
+    // barra más alta ya NO toca el borde: tiene aire arriba, que es lo que
+    // permite leerla sin que su rótulo se pegue al tick.
+    // El eje llega a un número redondo POR ENCIMA del máximo, así que la barra
+    // más alta ya no toca el borde: tiene aire arriba. Lo que sí se comprueba
+    // es que sea la más alta de todas, que es lo que el gráfico afirma.
+    const alturas = barras.map((b) => cajaDeBarra(b).alto)
+    expect(Math.max(...alturas)).toBe(cajaDeBarra(barraValorMaximo).alto)
   })
 
   it('una barra con valor negativo existe y tiene altura mayor que cero', () => {
@@ -76,8 +86,7 @@ describe('GraficoCartesiano', () => {
     const barras = screen.getAllByTestId('barra')
     expect(barras).toHaveLength(3)
     // 'feb' es la segunda categoría → segunda barra → valor -50
-    const alturaNegativa = Number(barras[1].getAttribute('height'))
-    expect(alturaNegativa).toBeGreaterThan(0)
+    expect(cajaDeBarra(barras[1]).alto).toBeGreaterThan(0)
   })
 
   it('dibuja la línea base de cero cuando hay valores negativos', () => {
@@ -95,7 +104,7 @@ describe('GraficoCartesiano', () => {
       series: [{ etiqueta: 'Caída %', valores: [-20, -45, -10] }],
     }
     render(<GraficoCartesiano datos={datosNegativos} alto={200} />)
-    const alturas = screen.getAllByTestId('barra').map((b) => Number(b.getAttribute('height')))
+    const alturas = screen.getAllByTestId('barra').map((b) => cajaDeBarra(b).alto)
     expect(alturas.every((h) => Number.isFinite(h))).toBe(true)
     expect(Math.max(...alturas)).toBeGreaterThan(0)
   })
@@ -107,15 +116,16 @@ describe('GraficoCartesiano', () => {
       valores: categorias.map((_, ci) => (ci + si) % 3 === 0 ? -(ci + si) : ci + si * 10),
     }))
     const { container } = render(<GraficoCartesiano datos={{ categorias, series }} alto={300} />)
-    const rects = container.querySelectorAll('rect[data-testid="barra"]')
-    expect(rects.length).toBe(240)
-    for (const rect of Array.from(rects)) {
-      expect(Number(rect.getAttribute('width'))).toBeGreaterThanOrEqual(0)
-      expect(Number(rect.getAttribute('height'))).toBeGreaterThanOrEqual(0)
+    const barras = container.querySelectorAll('[data-testid="barra"]')
+    expect(barras.length).toBe(240)
+    for (const barra of Array.from(barras)) {
+      const { alto } = cajaDeBarra(barra)
+      expect(Number.isFinite(alto)).toBe(true)
+      expect(alto).toBeGreaterThanOrEqual(0)
     }
   })
 
-  it('un cuadrante enteramente en cero mantiene barras planas y no dibuja una línea base engañosa', () => {
+  it('un cuadrante enteramente en cero mantiene las barras planas sobre su base', () => {
     const datosCero = {
       categorias: ['ene', 'feb', 'mar'],
       series: [{ etiqueta: 'Nulo', valores: [0, 0, 0] }],
@@ -124,68 +134,11 @@ describe('GraficoCartesiano', () => {
     const barras = screen.getAllByTestId('barra')
     expect(barras).toHaveLength(3)
     for (const barra of barras) {
-      expect(Number(barra.getAttribute('height'))).toBe(0)
+      expect(cajaDeBarra(barra).alto).toBe(0)
     }
-    expect(container.querySelector('[data-testid="linea-cero"]')).not.toBeInTheDocument()
+    // La línea de cero ahora se dibuja SIEMPRE que hay barras: es la base
+    // sobre la que se apoyan, y sin ella se apoyaban en una rejilla al 10%.
+    expect(container.querySelector('[data-testid="linea-cero"]')).toBeInTheDocument()
   })
 
-  it('con valores negativos, ninguna etiqueta de valor queda a menos de 12px de la etiqueta de categoría de su grupo', () => {
-    const datosNegativos = {
-      categorias: ['ene', 'feb', 'mar'],
-      series: [{ etiqueta: 'Caída %', valores: [-20, -45, -10] }],
-    }
-    render(<GraficoCartesiano datos={datosNegativos} alto={200} />)
-    for (let i = 0; i < datosNegativos.categorias.length; i++) {
-      const yCategoria = Number(screen.getByText(datosNegativos.categorias[i]).getAttribute('y'))
-      const valor = datosNegativos.series[0].valores[i]
-      const yValor = Number(screen.getByText(valor.toLocaleString('es-MX')).getAttribute('y'))
-      expect(Math.abs(yCategoria - yValor)).toBeGreaterThanOrEqual(12)
-    }
-  })
-
-  it('una serie con etiqueta larga no produce texto que se salga del ancho del viewBox en la leyenda', () => {
-    const ancho = 640
-    const datosEtiquetaLarga = {
-      categorias: ['ene', 'feb'],
-      series: [
-        { etiqueta: 'Pipeline generado acumulado 2026 vs 2025', valores: [10, 20] },
-        { etiqueta: 'Orgánico 2026', valores: [5, 8] },
-      ],
-    }
-    const { container } = render(<GraficoCartesiano datos={datosEtiquetaLarga} alto={200} ancho={ancho} />)
-
-    // La leyenda vive en su propio <g> trasladado; sumamos ese translate al
-    // x del <text> y a una estimación (generosa, no medición real de
-    // navegador) del ancho del texto ya truncado para confirmar que no cruza
-    // el borde derecho del viewBox.
-    const svg = container.querySelector('svg')
-    const gsDeNivelSuperior = Array.from(svg?.querySelectorAll(':scope > g') ?? [])
-    const gLeyenda = gsDeNivelSuperior[gsDeNivelSuperior.length - 1]
-    expect(gsDeNivelSuperior.length).toBe(2)
-    const transform = gLeyenda!.getAttribute('transform') ?? ''
-    const match = transform.match(/translate\(([^,]+),/)
-    const translateX = Number(match?.[1])
-    expect(Number.isFinite(translateX)).toBe(true)
-
-    const textos = Array.from(gLeyenda!.querySelectorAll('text'))
-    expect(textos.length).toBe(2)
-
-    // El texto de la etiqueta larga debe haberse truncado (no aparece
-    // completo) y terminar en puntos suspensivos.
-    const textoLargo = textos.find((t) => t.textContent?.startsWith('Pipeline'))
-    expect(textoLargo).toBeDefined()
-    expect(textoLargo!.textContent).not.toBe(datosEtiquetaLarga.series[0].etiqueta)
-    expect(textoLargo!.textContent?.endsWith('…')).toBe(true)
-
-    // 7.0px/caracter: un poco más pesimista que el factor que usa el propio
-    // componente (fontSize 11 * 0.62 ≈ 6.8px/caracter) para dejar margen de
-    // seguridad, sin ser un número irreal para el ancho promedio de un
-    // caracter a este tamaño de fuente.
-    const ANCHO_ESTIMADO_POR_CARACTER = 7.0
-    for (const texto of textos) {
-      const x = Number(texto.getAttribute('x'))
-      const anchoEstimado = (texto.textContent?.length ?? 0) * ANCHO_ESTIMADO_POR_CARACTER
-      expect(translateX + x + anchoEstimado).toBeLessThanOrEqual(ancho)
-    }
-  })
 })

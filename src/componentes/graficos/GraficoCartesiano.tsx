@@ -1,231 +1,228 @@
 import type { CSSProperties } from 'react'
 import type { DatosGrafico, SerieDatos } from './tipos'
-import { esLinea, formatearValor } from './tipos'
+import { colorDeSerie, esLinea, formatearValor, formatearTick } from './tipos'
 import { escalaLineal } from './escalas'
+import estilos from './grafico.module.css'
 
 /**
- * El gráfico de ejes de la app: barras agrupadas, líneas, o las dos cosas
- * sobre dos escalas distintas.
+ * El gráfico de ejes: barras agrupadas, líneas, o las dos cosas.
  *
- * Nació como `BarrasComparadas` (solo barras verticales). El estatus real de
- * una UDN necesita más: volumen en barras con la META como línea punteada
- * encima, y métricas de escalas incomparables —coste en miles junto a
- * conversiones en decenas— que sin un segundo eje se dibujan como una línea
- * plana pegada al suelo. Todo eso es el MISMO gráfico con series de distinta
- * forma, así que vive aquí y no en tres componentes que se pisan.
+ * UNA SOLA ESCALA. Antes admitía dos ejes, y eso fabricaba correlaciones que
+ * el dato no tiene: cada serie tocaba el tope del SUYO, así que dos valores
+ * sin ninguna relación acababan en la misma altura y el lector concluía que
+ * "se mueven juntos". Dos magnitudes incomparables no son un gráfico con dos
+ * ejes: son dos gráficos apilados que comparten la banda horizontal, y de eso
+ * se encarga `Grafico.tsx`.
+ *
+ * SIN LEYENDA PROPIA. La leyenda es texto y vive en HTML, fuera del SVG: aquí
+ * dentro no se puede medir el ancho de una cadena, así que había que estimarlo
+ * y truncar a ojo, reservando el 20% del lienzo por si acaso.
+ *
+ * LA TIPOGRAFÍA VIENE DE CSS. Los tamaños en atributos `fontSize` son unidades
+ * de usuario: escalan con el `viewBox`, así que un rótulo de 9 se renderizaba
+ * a 12.8px en el documento y a 6.2px dentro de una columna. Era el único texto
+ * de la página que no obedecía la escala tipográfica — y por eso el gráfico
+ * siempre parecía pegado, no parte del documento.
  */
 
 interface Props {
   datos: DatosGrafico
   alto: number
   ancho?: number
-  /**
-   * Fuerza el número sobre cada punto o barra. Sin esto, las barras deciden
-   * solas según el espacio (ver ANCHO_MINIMO_ETIQUETA_VALOR) y las líneas no
-   * los muestran.
-   */
+  /** Fuerza el número sobre cada punto o barra. */
   mostrarValores?: boolean
+  /**
+   * Calla el eje horizontal. Lo usa la faceta de ARRIBA cuando un gráfico se
+   * parte en dos: las dos comparten los mismos periodos, y escribirlos dos
+   * veces es una fila entera de ruido entre un dibujo y el otro.
+   */
+  ocultarCategorias?: boolean
 }
 
-const MARGEN = { arriba: 12, derecha: 8, abajo: 28, izquierda: 8 }
+// El margen izquierdo es CERO: los rótulos del eje se escriben sobre su propia
+// línea de rejilla, dentro del área de trazado. Un carril lateral desplazaba
+// el gráfico 60px a la derecha de la columna de texto, y eso es lo que lo
+// hacía leerse como un objeto pegado al documento en vez de parte de él.
+const MARGEN = { arriba: 22, derecha: 8, abajo: 30, izquierda: 0 }
+/** Lo que queda abajo cuando el eje horizontal no se escribe. */
+const MARGEN_SIN_CATEGORIAS = 6
 
-// Debajo de este ancho de barra, un valor numérico centrado ya no cabe sin
-// encimarse con el de la barra vecina: en ese punto se prefiere la
-// referencia de eje (Hallazgo 4).
-const ANCHO_MINIMO_ETIQUETA_VALOR = 24
-// Margen cuando se dibuja un eje de valores (necesita espacio para los
-// rótulos numéricos, que no existen en el layout sin eje).
-const MARGEN_IZQUIERDA_CON_EJE = 42
-const MARGEN_DERECHA_CON_EJE = 42
-// Separación entre barras de un mismo grupo como proporción del ancho de
-// barra, en vez de un margen fijo en px que puede volverse negativo
-// (Hallazgo 2).
-const PROPORCION_SEPARACION = 0.15
-const ANCHO_LEYENDA = 130
-const NUM_TICKS_EJE = 4
-
-// La barra que toca el mínimo del dominio (que existe siempre que hay algún
-// negativo) termina exactamente en altoUtil, así que su etiqueta de valor
-// ("yBarra + alturaBarra + 10") cae a solo 8px de la etiqueta de categoría
-// ("altoUtil + 18"): se encimarían con fuentes de 9 y 11px. Se reserva este
-// espacio extra abajo — y se empuja la etiqueta de categoría el mismo tanto
-// — cuando hay negativos con etiquetas de valor visibles, para separar
-// ambos rótulos sin importar la altura de ninguna barra en particular
-// (Hallazgo 1 del cierre).
-const ESPACIO_EXTRA_ETIQUETA_NEGATIVA = 14
-
-// Estimación de ancho de caracter (sin medir el DOM real, ver Hallazgo 2):
-// para una tipografía sans-serif proporcional el ancho promedio de caracter
-// ronda 0.6x el tamaño de fuente; usamos un factor un poco mayor para errar
-// del lado conservador (truncar de más antes que desbordar el viewBox).
-const FACTOR_ANCHO_CARACTER = 0.62
-// Espacio del carril de leyenda ya ocupado por la muestra de color + su
-// separación del texto (ver `x="16"` en el <text> de la leyenda), más un
-// margen de seguridad para no rozar el borde del viewBox.
-const OFFSET_TEXTO_LEYENDA = 16
-const MARGEN_SEGURIDAD_LEYENDA = 6
-
-// 4 y no 3: con el anillo de superficie, el punto mide 8 unidades de diámetro
-// — el mínimo para que se lea como una marca de dato y no como una mota.
+/** Hueco de superficie entre dos barras vecinas. Fijo: no es una proporción. */
+const SEPARACION_SUPERFICIE = 2
+/**
+ * Techo del ancho de barra, en proporción del lienzo.
+ *
+ * La barra no llena su carril —el sobrante de la banda es aire—, pero un tope
+ * fijo la dejaba en un palito de 18 unidades cuando había seis categorías en
+ * una columna de 960: el ojo leía seis rayas, no seis magnitudes. Como
+ * proporción, el tope acompaña al lienzo en vez de pelearse con él.
+ */
+const PROPORCION_MAXIMA_BARRA = 0.05
+/** Alto mínimo por marca del eje. Menos que esto, los números se apelotonan. */
+const ESPACIO_POR_TICK = 30
+const MAX_TICKS_EJE = 5
 const RADIO_PUNTO = 4
+const RADIO_BARRA = 4
 const PATRON_PUNTEADO = '5 4'
 
-/** Recorta `texto` a lo que quepa en `anchoDisponible` px (estimado a partir de `fontSize`), con "…" al final si no cabe completo. */
-function truncarTexto(texto: string, anchoDisponible: number, fontSize: number): string {
-  const anchoCaracter = fontSize * FACTOR_ANCHO_CARACTER
-  const maxCaracteres = Math.max(1, Math.floor(anchoDisponible / anchoCaracter))
-  if (texto.length <= maxCaracteres) return texto
-  if (maxCaracteres === 1) return '…'
-  return `${texto.slice(0, maxCaracteres - 1)}…`
-}
-
-/** Genera `cantidad` marcas equiespaciadas dentro de [minimo, maximo], incluyendo ambos extremos. */
-function generarTicks(minimo: number, maximo: number, cantidad: number): number[] {
-  if (minimo === maximo) return [minimo]
-  const paso = (maximo - minimo) / (cantidad - 1)
-  return Array.from({ length: cantidad }, (_, i) => minimo + paso * i)
+/** Paso "bonito" (1, 2, 2.5, 5, 10 × 10ⁿ) inmediatamente mayor o igual al crudo. */
+function pasoBonito(crudo: number): number {
+  if (!Number.isFinite(crudo) || crudo <= 0) return 1
+  const magnitud = 10 ** Math.floor(Math.log10(crudo))
+  const n = crudo / magnitud
+  const escalon = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10
+  return escalon * magnitud
 }
 
 /**
- * Dominio de un eje: siempre incluye el cero.
+ * Marcas en números redondos. Nadie estima nada contra 4.829.
  *
- * Sin el cero, una barra negativa desaparece y un conjunto todo-negativo
- * colapsa a un dominio [0,0] (Hallazgo 1 del cierre anterior).
+ * Se comporta distinto según qué se dibuje, y esa diferencia es el punto:
+ *
+ * - Con BARRAS el dominio se AMPLÍA hasta la marca redonda. Si la escala
+ *   acabara en el máximo del dato, la barra más alta tocaría el borde y su
+ *   rótulo quedaría pegado al tick que dice exactamente el mismo número.
+ * - Con LÍNEAS el dominio se RESPETA y las marcas se colocan dentro. Ampliar
+ *   hasta un múltiplo redondo desperdiciaba media altura: los clics vivían
+ *   entre 412 y 635 y el eje llegaba a 800, así que la línea —que se lee por
+ *   su pendiente— volvía a salir casi plana.
  */
-function dominioDe(series: SerieDatos[]): [number, number] {
+function ticksRedondos(minimo: number, maximo: number, cantidad: number, ampliar: boolean) {
+  if (minimo === maximo) return { ticks: [minimo], dominio: [minimo, maximo] as [number, number] }
+  const paso = pasoBonito((maximo - minimo) / Math.max(1, cantidad - 1))
+  const ticks: number[] = []
+
+  if (ampliar) {
+    const desde = Math.floor(minimo / paso) * paso
+    const hasta = Math.ceil(maximo / paso) * paso
+    for (let v = desde; v <= hasta + paso / 2; v += paso) ticks.push(Number(v.toFixed(10)))
+    return { ticks, dominio: [desde, hasta] as [number, number] }
+  }
+
+  for (let v = Math.ceil(minimo / paso) * paso; v <= maximo; v += paso) {
+    ticks.push(Number(v.toFixed(10)))
+  }
+  // Un dominio tan estrecho que no contiene ninguna marca redonda: mejor una
+  // referencia fuera de escala que un gráfico sin eje ninguno.
+  if (ticks.length === 0) ticks.push(Number(((minimo + maximo) / 2).toFixed(10)))
+  return { ticks, dominio: [minimo, maximo] as [number, number] }
+}
+
+/**
+ * Dominio del eje.
+ *
+ * Una BARRA se lee por su largo, así que su base tiene que ser el cero: sin él
+ * una barra negativa desaparece. Una LÍNEA se lee por su pendiente, y forzarle
+ * el cero cuando la variación es del 4% la aplasta contra el techo dejando el
+ * 90% del gráfico vacío — el lector ve una raya recta y concluye que no pasó
+ * nada.
+ */
+function dominioDe(series: SerieDatos[], soloLineas: boolean): [number, number] {
   const valores = series.flatMap((s) => s.valores)
-  return [Math.min(...valores, 0), Math.max(...valores, 0)]
+  const min = Math.min(...valores)
+  const max = Math.max(...valores)
+  if (!soloLineas) return [Math.min(min, 0), Math.max(max, 0)]
+  const holgura = (max - min) * 0.15 || Math.abs(max) * 0.1 || 1
+  return [min - holgura, max + holgura]
 }
 
-/** El color sale de la posición ORIGINAL de la serie: barras, líneas y leyenda tienen que coincidir. */
-function colorDeSerie(indiceOriginal: number): string {
-  return `var(--dato-${(indiceOriginal % 6) + 1})`
+/**
+ * Barra con el extremo del DATO redondeado y la base a escuadra.
+ *
+ * El extremo es donde se lee el valor; la base se apoya en la línea de cero.
+ * `rx` en un `<rect>` redondea las cuatro esquinas y despega la barra del
+ * cero, dejando un pelo de superficie al pie de cada una.
+ */
+function rutaBarra(x: number, y: number, ancho: number, alto: number, negativa: boolean): string {
+  const r = Math.max(0, Math.min(RADIO_BARRA, ancho / 2, alto))
+  return negativa
+    ? `M${x},${y} h${ancho} v${alto - r} a${r},${r} 0 0 1 ${-r},${r} h${-(ancho - 2 * r)} a${r},${r} 0 0 1 ${-r},${-r} Z`
+    : `M${x},${y + alto} v${-(alto - r)} a${r},${r} 0 0 1 ${r},${-r} h${ancho - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${alto - r} Z`
 }
 
-export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: Props) {
+export function GraficoCartesiano({
+  datos,
+  alto,
+  ancho = 960,
+  mostrarValores,
+  ocultarCategorias,
+}: Props) {
   const { categorias, series } = datos
 
-  // Se conserva el índice original de cada serie: es lo que fija su color, y
-  // barras y líneas se dibujan en pasadas distintas.
   const conIndice = series.map((serie, indice) => ({ serie, indice }))
   const barras = conIndice.filter(({ serie }) => !esLinea(serie))
   const lineas = conIndice.filter(({ serie }) => esLinea(serie))
+  const soloLineas = barras.length === 0
 
-  const anchoLeyenda = series.length > 1 ? ANCHO_LEYENDA : 0
+  // El eje YA lleva la referencia de escala: con eje se rotula selectivamente,
+  // nunca cada barra. Un número por dato es ruido, no información — y producía
+  // el ridículo de imprimir "7.244" dos veces a ocho píxeles de distancia, una
+  // como rótulo y otra como tick.
+  const mostrarEje = true
+  const rotularCadaBarra = mostrarValores === true
 
-  const izquierda = series.filter((s) => s.eje !== 'derecho')
-  const derecha = series.filter((s) => s.eje === 'derecho')
-  const hayEjeDerecho = derecha.length > 0
-
-  // Primera pasada (con el margen base) para decidir el modo de referencia
-  // de escala: si las barras van a quedar demasiado angostas para un valor
-  // centrado, se usa eje en vez de etiquetas por barra. Agrandar el margen
-  // izquierdo después solo angosta más las barras, así que la decisión no
-  // puede oscilar.
-  const margenDerecha = hayEjeDerecho ? MARGEN_DERECHA_CON_EJE : MARGEN.derecha
-  const anchoUtilBase = ancho - MARGEN.izquierda - margenDerecha - anchoLeyenda
-  const anchoGrupoBase = anchoUtilBase / categorias.length
-  const anchoBarraBase = (anchoGrupoBase * 0.7) / Math.max(1, barras.length)
-  const etiquetasValorCaben = anchoBarraBase >= ANCHO_MINIMO_ETIQUETA_VALOR
-  const mostrarEtiquetasValor = barras.length > 0 && (mostrarValores ?? etiquetasValorCaben)
-  // Con líneas siempre hay eje: una línea sin referencia de escala no se lee.
-  const mostrarEje = lineas.length > 0 || !mostrarEtiquetasValor
-
-  const margenIzquierda = mostrarEje ? MARGEN_IZQUIERDA_CON_EJE : MARGEN.izquierda
-
-  // El eje izquierdo lee solo las series que le tocan; si no hay ninguna
-  // marcada, las lee todas (el caso de un gráfico de un solo eje).
-  const [minimoIzq, maximoIzq] = dominioDe(izquierda.length > 0 ? izquierda : series)
-  const hayNegativos = minimoIzq < 0
-
-  // La barra en el mínimo del dominio siempre termina en altoUtil, así que
-  // su etiqueta de valor negativo cae cerca del borde inferior del área de
-  // trazado — justo donde vive la etiqueta de categoría. Reservamos espacio
-  // extra abajo (y empujamos la etiqueta de categoría ese mismo tanto más
-  // abajo) solo cuando ambas etiquetas pueden coexistir: hay negativos Y se
-  // están dibujando etiquetas de valor (Hallazgo 1 de este cierre).
-  const necesitaEspacioNegativos = hayNegativos && mostrarEtiquetasValor
-  const margenAbajo = MARGEN.abajo + (necesitaEspacioNegativos ? ESPACIO_EXTRA_ETIQUETA_NEGATIVA : 0)
+  const margenAbajo = ocultarCategorias ? MARGEN_SIN_CATEGORIAS : MARGEN.abajo
   const altoUtil = alto - MARGEN.arriba - margenAbajo
-  const anchoUtil = ancho - margenIzquierda - margenDerecha - anchoLeyenda
+  const anchoUtil = ancho - MARGEN.izquierda - MARGEN.derecha
+
+  // Las marcas del eje se reparten el alto DISPONIBLE. Una faceta baja con
+  // cinco números encima apelotona lo que debería ordenar.
+  const cuantosTicks = Math.max(2, Math.min(MAX_TICKS_EJE, Math.floor(altoUtil / ESPACIO_POR_TICK)))
+  const [minimo, maximo] = dominioDe(series, soloLineas)
+  const { ticks, dominio } = ticksRedondos(minimo, maximo, cuantosTicks, !soloLineas)
+
+  const y = escalaLineal(dominio, [altoUtil, 0])
+  const yCero = y(Math.max(dominio[0], Math.min(0, dominio[1])))
 
   const anchoGrupo = anchoUtil / categorias.length
-  const anchoBarra = (anchoGrupo * 0.7) / Math.max(1, barras.length)
-  const separacion = anchoBarra * PROPORCION_SEPARACION
-  const anchoBarraDibujo = Math.max(0, anchoBarra - separacion)
+  const anchoCrudo = (anchoGrupo * 0.7) / Math.max(1, barras.length)
+  const anchoBarra = Math.max(
+    0,
+    Math.min(ancho * PROPORCION_MAXIMA_BARRA, anchoCrudo - SEPARACION_SUPERFICIE),
+  )
+  const ocupado = anchoBarra * barras.length + SEPARACION_SUPERFICIE * Math.max(0, barras.length - 1)
 
-  const y = escalaLineal([minimoIzq, maximoIzq], [altoUtil, 0])
-  const yCero = y(0)
-
-  const [minimoDer, maximoDer] = dominioDe(derecha)
-  const yDerecha = escalaLineal([minimoDer, maximoDer], [altoUtil, 0])
-
-  /** Cada serie se lee en SU eje: mezclarlos es dibujar el dato en el sitio equivocado. */
-  const escalaDe = (serie: SerieDatos) => (serie.eje === 'derecho' ? yDerecha : y)
-  /** Centro horizontal de una categoría — donde se apoyan los puntos de línea. */
-  const xCentro = (indiceCategoria: number) => indiceCategoria * anchoGrupo + anchoGrupo / 2
-
-  const ticks = mostrarEje ? generarTicks(minimoIzq, maximoIzq, NUM_TICKS_EJE) : []
-  const ticksDerecha = hayEjeDerecho ? generarTicks(minimoDer, maximoDer, NUM_TICKS_EJE) : []
+  const xCentro = (i: number) => i * anchoGrupo + anchoGrupo / 2
+  // El eje escribe la misma unidad que los rótulos de dato.
+  const serieDeReferencia = series[0] ?? { etiqueta: '', valores: [] }
 
   return (
-    <svg width="100%" viewBox={`0 0 ${ancho} ${alto}`} role="img" aria-label="Gráfico de barras y líneas">
-      <g transform={`translate(${margenIzquierda},${MARGEN.arriba})`}>
+    <svg
+      width="100%"
+      viewBox={`0 0 ${ancho} ${alto}`}
+      role="img"
+      aria-label={`Gráfico de ${series.map((s) => s.etiqueta).join(', ')} por ${categorias.join(', ')}`}
+      className={estilos.lienzo}
+    >
+      <g transform={`translate(${MARGEN.izquierda},${MARGEN.arriba})`}>
         {mostrarEje &&
-          ticks.map((tick) => {
-            const yTick = y(tick)
-            return (
-              <g key={tick}>
-                <line
-                  x1={0}
-                  x2={anchoUtil}
-                  y1={yTick}
-                  y2={yTick}
-                  stroke="var(--texto)"
-                  strokeOpacity={0.12}
-                />
-                <text
-                  x={-6}
-                  y={yTick + 3}
-                  textAnchor="end"
-                  fill="var(--texto)"
-                  fillOpacity={0.7}
-                  fontSize="9"
-                  fontFamily="var(--fuente-texto)"
-                >
-                  {Math.round(tick).toLocaleString('es-MX')}
-                </text>
-              </g>
-            )
-          })}
+          ticks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={0}
+                x2={anchoUtil}
+                y1={y(tick)}
+                y2={y(tick)}
+                className={estilos.rejilla}
+                shapeRendering="crispEdges"
+              />
+              {/* El rótulo va SOBRE su línea, dentro del área de trazado. */}
+              <text x={0} y={y(tick) - 5} textAnchor="start" className={estilos.rotuloEje}>
+                {formatearTick(tick, serieDeReferencia)}
+              </text>
+            </g>
+          ))}
 
-        {/* El eje derecho no dibuja rejilla propia: dos rejillas cruzadas a
-            distinta altura se leen como un error de impresión. Solo números. */}
-        {ticksDerecha.map((tick) => (
-          <text
-            key={`der-${tick}`}
-            data-testid="tick-derecho"
-            x={anchoUtil + 6}
-            y={yDerecha(tick) + 3}
-            textAnchor="start"
-            fill="var(--texto)"
-            fillOpacity={0.7}
-            fontSize="9"
-            fontFamily="var(--fuente-texto)"
-          >
-            {Math.round(tick).toLocaleString('es-MX')}
-          </text>
-        ))}
-
-        {hayNegativos && (
+        {/* La base es más firme que la rejilla: es donde se apoyan las barras. */}
+        {!soloLineas && (
           <line
             data-testid="linea-cero"
             x1={0}
             x2={anchoUtil}
             y1={yCero}
             y2={yCero}
-            stroke="var(--texto)"
-            strokeOpacity={0.35}
+            className={estilos.lineaCero}
+            shapeRendering="crispEdges"
           />
         )}
 
@@ -233,41 +230,31 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
           <g key={categoria} transform={`translate(${ci * anchoGrupo},0)`}>
             {barras.map(({ serie, indice }, si) => {
               const valor = serie.valores[ci] ?? 0
-              const escala = escalaDe(serie)
-              const yValor = escala(valor)
-              const yCeroSerie = escala(0)
-              // La barra se dibuja entre la línea de cero y el valor, hacia
-              // arriba si es positivo y hacia abajo si es negativo — nunca
-              // con altura negativa, y sin depender de que altoUtil sea el
-              // "piso" (que solo es cierto cuando no hay negativos).
-              const alturaBarra = Math.max(0, Math.abs(yValor - yCeroSerie))
-              const yBarra = Math.min(yValor, yCeroSerie)
-              const xBarra = anchoGrupo * 0.15 + si * anchoBarra
+              const yValor = y(valor)
+              const alturaBarra = Math.max(0, Math.abs(yValor - yCero))
+              const yBarra = Math.min(yValor, yCero)
+              const xBarra = (anchoGrupo - ocupado) / 2 + si * (anchoBarra + SEPARACION_SUPERFICIE)
               return (
                 <g key={serie.etiqueta}>
-                  <rect
+                  <path
                     data-testid="barra"
-                    // El escalonado de la animación va por CATEGORÍA, no por
-                    // barra suelta: un grupo de tres barras del mismo mes
-                    // crece junto, y el gráfico se construye de izquierda a
-                    // derecha como se lee.
                     style={{ '--i': ci } as CSSProperties}
                     data-negativa={valor < 0 ? 'true' : undefined}
-                    x={xBarra}
-                    y={yBarra}
-                    width={anchoBarraDibujo}
-                    height={alturaBarra}
-                    fill={colorDeSerie(indice)}
-                    rx="2"
+                    // La altura, explícita. La barra es un `<path>` —extremo
+                    // redondeado, base a escuadra— y su geometría no se puede
+                    // leer del trazado sin un parser: los arcos llevan siete
+                    // números, no pares de coordenadas.
+                    data-alto={alturaBarra}
+                    data-base={yBarra + alturaBarra}
+                    d={rutaBarra(xBarra, yBarra, anchoBarra, alturaBarra, valor < 0)}
+                    fill={colorDeSerie(serie, indice)}
                   />
-                  {mostrarEtiquetasValor && (
+                  {rotularCadaBarra && (
                     <text
-                      x={xBarra + anchoBarraDibujo / 2}
-                      y={valor >= 0 ? yBarra - 4 : yBarra + alturaBarra + 10}
+                      x={xBarra + anchoBarra / 2}
+                      y={valor >= 0 ? yBarra - 5 : yBarra + alturaBarra + 12}
                       textAnchor="middle"
-                      fill="var(--texto)"
-                      fontSize="9"
-                      fontFamily="var(--fuente-texto)"
+                      className={estilos.rotuloValor}
                     >
                       {formatearValor(valor, serie)}
                     </text>
@@ -275,29 +262,28 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
                 </g>
               )
             })}
-            <text
-              x={anchoGrupo / 2}
-              y={altoUtil + 18 + (necesitaEspacioNegativos ? ESPACIO_EXTRA_ETIQUETA_NEGATIVA : 0)}
-              textAnchor="middle"
-              fill="var(--texto)"
-              fontSize="11"
-              fontFamily="var(--fuente-texto)"
-            >
-              {categoria}
-            </text>
+            {!ocultarCategorias && (
+              <text
+                x={anchoGrupo / 2}
+                y={altoUtil + 20}
+                textAnchor="middle"
+                className={estilos.rotuloCategoria}
+              >
+                {categoria}
+              </text>
+            )}
           </g>
         ))}
 
-        {/* Las líneas se dibujan DESPUÉS de las barras, encima: una meta
-            escondida detrás de la barra que debe superar no sirve de nada. */}
+        {/* Las líneas van encima de las barras: una meta escondida detrás de la
+            barra que debe superar no sirve de nada. */}
         {lineas.map(({ serie, indice }) => {
-          const escala = escalaDe(serie)
           const puntos = categorias.map((_, ci) => ({
             x: xCentro(ci),
-            y: escala(serie.valores[ci] ?? 0),
+            y: y(serie.valores[ci] ?? 0),
             valor: serie.valores[ci] ?? 0,
           }))
-          const color = colorDeSerie(indice)
+          const color = colorDeSerie(serie, indice)
           const trazo = puntos.map((p) => `${p.x},${p.y}`).join(' ')
           const esMeta = serie.forma === 'linea-punteada'
           return (
@@ -305,15 +291,13 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
               {serie.forma === 'area' && (
                 <polygon
                   data-testid="area"
-                  points={`${xCentro(0)},${escala(0)} ${trazo} ${xCentro(categorias.length - 1)},${escala(0)}`}
+                  points={`${xCentro(0)},${yCero} ${trazo} ${xCentro(categorias.length - 1)},${yCero}`}
                   fill={color}
                   fillOpacity={0.16}
                 />
               )}
               <polyline
                 data-testid={esMeta ? 'linea-meta' : 'linea'}
-                // Normaliza el largo del trazo a 1: así la animación de
-                // dibujado dura lo mismo con 3 puntos que con 12.
                 pathLength={1}
                 points={trazo}
                 fill="none"
@@ -323,37 +307,31 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
                 strokeLinecap="round"
                 strokeDasharray={esMeta ? PATRON_PUNTEADO : undefined}
               />
-              {/* Una meta es una referencia, no una medición: sin puntos ni
-                  números por punto, para que no se lea como dato observado. */}
+              {/* Una meta es una referencia, no una medición: sin puntos. */}
               {!esMeta &&
                 puntos.map((p, ci) => (
                   <g key={`punto-${ci}`}>
                     <circle
                       data-testid="punto"
+                      data-serie={serie.etiqueta}
                       style={{ '--i': ci } as CSSProperties}
                       cx={p.x}
                       cy={p.y}
                       r={RADIO_PUNTO}
                       fill={color}
+                      stroke="var(--superficie)"
+                      strokeWidth={2}
                     />
-                    {/* SOLO EL ÚLTIMO PUNTO, y a su derecha.
-                        Antes se rotulaban todos, separando las etiquetas
-                        arriba/abajo por orden de serie. Con doble eje cada
-                        serie toca el tope del SUYO, así que dos puntos de
-                        magnitudes sin relación acaban en la misma fila de
-                        píxeles: el rótulo de Inversión aterrizaba encima del
-                        punto de Clics y se leía "Clics: $28,235.46". Un dato
-                        atribuido a la serie equivocada en un documento de
-                        comité. Rotular el extremo elimina la colisión de
-                        raíz. */}
+                    {/* Solo el extremo: rotular todos los puntos hacía que dos
+                        series acabaran con sus números encima del punto de la
+                        otra. */}
                     {mostrarValores && ci === puntos.length - 1 && (
                       <text
+                        data-serie={serie.etiqueta}
                         x={p.x + RADIO_PUNTO + 6}
                         y={p.y + 4}
                         textAnchor="start"
-                        fill="var(--texto)"
-                        fontSize="11"
-                        fontFamily="var(--fuente-texto)"
+                        className={estilos.rotuloValor}
                       >
                         {formatearValor(p.valor, serie)}
                       </text>
@@ -364,47 +342,6 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
           )
         })}
       </g>
-
-      {anchoLeyenda > 0 && (
-        // El carril de la leyenda (anchoLeyenda) se reserva restando de
-        // anchoUtil junto con el margen derecho, así que el bloque de leyenda
-        // debe arrancar justo después de ese margen — no en un gap propio —
-        // para que termine exactamente en el borde del viewBox y no lo
-        // desborde (Hallazgo 2: antes usaba un "16" fijo que no coincidía
-        // con MARGEN.derecha y sobresalía del viewBox por la diferencia).
-        <g transform={`translate(${margenIzquierda + anchoUtil + margenDerecha},${MARGEN.arriba})`}>
-          {series.map((serie, si) => (
-            <g key={serie.etiqueta} transform={`translate(0,${si * 18})`}>
-              {esLinea(serie) ? (
-                <line
-                  x1="0"
-                  x2="10"
-                  y1="5"
-                  y2="5"
-                  stroke={colorDeSerie(si)}
-                  strokeWidth={2}
-                  strokeDasharray={serie.forma === 'linea-punteada' ? '3 2' : undefined}
-                />
-              ) : (
-                <rect width="10" height="10" fill={colorDeSerie(si)} rx="2" />
-              )}
-              <text
-                x={OFFSET_TEXTO_LEYENDA}
-                y="9"
-                fill="var(--texto)"
-                fontSize="11"
-                fontFamily="var(--fuente-texto)"
-              >
-                {truncarTexto(
-                  serie.etiqueta,
-                  anchoLeyenda - OFFSET_TEXTO_LEYENDA - MARGEN_SEGURIDAD_LEYENDA,
-                  11,
-                )}
-              </text>
-            </g>
-          ))}
-        </g>
-      )}
     </svg>
   )
 }

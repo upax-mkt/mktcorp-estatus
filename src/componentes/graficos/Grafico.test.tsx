@@ -55,7 +55,7 @@ describe('Grafico — el despachador', () => {
   })
 })
 
-describe('GraficoCartesiano — líneas y doble eje', () => {
+describe('Líneas, metas y magnitudes que no comparten plano', () => {
   const COMBO = {
     categorias: PERIODOS,
     series: [
@@ -73,28 +73,53 @@ describe('GraficoCartesiano — líneas y doble eje', () => {
     expect(container.querySelectorAll('[data-testid="punto"]')).toHaveLength(3)
   })
 
-  it('la serie del eje derecho se lee en SU escala, no aplastada contra el suelo', () => {
-    const { container } = render(<GraficoCartesiano datos={COMBO} alto={220} />)
-    const puntos = Array.from(container.querySelectorAll('[data-testid="punto"]'))
-    const ys = puntos.map((p) => Number(p.getAttribute('cy')))
-    // Con un solo eje, 0.9 y 1.1 frente a un máximo de 1366 caerían en la
-    // misma fila de píxeles. Con dos ejes, se separan de verdad.
+  it('una serie de otra magnitud se separa en su propia faceta, no comparte plano', () => {
+    // Dos escalas sobre el mismo plano fabrican una correlación que el dato no
+    // tiene: cada serie toca el tope del SUYO, así que 1.366 y 1,1 caen a la
+    // misma altura y el lector concluye que se mueven juntas. Se parten.
+    const { container } = render(
+      <Grafico grafico={grafico('combo-barras-lineas', COMBO.series)} />,
+    )
+    expect(container.querySelectorAll('svg')).toHaveLength(2)
+  })
+
+  it('cada faceta lleva su propio eje: la de abajo no se lee contra la de arriba', () => {
+    const { container } = render(
+      <Grafico grafico={grafico('combo-barras-lineas', COMBO.series)} />,
+    )
+    const [arriba, abajo] = Array.from(container.querySelectorAll('svg'))
+    // La faceta de arriba tiene las barras (Sesiones) y la meta; la de abajo,
+    // sólo el CTR. Si compartieran eje, el CTR estaría dibujado arriba.
+    expect(arriba.querySelectorAll('[data-testid="barra"]').length).toBeGreaterThan(0)
+    expect(abajo.querySelectorAll('[data-testid="barra"]')).toHaveLength(0)
+    expect(abajo.querySelectorAll('[data-testid="punto"]')).toHaveLength(3)
+    // El CTR ocupa su faceta entera: sus puntos se separan de verdad en
+    // vertical, que es justo lo que no pasaba aplastado contra las Sesiones.
+    const ys = Array.from(abajo.querySelectorAll('[data-testid="punto"]')).map((p) =>
+      Number(p.getAttribute('cy')),
+    )
     expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(20)
   })
 
-  it('dibuja los números del eje derecho', () => {
-    const { container } = render(<GraficoCartesiano datos={COMBO} alto={220} />)
-    expect(container.querySelectorAll('[data-testid="tick-derecho"]').length).toBeGreaterThan(0)
+  it('la serie de la segunda faceta conserva SU color de la leyenda', () => {
+    // Cada faceta recibe sólo su trozo de series. Sin ranura de color asignada
+    // arriba, la primera de abajo volvía a pintarse `--dato-1` —el color que la
+    // leyenda ya había dado a la primera de arriba—.
+    const { container } = render(
+      <Grafico grafico={grafico('combo-barras-lineas', COMBO.series)} />,
+    )
+    const abajo = Array.from(container.querySelectorAll('svg'))[1]
+    const ctr = abajo.querySelector('[data-testid="linea"]')
+    expect(ctr?.getAttribute('stroke')).toBe('var(--dato-3)')
   })
 
-  it('sin serie de eje derecho no aparece un segundo eje vacío', () => {
+  it('con una sola magnitud no se parte en facetas', () => {
     const { container } = render(
-      <GraficoCartesiano
-        datos={{ categorias: PERIODOS, series: [{ etiqueta: 'a', valores: [1, 2, 3] }] }}
-        alto={220}
+      <Grafico
+        grafico={grafico('barras', [{ etiqueta: 'a', valores: [1, 2, 3] }])}
       />,
     )
-    expect(container.querySelectorAll('[data-testid="tick-derecho"]')).toHaveLength(0)
+    expect(container.querySelectorAll('svg')).toHaveLength(1)
   })
 
   it('mostrarValores escribe el número con su unidad', () => {
@@ -142,10 +167,29 @@ describe('BarrasHorizontales', () => {
     expect(Math.max(...anchos)).toBeGreaterThan(Math.min(...anchos))
   })
 
-  it('rotula cada categoría y cada serie', () => {
+  it('rotula cada categoría dentro del dibujo', () => {
     render(<BarrasHorizontales datos={DATOS} alto={220} />)
     expect(screen.getByText('Paid Search')).toBeInTheDocument()
-    expect(screen.getByText('2026')).toBeInTheDocument()
+  })
+
+  it('el nombre de cada serie lo pone la leyenda, que es HTML', () => {
+    // Dentro del SVG no se puede medir el ancho de una cadena: la leyenda de
+    // antes estimaba y truncaba a ojo, reservando el 20% del lienzo por si
+    // acaso. Vive fuera, en `Grafico`.
+    const { container } = render(
+      <Grafico
+        grafico={{
+          tipo: 'barras-horizontales-agrupadas',
+          periodos: DATOS.categorias,
+          series: DATOS.series,
+        } as Parameters<typeof Grafico>[0]['grafico']}
+      />,
+    )
+    const leyenda = container.querySelector('ul')
+    expect(leyenda?.textContent).toContain('2026')
+    expect(leyenda?.textContent).toContain('2025')
+    // Y no está duplicado dentro del SVG.
+    expect(container.querySelector('svg')?.textContent).not.toContain('2026')
   })
 
   it('una etiqueta larga se recorta en vez de invadir las barras', () => {
@@ -187,25 +231,31 @@ describe('Dona', () => {
   })
 })
 
-describe('etiquetas de valor que no se pisan', () => {
-  it('dos series con valores cercanos escriben sus números en alturas distintas', () => {
-    // Con doble eje esto pasa aunque las magnitudes no se parezcan: $29,472 y
-    // 571 caen en la misma fila de píxeles porque cada uno va contra su tope.
-    render(
+describe('el rótulo pertenece a su serie', () => {
+  it('cada número se escribe junto al último punto de SU línea, no de la vecina', () => {
+    // El bug que esto guarda: para que dos rótulos no se pisaran se desplazaba
+    // cada uno según el orden de su serie, y así "$28,235" acabó flotando
+    // sobre el punto de Clics. Hoy sólo se rotula el extremo, en su sitio.
+    const { container } = render(
       <GraficoCartesiano
         datos={{
           categorias: ['Mayo', 'Junio'],
           series: [
             { etiqueta: 'Inversión', valores: [28235, 29472], forma: 'linea', prefijo: '$' },
-            { etiqueta: 'Clics', valores: [635, 571], forma: 'linea', eje: 'derecho' },
+            { etiqueta: 'Clics', valores: [635, 571], forma: 'linea' },
           ],
         }}
         alto={220}
         mostrarValores
       />,
     )
-    const inversion = Number(screen.getByText('$29,472').getAttribute('y'))
-    const clics = Number(screen.getByText('571').getAttribute('y'))
-    expect(Math.abs(inversion - clics)).toBeGreaterThanOrEqual(12)
+
+    for (const etiqueta of ['Inversión', 'Clics']) {
+      const puntos = Array.from(container.querySelectorAll(`circle[data-serie="${etiqueta}"]`))
+      const ultimo = Number(puntos[puntos.length - 1].getAttribute('cy'))
+      const rotulo = container.querySelector(`text[data-serie="${etiqueta}"]`)
+      expect(rotulo, `falta el rótulo de ${etiqueta}`).not.toBeNull()
+      expect(Math.abs(Number(rotulo?.getAttribute('y')) - ultimo)).toBeLessThanOrEqual(8)
+    }
   })
 })

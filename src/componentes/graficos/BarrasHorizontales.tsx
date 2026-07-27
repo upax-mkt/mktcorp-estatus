@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react'
 import type { DatosGrafico } from './tipos'
-import { formatearValor } from './tipos'
+import { colorDeSerie, formatearValor } from './tipos'
 import { escalaLineal } from './escalas'
+import estilos from './grafico.module.css'
 
 /**
  * Barras horizontales, agrupadas por categoría.
@@ -28,7 +29,6 @@ const MARGEN = { arriba: 8, derecha: 8, abajo: 8, izquierda: 8 }
 const ANCHO_ETIQUETA = 120
 // Espacio a la derecha para el número al final de cada barra.
 const ANCHO_VALOR = 56
-const ALTO_LEYENDA = 20
 const SEPARACION_GRUPOS = 10
 const PROPORCION_SEPARACION_BARRA = 0.2
 const FACTOR_ANCHO_CARACTER = 0.62
@@ -43,24 +43,22 @@ function truncarTexto(texto: string, anchoDisponible: number, fontSize: number):
 
 export function BarrasHorizontales({ datos, alto, ancho = 640 }: Props) {
   const { categorias, series } = datos
-  const hayLeyenda = series.length > 1
-
-  const arriba = MARGEN.arriba + (hayLeyenda ? ALTO_LEYENDA : 0)
-  // La leyenda se reparte el carril entero en vez de usar un paso fijo: con
-  // dos series y 640px de ancho, un paso de 110 truncaba "El mes pasado" a
-  // "El mes pasa…" con medio gráfico vacío al lado.
-  const pasoLeyenda = hayLeyenda
-    ? (ancho - MARGEN.izquierda - ANCHO_ETIQUETA - MARGEN.derecha) / series.length
-    : 0
+  // La leyenda vive en HTML, en `Grafico.tsx`: aquí dentro había que estimar el
+  // ancho del texto y truncarlo a ojo.
+  const arriba = MARGEN.arriba
   const altoUtil = alto - arriba - MARGEN.abajo
   const anchoUtil = ancho - MARGEN.izquierda - ANCHO_ETIQUETA - ANCHO_VALOR - MARGEN.derecha
 
-  // El dominio arranca en cero: una barra horizontal cuya base no es el cero
-  // miente sobre la proporción entre categorías, que es justo lo que se viene
-  // a comparar aquí.
+  // El dominio incluye el cero Y el mínimo. Antes arrancaba en cero y recortaba
+  // los negativos a cero: una barra de largo cero rotulada "-300" es una
+  // mentira silenciosa. Hoy no hay negativos en ningún estatus; el esquema los
+  // admite, así que el día que llegue uno el gráfico lo dibujaría mal sin
+  // avisar.
   const valores = series.flatMap((s) => s.valores)
+  const minimo = Math.min(...valores, 0)
   const maximo = Math.max(...valores, 0)
-  const x = escalaLineal([0, maximo], [0, Math.max(0, anchoUtil)])
+  const x = escalaLineal([minimo, maximo], [0, Math.max(0, anchoUtil)])
+  const xCero = x(0)
 
   const altoGrupo = altoUtil / Math.max(1, categorias.length)
   const altoBarra = (altoGrupo - SEPARACION_GRUPOS) / Math.max(1, series.length)
@@ -71,27 +69,9 @@ export function BarrasHorizontales({ datos, alto, ancho = 640 }: Props) {
       width="100%"
       viewBox={`0 0 ${ancho} ${alto}`}
       role="img"
-      aria-label="Gráfico de barras horizontales agrupadas"
+      aria-label={`Gráfico de ${series.map((s) => s.etiqueta).join(', ')} por ${categorias.join(', ')}`}
+      className={estilos.lienzo}
     >
-      {hayLeyenda && (
-        <g transform={`translate(${MARGEN.izquierda + ANCHO_ETIQUETA},${MARGEN.arriba})`}>
-          {series.map((serie, si) => (
-            <g key={serie.etiqueta} transform={`translate(${si * pasoLeyenda},0)`}>
-              <rect width="10" height="10" fill={`var(--dato-${(si % 6) + 1})`} rx="2" />
-              <text
-                x="16"
-                y="9"
-                fill="var(--texto)"
-                fontSize={FUENTE_ETIQUETA}
-                fontFamily="var(--fuente-texto)"
-              >
-                {truncarTexto(serie.etiqueta, pasoLeyenda - 22, FUENTE_ETIQUETA)}
-              </text>
-            </g>
-          ))}
-        </g>
-      )}
-
       <g transform={`translate(${MARGEN.izquierda},${arriba})`}>
         {categorias.map((categoria, ci) => (
           <g key={categoria} transform={`translate(0,${ci * altoGrupo})`}>
@@ -99,15 +79,15 @@ export function BarrasHorizontales({ datos, alto, ancho = 640 }: Props) {
               x={ANCHO_ETIQUETA - 10}
               y={altoGrupo / 2 + 4}
               textAnchor="end"
-              fill="var(--texto)"
-              fontSize={FUENTE_ETIQUETA}
-              fontFamily="var(--fuente-texto)"
+              className={estilos.rotuloCategoria}
             >
               {truncarTexto(categoria, ANCHO_ETIQUETA - 14, FUENTE_ETIQUETA)}
             </text>
             {series.map((serie, si) => {
               const valor = serie.valores[ci] ?? 0
-              const largo = Math.max(0, x(Math.max(0, valor)))
+              const xValor = x(valor)
+              const largo = Math.abs(xValor - xCero)
+              const inicio = ANCHO_ETIQUETA + Math.min(xCero, xValor)
               const yBarra = SEPARACION_GRUPOS / 2 + si * altoBarra
               return (
                 <g key={serie.etiqueta}>
@@ -115,19 +95,20 @@ export function BarrasHorizontales({ datos, alto, ancho = 640 }: Props) {
                     data-testid="barra"
                     data-horizontal="true"
                     style={{ '--i': ci } as CSSProperties}
-                    x={ANCHO_ETIQUETA}
+                    x={inicio}
                     y={yBarra}
                     width={largo}
                     height={altoBarraDibujo}
-                    fill={`var(--dato-${(si % 6) + 1})`}
+                    fill={colorDeSerie(serie, si)}
                     rx="2"
                   />
+                  {/* El rótulo va al extremo LIBRE de la barra: a su derecha si
+                      es positiva, a su izquierda si es negativa. */}
                   <text
-                    x={ANCHO_ETIQUETA + largo + 6}
+                    x={valor >= 0 ? inicio + largo + 6 : inicio - 6}
                     y={yBarra + altoBarraDibujo / 2 + 3}
-                    fill="var(--texto)"
-                    fontSize="9"
-                    fontFamily="var(--fuente-texto)"
+                    textAnchor={valor >= 0 ? 'start' : 'end'}
+                    className={estilos.rotuloValor}
                   >
                     {formatearValor(valor, serie)}
                   </text>

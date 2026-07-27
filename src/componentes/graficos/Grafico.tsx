@@ -1,5 +1,6 @@
 import type { DecisionSlide } from '@/decision/esquema'
 import type { DatosGrafico, FormaSerie } from './tipos'
+import { colorDeSerie, esLinea } from './tipos'
 import { GraficoCartesiano } from './GraficoCartesiano'
 import { BarrasHorizontales } from './BarrasHorizontales'
 import { Dona } from './Dona'
@@ -41,13 +42,26 @@ interface Props {
 }
 
 const ALTO_POR_DEFECTO = 260
+/**
+ * El ancho REAL de la columna del documento (60rem). Importa porque los
+ * tamaños dentro de un SVG escalan con el `viewBox`: con un lienzo de 640
+ * dibujado a 909px, un rótulo de 11 se renderizaba a 15.6 y la rejilla de 1px
+ * a 1.42px — un filo no entero, o sea una mancha gris. Con k≈1, 11 son 11.
+ */
+const ANCHO_COLUMNA = 960
+/**
+ * Cuánto mide cada faceta cuando un gráfico se parte en dos. Suman más que
+ * uno solo a propósito: dos dibujos necesitan más papel que uno, y encogerlos
+ * al 50% cada uno devuelve el aplastamiento que la partición venía a resolver.
+ */
+const ALTO_FACETA = 0.68
 
 export function Grafico({ grafico, alto = ALTO_POR_DEFECTO }: Props) {
   const forzada = FORMA_POR_TIPO[grafico.tipo]
 
   const datos: DatosGrafico = {
     categorias: grafico.periodos,
-    series: grafico.series.map((s) => ({
+    series: grafico.series.map((s, i) => ({
       etiqueta: s.etiqueta,
       valores: s.valores,
       // El tipo manda salvo en el combo, donde cada serie trae la suya.
@@ -55,22 +69,78 @@ export function Grafico({ grafico, alto = ALTO_POR_DEFECTO }: Props) {
       eje: s.eje,
       prefijo: s.prefijo,
       sufijo: s.sufijo,
+      // El color se decide AQUÍ, viendo la lista entera, porque aquí es donde
+      // se decide también el de la leyenda. Si cada faceta lo dedujera de su
+      // propio orden, las dos empezarían por `--dato-1`.
+      ranuraColor: i % 6,
     })),
   }
+
+  const izquierda = datos.series.filter((s) => s.eje !== 'derecho')
+  const derecha = datos.series.filter((s) => s.eje === 'derecho')
+  // Dos escalas incomparables NO son un gráfico con dos ejes: alinear dos
+  // escalas sobre el mismo plano inventa una correlación que el dato no tiene
+  // —cada serie toca el tope del SUYO, así que dos valores sin relación caen a
+  // la misma altura—. Son dos gráficos que comparten la banda horizontal.
+  const dosEscalas =
+    izquierda.length > 0 && derecha.length > 0 && grafico.tipo !== 'dona' && !HORIZONTALES.includes(grafico.tipo)
 
   return (
     <figure className={estilos.figura}>
       {grafico.titulo && <figcaption className={estilos.titulo}>{grafico.titulo}</figcaption>}
+
+      {/* La leyenda es TEXTO y vive en HTML: dentro del SVG había que estimar
+          el ancho de cada cadena y truncar a ojo, reservando el 20% del
+          lienzo por si acaso. */}
+      {datos.series.length > 1 && (
+        <ul className={estilos.leyenda}>
+          {datos.series.map((serie) => (
+            <li key={serie.etiqueta}>
+              <span
+                className={estilos.muestra}
+                data-forma={esLinea(serie) ? (serie.forma ?? 'linea') : 'barra'}
+                style={{ background: colorDeSerie(serie), color: colorDeSerie(serie) }}
+              />
+              {serie.etiqueta}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* La animación arranca cuando el gráfico llega a la pantalla, no al
           cargar la página: en un documento de quince secciones, animar todo
           de golpe es animar para nadie. */}
       <AlEntrar className={estilos.animado}>
         {grafico.tipo === 'dona' ? (
-          <Dona datos={datos} alto={alto} />
+          <Dona datos={datos} ancho={ANCHO_COLUMNA} alto={alto} />
         ) : HORIZONTALES.includes(grafico.tipo) ? (
-          <BarrasHorizontales datos={datos} alto={alto} />
+          <BarrasHorizontales datos={datos} ancho={ANCHO_COLUMNA} alto={alto} />
+        ) : dosEscalas ? (
+          <div className={estilos.facetas}>
+            {/* Las dos miden lo mismo: son dos magnitudes distintas, no una
+                principal y una nota al pie. Sólo la de abajo escribe los
+                periodos — son los mismos para las dos. */}
+            <GraficoCartesiano
+              datos={{ ...datos, series: izquierda }}
+              ancho={ANCHO_COLUMNA}
+              alto={Math.round(alto * ALTO_FACETA)}
+              mostrarValores={grafico.mostrarValores}
+              ocultarCategorias
+            />
+            <GraficoCartesiano
+              datos={{ ...datos, series: derecha }}
+              ancho={ANCHO_COLUMNA}
+              alto={Math.round(alto * ALTO_FACETA)}
+              mostrarValores={grafico.mostrarValores}
+            />
+          </div>
         ) : (
-          <GraficoCartesiano datos={datos} alto={alto} mostrarValores={grafico.mostrarValores} />
+          <GraficoCartesiano
+            datos={datos}
+            ancho={ANCHO_COLUMNA}
+            alto={alto}
+            mostrarValores={grafico.mostrarValores}
+          />
         )}
       </AlEntrar>
     </figure>
