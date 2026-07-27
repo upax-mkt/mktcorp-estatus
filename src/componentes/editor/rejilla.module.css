@@ -1,0 +1,144 @@
+/* Rejilla editable celda a celda. Se parece a una hoja de cálculo a propósito:
+   es lo que la gente ya sabe usar, y lo que copia y pega viene de ahí. */
+
+.envoltorio {
+  display: grid;
+  gap: 0.55rem;
+}
+
+/* El scroll horizontal vive aquí: una tabla de seis columnas no puede
+   arrastrar el formulario entero de lado. */
+.scroll {
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+
+.rejilla {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.rejilla th,
+.rejilla td {
+  padding: 0;
+  position: relative;
+}
+
+.rejilla input {
+  width: 100%;
+  min-width: 7rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 14%, transparent);
+  /* Bordes compartidos entre celdas vecinas: sin esto la rejilla se ve como
+     una colección de cajas sueltas y no como una tabla. */
+  margin: -0.5px;
+  border-radius: 0;
+  background: var(--superficie, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rejilla input:focus-visible {
+  outline: 2px solid var(--sala, currentColor);
+  outline-offset: -1px;
+  /* Encima de las vecinas para que el foco no quede cortado por sus bordes. */
+  position: relative;
+  z-index: 1;
+}
+
+.celdaEncabezado {
+  font-weight: 600 !important;
+  background: color-mix(in oklch, var(--tx, #222) 5%, var(--superficie, #fff)) !important;
+}
+
+/* Carriles de servicio: número de fila, quitar, añadir. Angostos y callados. */
+.esquina,
+.numeroFila {
+  width: 1.9rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.numeroFila {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--tx, #222) 40%, transparent);
+}
+
+.quitar,
+.anadirEje {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+  border: none;
+  border-radius: 0.3rem;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 38%, transparent);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  /* Aparecen al acercarse: presentes cuando hacen falta, invisibles el resto
+     del tiempo para que la rejilla se lea como datos y no como botonera. */
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+
+.quitar { position: absolute; top: 0.3rem; right: 0.25rem; }
+.rejilla th .quitar { top: 0.28rem; }
+
+.anadirEje { opacity: 0.6; font-size: 0.85rem; }
+
+.envoltorio:hover .quitar,
+.quitar:focus-visible,
+.anadirEje:focus-visible {
+  opacity: 1;
+}
+
+.quitar:hover,
+.anadirEje:hover {
+  opacity: 1;
+  background: color-mix(in oklch, var(--alerta, oklch(0.57 0.2 25)) 14%, transparent);
+  color: var(--alerta, oklch(0.57 0.2 25));
+}
+
+.anadirEje:hover {
+  background: color-mix(in oklch, var(--sala, #888) 16%, transparent);
+  color: inherit;
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+}
+
+.anadirFila {
+  padding: 0.35rem 0.7rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 26%, transparent);
+  border-radius: 0.45rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.anadirFila:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+}
+
+.pista {
+  font-size: 0.75rem;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quitar, .anadirEje { transition: none; }
+}

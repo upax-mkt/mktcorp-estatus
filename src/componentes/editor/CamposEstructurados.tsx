@@ -4,13 +4,12 @@ import type { DecisionSlide } from '@/decision/esquema'
 import { TIPOS_DE_GRAFICO } from '@/decision/esquema'
 import {
   parsearVinetas, escribirVinetas,
-  parsearRejilla, escribirRejilla,
-  parsearDatosDeGrafico, escribirDatosDeGrafico,
   parsearPartes, escribirPartes,
-  parsearTonos, escribirTonos, TONOS,
-  estadoDeTexto, parsearLineas,
+  TONOS,
+  estadoDeTexto, parsearLineas, numeroDeCelda,
 } from '@/secciones/parseo'
 import { Repetible } from './Repetible'
+import { EditorRejilla } from './EditorRejilla'
 import estilos from './editor.module.css'
 
 /**
@@ -173,22 +172,24 @@ export function CampoTablas({
               aria-label={`Título de la tabla ${i + 1}`}
             />
           </label>
-          <label className={estilos.campo}>
-            <span>Pega la tabla — la primera línea son los encabezados</span>
-            <textarea
-              rows={6}
-              defaultValue={escribirRejilla(tabla.columnas, tabla.filas.map((f) => f.celdas))}
-              onBlur={(e) => cambiar(construirTabla(e.target.value, tabla, conSemaforo))}
-              placeholder={conSemaforo
-                ? 'Responsable | Tarea | Estatus\nIleana Cruz | Cerrar el brief | Listo'
-                : ' | Mayo | Junio\nSesiones | 3,591 | 2,519'}
-              aria-label={`Datos de la tabla ${i + 1}`}
+          <div className={estilos.campo}>
+            <span className={estilos.subtituloCampo}>Datos de la tabla</span>
+            <EditorRejilla
+              columnas={tabla.columnas}
+              filas={tabla.filas.map((f) => f.celdas)}
+              onChange={(columnas, filas) => cambiar(construirTabla(columnas, filas, tabla, conSemaforo))}
+              nombreColumna="columna"
+              nombreFila="fila"
+              ejemploColumna={conSemaforo ? 'Tarea' : 'Mayo'}
+              ejemploFila={conSemaforo ? 'Ileana Cruz' : 'Sesiones'}
             />
-            <em className={estilos.pista}>
-              Copiar y pegar desde Sheets o Excel funciona tal cual. A mano, separa las celdas con «|».
-              {conSemaforo && ' Escribe «Listo», «En proceso» o «No realizado» en la columna Estatus y el semáforo se pinta solo; déjala vacía si no consta.'}
-            </em>
-          </label>
+            {conSemaforo && (
+              <em className={estilos.pista}>
+                Titula una columna «Estatus» y escribe en ella «Listo», «En proceso» o «No realizado»:
+                el semáforo se pinta solo. Déjala vacía si no consta — no se inventa un estado.
+              </em>
+            )}
+          </div>
           <div className={estilos.filaOpciones}>
             <label className={estilos.casilla}>
               <input
@@ -213,11 +214,7 @@ export function CampoTablas({
   )
 }
 
-function construirTabla(texto: string, previa: Tabla, conSemaforo: boolean): Tabla {
-  const rejilla = parsearRejilla(texto)
-  const [columnas, ...filas] = rejilla
-  if (!columnas) return { ...previa, columnas: ['', ''], filas: [] }
-
+function construirTabla(columnas: string[], filas: string[][], previa: Tabla, conSemaforo: boolean): Tabla {
   const iEstatus = conSemaforo ? indiceDeEstatus(columnas) : -1
   const destacarUltima = previa.filas.some((f) => f.destacada)
 
@@ -277,91 +274,190 @@ export function CampoGraficos({ valor, onChange }: { valor: Grafico[]; onChange:
       maximo={2}
       nuevo={() => ({ tipo: 'barras', periodos: [], series: [] })}
     >
-      {(grafico, i, cambiar) => {
-        const esCombo = grafico.tipo === 'combo-barras-lineas'
-        return (
-        <>
-          <div className={estilos.filaCampos}>
-            <label className={estilos.campoAncho}>
-              <span>Título (opcional)</span>
+      {(grafico, i, cambiar) => <UnGrafico grafico={grafico} indice={i} cambiar={cambiar} />}
+    </Repetible>
+  )
+}
+
+/**
+ * Un gráfico, armado en tres pasos y en el orden en que se decide de verdad:
+ * PRIMERO los datos, DESPUÉS cuántas escalas hacen falta, y AL FINAL cómo se
+ * dibuja.
+ *
+ * El orden importa. Elegir el tipo antes de tener los datos es elegir a
+ * ciegas: no se sabe cuántas series hay, ni si sus magnitudes se parecen —que
+ * es justo lo que decide si hace falta un segundo eje— ni si tiene sentido una
+ * dona. Cada paso solo aparece cuando el anterior le da de comer, así que la
+ * pantalla nunca pide algo que todavía no se puede contestar.
+ */
+function UnGrafico({
+  grafico,
+  indice,
+  cambiar,
+}: {
+  grafico: Grafico
+  indice: number
+  cambiar: (g: Grafico) => void
+}) {
+  const hayDatos = grafico.periodos.length > 0 && grafico.series.length > 0
+  const dosEjes = grafico.series.some((s) => s.eje === 'derecho')
+  const esCombo = grafico.tipo === 'combo-barras-lineas'
+  const compatibles = TIPOS_COMPATIBLES(grafico.series.length, dosEjes)
+
+  return (
+    <>
+      {/* Paso 1 — los datos */}
+      <div className={estilos.paso}>
+        <span className={estilos.pasoTitulo}>1 · Los datos</span>
+        <EditorRejilla
+          columnas={['', ...grafico.periodos]}
+          filas={grafico.series.map((s) => [s.etiqueta, ...s.valores.map((v) => String(v))])}
+          onChange={(columnas, filas) => cambiar(construirGrafico(columnas, filas, grafico))}
+          nombreColumna="periodo"
+          nombreFila="serie"
+          ejemploColumna="Enero"
+          ejemploFila="Total 2026"
+        />
+        <em className={estilos.pista}>
+          Cada columna es un periodo y cada fila una serie. La primera celda de cada fila es su
+          nombre; la esquina se deja vacía. Los números pueden traer comas y símbolo de moneda.
+        </em>
+      </div>
+
+      {/* Paso 2 — las escalas. Solo tiene sentido con dos series o más. */}
+      {hayDatos && grafico.series.length > 1 && (
+        <div className={estilos.paso}>
+          <span className={estilos.pasoTitulo}>2 · Las escalas</span>
+          <div className={estilos.opcionesEje}>
+            <label className={estilos.radio}>
               <input
-                value={grafico.titulo ?? ''}
-                onChange={(e) => cambiar({ ...grafico, titulo: e.target.value || undefined })}
-                placeholder="Tráfico website"
-                aria-label={`Título del gráfico ${i + 1}`}
+                type="radio"
+                name={`ejes-${indice}`}
+                checked={!dosEjes}
+                onChange={() => cambiar(ponerTodasEnUnEje(grafico))}
               />
+              <span>
+                <strong>Una escala</strong>
+                <em>Todas las series se comparan entre sí con el mismo eje.</em>
+              </span>
             </label>
-            <label className={estilos.campoChico}>
-              <span>Tipo</span>
-              <select
-                value={grafico.tipo}
-                onChange={(e) => cambiar({ ...grafico, tipo: e.target.value as Grafico['tipo'] })}
-                aria-label={`Tipo del gráfico ${i + 1}`}
-              >
-                {TIPOS_DE_GRAFICO.map((t) => (
-                  <option key={t} value={t}>{NOMBRE_DE_TIPO[t]}</option>
-                ))}
-              </select>
+            <label className={estilos.radio}>
+              <input
+                type="radio"
+                name={`ejes-${indice}`}
+                checked={dosEjes}
+                onChange={() => cambiar(separarUltimaSerie(grafico))}
+              />
+              <span>
+                <strong>Dos escalas</strong>
+                <em>
+                  Cuando las magnitudes no se parecen —un coste en miles junto a unas decenas de
+                  conversiones—. Con una sola, la pequeña se dibuja plana pegada al suelo.
+                </em>
+              </span>
             </label>
           </div>
 
-          <label className={estilos.campo}>
-            <span>Pega los datos — primera línea los periodos, una línea por serie</span>
-            <textarea
-              rows={5}
-              defaultValue={escribirDatosDeGrafico(grafico.periodos, grafico.series)}
-              onBlur={(e) => cambiar(construirGrafico(e.target.value, grafico))}
-              placeholder={' | Enero | Febrero | Marzo\nTotal 2026 | 4393 | 7244 | 4997\nMeta | 5000 | 5000 | 5000'}
-              aria-label={`Datos del gráfico ${i + 1}`}
-            />
-            <em className={estilos.pista}>
-              La primera celda de la primera línea se deja vacía. Los números pueden traer comas y
-              símbolo de moneda: se leen igual.
-            </em>
-          </label>
-
-          {grafico.series.length > 0 && (
-            <div className={estilos.series}>
-              <span className={estilos.subtituloCampo}>Cómo se dibuja cada serie</span>
+          {dosEjes && (
+            <div className={estilos.asignacionEjes}>
               {grafico.series.map((serie, s) => (
-                <div key={`serie-${s}`} className={estilos.filaCampos}>
-                  <span className={estilos.serieNombre} title={serie.etiqueta}>{serie.etiqueta}</span>
-                  <label className={estilos.campoChico}>
-                    <span>Forma</span>
-                    <select
-                      value={serie.forma ?? (esCombo ? 'barra' : '')}
-                      onChange={(e) => cambiar(cambiarSerie(grafico, s, { forma: (e.target.value || undefined) as Serie['forma'] }))}
-                      aria-label={`Forma de la serie ${serie.etiqueta}`}
-                    >
-                      {/* En un combo NO hay "según el tipo": el tipo es
-                          justamente "cada serie decide". Ofrecerlo dejaba
-                          series sin forma que se dibujaban como barra aunque
-                          se hubieran configurado como línea en el eje
-                          derecho. */}
-                      {!esCombo && <option value="">Según el tipo</option>}
-                      {FORMAS.map((f) => (
-                        <option key={f.valor} value={f.valor}>{f.nombre}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className={estilos.campoChico}>
-                    <span>Eje</span>
-                    <select
-                      value={serie.eje ?? 'izquierdo'}
-                      onChange={(e) => cambiar(cambiarSerie(grafico, s, { eje: e.target.value === 'derecho' ? 'derecho' : undefined }))}
-                      aria-label={`Eje de la serie ${serie.etiqueta}`}
-                    >
-                      <option value="izquierdo">Izquierdo</option>
-                      <option value="derecho">Derecho</option>
-                    </select>
-                  </label>
+                <label key={`eje-${s}`} className={estilos.campoChico}>
+                  <span>{serie.etiqueta || `Serie ${s + 1}`}</span>
+                  <select
+                    value={serie.eje ?? 'izquierdo'}
+                    onChange={(e) =>
+                      cambiar(cambiarSerie(grafico, s, { eje: e.target.value === 'derecho' ? 'derecho' : undefined }))
+                    }
+                    aria-label={`Escala de la serie ${serie.etiqueta || s + 1}`}
+                  >
+                    <option value="izquierdo">Escala izquierda</option>
+                    <option value="derecho">Escala derecha</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Paso 3 — cómo se dibuja */}
+      {hayDatos && (
+        <div className={estilos.paso}>
+          <span className={estilos.pasoTitulo}>
+            {grafico.series.length > 1 ? '3' : '2'} · Cómo se dibuja
+          </span>
+          <div className={estilos.tiposGrafico}>
+            {compatibles.map((tipo) => (
+              <button
+                key={tipo}
+                type="button"
+                className={estilos.tipoGrafico}
+                data-elegido={grafico.tipo === tipo ? 'true' : undefined}
+                onClick={() => cambiar(elegirTipo(grafico, tipo))}
+              >
+                <span className={estilos.tipoIcono} aria-hidden="true">{ICONO_DE_TIPO[tipo]}</span>
+                <span className={estilos.tipoNombre}>{NOMBRE_DE_TIPO[tipo]}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* La forma por serie solo existe en el combo: es su razón de ser. */}
+          {esCombo && (
+            <div className={estilos.asignacionEjes}>
+              {grafico.series.map((serie, s) => (
+                <label key={`forma-${s}`} className={estilos.campoChico}>
+                  <span>{serie.etiqueta || `Serie ${s + 1}`}</span>
+                  <select
+                    value={serie.forma ?? 'barra'}
+                    onChange={(e) => cambiar(cambiarSerie(grafico, s, { forma: e.target.value as Serie['forma'] }))}
+                    aria-label={`Forma de la serie ${serie.etiqueta || s + 1}`}
+                  >
+                    {FORMAS.map((f) => (
+                      <option key={f.valor} value={f.valor}>{f.nombre}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <div className={estilos.filaCampos}>
+            <label className={estilos.campoAncho}>
+              <span>Título del gráfico (opcional)</span>
+              <input
+                value={grafico.titulo ?? ''}
+                onChange={(e) => cambiar(limpiar({ ...grafico, titulo: e.target.value || undefined }))}
+                placeholder="Tráfico website"
+                aria-label={`Título del gráfico ${indice + 1}`}
+              />
+            </label>
+          </div>
+
+          <div className={estilos.filaOpciones}>
+            <label className={estilos.casilla}>
+              <input
+                type="checkbox"
+                checked={grafico.mostrarValores === true}
+                onChange={(e) => cambiar(limpiar({ ...grafico, mostrarValores: e.target.checked || undefined }))}
+              />
+              Escribir el número sobre cada punto o barra
+            </label>
+          </div>
+
+          {/* Unidades por serie: lo último y lo más fino. */}
+          <details className={estilos.detalles}>
+            <summary>Unidades de cada serie</summary>
+            <div className={estilos.asignacionEjes}>
+              {grafico.series.map((serie, s) => (
+                <div key={`unidad-${s}`} className={estilos.filaCampos}>
+                  <span className={estilos.serieNombre}>{serie.etiqueta || `Serie ${s + 1}`}</span>
                   <label className={estilos.campoMinimo}>
                     <span>Antes</span>
                     <input
                       value={serie.prefijo ?? ''}
                       onChange={(e) => cambiar(cambiarSerie(grafico, s, { prefijo: e.target.value || undefined }))}
                       placeholder="$"
-                      aria-label={`Prefijo de la serie ${serie.etiqueta}`}
+                      aria-label={`Prefijo de ${serie.etiqueta || s + 1}`}
                     />
                   </label>
                   <label className={estilos.campoMinimo}>
@@ -370,31 +466,79 @@ export function CampoGraficos({ valor, onChange }: { valor: Grafico[]; onChange:
                       value={serie.sufijo ?? ''}
                       onChange={(e) => cambiar(cambiarSerie(grafico, s, { sufijo: e.target.value || undefined }))}
                       placeholder="%"
-                      aria-label={`Sufijo de la serie ${serie.etiqueta}`}
+                      aria-label={`Sufijo de ${serie.etiqueta || s + 1}`}
                     />
                   </label>
                 </div>
               ))}
-              <em className={estilos.pista}>
-                Usa el eje derecho cuando dos series tienen escalas que no se parecen (un coste en
-                miles junto a unas decenas de conversiones): con un solo eje, la pequeña se dibuja
-                como una línea plana pegada al suelo.
-              </em>
-              <label className={estilos.casilla}>
-                <input
-                  type="checkbox"
-                  checked={grafico.mostrarValores === true}
-                  onChange={(e) => cambiar({ ...grafico, mostrarValores: e.target.checked || undefined })}
-                />
-                Escribir el número sobre cada punto o barra
-              </label>
             </div>
-          )}
-        </>
-        )
-      }}
-    </Repetible>
+          </details>
+        </div>
+      )}
+    </>
   )
+}
+
+/**
+ * Qué tipos tienen sentido con estos datos.
+ *
+ * No es decoración: ofrecer una dona para tres series es ofrecer un gráfico
+ * que va a mentir, y ofrecer el combo con una sola serie es ofrecer una
+ * decisión que no hay que tomar. Se filtra en lugar de dejar elegir mal y
+ * explicarlo después.
+ */
+function TIPOS_COMPATIBLES(cuantasSeries: number, dosEjes: boolean): Array<(typeof TIPOS_DE_GRAFICO)[number]> {
+  return TIPOS_DE_GRAFICO.filter((tipo) => {
+    // Una dona reparte UN total entre sus partes: con dos series son dos donas.
+    if (tipo === 'dona') return cuantasSeries === 1 && !dosEjes
+    // El combo existe para mezclar formas: con una sola serie no mezcla nada.
+    if (tipo === 'combo-barras-lineas') return cuantasSeries > 1
+    if (tipo === 'barras-comparadas' || tipo === 'barras-horizontales-agrupadas') return cuantasSeries > 1
+    if (tipo === 'lineas-multiples') return cuantasSeries > 1
+    // Las barras horizontales no llevan eje de valores, así que no pueden
+    // tener dos escalas.
+    if (dosEjes && tipo === 'barras-horizontales') return false
+    return true
+  })
+}
+
+const ICONO_DE_TIPO: Record<(typeof TIPOS_DE_GRAFICO)[number], string> = {
+  'barras': '▊',
+  'barras-comparadas': '▊▍',
+  'barras-horizontales': '▬',
+  'barras-horizontales-agrupadas': '▤',
+  'linea': '╱',
+  'lineas-multiples': '≋',
+  'combo-barras-lineas': '▊╱',
+  'area': '◣',
+  'dona': '◕',
+}
+
+/** Al elegir un tipo, las formas por serie que ya no aplican se limpian. */
+function elegirTipo(grafico: Grafico, tipo: Grafico['tipo']): Grafico {
+  if (tipo === 'combo-barras-lineas') {
+    // El combo exige forma explícita: sin ella una serie cae en barra aunque
+    // se hubiera puesto en el eje derecho esperando una línea.
+    return {
+      ...grafico,
+      tipo,
+      series: grafico.series.map((s) => ({ ...s, forma: s.forma ?? 'barra' })),
+    }
+  }
+  return { ...grafico, tipo, series: grafico.series.map((s) => limpiar({ ...s, forma: undefined })) }
+}
+
+function ponerTodasEnUnEje(grafico: Grafico): Grafico {
+  return { ...grafico, series: grafico.series.map((s) => limpiar({ ...s, eje: undefined })) }
+}
+
+/** Al pedir dos escalas, la última serie se manda a la derecha como punto de partida. */
+function separarUltimaSerie(grafico: Grafico): Grafico {
+  const ultima = grafico.series.length - 1
+  return {
+    ...grafico,
+    series: grafico.series.map((s, i) => (i === ultima ? { ...s, eje: 'derecho' as const } : limpiar({ ...s, eje: undefined }))),
+  }
 }
 
 /** Cambia una serie conservando lo que el equipo ya eligió para ella. */
@@ -415,30 +559,32 @@ function limpiar<T extends object>(objeto: T): T {
 }
 
 /**
- * Reconstruye el gráfico con los datos pegados, CONSERVANDO la forma, el eje y
- * las unidades que ya se hubieran elegido por serie.
+ * Reconstruye el gráfico con lo que hay en la rejilla, CONSERVANDO la forma,
+ * el eje y las unidades que ya se hubieran elegido por serie.
  *
- * Sin esto, corregir un número en la tabla pegada borraría que la serie "Meta"
- * era una línea punteada en el eje derecho — el trabajo fino se perdería en
- * cada retoque del dato.
+ * Sin esto, corregir un número borraría que la serie "Meta" era una línea
+ * punteada en el eje derecho: el trabajo fino se perdería en cada retoque.
  */
-function construirGrafico(texto: string, previo: Grafico): Grafico {
-  const { periodos, series } = parsearDatosDeGrafico(texto)
+function construirGrafico(columnas: string[], filas: string[][], previo: Grafico): Grafico {
+  const periodos = columnas.slice(1).filter((p) => p.trim().length > 0)
   const ajustesPrevios = new Map(previo.series.map((s) => [s.etiqueta, s]))
   return {
     ...previo,
     periodos,
-    series: series.map((s) => {
-      const antes = ajustesPrevios.get(s.etiqueta)
-      return limpiar({
-        etiqueta: s.etiqueta,
-        valores: s.valores,
-        forma: antes?.forma,
-        eje: antes?.eje,
-        prefijo: antes?.prefijo,
-        sufijo: antes?.sufijo,
-      })
-    }),
+    series: filas
+      .filter((f) => (f[0] ?? '').trim().length > 0)
+      .map((f) => {
+        const etiqueta = f[0]
+        const antes = ajustesPrevios.get(etiqueta)
+        return limpiar({
+          etiqueta,
+          valores: periodos.map((_, i) => numeroDeCelda(f[i + 1] ?? '')),
+          forma: antes?.forma,
+          eje: antes?.eje,
+          prefijo: antes?.prefijo,
+          sufijo: antes?.sufijo,
+        })
+      }),
   }
 }
 
@@ -666,44 +812,60 @@ export function CampoMatriz({
 }) {
   const actual: Matriz = valor ?? { columnas: ['', ''], filas: [] }
   const tonos = tonosDeLaMatriz(actual)
+  const palabras = palabrasDeLaMatriz(actual)
 
   return (
     <div className={estilos.bloqueCampo}>
-      <label className={estilos.campo}>
-        <span>Pega la rejilla — primera línea los periodos, una línea por concepto</span>
-        <textarea
-          rows={6}
-          defaultValue={escribirRejilla(
-            ['', ...actual.columnas],
-            actual.filas.map((f) => [f.encabezado, ...f.celdas.map((c) => c.texto)]),
-          )}
-          onBlur={(e) => onChange(construirMatriz(e.target.value, actual, tonos))}
-          placeholder={' | Julio | Agosto | Septiembre\nComercio al por menor | Vende | Prepara | Vende'}
-          aria-label="Datos de la matriz"
-        />
-      </label>
-
-      <label className={estilos.campo}>
-        <span>Qué intensidad tiene cada palabra</span>
-        <textarea
-          rows={4}
-          defaultValue={escribirTonos(tonos)}
-          onBlur={(e) => onChange(construirMatriz(
-            escribirRejilla(['', ...actual.columnas], actual.filas.map((f) => [f.encabezado, ...f.celdas.map((c) => c.texto)])),
-            actual,
-            parsearTonos(e.target.value),
-          ))}
-          placeholder={`Vende | alto\nPrepara | medio\nExplora | bajo\nEspera | neutro`}
-          aria-label="Intensidad de cada palabra de la matriz"
+      <div className={estilos.paso}>
+        <span className={estilos.pasoTitulo}>1 · La rejilla</span>
+        <EditorRejilla
+          columnas={['', ...actual.columnas]}
+          filas={actual.filas.map((f) => [f.encabezado, ...f.celdas.map((c) => c.texto)])}
+          onChange={(columnas, filas) => onChange(construirMatriz(columnas, filas, actual, tonos))}
+          nombreColumna="periodo"
+          nombreFila="concepto"
+          ejemploColumna="Julio"
+          ejemploFila="Comercio al por menor"
+          minimoColumnas={2}
         />
         <em className={estilos.pista}>
-          Las intensidades disponibles son: {TONOS.join(', ')}. Marcan dónde se concentra el esfuerzo;
-          la palabra sigue escrita en la celda, así que el color nunca es la única señal.
+          Cada columna es un periodo y cada fila un concepto. En el cruce, qué toca hacer.
         </em>
-      </label>
+      </div>
+
+      {/* La intensidad solo se puede pedir cuando ya hay palabras que calificar. */}
+      {palabras.length > 0 && (
+        <div className={estilos.paso}>
+          <span className={estilos.pasoTitulo}>2 · La intensidad de cada palabra</span>
+          <div className={estilos.asignacionEjes}>
+            {palabras.map((palabra) => (
+              <label key={palabra} className={estilos.campoChico}>
+                <span>{palabra}</span>
+                <select
+                  value={tonos.get(palabra.toLowerCase()) ?? 'neutro'}
+                  onChange={(e) => {
+                    const nuevos = new Map(tonos)
+                    nuevos.set(palabra.toLowerCase(), e.target.value as (typeof TONOS)[number])
+                    onChange(reasignarTonos(actual, nuevos))
+                  }}
+                  aria-label={`Intensidad de «${palabra}»`}
+                >
+                  {TONOS.map((t) => (
+                    <option key={t} value={t}>{NOMBRE_DE_TONO[t]}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          <em className={estilos.pista}>
+            Marca dónde se concentra el esfuerzo. La palabra sigue escrita en la celda, así que el
+            color nunca es la única señal.
+          </em>
+        </div>
+      )}
 
       <label className={estilos.campo}>
-        <span>Leyenda — una línea por estado</span>
+        <span>Leyenda — una línea por estado (opcional)</span>
         <textarea
           rows={4}
           defaultValue={(actual.leyenda ?? []).join('\n')}
@@ -719,6 +881,28 @@ export function CampoMatriz({
   )
 }
 
+const NOMBRE_DE_TONO: Record<(typeof TONOS)[number], string> = {
+  alto: 'Alta — el pico',
+  medio: 'Media',
+  bajo: 'Baja',
+  neutro: 'Sin intensidad',
+}
+
+/** Las palabras distintas que aparecen en la rejilla, en orden de aparición. */
+function palabrasDeLaMatriz(matriz: Matriz): string[] {
+  const vistas = new Set<string>()
+  const orden: string[] = []
+  for (const fila of matriz.filas) {
+    for (const celda of fila.celdas) {
+      const texto = celda.texto.trim()
+      if (texto.length === 0 || vistas.has(texto.toLowerCase())) continue
+      vistas.add(texto.toLowerCase())
+      orden.push(texto)
+    }
+  }
+  return orden
+}
+
 function tonosDeLaMatriz(matriz: Matriz): Map<string, (typeof TONOS)[number]> {
   const mapa = new Map<string, (typeof TONOS)[number]>()
   for (const fila of matriz.filas) {
@@ -729,25 +913,36 @@ function tonosDeLaMatriz(matriz: Matriz): Map<string, (typeof TONOS)[number]> {
   return mapa
 }
 
+function reasignarTonos(matriz: Matriz, tonos: Map<string, (typeof TONOS)[number]>): Matriz {
+  return {
+    ...matriz,
+    filas: matriz.filas.map((f) => ({
+      ...f,
+      celdas: f.celdas.map((c) => limpiar({ ...c, tono: tonos.get(c.texto.trim().toLowerCase()) })),
+    })),
+  }
+}
+
 function construirMatriz(
-  texto: string,
+  columnas: string[],
+  filas: string[][],
   previa: Matriz,
   tonos: Map<string, (typeof TONOS)[number]>,
 ): Matriz {
-  const rejilla = parsearRejilla(texto)
-  const [encabezado, ...filas] = rejilla
-  if (!encabezado) return previa
-
   const notasPrevias = new Map(previa.filas.map((f) => [f.encabezado, f.nota]))
+  const periodos = columnas.slice(1)
 
   return limpiar({
     ...previa,
-    columnas: encabezado.slice(1),
+    columnas: periodos,
     filas: filas
-      .filter((f) => f[0]?.length > 0)
+      .filter((f) => (f[0] ?? '').trim().length > 0)
       .map((f) => limpiar({
         encabezado: f[0],
-        celdas: f.slice(1).map((texto) => limpiar({ texto, tono: tonos.get(texto.trim().toLowerCase()) })),
+        celdas: periodos.map((_, i) => {
+          const texto = f[i + 1] ?? ''
+          return limpiar({ texto, tono: tonos.get(texto.trim().toLowerCase()) })
+        }),
         nota: notasPrevias.get(f[0]),
       })),
   })

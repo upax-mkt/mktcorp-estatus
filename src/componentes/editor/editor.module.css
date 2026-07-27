@@ -450,3 +450,165 @@
 @media (prefers-reduced-motion: reduce) {
   .flecha { transition: none; }
 }
+
+/* ---- pasos guiados (gráfico, matriz) ---- */
+
+/* Cada paso es un bloque con su número: el orden no es decorativo, es el
+   orden en que se puede decidir. No se puede elegir el tipo de gráfico sin
+   haber visto los datos. */
+.paso {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid color-mix(in oklch, var(--tx, #222) 10%, transparent);
+}
+
+.paso:first-of-type { border-top: none; padding-top: 0; }
+
+.pasoTitulo {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sala, inherit);
+}
+
+/* ---- elegir escalas ---- */
+
+.opcionesEje {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.6rem;
+}
+
+.radio {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 14%, transparent);
+  border-radius: 0.55rem;
+  cursor: pointer;
+}
+
+.radio:has(input:checked) {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--sala, #888) 6%, transparent);
+}
+
+.radio input { width: auto; margin-top: 0.2rem; accent-color: var(--sala, currentColor); }
+.radio span { display: grid; gap: 0.15rem; }
+.radio strong { font-size: 0.88rem; font-weight: 600; }
+.radio em {
+  font-style: normal;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: color-mix(in oklch, var(--tx, #222) 58%, transparent);
+}
+
+.asignacionEjes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+/* ---- elegir tipo de gráfico ---- */
+
+.tiposGrafico {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.tipoGrafico {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.5rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 14%, transparent);
+  border-radius: 0.55rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.tipoGrafico:hover { border-color: color-mix(in oklch, var(--sala, #888) 60%, transparent); }
+
+.tipoGrafico[data-elegido='true'] {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--sala, #888) 10%, transparent);
+}
+
+.tipoIcono {
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--sala, inherit);
+}
+
+.tipoNombre {
+  font-size: 0.76rem;
+  line-height: 1.25;
+  text-align: center;
+}
+
+/* Lo fino, plegado: se abre solo quien lo necesita. */
+.detalles > summary {
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+  padding: 0.3rem 0;
+}
+
+.detalles > summary:hover { color: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tipoGrafico { transition: none; }
+}
+
+/* ---- título con la pinta que va a tener ---- */
+
+/* Escribir el titular en una caja gris de 14px y descubrir después cómo queda
+   es el viaje que hace lento cualquier editor. Aquí se escribe grande y con la
+   tipografía de display, como se va a leer. */
+.campoTitular {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.campoTitular > span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+.campoTitular input {
+  padding: 0.5rem 0.7rem;
+  font-family: var(--f-outfit), var(--fuente-display), system-ui, sans-serif;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.campoTitular input::placeholder {
+  font-weight: 400;
+  letter-spacing: 0;
+  color: color-mix(in oklch, var(--tx, #222) 32%, transparent);
+}
+
+.entradaSubtitulo {
+  font-size: 1rem !important;
+  color: color-mix(in oklch, var(--tx, #222) 78%, transparent);
+}
+
+/* ---- estado de guardado ---- */
+
+.estadoGuardado {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}

@@ -37,11 +37,17 @@ const { id } = await crearSesionConEstructura({
 
 /** Qué divisor del deck corresponde a qué sección base de hoy. */
 const BLOQUE_POR_DIVISOR: Record<string, string> = {
-  'Acuerdos y pendientes': 'acuerdos-pendientes',
   'Portafolio & ecosistema': 'portafolio-ecosistema',
   'Performance & conversión': 'performance-conversion',
   'Outbound & pipeline': 'outbound-pipeline',
 }
+
+/**
+ * "Acuerdos y Pendientes" es una sección ÚNICA, no un bloque: el divisor del
+ * deck y la tabla que venía detrás son la misma cosa. Se descarta el divisor y
+ * la tabla se guarda directamente en la sección base.
+ */
+const DIVISOR_REDUNDANTE = 'Acuerdos y pendientes'
 
 const base = (tipo: string) => (sesionBase.items.find((i) => i.tipo === tipo))!
 let sesionBase = (await obtenerSesion(id))!
@@ -56,6 +62,18 @@ for (const decision of MC_JUNIO_2026) {
   if (decision.layout === 'portada' || decision.layout === 'agenda') {
     await guardarSeccion(id, base(decision.layout).id, borrador)
     console.log(`  ✓ ${decision.titulo}`)
+    continue
+  }
+
+  // El divisor de acuerdos no se crea: su contenido es la tabla que sigue.
+  if (decision.titulo === DIVISOR_REDUNDANTE) {
+    bloqueActual = 'acuerdos-pendientes'
+    continue
+  }
+  // La tabla de pendientes ES la sección base, no una subsección suya.
+  if (bloqueActual === 'acuerdos-pendientes' && decision.layout === 'pendientes-semaforo') {
+    await guardarSeccion(id, base('acuerdos-pendientes').id, borrador)
+    console.log(`  ✓ ${decision.titulo} (en Acuerdos y Pendientes)`)
     continue
   }
 

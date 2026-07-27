@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { CATALOGO, tipoDeSeccion, type CampoSeccion } from '@/secciones/catalogo'
 import { loQueFalta, type BorradorSeccion } from '@/secciones/borrador'
@@ -36,10 +36,16 @@ interface Props {
   proponerAction?: (texto: string) => Promise<BorradorSeccion | { error: string }>
 }
 
+/** Cuánto se espera desde la última tecla antes de guardar solo. */
+const ESPERA_AUTOGUARDADO = 1200
+
 export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, proponerAction }: Props) {
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
   const [guardado, setGuardado] = useState(true)
   const [pendiente, empezar] = useTransition()
+  // Lo último que se mandó al servidor: evita reguardar lo mismo cuando el
+  // autoguardado y un blur coinciden.
+  const ultimoGuardado = useRef(JSON.stringify(inicial))
 
   const tipo = tipoDeSeccion(borrador.layout)
   const faltas = loQueFalta(borrador)
@@ -50,11 +56,34 @@ export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, pr
   }
 
   function guardar() {
+    const serializado = JSON.stringify(borrador)
+    if (serializado === ultimoGuardado.current) {
+      setGuardado(true)
+      return
+    }
     empezar(async () => {
       await guardarAction(borrador)
+      ultimoGuardado.current = serializado
       setGuardado(true)
     })
   }
+
+  /**
+   * GUARDADO AUTOMÁTICO. Nadie debería tener que acordarse de pulsar Guardar
+   * en una herramienta donde se escribe: perder una sección por cerrar la
+   * pestaña es el tipo de fallo que hace que la gente vuelva a PowerPoint.
+   *
+   * Espera a que pare de escribir: guardar en cada tecla dispararía una
+   * escritura al servidor por letra.
+   */
+  useEffect(() => {
+    if (guardado) return
+    const temporizador = setTimeout(guardar, ESPERA_AUTOGUARDADO)
+    return () => clearTimeout(temporizador)
+    // `guardar` lee el borrador actual en cada render; el efecto se reprograma
+    // con cada cambio, que es exactamente lo que se quiere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [borrador, guardado])
 
   return (
     <div className={estilos.editor}>
@@ -77,11 +106,16 @@ export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, pr
         <p className={estilos.paraQue}>{tipo?.paraQue}</p>
       </div>
 
-      <label className={estilos.campo}>
+      {/* El título se escribe con la pinta que va a tener: grande y con la
+          tipografía de display. Escribirlo en una caja gris de 14px y
+          descubrir después cómo queda es el viaje que hace lento cualquier
+          editor. */}
+      <label className={estilos.campoTitular}>
         <span>Título</span>
         <input
           value={borrador.titulo ?? ''}
           onChange={(e) => cambiar({ titulo: e.target.value })}
+          onBlur={guardar}
           placeholder="Lo que el director tiene que saber de esta sección"
           aria-label="Título de la sección"
         />
@@ -108,13 +142,18 @@ export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, pr
         ) : (
           <span className={estilos.listo}>Lista para presentar.</span>
         )}
+        {/* Estado, no botón: se guarda solo. El botón sigue existiendo para
+            quien quiera forzarlo, pero apagado cuando no hay nada que hacer. */}
+        <span className={estilos.estadoGuardado} aria-live="polite">
+          {pendiente ? 'Guardando…' : guardado ? 'Guardado' : 'Sin guardar'}
+        </span>
         <button
           type="button"
           className={estilos.botonGuardar}
           onClick={guardar}
           disabled={pendiente || guardado}
         >
-          {pendiente ? 'Guardando…' : guardado ? 'Guardado' : 'Guardar sección'}
+          Guardar ahora
         </button>
       </div>
     </div>
@@ -137,6 +176,7 @@ function Campo({
         <label className={estilos.campo}>
           <span>Subtítulo (opcional)</span>
           <input
+            className={estilos.entradaSubtitulo}
             value={borrador.subtitulo ?? ''}
             onChange={(e) => cambiar({ subtitulo: e.target.value })}
             placeholder="Una línea de contexto"

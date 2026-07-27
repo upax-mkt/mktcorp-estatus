@@ -40,9 +40,6 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   minutada: 'minutada',
 }
 
-/** Piezas de la estructura de la reunión: no abren un bloque de contenido. */
-const SIN_SUBSECCIONES: Array<DecisionSlide['layout']> = ['portada', 'agenda', 'cierre']
-
 function etiquetaAlcance(alcance: string): string {
   return alcance === 'todos' ? 'todos los squads' : alcance
 }
@@ -249,10 +246,11 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       esSub
                     />
                   ))}
-                  {/* Portada, Agenda y Cierre no son bloques con contenido
-                      dentro: son piezas sueltas de la estructura de la
-                      reunión, no temas que se abran en subsecciones. */}
-                  {!SIN_SUBSECCIONES.includes(base.contenido.seccion?.layout ?? 'portada') && (
+                  {/* SOLO UN DIVISOR ABRE UN BLOQUE. Una sección que ya lleva
+                      contenido propio —la portada, la agenda, la tabla de
+                      pendientes— es una hoja del árbol: colgarle una
+                      subsección sería repetir lo que ya dice. */}
+                  {base.contenido.seccion?.layout === 'divisor-seccion' && (
                       <AnadirSeccion
                         dentroDe={base.titulo}
                         anadirAction={anadirSubseccionAction.bind(null, base.tipo)}

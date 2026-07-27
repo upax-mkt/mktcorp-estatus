@@ -128,8 +128,11 @@ export const ESTRUCTURA_POR_DEFECTO: DefinicionItem[] = [
   {
     tipo: 'acuerdos-pendientes',
     titulo: 'Acuerdos y Pendientes',
-    pregunta: 'Lo que quedó de la sesión pasada.',
-    layout: 'divisor-seccion',
+    // Sección ÚNICA, no un bloque: lo que se repasa aquí es la tabla de
+    // pendientes de la sesión pasada. Abrirle una subsección llamada
+    // "Pendientes" era decir dos veces lo mismo.
+    pregunta: 'La tabla de lo que quedó de la sesión pasada, con su semáforo.',
+    layout: 'pendientes-semaforo',
   },
   {
     tipo: 'portafolio-ecosistema',
