@@ -131,39 +131,64 @@ export const TIPOS_DE_GRAFICO = [
   'dona',
 ] as const
 
+// IMPORTANTE: cada campo lleva .describe(). Es lo único de este archivo que el
+// modelo llega a leer — los comentarios de TypeScript no viajan, y el esquema
+// se le entrega como JSON Schema. Sin descripciones, un campo se le presenta
+// como `{"type": "string"}` a secas y lo rellena con basura: en producción
+// devolvió `delta: "x"` y `razon: "placeholder"`, que es exactamente lo que
+// escribe un modelo al que se le pide una cadena sin decirle de qué.
+
 const Kpi = z.object({
-  valor: TextoPlano,
-  delta: TextoPlano.optional(),
-  rotulo: TextoPlano,
+  valor: TextoPlano.describe(
+    'La cifra, copiada EXACTA del inventario: "29k" se queda "29k", "0.9%" se queda "0.9%". No la reescribas ni la redondees.',
+  ),
+  delta: TextoPlano.optional().describe(
+    'La variación de esa cifra, tal como viene en el inventario ("-16%", "+0.3"). Va SOLO aquí, nunca dentro del rótulo. Omite el campo si la cifra no trae variación; no inventes una ni escribas relleno.',
+  ),
+  rotulo: TextoPlano.describe(
+    'Cómo se llama la cifra, en dos o tres palabras ("Impresiones", "Leads calificados"). Solo el nombre: sin la variación, sin comillas y sin puntos suspensivos.',
+  ),
 }).strict()
 
 const Columna = z.object({
-  titulo: TextoPlano,
-  puntos: z.array(TextoPlano).min(1),
+  titulo: TextoPlano.describe('Encabezado del bloque, en dos o tres palabras ("Hallazgos", "Acciones").'),
+  puntos: z.array(TextoPlano).min(1).describe(
+    'Las líneas del bloque, una idea por línea y cada una cerrada en sí misma. Son conclusiones, no párrafos.',
+  ),
 }).strict()
 
 const Grafico = z.object({
-  tipo: z.enum(TIPOS_DE_GRAFICO),
+  tipo: z.enum(TIPOS_DE_GRAFICO).describe('Qué forma de gráfico comunica mejor esta serie.'),
   // Identificador de datos (no texto de cara al usuario): no pasa por TextoPlano.
-  serie: z.string().min(1),
+  serie: z.string().min(1).describe(
+    'La etiqueta de la pieza [serie] o [comparativo] del inventario que se grafica, copiada tal cual.',
+  ),
 }).strict()
 
 export const EsquemaDecision = z.object({
-  layout: z.enum(LAYOUTS),
-  titulo: TextoPlano,
-  subtitulo: TextoPlano.optional(),
-  kpis: z.array(Kpi).max(4).optional(),
-  columnas: z.array(Columna).max(4).optional(),
-  grafico: Grafico.optional(),
-  cuerpo: z.array(TextoPlano).optional(),
-  imagen: Imagen.optional(),
-  /**
-   * Por qué el motor eligió esta composición. Es lo que lee el equipo para
-   * auditar la decisión; el director nunca la ve. Se admite vacía a propósito
-   * (ver TextoPlanoOVacio): que el modelo no se explique no puede costar el
-   * slide. `sanearDecision` la rellena.
-   */
-  razon: TextoPlanoOVacio,
+  layout: z.enum(LAYOUTS).describe(
+    'El layout elegido, de la lista de layouts disponibles que trae el mensaje de sistema. Elige el que mejor comunique la señal de este contenido a un director.',
+  ),
+  titulo: TextoPlano.describe(
+    'El título del slide. Cuando el contenido sostiene una lectura, el título ES esa lectura ("El tráfico cae, pero la calidad del lead mejora"), no una etiqueta neutra ("Performance del sitio web").',
+  ),
+  subtitulo: TextoPlano.optional().describe('Una línea de contexto bajo el título. Omítelo si no aporta.'),
+  kpis: z.array(Kpi).max(4).optional().describe(
+    'Las cifras del inventario, hasta 4. Si el inventario trae 4 cifras o menos, van TODAS: ninguna se omite ni se degrada a texto de las columnas.',
+  ),
+  columnas: z.array(Columna).max(4).optional().describe(
+    'El análisis cualitativo — hallazgos, acciones — en bloques paralelos. Las cifras no van aquí: van en "kpis".',
+  ),
+  grafico: Grafico.optional().describe('Solo si el inventario trae una pieza [serie] o [comparativo] que valga la pena graficar.'),
+  cuerpo: z.array(TextoPlano).optional().describe(
+    'Líneas sueltas de contenido, una idea por línea (por ejemplo, los puntos de una agenda). El layout las numera solo: no antepongas "1." ni "2)".',
+  ),
+  imagen: Imagen.optional().describe(
+    'La ruta de la pieza [imagen] del inventario, copiada tal cual. Solo si el inventario trae una imagen real; nunca inventes una ruta.',
+  ),
+  razon: TextoPlanoOVacio.describe(
+    'Una frase concreta explicando por qué esta composición comunica mejor la señal: por qué este layout, este título, este reparto. La lee el equipo de Marketing Corporativo para auditar tu decisión, así que escribe la razón de verdad — no un relleno como "placeholder".',
+  ),
 }).strict()   // strict rechaza cualquier clave extra — incluidos color, css o html
 
 export type DecisionSlide = z.infer<typeof EsquemaDecision>

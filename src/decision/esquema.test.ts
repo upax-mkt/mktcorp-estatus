@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parsearDecision, esDecisionValida } from './esquema'
+import { z } from 'zod'
+import { parsearDecision, esDecisionValida, EsquemaDecision } from './esquema'
 
 const VALIDA = {
   layout: 'kpis-fila-dos-columnas',
@@ -229,5 +230,35 @@ describe('TextoPlano — cierre de la rendija de Markdown', () => {
 
     expect(esDecisionValida(decisionLegitima)).toBe(true)
     expect(parsearDecision(decisionLegitima).titulo).toBe('SQL → Opp')
+  })
+})
+
+describe('lo que el modelo llega a leer del esquema', () => {
+  // El esquema viaja al modelo como JSON Schema: los comentarios de este
+  // archivo no van, solo los .describe(). Sin ellos un campo se presenta como
+  // {"type":"string"} y el modelo lo rellena — en producción devolvió
+  // delta:"x" y razon:"placeholder". Este test evita que se pierdan.
+  const json = z.toJSONSchema(EsquemaDecision, { io: 'input' }) as {
+    properties: Record<string, { description?: string; items?: { properties?: Record<string, { description?: string }> } }>
+  }
+
+  it('describe todos los campos de primer nivel', () => {
+    for (const campo of Object.keys(json.properties)) {
+      expect(json.properties[campo].description, `falta .describe() en "${campo}"`).toBeTruthy()
+    }
+  })
+
+  it('describe los campos de un KPI, que es donde se coló la basura', () => {
+    const kpi = json.properties.kpis?.items?.properties
+    expect(kpi).toBeDefined()
+    for (const campo of ['valor', 'rotulo', 'delta']) {
+      expect(kpi?.[campo]?.description, `falta .describe() en kpis.${campo}`).toBeTruthy()
+    }
+  })
+
+  it('le dice al modelo que el delta va en su campo y no en el rótulo', () => {
+    const kpi = json.properties.kpis?.items?.properties
+    expect(kpi?.delta?.description).toMatch(/nunca dentro del rótulo/i)
+    expect(kpi?.rotulo?.description).toMatch(/sin la variación/i)
   })
 })
