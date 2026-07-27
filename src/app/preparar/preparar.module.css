@@ -75,6 +75,16 @@
 .botonSecundario:hover { background: var(--superficie-2); opacity: 1; }
 .botonChico { padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 0.45rem; }
 
+/* Confirmación en dos tiempos, en línea: la consecuencia se ESCRIBE, no se
+   deja al usuario deducirla del verbo del botón. */
+.confirmarInline { display: inline-flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+.confirmarTexto { font-size: 0.8rem; color: var(--tx-2); }
+.botonTexto {
+  font: inherit; font-size: 0.8rem; color: var(--tx-3);
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+}
+.botonTexto:hover { color: var(--tx); }
+
 /* ---- lista de sesiones ---- */
 .lista { display: flex; flex-direction: column; }
 .fila {

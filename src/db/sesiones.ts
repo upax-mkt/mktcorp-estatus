@@ -834,6 +834,40 @@ export function formatearTablaTexto(tablas: string[][][] | undefined): string {
  * de la sesión (spec §4) — nacen aquí pero sobreviven a todas las siguientes.
  * Borrar la sesión que los originó no puede llevárselos por delante.
  */
+/**
+ * "Esta sesión ya se dio."
+ *
+ * Es el eslabón que faltaba entre preparar y la sala. El ciclo del spec §4 es
+ * `borrador → lista → presentada → minutada`, pero NADA movía a `presentada`:
+ * una sesión maquetada se quedaba en `lista` para siempre, y como la sala
+ * lista como presentaciones las que ya sucedieron, la sesión no aparecía
+ * nunca en la sala de su UDN. Tampoco había de dónde nacer una minuta.
+ *
+ * No lo hace "Maquetar" —maquetar es preparar, y se maqueta días antes— ni el
+ * modo Presentar, que solo proyecta a pantalla completa y puede ensayarse. Lo
+ * dice una persona cuando la reunión terminó.
+ *
+ * Es idempotente hacia adelante: una sesión ya `minutada` no retrocede a
+ * `presentada` por volver a pulsar.
+ */
+export async function marcarPresentada(sesionId: string): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+  if (sesion.estado === 'presentada' || sesion.estado === 'minutada') return
+  if (sesion.estado === 'borrador') {
+    throw new Error('Una sesión en borrador no se ha presentado: primero hay que maquetarla.')
+  }
+
+  if (hayDB()) {
+    await db()
+      .update(esquema.sesiones)
+      .set({ estado: 'presentada', updatedAt: new Date() })
+      .where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+  memoria.actualizarEstadoSesionMemoria(sesionId, 'presentada')
+}
+
 export async function eliminarSesion(sesionId: string): Promise<void> {
   if (hayDB()) {
     const conexion = db()

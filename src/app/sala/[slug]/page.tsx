@@ -7,11 +7,14 @@ import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
+import { sesionesSinMinuta } from '@/dominio/salas'
 import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
+import { MinutasSala } from '@/componentes/MinutasSala'
+import { NuevaMinutaSala } from '@/componentes/NuevaMinutaSala'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
 import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
@@ -113,6 +116,8 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const vencidos = acuerdosVencidos(s)
   const presReciente = s.presentaciones[0]
   const presAnteriores = s.presentaciones.slice(1)
+
+  const pendientesDeMinuta = sesionesSinMinuta(s)
 
   return (
     <div className={estilos.app} style={estiloMarca}>
@@ -231,31 +236,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
         {/* Minutas */}
         <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Minutas</h2>
-          <div className={estilos.minutas}>
-            {s.minutas.map((m) => {
-              const meta = (
-                <>
-                  <div className={estilos.minutaIzq}>
-                    <span className={estilos.minutaIcono}>▤</span>
-                    <span>{m.titulo}</span>
-                  </div>
-                  <span className={estilos.minutaEnviada}>
-                    {fechaBreveConAnio(m.fecha)} · enviada a {m.enviadaA}
-                  </span>
-                </>
-              )
-              // Las minutas de ejemplo no tienen sesión detrás: se listan sin
-              // enlace en vez de llevar a un 404.
-              return m.sesionId ? (
-                <Link key={m.sesionId} href={`/preparar/${m.sesionId}/minuta`} className={estilos.minuta}>
-                  {meta}
-                </Link>
-              ) : (
-                <div key={m.fecha} className={estilos.minuta}>{meta}</div>
-              )
-            })}
-          </div>
+          <h2 className={estilos.seccionTitulo}>
+            Minutas
+            {s.minutas.length > 0 && <span className={estilos.conteo}>{s.minutas.length}</span>}
+          </h2>
+          <MinutasSala minutas={s.minutas} equipo={equipo} />
+          {equipo && <NuevaMinutaSala sesiones={pendientesDeMinuta} />}
         </section>
 
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}

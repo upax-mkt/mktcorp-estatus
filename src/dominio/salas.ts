@@ -39,6 +39,14 @@ export interface Minuta {
   enviadaA: number // # de participantes
   /** Sesión de la que salió: es lo que permite abrirla desde la sala. */
   sesionId?: string
+  /**
+   * El texto de la minuta, para leerla SIN salir de la sala.
+   *
+   * Antes la sala solo llevaba a `/preparar/{id}/minuta`, que es la pantalla
+   * de edición del equipo: un director al que se le comparte su sala no puede
+   * entrar ahí, así que su lista de minutas no llevaba a ninguna parte.
+   */
+  texto?: string
 }
 
 export interface EstadoSala {
@@ -98,6 +106,28 @@ export function acuerdosAbiertos(s: EstadoSala): number {
 }
 export function acuerdosVencidos(s: EstadoSala): number {
   return s.acuerdos.filter((a) => a.estatus === 'vencido').length
+}
+
+/** Una sesión ya presentada de la que todavía se puede levantar minuta. */
+export interface SesionMinutable {
+  id: string
+  titulo: string
+  fecha: string // ISO
+}
+
+/**
+ * De qué sesiones falta minuta: las que ya sucedieron y no tienen una.
+ *
+ * Se deriva de lo que la sala ya sabe en vez de preguntarlo a la base: una
+ * sesión con minuta aparece en las dos listas, así que lo que falta es la
+ * diferencia. Las presentaciones sin `sesionId` quedan fuera — no hay
+ * sesión detrás a la que colgar nada.
+ */
+export function sesionesSinMinuta(s: EstadoSala): SesionMinutable[] {
+  const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter(Boolean))
+  return s.presentaciones
+    .filter((p) => p.sesionId != null && !conMinuta.has(p.sesionId))
+    .map((p) => ({ id: p.sesionId!, titulo: p.titulo, fecha: p.fecha }))
 }
 
 /** Temperatura de atención: cuánto se ha desatendido la relación. */

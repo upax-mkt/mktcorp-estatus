@@ -131,17 +131,130 @@
 
 /* ---- minutas ---- */
 .minutas { display: flex; flex-direction: column; }
+
+/* Cada minuta ABRE UNA VENTANA, no navega: por eso son <button>, y por eso hay
+   que devolverles a mano la apariencia que el navegador les quita. */
 .minuta {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde); font-size: 0.92rem;
+  width: 100%; text-align: left; font: inherit; font-size: 0.92rem; color: inherit;
+  padding: 0.85rem 0.25rem; border: none; border-top: 1px solid var(--borde);
+  background: none; cursor: pointer;
+  transition: background 0.15s ease, padding-inline 0.15s ease;
 }
 .minuta:last-child { border-bottom: 1px solid var(--borde); }
-/* Las que tienen sesión detrás son enlaces: se nota al pasar por encima. */
-a.minuta { text-decoration: none; color: inherit; transition: background 0.15s ease, padding-inline 0.15s ease; }
-a.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
+.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
+.minuta:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .minutaIzq { display: flex; align-items: center; gap: 0.7rem; }
 .minutaIcono { color: var(--tx-3); }
 .minutaEnviada { font-size: 0.78rem; color: var(--tx-3); }
+
+.minutaDestacada {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
+  width: 100%; text-align: left; font: inherit; color: inherit;
+  padding: 1.4rem; margin-bottom: 1rem; border-radius: 0.9rem;
+  border: 1px solid var(--borde); background: var(--superficie); cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.minutaDestacada:hover { border-color: var(--marca); box-shadow: 0 4px 20px oklch(0.26 0.025 55 / 0.06); }
+.minutaDestacada:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+.vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
+
+/* ---- lightbox de minuta ----
+   Es un <dialog> nativo: el foco atrapado, el Escape y el fondo inerte los
+   pone el navegador. Aquí solo va el aspecto. */
+.lightbox {
+  /* La caja mide lo que mide la lectura. Antes eran 46rem con el texto
+     limitado a 62ch dentro: un hueco muerto a la derecha de cada línea. */
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: min(82vh, 50rem);
+  /* El navegador centra un <dialog> modal con `margin: auto`, y el reset de
+     `globals.css` se lo quita a todo. Sin esto sale pegado a la esquina
+     superior izquierda. */
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--borde);
+  border-radius: 1rem;
+  background: var(--superficie);
+  color: var(--tx);
+  box-shadow: 0 24px 70px oklch(0.2 0.03 55 / 0.25);
+  overflow: hidden;
+}
+.lightbox::backdrop { background: oklch(0.2 0.03 55 / 0.42); backdrop-filter: blur(2px); }
+
+.lightboxCaja { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: inherit; }
+
+.lightboxCabecera {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.3rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--borde);
+  /* El filo de la marca: identifica de qué sala es la minuta sin escribirlo. */
+  box-shadow: inset 0 3px 0 0 var(--marca);
+}
+.lightboxTitulo { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.lightboxFecha { margin-top: 0.25rem; font-size: 0.8rem; color: var(--tx-3); }
+.lightboxCerrar {
+  font: inherit; font-size: 1rem; line-height: 1; flex: none;
+  width: 2rem; height: 2rem; padding: 0; border: none; border-radius: 0.5rem;
+  color: var(--tx-3); background: none; cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.lightboxCerrar:hover { color: var(--tx); background: var(--superficie-2); }
+
+/* La minuta es un correo: se lee en su propio texto, con sus saltos de línea,
+   y a una medida que no obligue a barrer la cabeza de lado a lado. */
+.lightboxTexto {
+  padding: 1.4rem 1.5rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+.lightboxVacio { padding: 1.4rem 1.5rem; color: var(--tx-3); font-size: 0.9rem; }
+
+.lightboxPie {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.9rem 1.5rem; border-top: 1px solid var(--borde); background: var(--superficie-2);
+}
+.lightboxBoton {
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.45rem 0.85rem; border-radius: 0.5rem; cursor: pointer;
+  color: var(--superficie); background: var(--marca); border: none;
+}
+.lightboxEnlace { margin-left: auto; font-size: 0.85rem; font-weight: 600; color: var(--marca); text-decoration: none; }
+.lightboxEnlace:hover { text-decoration: underline; }
+
+/* ---- levantar minuta desde la sala ---- */
+/* Más ancha que la de lectura: dentro va el flujo entero de revisión de
+   acuerdos, que es una tabla de campos, no un párrafo. */
+.lightboxAncho { width: min(64rem, calc(100vw - 2rem)); }
+.lightboxCuerpo { padding: 1.3rem 1.5rem; overflow-y: auto; }
+
+.nuevaMinutaBoton {
+  margin-top: 1.1rem; font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.55rem 0.95rem; border-radius: 0.6rem; cursor: pointer;
+  color: var(--tx); background: var(--superficie); border: 1px dashed var(--borde-fuerte);
+  transition: border-color 140ms ease, color 140ms ease;
+}
+.nuevaMinutaBoton:hover { border-color: var(--marca); color: var(--marca); border-style: solid; }
+
+.eleccionSesion { display: flex; flex-direction: column; }
+.eleccionFila {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  width: 100%; text-align: left; font: inherit; color: inherit;
+  padding: 0.85rem 0.5rem; border: none; border-top: 1px solid var(--borde);
+  background: none; cursor: pointer; transition: background 0.15s ease;
+}
+.eleccionFila:last-child { border-bottom: 1px solid var(--borde); }
+.eleccionFila:hover { background: var(--superficie-2); }
+.eleccionTitulo { font-weight: 600; font-size: 0.95rem; }
+.eleccionFecha { font-size: 0.8rem; color: var(--tx-3); }
+
+.botonVolverSesion {
+  font: inherit; font-size: 0.85rem; color: var(--tx-2);
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+}
+.botonVolverSesion:hover { color: var(--tx); }
 
 /* ---- benchmark competitivo ---- */
 .benchmark {

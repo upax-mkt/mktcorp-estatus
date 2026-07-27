@@ -125,6 +125,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
         id: esquema.minutas.id,
         enviadaA: esquema.minutas.enviadaA,
         sesionId: esquema.minutas.sesionId,
+        textoFinal: esquema.minutas.textoFinal,
         fecha: esquema.sesiones.fecha,
         tipo: esquema.sesiones.tipo,
         estructura: esquema.sesiones.estructura,
@@ -158,6 +159,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     titulo: tituloDeSesion(m),
     enviadaA: Array.isArray(m.enviadaA) ? m.enviadaA.length : 0,
     sesionId: m.sesionId,
+    texto: m.textoFinal ?? undefined,
   }))
 
   // 'cancelado' no existe en el tipo EstatusAcuerdo del shell (solo
