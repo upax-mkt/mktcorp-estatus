@@ -55,6 +55,12 @@ export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
 
   // A partir de aquí: rol 'sala'. Lista blanca estricta.
   const partes = segmentos(ruta)
+  // `/api/archivo/<id>` es el mismo caso que `/sesion/<id>`: lleva un id, y
+  // hasta no leer el archivo no se sabe de qué sala es. Pasa el filtro
+  // optimista y la ruta comprueba contra la sala REAL del archivo antes de
+  // servir un byte. Sin esto, un director no podría abrir los archivos de su
+  // propia sala.
+  if (partes.length === 3 && partes[0] === 'api' && partes[1] === 'archivo') return true
   if (partes.length !== 2) return false
   const [seccion, slug] = partes
   if (SECCIONES_DE_EQUIPO.includes(seccion)) return false

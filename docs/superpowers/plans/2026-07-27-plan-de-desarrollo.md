@@ -99,7 +99,7 @@ arquitectura ya lo permite sin código nuevo de cliente.
 
 ---
 
-## FASE 3 — Las salas ☐ *(desbloqueado: Blob activo)*
+## FASE 3 — Las salas ▶ *(3.0–3.3 cerradas; queda 3.4, que va al final)*
 
 Todo lo que Franco pidió sobre la vista de sala. Blob `archivos-mktcorp`
 creado, privado y enlazado — los archivos se sirven por URL firmada desde el
@@ -111,14 +111,33 @@ almacenamiento.
 
 | # | Qué |
 |---|---|
-| ☐ 3.1 | **Presentaciones.** Subir archivos con título y fecha para las antiguas. Editar y eliminar la lista. Las nuevas serán URLs de la presentación armada en la app (eso ya existe: `/sesion/[id]`). |
-| ☐ 3.2 | **Minutas.** Lista de anteriores + la última. Al pinchar, se abre en lightbox flotante. Botón para cargar transcripción y generar la minuta con IA — el motor ya existe y funciona. |
-| ☐ 3.3 | **Archivos de interés.** Presentaciones comerciales, Excel, imágenes, lo que el equipo estime. Mismo módulo de subida que 3.1. |
+| ✅ 3.0 | **Marcar una sesión como presentada.** Descubierto al montar 3.2, y bloqueaba la fase entera. |
+| ✅ 3.1 | **Presentaciones.** Subir archivos con título y fecha para las antiguas. Editar y eliminar la lista. Las nuevas serán URLs de la presentación armada en la app (eso ya existe: `/sesion/[id]`). |
+| ✅ 3.2 | **Minutas.** Lista de anteriores + la última. Al pinchar, se abre en lightbox flotante. Botón para cargar transcripción y generar la minuta con IA — el motor ya existe y funciona. |
+| ✅ 3.3 | **Archivos de interés.** Presentaciones comerciales, Excel, imágenes, lo que el equipo estime. Mismo módulo de subida que 3.1. |
 | ☐ 3.4 | **Benchmark.** Resumen en la sala + vista completa en formato web, con el mismo lenguaje que el documento de presentación. **Esta info sí será incrustada, y es lo último que se hace** (decisión de Franco). |
 
-**Nota de 3.2:** el lightbox y el botón de transcripción NO necesitan
-almacenamiento — la minuta es texto y ya se guarda en la base. Esa parte puede
-adelantarse si Franco prefiere no activar Blob todavía.
+**3.0 — el eslabón que faltaba.** Nada movía una sesión a `presentada`. El
+ciclo es `borrador → lista → presentada → minutada`, pero una sesión maquetada
+se quedaba en `lista` para siempre: la sala lista como presentaciones las que
+ya sucedieron, así que NINGUNA sesión llegaba nunca a la sala de su UDN, y no
+había de dónde nacer una minuta. Toda la fase estaba construida sobre una
+lista condenada a estar vacía. Lo dice una persona ("Ya la presentamos", en el
+documento), no el sistema: maquetar ocurre días antes y el modo Presentar se
+puede ensayar.
+
+**Cómo se verificó:** subida real de un PDF desde el navegador a Blob, su
+descarga con sesión (200, bytes correctos, nombre original), su descarga sin
+sesión (307 a /entrar) y desde OTRA sala (404, sin confirmar que existe), y
+su borrado — que deja la base y el almacén los dos vacíos.
+
+**Deuda que deja abierta (se cierra en 3B.1):** el título y la fecha de una
+sesión no se pueden editar, así que todas las de un mismo mes se llaman
+"Estatus mensual · Julio de 2026" y llevan la fecha en que se creó el
+borrador. En la lista de presentaciones de una sala eso es una columna de
+títulos idénticos, y al elegir de qué sesión levantar minuta no hay forma de
+distinguirlas. El editor de reuniones (3B.1) es donde la sesión gana fecha y
+nombre propios; no se adelanta aquí para no hacerlo dos veces.
 
 ---
 

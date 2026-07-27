@@ -65,16 +65,33 @@ export interface FilaMinutaMemoria {
   createdAt: Date
 }
 
+export interface FilaArchivoMemoria {
+  id: string
+  salaSlug: string
+  categoria: 'presentacion' | 'interes'
+  titulo: string
+  fecha: Date | null
+  ruta: string
+  nombreOriginal: string
+  tipoContenido: string | null
+  tamanoBytes: number | null
+  subidoPor: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 const sesiones = new Map<string, FilaSesionMemoria>()
 const items = new Map<string, FilaItemMemoria>()
 const acuerdos = new Map<string, FilaAcuerdoMemoria>()
 const minutas = new Map<string, FilaMinutaMemoria>()
+const archivos = new Map<string, FilaArchivoMemoria>()
 /** Sólo para tests: vuelve el store a estado vacío. */
 export function reiniciarStoreMemoria(): void {
   sesiones.clear()
   items.clear()
   acuerdos.clear()
   minutas.clear()
+  archivos.clear()
 }
 
 export function insertarSesionMemoria(fila: FilaSesionMemoria): void {
@@ -189,6 +206,33 @@ export function eliminarMinutaDeSesionMemoria(sesionId: string): void {
   for (const [id, fila] of minutas) {
     if (fila.sesionId === sesionId) minutas.delete(id)
   }
+}
+
+// ---- Archivos de sala (ver src/db/archivos.ts) ----
+
+export function insertarArchivoMemoria(fila: FilaArchivoMemoria): void {
+  archivos.set(fila.id, fila)
+}
+
+export function obtenerArchivoMemoria(id: string): FilaArchivoMemoria | undefined {
+  return archivos.get(id)
+}
+
+export function listarArchivosDeSalaMemoria(salaSlug: string): FilaArchivoMemoria[] {
+  return [...archivos.values()].filter((a) => a.salaSlug === salaSlug)
+}
+
+export function actualizarArchivoMemoria(
+  id: string,
+  cambios: Partial<Pick<FilaArchivoMemoria, 'titulo' | 'fecha'>>,
+): void {
+  const fila = archivos.get(id)
+  if (!fila) return
+  archivos.set(id, { ...fila, ...cambios, updatedAt: new Date() })
+}
+
+export function eliminarArchivoMemoria(id: string): void {
+  archivos.delete(id)
 }
 
 /** Espejo en memoria del borrado de una sesión con sus items (ver src/db/sesiones.ts). */

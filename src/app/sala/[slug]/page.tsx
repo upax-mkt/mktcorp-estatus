@@ -10,11 +10,16 @@ import {
 import { sesionesSinMinuta } from '@/dominio/salas'
 import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
+import {
+  listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, type CategoriaArchivo,
+} from '@/db/archivos'
+import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { MinutasSala } from '@/componentes/MinutasSala'
 import { NuevaMinutaSala } from '@/componentes/NuevaMinutaSala'
+import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
 import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
@@ -56,8 +61,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()
-  const benchmark = await obtenerBenchmark(slug)
-  const equipo = await esEquipo()
+  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres] = await Promise.all([
+    obtenerBenchmark(slug),
+    esEquipo(),
+    listarArchivos(slug, 'presentacion'),
+    listarArchivos(slug, 'interes'),
+  ])
   const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
 
   // ---- Server actions: acuerdos editables (spec §4/§6) ----
@@ -105,6 +114,62 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await eliminarAcuerdo(acuerdoId)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
+  }
+
+  // ---- Server actions: archivos colgados en la sala ----
+
+  async function registrarArchivoAction(datos: {
+    categoria: CategoriaArchivo
+    titulo: string
+    fecha: string | null
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ error?: string }> {
+    'use server'
+    await exigirEquipo()
+    try {
+      await registrarArchivo({
+        salaSlug: slug,
+        categoria: datos.categoria,
+        titulo: datos.titulo,
+        fecha: datos.fecha ? new Date(datos.fecha) : null,
+        ruta: datos.ruta,
+        nombreOriginal: datos.nombreOriginal,
+        tipoContenido: datos.tipoContenido,
+        tamanoBytes: datos.tamanoBytes,
+      })
+    } catch (error) {
+      // El binario ya está en el almacén: si la fila no se puede crear, se
+      // quita también el archivo. Un blob sin fila es basura invisible que
+      // se sigue pagando.
+      await del(datos.ruta).catch(() => {})
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar el archivo.' }
+    }
+    revalidatePath(`/sala/${slug}`)
+    return {}
+  }
+
+  async function editarArchivoAction(id: string, cambios: { titulo: string; fecha: string | null }) {
+    'use server'
+    await exigirEquipo()
+    await editarArchivo(id, {
+      titulo: cambios.titulo,
+      fecha: cambios.fecha ? new Date(cambios.fecha) : null,
+    })
+    revalidatePath(`/sala/${slug}`)
+  }
+
+  async function eliminarArchivoAction(id: string) {
+    'use server'
+    await exigirEquipo()
+    // Franco: "si algo se elimina también se elimina del almacenamiento".
+    // Primero la fila, luego el binario: al revés, un fallo al borrar el
+    // archivo dejaría una fila que apunta a la nada.
+    const quitado = await eliminarArchivo(id)
+    if (quitado) await del(quitado.ruta).catch(() => {})
+    revalidatePath(`/sala/${slug}`)
   }
 
   const estiloMarca = {
@@ -206,7 +271,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           {equipo && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
         </section>
 
-        {/* Presentaciones */}
+        {/* Presentaciones — las armadas en la app y las antiguas subidas */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>Presentaciones</h2>
           {/* Enlaza a la sesión REAL. Una presentación sin `sesionId` es de
@@ -225,11 +290,34 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           {presAnteriores.length > 0 && (
             <div className={estilos.presTimeline}>
               {presAnteriores.map((p) => (
-                <div key={p.fecha} className={estilos.presFila}>
+                <Link
+                  key={p.sesionId ?? p.fecha}
+                  href={p.sesionId ? `/sesion/${p.sesionId}` : '#'}
+                  className={estilos.presFila}
+                >
                   <span className={estilos.presFilaTitulo}>{p.titulo}</span>
                   <span className={estilos.presFilaFecha}>{fechaBreveConAnio(p.fecha)}</span>
-                </div>
+                </Link>
               ))}
+            </div>
+          )}
+
+          {/* Las anteriores a esta herramienta: archivos, no documentos web.
+              Van en la misma sección porque para el director son lo mismo —
+              "las presentaciones de mi sala"—, con su propio subtítulo para
+              que se entienda por qué unas se abren y otras se descargan. */}
+          {(archivosPresentaciones.length > 0 || equipo) && (
+            <div className={estilos.subseccion}>
+              <h3 className={estilos.subseccionTitulo}>Antes de esta herramienta</h3>
+              <ArchivosSala
+                salaSlug={slug}
+                categoria="presentacion"
+                archivos={archivosPresentaciones}
+                equipo={equipo}
+                registrarAction={registrarArchivoAction}
+                editarAction={editarArchivoAction}
+                eliminarAction={eliminarArchivoAction}
+              />
             </div>
           )}
         </section>
@@ -252,6 +340,28 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </h2>
           <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} />
         </section>
+
+        {/* Archivos de interés — al final, como los pidió Franco: lo que el
+            equipo estime conveniente tener a mano en la sala. */}
+        {(archivosDeInteres.length > 0 || equipo) && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              Archivos de interés
+              {archivosDeInteres.length > 0 && (
+                <span className={estilos.conteo}>{archivosDeInteres.length}</span>
+              )}
+            </h2>
+            <ArchivosSala
+              salaSlug={slug}
+              categoria="interes"
+              archivos={archivosDeInteres}
+              equipo={equipo}
+              registrarAction={registrarArchivoAction}
+              editarAction={editarArchivoAction}
+              eliminarAction={eliminarArchivoAction}
+            />
+          </section>
+        )}
 
         {/* Compartir la sala con su director. Solo lo ve el equipo. */}
         {equipo && tokenDeAcceso && (

@@ -70,6 +70,19 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/sala/zeus')).toBe(false)
   })
 
+  it('un acceso de sala descarga los archivos de su sala', () => {
+    // Mismo caso que /sesion/<id>: pasa el filtro optimista y la ruta
+    // comprueba de qué sala es el archivo. Sin esto, un director no podría
+    // abrir los archivos de su propia sala.
+    expect(puedeVerRuta(SALA_NC, '/api/archivo/abc-123')).toBe(true)
+    // Pero NO puede pedir un token para subir: eso es del equipo.
+    expect(puedeVerRuta(SALA_NC, '/api/archivos/subir')).toBe(false)
+    // Y nada más bajo /api se abre por parecerse.
+    expect(puedeVerRuta(SALA_NC, '/api/archivo')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/api/archivos/abc-123')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/api/otra/cosa')).toBe(false)
+  })
+
   it('un acceso de sala no entra al hub ni a la preparación ni al motor', () => {
     expect(puedeVerRuta(SALA_NC, '/')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/preparar')).toBe(false)

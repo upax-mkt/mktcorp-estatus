@@ -133,6 +133,48 @@ export const minutas = pgTable('minutas', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// ---- Archivos de una sala ----
+// Todo lo que el equipo cuelga en una sala y no nació dentro de la app:
+// las presentaciones ANTIGUAS (las que se dieron antes de que esto
+// existiera) y los archivos de interés — presentaciones comerciales,
+// excels, imágenes.
+//
+// Una sola tabla y no dos porque la diferencia entre "presentación antigua" y
+// "archivo de interés" es dónde se muestra, no qué se guarda: mismos campos,
+// misma subida, mismo borrado. Dos tablas idénticas divergen a la primera
+// columna que se le añade a una.
+//
+// El binario NO vive aquí: vive en Vercel Blob, y esto guarda su `pathname`.
+// El store es privado, así que la URL pública no sirve de nada sin firma —
+// que es justo lo que se quiere: un deck comercial no se sirve por enlace
+// abierto y adivinable.
+export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes'])
+
+export const archivos = pgTable('archivos', {
+  id: text('id').primaryKey(),
+  salaSlug: text('sala_slug')
+    .notNull()
+    .references(() => salas.slug),
+  categoria: categoriaArchivoEnum('categoria').notNull(),
+  /** Cómo se llama en la lista. Lo escribe quien sube, no el nombre del fichero. */
+  titulo: text('titulo').notNull(),
+  /**
+   * La fecha que le corresponde al CONTENIDO, no la de subida: una
+   * presentación de marzo subida hoy se ordena en marzo. Opcional para los
+   * archivos de interés, donde muchas veces no significa nada.
+   */
+  fecha: timestamp('fecha', { withTimezone: true }),
+  /** Ruta dentro del store de Blob. Es la llave para servirlo y para borrarlo. */
+  ruta: text('ruta').notNull(),
+  nombreOriginal: text('nombre_original').notNull(),
+  tipoContenido: text('tipo_contenido'),
+  tamanoBytes: integer('tamano_bytes'),
+  /** Quién lo subió, para poder preguntarle. Informativo. */
+  subidoPor: text('subido_por'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ---- Benchmark ----
 // Estructura preliminar (§5, pendiente de la referencia real de Franco).
 // Pertenece a la sala, se nutre en el tiempo, no es contenido de una sesión.
