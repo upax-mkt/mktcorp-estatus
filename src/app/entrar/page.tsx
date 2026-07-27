@@ -34,7 +34,11 @@ export default async function Entrar({
     const aDonde = String(formData.get('destino') ?? '') || '/'
 
     if (!(await claveDeEquipoCorrecta(clave))) {
-      redirect('/entrar?error=clave')
+      // Se conserva el destino: si te equivocas de clave yendo a /preparar,
+      // al segundo intento tienes que acabar en /preparar, no en el hub.
+      const parametros = new URLSearchParams({ error: 'clave' })
+      if (aDonde !== '/') parametros.set('destino', aDonde)
+      redirect(`/entrar?${parametros}`)
     }
 
     await abrirSesionEquipo('equipo-mkt-corp')
