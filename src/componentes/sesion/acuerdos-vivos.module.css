@@ -46,7 +46,7 @@
 
 .meta {
   font-size: 0.85rem;
-  color: color-mix(in oklch, var(--texto) 62%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 .estado {
@@ -55,7 +55,7 @@
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: color-mix(in oklch, var(--texto) 55%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 .item[data-estatus='cumplido'] .estado { color: oklch(0.5 0.12 155); }

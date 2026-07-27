@@ -8,11 +8,13 @@
    Nunca --primario directo para texto: no todas las marcas contrastan ≥4.5:1
    sobre su superficie (Promo Espacio cae a 2.97:1). Ver ProveedorTema.tsx. */
 
+/* SIN `uppercase`: convertía "SQLs" en "SQLS" y "MQLs" en "MQLS". Un
+   acrónimo mixto es contenido, no estilo, y forzarlo lo escribe mal. El
+   rótulo se distingue por peso y tracking, que ya bastan. */
 .piezaTitulo {
   font-size: var(--t--2);
   font-weight: 700;
   letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--primario-sobre-superficie);
   margin-bottom: var(--e-3);
 }
@@ -63,7 +65,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: color-mix(in oklch, var(--texto) 62%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
   border-bottom-color: color-mix(in oklch, var(--texto) 22%, transparent);
   white-space: nowrap;
 }
@@ -82,8 +84,12 @@
   white-space: nowrap;
 }
 
-.tabla tbody tr:last-child th,
-.tabla tbody tr:last-child td {
+/* La última fila cierra sin filete… salvo si es la fila de TOTAL, que sí lo
+   necesita: una banda gris con línea arriba y nada abajo se derrama hacia el
+   blanco. Lo mismo si la tabla tiene una sola fila, que se quedaba colgando
+   del encabezado sin cierre. */
+.tabla tbody tr:last-child:not([data-destacada='true']):not(:first-child) th,
+.tabla tbody tr:last-child:not([data-destacada='true']):not(:first-child) td {
   border-bottom: none;
 }
 
@@ -108,7 +114,7 @@
   font-size: var(--t--1);
   font-weight: 400;
   white-space: normal;
-  color: color-mix(in oklch, var(--texto) 58%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 /* ---- semáforo ---------------------------------------------------------- */
@@ -147,7 +153,7 @@
   gap: var(--e-2) var(--e-5);
   margin-top: var(--e-4);
   font-size: var(--t--1);
-  color: color-mix(in oklch, var(--texto) 62%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 /* ---- matriz ------------------------------------------------------------ */
@@ -159,6 +165,11 @@
 .matriz {
   border-collapse: separate;
   border-spacing: 3px;
+  /* Anchos iguales. Con layout automático, "SEPTIEMBRE" hacía su columna un
+     51% más ancha que la de "JULIO": la forma del trimestre —que es lo que
+     esta pieza existe para enseñar— salía deformada por el largo del nombre
+     del mes. */
+  table-layout: fixed;
 }
 
 .matriz td {
@@ -193,7 +204,7 @@
   background: color-mix(in oklch, var(--primario) 8%, transparent);
 }
 .celdaMatriz[data-tono='neutro'] {
-  color: color-mix(in oklch, var(--texto) 60%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 /* ---- bloques numerados ------------------------------------------------- */
@@ -258,8 +269,12 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  /* El fondo baja al 6%: `--primario-sobre-superficie` se calcula para
+     contrastar 4.5:1 contra la SUPERFICIE, y pintarlo sobre un teñido al 12%
+     anulaba esa garantía — medido, 3.80:1 en texto de 11px. Si el fondo
+     cambia, la garantía deja de valer. */
   color: var(--primario-sobre-superficie);
-  background: color-mix(in oklch, var(--primario) 12%, transparent);
+  background: color-mix(in oklch, var(--primario) 6%, transparent);
 }
 
 .bloqueParrafo {
@@ -357,7 +372,7 @@
 .metaRealMeta {
   font-size: var(--t--1);
   font-weight: 400;
-  color: color-mix(in oklch, var(--texto) 58%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 .metaRealBarra {
@@ -375,6 +390,10 @@
 .metaRealRelleno {
   display: block;
   height: 100%;
+  /* Un 0% dibujaba una barra de ancho cero: un carril vacío que no se
+     distingue de un fallo de render. Con este mínimo se lee "existe y está
+     en cero", que es lo que dice el dato. */
+  min-width: 3px;
   border-radius: 999px;
   background: var(--primario);
 }

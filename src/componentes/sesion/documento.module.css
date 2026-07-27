@@ -220,7 +220,12 @@
   font-size: var(--t-1);
   text-decoration: none;
   color: inherit;
-  transition: background 0.15s ease, padding-left 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.indiceEnlace:focus-visible {
+  outline: 2px solid var(--primario-sobre-superficie);
+  outline-offset: 2px;
 }
 
 .indiceEnlace::before {
@@ -234,7 +239,7 @@
 
 .indiceEnlace:hover {
   background: color-mix(in oklch, var(--texto) 6%, transparent);
-  padding-left: var(--e-2);
+  transform: translateX(var(--e-2));
 }
 
 /* ---- cuerpo ---- */
@@ -317,7 +322,7 @@
   font-size: 0.42em;
   font-weight: 600;
   letter-spacing: 0;
-  color: color-mix(in oklch, var(--texto) 62%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 .cifraDelta[data-signo='sube'] {
@@ -334,7 +339,7 @@
   line-height: 1.35;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: color-mix(in oklch, var(--texto) 60%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 /* ---- columnas ---- */
@@ -419,7 +424,7 @@
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: none;
-  color: color-mix(in oklch, var(--texto) 55%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 /* SIN FILETE PROPIO. Lo tenía, y 43px después llegaba el filete de la
@@ -430,6 +435,6 @@
   margin-top: var(--e-6);
   font-size: var(--t--1);
   line-height: 1.5;
-  color: color-mix(in oklch, var(--texto) 52%, transparent);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
   max-width: var(--medida);
 }
