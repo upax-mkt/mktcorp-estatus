@@ -65,7 +65,9 @@ const FACTOR_ANCHO_CARACTER = 0.62
 const OFFSET_TEXTO_LEYENDA = 16
 const MARGEN_SEGURIDAD_LEYENDA = 6
 
-const RADIO_PUNTO = 3
+// 4 y no 3: con el anillo de superficie, el punto mide 8 unidades de diámetro
+// — el mínimo para que se lea como una marca de dato y no como una mota.
+const RADIO_PUNTO = 4
 const PATRON_PUNTEADO = '5 4'
 
 /** Recorta `texto` a lo que quepa en `anchoDisponible` px (estimado a partir de `fontSize`), con "…" al final si no cabe completo. */
@@ -288,13 +290,8 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
 
         {/* Las líneas se dibujan DESPUÉS de las barras, encima: una meta
             escondida detrás de la barra que debe superar no sirve de nada. */}
-        {lineas.map(({ serie, indice }, orden) => {
+        {lineas.map(({ serie, indice }) => {
           const escala = escalaDe(serie)
-          // Las etiquetas de dos series se encuentran en el mismo punto en
-          // cuanto sus valores se acercan —y con doble eje eso pasa aunque las
-          // magnitudes no tengan nada que ver—. Se alternan arriba y abajo por
-          // orden de serie, que las separa sin depender de los datos.
-          const desplazamiento = orden % 2 === 0 ? -8 : 15
           const puntos = categorias.map((_, ci) => ({
             x: xCentro(ci),
             y: escala(serie.valores[ci] ?? 0),
@@ -339,13 +336,23 @@ export function GraficoCartesiano({ datos, alto, ancho = 640, mostrarValores }: 
                       r={RADIO_PUNTO}
                       fill={color}
                     />
-                    {mostrarValores && (
+                    {/* SOLO EL ÚLTIMO PUNTO, y a su derecha.
+                        Antes se rotulaban todos, separando las etiquetas
+                        arriba/abajo por orden de serie. Con doble eje cada
+                        serie toca el tope del SUYO, así que dos puntos de
+                        magnitudes sin relación acaban en la misma fila de
+                        píxeles: el rótulo de Inversión aterrizaba encima del
+                        punto de Clics y se leía "Clics: $28,235.46". Un dato
+                        atribuido a la serie equivocada en un documento de
+                        comité. Rotular el extremo elimina la colisión de
+                        raíz. */}
+                    {mostrarValores && ci === puntos.length - 1 && (
                       <text
-                        x={p.x}
-                        y={p.y + desplazamiento}
-                        textAnchor="middle"
+                        x={p.x + RADIO_PUNTO + 6}
+                        y={p.y + 4}
+                        textAnchor="start"
                         fill="var(--texto)"
-                        fontSize="9"
+                        fontSize="11"
                         fontFamily="var(--fuente-texto)"
                       >
                         {formatearValor(p.valor, serie)}

@@ -185,7 +185,7 @@ export async function maquetarSesion(
  * su sección desapareció.
  */
 export function maquetarBorrador(borrador: BorradorSeccion, tituloItem: string): ResultadoMaquetacion {
-  const resultado = aDecision(borrador)
+  const resultado = aDecision(borrador, tituloItem)
   if (resultado.ok) {
     return { decision: resultado.decision, degradado: false }
   }

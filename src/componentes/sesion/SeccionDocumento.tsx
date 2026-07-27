@@ -29,6 +29,22 @@ function estiloColumnas(cantidad: number): CSSProperties {
   return { '--columnas-cantidad': Math.max(1, cantidad) } as CSSProperties
 }
 
+/**
+ * Si una variación sube o baja, para poder pintarla distinto.
+ *
+ * Solo mira el signo escrito: no interpreta si subir es bueno. Una posición
+ * media que baja de 9.8 a 9.6 es una mejora, y este documento no puede
+ * saberlo — por eso el color dice "bajó", no "va mal". Lo que sí resuelve es
+ * el problema de antes: cuatro variaciones, tres de ellas caídas, pintadas
+ * todas del color de marca, o sea del color de "esto está bien".
+ */
+function signoDelta(delta: string): 'sube' | 'baja' | undefined {
+  const t = delta.trimStart()
+  if (t.startsWith('-') || t.startsWith('−') || t.startsWith('▼')) return 'baja'
+  if (t.startsWith('+') || t.startsWith('▲')) return 'sube'
+  return undefined
+}
+
 /** Ancla estable para que el índice pueda enlazar a esta sección. */
 export function anclaDeSeccion(indice: number): string {
   return `seccion-${indice + 1}`
@@ -110,7 +126,11 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
             <div key={`kpi-${i}`} className={estilos.cifra}>
               <div className={estilos.cifraValor}>
                 {kpi.valor}
-                {kpi.delta && <span className={estilos.cifraDelta}>{kpi.delta}</span>}
+                {kpi.delta && (
+                  <span className={estilos.cifraDelta} data-signo={signoDelta(kpi.delta)}>
+                    {kpi.delta}
+                  </span>
+                )}
               </div>
               <div className={estilos.cifraRotulo}>{kpi.rotulo}</div>
             </div>

@@ -10,6 +10,7 @@ import {
 } from '@/secciones/parseo'
 import { Repetible } from './Repetible'
 import { EditorRejilla } from './EditorRejilla'
+import { AreaTexto } from './AreaTexto'
 import estilos from './editor.module.css'
 
 /**
@@ -116,20 +117,13 @@ export function CampoColumnas({ valor, onChange }: { valor: Columna[]; onChange:
               />
             </label>
           </div>
-          <label className={estilos.campo}>
-            <span>Puntos — uno por línea</span>
-            <textarea
-              rows={5}
-              defaultValue={escribirVinetas(col.puntos)}
-              onBlur={(e) => cambiar({ ...col, puntos: parsearVinetas(e.target.value) })}
-              placeholder={'One sheets por servicio\n  Social content\n  Producción'}
-              aria-label={`Puntos de la columna ${i + 1}`}
-            />
-            <em className={estilos.pista}>
-              Sangra con dos espacios para colgar una línea de la de arriba (hasta 3 niveles). Para
-              enlazar, termina la línea con «| https://…».
-            </em>
-          </label>
+          <AreaTexto
+            inicial={escribirVinetas(col.puntos)}
+            alEscribir={(texto) => cambiar({ ...col, puntos: parsearVinetas(texto) })}
+            etiqueta={`Puntos de la columna ${i + 1} — uno por línea`}
+            placeholder={'One sheets por servicio\n  Social content\n  Producción'}
+            pista="Sangra con dos espacios para colgar una línea de la de arriba (hasta 3 niveles). Para enlazar, termina la línea con «| https://…»."
+          />
         </>
       )}
     </Repetible>
@@ -681,19 +675,16 @@ export function CampoCifrasDesglosadas({ valor, onChange }: { valor: Cifra[]; on
               />
             </label>
           </div>
-          <label className={estilos.campo}>
-            <span>En qué se reparte — «parte | valor» por línea</span>
-            <textarea
-              rows={3}
-              defaultValue={escribirPartes(cifra.partes)}
-              onBlur={(e) => {
-                const partes = parsearPartes(e.target.value)
-                cambiar(limpiar({ ...cifra, partes: partes.length > 0 ? partes : undefined }))
-              }}
-              placeholder={'Mkt | $36.1 MDP\nComercial | $3.4 MDP'}
-              aria-label={`Desglose de la cifra ${i + 1}`}
-            />
-          </label>
+          <AreaTexto
+            inicial={escribirPartes(cifra.partes)}
+            alEscribir={(texto) => {
+              const partes = parsearPartes(texto)
+              cambiar(limpiar({ ...cifra, partes: partes.length > 0 ? partes : undefined }))
+            }}
+            filas={3}
+            etiqueta={`Desglose de la cifra ${i + 1} — «parte | valor» por línea`}
+            placeholder={'Mkt | $36.1 MDP\nComercial | $3.4 MDP'}
+          />
           <label className={estilos.casilla}>
             <input
               type="checkbox"
@@ -751,19 +742,16 @@ export function CampoBloques({ valor, onChange }: { valor: Bloque[]; onChange: (
               aria-label={`Planteamiento del bloque ${i + 1}`}
             />
           </label>
-          <label className={estilos.campo}>
-            <span>Detalle — uno por línea</span>
-            <textarea
-              rows={4}
-              defaultValue={escribirVinetas(bloque.puntos)}
-              onBlur={(e) => {
-                const puntos = parsearVinetas(e.target.value)
-                cambiar(limpiar({ ...bloque, puntos: puntos.length > 0 ? puntos : undefined }))
-              }}
-              placeholder={'Campañas de marca\nEstrategia creativa'}
-              aria-label={`Detalle del bloque ${i + 1}`}
-            />
-          </label>
+          <AreaTexto
+            inicial={escribirVinetas(bloque.puntos)}
+            alEscribir={(texto) => {
+              const puntos = parsearVinetas(texto)
+              cambiar(limpiar({ ...bloque, puntos: puntos.length > 0 ? puntos : undefined }))
+            }}
+            filas={4}
+            etiqueta={`Detalle del bloque ${i + 1} — uno por línea`}
+            placeholder={'Campañas de marca\nEstrategia creativa'}
+          />
           <div className={estilos.filaCampos}>
             <label className={estilos.campoChico}>
               <span>Línea de cierre</span>
@@ -864,19 +852,16 @@ export function CampoMatriz({
         </div>
       )}
 
-      <label className={estilos.campo}>
-        <span>Leyenda — una línea por estado (opcional)</span>
-        <textarea
-          rows={4}
-          defaultValue={(actual.leyenda ?? []).join('\n')}
-          onBlur={(e) => {
-            const leyenda = parsearLineas(e.target.value)
-            onChange(limpiar({ ...actual, leyenda: leyenda.length > 0 ? leyenda : undefined }))
-          }}
-          placeholder={'Vende: pico de actividad, máxima disposición de compra.'}
-          aria-label="Leyenda de la matriz"
-        />
-      </label>
+      <AreaTexto
+        inicial={(actual.leyenda ?? []).join('\n')}
+        alEscribir={(texto) => {
+          const leyenda = parsearLineas(texto)
+          onChange(limpiar({ ...actual, leyenda: leyenda.length > 0 ? leyenda : undefined }))
+        }}
+        filas={4}
+        etiqueta="Leyenda — una línea por estado (opcional)"
+        placeholder={'Vende: pico de actividad, máxima disposición de compra.'}
+      />
     </div>
   )
 }

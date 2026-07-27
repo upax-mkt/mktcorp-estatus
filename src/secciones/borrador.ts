@@ -57,10 +57,16 @@ export function soloCamposDelTipo(borrador: BorradorSeccion): BorradorSeccion {
   return limpio
 }
 
-/** Qué le falta a la sección para poder presentarse. Vacío = está lista. */
-export function loQueFalta(borrador: BorradorSeccion): string[] {
+/**
+ * Qué le falta a la sección para poder presentarse. Vacío = está lista.
+ *
+ * `tituloDeRespaldo` es el nombre de la sección en la estructura ("RevOps",
+ * "Outbound & Pipeline"). Cuando existe, el título deja de faltar: obligar a
+ * reescribir a mano el nombre que la propia app ya puso es trabajo inventado.
+ */
+export function loQueFalta(borrador: BorradorSeccion, tituloDeRespaldo?: string): string[] {
   const faltas: string[] = []
-  if (!tieneContenido(borrador.titulo)) faltas.push('el título')
+  if (!tieneContenido(borrador.titulo) && !tieneContenido(tituloDeRespaldo)) faltas.push('el título')
 
   const tipo = tipoDeSeccion(borrador.layout)
   if (!tipo) {
@@ -98,14 +104,16 @@ export const NOMBRE_DE_CAMPO: Record<CampoSeccion, string> = {
  * Un editor manual no es una razón para relajar el contrato; es exactamente la
  * misma superficie de entrada.
  */
-export function aDecision(borrador: BorradorSeccion): ResultadoBorrador {
-  const faltas = loQueFalta(borrador)
+export function aDecision(borrador: BorradorSeccion, tituloDeRespaldo?: string): ResultadoBorrador {
+  const faltas = loQueFalta(borrador, tituloDeRespaldo)
   if (faltas.length > 0) {
     return { ok: false, motivo: `Falta ${faltas.join(' y ')}.` }
   }
 
+  const limpio = soloCamposDelTipo(borrador)
   const resultado = EsquemaDecision.safeParse({
-    ...soloCamposDelTipo(borrador),
+    ...limpio,
+    titulo: tieneContenido(limpio.titulo) ? limpio.titulo : tituloDeRespaldo,
     razon: RAZON_MANUAL,
   })
 

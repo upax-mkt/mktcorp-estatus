@@ -28,13 +28,19 @@ interface Props {
   esSub?: boolean
 }
 
+/** Qué hay dentro, sin abrir. Una sección intacta no es un error: está por empezar. */
+function resumen(llenado: boolean, faltas: string[]): string {
+  if (!llenado) return 'Sin empezar'
+  return faltas.length > 0 ? `Falta ${faltas.join(' y ')}` : 'Lista'
+}
+
 export function TarjetaSeccion({
   item, primera, ultima, subirAction, bajarAction,
   guardarSeccionAction, proponerAction, eliminarSeccionAction, esSub,
 }: Props) {
   const borrador: BorradorSeccion = item.contenido.seccion ?? { layout: 'kpis-fila-dos-columnas' }
   const tipo = tipoDeSeccion(borrador.layout)
-  const faltas = loQueFalta(borrador)
+  const faltas = loQueFalta(borrador, item.titulo)
 
   return (
     <div className={estilos.tarjeta} data-llenado={item.llenado ? 'true' : 'false'} data-sub={esSub ? 'true' : undefined}>
@@ -45,10 +51,15 @@ export function TarjetaSeccion({
             {item.llenado && faltas.length === 0 && (
               <span style={{ color: 'var(--ok)', fontSize: '0.8rem' }}>✓</span>
             )}
+            <span className={estilos.chipTipo}>{tipo?.nombre ?? borrador.layout}</span>
           </div>
+          {/* La PREGUNTA GUÍA es lo que orienta a alguien que arma un estatus
+              una vez al mes: "Prospección, cumplimiento y pipeline". Vivía en
+              la base de datos y no se pintaba en ningún sitio, así que cinco
+              tarjetas base decían lo mismo — "Divisor" — y nada distinguía
+              RevOps de Campañas 360. El tipo de sección baja a distintivo. */}
           <p className={estilos.tarjetaPregunta}>
-            {tipo?.nombre ?? borrador.layout}
-            {item.esBase && ' · sección base'}
+            {item.pregunta || tipo?.nombre || borrador.layout}
           </p>
         </div>
         <div className={estilos.tarjetaAcciones}>
@@ -72,12 +83,14 @@ export function TarjetaSeccion({
       </div>
 
       {/* Plegada por defecto: con catorce secciones abiertas la página medía
-          veinte mil píxeles. Se abre sola la que aún no está lista, que es
-          justo donde hay trabajo pendiente. */}
+          veinte mil píxeles. Se abre sola la EMPEZADA y a medias — donde hay
+          trabajo pendiente— pero NO la intacta: en una sesión nueva todas
+          están incompletas, así que abrirlas por «incompleta» abría las ocho
+          y daba la bienvenida con ocho errores en rojo. */}
       <SeccionPlegable
-        abiertaPorDefecto={faltas.length > 0}
+        abiertaPorDefecto={item.llenado && faltas.length > 0}
         cabecera="Contenido de la sección"
-        resumen={faltas.length > 0 ? `Falta ${faltas.join(' y ')}` : 'Lista'}
+        resumen={resumen(item.llenado, faltas)}
       >
         <EditorSeccion
           borrador={borrador}

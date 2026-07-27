@@ -1,23 +1,26 @@
 /* Piezas de contenido de una sección del documento: tabla, matriz, bloques
    numerados y cumplimiento. Los tokens de marca (--primario-sobre-superficie,
-   --texto, --superficie, --gradiente, --dato-N) los publica ProveedorTema.
+   --texto, --superficie, --gradiente, --dato-N) los publica ProveedorTema, y
+   las dos escalas —`--t-N` de tipografía, `--e-N` de espaciado— las publica
+   `.documento`: heredan por el árbol, así que estas piezas suben solas al
+   proyectar sin una regla propia.
 
    Nunca --primario directo para texto: no todas las marcas contrastan ≥4.5:1
    sobre su superficie (Promo Espacio cae a 2.97:1). Ver ProveedorTema.tsx. */
 
 .piezaTitulo {
-  font-size: 0.78rem;
+  font-size: var(--t--2);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--primario-sobre-superficie);
-  margin-bottom: 0.7rem;
+  margin-bottom: var(--e-3);
 }
 
 /* ---- tabla ------------------------------------------------------------- */
 
 .tablaEnvoltorio {
-  margin-top: 1.4rem;
+  margin-top: var(--e-5);
 }
 
 /* El scroll horizontal se queda DENTRO de la tabla: una comparativa de ocho
@@ -30,20 +33,33 @@
 .tabla {
   width: 100%;
   border-collapse: collapse;
-  font-size: clamp(0.9rem, 1.4vw, 1rem);
+  font-size: var(--t-0);
+  /* Sin esto heredaba `normal` (~1.2) mientras el resto del documento va a
+     1.5: las tablas salían más densas que el cuerpo sin que fuera una
+     decisión. */
+  line-height: 1.45;
   font-variant-numeric: tabular-nums;
 }
 
 .tabla th,
 .tabla td {
   text-align: left;
-  padding: 0.7rem 0.9rem;
+  padding: var(--e-3) var(--e-4);
   border-bottom: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
   vertical-align: top;
 }
 
+/* La primera celda vuelve a la bandera izquierda del documento. El relleno
+   la separaba 14px del título de su sección, y ese desfase —repetido en cada
+   tabla— se percibe como desalineación general: la bandera izquierda es la
+   única estructura horizontal que mantiene unido el documento. */
+.tabla th:first-child,
+.tabla td:first-child { padding-left: 0; }
+.tabla th:last-child,
+.tabla td:last-child { padding-right: 0; }
+
 .tabla thead th {
-  font-size: 0.72rem;
+  font-size: var(--t--2);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -88,8 +104,8 @@
 
 .filaNota {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
+  margin-top: var(--e-1);
+  font-size: var(--t--1);
   font-weight: 400;
   white-space: normal;
   color: color-mix(in oklch, var(--texto) 58%, transparent);
@@ -128,17 +144,27 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem 1.2rem;
-  margin-top: 0.9rem;
-  font-size: 0.8rem;
+  gap: var(--e-2) var(--e-5);
+  margin-top: var(--e-4);
+  font-size: var(--t--1);
   color: color-mix(in oklch, var(--texto) 62%, transparent);
 }
 
 /* ---- matriz ------------------------------------------------------------ */
 
+/* Separadas, no soldadas. Con `border-collapse: collapse` los fondos
+   adyacentes se tocaban y una fila "Vende | Prepara | Vende" se leía como una
+   barra continua — justo la forma del trimestre que la matriz existe para
+   enseñar. El radio de la celda tampoco se veía. */
+.matriz {
+  border-collapse: separate;
+  border-spacing: 3px;
+}
+
 .matriz td {
   text-align: center;
   white-space: nowrap;
+  border-bottom: none;
 }
 
 .matriz tbody td:not(:first-child) {
@@ -146,23 +172,25 @@
 }
 
 .celdaMatriz {
-  font-size: 0.85rem;
+  font-size: var(--t--1);
   border-radius: 0.35rem;
+  padding: var(--e-3) var(--e-4);
 }
 
 /* La intensidad ES el dato: se lee la forma del trimestre antes que la
    palabra. El texto sigue ahí para que el tono nunca sea la única señal. */
+/* 34 / 18 / 8 / 0. Antes eran 30 / 16 / 12: entre 16% y 12% no hay
+   diferencia perceptible, así que cuatro niveles declarados se veían como
+   dos. Estos cuatro escalones sí se separan a simple vista. */
 .celdaMatriz[data-tono='alto'] {
-  background: color-mix(in oklch, var(--primario) 30%, transparent);
-  font-weight: 600;
+  background: color-mix(in oklch, var(--primario) 34%, transparent);
+  font-weight: 700;
 }
 .celdaMatriz[data-tono='medio'] {
-  background: color-mix(in oklch, var(--primario) 16%, transparent);
+  background: color-mix(in oklch, var(--primario) 18%, transparent);
 }
-/* 12% y no 7%: con cuatro niveles, el más bajo tiene que separarse del
-   neutro (que no lleva fondo) o la rejilla se lee como tres estados. */
 .celdaMatriz[data-tono='bajo'] {
-  background: color-mix(in oklch, var(--primario) 12%, transparent);
+  background: color-mix(in oklch, var(--primario) 8%, transparent);
 }
 .celdaMatriz[data-tono='neutro'] {
   color: color-mix(in oklch, var(--texto) 60%, transparent);
@@ -170,44 +198,55 @@
 
 /* ---- bloques numerados ------------------------------------------------- */
 
+/* SIN CAJAS. Cinco rectángulos redondeados idénticos apilados son la
+   plantilla que se ve en cualquier página generada, y aquí sobraban: la
+   numeración ya agrupa. El número pasa a ser la estructura —cuelga en el rail
+   izquierdo, a plena intensidad— y el filete superior separa un bloque del
+   siguiente. Antes el contador iba al 55% de opacidad junto a un título en
+   negrita al 100%: el elemento que ordena la secuencia era el más débil de su
+   propio bloque. */
 .bloques {
   list-style: none;
   counter-reset: bloque;
   display: grid;
-  gap: 1.1rem;
-  margin-top: 1.4rem;
+  margin-top: var(--e-5);
 }
 
 .bloque {
   counter-increment: bloque;
-  position: relative;
-  padding: 1.1rem 1.2rem 1.1rem 3.4rem;
-  border: 1px solid color-mix(in oklch, var(--texto) 13%, transparent);
-  border-radius: 0.7rem;
+  display: grid;
+  grid-template-columns: var(--rail, 3.5rem) 1fr;
+  gap: 0 var(--e-4);
+  padding: var(--e-5) 0;
+  border-top: 1px solid color-mix(in oklch, var(--texto) 12%, transparent);
 }
+
+.bloque:first-child { border-top: none; padding-top: 0; }
 
 .bloque::before {
   content: counter(bloque);
-  position: absolute;
-  left: 1.1rem;
-  top: 1rem;
+  grid-row: 1 / -1;
   font-family: var(--fuente-display), system-ui, sans-serif;
-  font-size: 1.5rem;
+  font-size: var(--t-3);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: color-mix(in oklch, var(--primario-sobre-superficie) 55%, transparent);
+  color: var(--primario-sobre-superficie);
 }
+
+.bloque > * { grid-column: 2; }
 
 .bloqueCabecera {
   display: flex;
-  align-items: baseline;
+  /* `baseline` con `wrap` dejaba la etiqueta suelta a la izquierda cuando el
+     título ocupaba dos líneas, con un ritmo distinto al de sus hermanos. */
+  align-items: center;
   flex-wrap: wrap;
-  gap: 0.6rem;
+  gap: var(--e-3);
 }
 
 .bloqueTitulo {
-  font-size: clamp(1.05rem, 1.9vw, 1.25rem);
+  font-size: var(--t-2);
   font-weight: 700;
   line-height: 1.25;
 }
@@ -215,7 +254,7 @@
 .bloqueEtiqueta {
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: var(--t--2);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -224,25 +263,29 @@
 }
 
 .bloqueParrafo {
-  margin-top: 0.5rem;
-  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  margin-top: var(--e-3);
+  font-size: var(--t-0);
   line-height: 1.55;
   color: color-mix(in oklch, var(--texto) 85%, transparent);
-  max-width: 68ch;
+  max-width: var(--medida);
+  text-wrap: pretty;
 }
 
 .bloquePuntos {
   list-style: none;
   display: grid;
-  gap: 0.4rem;
-  margin-top: 0.7rem;
+  /* El hueco entre puntos por encima del interlineado: con 0.4rem contra 1.5
+     líneas, un punto de dos renglones se leía como dos puntos. */
+  gap: var(--e-3);
+  margin-top: var(--e-4);
 }
 
 .bloquePuntos li {
   position: relative;
-  padding-left: 1rem;
-  font-size: 0.95rem;
+  padding-left: var(--e-4);
+  font-size: var(--t-0);
   line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .bloquePuntos li::before {
@@ -257,16 +300,17 @@
 }
 
 .bloquePie {
-  margin-top: 0.8rem;
-  padding-top: 0.7rem;
+  margin-top: var(--e-4);
+  padding-top: var(--e-3);
   border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
-  font-size: 0.92rem;
+  font-size: var(--t-0);
   line-height: 1.5;
+  max-width: var(--medida);
 }
 
 .bloquePieRotulo {
   display: inline-block;
-  margin-right: 0.5rem;
+  margin-right: var(--e-2);
   font-weight: 700;
   color: var(--primario-sobre-superficie);
 }
@@ -274,19 +318,23 @@
 /* ---- meta / real / % --------------------------------------------------- */
 
 .metaReal {
-  margin-top: 1.4rem;
+  margin-top: var(--e-5);
 }
 
 .metaRealFilas {
   display: grid;
-  gap: 0.7rem;
+  gap: var(--e-3);
 }
 
+/* La barra tiene un ancho ACOTADO. Con `1fr` se comía todo el sobrante —590px
+   de carril para un relleno de 84px— y empujaba el porcentaje tan lejos de su
+   número que había que leer la fila dos veces. */
 .metaRealFila {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 8rem) minmax(6rem, auto) 1fr 3.2rem;
+  grid-template-columns: minmax(4.5rem, 9rem) minmax(6rem, auto) minmax(8rem, 18rem) 3.2rem;
+  justify-content: start;
   align-items: center;
-  gap: 0.9rem;
+  gap: var(--e-4);
 }
 
 /* La primera fila es el total: pesa más que su desglose. */
@@ -295,7 +343,7 @@
 }
 
 .metaRealRotulo {
-  font-size: 0.9rem;
+  font-size: var(--t--1);
   color: color-mix(in oklch, var(--texto) 72%, transparent);
 }
 
@@ -307,7 +355,7 @@
 }
 
 .metaRealMeta {
-  font-size: 0.8rem;
+  font-size: var(--t--1);
   font-weight: 400;
   color: color-mix(in oklch, var(--texto) 58%, transparent);
 }
@@ -320,11 +368,15 @@
   overflow: hidden;
 }
 
+/* Color plano de marca, NO el degradado. Comprimido en 84px solo mostraba su
+   primer tramo, así que cada fila enseñaba una porción distinta del degradado
+   —magenta en el 14%, magenta-a-violeta en el 25%—. El degradado se reserva
+   para donde se ve entero: la portada y los divisores. */
 .metaRealRelleno {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--gradiente);
+  background: var(--primario);
 }
 
 .metaRealPorcentaje {
@@ -346,15 +398,26 @@
 
 /* ---- cifras con desglose ----------------------------------------------- */
 
+/* Tres pistas, no cuatro: el esquema permite seis cifras y con `minmax(13rem)`
+   entraban 4, dejando una fila huérfana de 2 con medio ancho vacío. Con 15rem
+   caben 3 exactas (3+3 en lectura, 6 en fila al proyectar).
+   El `subgrid` alinea rótulo, valor y partes ENTRE tarjetas: sin él, un rótulo
+   de dos líneas hundía su cifra 17px respecto a las vecinas, y una fila de
+   cifras existe justamente para compararlas de un golpe de vista. */
 .desgloses {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-  gap: 1rem;
-  margin-top: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--e-4);
+  margin-top: var(--e-5);
+}
+
+@supports (grid-template-rows: subgrid) {
+  .desgloses { grid-template-rows: auto auto auto; }
+  .desglose { display: grid; grid-row: span 3; grid-template-rows: subgrid; }
 }
 
 .desglose {
-  padding: 1.1rem 1.2rem;
+  padding: var(--e-4) var(--e-4);
   border: 1px solid color-mix(in oklch, var(--texto) 13%, transparent);
   border-radius: 0.7rem;
 }
@@ -365,15 +428,15 @@
 }
 
 .desgloseRotulo {
-  font-size: 0.8rem;
+  font-size: var(--t--1);
   line-height: 1.35;
   color: color-mix(in oklch, var(--texto) 68%, transparent);
 }
 
 .desgloseValor {
-  margin-top: 0.35rem;
+  margin-top: var(--e-1);
   font-family: var(--fuente-display), system-ui, sans-serif;
-  font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+  font-size: var(--t-3);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -382,11 +445,12 @@
 .desglosePartes {
   list-style: none;
   display: grid;
-  gap: 0.3rem;
-  margin-top: 0.8rem;
-  padding-top: 0.7rem;
+  gap: var(--e-1);
+  margin-top: var(--e-4);
+  padding-top: var(--e-3);
   border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
-  font-size: 0.85rem;
+  font-size: var(--t--1);
+  align-self: start;
 }
 
 .desglosePartes li {

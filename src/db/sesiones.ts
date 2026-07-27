@@ -348,9 +348,11 @@ export async function crearSesionConEstructura(datos: {
     sesionId: id,
     orden: i,
     tipo: d.tipo,
-    // Nace ya con su tipo de sección elegido: abrir el editor y encontrarlo
-    // configurado ahorra el primer clic de las tres secciones que siempre son
-    // iguales.
+    // Nace solo con su tipo de sección elegido. El TÍTULO no se siembra: si
+    // lo hiciera, la sección contaría como escrita y una sesión recién creada
+    // diría "8/8 listas" sin que nadie haya tocado nada. El nombre de la
+    // sección ("RevOps") actúa como título de respaldo al maquetar — ver
+    // `aDecision` en src/secciones/borrador.ts.
     contenidoCrudo: { seccion: { layout: d.layout } } as ContenidoItemCrudo,
     decisionMaquetacion: null as unknown,
   }))

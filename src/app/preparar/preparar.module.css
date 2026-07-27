@@ -302,3 +302,16 @@
 }
 
 .tarjeta[data-sub='true'] { background: color-mix(in oklch, var(--tx) 3%, var(--superficie)); }
+
+/* El tipo de sección baja a distintivo: informa sin ocupar el sitio de la
+   pregunta guía, que es lo que de verdad orienta. */
+.chipTipo {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  background: var(--superficie-2);
+  color: var(--tx-2);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}

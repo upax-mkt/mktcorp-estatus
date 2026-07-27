@@ -82,21 +82,44 @@
   font-size: 0.7rem;
   line-height: 1;
   cursor: pointer;
-  /* Aparecen al acercarse: presentes cuando hacen falta, invisibles el resto
-     del tiempo para que la rejilla se lea como datos y no como botonera. */
-  opacity: 0;
+  /* Visibles pero discretos por defecto. En un puntero fino se esconden hasta
+     que el ratón se acerca (regla de abajo); en táctil NO, porque ahí no hay
+     hover: un botón a `opacity: 0` seguiría siendo pulsable, y sería un
+     objetivo invisible que borra una fila de datos. */
+  opacity: 0.5;
   transition: opacity 0.12s ease, background 0.12s ease;
 }
 
-.quitar { position: absolute; top: 0.3rem; right: 0.25rem; }
-.rejilla th .quitar { top: 0.28rem; }
+@media (hover: hover) and (pointer: fine) {
+  .quitar,
+  .anadirEje {
+    opacity: 0;
+  }
 
-.anadirEje { opacity: 0.6; font-size: 0.85rem; }
+  .envoltorio:hover .quitar,
+  .envoltorio:hover .anadirEje {
+    opacity: 0.55;
+  }
+}
 
-.envoltorio:hover .quitar,
+/* La ✕ de una FILA vive en su propio carril, a la derecha de la tabla. La de
+   una COLUMNA vive en una franja sobre el encabezado — nunca encima del
+   input. Antes estaba en `position: absolute` sobre la celda: un clic cerca
+   del borde derecho de la celda que querías editar se llevaba la columna
+   entera con sus datos. */
+.carrilColumna {
+  display: flex;
+  justify-content: flex-end;
+  height: 1.35rem;
+}
+
+.anadirEje { font-size: 0.85rem; }
+
 .quitar:focus-visible,
 .anadirEje:focus-visible {
   opacity: 1;
+  outline: 2px solid var(--sala, currentColor);
+  outline-offset: 1px;
 }
 
 .quitar:hover,

@@ -33,10 +33,11 @@
   color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
 }
 
-.editor input[type='text'],
-.editor input:not([type]),
-.editor select,
-.editor textarea {
+/* `:where()` deja esta regla en especificidad de una sola clase, para que la
+   rejilla pueda redefinir sus celdas sin pelear. Sin esto, `.editor
+   input:not([type])` (0,2,1) le ganaba a `.rejilla input` (0,1,1) y las celdas
+   salían con esquinas redondeadas y muescas de luz entre ellas. */
+.editor :where(input[type='text'], input:not([type]), select, textarea) {
   width: 100%;
   padding: 0.55rem 0.7rem;
   border: 1px solid color-mix(in oklch, var(--tx, #222) 18%, transparent);
@@ -57,9 +58,7 @@
   tab-size: 2;
 }
 
-.editor input:focus-visible,
-.editor select:focus-visible,
-.editor textarea:focus-visible {
+.editor :where(input, select, textarea):focus-visible {
   outline: 2px solid var(--sala, currentColor);
   outline-offset: 1px;
 }
@@ -611,4 +610,11 @@
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}
+
+/* Lo que falta en una sección que nadie ha tocado todavía: información, no
+   alarma. El rojo se reserva para cuando ya se empezó. */
+.porEmpezar {
+  font-size: 0.82rem;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
 }

@@ -26,7 +26,13 @@ export function ModoPresentar({ children }: { children: ReactNode }) {
   function secciones(): HTMLElement[] {
     const raiz = contenedor.current
     if (!raiz) return []
-    return Array.from(raiz.querySelectorAll<HTMLElement>('[data-layout]'))
+    // Solo las que se ven. La agenda se esconde al proyectar (repite lo que
+    // viene después), y contarla hacía dos cosas mal: el contador decía
+    // "1 / 14" habiendo 13 alcanzables, y la primera flecha no hacía nada
+    // porque `scrollIntoView` sobre un `display: none` es un no-op.
+    return Array.from(raiz.querySelectorAll<HTMLElement>('[data-layout]')).filter(
+      (seccion) => seccion.offsetParent !== null,
+    )
   }
 
   async function entrar() {

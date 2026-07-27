@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { CATALOGO, tipoDeSeccion, type CampoSeccion } from '@/secciones/catalogo'
-import { loQueFalta, type BorradorSeccion } from '@/secciones/borrador'
+import { loQueFalta, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import { parsearLineas } from '@/secciones/parseo'
 import {
   CampoKpis, CampoColumnas, CampoTablas, CampoGraficos,
   CampoMetaReal, CampoCifrasDesglosadas, CampoBloques, CampoMatriz,
 } from './CamposEstructurados'
+import { AreaTexto } from './AreaTexto'
 import { AsistenteIA } from './AsistenteIA'
 import estilos from './editor.module.css'
 
@@ -30,6 +31,8 @@ import estilos from './editor.module.css'
 
 interface Props {
   borrador: BorradorSeccion
+  /** Nombre de la sección en la estructura. Sirve de título si no se escribe otro. */
+  tituloDeRespaldo?: string
   guardarAction: (seccion: BorradorSeccion) => Promise<void>
   /** Texto crudo ya guardado para el asistente, si lo hay. */
   textoCrudo?: string
@@ -39,20 +42,24 @@ interface Props {
 /** Cuánto se espera desde la última tecla antes de guardar solo. */
 const ESPERA_AUTOGUARDADO = 1200
 
-export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, proponerAction }: Props) {
+export function EditorSeccion({ borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction }: Props) {
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
   const [guardado, setGuardado] = useState(true)
   const [pendiente, empezar] = useTransition()
   // Lo último que se mandó al servidor: evita reguardar lo mismo cuando el
   // autoguardado y un blur coinciden.
   const ultimoGuardado = useRef(JSON.stringify(inicial))
+  // Si alguien ya escribió algo aquí, lo que falta pasa a ser un aviso; hasta
+  // entonces es solo lo que queda por hacer.
+  const [tocada, setTocada] = useState(borradorTieneContenido(inicial))
 
   const tipo = tipoDeSeccion(borrador.layout)
-  const faltas = loQueFalta(borrador)
+  const faltas = loQueFalta(borrador, tituloDeRespaldo)
 
   function cambiar(parcial: Partial<BorradorSeccion>) {
     setBorrador((previo) => ({ ...previo, ...parcial }))
     setGuardado(false)
+    setTocada(true)
   }
 
   function guardar() {
@@ -116,9 +123,14 @@ export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, pr
           value={borrador.titulo ?? ''}
           onChange={(e) => cambiar({ titulo: e.target.value })}
           onBlur={guardar}
-          placeholder="Lo que el director tiene que saber de esta sección"
+          placeholder={tituloDeRespaldo ?? 'Lo que el director tiene que saber de esta sección'}
           aria-label="Título de la sección"
         />
+        {tituloDeRespaldo && !borrador.titulo && (
+          <em className={estilos.pista}>
+            Si lo dejas vacío se presenta como «{tituloDeRespaldo}».
+          </em>
+        )}
       </label>
 
       {tipo?.campos.map((campo) => (
@@ -137,10 +149,15 @@ export function EditorSeccion({ borrador: inicial, guardarAction, textoCrudo, pr
       )}
 
       <div className={estilos.barraGuardar}>
-        {faltas.length > 0 ? (
+        {/* Una sección que nadie ha tocado NO es un error: está por empezar.
+            Marcarla en rojo antes del primer carácter castiga a alguien por no
+            haber escrito todavía. */}
+        {faltas.length === 0 ? (
+          <span className={estilos.listo}>Lista para presentar.</span>
+        ) : tocada ? (
           <span className={estilos.aviso}>Falta {faltas.join(' y ')} para poder presentarla.</span>
         ) : (
-          <span className={estilos.listo}>Lista para presentar.</span>
+          <span className={estilos.porEmpezar}>Falta {faltas.join(' y ')}.</span>
         )}
         {/* Estado, no botón: se guarda solo. El botón sigue existiendo para
             quien quiera forzarlo, pero apagado cuando no hay nada que hacer. */}
@@ -187,17 +204,13 @@ function Campo({
 
     case 'cuerpo':
       return (
-        <label className={estilos.campo}>
-          <span>Puntos — uno por línea</span>
-          <textarea
-            rows={5}
-            defaultValue={(borrador.cuerpo ?? []).join('\n')}
-            onBlur={(e) => cambiar({ cuerpo: parsearLineas(e.target.value) })}
-            placeholder={'Pendientes del mes pasado\nPortafolio & ecosistema'}
-            aria-label="Puntos del cuerpo"
-          />
-          <em className={estilos.pista}>El documento los numera solo: no escribas «1.» ni «2)».</em>
-        </label>
+        <AreaTexto
+          inicial={(borrador.cuerpo ?? []).join('\n')}
+          alEscribir={(texto) => cambiar({ cuerpo: parsearLineas(texto) })}
+          etiqueta="Puntos — uno por línea"
+          placeholder={'Pendientes del mes pasado\nPortafolio & ecosistema'}
+          pista="El documento los numera solo: no escribas «1.» ni «2)»."
+        />
       )
 
     case 'notaPie':

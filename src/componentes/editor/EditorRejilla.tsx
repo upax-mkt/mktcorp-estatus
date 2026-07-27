@@ -18,10 +18,9 @@ import estilos from './rejilla.module.css'
  * rejilla crece sola para acomodar lo pegado.
  *
  * LAS TECLAS HACEN LO QUE SE ESPERA: Tab pasa a la celda siguiente (es el
- * comportamiento nativo del navegador, no hay que programarlo), Enter baja una
- * fila, y las flechas con Ctrl/Cmd se mueven por la rejilla sin salir del
- * campo. Enter en la última fila añade una nueva, que es como se llena una
- * tabla de verdad: escribiendo sin levantar las manos.
+ * comportamiento nativo del navegador, no hay que programarlo) y Enter baja
+ * una fila en la misma columna. Enter en la última fila añade una nueva, que
+ * es como se llena una tabla de verdad: escribiendo sin levantar las manos.
  */
 
 interface Props {
@@ -130,25 +129,31 @@ export function EditorRejilla({
     onChange(colsFinal, fsFinal)
   }
 
-  /** Enter baja una fila; en la última, crea una nueva y salta a ella. */
+  /**
+   * Enter baja una fila, EN LA MISMA COLUMNA; en la última, crea una nueva y
+   * salta a ella. Bajar siempre a la primera columna obligaba a volver con el
+   * ratón en cada fila, que es justo lo que Enter viene a evitar.
+   */
   function alTeclear(evento: KeyboardEvent<HTMLInputElement>, fila: number) {
     if (evento.key !== 'Enter') return
     evento.preventDefault()
+    const columna = Number(evento.currentTarget.dataset.columna ?? 0)
+
+    const enfocar = (indiceFila: number) => {
+      contenedor.current
+        ?.querySelector<HTMLInputElement>(
+          `tbody tr:nth-child(${indiceFila + 1}) input[data-columna="${columna}"]`,
+        )
+        ?.focus()
+    }
+
     if (fila === filas.length - 1) {
       anadirFila()
       // El campo nuevo aún no existe: se enfoca cuando React lo haya pintado.
-      requestAnimationFrame(() => {
-        const inputs = contenedor.current?.querySelectorAll<HTMLInputElement>('tbody input')
-        inputs?.[inputs.length - columnas.length]?.focus()
-      })
+      requestAnimationFrame(() => enfocar(fila + 1))
       return
     }
-    const actual = evento.currentTarget
-    const columna = Number(actual.dataset.columna ?? 0)
-    const siguiente = contenedor.current?.querySelector<HTMLInputElement>(
-      `tbody tr:nth-child(${fila + 2}) input[data-columna="${columna}"]`,
-    )
-    siguiente?.focus()
+    enfocar(fila + 1)
   }
 
   return (
@@ -160,6 +165,19 @@ export function EditorRejilla({
               <th className={estilos.esquina} aria-hidden="true" />
               {columnas.map((columna, i) => (
                 <th key={`col-${i}`}>
+                  <div className={estilos.carrilColumna}>
+                    {columnas.length > minimoColumnas && (
+                      <button
+                        type="button"
+                        className={estilos.quitar}
+                        onClick={() => quitarColumna(i)}
+                        title={`Quitar la ${nombreColumna} «${columna || i + 1}»`}
+                        aria-label={`Quitar la ${nombreColumna} ${i + 1}`}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                   <input
                     value={columna}
                     onChange={(e) => cambiarColumna(i, e.target.value)}
@@ -168,17 +186,6 @@ export function EditorRejilla({
                     aria-label={`Nombre de la ${nombreColumna} ${i + 1}`}
                     className={estilos.celdaEncabezado}
                   />
-                  {columnas.length > minimoColumnas && (
-                    <button
-                      type="button"
-                      className={estilos.quitar}
-                      onClick={() => quitarColumna(i)}
-                      title={`Quitar la ${nombreColumna} «${columna || i + 1}»`}
-                      aria-label={`Quitar la ${nombreColumna} ${i + 1}`}
-                    >
-                      ✕
-                    </button>
-                  )}
                 </th>
               ))}
               <th className={estilos.esquina}>
