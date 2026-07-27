@@ -1,0 +1,285 @@
+/* Documento vivo de una sesión: reemplaza al deck de diapositivas 16:9.
+   Los tokens de marca (--primario, --superficie, --texto, --gradiente,
+   --fuente-display…) los publica ProveedorTema; aquí solo se consumen, igual
+   que hacían los layouts de slide. */
+
+.documento {
+  --ancho: 60rem;
+  --paso: clamp(1.5rem, 3vw, 3rem);
+
+  background: var(--superficie);
+  color: var(--texto);
+  font-family: var(--fuente-texto), system-ui, sans-serif;
+}
+
+.contenido {
+  max-width: var(--ancho);
+  margin: 0 auto;
+  padding: var(--paso) 1.5rem 6rem;
+}
+
+/* Proyectando se usa el ancho de la pantalla: con la medida de lectura
+   (60rem) y la tipografía ampliada, una fila de cuatro cifras se partía en
+   3 + 1, que es justo lo que ese layout existe para evitar. El atributo lo
+   pone ModoPresentar en un contenedor de fuera, por eso el selector es de
+   atributo y no una clase de este módulo. */
+[data-presentando='true'] .documento {
+  --ancho: min(94vw, 100rem);
+}
+
+[data-presentando='true'] .contenido {
+  padding-bottom: 0;
+}
+
+/* ---- sección ---- */
+
+.seccion {
+  padding: var(--paso) 0;
+  border-top: 1px solid color-mix(in oklch, var(--texto) 12%, transparent);
+  scroll-margin-top: 5rem;
+}
+
+.seccion:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Portada, divisores y cierre respiran más: son los hitos del documento. */
+.seccion[data-destacada='true'] {
+  padding: calc(var(--paso) * 1.6) 0;
+}
+
+.titulo {
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.6rem;
+  text-wrap: balance;
+}
+
+.subtitulo {
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  line-height: 1.5;
+  color: color-mix(in oklch, var(--texto) 72%, transparent);
+  margin-bottom: 1.4rem;
+  max-width: 62ch;
+}
+
+/* ---- portada: el encabezado del documento ---- */
+
+.portada {
+  position: relative;
+  padding: calc(var(--paso) * 1.2) 0 calc(var(--paso) * 0.8);
+}
+
+.portada::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 0.4rem;
+  border-radius: 999px;
+  /* Degradado de marca EXACTO y sin texto encima (decisión de marca 24-jul). */
+  background: var(--gradiente);
+}
+
+.portadaTitulo {
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-top: 1.6rem;
+  text-wrap: balance;
+}
+
+.portadaSubtitulo {
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  line-height: 1.45;
+  color: color-mix(in oklch, var(--texto) 70%, transparent);
+  margin-top: 0.9rem;
+  max-width: 60ch;
+}
+
+/* ---- índice navegable: lo que un PPT no puede hacer ---- */
+
+.indice {
+  list-style: none;
+  counter-reset: indice;
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.5rem;
+}
+
+.indiceEnlace {
+  counter-increment: indice;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.7rem 0.8rem 0.7rem 0;
+  border-radius: 0.5rem;
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease, padding-left 0.15s ease;
+}
+
+.indiceEnlace::before {
+  content: counter(indice);
+  flex-shrink: 0;
+  min-width: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--primario-sobre-superficie);
+}
+
+.indiceEnlace:hover {
+  background: color-mix(in oklch, var(--texto) 6%, transparent);
+  padding-left: 0.6rem;
+}
+
+/* ---- cuerpo ---- */
+
+.cuerpo {
+  list-style: none;
+  counter-reset: cuerpo;
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.4rem;
+  max-width: 68ch;
+}
+
+.cuerpo li {
+  counter-increment: cuerpo;
+  display: flex;
+  gap: 0.9rem;
+  font-size: clamp(1rem, 1.7vw, 1.15rem);
+  line-height: 1.5;
+}
+
+.cuerpo li::before {
+  content: counter(cuerpo);
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--primario-sobre-superficie);
+}
+
+/* ---- cifras ---- */
+
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.cifra {
+  position: relative;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid color-mix(in oklch, var(--texto) 14%, transparent);
+  border-radius: 0.7rem;
+  overflow: hidden;
+}
+
+.cifra::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 0.22rem;
+  background: var(--gradiente);
+}
+
+.cifraValor {
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.cifraDelta {
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--primario-sobre-superficie);
+}
+
+.cifraRotulo {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: color-mix(in oklch, var(--texto) 70%, transparent);
+}
+
+/* ---- columnas ---- */
+
+.columnas {
+  display: grid;
+  grid-template-columns: repeat(var(--columnas-cantidad, 2), minmax(0, 1fr));
+  gap: 1.6rem;
+  margin-top: 1.4rem;
+}
+
+.columnaTitulo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--primario-sobre-superficie);
+  margin-bottom: 0.7rem;
+}
+
+.columnaPuntos {
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.columnaPuntos li {
+  position: relative;
+  padding-left: 1rem;
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  line-height: 1.5;
+}
+
+.columnaPuntos li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--primario-sobre-superficie);
+}
+
+.imagen {
+  width: 100%;
+  height: auto;
+  border-radius: 0.7rem;
+  margin-top: 1.4rem;
+}
+
+.avisoRevision {
+  display: inline-block;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: oklch(0.45 0.17 25);
+  background: oklch(0.95 0.04 25);
+  border-radius: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .columnas { grid-template-columns: 1fr; }
+}

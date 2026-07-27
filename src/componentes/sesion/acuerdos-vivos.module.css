@@ -1,0 +1,62 @@
+/* Acuerdos dentro del documento de la sesión, con el estado de hoy.
+   Hereda los tokens de marca de ProveedorTema. */
+
+.lista {
+  list-style: none;
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.6rem;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.punto {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  transform: translateY(-0.1em);
+  background: var(--primario-sobre-superficie);
+}
+
+.item[data-estatus='cumplido'] .punto { background: oklch(0.6 0.12 155); }
+.item[data-estatus='vencido'] .punto { background: oklch(0.57 0.2 25); }
+
+.texto {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.que {
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  line-height: 1.4;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: color-mix(in oklch, var(--texto) 62%, transparent);
+}
+
+.estado {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--texto) 55%, transparent);
+}
+
+.item[data-estatus='cumplido'] .estado { color: oklch(0.5 0.12 155); }
+.item[data-estatus='vencido'] .estado { color: oklch(0.52 0.2 25); }
