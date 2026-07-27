@@ -60,10 +60,16 @@ function sanearKpi(kpi: Kpi): Kpi {
   return delta === undefined ? { valor: kpi.valor, rotulo } : { valor: kpi.valor, rotulo, delta }
 }
 
-/** Devuelve la decisión con los KPIs saneados. No muta la original. */
+/** Lo que se pone cuando el modelo devuelve la razón en blanco. */
+const SIN_RAZON = 'El modelo no explicó esta decisión.'
+
+/** Devuelve la decisión con los KPIs y la razón saneados. No muta la original. */
 export function sanearDecision(decision: DecisionSlide): DecisionSlide {
-  if (!decision.kpis || decision.kpis.length === 0) return decision
-  return { ...decision, kpis: decision.kpis.map(sanearKpi) }
+  const razon = decision.razon.trim().length > 0 ? decision.razon : SIN_RAZON
+  if (!decision.kpis || decision.kpis.length === 0) {
+    return razon === decision.razon ? decision : { ...decision, razon }
+  }
+  return { ...decision, razon, kpis: decision.kpis.map(sanearKpi) }
 }
 
 /** Espacios de KPI que tiene el layout (lo mismo que exige el esquema). */

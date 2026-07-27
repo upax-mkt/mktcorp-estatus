@@ -30,6 +30,18 @@ describe('parsearDecision', () => {
     expect(() => parsearDecision(sinRazon)).toThrow()
   })
 
+  it('admite la razón vacía: es auditoría interna, no puede costar el slide', () => {
+    // El campo sigue siendo obligatorio (arriba), pero una razón en blanco no
+    // tumba el parseo — sanearDecision la marca. Visto en producción: dos
+    // intentos seguidos perdidos, con sus cifras, por este campo.
+    expect(() => parsearDecision({ ...VALIDA, razon: '' })).not.toThrow()
+  })
+
+  it('la razón sigue sin poder traer estilo aunque admita vacío', () => {
+    expect(() => parsearDecision({ ...VALIDA, razon: '<b>porque sí</b>' })).toThrow()
+    expect(() => parsearDecision({ ...VALIDA, razon: '**porque sí**' })).toThrow()
+  })
+
   it('rechaza estilos: la IA no puede mandar color', () => {
     expect(() => parsearDecision({ ...VALIDA, color: '#FF0000' })).toThrow()
   })

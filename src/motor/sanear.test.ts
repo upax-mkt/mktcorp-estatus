@@ -164,6 +164,21 @@ describe('sanearDecision', () => {
     expect(sanearDecision(sinKpis)).toEqual(sinKpis)
   })
 
+  it('rellena la razón cuando el modelo la devuelve en blanco', () => {
+    // Visto en produccion: razon vacia tumbaba el parseo y con el todo el
+    // slide. Ahora se marca y el contenido se conserva.
+    const sinRazon: DecisionSlide = { layout: 'portada', titulo: 'Estatus', razon: '' }
+    expect(sanearDecision(sinRazon).razon).toBe('El modelo no explicó esta decisión.')
+
+    const soloEspacios: DecisionSlide = { layout: 'portada', titulo: 'Estatus', razon: '   ' }
+    expect(sanearDecision(soloEspacios).razon).toBe('El modelo no explicó esta decisión.')
+  })
+
+  it('respeta la razón cuando el modelo sí se explicó', () => {
+    const conRazon: DecisionSlide = { layout: 'portada', titulo: 'Estatus', razon: 'abre la sesión' }
+    expect(sanearDecision(conRazon).razon).toBe('abre la sesión')
+  })
+
   it('descarta un delta fugado que quedaría vacío', () => {
     const sucia = decisionCon([{ valor: '29k', rotulo: "Impresiones','delta':''" }])
     const limpia = sanearDecision(sucia)

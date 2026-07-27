@@ -71,6 +71,22 @@ export const TextoPlano = z.string().min(1).refine((texto) => !contieneMarkupOEs
     'El contenido debe ser texto plano: sin etiquetas HTML, sin atributos style, sin declaraciones CSS, y sin sintaxis Markdown (negrita/cursiva, encabezados con #, backticks de código).',
 })
 
+/**
+ * Igual que TextoPlano pero admite la cadena vacía. Solo para `razon`.
+ *
+ * Por qué: `razon` es auditoría interna — la lee el equipo de Mkt Corp, nunca
+ * el director. Exigirle longitud mínima al modelo hacía que una `razon` vacía
+ * tumbara el parseo y con él TODO el slide, cifras incluidas; visto en
+ * producción, dos intentos seguidos perdidos por un campo que no se proyecta.
+ * Se admite vacía en el contrato y `sanearDecision` la rellena con una marca
+ * explícita, para que el equipo vea que el modelo no explicó su decisión en
+ * vez de perder el slide entero.
+ */
+export const TextoPlanoOVacio = z.string().refine((texto) => !contieneMarkupOEstilo(texto), {
+  message:
+    'El contenido debe ser texto plano: sin etiquetas HTML, sin atributos style, sin declaraciones CSS, y sin sintaxis Markdown (negrita/cursiva, encabezados con #, backticks de código).',
+})
+
 const ESQUEMA_PELIGROSO = /^(javascript|data|file):/i
 
 function esImagenValida(valor: string): boolean {
@@ -141,8 +157,13 @@ export const EsquemaDecision = z.object({
   grafico: Grafico.optional(),
   cuerpo: z.array(TextoPlano).optional(),
   imagen: Imagen.optional(),
-  /** Por qué el motor eligió esta composición. Obligatoria: es lo que se le muestra al equipo. */
-  razon: TextoPlano,
+  /**
+   * Por qué el motor eligió esta composición. Es lo que lee el equipo para
+   * auditar la decisión; el director nunca la ve. Se admite vacía a propósito
+   * (ver TextoPlanoOVacio): que el modelo no se explique no puede costar el
+   * slide. `sanearDecision` la rellena.
+   */
+  razon: TextoPlanoOVacio,
 }).strict()   // strict rechaza cualquier clave extra — incluidos color, css o html
 
 export type DecisionSlide = z.infer<typeof EsquemaDecision>
