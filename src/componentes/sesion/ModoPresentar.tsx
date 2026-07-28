@@ -152,6 +152,13 @@ export function ModoPresentar({ children, sesionId, equipo }: Props) {
       >
         {children}
 
+        {/* EL LÁSER VA DENTRO DEL CONTENEDOR, y no es un detalle de orden:
+            este div es el que entra en pantalla completa, y en pantalla
+            completa el navegador solo pinta ESE elemento y sus descendientes.
+            Estando fuera, el punto existía en el DOM y no se veía nunca — que
+            es exactamente lo que reportó Franco. */}
+        {presentando && laser && <PunteroLaser />}
+
         {presentando && (
           <nav className={estilos.controles} aria-label="Controles de presentación">
             <button type="button" onClick={() => irA(actual - 1)} aria-label="Sección anterior">
@@ -187,8 +194,6 @@ export function ModoPresentar({ children, sesionId, equipo }: Props) {
           </nav>
         )}
       </div>
-
-      {presentando && laser && <PunteroLaser />}
 
       {/* Lo grabado NO se publica solo: se abre la misma pantalla de revisión
           de siempre con la transcripción ya puesta. Un reconocimiento de voz

@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
-import { LevantarMinuta, type SesionMinutable } from '@/componentes/LevantarMinuta'
+import {
+  LevantarMinuta, type SesionMinutable, type SalaElegible,
+} from '@/componentes/LevantarMinuta'
 import { EditorMolde } from '@/componentes/EditorMolde'
 import type { MoldeMinuta } from '@/minuta/molde'
 import estilos from '@/app/hub.module.css'
@@ -39,14 +41,23 @@ export interface MinutaEnHome {
 
 interface Props {
   minutas: MinutaEnHome[]
-  /** Reuniones presentadas que todavía no tienen minuta, de las diez salas. */
+  /** Reuniones presentadas que todavía no tienen minuta, de todas las salas. */
   pendientes: SesionMinutable[]
+  /** Salas entre las que elegir al describir una reunión que no está en la app. */
+  salas: SalaElegible[]
   /** El molde con el que se arman: editable desde aquí. */
   molde: MoldeMinuta
   guardarMoldeAction: (molde: MoldeMinuta) => Promise<{ error?: string }>
+  crearReunionAction: (datos: {
+    titulo: string
+    fecha: string
+    salaSlug: string | null
+  }) => Promise<{ id?: string; error?: string }>
 }
 
-export function ModuloMinutas({ minutas, pendientes, molde, guardarMoldeAction }: Props) {
+export function ModuloMinutas({
+  minutas, pendientes, salas, molde, guardarMoldeAction, crearReunionAction,
+}: Props) {
   const [abierta, setAbierta] = useState<MinutaEnHome | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -69,13 +80,8 @@ export function ModuloMinutas({ minutas, pendientes, molde, guardarMoldeAction }
       </header>
 
       {minutas.length === 0 ? (
-        // UN solo vacío, no dos. Cuando no hay minutas Y tampoco reuniones que
-        // minutar, el módulo decía dos veces lo mismo con otras palabras —el
-        // suyo y el del disparador— y parecían dos problemas distintos.
         <p className={estilos.moduloVacio}>
-          {pendientes.length === 0
-            ? 'Todavía no hay ninguna. Se levantan desde una reunión ya presentada: al terminarla, márcala como presentada desde su documento.'
-            : 'Todavía no hay ninguna. Levanta la primera cargando la transcripción de la reunión.'}
+          Todavía no hay ninguna. Genera la primera pegando la transcripción de cualquier reunión.
         </p>
       ) : (
         <ul className={estilos.listaMinutas}>
@@ -96,19 +102,17 @@ export function ModuloMinutas({ minutas, pendientes, molde, guardarMoldeAction }
         </ul>
       )}
 
-      {/* El molde SIEMPRE se puede editar, haya minutas o no: es lo que hay
-          que dejar bien ANTES de levantar la primera, no después. Levantar
-          una, en cambio, solo cuando hay reuniones presentadas — por qué no
-          las hay ya lo dice el vacío de arriba. */}
+      {/* SIEMPRE, haya reuniones pendientes o no: el componente sirve para
+          cualquier reunión, incluida una que nunca se preparó aquí. Antes solo
+          salía si había alguna presentada sin minuta, y eso lo hacía parecer
+          una herramienta de seguimiento en vez de lo que es. */}
       <div className={estilos.moduloPie}>
-        {pendientes.length > 0 && (
-          <LevantarMinuta
-            sesiones={pendientes}
-            claseBoton="boton"
-            data-tono="marca"
-            etiquetaBoton="Levantar una minuta"
-          />
-        )}
+        <LevantarMinuta
+          sesiones={pendientes}
+          salas={salas}
+          crearReunionAction={crearReunionAction}
+          claseBoton="boton"
+        />
         <EditorMolde molde={molde} guardarAction={guardarMoldeAction} />
       </div>
 

@@ -22,7 +22,18 @@ export const TEMAS: Record<string, Tema> = {
   [uix.slug]: uix,
   [zeus.slug]: zeus,
   [ceci.slug]: ceci,
-  [grupoUpax.slug]: grupoUpax,
+  /**
+   * GRUPO UPAX YA NO ES UNA SALA.
+   *
+   * Franco: "dejaste la sala de UPAX + Ceci y otra de UPAX sola, esta última
+   * hay que eliminarla". Eran la misma habitación contada dos veces: Ceci es
+   * quien dirige Grupo UPAX y su tarjeta ya lleva el logotipo de UPAX. Dos
+   * tarjetas con el mismo logotipo y el mismo interlocutor no son dos
+   * relaciones que atender: son una duplicada.
+   *
+   * Su TEMA sigue existiendo y se usa abajo, como identidad de lo que no es de
+   * ninguna sala.
+   */
 }
 
 export function obtenerTema(slug: string): Tema {
@@ -34,14 +45,20 @@ export function obtenerTema(slug: string): Tema {
 /**
  * El tema con el que se viste una reunión, tenga sala o no.
  *
- * Una reunión que no pertenece a ninguna de las diez —un comité, un arranque
- * de campaña— se viste con la identidad de Grupo UPAX, que es la de quien la
- * convoca: Marketing Corp es parte del grupo y no tiene identidad propia
- * separada. `obtenerTema` sigue existiendo para cuando la sala es segura y un
- * slug inventado debe reventar.
+ * Una reunión que no pertenece a ninguna sala —un comité, un arranque de
+ * campaña— se viste con la identidad de Grupo UPAX, que es la de quien la
+ * convoca: Marketing Corp es parte del grupo y no tiene identidad propia.
+ * `obtenerTema` sigue existiendo para cuando la sala es segura y un slug
+ * inventado debe reventar.
+ *
+ * OJO CON EL POR DEFECTO: apuntaba a `TEMAS['grupo-upax']`, y al dejar UPAX de
+ * ser una sala eso pasó a ser `undefined` — toda reunión sin sala se habría
+ * quedado sin tema, sin colores y sin escala de datos, y su documento habría
+ * reventado al pintarse. Ahora apunta al objeto, que no depende de qué haya en
+ * el registro de salas.
  */
 export function temaDeSala(slug: string | null | undefined): Tema {
-  return slug ? obtenerTema(slug) : TEMAS['grupo-upax']
+  return slug ? obtenerTema(slug) : grupoUpax
 }
 
 export function slugsDeSalas(): string[] {

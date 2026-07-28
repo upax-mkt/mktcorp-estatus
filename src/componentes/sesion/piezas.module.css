@@ -377,7 +377,9 @@
 
 .metaRealBarra {
   display: block;
-  height: 0.5rem;
+  /* 5px y no 8: una barra de progreso mide lo que mide su información, y a
+     0.5rem competía en peso con la cifra que la acompaña. */
+  height: 5px;
   border-radius: 999px;
   background: color-mix(in oklch, var(--texto) 10%, transparent);
   overflow: hidden;

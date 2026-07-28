@@ -4,14 +4,22 @@
    ancla una sección por pantalla y se navega con flechas. Lo que se proyecta
    es exactamente lo que el equipo lee el resto del mes. */
 
-/* Fijo arriba a la derecha: acompaña al documento mientras se hace scroll, en
-   vez de quedarse al final de la página donde nadie lo busca. Vive fuera del
-   contenedor que entra en pantalla completa, por eso se posiciona respecto a
-   la ventana y no al documento. */
+/*
+ * ABAJO a la derecha, no arriba.
+ *
+ * Estaba arriba a la derecha y ahí vive la barra de la página, con sus propios
+ * botones: en el documento de una sesión el «Presentar» quedaba MEDIO TAPADO
+ * por «Ya la presentamos», asomando un trozo de morado por detrás. Dos
+ * elementos flotantes peleando la misma esquina.
+ *
+ * Abajo a la derecha es donde se espera una acción flotante, no compite con
+ * nada y sigue acompañando al scroll. Vive fuera del contenedor que entra en
+ * pantalla completa, por eso se posiciona respecto a la ventana.
+ */
 .boton {
   position: fixed;
-  top: 0.9rem;
-  right: 1.25rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
   z-index: 20;
   font-family: inherit;
   font-size: 0.85rem;
@@ -154,21 +162,29 @@
 .relojMenu button { white-space: nowrap; font-size: 0.8rem; }
 .relojMenu button[data-activo='true'] { background: oklch(1 0 0 / 0.18); }
 
-/* EL LÁSER. `pointer-events: none` no es opcional: sin eso se traga los clics
-   de todo lo que hay debajo y la presentación deja de poder navegarse. */
+/*
+ * EL LÁSER: un punto brillante con su halo, como el de un puntero de verdad.
+ *
+ * `pointer-events: none` no es opcional: sin eso se traga los clics de todo lo
+ * que hay debajo y la presentación deja de poder navegarse.
+ *
+ * Dos capas y no una. Un solo degradado radial da una mancha difusa que a
+ * cinco metros de una pantalla no se ve: lo que se sigue con la vista es el
+ * NÚCLEO duro, y el halo es lo que lo hace visible sobre fondo claro. Por eso
+ * el núcleo va casi blanco —así se lee sobre rojo y sobre cualquier gráfico— y
+ * el halo, saturado y grande.
+ */
 .laser {
-  position: fixed; top: 0; left: 0; z-index: 999;
-  width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  position: fixed; top: 0; left: 0; z-index: 2147483647;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 120ms linear;
-  background: radial-gradient(
-    circle,
-    oklch(0.72 0.24 25 / 0.95) 0%,
-    oklch(0.65 0.26 25 / 0.55) 38%,
-    oklch(0.62 0.26 25 / 0) 72%
-  );
   border-radius: 50%;
+  background:
+    radial-gradient(circle, oklch(0.98 0.05 25 / 0.95) 0%, oklch(0.98 0.05 25 / 0) 16%),
+    radial-gradient(circle, oklch(0.62 0.28 25 / 0.85) 0%, oklch(0.60 0.28 25 / 0.35) 30%, oklch(0.60 0.28 25 / 0) 62%);
+  filter: drop-shadow(0 0 10px oklch(0.60 0.28 25 / 0.55));
 }
 .laser[data-visible='true'] { opacity: 1; }
 

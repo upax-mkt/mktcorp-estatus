@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { TEMAS, obtenerTema, slugsDeSalas } from './index'
+import { TEMAS, obtenerTema, slugsDeSalas, temaDeSala } from './index'
 import { contraste } from '@/lib/color'
 import { derivarEscalaDatos } from '@/lib/escala-datos'
 
 describe('registro de temas', () => {
-  it('tiene exactamente las 10 salas', () => {
+  it('tiene exactamente las 9 salas: las 8 UDNs y Ceci', () => {
+    // Grupo UPAX salió del registro: era la misma habitación que Ceci contada
+    // dos veces —mismo logotipo, mismo interlocutor— y en el Home aparecían
+    // como dos tarjetas idénticas. Su TEMA sigue existiendo, porque de ahí
+    // saca Ceci su identidad; lo que ya no existe es la sala.
     expect(slugsDeSalas().sort()).toEqual([
-      'ceci', 'grupo-upax', 'house-of-films', 'marketing-united', 'mexa-creativa',
+      'ceci', 'house-of-films', 'marketing-united', 'mexa-creativa',
       'neracode', 'promo-espacio', 'research-land', 'uix', 'zeus',
     ])
   })
@@ -51,5 +55,21 @@ describe.each(Object.values(TEMAS))('tema $nombre', (tema) => {
 
   it('el gradiente tiene al menos dos paradas', () => {
     expect(tema.gradiente.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('la identidad de lo que no es de ninguna sala', () => {
+  it('una reunión sin sala se viste con la del grupo, no con undefined', () => {
+    // Grupo UPAX dejó de ser una sala, y el por defecto apuntaba al registro:
+    // sin esto, un comité o un arranque se quedaban sin tema, sin colores y
+    // sin escala de datos, y el documento reventaba al pintarse.
+    const t = temaDeSala(null)
+    expect(t).toBeDefined()
+    expect(t.primario).toMatch(/^#/)
+    expect(temaDeSala(undefined).slug).toBe(t.slug)
+  })
+
+  it('con sala, la suya', () => {
+    expect(temaDeSala('zeus').slug).toBe('zeus')
   })
 })

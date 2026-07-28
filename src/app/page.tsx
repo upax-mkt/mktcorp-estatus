@@ -12,7 +12,7 @@ import {
 import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo, logoPrestado } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
-import { listarSesiones } from '@/db/sesiones'
+import { listarSesiones, crearSesion, marcarPresentada } from '@/db/sesiones'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta, diaCivil } from '@/lib/fecha'
@@ -53,6 +53,35 @@ export default async function Hub() {
     revalidatePath('/')
   }
 
+  /**
+   * Registra una reunión que no estaba en la app, para poder minutarla.
+   *
+   * Nace sin secciones y ya presentada: no es algo que se vaya a preparar —
+   * ya pasó. Lo único que se le pide es cómo se llama y cuándo fue.
+   */
+  async function crearReunionAction(datos: {
+    titulo: string
+    fecha: string
+    salaSlug: string | null
+  }): Promise<{ id?: string; error?: string }> {
+    'use server'
+    await exigirEquipo()
+    try {
+      const { id } = await crearSesion({
+        salaSlug: datos.salaSlug,
+        titulo: datos.titulo,
+        tipo: 'mensual',
+        alcance: 'todos',
+        fecha: new Date(datos.fecha),
+      })
+      await marcarPresentada(id)
+      revalidatePath('/')
+      return { id }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar la reunión.' }
+    }
+  }
+
   async function guardarMoldeAction(nuevo: MoldeMinuta): Promise<{ error?: string }> {
     'use server'
     await exigirEquipo()
@@ -82,7 +111,7 @@ export default async function Hub() {
   const molde = await moldeDeMinuta(null)
   const salas = ordenarPorUrgencia(salasCrudas)
 
-  // Las minutas de las diez salas en una sola lista, la más reciente arriba.
+  // Las minutas de todas las salas en una sola lista, la más reciente arriba.
   const minutas: MinutaEnHome[] = salasCrudas
     .flatMap((s) =>
       s.minutas.map((m) => ({
@@ -182,15 +211,17 @@ export default async function Hub() {
           <ModuloMinutas
             minutas={minutas}
             pendientes={sinMinuta}
+            salas={salasCrudas.map((x) => ({ slug: x.slug, nombre: x.nombre }))}
             molde={molde}
             guardarMoldeAction={guardarMoldeAction}
+            crearReunionAction={crearReunionAction}
           />
         </div>
 
         {/* Las salas, con su logotipo. */}
         <section>
           <div className={estilos.seccionCabecera}>
-            <h2 className={estilos.seccionTitulo}>Las diez salas</h2>
+            <h2 className={estilos.seccionTitulo}>Las salas</h2>
             <span className="micro" data-sinpunto>ordenadas por atención pendiente</span>
           </div>
 

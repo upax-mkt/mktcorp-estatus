@@ -95,10 +95,53 @@ export function GrabarReunion({ alTerminar }: Props) {
     }
   }, [])
 
-  function arrancar() {
+  /**
+   * PIDE EL MICRÓFONO ANTES DE NADA.
+   *
+   * Franco: "la herramienta de grabación no generó nada, al parecer no se
+   * configuró ni buscó permisos de utilizar mi mic". Tenía razón y la causa
+   * es concreta: en PANTALLA COMPLETA el navegador NO enseña el diálogo de
+   * permisos. La Web Speech API lo pedía por su cuenta, el diálogo no salía,
+   * y `start()` terminaba en silencio sin un solo error visible.
+   *
+   * Pedirlo con `getUserMedia` resuelve las dos cosas: fuerza el diálogo —y
+   * si el navegador lo bloquea por estar en pantalla completa, DEVUELVE un
+   * error que se puede enseñar— y deja el permiso concedido antes de que el
+   * reconocimiento arranque. La pista se cierra en cuanto se concede: quien
+   * escucha es el reconocimiento, no nosotros, y dejarla abierta encendería
+   * el indicador de micrófono sin motivo.
+   */
+  async function pedirMicrofono(): Promise<string | null> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return 'Este navegador no da acceso al micrófono.'
+    }
+    try {
+      const pista = await navigator.mediaDevices.getUserMedia({ audio: true })
+      pista.getTracks().forEach((t) => t.stop())
+      return null
+    } catch (e) {
+      const nombre = e instanceof Error ? e.name : ''
+      if (nombre === 'NotAllowedError') {
+        return document.fullscreenElement
+          ? 'El navegador no pide permiso de micrófono en pantalla completa. Sal de pantalla completa (Esc), pulsa Grabar y vuelve a entrar.'
+          : 'No diste permiso al micrófono. Actívalo en el candado de la barra de direcciones y vuelve a intentar.'
+      }
+      if (nombre === 'NotFoundError') return 'No se encontró ningún micrófono.'
+      return 'No se pudo acceder al micrófono.'
+    }
+  }
+
+  async function arrancar() {
     const Constructor = constructorDeReconocimiento()
     if (!Constructor) return
     setError(null)
+
+    const problema = await pedirMicrofono()
+    if (problema) {
+      setError(problema)
+      return
+    }
+
     texto.current = []
     setPalabras(0)
 
@@ -188,7 +231,11 @@ export function GrabarReunion({ alTerminar }: Props) {
           </span>
         </>
       ) : (
-        <button type="button" onClick={arrancar} title="Transcribe con el reconocimiento de voz de Chrome">
+        <button
+          type="button"
+          onClick={() => { void arrancar() }}
+          title="Pide el micrófono y transcribe con el reconocimiento de voz de Chrome"
+        >
           Grabar
         </button>
       )}

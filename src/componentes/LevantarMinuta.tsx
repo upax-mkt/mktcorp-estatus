@@ -1,175 +1,306 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { MinutaCliente } from '@/app/preparar/[id]/minuta/MinutaCliente'
 import { fechaCompleta } from '@/lib/fecha'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from './minuta.module.css'
 
 /**
- * Levantar una minuta desde donde se esté.
+ * GENERAR UNA MINUTA, de la reunión que sea.
  *
- * Franco: "un botón para cargar una transcripción y generar con IA la minuta
- * directamente". Directamente significa DESDE AQUÍ: hasta ahora había que
- * acordarse de qué sesión era, entrar al preparador, buscarla y abrir su
- * pantalla de minuta.
+ * Franco: "no debe obligarme a asociar la minuta a una reunión, ya que el
+ * componente lo puedo ocupar para cualquier reunión".
  *
- * AGNÓSTICO de dónde vive: la sala le pasa sus sesiones sin minuta y el Home
- * le pasa las de las diez. Lo único que cambia es si cada fila dice de qué
- * sala es. Es la misma pieza porque es la misma tarea, y tenerla dos veces
- * garantiza que una de las dos se quede atrás.
+ * Antes exigía elegir una sesión YA PREPARADA en la app, y eso deja fuera el
+ * caso más común: una junta que se dio y que nadie preparó aquí. Ahora hay dos
+ * vías y la segunda no exige nada previo — se escribe de qué reunión fue y ya.
  *
- * Lo que NO se salta es la revisión. La generación propone acuerdos y esos
- * acuerdos, al publicarse, nacen en la sala con dueño y fecha: pasan por la
- * misma pantalla de revisión de siempre (`MinutaCliente`, reutilizada tal
- * cual), solo que dentro de esta ventana. Publicar sin revisar sería meter en
- * la sala de un director compromisos que nadie leyó.
+ * POR DEBAJO SIGUE HABIENDO UNA REUNIÓN, a propósito. Una minuta suelta, sin
+ * nada a lo que pertenecer, no se puede encontrar después: no sale en ninguna
+ * sala, no entra en el histórico, no se puede volver a citar. Lo que se quita
+ * es el TRABAJO de asociarla, no la asociación: al describir la reunión, la
+ * app la registra como tal. Es justo lo que ya modela `reunionesDeSala` — una
+ * reunión con minuta y sin presentación.
+ *
+ * AGNÓSTICO de dónde vive: la sala le pasa sus sesiones y el Home las de
+ * todas. Es la misma pieza porque es la misma tarea.
  */
 
 export interface SesionMinutable {
   id: string
   titulo: string
   fecha: string // ISO
-  /**
-   * De qué sala es. Solo hace falta cuando la lista cruza salas —el Home—;
-   * dentro de una sala repetir su nombre en cada fila es ruido.
-   */
+  /** De qué sala. Solo se enseña cuando la lista cruza salas (el Home). */
   salaNombre?: string
   salaColor?: string
 }
 
+export interface SalaElegible {
+  slug: string
+  nombre: string
+}
+
 interface Props {
-  /** Sesiones ya presentadas que todavía no tienen minuta. */
+  /** Reuniones ya registradas en la app que siguen sin minuta. */
   sesiones: SesionMinutable[]
-  /** Cómo se ve el disparador. Cada sitio lo viste con su hoja de estilos. */
+  /**
+   * Salas entre las que elegir al describir una reunión nueva. Vacío = no se
+   * ofrece (dentro de una sala ya se sabe cuál es).
+   */
+  salas?: SalaElegible[]
+  /** Sala fija, cuando el componente vive dentro de una. */
+  salaFija?: string
+  /** Registra una reunión que no estaba en la app y devuelve su id. */
+  crearReunionAction: (datos: {
+    titulo: string
+    fecha: string
+    salaSlug: string | null
+  }) => Promise<{ id?: string; error?: string }>
   claseBoton?: string
   etiquetaBoton?: string
-  /** Qué decir cuando no hay ninguna sesión que minutar. */
-  claseVacio?: string
+}
+
+/** El icono de la IA. A mano, con el mismo trazo que el resto (ver IconoSeccion). */
+export function IconoIA({ tamano = 18 }: { tamano?: number }) {
+  return (
+    <svg
+      width={tamano}
+      height={tamano}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {/* Una chispa: el gesto que ya significa "esto lo escribe un modelo". */}
+      <path d="M12 3l1.6 4.3L18 9l-4.4 1.7L12 15l-1.6-4.3L6 9l4.4-1.7z" />
+      <path d="M18.5 15.5l.7 1.9 1.8.7-1.8.7-.7 1.9-.7-1.9-1.8-.7 1.8-.7z" />
+    </svg>
+  )
+}
+
+/** Hoy, en el formato del campo de fecha, para que el formulario no nazca vacío. */
+function hoyCivil(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function LevantarMinuta({
   sesiones,
+  salas = [],
+  salaFija,
+  crearReunionAction,
   claseBoton,
-  etiquetaBoton = 'Levantar minuta con IA',
-  claseVacio,
+  etiquetaBoton = 'Generar una minuta',
 }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
-  const [sesionId, setSesionId] = useState<string | null>(null)
+  const [via, setVia] = useState<'preparada' | 'otra'>(sesiones.length > 0 ? 'preparada' : 'otra')
+  const [elegida, setElegida] = useState<SesionMinutable | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [pendiente, empezar] = useTransition()
   const dialogo = useRef<HTMLDialogElement>(null)
 
+  // Campos de "otra reunión".
+  const [titulo, setTitulo] = useState('')
+  const [fecha, setFecha] = useState(hoyCivil())
+  const [sala, setSala] = useState(salaFija ?? '')
+
   useEffect(() => {
-    const nodo = dialogo.current
-    if (!nodo) return
-    if (abierto && !nodo.open) nodo.showModal()
-    if (!abierto && nodo.open) nodo.close()
+    const n = dialogo.current
+    if (!n) return
+    if (abierto && !n.open) n.showModal()
+    if (!abierto && n.open) n.close()
   }, [abierto])
 
   function cerrar() {
     setAbierto(false)
-    setSesionId(null)
+    setElegida(null)
+    setError(null)
   }
 
-  // Sin sesiones presentadas no hay nada que minutar, y decir por qué vale
-  // más que un botón que no hace nada: el eslabón que falta es marcar la
-  // sesión como presentada al terminar la reunión.
-  if (sesiones.length === 0) {
-    return (
-      <p className={claseVacio ?? estilos.vacioNota}>
-        Para levantar una minuta hace falta una reunión ya presentada. Al terminar, marca la
-        sesión como presentada desde su documento.
-      </p>
-    )
+  function registrarYSeguir() {
+    setError(null)
+    const nombre = titulo.trim()
+    if (!nombre) {
+      setError('Ponle un nombre a la reunión: es como se va a encontrar después.')
+      return
+    }
+    empezar(async () => {
+      const r = await crearReunionAction({
+        titulo: nombre,
+        // Mediodía y no medianoche: una fecha a las 00:00 UTC se corre de día
+        // al leerla en la zona de México.
+        fecha: `${fecha}T12:00:00.000Z`,
+        salaSlug: sala || null,
+      })
+      if (r.error || !r.id) {
+        setError(r.error ?? 'No se pudo registrar la reunión.')
+        return
+      }
+      setElegida({ id: r.id, titulo: nombre, fecha: `${fecha}T12:00:00.000Z` })
+    })
   }
-
-  const elegida = sesiones.find((s) => s.id === sesionId)
 
   return (
     <>
       <button
         type="button"
-        className={claseBoton ?? estilos.nuevaMinutaBoton}
+        className={claseBoton}
         onClick={() => setAbierto(true)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
       >
+        <IconoIA />
         {etiquetaBoton}
       </button>
 
       <dialog
         ref={dialogo}
-        className={`${estilos.lightbox} ${estilos.lightboxAncho}`}
-        aria-label="Levantar una minuta"
-        onClick={(e) => {
-          if (e.target === dialogo.current) cerrar()
-        }}
+        className={estilos.dialogo}
+        aria-label="Generar una minuta"
+        onClick={(e) => { if (e.target === dialogo.current) cerrar() }}
         onClose={cerrar}
       >
-        <div className={estilos.lightboxCaja}>
-          <header className={estilos.lightboxCabecera}>
+        <div className={estilos.caja}>
+          <header className={estilos.cabecera}>
             <div>
-              <h3 className={estilos.lightboxTitulo}>Levantar minuta</h3>
-              <div className={estilos.lightboxFecha}>
+              <h3 className={estilos.titulo}>
+                <IconoIA tamano={20} />
+                Generar una minuta
+              </h3>
+              <p className={estilos.sub}>
                 {elegida
-                  ? `${elegida.salaNombre ? `${elegida.salaNombre} · ` : ''}${elegida.titulo} · ${fechaCompleta(elegida.fecha)}`
-                  : 'Elige de qué sesión, y pega la transcripción.'}
-              </div>
+                  ? 'Pega la transcripción y la IA propone el acta y los acuerdos. Nada se publica sin que lo revises.'
+                  : 'De cualquier reunión: una que preparaste aquí, o cualquier otra que se haya dado.'}
+              </p>
             </div>
-            <button
-              type="button"
-              className={estilos.lightboxCerrar}
-              onClick={cerrar}
-              aria-label="Cerrar"
-            >
-              ✕
-            </button>
+            <button type="button" className={estilos.cerrar} onClick={cerrar} aria-label="Cerrar">✕</button>
           </header>
 
-          <div className={estilos.lightboxCuerpo}>
-            {!elegida ? (
-              <div className={estilos.eleccionSesion}>
-                {sesiones.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className={estilos.eleccionFila}
-                    onClick={() => setSesionId(s.id)}
-                  >
-                    <span className={estilos.eleccionTitulo}>
-                      {/* El punto de color y el nombre de la sala solo salen
-                          cuando la lista cruza salas: dentro de una, repetir
-                          su nombre en cada fila es ruido. */}
-                      {s.salaNombre && (
-                        <span
-                          className={estilos.eleccionSala}
-                          style={{ '--marca': s.salaColor } as React.CSSProperties}
-                        >
-                          {s.salaNombre}
-                        </span>
-                      )}
-                      {s.titulo}
-                    </span>
-                    <span className={estilos.eleccionFecha}>{fechaCompleta(s.fecha)}</span>
+          <div className={estilos.cuerpo}>
+            {elegida ? (
+              <>
+                <div className={estilos.elegida}>
+                  <span>
+                    <strong>{elegida.titulo}</strong> · {fechaCompleta(elegida.fecha)}
+                  </span>
+                  <button type="button" className={estilos.cambiar} onClick={() => setElegida(null)}>
+                    Cambiar de reunión
                   </button>
-                ))}
-              </div>
+                </div>
+                <MinutaCliente
+                  sesionId={elegida.id}
+                  alPublicar={() => {
+                    cerrar()
+                    router.refresh()
+                  }}
+                />
+              </>
             ) : (
-              <MinutaCliente
-                sesionId={elegida.id}
-                alPublicar={() => {
-                  cerrar()
-                  router.refresh()
-                }}
-              />
+              <>
+                {/* Las dos vías a la vista desde el principio: escondida detrás
+                    de un enlace, «Otra reunión» seguiría pareciendo que hay que
+                    elegir una sesión preparada. */}
+                <div className={estilos.pestanas} role="tablist" aria-label="De qué reunión">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={via === 'preparada'}
+                    data-activo={via === 'preparada' ? 'true' : undefined}
+                    onClick={() => setVia('preparada')}
+                  >
+                    Una preparada aquí{sesiones.length > 0 ? ` (${sesiones.length})` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={via === 'otra'}
+                    data-activo={via === 'otra' ? 'true' : undefined}
+                    onClick={() => setVia('otra')}
+                  >
+                    Otra reunión
+                  </button>
+                </div>
+
+                {via === 'preparada' ? (
+                  sesiones.length === 0 ? (
+                    <p className={estilos.vacio}>
+                      No hay ninguna reunión preparada aquí sin minuta. Usa «Otra reunión» para
+                      minutar cualquier junta que se haya dado.
+                    </p>
+                  ) : (
+                    <div className={estilos.lista}>
+                      {sesiones.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={estilos.fila}
+                          style={{ '--marca': s.salaColor } as React.CSSProperties}
+                          onClick={() => setElegida(s)}
+                        >
+                          <span className={estilos.filaTitulo}>
+                            {s.salaNombre && <span className={estilos.filaSala}>{s.salaNombre}</span>}
+                            {s.titulo}
+                          </span>
+                          <span className={estilos.filaFecha}>{fechaCompleta(s.fecha)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <>
+                    <div className={estilos.campos}>
+                      <label className={`${estilos.campo} ${estilos.anchoEntero}`}>
+                        <span className="micro">De qué reunión fue</span>
+                        <input
+                          value={titulo}
+                          onChange={(e) => setTitulo(e.target.value)}
+                          placeholder="Comité de dirección · julio"
+                        />
+                      </label>
+                      <label className={estilos.campo}>
+                        <span className="micro">Cuándo</span>
+                        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+                      </label>
+                      {salas.length > 0 && (
+                        <label className={estilos.campo}>
+                          <span className="micro">Sala, si es de alguna</span>
+                          <select value={sala} onChange={(e) => setSala(e.target.value)}>
+                            <option value="">Ninguna</option>
+                            {salas.map((s) => (
+                              <option key={s.slug} value={s.slug}>{s.nombre}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                    </div>
+
+                    <div className={estilos.acciones}>
+                      <button
+                        type="button"
+                        className="boton"
+                        data-tono="marca"
+                        disabled={pendiente}
+                        onClick={registrarYSeguir}
+                      >
+                        {pendiente ? 'Registrando…' : 'Continuar'}
+                      </button>
+                      {error && <span className={estilos.aviso}>{error}</span>}
+                    </div>
+
+                    <p className={estilos.vacio} style={{ marginTop: '0.9rem' }}>
+                      Si la asignas a una sala, su minuta y sus acuerdos quedan ahí. Sin sala, la
+                      minuta existe igual y sus acuerdos se quedan en el texto: no hay dónde
+                      colgarlos.
+                    </p>
+                  </>
+                )}
+              </>
             )}
           </div>
-
-          {elegida && (
-            <footer className={estilos.lightboxPie}>
-              <button type="button" className={estilos.botonVolverSesion} onClick={() => setSesionId(null)}>
-                ← Elegir otra sesión
-              </button>
-            </footer>
-          )}
         </div>
       </dialog>
     </>

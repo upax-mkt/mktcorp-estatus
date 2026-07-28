@@ -1,0 +1,110 @@
+/*
+ * La ventana de «Generar una minuta».
+ *
+ * HOJA PROPIA, y esa es la corrección: antes reutilizaba las clases de
+ * `sala.module.css`, que están escritas sobre los alias que define `.app` de
+ * la sala (`--tx`, `--papel`, `--borde`). Dentro del Home ese `.app` es otro y
+ * esos alias no existen, así que la ventana salía sin colores, sin tamaños y
+ * aplastada. Aquí se usan los tokens compartidos de `sistema.css`, que están
+ * definidos en cualquier pantalla.
+ */
+
+.dialogo {
+  border: none; padding: 0; background: none;
+  max-width: min(56rem, 94vw); width: 100%; margin: auto;
+}
+.dialogo::backdrop { background: oklch(0.26 0.025 55 / 0.42); backdrop-filter: blur(3px); }
+
+.caja {
+  display: grid; grid-template-rows: auto 1fr;
+  max-height: 88dvh;
+  background: var(--papel); color: var(--tinta);
+  border-radius: var(--r-4); box-shadow: var(--e-3);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+}
+
+.cabecera {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.35rem 1.5rem 1.1rem; border-bottom: 1px solid var(--linea);
+}
+.titulo {
+  display: flex; align-items: center; gap: 0.55rem;
+  font-size: 1.15rem; font-weight: 600; letter-spacing: var(--track-titulo); margin: 0;
+}
+.titulo svg { color: var(--tinta-3); flex: none; }
+.sub { font-size: 0.86rem; color: var(--tinta-3); margin: 0.35rem 0 0; line-height: 1.5; }
+.cerrar {
+  font: inherit; font-size: 1rem; line-height: 1; flex: none;
+  border: none; background: none; color: var(--tinta-3); cursor: pointer;
+  padding: 0.35rem 0.5rem; border-radius: var(--r-1);
+}
+.cerrar:hover { background: var(--papel-hundido); color: var(--tinta); }
+
+.cuerpo { overflow-y: auto; padding: 1.3rem 1.5rem 1.5rem; }
+
+/* ---- elegir de qué reunión ---- */
+
+.pestanas {
+  display: inline-flex; gap: 0.2rem; margin-bottom: 1.1rem;
+  padding: 0.2rem; border-radius: var(--r-lleno); background: var(--papel-hundido);
+}
+.pestanas button {
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.42rem 0.95rem; border: none; border-radius: var(--r-lleno);
+  background: none; color: var(--tinta-3); cursor: pointer;
+  transition: background var(--rapido) linear, color var(--rapido) linear;
+}
+.pestanas button:hover { color: var(--tinta); }
+.pestanas button[data-activo='true'] {
+  background: var(--papel); color: var(--tinta); box-shadow: var(--e-1);
+}
+
+.lista { display: grid; gap: 0.3rem; }
+.fila {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  width: 100%; text-align: left; font: inherit;
+  padding: 0.75rem 0.9rem; border-radius: var(--r-2);
+  border: 1px solid var(--linea); background: var(--papel); color: var(--tinta);
+  cursor: pointer;
+  transition: border-color var(--rapido) linear, background var(--rapido) linear;
+}
+.fila:hover { border-color: var(--linea-fuerte); background: var(--papel-hundido); }
+.filaTitulo { font-weight: 550; min-width: 0; }
+.filaSala {
+  display: inline-block; margin-right: 0.5rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--marca, var(--tinta-3));
+}
+.filaFecha { font-size: 0.8rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.vacio { font-size: 0.88rem; color: var(--tinta-3); margin: 0; line-height: 1.55; }
+
+/* ---- describir una reunión que no está en la app ---- */
+
+.campos { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.campo { display: grid; gap: 0.4rem; min-width: 0; }
+.campo input, .campo select {
+  font: inherit; color: var(--tinta); width: 100%;
+  padding: 0.55rem 0.7rem; border-radius: var(--r-2);
+  border: 1px solid var(--linea-fuerte); background: var(--lienzo);
+}
+.campo input:focus, .campo select:focus { outline: none; border-color: var(--tinta); }
+.anchoEntero { grid-column: 1 / -1; }
+
+.acciones { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.1rem; }
+.aviso { font-size: 0.85rem; color: var(--mal); }
+
+/* La cabecera de la reunión elegida, cuando ya se está minutando. */
+.elegida {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  margin-bottom: 1.2rem; padding: 0.7rem 0.9rem;
+  border-radius: var(--r-2); background: var(--papel-hundido);
+  font-size: 0.88rem;
+}
+.cambiar {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  border: none; background: none; color: var(--tinta-2); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px; padding: 0;
+}
+.cambiar:hover { color: var(--tinta); }

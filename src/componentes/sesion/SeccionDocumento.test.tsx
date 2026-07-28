@@ -105,7 +105,9 @@ describe('gráficos (págs. 8 y 10)', () => {
         },
       ],
     })
-    expect(container.querySelectorAll('svg')).toHaveLength(2)
+    // `figure svg` y no `svg` a secas: desde que cada sección lleva el icono
+    // de su tipo en el carril, contar todos los SVG cuenta también ese.
+    expect(container.querySelectorAll('figure svg')).toHaveLength(2)
   })
 })
 

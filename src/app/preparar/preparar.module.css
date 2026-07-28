@@ -365,7 +365,14 @@
    herramienta produce sí tiene índice; la herramienta no lo tenía. */
 .editorConIndice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
 .columnaSecciones { display: grid; gap: 0.9rem; min-width: 0; order: 2; }
-.indice { order: 1; }
+/* `min-width: 0` NO es opcional: un elemento de grid o de flex no encoge por
+   debajo de su contenido salvo que se le diga, así que el `text-overflow:
+   ellipsis` de `.indiceNombre` nunca llegaba a actuar y los títulos largos —
+   "De ocho acuerdos, cinco cerrados y uno detenido por presupuesto"— salían
+   235 px fuera del carril, encima de las tarjetas del editor. Hay que
+   ponerlo en TODA la cadena: el que falte rompe los de abajo. */
+.indice { order: 1; min-width: 0; }
+.indice ol, .indice li { min-width: 0; }
 
 @media (min-width: 68rem) {
   .editorConIndice { grid-template-columns: 12.5rem minmax(0, 1fr); align-items: start; }
@@ -385,7 +392,7 @@
 
 .indiceLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
 .indiceEnlace {
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; align-items: center; gap: 0.5rem; min-width: 0;
   padding: 0.3rem 0.35rem; border-radius: 0.35rem;
   font-size: 0.82rem; color: var(--tx-2); text-decoration: none;
   transition: background 120ms ease, color 120ms ease;
@@ -400,7 +407,7 @@
   border: 1px solid var(--borde-fuerte);
 }
 .indiceEnlace[data-llenado='true'] .indicePunto { background: var(--ok); border-color: var(--ok); }
-.indiceNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.indiceNombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- elegir plantilla de reunión ----
    Va antes que la sala porque decide con qué secciones nace: es lo que hace

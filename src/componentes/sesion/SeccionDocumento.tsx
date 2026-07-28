@@ -7,6 +7,7 @@ import { MatrizSeccion } from './MatrizSeccion'
 import { BloquesSeccion } from './BloquesSeccion'
 import { MetaRealSeccion, CifrasDesglosadasSeccion } from './CumplimientoSeccion'
 import { papelDe } from '@/secciones/catalogo'
+import { IconoLayout } from './IconoLayout'
 import estilos from './documento.module.css'
 
 /**
@@ -101,7 +102,12 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
           {decision.subtitulo && <p className={estilos.portadaSubtitulo}>{decision.subtitulo}</p>}
         </header>
       ) : (
-        <h2 className={estilos.titulo}>{decision.titulo}</h2>
+        // El icono va en el CARRIL, no junto al título: ahí no le quita sitio
+        // al texto y dice de qué clase es la sección antes de leerla.
+        <>
+          <IconoLayout layout={decision.layout} className={estilos.iconoCarril} />
+          <h2 className={estilos.titulo}>{decision.titulo}</h2>
+        </>
       )}
 
       {!esPortada && decision.subtitulo && (

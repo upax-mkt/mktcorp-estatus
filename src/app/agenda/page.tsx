@@ -128,7 +128,7 @@ export default async function PagAgenda() {
         <div className={estilos.encabezado}>
           <h1 className={estilos.titulo}>Agenda</h1>
           <p className={estilos.subtitulo}>
-            Las sesiones de las diez salas. Lo que se agenda aquí es lo que el hub anuncia como
+            Las sesiones de todas las salas. Lo que se agenda aquí es lo que el hub anuncia como
             próxima sesión.
           </p>
         </div>

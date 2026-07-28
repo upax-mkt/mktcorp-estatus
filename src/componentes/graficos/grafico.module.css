@@ -2,6 +2,14 @@
    marca (--texto, --dato-N, --fuente-texto) los publica ProveedorTema; aquí
    solo se consumen. */
 
+/* Entre una figura y lo que venga antes, aire. Medido: dos gráficos seguidos
+   —y una tabla seguida de un gráfico— quedaban a hueco CERO, pegados como si
+   fueran la misma pieza. Franco: "módulos de textos pegados entre otros". */
+.figura + .figura,
+:global([class*='tablaEnvoltorio']) + .figura {
+  margin-top: 2.2em;
+}
+
 .figura {
   margin: 0;
   /* `cqw` no sirve: este componente vive tanto en el deck (un contenedor con
@@ -295,7 +303,9 @@
 .muestra[data-forma='linea'] { height: 3px; border-radius: 999px; }
 .muestra[data-forma='linea-punteada'] {
   height: 0;
-  border-top: 3px dashed currentColor;
+  /* 2px basta para que se lea como línea punteada en una muestra de 14px de
+     ancho; con 3 competía con el propio dibujo del gráfico. */
+  border-top: 2px dashed currentColor;
   border-radius: 0;
   background: none !important;
 }

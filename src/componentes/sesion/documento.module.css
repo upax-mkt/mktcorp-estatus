@@ -172,6 +172,21 @@
 /* La marca abre el documento como un CAMPO, no como un filete de 6px
    flotando. El degradado se muestra entero —que es la condición— y sin una
    sola palabra encima. */
+/*
+ * LA PORTADA LLEVA EL LOGOTIPO DE LA SALA sobre el degradado.
+ *
+ * Antes era una caja de degradado y nada más: un bloque de color de 90px que
+ * se lee como una imagen que no cargó, no como la apertura de un documento.
+ * Franco: "el resultado del maquetado es desprolijo".
+ *
+ * Con el logotipo pasa a ser lo que una portada tiene que ser —de quién es
+ * esto— y de paso es coherente con el encabezado de la sala, que hace
+ * exactamente lo mismo. La regla de marca se respeta: el degradado se muestra
+ * exacto y lo que va encima es la MARCA, no texto.
+ *
+ * En blanco porque ninguna de las nueve identidades está pensada para ir sobre
+ * color: la versión a color desaparece contra su propio degradado.
+ */
 .portada::before {
   content: '';
   position: absolute;
@@ -179,7 +194,9 @@
   top: 0;
   height: var(--alto-campo);
   border-radius: 0.75rem;
-  background: var(--gradiente);
+  background:
+    var(--logo-blanco) no-repeat left calc(var(--e-6)) center / auto 44%,
+    var(--gradiente);
 }
 
 .portadaTitulo {
@@ -287,7 +304,11 @@
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0 var(--e-6);
   margin: var(--e-6) 0;
-  border-top: 2px solid var(--texto);
+  /* 1px, no 2. A 2px esto deja de ser una línea que separa y pasa a ser una
+     barra que pesa — y en una página con cinco separadores, cinco barras. El
+     jerarquía la da el CONTRASTE (tinta plena frente a las hairlines grises de
+     las tablas), no el grosor. */
+  border-top: 1px solid var(--texto);
   padding-top: var(--e-4);
 }
 
@@ -479,3 +500,23 @@
 .seccion[data-con-fondo='true'] .indiceEnlace { color: white; }
 .seccion[data-con-fondo='true'] .indiceEnlace:hover { color: white; text-decoration: underline; }
 .seccion[data-con-fondo='true'] .indice li { border-color: oklch(1 0 0 / 0.25); }
+
+/*
+ * EL ICONO DEL TIPO DE SECCIÓN, sobre el título.
+ *
+ * Iba a ir en el carril izquierdo, pero `.seccion` no es una rejilla de dos
+ * columnas —solo lo es el divisor— así que `grid-column: 1` no lo colocaba en
+ * ningún carril: lo dejaba encima del título por accidente. Ponerlo ahí a
+ * PROPÓSITO funciona mejor: acompaña al encabezado, se lee antes que el título
+ * y no obliga a reservar un carril en todas las secciones.
+ *
+ * Con el color de la marca de la sala, que es lo que lo separa del texto sin
+ * pesar más que él.
+ */
+.iconoCarril {
+  display: block;
+  width: calc(1.55rem * var(--escala));
+  height: calc(1.55rem * var(--escala));
+  margin-bottom: var(--e-3);
+  color: var(--primario-sobre-superficie, var(--texto));
+}

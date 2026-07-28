@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { archivoDeLogo } from '@/temas/logos'
 import type { Tema } from '@/temas/tipos'
 import { derivarEscalaDatos } from '@/lib/escala-datos'
 import { familiaCss } from '@/temas/fuentes'
@@ -37,6 +38,14 @@ export function ProveedorTema({ tema, superficie, children }: Props) {
     // Nunca se deriva un token "apto para texto" de esto — ese era el defecto
     // anterior; ahora el texto vive siempre sobre --superficie/--texto.
     '--gradiente': `linear-gradient(135deg, ${tema.gradiente.join(', ')})`,
+    /**
+     * El logotipo de la sala, en blanco, listo para ponerlo de fondo.
+     *
+     * Va como variable y no como prop porque quien lo necesita es una regla de
+     * CSS —el `::before` de la portada— y hacerlo llegar hasta ahí como prop
+     * obligaría a atravesar cuatro componentes que no tienen nada que ver.
+     */
+    '--logo-blanco': `url("${archivoDeLogo(tema.slug, 'blanco')}")`,
     '--fuente-display': familiaCss(tema.familiaDisplay),
     '--fuente-texto': familiaCss(tema.familiaTexto),
   }
