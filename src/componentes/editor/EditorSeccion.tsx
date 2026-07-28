@@ -13,6 +13,7 @@ import { AreaTexto } from './AreaTexto'
 import { AsistenteIA } from './AsistenteIA'
 import { VistaPrevia } from './VistaPrevia'
 import { SelectorTipo } from './SelectorTipo'
+import { CampoImagen } from './CampoImagen'
 import { soloCamposDelTipo, NOMBRE_DE_CAMPO } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
 import estilos from './editor.module.css'
@@ -43,7 +44,18 @@ interface Props {
   proponerAction?: (texto: string) => Promise<BorradorSeccion | { error: string }>
   /** El tema de la sala: la vista previa se pinta con SUS colores. */
   tema: Tema
+  /** De qué sesión es. Lo necesita la subida de imágenes. */
+  sesionId?: string
+  subirImagenAction?: SubirImagen
 }
+
+/** Registra una imagen ya subida a Blob y devuelve la URL con la que se sirve. */
+export type SubirImagen = (datos: {
+  ruta: string
+  nombreOriginal: string
+  tipoContenido: string | null
+  tamanoBytes: number | null
+}) => Promise<{ url?: string; error?: string }>
 
 /**
  * Qué se dejaría de presentar al cambiar de tipo.
@@ -147,6 +159,7 @@ const ESPERA_AUTOGUARDADO = 1200
 
 export function EditorSeccion({
   borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction, tema,
+  sesionId, subirImagenAction,
 }: Props) {
   const idBase = useId()
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
@@ -288,7 +301,13 @@ export function EditorSeccion({
           id={campo === campoFaltante ? idCampoFaltante : undefined}
           className={campo === campoFaltante ? estilos.campoQueFalta : undefined}
         >
-          <Campo campo={campo} borrador={borrador} cambiar={cambiar} />
+          <Campo
+            campo={campo}
+            borrador={borrador}
+            cambiar={cambiar}
+            sesionId={sesionId}
+            subirImagenAction={subirImagenAction}
+          />
         </div>
       ))}
 
@@ -346,10 +365,14 @@ function Campo({
   campo,
   borrador,
   cambiar,
+  sesionId,
+  subirImagenAction,
 }: {
   campo: CampoSeccion
   borrador: BorradorSeccion
   cambiar: (parcial: Partial<BorradorSeccion>) => void
+  sesionId?: string
+  subirImagenAction?: SubirImagen
 }) {
   switch (campo) {
     case 'subtitulo':
@@ -392,16 +415,12 @@ function Campo({
 
     case 'imagen':
       return (
-        <label className={estilos.campo}>
-          <span>Imagen</span>
-          <input
-            value={borrador.imagen ?? ''}
-            onChange={(e) => cambiar({ imagen: e.target.value })}
-            placeholder="/assets/testigo.jpg o https://…"
-            aria-label="Imagen"
-          />
-          <em className={estilos.pista}>Ruta del proyecto o URL https.</em>
-        </label>
+        <CampoImagen
+          valor={borrador.imagen}
+          onChange={(imagen) => cambiar({ imagen })}
+          sesionId={sesionId}
+          subirImagenAction={subirImagenAction}
+        />
       )
 
     case 'kpis':

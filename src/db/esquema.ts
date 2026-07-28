@@ -173,13 +173,23 @@ export const minutas = pgTable('minutas', {
 // El store es privado, así que la URL pública no sirve de nada sin firma —
 // que es justo lo que se quiere: un deck comercial no se sirve por enlace
 // abierto y adivinable.
-export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes'])
+// 'imagen' es la que se inserta DENTRO de una presentación. No cuelga de una
+// sala sino de la sesión: quien puede ver el documento puede ver su imagen, y
+// una reunión sin sala también lleva imágenes.
+export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen'])
 
 export const archivos = pgTable('archivos', {
   id: text('id').primaryKey(),
-  salaSlug: text('sala_slug')
-    .notNull()
-    .references(() => salas.slug),
+  /** Nulo en una imagen de presentación: esa cuelga de la sesión. */
+  salaSlug: text('sala_slug').references(() => salas.slug),
+  /**
+   * La sesión de la que es, si es una imagen de presentación.
+   *
+   * Es lo que decide quién puede verla: el permiso de una imagen incrustada
+   * en un documento es el del documento, no el de una sala — y hay reuniones
+   * que no son de ninguna.
+   */
+  sesionId: text('sesion_id').references(() => sesiones.id),
   categoria: categoriaArchivoEnum('categoria').notNull(),
   /** Cómo se llama en la lista. Lo escribe quien sube, no el nombre del fichero. */
   titulo: text('titulo').notNull(),

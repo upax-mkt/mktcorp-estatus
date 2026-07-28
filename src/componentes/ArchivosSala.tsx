@@ -20,14 +20,18 @@ import estilos from '@/app/sala/sala.module.css'
  * cuando termina la subida, un título escrito a medias quedaría a medias.
  */
 
+/** Las dos categorías que SÍ se listan en una sala. La tercera —`imagen`—
+ *  vive dentro de una presentación, no en esta lista. */
+type CategoriaDeSala = Extract<CategoriaArchivo, 'presentacion' | 'interes'>
+
 interface Props {
   salaSlug: string
-  categoria: CategoriaArchivo
+  categoria: CategoriaDeSala
   archivos: ArchivoSala[]
   /** Solo el equipo sube y edita; el director lee y descarga. */
   equipo: boolean
   registrarAction: (datos: {
-    categoria: CategoriaArchivo
+    categoria: CategoriaDeSala
     titulo: string
     fecha: string | null
     ruta: string
@@ -39,7 +43,7 @@ interface Props {
   eliminarAction: (id: string) => Promise<void>
 }
 
-const TEXTOS: Record<CategoriaArchivo, { anadir: string; vacio: string; pideFecha: boolean }> = {
+const TEXTOS: Record<CategoriaDeSala, { anadir: string; vacio: string; pideFecha: boolean }> = {
   presentacion: {
     anadir: 'Subir una presentación anterior',
     vacio: 'Aquí van las presentaciones que se dieron antes de que existiera esta herramienta.',
@@ -222,7 +226,7 @@ function SubirArchivo({
   registrarAction,
 }: {
   salaSlug: string
-  categoria: CategoriaArchivo
+  categoria: CategoriaDeSala
   etiqueta: string
   pideFecha: boolean
   registrarAction: Props['registrarAction']

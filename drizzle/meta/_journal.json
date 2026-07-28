@@ -43,6 +43,13 @@
       "when": 1785260258962,
       "tag": "0005_volatile_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785260691368,
+      "tag": "0006_black_annihilus",
+      "breakpoints": true
     }
   ]
 }

@@ -382,11 +382,11 @@ con ocho secciones fijas. Las dos cosas dejan de ser ley.
 | ✅ 8.3 | **Minutas agnósticas**: cuelgan de una reunión, sea de sala o no. |
 | ✅ 8.4 | **Preparar desde la sala** — lo que pidió en el punto 3. |
 
-## FASE 9 — Imágenes de verdad ☐
+## FASE 9 — Imágenes de verdad ✅ *(28-jul)*
 
 | # | Qué |
 |---|---|
-| ☐ 9.1 | Subir la imagen desde el disco en vez de pegar una URL. Reutiliza el Blob privado y el registro de archivos de la Fase 3. |
+| ✅ 9.1 | Subir la imagen desde el disco en vez de pegar una URL. Reutiliza el Blob privado y el registro de archivos de la Fase 3. |
 
 ## FASE 10 — Acceso y permisos ☐
 

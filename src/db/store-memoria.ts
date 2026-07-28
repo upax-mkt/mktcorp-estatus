@@ -71,8 +71,9 @@ export interface FilaMinutaMemoria {
 
 export interface FilaArchivoMemoria {
   id: string
-  salaSlug: string
-  categoria: 'presentacion' | 'interes'
+  salaSlug: string | null
+  sesionId?: string | null
+  categoria: 'presentacion' | 'interes' | 'imagen'
   titulo: string
   fecha: Date | null
   ruta: string

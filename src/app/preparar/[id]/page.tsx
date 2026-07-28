@@ -28,6 +28,8 @@ import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSes
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
+import { registrarArchivo } from '@/db/archivos'
+import { del } from '@vercel/blob'
 
 // Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
 // el asistente de IA, que sí llama al modelo.
@@ -112,6 +114,40 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : String(error)
       return { error: `No se pudo proponer: ${mensaje}. Puedes armar la sección a mano.` }
+    }
+  }
+
+  /**
+   * Registra una imagen ya subida a Blob y devuelve la URL con la que se
+   * sirve. Cuelga de LA SESIÓN, no de una sala: quien puede ver el documento
+   * puede ver su imagen, y hay reuniones que no son de ninguna sala.
+   */
+  async function subirImagenAction(datos: {
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ url?: string; error?: string }> {
+    'use server'
+    await exigirEquipo()
+    try {
+      const { id: archivoId } = await registrarArchivo({
+        salaSlug: null,
+        sesionId: id,
+        categoria: 'imagen',
+        titulo: datos.nombreOriginal,
+        fecha: null,
+        ruta: datos.ruta,
+        nombreOriginal: datos.nombreOriginal,
+        tipoContenido: datos.tipoContenido,
+        tamanoBytes: datos.tamanoBytes,
+      })
+      return { url: `/api/archivo/${archivoId}` }
+    } catch (error) {
+      // El binario ya está en el almacén: si la fila no se puede crear se
+      // quita también, o queda basura invisible que se sigue pagando.
+      await del(datos.ruta).catch(() => {})
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar la imagen.' }
     }
   }
 
@@ -251,6 +287,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                   proponerAction={proponerAction}
                   eliminarSeccionAction={base.esBase ? undefined : eliminarSeccionAction}
                   tema={tema}
+                  sesionId={id}
+                  subirImagenAction={subirImagenAction}
                 />
 
                 <div className={estilos.subsecciones}>
@@ -267,6 +305,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       eliminarSeccionAction={eliminarSeccionAction}
                       esSub
                       tema={tema}
+                      sesionId={id}
+                      subirImagenAction={subirImagenAction}
                     />
                   ))}
                   {/* SOLO UN DIVISOR ABRE UN BLOQUE. Una sección que ya lleva

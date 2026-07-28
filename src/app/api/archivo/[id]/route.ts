@@ -1,7 +1,27 @@
 import { get } from '@vercel/blob'
 import { NextResponse } from 'next/server'
 import { obtenerArchivo } from '@/db/archivos'
-import { puedeVerEstaSala } from '@/auth/sesion'
+import { obtenerSesion } from '@/db/sesiones'
+import { puedeVerEstaSala, esEquipo } from '@/auth/sesion'
+
+/**
+ * Quién puede ver este archivo.
+ *
+ * Dos casos, y el segundo llegó con las imágenes de presentación: un archivo
+ * de sala se comprueba contra SU sala, y una imagen incrustada en un
+ * documento hereda el permiso DEL DOCUMENTO — que puede no ser de ninguna
+ * sala. Comprobar la imagen contra una sala que no existe la dejaría fuera
+ * del alcance de todos, incluido quien la subió.
+ */
+async function puedeVerlo(archivo: { salaSlug: string | null; sesionId: string | null }) {
+  if (archivo.sesionId) {
+    const sesion = await obtenerSesion(archivo.sesionId)
+    if (!sesion) return false
+    return sesion.salaSlug ? puedeVerEstaSala(sesion.salaSlug) : esEquipo()
+  }
+  if (archivo.salaSlug) return puedeVerEstaSala(archivo.salaSlug)
+  return false
+}
 
 /**
  * Sirve un archivo de sala, comprobando antes quién pide.
@@ -21,7 +41,7 @@ export async function GET(
   const { id } = await params
   const archivo = await obtenerArchivo(id)
   if (!archivo) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  if (!(await puedeVerEstaSala(archivo.salaSlug))) {
+  if (!(await puedeVerlo(archivo))) {
     return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   }
 

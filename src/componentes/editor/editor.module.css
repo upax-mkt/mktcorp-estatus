@@ -784,3 +784,38 @@
   scroll-margin-top: 5rem;
 }
 .enlaceAlCampo { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---- campo de imagen ----
+   Se sube desde el disco. Pedir una URL era pedirle a alguien que subiera el
+   archivo a otro sitio y volviera con el enlace — y si ese enlace era de
+   Drive, la imagen no se veía. */
+.entradaArchivo { font: inherit; font-size: 0.85rem; color: var(--tx-2, #555); max-width: 100%; }
+.entradaArchivo:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.imagenPuesta {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.6rem; border-radius: var(--r-3, 14px);
+  background: var(--superficie-2, #f6f6f6);
+}
+.imagenMiniatura {
+  width: 5.5rem; height: 3.6rem; object-fit: cover; flex: none;
+  border-radius: var(--r-2, 10px); background: var(--papel, #fff);
+}
+.imagenAcciones { display: grid; gap: 0.3rem; min-width: 0; }
+.imagenRuta {
+  font-size: 0.72rem; color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.quitarImagen {
+  font: inherit; font-size: 0.8rem; font-weight: 600; justify-self: start;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--alerta, #b23);
+}
+.errorImagen { font-size: 0.82rem; color: var(--alerta, #b23); margin: 0; }
+.enlacePlegado {
+  font: inherit; font-size: 0.78rem; justify-self: start;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.enlacePlegado:hover { color: var(--tx, #222); }

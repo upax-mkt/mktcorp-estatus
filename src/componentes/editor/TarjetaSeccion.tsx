@@ -2,7 +2,7 @@ import type { ItemSesion } from '@/db/sesiones'
 import type { BorradorSeccion } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
 import { tipoDeSeccion } from '@/secciones/catalogo'
-import { EditorSeccion } from './EditorSeccion'
+import { EditorSeccion, type SubirImagen } from './EditorSeccion'
 import { EliminarSeccion } from './EliminarSeccion'
 import { SeccionPlegable } from './SeccionPlegable'
 import { loQueFalta } from '@/secciones/borrador'
@@ -29,6 +29,8 @@ interface Props {
   esSub?: boolean
   /** El tema de la sala, para que la vista previa se pinte con sus colores. */
   tema: Tema
+  sesionId: string
+  subirImagenAction: SubirImagen
 }
 
 /** Qué hay dentro, sin abrir. Una sección intacta no es un error: está por empezar. */
@@ -40,6 +42,7 @@ function resumen(llenado: boolean, faltas: string[]): string {
 export function TarjetaSeccion({
   item, primera, ultima, subirAction, bajarAction,
   guardarSeccionAction, proponerAction, eliminarSeccionAction, esSub, tema,
+  sesionId, subirImagenAction,
 }: Props) {
   const borrador: BorradorSeccion = item.contenido.seccion ?? { layout: 'kpis-fila-dos-columnas' }
   const tipo = tipoDeSeccion(borrador.layout)
@@ -104,6 +107,8 @@ export function TarjetaSeccion({
           borrador={borrador}
           tituloDeRespaldo={item.titulo}
           tema={tema}
+          sesionId={sesionId}
+          subirImagenAction={subirImagenAction}
           guardarAction={guardarSeccionAction.bind(null, item.id)}
           textoCrudo={item.contenido.texto}
           proponerAction={proponerAction.bind(null, item.id)}
