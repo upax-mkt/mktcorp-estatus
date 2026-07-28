@@ -1,0 +1,80 @@
+/* El previsualizador: la sesión entera, a escala, arrastrable.
+   Los neutros y radios salen de `sistema.css`. */
+
+.lienzo { display: grid; gap: 1rem; }
+
+.barra {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.zoom { display: flex; align-items: center; gap: 0.6rem; }
+.zoom input { width: 8rem; accent-color: var(--tinta); }
+
+.tarjeta {
+  display: grid; gap: 0.7rem;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--papel); border-radius: var(--r-3);
+  border: 1px solid var(--linea);
+  transition: border-color var(--rapido) linear;
+}
+.tarjeta:hover { border-color: var(--linea-fuerte); }
+/* Una sección que no se puede presentar se ve DESDE FUERA, sin abrirla: es
+   justo lo que el previsualizador viene a resolver. */
+.tarjeta[data-estado='con-problema'] { border-color: color-mix(in oklch, var(--mal) 45%, var(--linea)); }
+
+.cabecera { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.nombre { font-weight: 600; font-size: 0.92rem; letter-spacing: var(--track-normal); }
+.editar {
+  margin-left: auto;
+  font: inherit; font-size: 0.8rem; font-weight: 600;
+  padding: 0.3rem 0.7rem; border-radius: var(--r-lleno);
+  border: 1px solid var(--linea-fuerte); background: var(--papel); color: var(--tinta);
+  cursor: pointer;
+}
+.editar:hover { border-color: var(--tinta); }
+
+/*
+  Se reduce con la propiedad `zoom` y NO con `transform: scale`.
+
+  La diferencia es de layout, no de estilo: un elemento escalado con
+  `transform` sigue ocupando su tamaño original en el flujo, así que había que
+  reservarle un alto a ojo — y una sección corta dejaba medio palmo de gris
+  debajo mientras una larga se cortaba. `zoom` sí afecta al tamaño que ocupa,
+  así que cada tarjeta mide exactamente lo que mide su sección.
+
+  Se topa el alto igualmente: una sección con tres tablas no puede empujar las
+  demás fuera de la pantalla en una vista que existe para verlas todas.
+*/
+.marco {
+  position: relative; overflow: hidden;
+  display: block; width: 100%; padding: 0; border: none; cursor: pointer;
+  max-height: 22rem;
+  border-radius: var(--r-2);
+  background: var(--lienzo);
+}
+.marco:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: 2px; }
+
+.escala {
+  text-align: left;
+  pointer-events: none; /* el clic es del marco entero */
+}
+
+.aviso { font-size: 0.8rem; color: var(--mal); margin: 0; line-height: 1.45; }
+
+/* El conmutador entre escribir y ver. Dos pestañas, no un interruptor: un
+   interruptor no dice a qué se cambia hasta que se pulsa. */
+.conmutador {
+  display: inline-flex; gap: 0.2rem; margin-bottom: 1.2rem;
+  padding: 0.2rem; border-radius: var(--r-lleno);
+  background: var(--papel-hundido);
+}
+.conmutador button {
+  font: inherit; font-size: 0.86rem; font-weight: 600;
+  padding: 0.42rem 0.95rem; border: none; border-radius: var(--r-lleno);
+  background: none; color: var(--tinta-3); cursor: pointer;
+  transition: background var(--rapido) linear, color var(--rapido) linear;
+}
+.conmutador button:hover { color: var(--tinta); }
+.conmutador button[data-activo='true'] {
+  background: var(--papel); color: var(--tinta); box-shadow: var(--e-1);
+}

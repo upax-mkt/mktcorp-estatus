@@ -24,14 +24,31 @@ interface Props {
   className?: string
   /** true si alguna sección se resuelve con IA; entonces sí hay espera real. */
   conIA?: boolean
+  /** Si todas las secciones están escritas y válidas. */
+  todoListo?: boolean
 }
 
-export function BotonMaquetar({ className, conIA }: Props) {
+export function BotonMaquetar({ className, conIA, todoListo }: Props) {
   const { pending } = useFormStatus()
 
+  // NO SE BLOQUEA cuando falta algo, se advierte. Una sesión a medias puede
+  // necesitar generarse igual —para enseñarla en un avance, para ver cómo va
+  // quedando— y un botón apagado sin forma de forzarlo convierte una elección
+  // en un muro. Lo que sí cambia es lo que promete: "Generar igual" no es
+  // "Maquetar", y esa diferencia es la que hace pensar dos segundos.
+  const texto = pending
+    ? conIA ? 'Maquetando… (~25 s)' : 'Maquetando…'
+    : todoListo ? 'Generar la presentación →' : 'Generar igual →'
+
   return (
-    <button type="submit" className={className} disabled={pending} aria-busy={pending}>
-      {pending ? (conIA ? 'Maquetando… (~25 s)' : 'Maquetando…') : 'Maquetar →'}
+    <button
+      type="submit"
+      className={className}
+      data-parcial={todoListo ? undefined : 'true'}
+      disabled={pending}
+      aria-busy={pending}
+    >
+      {texto}
     </button>
   )
 }

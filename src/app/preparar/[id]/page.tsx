@@ -25,7 +25,8 @@ import { BorrarSesion } from '@/componentes/BorrarSesion'
 import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
 import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
 import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
-import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
+import { VistaEditor } from '@/componentes/editor/VistaEditor'
+import { estadoDeSeccion, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
 import { registrarArchivo } from '@/db/archivos'
@@ -211,6 +212,18 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // resto de los avisos.
   const usaIA = sesion.items.some((i) => !borradorTieneContenido(i.contenido.seccion) && Boolean(i.contenido.texto?.trim()))
 
+  // Qué le falta a la sesión para poder generarse entera, con el MISMO criterio
+  // con el que se va a maquetar. Se calcula en el servidor y se enseña junto al
+  // botón: quien lo pulsa no sabe si los demás terminaron sus secciones.
+  const estados = sesion.items.map((i) => ({
+    titulo: i.contenido.seccion?.titulo || i.titulo,
+    estado: estadoDeSeccion(i.contenido.seccion ?? { layout: 'portada' }, i.titulo),
+  }))
+  const conProblema = estados.filter((e) => e.estado.estado === 'con-problema').map((e) => e.titulo)
+  const sinEmpezar = estados
+    .filter((e) => e.estado.estado === 'por-empezar' || e.estado.estado === 'incompleta')
+    .map((e) => e.titulo)
+
   // El índice, en el orden REAL en que se leen: cada bloque seguido de sus
   // subsecciones. `sesion.items` viene ordenado por posición, no por árbol.
   const entradasIndice: EntradaIndice[] = bases.flatMap((base) => [
@@ -268,6 +281,19 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
         <div className={estilos.editorConIndice}>
         <div className={estilos.columnaSecciones}>
+        <VistaEditor
+          tema={tema}
+          reordenarAction={reordenar}
+          secciones={bases.map((b) => ({
+            id: b.id,
+            // El nombre de la sección en la estructura ("RevOps"), no su
+            // título de contenido: ese ya se lee dentro de la vista previa, y
+            // repetirlo dos centímetros más arriba es ruido.
+            titulo: b.titulo,
+            borrador: b.contenido.seccion ?? { layout: 'portada' },
+          }))}
+          formularios={
+          <>
         {/* El editor enseña el ÁRBOL de la sesión: las secciones base son los
             bloques de la reunión y dentro cuelgan sus subsecciones, que es lo
             que cambia de un mes a otro. El arrastre reordena los bloques; las
@@ -326,6 +352,9 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         </ListaOrdenable>
 
         <AnadirSeccion anadirAction={anadirSeccionAction} />
+          </>
+          }
+        />
         </div>
 
         {/* El índice va DESPUÉS en el orden del documento y a la izquierda en
@@ -334,13 +363,43 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         <IndiceSesion entradas={entradasIndice} llenadas={sesion.itemsLlenados} total={total} />
         </div>
 
+        {/* GENERAR CUANDO ESTÉ TODO LISTO, no cuando alguien se canse.
+            Franco: "ya cuando todos hayan terminado de editar y estén ok con
+            el diseño se genera la presentación web". Varias personas llenan
+            secciones distintas de la misma sesión, así que quien pulsa
+            "Maquetar" no sabe si los demás terminaron. Ahora se dice cuántas
+            faltan y cuáles: generar con la mitad en blanco produce un
+            documento que hay que volver a generar. */}
         {sesion.itemsLlenados > 0 ? (
           <form action={maquetar} className={estilos.panelMaquetar}>
             <span className={estilos.panelMaquetarTexto}>
-              {sesion.itemsLlenados} de {total} secciones listas.
-              {sesion.estado !== 'borrador' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
+              {conProblema.length > 0 ? (
+                <>
+                  {conProblema.length === 1
+                    ? '1 sección no se puede presentar como está: '
+                    : `${conProblema.length} secciones no se pueden presentar como están: `}
+                  {conProblema.slice(0, 3).join(', ')}
+                  {conProblema.length > 3 && ` y ${conProblema.length - 3} más`}.{' '}
+                  {conProblema.length === 1 ? 'Se generaría' : 'Se generarían'} solo con su título.
+                </>
+              ) : sinEmpezar.length > 0 ? (
+                <>
+                  {sesion.itemsLlenados} de {total} secciones listas. Faltan por escribir:{' '}
+                  {sinEmpezar.slice(0, 3).join(', ')}
+                  {sinEmpezar.length > 3 && ` y ${sinEmpezar.length - 3} más`}.
+                </>
+              ) : (
+                <>
+                  Las {total} secciones están listas.
+                  {sesion.estado !== 'borrador' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
+                </>
+              )}
             </span>
-            <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} conIA={usaIA} />
+            <BotonMaquetar
+              className={`${estilos.boton} ${estilos.botonAcento}`}
+              conIA={usaIA}
+              todoListo={conProblema.length === 0 && sinEmpezar.length === 0}
+            />
           </form>
         ) : (
           <p className={estilos.panelMaquetarAviso}>Llena al menos una sección para poder generar el documento.</p>
