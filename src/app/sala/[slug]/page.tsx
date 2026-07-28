@@ -365,13 +365,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             // marca de identificación dentro de una tarjeta.
             style={{ '--alto-logo': `${altoDeLogo(slug) * 2.2}px` } as CSSProperties}
           />
-          {/* El nombre sigue existiendo para quien no ve la imagen: el
+          {/* El nombre sigue en el árbol para quien no ve la imagen: el
               logotipo lleva `alt`, pero un h1 real es lo que da a la página su
-              encabezado. Y en Ceci, que comparte el logotipo de Grupo UPAX, es
-              lo único que las distingue: por eso aquí sí se enseña. */}
-          {slug === 'ceci'
-            ? <h1 className={estilos.heroNombre}>{s.nombre}</h1>
-            : <h1 className={estilos.heroNombreOculto}>{s.nombre}</h1>}
+              encabezado. */}
+          <h1 className={estilos.heroNombreOculto}>{s.nombre}</h1>
           <div className={estilos.heroMeta}>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{textoDiasDesde(s.diasDesdeUltima)}</span>

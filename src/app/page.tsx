@@ -10,7 +10,7 @@ import {
   acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
 import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
-import { altoDeLogo, archivoDeLogo, logoPrestado } from '@/temas/logos'
+import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { listarSesiones, crearSesion } from '@/db/sesiones'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
@@ -247,10 +247,8 @@ export default async function Hub() {
                   style={{ '--marca': s.color } as CSSProperties}
                 >
                   {/* El logotipo ES el nombre: la marca identifica más rápido
-                      que su nombre escrito en la tipografía del sistema. Ceci
-                      hereda el de Grupo UPAX — decisión de Franco: "el de UPAX
-                      y Ceci dejémoslo como solo uno"; lo que las distingue son
-                      sus datos y el nombre de su barra al entrar. */}
+                      que su nombre escrito en la tipografía del sistema. Las
+                      nueve tienen el suyo — Ceci, su firma. */}
                   <span className={estilos.salaLogo}>
                     <Image
                       src={archivoDeLogo(s.slug)}
@@ -262,13 +260,6 @@ export default async function Hub() {
                       // logotipo apaisado ocupe cuatro veces más mancha.
                       style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
                     />
-                    {/* Con el logotipo prestado, el nombre es lo ÚNICO que
-                        separa esta tarjeta de la de Grupo UPAX. En las ocho
-                        UDNs el logotipo ya ES el nombre y escribirlo sería
-                        repetirse. */}
-                    {logoPrestado(s.slug) && (
-                      <span className={estilos.salaPrestado}>{s.nombre}</span>
-                    )}
                   </span>
 
                   <div className={estilos.salaCuando}>

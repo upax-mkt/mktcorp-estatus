@@ -18,52 +18,43 @@
  *   diferencia de altura se lee como otro tipo de desproporción. Con 0.25 las
  *   alturas quedan dentro de un margen estrecho y la mancha, pareja.
  *
- * Medido sobre la MANCHA REAL de cada PNG (su bounding box de tinta), no sobre
- * el lienzo: los archivos traen aire alrededor y en distinta cantidad.
+ * Medido sobre la MANCHA REAL de cada PNG —su caja de tinta y la densidad
+ * dentro— no sobre el lienzo: los archivos traen aire alrededor y en distinta
+ * cantidad.
  *
  * Si se cambia un logotipo hay que volver a medirlo. La razón de aspecto es
  * del archivo, no una preferencia.
  */
 export const ALTO_LOGO: Record<string, number> = {
-  'research-land': 24.5,
-  'promo-espacio': 26.9,
-  'marketing-united': 31.7,
-  'mexa-creativa': 31.1,
-  'house-of-films': 35.0,
-  'uix': 31.8,
-  'neracode': 27.3,
-  'zeus': 27.9,
-  'grupo-upax': 27.7,
-  'marketing-corp': 27.4,
+  'research-land': 24.3,
+  'promo-espacio': 25.7,
+  'marketing-united': 28.9,
+  'mexa-creativa': 26.8,
+  'house-of-films': 38.4,
+  'uix': 26.7,
+  'neracode': 28.0,
+  'zeus': 23.5,
+  'ceci': 41.4,
+  'marketing-corp': 26.6,
+  'grupo-upax': 28.5,
 }
 
 /**
  * De qué sala saca su logotipo cada sala.
  *
- * Ceci NO tiene identidad propia: hereda la de Grupo UPAX. Antes su tarjeta
- * llevaba su nombre escrito para no repetir el mismo logo dos veces, y Franco
- * decidió lo contrario — "el de UPAX y Ceci dejémoslo como solo uno". Se
- * respeta: las dos tarjetas llevan el logotipo de Grupo UPAX, y lo que las
- * distingue es el nombre de la sala en su barra y sus propios datos.
+ * Vacío hoy: CECI YA TIENE EL SUYO. Durante un tiempo tomó prestado el de
+ * Grupo UPAX porque no había archivo, y de ahí salieron dos tarjetas con el
+ * mismo logotipo. Franco pasó su firma —"Ceci Fallabrino", manuscrita— y
+ * desde entonces cada sala lleva la suya.
+ *
+ * El mecanismo se queda: es la respuesta correcta para una sala nueva que
+ * todavía no tiene identidad propia, y no volver a inventarlo el día que
+ * aparezca vale más que las tres líneas que ocupa.
  */
-export const LOGO_DE: Record<string, string> = {
-  ceci: 'grupo-upax',
-}
+export const LOGO_DE: Record<string, string> = {}
 
 export function archivoDeLogo(slug: string, variante: 'color' | 'blanco' = 'color'): string {
   return `/logos/${LOGO_DE[slug] ?? slug}-${variante}.png`
-}
-
-/**
- * ¿Esta sala usa el logotipo de OTRA?
- *
- * Importa para la tarjeta: con el logotipo compartido, Ceci y Grupo UPAX
- * quedaban como dos tarjetas idénticas sin nada que las distinguiera. En las
- * ocho UDNs el logotipo ES el nombre y escribirlo al lado sería repetirse; en
- * estas dos, el nombre es lo ÚNICO que las separa.
- */
-export function logoPrestado(slug: string): boolean {
-  return slug in LOGO_DE
 }
 
 export function altoDeLogo(slug: string): number {
