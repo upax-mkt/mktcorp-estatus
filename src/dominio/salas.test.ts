@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sesionesSinMinuta, salaMasDesatendida, type EstadoSala } from './salas'
+import { sesionesSinMinuta, salaMasDesatendida, estatusVigente, type EstadoSala } from './salas'
 
 /**
  * De qué sesiones falta minuta. Es lo que decide qué ofrece el botón
@@ -99,5 +99,34 @@ describe('salaMasDesatendida', () => {
 
     const semanal = sala({ nombre: 'Semanal', diasDesdeUltima: 12, cadencia: 'semanal' })
     expect(salaMasDesatendida([semanal])?.nombre).toBe('Semanal')
+  })
+})
+
+describe('estatusVigente', () => {
+  const HOY = '2026-07-28'
+  const acuerdo = (estatus: EstadoSala['acuerdos'][number]['estatus'], fechaCompromiso: string | null) =>
+    ({ estatus, fechaCompromiso })
+
+  it('un acuerdo abierto cuya fecha ya pasó está VENCIDO', () => {
+    // El bug que esto guarda: `vencido` solo existía si alguien lo escribía a
+    // mano, así que un compromiso de hace dos semanas seguía contando como
+    // abierto y el hub anunciaba cero vencidos con tres encima.
+    expect(estatusVigente(acuerdo('abierto', '2026-07-14'), HOY)).toBe('vencido')
+  })
+
+  it('el mismo día del compromiso todavía no está vencido', () => {
+    expect(estatusVigente(acuerdo('abierto', HOY), HOY)).toBe('abierto')
+  })
+
+  it('con fecha por delante sigue abierto', () => {
+    expect(estatusVigente(acuerdo('abierto', '2026-08-19'), HOY)).toBe('abierto')
+  })
+
+  it('sin fecha no vence: no hay plazo que incumplir', () => {
+    expect(estatusVigente(acuerdo('abierto', null), HOY)).toBe('abierto')
+  })
+
+  it('lo cumplido no se desentierra aunque su fecha haya pasado', () => {
+    expect(estatusVigente(acuerdo('cumplido', '2026-07-01'), HOY)).toBe('cumplido')
   })
 })

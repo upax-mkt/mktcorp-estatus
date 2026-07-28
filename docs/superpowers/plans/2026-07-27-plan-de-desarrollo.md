@@ -345,29 +345,29 @@ pone la **estructura** — aire, elevación, radio, jerarquía tipográfica.
 
 ---
 
-## FASE 6 — Identidad de marca ☐
+## FASE 6 — Identidad de marca ✅ *(28-jul)*
 
 Va primera porque desbloquea todo lo visual: el Home lleva logos y la portada
 del documento también (era el 5.3 que quedó bloqueado por falta de activos).
 
 | # | Qué |
 |---|---|
-| ☐ 6.1 | Los 10 logos recortados, normalizados a una caja común y servidos desde el proyecto. Variante color y blanco: sobre el degradado de marca va la blanca. |
-| ☐ 6.2 | Paletas alineadas al brandbook 2026 (primario/secundario/acento). Con el validador de contraste y de daltonismo ya existente en verde. |
-| ☐ 6.3 | Logo en portada y cierre del documento — cierra el 5.3 pendiente. |
+| ✅ 6.1 | Los 10 logos recortados, normalizados a una caja común y servidos desde el proyecto. Variante color y blanco: sobre el degradado de marca va la blanca. |
+| ✅ 6.2 | Paletas alineadas al brandbook 2026 (primario/secundario/acento). Con el validador de contraste y de daltonismo ya existente en verde. |
+| ☐ 6.3 | Logo en portada y cierre del documento — cierra el 5.3 pendiente. *(los activos ya están; falta ponerlos en el documento)* |
 
-## FASE 7 — El Home y el sistema visual ☐
+## FASE 7 — El Home y el sistema visual ✅ *(28-jul)*
 
 La queja principal. El sistema visual es GLOBAL (Franco: "a nivel general"),
 no solo el Home.
 
 | # | Qué |
 |---|---|
-| ☐ 7.1 | Sistema visual: escala de radio, elevación, materiales, tipografía y movimiento, en tokens compartidos. Se aplica a hub, sala, agenda y preparar. |
-| ☐ 7.2 | **Calendario como módulo del Home**, interactivo: cambiar de mes y agendar sin salir. |
-| ☐ 7.3 | **Acuerdos y Pendientes como módulo del Home**, interactivo: mover estatus y fecha ahí mismo. |
-| ☐ 7.4 | **Minutas como módulo del Home**: leer la última y levantar una nueva. |
-| ☐ 7.5 | Las tarjetas de sala llevan su logo. |
+| ✅ 7.1 | Sistema visual: escala de radio, elevación, materiales, tipografía y movimiento, en tokens compartidos. Se aplica a hub, sala, agenda y preparar. |
+| ✅ 7.2 | **Calendario como módulo del Home**, interactivo: cambiar de mes y agendar sin salir. |
+| ✅ 7.3 | **Acuerdos y Pendientes como módulo del Home**, interactivo: mover estatus y fecha ahí mismo. |
+| ✅ 7.4 | **Minutas como módulo del Home**: leer la última y levantar una nueva. |
+| ✅ 7.5 | Las tarjetas de sala llevan su logo. |
 
 ## FASE 8 — Cualquier tipo de reunión ☐
 
@@ -419,6 +419,13 @@ equipo entero. El mapeo sale de la estructura real del tablero:
 **Riesgo declarado:** escribir en ese tablero afecta al equipo entero. La
 primera escritura real se prueba sobre un elemento de prueba que se borra
 después, y no se activa la escritura general sin decírselo a Franco.
+
+**Hallazgo de la Fase 7, arreglado de paso:** `vencido` solo existía si
+alguien lo escribía a mano. Nada lo derivaba de la fecha, así que un
+compromiso de hace dos semanas seguía contando como abierto y el hub anunciaba
+**cero vencidos con tres encima de la mesa** — justo lo que esa pantalla
+existe para evitar. Ahora se deriva al leer (`estatusVigente`), que es donde
+el paso del tiempo se nota.
 
 **Orden de ejecución:** `6 → 7 → 8 → 9 → 10 → 11`.
 Identidad desbloquea lo visual; lo visual es la queja principal; la

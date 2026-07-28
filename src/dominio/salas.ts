@@ -119,6 +119,27 @@ export function acuerdosVencidos(s: EstadoSala): number {
   return s.acuerdos.filter((a) => a.estatus === 'vencido').length
 }
 
+/**
+ * El estatus REAL de un acuerdo hoy.
+ *
+ * `vencido` no es un evento que alguien registra: es lo que le pasa a un
+ * acuerdo abierto cuando su fecha queda atrás. Guardado en la base nunca se
+ * actualizaba —nadie recorre la tabla cada noche— así que un compromiso de
+ * hace dos semanas seguía diciendo "abierto" y el hub anunciaba cero
+ * vencidos con tres encima de la mesa. Justo lo que esta pantalla existe
+ * para evitar.
+ *
+ * Se deriva al LEER, que es donde el paso del tiempo se nota.
+ */
+export function estatusVigente(
+  a: Pick<Acuerdo, 'estatus' | 'fechaCompromiso'>,
+  hoy: string,
+): EstatusAcuerdo {
+  if (a.estatus !== 'abierto') return a.estatus
+  if (!a.fechaCompromiso) return 'abierto'
+  return a.fechaCompromiso < hoy ? 'vencido' : 'abierto'
+}
+
 /** Una sesión ya presentada de la que todavía se puede levantar minuta. */
 export interface SesionMinutable {
   id: string

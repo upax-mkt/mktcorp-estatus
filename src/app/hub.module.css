@@ -1,174 +1,266 @@
-/* Hub de Mkt Corp — light cálido tintado hacia la identidad UPAX, tipografía Outfit.
-   Neutros en OKLCH tintados al naranja de marca; el color de cada sala es su identidad. */
+/* El Home. Los neutros, radios, elevación y piezas comunes vienen de
+   `sistema.css`; aquí solo vive lo propio de esta pantalla. */
 
 .app {
-  --acento: oklch(0.62 0.19 42);          /* naranja UPAX */
-  --acento-suave: oklch(0.62 0.19 42 / 0.1);
-  --fondo: oklch(0.985 0.006 70);
-  --superficie: oklch(1 0 0);
-  --superficie-2: oklch(0.975 0.008 70);
-  --borde: oklch(0.91 0.012 70);
-  --borde-fuerte: oklch(0.84 0.014 70);
-  --tx: oklch(0.26 0.025 55);
-  --tx-2: oklch(0.52 0.02 55);
-  --tx-3: oklch(0.66 0.015 55);
-  --alerta: oklch(0.57 0.2 25);           /* vencido */
-  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
-  --tibia: oklch(0.72 0.13 70);
-  --ok: oklch(0.6 0.12 155);
-  --barra: oklch(0.24 0.03 55);           /* top bar oscura tintada */
-  --barra-tx: oklch(0.96 0.008 70);
-
   min-height: 100dvh;
-  background: var(--fondo);
-  color: var(--tx);
+  background: var(--lienzo);
+  color: var(--tinta);
   font-family: var(--f-outfit), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---- barra superior ---- */
+/* ---- barra ----
+   Flota sobre el lienzo con material translúcido en vez de un bloque oscuro:
+   la barra deja de ser una franja que corta la página. */
 .barra {
-  position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
-  background: var(--barra); color: var(--barra-tx);
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
 }
-.marca { display: flex; align-items: baseline; gap: 0.6rem; }
-.marcaLogo {
-  font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;
-  display: inline-flex; align-items: center; gap: 0.05em;
+.marca { display: flex; align-items: center; }
+/* El logotipo de Marketing Corp en su variante blanca, invertido: la de color
+   trae el rayo en degradado y a 26px de alto se ensucia. La blanca invertida
+   queda nítida. */
+.marcaLogo { height: 26px; width: auto; filter: invert(1); opacity: 0.88; }
+.barraDcha { margin-left: auto; display: flex; align-items: center; gap: 1.4rem; }
+.barraLink {
+  font-size: 0.86rem; font-weight: 550; color: var(--tinta-2); text-decoration: none;
+  transition: color var(--rapido) linear;
 }
-.marcaRayo { color: var(--acento); }
-.marcaSub { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.6; font-weight: 500; }
-.barraDcha { display: flex; align-items: center; gap: 1.25rem; font-size: 0.85rem; }
-.barraLink { color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-weight: 500; }
-.barraLink:hover { opacity: 1; }
-.barraFecha { opacity: 0.5; font-variant-numeric: tabular-nums; }
+.barraLink:hover { color: var(--tinta); }
+.barraFecha { font-size: 0.8rem; color: var(--tinta-4); }
 .barraSalir {
-  font-family: inherit; font-size: 0.85rem; font-weight: 500;
-  color: var(--barra-tx); background: none; border: none; padding: 0;
-  opacity: 0.55; cursor: pointer; transition: opacity 0.15s ease;
+  font: inherit; font-size: 0.82rem; color: var(--tinta-3);
+  background: none; border: none; cursor: pointer; padding: 0.2rem;
 }
-.barraSalir:hover { opacity: 1; }
+.barraSalir:hover { color: var(--tinta); }
 
-/* ---- contenedor ---- */
-.main { max-width: 1180px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.main {
+  max-width: 1220px; margin: 0 auto;
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem) 6rem;
+  display: grid; gap: clamp(2rem, 4vw, 3rem);
+}
 
-/* ---- encabezado + pulso ---- */
-.encabezado { margin-bottom: 2.5rem; }
-.saludo { font-size: clamp(1.75rem, 4vw, 2.4rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.4rem; }
-.saludoSub { color: var(--tx-2); font-size: 1rem; margin: 0 0 1.75rem; }
-
+/* ---- pulso ---- */
 .pulso {
-  display: flex; flex-wrap: wrap; gap: 0 2.5rem;
-  padding: 1.1rem 0; border-top: 1px solid var(--borde); border-bottom: 1px solid var(--borde);
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 2rem; flex-wrap: wrap;
 }
-.pulsoItem { display: flex; flex-direction: column; gap: 0.15rem; }
-.pulsoCifra { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
-.pulsoCifra.alerta { color: var(--alerta); }
-.pulsoLabel { font-size: 0.78rem; color: var(--tx-3); }
-.pulsoDesatendida { margin-left: auto; align-self: center; text-align: right; }
-.pulsoDesatendida .n { font-size: 0.78rem; color: var(--tx-3); }
-.pulsoDesatendida .v { font-size: 0.95rem; font-weight: 600; color: var(--tibia); }
+.saludo {
+  font-size: clamp(2rem, 5vw, 3rem); font-weight: 300;
+  letter-spacing: var(--track-display); margin: 0; line-height: 1;
+}
+.saludoSub { color: var(--tinta-3); font-size: 0.95rem; margin: 0.6rem 0 0; }
+.pulsoCifras { display: flex; gap: clamp(1.5rem, 4vw, 3rem); flex-wrap: wrap; }
+.pulsoItem { display: grid; gap: 0.45rem; }
+.pulsoItem :global(.cifra)[data-alerta='true'] { color: var(--mal); }
 
-/* ---- disposición dos columnas ---- */
-.cuerpo { display: grid; grid-template-columns: 1fr; gap: 2.5rem; }
-/* Las tarjetas quieren ancho: con 1.7fr solo entraban dos por fila y el
-   panel de riesgo quedaba medio vacío al lado. */
-@media (min-width: 940px) { .cuerpo { grid-template-columns: minmax(0, 2.6fr) minmax(15rem, 1fr); } }
+/* ---- módulos ----
+   Acuerdos ocupa más porque sus filas llevan controles; las minutas cruzan
+   entero abajo. */
+.modulos {
+  display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  align-items: start;
+}
+@media (min-width: 60rem) {
+  .modulos { grid-template-columns: 1.35fr 1fr; }
+  .modulos > :nth-child(3) { grid-column: 1 / -1; }
+}
 
-.seccionTitulo {
+.modulo { padding: 1.35rem 1.4rem 1.2rem; }
+.moduloCabecera {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-bottom: 1rem;
+}
+.moduloTitulo {
+  font-size: 1.02rem; font-weight: 600; letter-spacing: var(--track-titulo); margin: 0;
+}
+.moduloAcciones { display: flex; align-items: center; gap: 0.35rem; }
+.moduloVacio { font-size: 0.88rem; color: var(--tinta-3); margin: 0; line-height: 1.5; }
+.enlaceSuave { color: var(--tinta); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+.seccionCabecera {
   display: flex; align-items: baseline; justify-content: space-between;
-  font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--tx-3); font-weight: 600; margin: 0 0 1rem;
+  gap: 1rem; margin-bottom: 1.1rem;
 }
-.seccionTitulo .conteo { color: var(--tx-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.seccionTitulo { font-size: 1.15rem; font-weight: 600; letter-spacing: var(--track-titulo); margin: 0; }
 
-/* ---- tarjetas de sala ----
-   Era una lista de filas: diez renglones iguales con puntitos de color, y la
-   única jerarquía era el orden. Como tarjeta, cada sala puede mostrar de un
-   vistazo su marca, cuándo toca y en qué va — que es lo que se viene a mirar.
-   El color de la UDN deja de ser un punto de 11px y pasa a ser el filo de la
-   tarjeta: identifica sin que haya que leer. */
+/* ---- acuerdos ---- */
+.acuerdos { list-style: none; margin: 0; padding: 0; display: grid; }
+.acuerdo {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: 0.85rem 0 0.85rem 0.9rem;
+  border-top: 1px solid var(--linea);
+  position: relative;
+}
+.acuerdos li:first-child { border-top: none; }
+/* El filo de la sala: identifica de quién es el acuerdo sin gastar una línea
+   de texto en decirlo. */
+.acuerdo::before {
+  content: ''; position: absolute; left: 0; top: 0.85rem; bottom: 0.85rem;
+  width: 3px; border-radius: var(--r-lleno); background: var(--marca);
+}
+.acuerdoCuerpo { min-width: 0; flex: 1 1 16rem; }
+.acuerdoQue { font-size: 0.94rem; line-height: 1.4; margin: 0; font-weight: 450; }
+.acuerdoMeta {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  margin-top: 0.3rem; font-size: 0.8rem; color: var(--tinta-3);
+}
+.acuerdoSala { color: var(--marca); font-weight: 600; text-decoration: none; }
+.acuerdoSala:hover { text-decoration: underline; }
+.punto { color: var(--tinta-4); }
+.acuerdoControles { display: flex; align-items: center; gap: 0.5rem; flex: none; }
+.campoFecha {
+  font: inherit; font-size: 0.8rem; font-variant-numeric: tabular-nums;
+  padding: 0.3rem 0.5rem; border-radius: var(--r-1);
+  border: none; background: var(--papel-hundido); color: var(--tinta);
+}
+
+/* ---- calendario ---- */
+.pasoMes {
+  font: inherit; font-size: 1.05rem; line-height: 1;
+  width: 1.9rem; height: 1.9rem; padding: 0; border: none; border-radius: var(--r-lleno);
+  background: var(--papel-hundido); color: var(--tinta-2); cursor: pointer;
+  transition: background var(--rapido) linear, color var(--rapido) linear;
+}
+.pasoMes:hover { background: var(--tinta); color: var(--papel); }
+
+.rejillaMes { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.diaCabecera {
+  font-size: 0.62rem; letter-spacing: var(--track-micro); text-transform: uppercase;
+  font-weight: 600; color: var(--tinta-4); text-align: center; padding-bottom: 0.4rem;
+}
+.diaCelda {
+  position: relative;
+  display: grid; gap: 0.2rem; justify-items: center; align-content: center;
+  aspect-ratio: 1; min-height: 2.1rem;
+  font: inherit; border: none; border-radius: var(--r-2);
+  background: none; cursor: pointer;
+  transition: background var(--rapido) linear;
+}
+.diaCelda:hover { background: var(--papel-hundido); }
+.diaCelda[data-fuera='true'] { opacity: 0.32; }
+.diaCelda[data-abierto='true'] { background: var(--papel-hundido); }
+.diaNumero { font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--tinta-2); }
+.diaCelda[data-hoy='true'] .diaNumero {
+  background: var(--tinta); color: var(--papel);
+  min-width: 1.5rem; height: 1.5rem; border-radius: var(--r-lleno);
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 600;
+}
+.diaCelda[data-ocupado='true'] .diaNumero { font-weight: 600; color: var(--tinta); }
+.diaPuntos { display: flex; align-items: center; gap: 2px; height: 5px; }
+.diaPunto { width: 5px; height: 5px; border-radius: 50%; }
+.diaMas { font-size: 0.55rem; color: var(--tinta-4); line-height: 1; }
+
+.diaDetalle {
+  margin-top: 1rem; padding-top: 0.9rem;
+  border-top: 1px solid var(--linea);
+  display: grid; gap: 0.6rem;
+}
+.listaDia { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.filaDia {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 0.6rem;
+  padding: 0.45rem 0.6rem; border-radius: var(--r-2);
+  text-decoration: none; color: inherit;
+  transition: background var(--rapido) linear;
+}
+.filaDia:hover { background: var(--papel-hundido); }
+.filaDiaHora { font-size: 0.76rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.filaDiaSala { font-size: 0.82rem; font-weight: 650; color: var(--marca); white-space: nowrap; }
+.filaDiaTitulo { font-size: 0.82rem; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- minutas ---- */
+.listaMinutas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.filaMinuta {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 0.7rem;
+  width: 100%; text-align: left; font: inherit;
+  padding: 0.55rem 0.6rem; border: none; border-radius: var(--r-2);
+  background: none; color: inherit; cursor: pointer;
+  transition: background var(--rapido) linear;
+}
+.filaMinuta:hover { background: var(--papel-hundido); }
+.filaMinutaSala { font-size: 0.8rem; font-weight: 650; color: var(--marca); white-space: nowrap; }
+.filaMinutaTitulo { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filaMinutaFecha { font-size: 0.76rem; color: var(--tinta-4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.lightbox {
+  width: min(38rem, calc(100vw - 2rem));
+  max-height: min(82vh, 48rem);
+  margin: auto; padding: 0;
+  border: none; border-radius: var(--r-5);
+  background: var(--papel); color: var(--tinta);
+  box-shadow: var(--e-3);
+  overflow: hidden;
+}
+.lightbox::backdrop { background: oklch(0.22 0.012 260 / 0.32); backdrop-filter: blur(3px); }
+.lightboxCaja { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: inherit; }
+.lightboxCabecera {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.4rem 1.5rem 1rem;
+  box-shadow: inset 0 3px 0 0 var(--marca);
+}
+.lightboxTitulo { margin: 0.35rem 0 0; font-size: 1.2rem; font-weight: 600; letter-spacing: var(--track-titulo); }
+.lightboxFecha { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--tinta-3); }
+.lightboxTexto {
+  padding: 0 1.5rem 1.2rem; overflow-y: auto;
+  white-space: pre-wrap; font-size: 0.92rem; line-height: 1.65; color: var(--tinta-2);
+}
+.lightboxPie {
+  display: flex; justify-content: flex-end; gap: 0.6rem;
+  padding: 0.9rem 1.5rem; background: var(--papel-2);
+}
+
+/* ---- salas ---- */
 .salas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: 0.85rem;
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
 }
-
 .sala {
   position: relative;
-  display: grid; grid-template-rows: auto auto auto auto; gap: 0.5rem;
-  padding: 1.05rem 1.1rem 0.9rem;
-  border: 1px solid var(--borde); border-radius: 0.85rem;
-  background: var(--superficie);
-  text-decoration: none; color: inherit;
-  overflow: hidden;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  display: grid; grid-template-rows: auto auto auto auto; gap: 0.85rem;
+  padding: 1.3rem 1.25rem 1.1rem;
+  text-decoration: none; color: inherit; overflow: hidden;
 }
-/* El filo de marca, arriba. Es el gradiente de la UDN, sin texto encima. */
+/* El filo de marca, arriba. Es lo único de color de la tarjeta además del
+   logotipo — el resto es neutro, como en la referencia. */
 .sala::before {
-  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: var(--marca);
-}
-.sala:hover {
-  border-color: color-mix(in oklch, var(--marca) 45%, var(--borde));
-  box-shadow: 0 6px 24px oklch(0.26 0.025 55 / 0.07);
-  transform: translateY(-1px);
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--marca);
 }
 
-.salaCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
-.salaNombre { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.015em; min-width: 0; }
-.flecha { color: var(--tx-3); font-size: 1rem; flex: none; transition: transform 160ms ease, color 160ms ease; }
-.sala:hover .flecha { color: var(--marca); transform: translateX(2px); }
+/* El logotipo vive en un carril de altura fija y se ajusta DENTRO: los
+   lockups van de 1,6:1 a 7:1, y sin carril una marca apaisada saldría el
+   triple de grande que una compacta. */
+.salaLogo { display: flex; align-items: center; height: 34px; }
+.salaLogoImg { max-height: 100%; max-width: min(100%, 11rem); width: auto; height: auto; object-fit: contain; object-position: left center; }
 
-/* Las dos fechas en una fila de dos columnas: se leen en vertical entre
-   tarjetas, que es como se compara "¿a quién no he visto?". */
-.salaCuando { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.15rem; }
-.salaDato { display: grid; gap: 0.1rem; min-width: 0; }
-.salaDatoV { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.salaDatoL { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); }
-.temp.reciente { color: var(--ok); }
-.temp.tibia { color: var(--tibia); }
-.temp.fria { color: var(--alerta); }
-/* Sin fecha agendada no es un dato neutro: es lo que hay que resolver. */
-.salaDatoV.pendiente { color: var(--tibia); }
-
-/* La barra de avance del borrador colaborativo. Solo aparece cuando hay
-   algo que preparar: una barra al 0% en ocho tarjetas es ruido. */
-.salaAvance { display: grid; gap: 0.3rem; margin-top: 0.2rem; }
-.salaAvanceTexto { font-size: 0.75rem; color: var(--tx-2); display: flex; justify-content: space-between; gap: 0.5rem; }
-.salaAvanceBarra { height: 4px; border-radius: 999px; background: var(--superficie-2); overflow: hidden; }
-.salaAvanceRelleno { height: 100%; border-radius: 999px; background: var(--marca); min-width: 2px; }
-
-/* Los chips se pegan abajo aunque la tarjeta no lleve barra de avance: así
-   las de una fila terminan a la misma altura sin dejar un hueco muerto. */
-.chips { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: auto; padding-top: 0.35rem; }
-.chip {
-  font-size: 0.72rem; font-weight: 600; font-variant-numeric: tabular-nums;
-  padding: 0.15rem 0.45rem; border-radius: 0.35rem;
-  background: var(--superficie-2); color: var(--tx-2); border: 1px solid var(--borde);
+.salaCuando { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.salaDato { display: grid; gap: 0.2rem; min-width: 0; }
+.salaDatoV {
+  font-size: 0.86rem; font-weight: 600; letter-spacing: var(--track-normal);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.chip.vencidos { background: var(--alerta-suave); color: var(--alerta); border-color: transparent; }
-.chip.prep { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
-.chip.limpio { color: var(--tx-3); }
+.salaDatoV[data-temp='reciente'] { color: var(--bien); }
+.salaDatoV[data-temp='tibia'] { color: var(--ojo); }
+.salaDatoV[data-temp='fria'] { color: var(--mal); }
+.salaDatoV[data-pendiente='true'] { color: var(--ojo); }
 
-/* ---- panel acuerdos en riesgo ---- */
-.riesgo { }
-.riesgoLista { display: flex; flex-direction: column; gap: 0; }
-.riesgoItem {
-  display: grid; grid-template-columns: auto 1fr; gap: 0.7rem;
-  padding: 0.85rem 0; border-top: 1px solid var(--borde);
-  text-decoration: none; color: inherit;
+.salaAvance { display: grid; gap: 0.35rem; }
+.salaAvanceTexto { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.74rem; color: var(--tinta-3); }
+.salaBarra { height: 4px; border-radius: var(--r-lleno); background: var(--papel-hundido); overflow: hidden; }
+.salaBarraRelleno { display: block; height: 100%; border-radius: var(--r-lleno); background: var(--marca); min-width: 3px; }
+
+.salaChips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: auto; padding-top: 0.2rem; }
+
+/* Ceci hereda la identidad de Grupo UPAX, así que su tarjeta lleva el nombre
+   en vez del logotipo: dos tarjetas con el mismo logo y distinta sala es peor
+   que ninguna marca. */
+.salaNombre {
+  font-size: 1.15rem; font-weight: 600; letter-spacing: var(--track-titulo);
+  color: var(--tinta);
 }
-.riesgoItem:last-child { border-bottom: 1px solid var(--borde); }
-.riesgoItem:hover .riesgoQue { color: var(--acento); }
-.riesgoColor { width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-top: 0.35rem; flex: none; }
-.riesgoQue { font-size: 0.9rem; line-height: 1.35; font-weight: 500; transition: color 160ms ease; }
-.riesgoMeta { font-size: 0.76rem; color: var(--tx-3); margin-top: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.riesgoEstado { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
-.riesgoEstado.vencido { color: var(--alerta); }
-.riesgoEstado.sinfecha { color: var(--tibia); }
-.riesgoSala { color: var(--tx-2); font-weight: 600; }
-
-.vacio { color: var(--tx-3); font-size: 0.9rem; padding: 1rem 0; }

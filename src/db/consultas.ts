@@ -202,6 +202,10 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
       fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
       estatus: a.estatus as fallback.EstatusAcuerdo,
     }))
+    // `vencido` se deriva de la fecha, no se lee de la base: ver
+    // `estatusVigente`. Sin esto un compromiso de hace dos semanas seguía
+    // contando como abierto.
+    .map((a) => ({ ...a, estatus: fallback.estatusVigente(a, isoFecha(ahora)) }))
 
   return {
     slug,
