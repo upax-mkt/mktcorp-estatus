@@ -268,3 +268,160 @@ transparente) de las diez salas es media hora de trabajo.
 Fase 1 (gráficos) → Fase 3 (salas: minutas → presentaciones → archivos) →
 Fase 3B (sesiones, calendario, home) → Fase 2 (vista previa) → Fase 4 (editor)
 → Fase 5 (cascarón) → Benchmark (3.4, lo último).
+
+---
+---
+
+# RONDA 2 — Feedback de Franco, 28-jul
+
+Siete cambios. Van aquí, en el mismo documento, porque la regla no cambia: si
+algo no está escrito acá, no se está haciendo.
+
+## Lo que pidió, literal
+
+1. **Home** — "estética anticuada, se ve desordenado, esperaría un diseño
+   moderno, fino, tipo iOS o Apple". El calendario, generar minutas y Acuerdos
+   y Pendientes deben ser **módulos dentro del Home e interactivos**.
+2. **Logos** — cada UDN con el suyo cargado.
+3. **Sala** — poder preparar una presentación nueva desde dentro de la sala.
+4. **Preparar** — el editor mucho más personalizable, y que sirva **para
+   cualquier tipo de reunión**, no solo estatus de UDN. Carga de imágenes, no
+   por URL.
+5. **Minutas** — módulo agnóstico, para cualquier tipo de reunión.
+6. **Acceso** — Marketing entra por Slack; el director y el equipo de la UDN
+   entran con una **clave** que el sistema reconoce y los lleva a su sala, ya
+   cargada. Solo pueden editar acuerdos y pendientes.
+7. **Acuerdos y Pendientes** — conectado a Monday, ida y vuelta.
+
+## Dos hallazgos al abrir la carpeta de marca
+
+**Los colores de la app no son los del brandbook 2026.** El tema de Zeus tiene
+`#FF004F` como primario; en el brandbook de 2026 ese carmesí es el ACENTO y el
+primario es violeta. Research Land igual: la app dice `#1E0FF2` azul eléctrico
+y el logo es morado sobre gris pizarra. Cargar los logos sobre los colores de
+hoy haría que cada tarjeta chocara consigo misma — el logo violeta de Zeus con
+un filo carmesí. Los brandbooks son la fuente y son de 2026; las paletas se
+alinean con ellos (6.2).
+
+**Los PNG traen lienzos enormes de transparencia** y proporciones que van de
+1:1 a 4,3:1. Puestos en fila sin normalizar, cada logo se vería de un tamaño
+distinto. Hay que recortar el margen y componer sobre una caja de altura
+común (6.1).
+
+## Qué significa "tipo iOS o Apple", en concreto
+
+Es lo más subjetivo de la lista, así que lo bajo a decisiones verificables —
+si no, "moderno" es una opinión y no se puede terminar:
+
+| Hoy | A dónde va |
+|---|---|
+| Bordes de 1px por todos lados | Superficies que se separan por **sombra y elevación**, no por línea |
+| Radios de 0.35–0.9rem, distintos por componente | **Una escala de radio** coherente, más generosa (12/16/20/28) |
+| Color de marca en filos y textos sueltos | Color **contenido**: la marca en el logo y en un acento por tarjeta, el resto neutro |
+| Tipografía uniforme, sin jerarquía de peso | Escala tipo SF: **tracking negativo en títulos**, interlineado generoso en cuerpo |
+| Transiciones lineales de 140ms | **Muelle** (cubic-bezier con rebote corto), y respeto a `prefers-reduced-motion` |
+| Densidad de tabla | **Aire**: menos elementos por pantalla, agrupados en tarjetas con jerarquía clara |
+| Chips grises indistinguibles | **Materiales**: translúcido sobre fondo, no gris plano |
+
+## La referencia que pasó Franco
+
+`behance.net/gallery/225485473/Callivio-CRM-SaaS-UX-UI-Design`. Mirada de
+verdad (capturas), esto es lo que la define y lo que se copia:
+
+| Qué | Cómo |
+|---|---|
+| **Lienzo** | Casi-blanco frío, nunca blanco puro. El contenido FLOTA encima. |
+| **Tarjetas** | Blancas, **sin borde**, radio grande (~24–32px), sombra muy suave y difusa. Papel sobre una mesa iluminada. |
+| **Tipografía** | Geométrica. Peso **ligero** en tamaños grandes, tracking cerrado. Contraste brutal de tamaño: la cifra enorme, su unidad y su rótulo diminutos al lado. |
+| **La cifra es la protagonista** | "1 108" a tamaño display con "calls" pequeño pegado. Nuestros KPIs y el total de la dona van así. |
+| **Micro-rótulos** | Diminutos, con un punto delante (`• Your Score`, `○ Easy`). En minúscula. |
+| **Color** | Contenido: un azul apagado para la tarjeta de datos, un lima ácido como ÚNICO destaque, negro para el botón primario. Todo lo demás neutro. |
+| **Aire** | Poquísimos elementos por pantalla. El vacío es parte del diseño. |
+| **Píldoras** | Rectángulos muy redondeados para etiquetas y navegación; el activo va en negro sólido. |
+| **Anillos** | Dona de trazo fino con el valor en una cápsula flotando sobre el arco. |
+
+Lo que NO se copia: su paleta. Las diez marcas ponen el color; la referencia
+pone la **estructura** — aire, elevación, radio, jerarquía tipográfica.
+
+---
+
+## FASE 6 — Identidad de marca ☐
+
+Va primera porque desbloquea todo lo visual: el Home lleva logos y la portada
+del documento también (era el 5.3 que quedó bloqueado por falta de activos).
+
+| # | Qué |
+|---|---|
+| ☐ 6.1 | Los 10 logos recortados, normalizados a una caja común y servidos desde el proyecto. Variante color y blanco: sobre el degradado de marca va la blanca. |
+| ☐ 6.2 | Paletas alineadas al brandbook 2026 (primario/secundario/acento). Con el validador de contraste y de daltonismo ya existente en verde. |
+| ☐ 6.3 | Logo en portada y cierre del documento — cierra el 5.3 pendiente. |
+
+## FASE 7 — El Home y el sistema visual ☐
+
+La queja principal. El sistema visual es GLOBAL (Franco: "a nivel general"),
+no solo el Home.
+
+| # | Qué |
+|---|---|
+| ☐ 7.1 | Sistema visual: escala de radio, elevación, materiales, tipografía y movimiento, en tokens compartidos. Se aplica a hub, sala, agenda y preparar. |
+| ☐ 7.2 | **Calendario como módulo del Home**, interactivo: cambiar de mes y agendar sin salir. |
+| ☐ 7.3 | **Acuerdos y Pendientes como módulo del Home**, interactivo: mover estatus y fecha ahí mismo. |
+| ☐ 7.4 | **Minutas como módulo del Home**: leer la última y levantar una nueva. |
+| ☐ 7.5 | Las tarjetas de sala llevan su logo. |
+
+## FASE 8 — Cualquier tipo de reunión ☐
+
+El cambio arquitectónico de la ronda. Hoy la app da por hecho que una sesión
+es el estatus mensual de una UDN: cuelga de una de las diez salas y arranca
+con ocho secciones fijas. Las dos cosas dejan de ser ley.
+
+| # | Qué |
+|---|---|
+| ☐ 8.1 | **Plantillas de reunión.** Las ocho secciones pasan de ley a plantilla ("Estatus de UDN"). Se añaden "Reunión en blanco" y una o dos más. |
+| ☐ 8.2 | **Reuniones sin sala.** `salaSlug` deja de ser obligatorio; una reunión libre lleva la identidad de Marketing Corp. |
+| ☐ 8.3 | **Minutas agnósticas**: cuelgan de una reunión, sea de sala o no. |
+| ☐ 8.4 | **Preparar desde la sala** — lo que pidió en el punto 3. |
+
+## FASE 9 — Imágenes de verdad ☐
+
+| # | Qué |
+|---|---|
+| ☐ 9.1 | Subir la imagen desde el disco en vez de pegar una URL. Reutiliza el Blob privado y el registro de archivos de la Fase 3. |
+
+## FASE 10 — Acceso y permisos ☐
+
+| # | Qué |
+|---|---|
+| ☐ 10.1 | Slack para Marketing Corp (el flujo existe a medias; se termina). |
+| ☐ 10.2 | **Clave por sala.** Hoy el acceso de un director es un link firmado que caduca; pasa a ser una clave que él teclea y que lo lleva a SU sala. |
+| ☐ 10.3 | Permisos: quien entra por clave de sala solo escribe en acuerdos y pendientes. Se comprueba en cada Server Action, no en la pantalla. |
+
+## FASE 11 — Monday, ida y vuelta ☐
+
+Tablero `18044324200` "Marketing Corporativo ⚡", 955 elementos, lo usa el
+equipo entero. El mapeo sale de la estructura real del tablero:
+
+| Nuestro campo | Columna de Monday |
+|---|---|
+| `que` | `name` |
+| `salaSlug` | `color_mm0ex2j0` (UdN) |
+| `fechaCompromiso` | `date_mm1b10rx` (Deadline) |
+| `estatus` | `color_mkz09na` (Fase) |
+| `squad` | `color_mkz0s203` (Squad Owner) |
+| `responsable` | `person` (people) — **necesita id de usuario de Monday, no un nombre** |
+
+| # | Qué |
+|---|---|
+| ☐ 11.1 | Lectura: los acuerdos de una sala se leen del tablero. |
+| ☐ 11.2 | Escritura: crear y mover acuerdos escribe en Monday. |
+| ☐ 11.3 | Conflictos y fallos: qué pasa si Monday no responde o si alguien editó del otro lado. |
+
+**Riesgo declarado:** escribir en ese tablero afecta al equipo entero. La
+primera escritura real se prueba sobre un elemento de prueba que se borra
+después, y no se activa la escritura general sin decírselo a Franco.
+
+**Orden de ejecución:** `6 → 7 → 8 → 9 → 10 → 11`.
+Identidad desbloquea lo visual; lo visual es la queja principal; la
+arquitectura agnóstica toca el editor, que es donde más código hay; imágenes
+reutiliza lo de la fase 3; acceso y Monday son los dos que salen de la app
+hacia afuera y van al final, cuando lo de dentro ya está firme.
