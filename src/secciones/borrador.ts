@@ -1,5 +1,6 @@
 import { EsquemaDecision, type DecisionSlide } from '@/decision/esquema'
 import { tipoDeSeccion, type CampoSeccion } from './catalogo'
+import { motivoEnClaro } from './motivos'
 
 /**
  * UNA SECCIÓN TAL COMO LA ARMA EL EQUIPO, a mano, en el editor.
@@ -138,11 +139,45 @@ export function aDecision(borrador: BorradorSeccion, tituloDeRespaldo?: string):
   })
 
   if (!resultado.success) {
-    const primero = resultado.error.issues[0]
-    const donde = primero.path.length > 0 ? `${primero.path.join('.')}: ` : ''
-    return { ok: false, motivo: `${donde}${primero.message}` }
+    // El mensaje de Zod nombra el campo por su clave interna y en inglés. Lo
+    // lee quien acaba de escribir la sección, así que se traduce.
+    return { ok: false, motivo: motivoEnClaro(resultado.error) }
   }
   return { ok: true, decision: resultado.data }
+}
+
+/**
+ * EN QUÉ ESTADO ESTÁ LA SECCIÓN, con el mismo criterio con el que se maqueta.
+ *
+ * Hasta ahora el editor decidía "Lista para presentar" con `loQueFalta`, que
+ * mira una sola cosa: que esté el campo que el tipo exige. Es una comprobación
+ * superficial, y por eso una sección con una columna sin líneas —o con una
+ * celda que trae HTML pegado de un correo— se anunciaba como lista y luego
+ * reventaba al maquetar. Ese es el "componentes tiran error en la maquetación"
+ * que reportó Franco: el error no nacía al maquetar, nacía al escribir y no se
+ * decía hasta el final.
+ *
+ * Ahora la promesa se gana: "lista" significa que `aDecision` la aceptó, que
+ * es literalmente lo que va a correr al maquetar.
+ */
+export type EstadoSeccion =
+  | { estado: 'por-empezar'; falta: string[] }
+  | { estado: 'incompleta'; falta: string[]; campo: CampoSeccion | 'titulo' | null }
+  | { estado: 'con-problema'; motivo: string }
+  | { estado: 'lista' }
+
+export function estadoDeSeccion(
+  borrador: BorradorSeccion,
+  tituloDeRespaldo?: string,
+): EstadoSeccion {
+  const falta = loQueFalta(borrador, tituloDeRespaldo)
+  if (falta.length > 0) {
+    return borradorTieneContenido(borrador)
+      ? { estado: 'incompleta', falta, campo: campoQueFalta(borrador, tituloDeRespaldo) }
+      : { estado: 'por-empezar', falta }
+  }
+  const resultado = aDecision(borrador, tituloDeRespaldo)
+  return resultado.ok ? { estado: 'lista' } : { estado: 'con-problema', motivo: resultado.motivo }
 }
 
 /** ¿Hay algo escrito aquí, más allá del tipo elegido? */

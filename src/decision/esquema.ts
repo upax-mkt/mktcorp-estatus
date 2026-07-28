@@ -117,6 +117,36 @@ const Imagen = z.string().min(1).refine(esUrlSegura, { message: MENSAJE_URL_SEGU
 /** Lo mismo para el `href` de una viñeta con enlace. */
 const Enlace = z.string().min(1).refine(esUrlSegura, { message: MENSAJE_URL_SEGURA })
 
+/**
+ * CUÁNTO CABE EN UNA SECCIÓN. Fuente única.
+ *
+ * Existía solo dentro del esquema, en `.max(4)` sueltos, y el editor no se
+ * enteraba: los botones de "añadir" seguían añadiendo hasta que alguien
+ * maquetaba y se encontraba con "Too big: expected array to have <=4 items"
+ * después de haberlo escrito todo. Ahora los dos lados leen de aquí, así que
+ * subir un tope es cambiar un número y no dos sitios que se desincronizan.
+ *
+ * Los números no son arbitrarios: salen de lo que una sección puede sostener
+ * sin dejar de leerse de un vistazo. Cinco cifras en una fila ya no se
+ * comparan, se cuentan.
+ */
+export const LIMITES = {
+  kpis: 4,
+  columnas: 4,
+  graficos: 2,
+  tablas: 3,
+  cifrasDesglosadas: 6,
+  bloques: 5,
+  /** Por tabla. La primera suele ser la de etiquetas. */
+  columnasDeTabla: 6,
+  /** Por matriz: los meses de un trimestre caben; un año entero no. */
+  columnasDeMatriz: 12,
+  /** Series de un gráfico: más de seis y la leyenda tapa el dibujo. */
+  seriesDeGrafico: 6,
+  /** Periodos de un gráfico: un año de tendencia mensual entra entero. */
+  periodosDeGrafico: 12,
+} as const
+
 export const LAYOUTS = [
   'portada',
   'agenda',
@@ -205,7 +235,7 @@ const Tabla = z.object({
   // El primer encabezado de una comparativa va vacío ("", "Mayo", "Junio"):
   // la columna de etiquetas no se titula. El propio ejemplo del describe lo
   // pedía mientras el validador lo rechazaba.
-  columnas: z.array(TextoPlanoOVacio).min(2).max(6).describe(
+  columnas: z.array(TextoPlanoOVacio).min(2).max(LIMITES.columnasDeTabla).describe(
     'Los encabezados, de izquierda a derecha. Por ejemplo ["", "Mayo", "Junio"] para una comparativa, o ["Responsable", "Tarea", "Estatus"] para pendientes.',
   ),
   filas: z.array(FilaTabla).min(1).describe('Las filas, en el orden en que deben leerse.'),
@@ -245,7 +275,7 @@ const FilaMatriz = z.object({
 }).strict()
 
 const Matriz = z.object({
-  columnas: z.array(TextoPlano).min(2).max(12).describe('Los encabezados de columna (los meses del trimestre).'),
+  columnas: z.array(TextoPlano).min(2).max(LIMITES.columnasDeMatriz).describe('Los encabezados de columna (los meses del trimestre).'),
   filas: z.array(FilaMatriz).min(1).describe('Una fila por concepto del eje vertical (una industria, un canal), en orden.'),
   leyenda: z.array(TextoPlano).optional().describe('Qué significa cada estado, una línea por estado.'),
 }).strict()
@@ -313,7 +343,7 @@ const Grafico = z.object({
   periodos: z.array(TextoPlano).min(1).describe(
     'El eje horizontal: los meses o categorías, en orden ("enero", "febrero"… o "Organic Search", "Paid Search"…).',
   ),
-  series: z.array(SerieDatos).min(1).max(6).describe(
+  series: z.array(SerieDatos).min(1).max(LIMITES.seriesDeGrafico).describe(
     'Los datos. Cada serie trae un valor por periodo, en el mismo orden.',
   ),
   mostrarValores: z.boolean().optional().describe(
@@ -334,16 +364,16 @@ export const EsquemaDecision = z.object({
     'El título del slide. Cuando el contenido sostiene una lectura, el título ES esa lectura ("El tráfico cae, pero la calidad del lead mejora"), no una etiqueta neutra ("Performance del sitio web").',
   ),
   subtitulo: TextoPlano.optional().describe('Una línea de contexto bajo el título. Omítelo si no aporta.'),
-  kpis: z.array(Kpi).max(4).optional().describe(
+  kpis: z.array(Kpi).max(LIMITES.kpis).optional().describe(
     'Las cifras del inventario, hasta 4. Si el inventario trae 4 cifras o menos, van TODAS: ninguna se omite ni se degrada a texto de las columnas.',
   ),
-  columnas: z.array(Columna).max(4).optional().describe(
+  columnas: z.array(Columna).max(LIMITES.columnas).optional().describe(
     'El análisis cualitativo — hallazgos, acciones — en bloques paralelos. Las cifras no van aquí: van en "kpis".',
   ),
-  graficos: z.array(Grafico).max(2).optional().describe(
+  graficos: z.array(Grafico).max(LIMITES.graficos).optional().describe(
     'Los gráficos de la sección, hasta dos. Uno por cada pieza [serie] o [comparativo] del inventario que valga la pena graficar: si el inventario trae dos, van los dos.',
   ),
-  tablas: z.array(Tabla).max(3).optional().describe(
+  tablas: z.array(Tabla).max(LIMITES.tablas).optional().describe(
     'Las tablas de la sección. Una tabla es la forma correcta para una comparativa entre dos periodos o para un desglose fila a fila; no la conviertas en viñetas.',
   ),
   matriz: Matriz.optional().describe(
@@ -355,10 +385,10 @@ export const EsquemaDecision = z.object({
   // Seis y no cuatro: el bloque de pipeline de un estatus real lleva ideal,
   // generado, perdido, ganado-por-facturar, ganado-facturado y vivos. Con
   // cuatro, reproducirlo obligaba a tirar dos.
-  cifrasDesglosadas: z.array(CifraConDesglose).max(6).optional().describe(
+  cifrasDesglosadas: z.array(CifraConDesglose).max(LIMITES.cifrasDesglosadas).optional().describe(
     'Cifras que además de su total traen en qué se reparten (un pipeline abierto por Mkt y Comercial). Una cifra suelta, sin partes, va en "kpis" y no aquí.',
   ),
-  bloques: z.array(Bloque).max(5).optional().describe(
+  bloques: z.array(Bloque).max(LIMITES.bloques).optional().describe(
     'Bloques numerados de igual peso, cada uno con su título y su detalle (los focos del trimestre). El layout los numera solo.',
   ),
   cuerpo: z.array(TextoPlano).optional().describe(

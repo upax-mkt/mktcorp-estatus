@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { tipoDeSeccion, type CampoSeccion } from '@/secciones/catalogo'
-import { loQueFalta, campoQueFalta, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
+import { estadoDeSeccion, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import { parsearLineas } from '@/secciones/parseo'
 import {
   CampoKpis, CampoColumnas, CampoTablas, CampoGraficos,
@@ -173,11 +173,16 @@ export function EditorSeccion({
   const [tocada, setTocada] = useState(borradorTieneContenido(inicial))
 
   const tipo = tipoDeSeccion(borrador.layout)
-  const faltas = loQueFalta(borrador, tituloDeRespaldo)
+  // El MISMO criterio con el que se va a maquetar, no uno más laxo. Antes esto
+  // era `loQueFalta`, que solo mira el campo que el tipo exige: una sección
+  // con una columna sin líneas se anunciaba "Lista para presentar" y reventaba
+  // al maquetar, lejos de donde se podía arreglar.
+  const estado = estadoDeSeccion(borrador, tituloDeRespaldo)
+  const faltas = estado.estado === 'lista' ? [] : 'falta' in estado ? estado.falta : []
   // Qué campo es el culpable, para marcarlo. El aviso vive al final de la
   // tarjeta y el campo al que se refiere está arriba: sin nada que los una,
   // "Falta la tabla" obliga a buscar cuál de los campos es "la tabla".
-  const campoFaltante = tocada ? campoQueFalta(borrador, tituloDeRespaldo) : null
+  const campoFaltante = tocada && estado.estado === 'incompleta' ? estado.campo : null
   const idCampoFaltante = `falta-${idBase}`
   /**
    * LO ÚLTIMO QUE SE PUEDE DESHACER.
@@ -326,8 +331,13 @@ export function EditorSeccion({
         {/* Una sección que nadie ha tocado NO es un error: está por empezar.
             Marcarla en rojo antes del primer carácter castiga a alguien por no
             haber escrito todavía. */}
-        {faltas.length === 0 ? (
+        {estado.estado === 'lista' ? (
           <span className={estilos.listo}>Lista para presentar.</span>
+        ) : estado.estado === 'con-problema' ? (
+          // Tiene todo lo que el tipo exige y aun así no pasa el contrato: un
+          // tope superado, una celda con HTML pegado, una columna sin líneas.
+          // Se dice AQUÍ, con el contenido delante, y no al maquetar.
+          <span className={estilos.aviso}>{estado.motivo}</span>
         ) : tocada ? (
           <span className={estilos.aviso}>
             Falta{' '}

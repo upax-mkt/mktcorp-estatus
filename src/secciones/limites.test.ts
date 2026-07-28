@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { maquetarBorrador } from '@/motor/maquetar'
-import type { BorradorSeccion } from './borrador'
+import { estadoDeSeccion, type BorradorSeccion } from './borrador'
 
 /**
  * LO QUE EL EDITOR DEJA ARMAR Y EL ESQUEMA RECHAZA.
@@ -113,5 +113,88 @@ describe('el motivo que se le enseña a quien escribió la sección', () => {
     )
     expect(r.motivo).not.toMatch(/Too small|expected|array/i)
     expect(r.motivo).toMatch(/línea|linea|punto/i)
+  })
+})
+
+describe('la frase que sale, entera y bien escrita', () => {
+  // No es cosmética: "Falta las líneas de la columnas 1" se lee como un fallo
+  // del sistema, no como una instrucción, y enseña a ignorar el aviso
+  // siguiente. Se fijan los diez casos que se pueden armar desde el editor.
+  const casos: Array<[string, BorradorSeccion, string]> = [
+    ['cinco cifras', { ...BASE, kpis: cifras(5) }, 'No caben más de 4 cifras en una sección.'],
+    ['cuatro tablas', {
+      layout: 'grafico-y-tabla', titulo: 'T',
+      tablas: Array.from({ length: 4 }, () => ({ columnas: ['a', 'b'], filas: [{ celdas: ['1', '2'] }] })),
+    } as BorradorSeccion, 'No caben más de 3 tablas en una sección.'],
+    ['siete columnas de tabla', {
+      layout: 'pendientes-semaforo', titulo: 'T',
+      tablas: [{ columnas: ['a', 'b', 'c', 'd', 'e', 'f', 'g'], filas: [{ celdas: ['1', '2', '3', '4', '5', '6', '7'] }] }],
+    } as BorradorSeccion, 'No caben más de 6 columnas en la tabla 1.'],
+    ['columna sin líneas', {
+      layout: 'texto-multicolumna', titulo: 'T', columnas: [{ titulo: 'Hallazgos', puntos: [] }],
+    } as BorradorSeccion, 'Faltan las líneas de la columna 1.'],
+    ['cifra sin valor', { ...BASE, kpis: [{ valor: '', rotulo: 'Impresiones' }] }, 'Falta el valor de la cifra 1.'],
+    ['gráfico sin periodos', {
+      layout: 'grafico-y-tabla', titulo: 'T',
+      graficos: [{ tipo: 'barras', periodos: [], series: [{ etiqueta: 'S', valores: [] }] }],
+    } as BorradorSeccion, 'Faltan los periodos del gráfico 1.'],
+    ['bloque sin título', {
+      layout: 'tarjetas-numeradas', titulo: 'T', bloques: [{ titulo: '' }],
+    } as BorradorSeccion, 'Falta el título del bloque 1.'],
+    ['matriz de una columna', {
+      layout: 'matriz-estados', titulo: 'T',
+      matriz: { columnas: ['Julio'], filas: [{ encabezado: 'Retail', celdas: [{ texto: 'Vende' }] }] },
+    } as BorradorSeccion, 'La matriz necesita al menos 2 columnas.'],
+  ]
+
+  it.each(casos)('%s', (_nombre, borrador, esperado) => {
+    expect(maquetarBorrador(borrador, 'Sección').motivo).toBe(esperado)
+  })
+
+  it('nunca dice "de el": contrae a "del"', () => {
+    for (const [, borrador] of casos) {
+      expect(maquetarBorrador(borrador, 'Sección').motivo ?? '').not.toMatch(/\bde el\b/)
+    }
+  })
+
+  it('el mensaje de un refine se respeta, con el sitio delante', () => {
+    // Texto plano y URL segura ya traen su explicación escrita para quien la
+    // lee: traducirla otra vez sería reescribirla peor.
+    const r = maquetarBorrador({
+      layout: 'texto-multicolumna', titulo: 'T',
+      columnas: [{ titulo: 'H', puntos: [{ texto: 'x', enlace: 'javascript:alert(1)' }] }],
+    } as BorradorSeccion, 'Sección')
+    expect(r.motivo).toMatch(/^El enlace de la línea 1 de la columna 1: /)
+    expect(r.motivo).toMatch(/javascript:/)
+  })
+})
+
+describe('lo que el editor promete', () => {
+  // "Lista para presentar" es una promesa, y hasta ahora se daba con una
+  // comprobación más laxa que la de maquetar: una sección con una columna sin
+  // líneas se anunciaba lista y reventaba al final. Ahora la promesa se gana.
+  it('no dice «lista» una sección que reventaría al maquetar', () => {
+    const conColumnaVacia = {
+      layout: 'texto-multicolumna', titulo: 'T', columnas: [{ titulo: 'Hallazgos', puntos: [] }],
+    } as BorradorSeccion
+    expect(estadoDeSeccion(conColumnaVacia, 'Sección').estado).toBe('con-problema')
+    expect(maquetarBorrador(conColumnaVacia, 'Sección').degradado).toBe(true)
+  })
+
+  it('el aviso del editor es el MISMO texto que el de la maquetación', () => {
+    // Si difieren, quien lo ve dos veces cree que son dos problemas.
+    const b = { ...BASE, kpis: cifras(5) }
+    const enEditor = estadoDeSeccion(b, 'Sección')
+    expect(enEditor.estado).toBe('con-problema')
+    if (enEditor.estado !== 'con-problema') return
+    expect(enEditor.motivo).toBe(maquetarBorrador(b, 'Sección').motivo)
+  })
+
+  it('una sección sin tocar está «por empezar», no en error', () => {
+    expect(estadoDeSeccion({ layout: 'kpis-fila-dos-columnas' }, 'RevOps').estado).toBe('por-empezar')
+  })
+
+  it('una sección completa y válida está lista', () => {
+    expect(estadoDeSeccion({ ...BASE, kpis: cifras(3) }, 'Sección').estado).toBe('lista')
   })
 })

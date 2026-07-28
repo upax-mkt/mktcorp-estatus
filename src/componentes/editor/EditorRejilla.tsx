@@ -2,6 +2,7 @@
 
 import { useRef, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { parsearRejilla } from '@/secciones/parseo'
+import { LIMITES } from '@/decision/esquema'
 import estilos from './rejilla.module.css'
 
 /**
@@ -35,9 +36,26 @@ interface Props {
   ejemploFila?: string
   /** Mínimo de columnas: por debajo de esto la tabla deja de serlo. */
   minimoColumnas?: number
+  /**
+   * Topes y mínimos que impone el contrato de la sección. NO son iguales para
+   * las tres rejillas y por eso son propiedades:
+   *
+   * - una TABLA admite 6 columnas contando la de etiquetas;
+   * - un GRÁFICO admite 12 periodos MÁS su columna de nombres, así que un año
+   *     de tendencia mensual entra entero — con el 6 fijo que había antes se
+   *     quedaba en cinco meses y no había forma de saber por qué;
+   * - una MATRIZ admite 12 periodos más la columna de conceptos.
+   *
+   * Los mínimos existen por la misma razón: quitar la última fila dejaba la
+   * tabla en cero y el fallo aparecía al maquetar, no al quitarla.
+   */
+  maximoColumnas?: number
+  maximoFilas?: number
+  minimoFilas?: number
+  /** Cómo se llama el tope al explicarlo: "Máximo 12 periodos". */
+  nombreColumnaPlural?: string
+  nombreFilaPlural?: string
 }
-
-const MAX_COLUMNAS = 6
 
 export function EditorRejilla({
   columnas,
@@ -48,8 +66,15 @@ export function EditorRejilla({
   ejemploColumna = 'Mayo',
   ejemploFila = 'Sesiones',
   minimoColumnas = 2,
+  maximoColumnas = LIMITES.columnasDeTabla,
+  maximoFilas,
+  minimoFilas = 1,
+  nombreColumnaPlural = `${nombreColumna}s`,
+  nombreFilaPlural = `${nombreFila}s`,
 }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
+  const cabenMasColumnas = columnas.length < maximoColumnas
+  const cabenMasFilas = maximoFilas === undefined || filas.length < maximoFilas
 
   /** Toda fila tiene exactamente tantas celdas como columnas hay. */
   function normalizar(cols: string[], fs: string[][]): [string[], string[][]] {
@@ -65,15 +90,19 @@ export function EditorRejilla({
   }
 
   function anadirFila() {
+    if (!cabenMasFilas) return
     onChange(columnas, [...filas, Array(columnas.length).fill('')])
   }
 
   function quitarFila(indice: number) {
+    // Sin este suelo, quitar la última dejaba la tabla en cero filas y el
+    // fallo salía al maquetar —lejos del botón que lo causó.
+    if (filas.length <= minimoFilas) return
     onChange(columnas, filas.filter((_, i) => i !== indice))
   }
 
   function anadirColumna() {
-    if (columnas.length >= MAX_COLUMNAS) return
+    if (!cabenMasColumnas) return
     const [cols, fs] = normalizar([...columnas, ''], filas)
     onChange(cols, fs)
   }
@@ -99,7 +128,7 @@ export function EditorRejilla({
     const pegado = parsearRejilla(texto)
     if (pegado.length === 0) return
 
-    const anchoNecesario = Math.min(MAX_COLUMNAS, Math.max(columnas.length, celdaBase + pegado[0].length))
+    const anchoNecesario = Math.min(maximoColumnas, Math.max(columnas.length, celdaBase + pegado[0].length))
     const cols = [...columnas]
     while (cols.length < anchoNecesario) cols.push('')
 
@@ -118,6 +147,9 @@ export function EditorRejilla({
     const primeraFila = empiezaEnEncabezado ? 0 : filaBase
     filasPegadas.forEach((filaPegada, i) => {
       const destinoFila = primeraFila + i
+      // Pegar tampoco puede saltarse el tope: se recorta lo que sobra en vez
+      // de aceptarlo y romper al maquetar.
+      if (maximoFilas !== undefined && destinoFila >= maximoFilas) return
       while (fs.length <= destinoFila) fs.push(Array(cols.length).fill(''))
       filaPegada.forEach((valor, j) => {
         const destinoCelda = celdaBase + j
@@ -189,7 +221,7 @@ export function EditorRejilla({
                 </th>
               ))}
               <th className={estilos.esquina}>
-                {columnas.length < MAX_COLUMNAS && (
+                {cabenMasColumnas && (
                   <button
                     type="button"
                     className={estilos.anadirEje}
@@ -221,15 +253,17 @@ export function EditorRejilla({
                   </td>
                 ))}
                 <td className={estilos.esquina}>
-                  <button
-                    type="button"
-                    className={estilos.quitar}
-                    onClick={() => quitarFila(f)}
-                    title={`Quitar la ${nombreFila} ${f + 1}`}
-                    aria-label={`Quitar la ${nombreFila} ${f + 1}`}
-                  >
-                    ✕
-                  </button>
+                  {filas.length > minimoFilas && (
+                    <button
+                      type="button"
+                      className={estilos.quitar}
+                      onClick={() => quitarFila(f)}
+                      title={`Quitar la ${nombreFila} ${f + 1}`}
+                      aria-label={`Quitar la ${nombreFila} ${f + 1}`}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -238,11 +272,19 @@ export function EditorRejilla({
       </div>
 
       <div className={estilos.acciones}>
-        <button type="button" className={estilos.anadirFila} onClick={anadirFila}>
-          + Añadir {nombreFila}
-        </button>
+        {cabenMasFilas ? (
+          <button type="button" className={estilos.anadirFila} onClick={anadirFila}>
+            + Añadir {nombreFila}
+          </button>
+        ) : (
+          <span className={estilos.pista}>
+            Máximo {maximoFilas} {nombreFilaPlural}.
+          </span>
+        )}
         <span className={estilos.pista}>
-          Pega desde Sheets en cualquier celda y la rejilla crece sola. Enter baja una {nombreFila}.
+          {cabenMasColumnas
+            ? `Pega desde Sheets en cualquier celda y la rejilla crece sola. Enter baja una ${nombreFila}.`
+            : `Máximo ${maximoColumnas} ${nombreColumnaPlural}. Pega desde Sheets y la rejilla crece hasta ahí.`}
         </span>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
-import { TIPOS_DE_GRAFICO } from '@/decision/esquema'
+import { TIPOS_DE_GRAFICO, LIMITES } from '@/decision/esquema'
 import {
   parsearVinetas, escribirVinetas,
   parsearPartes, escribirPartes,
@@ -48,7 +48,7 @@ export function CampoKpis({ valor, onChange }: { valor: Kpi[]; onChange: (v: Kpi
       nombre="cifra"
       items={valor}
       onChange={onChange}
-      maximo={4}
+      maximo={LIMITES.kpis}
       nuevo={() => ({ valor: '', rotulo: '' })}
     >
       {(kpi, i, cambiar) => (
@@ -94,7 +94,7 @@ export function CampoColumnas({ valor, onChange }: { valor: Columna[]; onChange:
       nombre="columna"
       items={valor}
       onChange={onChange}
-      maximo={4}
+      maximo={LIMITES.columnas}
       nuevo={() => ({ titulo: '', puntos: [] })}
     >
       {(col, i, cambiar) => (
@@ -154,7 +154,7 @@ export function CampoTablas({
       nombre="tabla"
       items={valor}
       onChange={onChange}
-      maximo={3}
+      maximo={LIMITES.tablas}
       nuevo={() => ({ columnas: ['', ''], filas: [] })}
     >
       {(tabla, i, cambiar) => (
@@ -178,6 +178,7 @@ export function CampoTablas({
               nombreFila="fila"
               ejemploColumna={conSemaforo ? 'Tarea' : 'Mayo'}
               ejemploFila={conSemaforo ? 'Ileana Cruz' : 'Sesiones'}
+              maximoColumnas={LIMITES.columnasDeTabla}
             />
             {conSemaforo && (
               <em className={estilos.pista}>
@@ -267,7 +268,7 @@ export function CampoGraficos({ valor, onChange }: { valor: Grafico[]; onChange:
       nombre="gráfico"
       items={valor}
       onChange={onChange}
-      maximo={2}
+      maximo={LIMITES.graficos}
       nuevo={() => ({ tipo: 'barras', periodos: [], series: [] })}
     >
       {(grafico, i, cambiar) => <UnGrafico grafico={grafico} indice={i} cambiar={cambiar} />}
@@ -324,6 +325,14 @@ function UnGrafico({
           nombreFila="serie"
           ejemploColumna="Enero"
           ejemploFila="Total 2026"
+          // +1 por la columna de nombres de serie, que no es un periodo. Con
+          // el tope fijo de 6 que había, un gráfico no pasaba de CINCO meses:
+          // una tendencia anual no se podía dibujar, y nada decía por qué el
+          // botón de añadir desaparecía.
+          maximoColumnas={LIMITES.periodosDeGrafico + 1}
+          maximoFilas={LIMITES.seriesDeGrafico}
+          nombreColumnaPlural="periodos"
+          nombreFilaPlural="series"
         />
         <em className={estilos.pista}>
           Cada columna es un periodo y cada fila una serie. La primera celda de cada fila es su
@@ -669,7 +678,7 @@ export function CampoCifrasDesglosadas({ valor, onChange }: { valor: Cifra[]; on
       nombre="cifra"
       items={valor}
       onChange={onChange}
-      maximo={6}
+      maximo={LIMITES.cifrasDesglosadas}
       nuevo={() => ({ rotulo: '', valor: '' })}
     >
       {(cifra, i, cambiar) => (
@@ -726,7 +735,7 @@ export function CampoBloques({ valor, onChange }: { valor: Bloque[]; onChange: (
       nombre="bloque"
       items={valor}
       onChange={onChange}
-      maximo={5}
+      maximo={LIMITES.bloques}
       nuevo={() => ({ titulo: '' })}
     >
       {(bloque, i, cambiar) => (
@@ -834,6 +843,9 @@ export function CampoMatriz({
           ejemploColumna="Julio"
           ejemploFila="Comercio al por menor"
           minimoColumnas={2}
+          maximoColumnas={LIMITES.columnasDeMatriz + 1}
+          nombreColumnaPlural="periodos"
+          nombreFilaPlural="conceptos"
         />
         <em className={estilos.pista}>
           Cada columna es un periodo y cada fila un concepto. En el cruce, qué toca hacer.
