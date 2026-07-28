@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache'
 import { esEquipo } from '@/auth/sesion'
 import { obtenerSesion } from '@/db/sesiones'
 import { generarMinuta } from '@/minuta/generar'
+import { moldeDeMinuta } from '@/db/plantillas'
 import { guardarMinuta, type AcuerdoConfirmado } from '@/db/minutas'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
 
@@ -34,8 +35,13 @@ export async function generarMinutaAction(sesionId: string, transcripcion: strin
     const sesion = await obtenerSesion(sesionId)
     if (!sesion) return { ok: false, error: 'Sesión no encontrada.' }
 
+    // El molde de SU sala, si lo tiene; si no, el general; si tampoco, el de
+    // siempre. Nadie se queda sin poder minutar por falta de configuración.
+    const molde = await moldeDeMinuta(sesion.salaSlug)
+
     const resultado = await generarMinuta(
       {
+        id: sesionId,
         salaSlug: sesion.salaSlug,
         salaNombre: sesion.salaNombre,
         tipo: sesion.tipo,
@@ -43,6 +49,8 @@ export async function generarMinutaAction(sesionId: string, transcripcion: strin
         fecha: sesion.fecha,
       },
       transcripcion,
+      undefined,
+      molde,
     )
     return { ok: true, textoCorreo: resultado.textoCorreo, acuerdosPropuestos: resultado.acuerdosPropuestos }
   } catch (error) {

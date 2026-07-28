@@ -11,6 +11,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { crearClientePorDefecto, type ClienteDecision } from '@/motor/decidir'
 import { EsquemaMinuta, parsearMinuta, type AcuerdoPropuesto } from './esquema'
 import { construirPromptMinuta, type SesionParaMinuta } from './prompt'
+import { MOLDE_POR_DEFECTO, type MoldeMinuta } from './molde'
 
 export type { SesionParaMinuta, AcuerdoPropuesto }
 
@@ -18,8 +19,6 @@ export interface ResultadoMinuta {
   textoCorreo: string
   acuerdosPropuestos: AcuerdoPropuesto[]
 }
-
-const SALUDO = 'Hola equipo,'
 
 /** "por definir" es el rótulo que el spec exige mostrar antes de enviar el correo (§9). */
 function formatearFechaTabla(fechaIso: string | null): string {
@@ -60,28 +59,34 @@ function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {
   return [encabezado, ...filas].join('\n')
 }
 
-function ensamblarCorreo(
+/**
+ * Arma el correo SEGÚN EL MOLDE, no según una forma incrustada aquí.
+ *
+ * El modelo devuelve un texto por bloque, en el mismo orden que el molde. El
+ * bloque marcado con `conTabla` recibe además la tabla de acuerdos, que NO la
+ * redacta el modelo: se arma con los compromisos que se van a publicar en la
+ * sala, con su dueño y su fecha. Dejarla al modelo sería dejarle inventar
+ * compromisos.
+ */
+export function ensamblarCorreo(
   salaSlug: string | null,
-  minuta: { objetivo: string; temasYAcuerdos: string[]; proximosPasos: string },
+  bloques: string[],
   acuerdos: AcuerdoPropuesto[],
+  molde: MoldeMinuta = MOLDE_POR_DEFECTO,
+  sesionId?: string,
 ): string {
-  return [
-    SALUDO,
-    '',
-    'Objetivo de la reunión',
-    minuta.objetivo,
-    '',
-    'Temas generales y acuerdos',
-    ...minuta.temasYAcuerdos.map((tema) => `- ${tema}`),
-    '',
-    'Acuerdos y accionables',
-    tablaAcuerdos(acuerdos),
-    '',
-    'Próximos pasos',
-    minuta.proximosPasos,
-    '',
-    `Sesión: ${urlSesion(salaSlug)}`,
-  ].join('\n')
+  const lineas: string[] = [molde.saludo, '']
+
+  molde.bloques.forEach((b, i) => {
+    lineas.push(b.titulo)
+    const texto = (bloques[i] ?? '').trim()
+    if (texto) lineas.push(texto)
+    if (b.conTabla) lineas.push(tablaAcuerdos(acuerdos))
+    lineas.push('')
+  })
+
+  if (molde.conEnlace) lineas.push(`Sesión: ${urlSesion(salaSlug, sesionId)}`)
+  return lineas.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
 /**
@@ -91,9 +96,10 @@ function ensamblarCorreo(
  * modelo.
  */
 export async function generarMinuta(
-  sesion: SesionParaMinuta & { salaSlug: string | null },
+  sesion: SesionParaMinuta & { salaSlug: string | null; id?: string },
   transcripcion: string,
   cliente?: ClienteDecision,
+  molde: MoldeMinuta = MOLDE_POR_DEFECTO,
 ): Promise<ResultadoMinuta> {
   const texto = transcripcion.trim()
   if (texto.length === 0) {
@@ -101,7 +107,7 @@ export async function generarMinuta(
   }
 
   const clienteFinal = cliente ?? crearClientePorDefecto()
-  const { system, user } = construirPromptMinuta(sesion, texto)
+  const { system, user } = construirPromptMinuta(sesion, texto, molde)
 
   const resp = await clienteFinal.messages.parse({
     // Mismo modelo que el motor (ver src/motor/decidir.ts). La minuta ya salía
@@ -119,7 +125,9 @@ export async function generarMinuta(
 
   const minuta = parsearMinuta(resp.parsed_output) // candado: revalida contra el esquema estricto
   return {
-    textoCorreo: ensamblarCorreo(sesion.salaSlug, minuta, minuta.acuerdosPropuestos),
+    textoCorreo: ensamblarCorreo(
+      sesion.salaSlug, minuta.bloques, minuta.acuerdosPropuestos, molde, sesion.id,
+    ),
     acuerdosPropuestos: minuta.acuerdosPropuestos,
   }
 }

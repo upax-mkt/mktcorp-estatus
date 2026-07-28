@@ -13,6 +13,8 @@ import { sesionesSinMinuta } from '@/dominio/salas'
 import { altoDeLogo, SIN_LOGO } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { listarSesiones } from '@/db/sesiones'
+import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
+import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta } from '@/lib/fecha'
 import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
@@ -52,6 +54,22 @@ export default async function Hub() {
     revalidatePath('/')
   }
 
+  async function guardarMoldeAction(nuevo: MoldeMinuta): Promise<{ error?: string }> {
+    'use server'
+    await exigirEquipo()
+    // Se revalida en el servidor aunque el editor ya lo compruebe: ocultar un
+    // botón no protege una acción.
+    const faltas = loQueFaltaAlMolde(nuevo)
+    if (faltas.length > 0) return { error: `Falta ${faltas.join(' y ')}.` }
+    try {
+      await guardarMoldeDeMinuta(null, nuevo)
+      revalidatePath('/')
+      return {}
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo guardar el molde.' }
+    }
+  }
+
   // Sin esto Next lo prerenderiza y la app queda congelada en la fecha del build.
   await connection()
   const hoy = new Date()
@@ -62,6 +80,7 @@ export default async function Hub() {
     pulsoDelMes(),
     listarSesiones(),
   ])
+  const molde = await moldeDeMinuta(null)
   const salas = ordenarPorUrgencia(salasCrudas)
 
   // Las minutas de las diez salas en una sola lista, la más reciente arriba.
@@ -158,7 +177,12 @@ export default async function Hub() {
             ponerFechaAction={ponerFechaAction}
           />
           <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
-          <ModuloMinutas minutas={minutas} pendientes={sinMinuta} />
+          <ModuloMinutas
+            minutas={minutas}
+            pendientes={sinMinuta}
+            molde={molde}
+            guardarMoldeAction={guardarMoldeAction}
+          />
         </div>
 
         {/* Las salas, con su logotipo. */}

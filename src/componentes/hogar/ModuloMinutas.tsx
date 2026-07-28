@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
 import { LevantarMinuta, type SesionMinutable } from '@/componentes/LevantarMinuta'
+import { EditorMolde } from '@/componentes/EditorMolde'
+import type { MoldeMinuta } from '@/minuta/molde'
 import estilos from '@/app/hub.module.css'
 
 /**
@@ -39,9 +41,12 @@ interface Props {
   minutas: MinutaEnHome[]
   /** Reuniones presentadas que todavía no tienen minuta, de las diez salas. */
   pendientes: SesionMinutable[]
+  /** El molde con el que se arman: editable desde aquí. */
+  molde: MoldeMinuta
+  guardarMoldeAction: (molde: MoldeMinuta) => Promise<{ error?: string }>
 }
 
-export function ModuloMinutas({ minutas, pendientes }: Props) {
+export function ModuloMinutas({ minutas, pendientes, molde, guardarMoldeAction }: Props) {
   const [abierta, setAbierta] = useState<MinutaEnHome | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -91,17 +96,21 @@ export function ModuloMinutas({ minutas, pendientes }: Props) {
         </ul>
       )}
 
-      {/* El disparador solo cuando hay algo que minutar. Sin reuniones
-          presentadas, por qué no se puede ya lo dice el vacío de arriba. */}
-      {pendientes.length > 0 && (
-        <div className={estilos.moduloPie}>
+      {/* El molde SIEMPRE se puede editar, haya minutas o no: es lo que hay
+          que dejar bien ANTES de levantar la primera, no después. Levantar
+          una, en cambio, solo cuando hay reuniones presentadas — por qué no
+          las hay ya lo dice el vacío de arriba. */}
+      <div className={estilos.moduloPie}>
+        {pendientes.length > 0 && (
           <LevantarMinuta
             sesiones={pendientes}
             claseBoton="boton"
+            data-tono="marca"
             etiquetaBoton="Levantar una minuta"
           />
-        </div>
-      )}
+        )}
+        <EditorMolde molde={molde} guardarAction={guardarMoldeAction} />
+      </div>
 
       <dialog
         ref={dialogo}

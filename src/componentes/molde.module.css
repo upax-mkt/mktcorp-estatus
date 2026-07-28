@@ -1,0 +1,79 @@
+/* El editor del molde de la minuta. Los neutros salen de `sistema.css`. */
+
+.dialogo {
+  border: none; padding: 0; background: none;
+  max-width: min(46rem, 94vw); width: 100%;
+  /* `margin: auto` y no `place-items`: un <dialog> se posiciona por márgenes,
+     y sin esto sale pegado al borde izquierdo con el ancho fijado. */
+  margin: auto;
+}
+.dialogo::backdrop { background: oklch(0.26 0.025 55 / 0.4); backdrop-filter: blur(3px); }
+
+.caja {
+  display: grid; grid-template-rows: auto 1fr auto;
+  max-height: 86dvh;
+  background: var(--papel); color: var(--tinta);
+  border-radius: var(--r-4); box-shadow: var(--e-3);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+}
+
+.cabecera {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.4rem 1.5rem 1rem; border-bottom: 1px solid var(--linea);
+}
+.titulo { font-size: 1.15rem; font-weight: 600; letter-spacing: var(--track-titulo); margin: 0; }
+.sub { font-size: 0.85rem; color: var(--tinta-3); margin: 0.35rem 0 0; line-height: 1.45; }
+
+.cuerpo { overflow-y: auto; padding: 1.25rem 1.5rem; display: grid; gap: 1.1rem; }
+
+.campo { display: grid; gap: 0.4rem; }
+.campo input, .tituloBloque, .guia {
+  font: inherit; color: var(--tinta);
+  padding: 0.55rem 0.7rem; border-radius: var(--r-2);
+  border: 1px solid var(--linea-fuerte); background: var(--lienzo);
+  transition: border-color var(--rapido) linear;
+}
+.campo input:focus, .tituloBloque:focus, .guia:focus { outline: none; border-color: var(--tinta); }
+
+.bloques { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.8rem; }
+.bloque {
+  display: grid; gap: 0.55rem;
+  padding: 0.9rem 1rem; border-radius: var(--r-3);
+  background: var(--papel-hundido);
+}
+.bloqueCabecera { display: flex; align-items: center; gap: 0.6rem; }
+.numero {
+  display: grid; place-items: center; flex: none;
+  width: 1.5rem; height: 1.5rem; border-radius: var(--r-lleno);
+  background: var(--tinta); color: var(--papel);
+  font-size: 0.75rem; font-weight: 700;
+}
+.tituloBloque { flex: 1; min-width: 0; font-weight: 600; }
+.guia { width: 100%; resize: vertical; font-size: 0.87rem; line-height: 1.5; }
+
+.acciones { display: flex; gap: 0.2rem; flex: none; }
+.acciones button {
+  font: inherit; font-size: 0.9rem; line-height: 1;
+  width: 1.7rem; height: 1.7rem; padding: 0;
+  border: none; border-radius: var(--r-1);
+  background: none; color: var(--tinta-3); cursor: pointer;
+  transition: background var(--rapido) linear, color var(--rapido) linear;
+}
+.acciones button:hover:not(:disabled) { background: var(--papel); color: var(--tinta); }
+.acciones button:disabled { opacity: 0.3; cursor: default; }
+
+.marcarTabla {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.83rem; color: var(--tinta-2); line-height: 1.45; cursor: pointer;
+}
+.marcarTabla input { margin-top: 0.2rem; accent-color: var(--tinta); }
+.marcarTabla em { color: var(--tinta-4); font-style: normal; }
+
+.pieAcciones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.pie {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: 1rem 1.5rem 1.25rem; border-top: 1px solid var(--linea);
+}
+.aviso { font-size: 0.85rem; color: var(--mal); }
+.ok { font-size: 0.85rem; color: var(--bien); }

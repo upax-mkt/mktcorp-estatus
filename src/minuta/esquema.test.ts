@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { parsearMinuta, EsquemaMinuta } from './esquema'
 
 const VALIDA = {
-  objetivo: 'Revisar el avance del mes y destrabar los pendientes de portafolio.',
-  temasYAcuerdos: [
-    'Se revisó el avance de campañas de desarrollos especializados',
-    'David presentará la nueva propuesta de valor la próxima semana',
+  // Un texto por bloque del molde, en su orden. Los nombres de los bloques no
+  // están aquí a propósito: los pone el equipo al editar el molde, y por eso
+  // el esquema solo puede fijar cuántos son y que vengan en orden.
+  bloques: [
+    'Revisar el avance del mes con NeraCode.',
+    'Se revisó el avance de campañas de desarrollos especializados.',
+    'David presentará la nueva propuesta de valor la próxima semana.',
+    'Se vuelve a revisar en la sesión de agosto.',
   ],
-  proximosPasos: 'El equipo retoma en la siguiente sesión mensual con los pendientes cerrados.',
   acuerdosPropuestos: [
     {
       que: 'Presentar nuevas palabras clave y segmentos para campañas',
@@ -27,7 +30,7 @@ const VALIDA = {
 
 describe('parsearMinuta', () => {
   it('acepta una minuta bien formada', () => {
-    expect(parsearMinuta(VALIDA).objetivo).toContain('Revisar el avance')
+    expect(parsearMinuta(VALIDA).bloques[0]).toContain('Revisar el avance')
   })
 
   it('acepta un acuerdo sin squad (campo opcional)', () => {
@@ -47,14 +50,14 @@ describe('parsearMinuta', () => {
     expect(() => parsearMinuta(invalida)).toThrow()
   })
 
-  it('rechaza sin objetivo', () => {
-    const sinObjetivo: Record<string, unknown> = { ...VALIDA }
-    delete sinObjetivo.objetivo
-    expect(() => parsearMinuta(sinObjetivo)).toThrow()
+  it('rechaza sin bloques', () => {
+    const sinBloques: Record<string, unknown> = { ...VALIDA }
+    delete sinBloques.bloques
+    expect(() => parsearMinuta(sinBloques)).toThrow()
   })
 
-  it('rechaza temasYAcuerdos vacío', () => {
-    expect(() => parsearMinuta({ ...VALIDA, temasYAcuerdos: [] })).toThrow()
+  it('rechaza la lista de bloques vacía', () => {
+    expect(() => parsearMinuta({ ...VALIDA, bloques: [] })).toThrow()
   })
 
   it('rechaza una clave extra (candado strict)', () => {
@@ -69,8 +72,8 @@ describe('parsearMinuta', () => {
     expect(() => parsearMinuta(conMarkup)).toThrow()
   })
 
-  it('rechaza Markdown colado en el objetivo (TextoPlano reutilizado)', () => {
-    expect(() => parsearMinuta({ ...VALIDA, objetivo: '**Revisar** el avance del mes' })).toThrow()
+  it('rechaza Markdown colado en un bloque (TextoPlano reutilizado)', () => {
+    expect(() => parsearMinuta({ ...VALIDA, bloques: ['**Revisar** el avance del mes'] })).toThrow()
   })
 
   it('acepta hasta 20 acuerdos propuestos', () => {

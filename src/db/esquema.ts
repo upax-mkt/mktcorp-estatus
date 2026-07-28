@@ -243,3 +243,37 @@ export const benchmarks = pgTable('benchmarks', {
   lectura: text('lectura'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+/**
+ * PLANTILLAS GUARDADAS por el equipo.
+ *
+ * Franco: "para algunos tipos de reunión podríamos definir templates
+ * preparados; por ejemplo la Estatus Mensual con RL debería tener una
+ * estructura predefinida". Y: "el módulo minutas debería tener un editor del
+ * template del tipo de minuta".
+ *
+ * Son la misma cosa —una forma acordada de una reunión— y por eso una tabla:
+ * `tipo` distingue si lo que se fija es la ESTRUCTURA de la presentación o el
+ * MOLDE de la minuta.
+ *
+ * LAS DEFINE EL EQUIPO, no el sistema. Las cinco plantillas de código son
+ * genéricas a propósito; qué lleva exactamente el estatus mensual de Research
+ * Land lo sabe quien lo da, y adivinarlo aquí sería inventar un compromiso.
+ * Por eso el camino principal es "guarda ESTA estructura como plantilla".
+ *
+ * `salaSlug` nulo = sirve para cualquier sala.
+ */
+export const tipoPlantillaEnum = pgEnum('tipo_plantilla', ['sesion', 'minuta'])
+
+export const plantillas = pgTable('plantillas', {
+  id: text('id').primaryKey(),
+  tipo: tipoPlantillaEnum('tipo').notNull(),
+  nombre: text('nombre').notNull(),
+  paraQue: text('para_que').notNull().default(''),
+  /** De qué sala es. Nulo = de todas. */
+  salaSlug: text('sala_slug').references(() => salas.slug),
+  /** `DefinicionItem[]` para una de sesión; `MoldeMinuta` para una de minuta. */
+  contenido: jsonb('contenido').$type<unknown>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})

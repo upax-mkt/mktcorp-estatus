@@ -14,6 +14,8 @@ export interface SesionParaMinuta {
   fecha: string // ISO
 }
 
+import { MOLDE_POR_DEFECTO, type MoldeMinuta } from './molde'
+
 const SYSTEM = `Escribes la minuta de las reuniones de estatus que Marketing Corporativo de
 Grupo UPAX sostiene con cada unidad de negocio (UDN). Te entregan la
 transcripción cruda de la reunión (texto sin editar, típicamente de Meet o
@@ -32,16 +34,11 @@ REGLA DURA — NO INVENTAR:
   ("YYYY-MM-DD") usando la fecha de la sesión (te la doy abajo) como ancla.
 - No agregues acuerdos, temas ni cifras que la transcripción no respalde.
 
-QUÉ PRODUCES (cuatro campos, ningún otro):
-- "objetivo": un párrafo breve (2-3 líneas) que resume el propósito de esta
-  sesión de estatus, a partir de lo efectivamente discutido.
-- "temasYAcuerdos": de 1 a 8 viñetas cortas (una idea por viñeta) con los
-  temas generales tratados y los acuerdos narrativos de la reunión — esto es
-  el resumen ejecutivo en prosa, NO la tabla de accionables (esa va aparte,
-  en "acuerdosPropuestos"). No antepongas tú un guion o número: cada elemento
-  del arreglo ya es una viñeta.
-- "proximosPasos": un párrafo breve que cierra con qué sigue después de esta
-  sesión.
+QUÉ PRODUCES (dos campos, ningún otro):
+- "bloques": un texto por cada bloque de la minuta, EN EL MISMO ORDEN en que
+  te los pido abajo. Cada bloque responde SOLO a lo que pide el suyo: no
+  repitas en el segundo lo que ya dijiste en el primero. No escribas el
+  título del bloque dentro del texto — el sistema lo pone.
 - "acuerdosPropuestos": el arreglo de acuerdos accionables extraídos de la
   transcripción. Cada uno con:
   - "que": una frase clara y accionable (qué se acordó hacer).
@@ -64,6 +61,7 @@ descartada.`
 export function construirPromptMinuta(
   sesion: SesionParaMinuta,
   transcripcion: string,
+  molde: MoldeMinuta = MOLDE_POR_DEFECTO,
 ): { system: string; user: string } {
   const fechaSesionIso = sesion.fecha.slice(0, 10)
   const fechaSesionLegible = new Date(sesion.fecha).toLocaleDateString('es-MX', {
@@ -72,11 +70,24 @@ export function construirPromptMinuta(
     year: 'numeric',
   })
 
+  // LOS BLOQUES VIAJAN EN EL PROMPT, no en el esquema: sus nombres los pone el
+  // equipo al editar el molde, así que el contrato solo puede fijar cuántos
+  // son y que vengan en orden. Numerarlos aquí es lo que hace que "bloques[2]"
+  // signifique algo.
+  const bloques = molde.bloques
+    .map((b, i) => `${i + 1}. «${b.titulo}» — ${b.guia || 'lo que corresponda a este bloque.'}${
+      b.conTabla ? ' (La tabla de acuerdos la pone el sistema aquí: no la escribas.)' : ''
+    }`)
+    .join('\n')
+
   const user = [
     `Sala: ${sesion.salaNombre}`,
     `Tipo de sesión: ${sesion.tipo}`,
     `Alcance: ${sesion.alcance}`,
     `Fecha de la sesión (ancla para fechas relativas): ${fechaSesionIso} (${fechaSesionLegible})`,
+    '',
+    `Los ${molde.bloques.length} bloques de esta minuta, en orden. Devuelve un texto por cada uno, en "bloques":`,
+    bloques,
     '',
     'Transcripción:',
     transcripcion,

@@ -14,9 +14,7 @@ function clienteQueDevuelve(minuta: unknown) {
 }
 
 const MINUTA_VALIDA = {
-  objetivo: 'Revisar el avance del mes y destrabar pendientes.',
-  temasYAcuerdos: ['Se revisó el avance de campañas', 'Se discutió la nueva propuesta de valor'],
-  proximosPasos: 'Retomar en la siguiente sesión mensual.',
+  bloques: ['El objetivo de la reunión.', 'Se revisó el avance de campañas', 'Se discutió la nueva propuesta de valor', 'Lo que sigue.'],
   acuerdosPropuestos: [
     {
       que: 'Presentar nuevas palabras clave y segmentos',
@@ -35,7 +33,7 @@ const MINUTA_VALIDA = {
 }
 
 describe('generarMinuta', () => {
-  it('produce un texto de correo con el molde real (objetivo, temas, tabla, próximos pasos)', async () => {
+  it('sin molde propio, produce el correo de siempre: los cuatro bloques y la tabla', async () => {
     const r = await generarMinuta(sesion, 'transcripción de ejemplo', clienteQueDevuelve(MINUTA_VALIDA))
     expect(r.textoCorreo).toContain('Objetivo de la reunión')
     expect(r.textoCorreo).toContain('Temas generales y acuerdos')
@@ -72,7 +70,7 @@ describe('generarMinuta', () => {
   })
 
   it('rechaza una minuta con estilo colado aunque el modelo la haya devuelto (candado TextoPlano)', async () => {
-    const conMarkup = { ...MINUTA_VALIDA, objetivo: '**Revisar** el avance del mes' }
+    const conMarkup = { ...MINUTA_VALIDA, bloques: ['**Revisar** el avance del mes', 'x', 'y', 'z'] }
     await expect(generarMinuta(sesion, 'x', clienteQueDevuelve(conMarkup))).rejects.toThrow()
   })
 

@@ -290,8 +290,9 @@
   color: var(--tinta);
 }
 
-/* El pie de un módulo: donde vive su acción, separada de lo que se lee. */
+/* El pie de un módulo: donde viven sus acciones, separadas de lo que se lee. */
 .moduloPie {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
   margin-top: 1rem; padding-top: 0.9rem;
   border-top: 1px solid var(--linea);
 }

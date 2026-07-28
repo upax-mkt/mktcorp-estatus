@@ -35,14 +35,22 @@ export const EsquemaAcuerdoPropuesto = z
 
 export const EsquemaMinuta = z
   .object({
-    /** Párrafo breve — "Objetivo de la reunión" del molde real de Mkt Corp (spec §9). */
-    objetivo: TextoPlano,
-    /** Viñetas narrativas — "Temas generales y acuerdos" del molde. 1 a 8 líneas, una idea por línea. */
-    temasYAcuerdos: z.array(TextoPlano).min(1).max(8),
-    /** Párrafo breve — "Próximos pasos" del molde. */
-    proximosPasos: TextoPlano,
+    /**
+     * Un texto por bloque del molde, EN SU MISMO ORDEN.
+     *
+     * Antes eran tres campos con nombre fijo —objetivo, temasYAcuerdos,
+     * proximosPasos— porque el molde estaba incrustado en el código. Con el
+     * molde editable, el esquema no puede saber cómo se llaman los bloques:
+     * los nombra el equipo. Lo que sí sabe es cuántos hay y qué se pide en
+     * cada uno, y eso viaja en el prompt.
+     */
+    bloques: z.array(TextoPlano).min(1).max(8).describe(
+      'Un texto por bloque de la minuta, en el mismo orden en que se piden. Cada uno responde solo a lo que pide SU bloque.',
+    ),
     /** Borrador de acuerdos accionables extraídos de la transcripción — nada se publica sin revisión humana (spec §9). */
-    acuerdosPropuestos: z.array(EsquemaAcuerdoPropuesto).max(20),
+    acuerdosPropuestos: z.array(EsquemaAcuerdoPropuesto).max(20).describe(
+      'Los compromisos que se oyen en la transcripción, con quién responde y para cuándo. Solo lo que se dijo: si nadie puso fecha, va sin fecha.',
+    ),
   })
   .strict() // strict rechaza cualquier clave extra, mismo candado que decision/esquema.ts
 
