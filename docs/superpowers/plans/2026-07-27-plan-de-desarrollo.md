@@ -4,7 +4,23 @@
 todo hallazgo de auditoría entra aquí antes de tocar código. Si algo no está en
 este documento, no se está haciendo.
 
-Estado del repo: rama `editor-de-secciones`, 457 tests, build y lint limpios.
+Estado del repo: rama `editor-de-secciones`, **531 tests**, build y lint
+limpios (0 errores, 2 avisos de variables con guion bajo).
+
+**TODO EL PLAN EJECUTADO (27-jul).** Quedan tres cosas fuera, cada una con su
+motivo escrito en su fase — dos necesitan algo de Franco y una es una decisión
+de coste/beneficio:
+
+| Qué | Por qué no está | Qué hace falta |
+|---|---|---|
+| **Datos del benchmark** (3.4) | La pantalla está entera; los datos no se pueden inventar sin publicar un análisis de la competencia falso al director de la UDN. | La presentación de benchmark de referencia. Se pegan en `src/datos/benchmark.ts` y aparecen. |
+| **Logos de portada y cierre** (5.3) | Faltan los archivos de las diez marcas. Dejar el campo sería código que apunta a archivos inexistentes. | Los SVG (o PNG con fondo transparente) de las diez salas. |
+| **Flechas ↑↓ optimistas** (4.8) | Exige reestructurar el reordenamiento —que funciona y tiene test— para ahorrar dos décimas de segundo. | Que Franco lo pida; entonces se hace. |
+
+**Pendiente de Franco, no del código:** volver a poner `ANTHROPIC_API_KEY` en
+`~/mktcorp-estatus/.env.local`. Sin ella el asistente de IA y la minuta desde
+transcripción no funcionan EN LOCAL; producción no está afectada. El resto de
+la app —el camino principal, manual— funciona sin ella.
 
 ---
 
