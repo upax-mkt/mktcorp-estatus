@@ -31,6 +31,19 @@ export function obtenerTema(slug: string): Tema {
   return tema
 }
 
+/**
+ * El tema con el que se viste una reunión, tenga sala o no.
+ *
+ * Una reunión que no pertenece a ninguna de las diez —un comité, un arranque
+ * de campaña— se viste con la identidad de Grupo UPAX, que es la de quien la
+ * convoca: Marketing Corp es parte del grupo y no tiene identidad propia
+ * separada. `obtenerTema` sigue existiendo para cuando la sala es segura y un
+ * slug inventado debe reventar.
+ */
+export function temaDeSala(slug: string | null | undefined): Tema {
+  return slug ? obtenerTema(slug) : TEMAS['grupo-upax']
+}
+
 export function slugsDeSalas(): string[] {
   return Object.keys(TEMAS)
 }

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import estilos from '@/app/preparar/preparar.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
-import { obtenerTema } from '@/temas'
+import { temaDeSala } from '@/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { esEquipo, puedeVerEstaSala } from '@/auth/sesion'
 
@@ -25,7 +25,12 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   const { id } = await params
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()
-  if (!(await puedeVerEstaSala(sesion.salaSlug))) notFound()
+  // Una reunión que no es de ninguna sala es interna de Marketing Corp: no
+  // hay director a quien enseñársela, así que la ve solo el equipo.
+  const permitido = sesion.salaSlug
+    ? await puedeVerEstaSala(sesion.salaSlug)
+    : await esEquipo()
+  if (!permitido) notFound()
 
   const secciones: SeccionSesion[] = sesion.items
     .filter((i) => i.resultado != null)
@@ -37,7 +42,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
 
   if (secciones.length === 0) notFound()
 
-  const sala = await estadoDeSala(sesion.salaSlug)
+  const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
   const equipo = await esEquipo()
 
   return (
@@ -53,7 +58,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
       </header>
 
       <DocumentoSesion
-        tema={obtenerTema(sesion.salaSlug)}
+        tema={temaDeSala(sesion.salaSlug)}
         secciones={secciones}
         acuerdos={sala?.acuerdos ?? []}
       />

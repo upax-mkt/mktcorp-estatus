@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../sala.module.css'
@@ -20,6 +20,9 @@ import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { MinutasSala } from '@/componentes/MinutasSala'
 import { NuevaMinutaSala } from '@/componentes/NuevaMinutaSala'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
+import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
+import { crearSesionConEstructura } from '@/db/sesiones'
+import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
 import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
@@ -114,6 +117,39 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await eliminarAcuerdo(acuerdoId)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
+  }
+
+  /**
+   * Preparar una presentación desde la sala (Franco, punto 3).
+   *
+   * La sala ya sabe de quién es: no se vuelve a preguntar. Redirige al editor
+   * porque crear una sesión sin abrirla es dejar a alguien mirando la misma
+   * pantalla preguntándose si pasó algo.
+   */
+  async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
+    'use server'
+    await exigirEquipo()
+    if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
+      return { error: 'Plantilla desconocida.' }
+    }
+    let nueva: { id: string }
+    try {
+      nueva = await crearSesionConEstructura({
+        salaSlug: slug,
+        plantilla: datos.plantilla,
+        tipo: 'mensual',
+        alcance: 'todos',
+        // Las 10:00 de CDMX, no la medianoche UTC: sin huso explícito una
+        // reunión "del 19" se guarda como las 18:00 del 18 en México.
+        fecha: new Date(`${datos.dia}T10:00:00-06:00`),
+        estado: 'agendada',
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo crear la sesión.' }
+    }
+    revalidatePath(`/sala/${slug}`)
+    revalidatePath('/')
+    redirect(`/preparar/${nueva.id}`)
   }
 
   // ---- Server actions: archivos colgados en la sala ----
@@ -287,6 +323,8 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               <span className={estilos.presVer}>Ver presentación →</span>
             </Link>
           )}
+          {equipo && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
+
           {presAnteriores.length > 0 && (
             <div className={estilos.presTimeline}>
               {presAnteriores.map((p) => (

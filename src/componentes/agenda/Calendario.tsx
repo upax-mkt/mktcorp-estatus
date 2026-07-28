@@ -22,7 +22,8 @@ export interface SesionEnCalendario {
   id: string
   fecha: string // ISO
   titulo: string
-  salaSlug: string
+  /** Nulo si la reunión no pertenece a ninguna sala. */
+  salaSlug: string | null
   salaNombre: string
   salaColor: string
   estado: string

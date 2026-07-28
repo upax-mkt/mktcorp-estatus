@@ -89,7 +89,7 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
                 salas={salas}
                 etiquetaEnviar="Guardar cambios"
                 inicial={{
-                  salaSlug: editando.salaSlug,
+                  salaSlug: editando.salaSlug ?? '',
                   titulo: editando.titulo,
                   dia: diaCivil(editando.fecha),
                   hora: horaBreve(editando.fecha),

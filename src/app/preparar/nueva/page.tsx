@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 import estilos from '../preparar.module.css'
 import { slugsDeSalas, obtenerTema } from '@/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
+import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { exigirEquipo } from '@/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -13,18 +14,25 @@ export default function PagNuevaSesion() {
     'use server'
     await exigirEquipo()
 
-    const salaSlug = String(formData.get('salaSlug') ?? '')
+    const salaCruda = String(formData.get('salaSlug') ?? '')
+    const plantilla = String(formData.get('plantilla') ?? PLANTILLA_POR_DEFECTO)
     const tipo = (String(formData.get('tipo') ?? 'mensual')) as TipoSesion
     const alcanceModo = String(formData.get('alcanceModo') ?? 'todos')
     const alcanceTema = String(formData.get('alcanceTema') ?? '').trim()
 
-    if (!slugsDeSalas().includes(salaSlug)) {
+    // "ninguna" es una opción de verdad: un comité o un arranque de campaña no
+    // pertenecen a ninguna de las diez salas.
+    const salaSlug = salaCruda === 'ninguna' ? null : salaCruda
+    if (salaSlug && !slugsDeSalas().includes(salaSlug)) {
       throw new Error(`Elige una sala válida (recibido: "${salaSlug}")`)
+    }
+    if (!PLANTILLAS.some((p) => p.id === plantilla)) {
+      throw new Error(`Plantilla desconocida: "${plantilla}"`)
     }
 
     const alcance = alcanceModo === 'tema' && alcanceTema.length > 0 ? alcanceTema : 'todos'
 
-    const { id } = await crearSesionConEstructura({ salaSlug, tipo, alcance })
+    const { id } = await crearSesionConEstructura({ salaSlug, plantilla, tipo, alcance })
     redirect(`/preparar/${id}`)
   }
 
@@ -62,7 +70,13 @@ export default function PagNuevaSesion() {
           <div className={estilos.campo}>
             <span className={estilos.campoTitulo}>Sala</span>
             <div className={estilos.salasGrid}>
-              {slugsDeSalas().map((slug, i) => {
+              {/* Una reunión puede no ser de ninguna sala. */}
+              <label className={estilos.salaOpcion} style={{ '--sala': 'var(--tx-3)' } as CSSProperties}>
+                <input type="radio" name="salaSlug" value="ninguna" required defaultChecked />
+                <span className={estilos.salaOpcionPunto} />
+                <span className={estilos.salaOpcionNombre}>Ninguna</span>
+              </label>
+              {slugsDeSalas().map((slug) => {
                 const tema = obtenerTema(slug)
                 return (
                   <label
@@ -70,12 +84,31 @@ export default function PagNuevaSesion() {
                     className={estilos.salaOpcion}
                     style={{ '--sala': tema.primario } as CSSProperties}
                   >
-                    <input type="radio" name="salaSlug" value={slug} required defaultChecked={i === 0} />
+                    <input type="radio" name="salaSlug" value={slug} required />
                     <span className={estilos.salaOpcionPunto} />
                     <span className={estilos.salaOpcionNombre}>{tema.nombre}</span>
                   </label>
                 )
               })}
+            </div>
+          </div>
+
+          {/* LA PLANTILLA va primero: decide con qué secciones nace la
+              reunión, y es lo que hace que esto sirva para un comité o un
+              arranque de campaña y no solo para el estatus de una UDN. */}
+          <div className={estilos.campo}>
+            <span className={estilos.campoTitulo}>Qué reunión es</span>
+            <div className={estilos.plantillas}>
+              {PLANTILLAS.map((p, i) => (
+                <label key={p.id} className={estilos.plantilla}>
+                  <input type="radio" name="plantilla" value={p.id} defaultChecked={i === 0} />
+                  <span className={estilos.plantillaNombre}>{p.nombre}</span>
+                  <span className={estilos.plantillaParaQue}>{p.paraQue}</span>
+                  <span className={estilos.plantillaCuenta}>
+                    {p.items.length} {p.items.length === 1 ? 'sección' : 'secciones'}
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
 

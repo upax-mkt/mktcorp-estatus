@@ -13,7 +13,7 @@ import { decidir, crearClientePorDefecto, type ClienteDecision } from './decidir
 import { validarDecision, aLayoutSeguro } from './validar'
 import { sanearDecision, completarKpisFaltantes } from './sanear'
 import { aDecision, type BorradorSeccion } from '@/secciones/borrador'
-import { obtenerTema } from '@/temas'
+import { temaDeSala } from '@/temas'
 
 export interface ResultadoMaquetacion {
   decision: DecisionSlide
@@ -146,10 +146,11 @@ export async function maquetarItem(
  */
 export async function maquetarSesion(
   items: EntradaCruda[],
-  slugSala: string,
+  /** Nulo en una reunión que no pertenece a ninguna sala: usa la de UPAX. */
+  slugSala: string | null,
   cliente?: ClienteDecision,
 ): Promise<ResultadoMaquetacion[]> {
-  const tema = obtenerTema(slugSala)
+  const tema = temaDeSala(slugSala)
   // El cliente se crea PEREZOSAMENTE: una sesión armada entera a mano no debe
   // exigir ANTHROPIC_API_KEY para presentarse. La IA es un atajo opcional, no
   // un requisito de arranque.

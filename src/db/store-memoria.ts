@@ -12,7 +12,9 @@
 
 export interface FilaSesionMemoria {
   id: string
-  salaSlug: string
+  /** Nulo en una reunión que no pertenece a ninguna sala. */
+  salaSlug: string | null
+  plantilla: string
   fecha: Date
   tipo: 'semanal' | 'mensual'
   alcance: string

@@ -368,3 +368,25 @@
 }
 .indiceEnlace[data-llenado='true'] .indicePunto { background: var(--ok); border-color: var(--ok); }
 .indiceNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- elegir plantilla de reunión ----
+   Va antes que la sala porque decide con qué secciones nace: es lo que hace
+   que la herramienta sirva para un comité y no solo para el estatus de una
+   UDN. */
+.plantillas { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.6rem; }
+.plantilla {
+  position: relative; cursor: pointer;
+  display: grid; gap: 0.25rem; align-content: start;
+  padding: 0.9rem 1rem;
+  border: 1.5px solid var(--borde); border-radius: 0.75rem; background: var(--superficie);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.plantilla:hover { background: var(--superficie-2); }
+.plantilla input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.plantilla:has(input:checked) {
+  border-color: var(--acento);
+  background: color-mix(in srgb, var(--acento) 6%, var(--superficie));
+}
+.plantillaNombre { font-size: 0.95rem; font-weight: 650; }
+.plantillaParaQue { font-size: 0.8rem; color: var(--tx-2); line-height: 1.4; }
+.plantillaCuenta { font-size: 0.72rem; color: var(--tx-3); margin-top: 0.2rem; }

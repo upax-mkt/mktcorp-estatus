@@ -57,9 +57,23 @@ export const salas = pgTable('salas', {
 // una fase posterior; aquí solo se guarda el snapshot que usó esta sesión).
 export const sesiones = pgTable('sesiones', {
   id: text('id').primaryKey(),
-  salaSlug: text('sala_slug')
-    .notNull()
-    .references(() => salas.slug),
+  /**
+   * De qué sala es. NULO para una reunión que no pertenece a ninguna: un
+   * comité, un arranque de campaña, una junta de squad.
+   *
+   * Dejó de ser obligatorio cuando la herramienta dejó de ser solo para el
+   * estatus de las UDNs (Franco, 28-jul). Una reunión sin sala se viste con
+   * la identidad de Marketing Corp y no aparece en ninguna de las diez.
+   */
+  salaSlug: text('sala_slug').references(() => salas.slug),
+  /**
+   * Con qué plantilla nació: "estatus-udn", "comite", "en-blanco"…
+   * Ver src/secciones/plantillas.ts. Se guarda —y no se deduce de las
+   * secciones— porque decide qué se puede borrar: en un estatus los ocho
+   * bloques son el acuerdo con la UDN; en una reunión libre no hay nada
+   * intocable.
+   */
+  plantilla: text('plantilla').notNull().default('estatus-udn'),
   fecha: timestamp('fecha', { withTimezone: true }).notNull(),
   tipo: tipoSesionEnum('tipo').notNull(),
   /** 'todos los squads' / squads específicos / tema puntual — texto libre, ver §4/§6. */

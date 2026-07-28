@@ -16,10 +16,15 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { esPermutacionValida } from './orden'
 import { obtenerTema, slugsDeSalas } from '@/temas'
-import type { DecisionSlide } from '@/decision/esquema'
 import type { EntradaCruda } from '@/motor/inventario'
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
+import type { DecisionSlide } from '@/decision/esquema'
+import {
+  obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
+} from '@/secciones/plantillas'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
+
+export type { DefinicionItem } from '@/secciones/plantillas'
 
 export type TipoSesion = 'semanal' | 'mensual'
 // Mismo conjunto que el enum de la base (ver src/db/esquema.ts): 'agendada'
@@ -49,26 +54,6 @@ export interface ContenidoItemCrudo {
   nota?: string
 }
 
-/** Una entrada de la estructura de la sesión: qué sección es y cómo se llama. */
-export interface DefinicionItem {
-  /** Identidad estable de la sección; sobrevive a reordenarla. */
-  tipo: string
-  /** Nombre de respaldo en la lista, mientras la sección no tenga título propio. */
-  titulo: string
-  /** Pista de qué poner aquí. */
-  pregunta: string
-  /** Tipo de sección con el que nace. El equipo puede cambiarlo en el editor. */
-  layout?: DecisionSlide['layout']
-  /**
-   * El `tipo` de la sección base a la que pertenece, si es una subsección.
-   * Ausente = es una sección base (un bloque de la sesión).
-   *
-   * Se guarda el `tipo` del padre y no su id de fila por el mismo motivo que
-   * la identidad de un item es su `tipo`: sobrevive a reordenar.
-   */
-  padre?: string
-}
-
 export interface ItemSesion {
   id: string
   orden: number
@@ -87,9 +72,13 @@ export interface ItemSesion {
 
 export interface SesionResumen {
   id: string
-  salaSlug: string
+  /** Nulo en una reunión que no pertenece a ninguna sala. */
+  salaSlug: string | null
+  /** El nombre de la sala, o "Marketing Corp" si la reunión no es de ninguna. */
   salaNombre: string
   salaColor: string
+  /** Con qué plantilla nació. Decide qué secciones no se pueden borrar. */
+  plantilla: string
   tipo: TipoSesion
   alcance: string
   estado: EstadoSesion
@@ -109,71 +98,13 @@ export interface SesionCompleta extends SesionResumen {
 }
 
 /**
- * LAS SECCIONES BASE DE UN ESTATUS. Siempre estas ocho, en este orden.
+ * Las ocho secciones del estatus de una UDN.
  *
- * Son los bloques fijos de la reunión: lo que cambia de un mes a otro es qué
- * se cuenta DENTRO de cada uno, no cuáles son. Por eso el editor arranca con
- * las ocho y el trabajo real es añadirles subsecciones.
- *
- * Portada y Agenda llevan contenido propio. Las otras seis son divisores: dan
- * nombre al bloque y su contenido son sus subsecciones.
+ * Se reexporta desde `plantillas.ts`, que es donde vive ahora: dejaron de ser
+ * una ley del dominio y pasaron a ser UNA plantilla entre varias cuando la
+ * herramienta dejó de servir solo para el estatus de las UDNs.
  */
-export const ESTRUCTURA_POR_DEFECTO: DefinicionItem[] = [
-  {
-    tipo: 'portada',
-    titulo: 'Portada',
-    pregunta: 'De qué estatus se trata y qué periodo cubre.',
-    layout: 'portada',
-  },
-  {
-    tipo: 'agenda',
-    titulo: 'Agenda',
-    pregunta: 'Los bloques de la sesión. En el documento se vuelven un índice navegable.',
-    layout: 'agenda',
-  },
-  {
-    tipo: 'acuerdos-pendientes',
-    titulo: 'Acuerdos y Pendientes',
-    // Sección ÚNICA, no un bloque: lo que se repasa aquí es la tabla de
-    // pendientes de la sesión pasada. Abrirle una subsección llamada
-    // "Pendientes" era decir dos veces lo mismo.
-    pregunta: 'La tabla de lo que quedó de la sesión pasada, con su semáforo.',
-    layout: 'pendientes-semaforo',
-  },
-  {
-    tipo: 'portafolio-ecosistema',
-    titulo: 'Portafolio & Ecosistema',
-    pregunta: 'Servicios, herramientas comerciales y materiales.',
-    layout: 'divisor-seccion',
-  },
-  {
-    tipo: 'performance-conversion',
-    titulo: 'Performance & Conversión',
-    pregunta: 'Sitio web, paid media, conversión.',
-    layout: 'divisor-seccion',
-  },
-  {
-    tipo: 'campanas-360',
-    titulo: 'Campañas 360',
-    pregunta: 'Campañas en curso y su resultado.',
-    layout: 'divisor-seccion',
-  },
-  {
-    tipo: 'revops',
-    titulo: 'RevOps',
-    pregunta: 'Datos, procesos y herramientas de ingresos.',
-    layout: 'divisor-seccion',
-  },
-  {
-    tipo: 'outbound-pipeline',
-    titulo: 'Outbound & Pipeline',
-    pregunta: 'Prospección, cumplimiento y pipeline.',
-    layout: 'divisor-seccion',
-  },
-]
-
-/** Los `tipo` de las ocho secciones base: no se pueden borrar del editor. */
-export const TIPOS_BASE = new Set(ESTRUCTURA_POR_DEFECTO.map((d) => d.tipo))
+export const ESTRUCTURA_POR_DEFECTO = obtenerPlantilla('estatus-udn').items
 
 interface EstructuraSesion {
   titulo: string
@@ -186,6 +117,21 @@ function leerEstructura(bruta: unknown): EstructuraSesion {
     titulo: typeof e?.titulo === 'string' ? e.titulo : '',
     items: Array.isArray(e?.items) ? (e.items as DefinicionItem[]) : [],
   }
+}
+
+/**
+ * Con qué se viste una reunión.
+ *
+ * Una que no pertenece a ninguna sala —un comité, un arranque de campaña—
+ * lleva la identidad de Marketing Corp: es de quien la convoca. Antes esto
+ * no existía porque `salaSlug` era obligatorio.
+ */
+const MARKETING_CORP = { nombre: 'Marketing Corp', primario: '#E34714' }
+
+function identidadDe(salaSlug: string | null): { nombre: string; color: string } {
+  if (!salaSlug) return { nombre: MARKETING_CORP.nombre, color: MARKETING_CORP.primario }
+  const tema = obtenerTema(salaSlug)
+  return { nombre: tema.nombre, color: tema.primario }
 }
 
 function tituloPorDefecto(tipo: TipoSesion, fecha: Date): string {
@@ -210,7 +156,8 @@ export function esLlenado(c: ContenidoItemCrudo | undefined | null): boolean {
 
 interface FilaSesionComun {
   id: string
-  salaSlug: string
+  salaSlug: string | null
+  plantilla?: string | null
   fecha: Date
   tipo: TipoSesion
   alcance: string
@@ -229,7 +176,8 @@ interface FilaItemComun {
 }
 
 function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]): SesionCompleta {
-  const tema = obtenerTema(fila.salaSlug)
+  const identidad = identidadDe(fila.salaSlug)
+  const fijos = tiposFijosDe(fila.plantilla)
   const estructura = leerEstructura(fila.estructura)
   // Por `tipo`, no por índice: el `orden` de un item cambia al reordenar,
   // pero su `tipo` (identidad de qué pregunta es) no.
@@ -253,7 +201,7 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
         contenido,
         llenado: esLlenado(contenido),
         padre: def.padre,
-        esBase: TIPOS_BASE.has(row.tipo),
+        esBase: fijos.has(row.tipo),
         resultado: (row.decisionMaquetacion as ResultadoMaquetacion | null) ?? null,
       }
     })
@@ -261,8 +209,9 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
-    salaNombre: tema.nombre,
-    salaColor: tema.primario,
+    salaNombre: identidad.nombre,
+    salaColor: identidad.color,
+    plantilla: fila.plantilla ?? PLANTILLA_POR_DEFECTO,
     tipo: fila.tipo,
     alcance: fila.alcance,
     estado: fila.estado,
@@ -277,12 +226,13 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
 }
 
 function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]): SesionResumen {
-  const tema = obtenerTema(fila.salaSlug)
+  const identidad = identidadDe(fila.salaSlug)
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
-    salaNombre: tema.nombre,
-    salaColor: tema.primario,
+    salaNombre: identidad.nombre,
+    salaColor: identidad.color,
+    plantilla: fila.plantilla ?? PLANTILLA_POR_DEFECTO,
     tipo: fila.tipo,
     alcance: fila.alcance,
     estado: fila.estado,
@@ -304,7 +254,10 @@ function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]):
  * sesión a partir de una estructura elegida por el usuario (fase posterior).
  */
 export interface DatosDeSesion {
-  salaSlug: string
+  /** Nulo para una reunión que no pertenece a ninguna sala. */
+  salaSlug: string | null
+  /** Con qué plantilla nace. Por defecto, el estatus de UDN. */
+  plantilla?: string
   tipo: TipoSesion
   alcance: string
   /** Cuándo es. Por defecto, ahora — el flujo viejo de "Nueva sesión". */
@@ -321,7 +274,7 @@ export interface DatosDeSesion {
 }
 
 export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }> {
-  if (!slugsDeSalas().includes(datos.salaSlug)) {
+  if (datos.salaSlug && !slugsDeSalas().includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   const id = crypto.randomUUID()
@@ -334,6 +287,7 @@ export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }>
   const comun = {
     id,
     salaSlug: datos.salaSlug,
+    plantilla: datos.plantilla ?? PLANTILLA_POR_DEFECTO,
     fecha,
     tipo: datos.tipo,
     alcance: datos.alcance,
@@ -359,12 +313,15 @@ export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }>
 export async function crearSesionConEstructura(datos: DatosDeSesion): Promise<{ id: string }> {
   const { id } = await crearSesion(datos)
   const ahora = new Date()
+  // Las secciones con las que nace salen de LA PLANTILLA, no de una constante:
+  // un comité no arranca con los ocho bloques del estatus de una UDN.
+  const plantilla = obtenerPlantilla(datos.plantilla)
   const estructura: EstructuraSesion = {
     titulo: datos.titulo?.trim() || tituloPorDefecto(datos.tipo, datos.fecha ?? ahora),
-    items: ESTRUCTURA_POR_DEFECTO,
+    items: plantilla.items,
   }
 
-  const filasBase = ESTRUCTURA_POR_DEFECTO.map((d, i) => ({
+  const filasBase = plantilla.items.map((d, i) => ({
     id: crypto.randomUUID(),
     sesionId: id,
     orden: i,

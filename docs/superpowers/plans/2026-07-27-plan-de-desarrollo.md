@@ -369,7 +369,7 @@ no solo el Home.
 | ✅ 7.4 | **Minutas como módulo del Home**: leer la última y levantar una nueva. |
 | ✅ 7.5 | Las tarjetas de sala llevan su logo. |
 
-## FASE 8 — Cualquier tipo de reunión ☐
+## FASE 8 — Cualquier tipo de reunión ✅ *(28-jul)*
 
 El cambio arquitectónico de la ronda. Hoy la app da por hecho que una sesión
 es el estatus mensual de una UDN: cuelga de una de las diez salas y arranca
@@ -377,10 +377,10 @@ con ocho secciones fijas. Las dos cosas dejan de ser ley.
 
 | # | Qué |
 |---|---|
-| ☐ 8.1 | **Plantillas de reunión.** Las ocho secciones pasan de ley a plantilla ("Estatus de UDN"). Se añaden "Reunión en blanco" y una o dos más. |
-| ☐ 8.2 | **Reuniones sin sala.** `salaSlug` deja de ser obligatorio; una reunión libre lleva la identidad de Marketing Corp. |
-| ☐ 8.3 | **Minutas agnósticas**: cuelgan de una reunión, sea de sala o no. |
-| ☐ 8.4 | **Preparar desde la sala** — lo que pidió en el punto 3. |
+| ✅ 8.1 | **Plantillas de reunión.** Las ocho secciones pasan de ley a plantilla ("Estatus de UDN"). Se añaden "Reunión en blanco" y una o dos más. |
+| ✅ 8.2 | **Reuniones sin sala.** `salaSlug` deja de ser obligatorio; una reunión libre lleva la identidad de Marketing Corp. |
+| ✅ 8.3 | **Minutas agnósticas**: cuelgan de una reunión, sea de sala o no. |
+| ✅ 8.4 | **Preparar desde la sala** — lo que pidió en el punto 3. |
 
 ## FASE 9 — Imágenes de verdad ☐
 

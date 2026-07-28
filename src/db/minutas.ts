@@ -25,7 +25,15 @@ export interface MinutaGuardada {
   createdAt: string // ISO
 }
 
-async function salaDeSesion(sesionId: string): Promise<string> {
+/**
+ * De qué sala es la sesión, o `null` si no es de ninguna.
+ *
+ * Los acuerdos de una minuta se publican EN UNA SALA. Una reunión sin sala
+ * —un comité, un arranque de campaña— puede tener minuta igual, pero sus
+ * acuerdos no tienen dónde colgarse: se quedan en el texto, que es lo honesto
+ * (ver `guardarMinuta`).
+ */
+async function salaDeSesion(sesionId: string): Promise<string | null> {
   if (hayDB()) {
     const fila = (
       await db()
@@ -38,7 +46,7 @@ async function salaDeSesion(sesionId: string): Promise<string> {
   }
   const fila = memoria.obtenerSesionMemoria(sesionId)
   if (!fila) throw new Error(`Sesión no encontrada: "${sesionId}"`)
-  return fila.salaSlug
+  return fila.salaSlug ?? null
 }
 
 /**
@@ -74,8 +82,10 @@ export async function guardarMinuta(
     memoria.actualizarEstadoSesionMemoria(sesionId, 'minutada')
   }
 
-  for (const acuerdo of acuerdosConfirmados) {
-    await crearAcuerdo(salaSlug, {
+  // Sin sala, los acuerdos confirmados no se publican: no hay dónde. Quedan
+  // escritos en el texto de la minuta, que es donde el equipo los leerá.
+  for (const acuerdo of salaSlug ? acuerdosConfirmados : []) {
+    await crearAcuerdo(salaSlug!, {
       que: acuerdo.que,
       responsable: acuerdo.responsable,
       squad: acuerdo.squad,
