@@ -171,31 +171,46 @@ que es lo primero de la fase.
 
 ---
 
-## FASE 4 — Cerrar el editor ☐
+## FASE 4 — Cerrar el editor ✅ *(cerrada 27-jul, con una salvedad)*
 
 Lo que queda de la auditoría de UX, ordenado por coste/beneficio.
 
 | # | Qué |
 |---|---|
-| ☐ 4.1 | Índice lateral pegajoso: hoy se navegan ~5.900px a scroll sin mapa. El documento que produce esta herramienta sí tiene índice; la herramienta no. |
-| ☐ 4.2 | "Maquetar →" anuncia "~25 s" incluso en una sesión 100% manual, donde el trabajo son microsegundos y el resultado es idéntico al anterior. Etiquetar según si hay algo de IA. |
+| ✅ 4.1 | Índice lateral pegajoso: hoy se navegan ~5.900px a scroll sin mapa. El documento que produce esta herramienta sí tiene índice; la herramienta no. |
+| ✅ 4.2 | "Maquetar →" anuncia "~25 s" incluso en una sesión 100% manual, donde el trabajo son microsegundos y el resultado es idéntico al anterior. Etiquetar según si hay algo de IA. |
 | ✅ 4.3 | Quitar los ocho botones "Guardar ahora" (se guarda solo) y dejar una barra única de estado + acción. *(hecho en Fase 2)* |
-| ☐ 4.4 | El error se enuncia al final de la tarjeta y el campo culpable está al principio. Marcar el campo (`aria-invalid`) y enlazar. |
-| ☐ 4.5 | El paso de escalas del gráfico borra la configuración por serie al alternar. |
-| ☐ 4.6 | Iconos de tipo de gráfico: hoy son caracteres Unicode que no comunican y cuya cobertura de fuente no está garantizada. Sustituir por SVG (comparte artwork con 2.2). |
-| ☐ 4.7 | La pantalla de "Nueva sesión" describe una estructura que ya no existe. |
-| ☐ 4.8 | Salto por teclado entre bloques; las flechas ↑↓ optimistas como el arrastre. |
+| ✅ 4.4 | El error se enuncia al final de la tarjeta y el campo culpable está al principio. Marcar el campo (`aria-invalid`) y enlazar. |
+| ✅ 4.5 | El paso de escalas del gráfico borra la configuración por serie al alternar. |
+| ✅ 4.6 | Iconos de tipo de gráfico: hoy son caracteres Unicode que no comunican y cuya cobertura de fuente no está garantizada. Sustituir por SVG (comparte artwork con 2.2). |
+| ✅ 4.7 | La pantalla de "Nueva sesión" describe una estructura que ya no existe. |
+| ◐ 4.8 | Salto por teclado entre bloques ✅ (lo resuelve el índice lateral). **Flechas ↑↓ optimistas: NO hecho** — ver salvedad. |
+
+**Salvedad de 4.8 — lo que se deja fuera y por qué.** Las flechas ↑↓ siguen
+haciendo un viaje al servidor (~200 ms) en vez de mover la tarjeta al
+instante como el arrastre. Hacerlas optimistas exige mover el control del
+orden desde `TarjetaSeccion` hasta `ListaOrdenable`, y además resolverlo dos
+veces: `ListaOrdenable` solo conoce las ocho secciones base, mientras que las
+flechas también mueven subsecciones dentro de su bloque. Es reestructurar el
+reordenamiento —que hoy funciona, con test— para ahorrar dos décimas de
+segundo. Si Franco lo quiere, se hace; no se hizo por iniciativa propia.
 
 ---
 
-## FASE 5 — Cascarón y cierre ☐
+## FASE 5 — Cascarón y cierre ✅ *(cerrada 27-jul, con una salvedad)*
 
 | # | Qué |
 |---|---|
-| ☐ 5.1 | `globals.css` deja Arial como tipografía por defecto: todo lo que vive fuera del documento (barra, errores) sale en Arial. Dos tipografías en una app. |
-| ☐ 5.2 | Modo oscuro a medio implementar: el cascarón invierte, el documento fuerza superficie clara. O se completa o se retira. |
-| ☐ 5.3 | Logos de portada y cierre — el deck real los lleva y el documento no tiene dónde ponerlos. |
-| ☐ 5.4 | Imagen de fondo de la agenda (el campo existe, falta la pieza). |
+| ✅ 5.1 | `globals.css` deja Arial como tipografía por defecto: todo lo que vive fuera del documento (barra, errores) sale en Arial. Dos tipografías en una app. |
+| ✅ 5.2 | Modo oscuro a medio implementar: el cascarón invierte, el documento fuerza superficie clara. O se completa o se retira. |
+| ⏸ 5.3 | Logos de portada y cierre. **Bloqueado por activos** — ver salvedad. |
+
+**Salvedad de 5.3 — qué hace falta de Franco.** No están los archivos de logo
+de las diez marcas. Se podría dejar el campo `logo` en el tema y el hueco en
+portada y cierre, pero eso es código que apunta a archivos que no existen:
+código muerto que además parece hecho. Con los SVG (o PNG con fondo
+transparente) de las diez salas es media hora de trabajo.
+| ✅ 5.4 | Imagen de fondo de la agenda (el campo existe, falta la pieza). |
 
 ---
 

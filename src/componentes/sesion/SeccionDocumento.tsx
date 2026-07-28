@@ -63,6 +63,19 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
   const ancla = anclaDeSeccion(indice)
   const papel = papelDe(decision.layout)
   const esPortada = decision.layout === 'portada'
+  /**
+   * La agenda con su imagen DE FONDO, no debajo.
+   *
+   * El campo existía y se pintaba como una foto suelta al final de la
+   * sección, después del índice: en un documento que se proyecta, eso es una
+   * imagen que nadie mira porque la agenda ya se leyó. Como fondo del bloque
+   * de agenda, la imagen hace lo que se le pide — dar carácter a la apertura
+   * de la reunión — sin robarle sitio al índice.
+   *
+   * Lleva velo, y no es negociable: el índice es texto sobre una foto que
+   * nadie eligió pensando en el contraste.
+   */
+  const agendaConFondo = decision.layout === 'agenda' && Boolean(decision.imagen)
 
   return (
     <section
@@ -73,6 +86,8 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
       // donde el documento cambia de bloque.
       data-destacada={papel === 'hito' ? 'true' : undefined}
       aria-label={decision.titulo}
+      data-con-fondo={agendaConFondo ? 'true' : undefined}
+      style={agendaConFondo ? ({ '--fondo-agenda': `url(${JSON.stringify(decision.imagen)})` } as CSSProperties) : undefined}
     >
       {degradado && (
         <p className={estilos.avisoRevision}>
@@ -181,7 +196,7 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
 
       {/* La ruta la aporta el equipo y puede apuntar fuera del proyecto, así
           que no pasa por next/image (exigiría declarar cada dominio). */}
-      {decision.imagen && (
+      {decision.imagen && !agendaConFondo && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={decision.imagen} alt={decision.titulo} className={estilos.imagen} />
       )}

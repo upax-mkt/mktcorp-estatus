@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { TIPOS_DE_GRAFICO } from '@/decision/esquema'
 import {
@@ -11,6 +12,7 @@ import {
 import { Repetible } from './Repetible'
 import { EditorRejilla } from './EditorRejilla'
 import { AreaTexto } from './AreaTexto'
+import { IconoGrafico } from './IconoGrafico'
 import estilos from './editor.module.css'
 
 /**
@@ -298,6 +300,17 @@ function UnGrafico({
   const esCombo = grafico.tipo === 'combo-barras-lineas'
   const compatibles = TIPOS_COMPATIBLES(grafico.series.length, dosEjes)
 
+  /**
+   * QUÉ SERIES ESTABAN A LA DERECHA antes de pulsar "una escala".
+   *
+   * Volver a "dos escalas" mandaba SIEMPRE la última serie a la derecha, así
+   * que quien hubiera puesto la 1 y la 3 allí perdía su reparto por mirar la
+   * otra opción un segundo. El reparto no puede vivir en el gráfico —una sola
+   * escala significa exactamente que ninguna serie tiene eje— así que se
+   * recuerda aquí, mientras la pantalla siga abierta.
+   */
+  const [ejesRecordados, setEjesRecordados] = useState<boolean[] | null>(null)
+
   return (
     <>
       {/* Paso 1 — los datos */}
@@ -328,7 +341,10 @@ function UnGrafico({
                 type="radio"
                 name={`ejes-${indice}`}
                 checked={!dosEjes}
-                onChange={() => cambiar(ponerTodasEnUnEje(grafico))}
+                onChange={() => {
+                  setEjesRecordados(grafico.series.map((s) => s.eje === 'derecho'))
+                  cambiar(ponerTodasEnUnEje(grafico))
+                }}
               />
               <span>
                 <strong>Una escala</strong>
@@ -340,7 +356,7 @@ function UnGrafico({
                 type="radio"
                 name={`ejes-${indice}`}
                 checked={dosEjes}
-                onChange={() => cambiar(separarUltimaSerie(grafico))}
+                onChange={() => cambiar(restaurarEjes(grafico, ejesRecordados))}
               />
               <span>
                 <strong>Dos escalas</strong>
@@ -389,7 +405,7 @@ function UnGrafico({
                 data-elegido={grafico.tipo === tipo ? 'true' : undefined}
                 onClick={() => cambiar(elegirTipo(grafico, tipo))}
               >
-                <span className={estilos.tipoIcono} aria-hidden="true">{ICONO_DE_TIPO[tipo]}</span>
+                <IconoGrafico tipo={tipo} />
                 <span className={estilos.tipoNombre}>{NOMBRE_DE_TIPO[tipo]}</span>
               </button>
             ))}
@@ -496,18 +512,6 @@ function TIPOS_COMPATIBLES(cuantasSeries: number, dosEjes: boolean): Array<(type
   })
 }
 
-const ICONO_DE_TIPO: Record<(typeof TIPOS_DE_GRAFICO)[number], string> = {
-  'barras': '▊',
-  'barras-comparadas': '▊▍',
-  'barras-horizontales': '▬',
-  'barras-horizontales-agrupadas': '▤',
-  'linea': '╱',
-  'lineas-multiples': '≋',
-  'combo-barras-lineas': '▊╱',
-  'area': '◣',
-  'dona': '◕',
-}
-
 /** Al elegir un tipo, las formas por serie que ya no aplican se limpian. */
 function elegirTipo(grafico: Grafico, tipo: Grafico['tipo']): Grafico {
   if (tipo === 'combo-barras-lineas') {
@@ -526,8 +530,23 @@ function ponerTodasEnUnEje(grafico: Grafico): Grafico {
   return { ...grafico, series: grafico.series.map((s) => limpiar({ ...s, eje: undefined })) }
 }
 
-/** Al pedir dos escalas, la última serie se manda a la derecha como punto de partida. */
-function separarUltimaSerie(grafico: Grafico): Grafico {
+/**
+ * Al pedir dos escalas: se devuelve el reparto que había, si lo hubo.
+ *
+ * Sin recuerdo, la última serie se manda a la derecha como punto de partida —
+ * que es lo razonable la primera vez. Lo que no era razonable es hacerlo
+ * TAMBIÉN cuando ya había un reparto hecho a mano.
+ */
+function restaurarEjes(grafico: Grafico, recordados: boolean[] | null): Grafico {
+  const sirve = recordados?.length === grafico.series.length && recordados.some(Boolean)
+  if (sirve) {
+    return {
+      ...grafico,
+      series: grafico.series.map((s, i) =>
+        recordados![i] ? { ...s, eje: 'derecho' as const } : limpiar({ ...s, eje: undefined }),
+      ),
+    }
+  }
   const ultima = grafico.series.length - 1
   return {
     ...grafico,

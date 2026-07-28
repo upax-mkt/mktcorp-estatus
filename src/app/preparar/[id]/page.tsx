@@ -24,7 +24,8 @@ import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
 import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
 import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
-import type { BorradorSeccion } from '@/secciones/borrador'
+import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
+import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
 
@@ -168,6 +169,20 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // pintarse con los colores con los que se va a presentar, no con los del
   // cascarón de preparación.
   const tema = obtenerTema(sesion.salaSlug)
+  // Si alguna sección se va a resolver con el asistente. Solo entonces
+  // maquetar tarda de verdad: una sesión armada a mano no llama a ningún
+  // modelo, y anunciar "~25 s" para algo instantáneo enseña a desconfiar del
+  // resto de los avisos.
+  const usaIA = sesion.items.some((i) => !borradorTieneContenido(i.contenido.seccion) && Boolean(i.contenido.texto?.trim()))
+
+  // El índice, en el orden REAL en que se leen: cada bloque seguido de sus
+  // subsecciones. `sesion.items` viene ordenado por posición, no por árbol.
+  const entradasIndice: EntradaIndice[] = bases.flatMap((base) => [
+    { id: base.id, titulo: base.titulo, llenado: base.llenado, esSub: false },
+    ...sesion.items
+      .filter((h) => h.padre === base.tipo)
+      .map((h) => ({ id: h.id, titulo: h.titulo, llenado: h.llenado, esSub: true })),
+  ])
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -215,6 +230,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
+        <div className={estilos.editorConIndice}>
+        <div className={estilos.columnaSecciones}>
         {/* El editor enseña el ÁRBOL de la sesión: las secciones base son los
             bloques de la reunión y dentro cuelgan sus subsecciones, que es lo
             que cambia de un mes a otro. El arrastre reordena los bloques; las
@@ -269,6 +286,13 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         </ListaOrdenable>
 
         <AnadirSeccion anadirAction={anadirSeccionAction} />
+        </div>
+
+        {/* El índice va DESPUÉS en el orden del documento y a la izquierda en
+            la pantalla: el contenido primero para quien navega con teclado o
+            lector, y a la vista para quien mira. */}
+        <IndiceSesion entradas={entradasIndice} llenadas={sesion.itemsLlenados} total={total} />
+        </div>
 
         {sesion.itemsLlenados > 0 ? (
           <form action={maquetar} className={estilos.panelMaquetar}>
@@ -276,7 +300,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
               {sesion.itemsLlenados} de {total} secciones listas.
               {sesion.estado !== 'borrador' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
             </span>
-            <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} />
+            <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} conIA={usaIA} />
           </form>
         ) : (
           <p className={estilos.panelMaquetarAviso}>Llena al menos una sección para poder generar el documento.</p>

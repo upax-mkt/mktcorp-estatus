@@ -46,7 +46,12 @@ export function TarjetaSeccion({
   const faltas = loQueFalta(borrador, item.titulo)
 
   return (
-    <div className={estilos.tarjeta} data-llenado={item.llenado ? 'true' : 'false'} data-sub={esSub ? 'true' : undefined}>
+    <div
+      id={`seccion-${item.id}`}
+      className={estilos.tarjeta}
+      data-llenado={item.llenado ? 'true' : 'false'}
+      data-sub={esSub ? 'true' : undefined}
+    >
       <div className={estilos.tarjetaCabecera}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className={estilos.tarjetaTitulo}>

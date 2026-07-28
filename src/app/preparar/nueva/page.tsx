@@ -39,9 +39,21 @@ export default function PagNuevaSesion() {
         <div className={estilos.encabezado}>
           <div>
             <h1 className={estilos.titulo}>Nueva sesión</h1>
+            {/* Antes esta línea describía cuatro secciones que ya no existen
+                —"Performance del sitio web", "Pipeline y demanda"—: la
+                estructura son ocho bloques fijos desde hace dos versiones, y
+                una promesa que no se cumple en la pantalla siguiente es peor
+                que ninguna. Se enumeran los de verdad. */}
             <p className={estilos.subtitulo}>
-              Elige sala, tipo y alcance. Arranca con la estructura precargada: Portada, Performance del
-              sitio web, Pipeline y demanda, Acuerdos y próximos pasos.
+              Elige sala, tipo y alcance. Arranca con los ocho bloques del estatus —Portada, Agenda,
+              Acuerdos y Pendientes, Portafolio &amp; Ecosistema, Performance &amp; Conversión,
+              Campañas&nbsp;360, RevOps y Outbound &amp; Pipeline— y dentro se cuelgan las
+              subsecciones de este mes.
+            </p>
+            <p className={estilos.subtitulo}>
+              Si lo que quieres es <strong>apuntar una fecha</strong> sin empezar a redactar,
+              agéndala en <Link href="/agenda">la agenda</Link>: aparecerá en el hub como próxima
+              sesión y se podrá llenar después.
             </p>
           </div>
         </div>

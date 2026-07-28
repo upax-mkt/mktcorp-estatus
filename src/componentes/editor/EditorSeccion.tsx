@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import { tipoDeSeccion, type CampoSeccion } from '@/secciones/catalogo'
-import { loQueFalta, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
+import { loQueFalta, campoQueFalta, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import { parsearLineas } from '@/secciones/parseo'
 import {
   CampoKpis, CampoColumnas, CampoTablas, CampoGraficos,
@@ -148,6 +148,7 @@ const ESPERA_AUTOGUARDADO = 1200
 export function EditorSeccion({
   borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction, tema,
 }: Props) {
+  const idBase = useId()
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
   const [guardado, setGuardado] = useState(true)
   const [pendiente, empezar] = useTransition()
@@ -160,6 +161,11 @@ export function EditorSeccion({
 
   const tipo = tipoDeSeccion(borrador.layout)
   const faltas = loQueFalta(borrador, tituloDeRespaldo)
+  // Qué campo es el culpable, para marcarlo. El aviso vive al final de la
+  // tarjeta y el campo al que se refiere está arriba: sin nada que los una,
+  // "Falta la tabla" obliga a buscar cuál de los campos es "la tabla".
+  const campoFaltante = tocada ? campoQueFalta(borrador, tituloDeRespaldo) : null
+  const idCampoFaltante = `falta-${idBase}`
   /**
    * LO ÚLTIMO QUE SE PUEDE DESHACER.
    *
@@ -265,6 +271,8 @@ export function EditorSeccion({
           onBlur={guardar}
           placeholder={tituloDeRespaldo ?? 'Lo que el director tiene que saber de esta sección'}
           aria-label="Título de la sección"
+          aria-invalid={campoFaltante === 'titulo' || undefined}
+          id={campoFaltante === 'titulo' ? idCampoFaltante : undefined}
         />
         {tituloDeRespaldo && !borrador.titulo && (
           <em className={estilos.pista}>
@@ -274,7 +282,14 @@ export function EditorSeccion({
       </label>
 
       {tipo?.campos.map((campo) => (
-        <Campo key={campo} campo={campo} borrador={borrador} cambiar={cambiar} />
+        <div
+          key={campo}
+          data-falta={campo === campoFaltante ? 'true' : undefined}
+          id={campo === campoFaltante ? idCampoFaltante : undefined}
+          className={campo === campoFaltante ? estilos.campoQueFalta : undefined}
+        >
+          <Campo campo={campo} borrador={borrador} cambiar={cambiar} />
+        </div>
       ))}
 
       {proponerAction && (
@@ -295,7 +310,19 @@ export function EditorSeccion({
         {faltas.length === 0 ? (
           <span className={estilos.listo}>Lista para presentar.</span>
         ) : tocada ? (
-          <span className={estilos.aviso}>Falta {faltas.join(' y ')} para poder presentarla.</span>
+          <span className={estilos.aviso}>
+            Falta{' '}
+            {campoFaltante ? (
+              // Enlaza al campo culpable en vez de nombrarlo y ya: "Falta la
+              // tabla" obliga a buscar cuál de los campos es "la tabla".
+              <a href={`#${idCampoFaltante}`} className={estilos.enlaceAlCampo}>
+                {faltas.join(' y ')}
+              </a>
+            ) : (
+              faltas.join(' y ')
+            )}{' '}
+            para poder presentarla.
+          </span>
         ) : (
           <span className={estilos.porEmpezar}>Falta {faltas.join(' y ')}.</span>
         )}

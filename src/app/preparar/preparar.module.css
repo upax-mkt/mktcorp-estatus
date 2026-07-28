@@ -50,7 +50,7 @@
 /* El editor de secciones necesita más sitio: dentro conviven una fila de
    cuatro campos, una rejilla pegada y la configuración por serie de un
    gráfico. A 900px eso se apila hasta volverse una columna de cajitas. */
-.mainEditor { max-width: 1120px; }
+.mainEditor { max-width: 1440px; }
 .mainAncho { max-width: 1180px; }
 
 .encabezado {
@@ -325,3 +325,46 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
+
+/* ---- índice lateral del editor ----
+   El editor mide unos 5.900px de alto y se navegaba a scroll, sin saber
+   cuántas secciones quedaban ni cuáles estaban vacías. El documento que esta
+   herramienta produce sí tiene índice; la herramienta no lo tenía. */
+.editorConIndice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+.columnaSecciones { display: grid; gap: 0.9rem; min-width: 0; order: 2; }
+.indice { order: 1; }
+
+@media (min-width: 68rem) {
+  .editorConIndice { grid-template-columns: 12.5rem minmax(0, 1fr); align-items: start; }
+  .columnaSecciones { order: 2; }
+  .indice { order: 1; position: sticky; top: 5rem; }
+}
+
+.indiceCabecera {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem;
+  padding-bottom: 0.5rem; margin-bottom: 0.35rem; border-bottom: 1px solid var(--borde);
+}
+.indiceTitulo {
+  font-size: 0.7rem; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 700;
+}
+.indiceConteo { font-size: 0.76rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+
+.indiceLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.indiceEnlace {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.3rem 0.35rem; border-radius: 0.35rem;
+  font-size: 0.82rem; color: var(--tx-2); text-decoration: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.indiceEnlace:hover { background: var(--superficie-2); color: var(--tx); }
+.indiceEnlace[data-sub='true'] { padding-left: 1.15rem; font-size: 0.78rem; color: var(--tx-3); }
+
+/* El punto dice si la sección tiene algo escrito: es la lectura de un vistazo
+   —qué falta— que antes obligaba a bajar por las catorce tarjetas. */
+.indicePunto {
+  width: 0.45rem; height: 0.45rem; border-radius: 50%; flex: none;
+  border: 1px solid var(--borde-fuerte);
+}
+.indiceEnlace[data-llenado='true'] .indicePunto { background: var(--ok); border-color: var(--ok); }
+.indiceNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

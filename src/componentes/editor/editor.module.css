@@ -765,3 +765,22 @@
   font-size: 0.78rem; font-weight: 600;
   color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
 }
+
+/* El icono de cada tipo de gráfico. Antes eran caracteres Unicode (▊ ≋ ◣ ◕):
+   no comunican —◣ no se parece a un área— y su cobertura depende de la fuente
+   del sistema, así que en una máquina sin el glifo salía un rectángulo. */
+.iconoGrafico {
+  width: 1.6rem; height: 1.47rem; display: block; flex: none;
+  color: var(--tx, #222);
+}
+
+/* El campo que impide presentar la sección. Se marca en el sitio, no solo en
+   el aviso del final: "Falta la tabla" obligaba a adivinar cuál de los campos
+   era "la tabla". */
+.campoQueFalta {
+  border-left: 3px solid var(--alerta, #b23);
+  padding-left: 0.7rem;
+  margin-left: -0.7rem;
+  scroll-margin-top: 5rem;
+}
+.enlaceAlCampo { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

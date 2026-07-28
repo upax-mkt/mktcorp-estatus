@@ -438,3 +438,44 @@
   color: color-mix(in oklch, var(--texto) 68%, transparent);
   max-width: var(--medida);
 }
+
+/* ---- agenda con imagen de fondo ----
+   El campo `imagen` de la agenda se pintaba como una foto suelta DEBAJO del
+   índice: en un documento que se proyecta, una imagen que aparece después de
+   que ya se leyó la agenda es una imagen que nadie mira. */
+.seccion[data-con-fondo='true'] {
+  position: relative;
+  isolation: isolate;
+  padding: var(--e-7) var(--e-6);
+  border-radius: 1rem;
+  overflow: hidden;
+  color: white;
+}
+.seccion[data-con-fondo='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--fondo-agenda);
+  background-size: cover;
+  background-position: center;
+}
+/* El velo NO es decoración: el índice es texto sobre una foto que nadie
+   eligió pensando en el contraste. Va oscuro y denso abajo, donde vive la
+   lista, y se abre arriba para que la imagen siga viéndose. */
+.seccion[data-con-fondo='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    oklch(0.2 0.02 55 / 0.55) 0%,
+    oklch(0.2 0.02 55 / 0.78) 100%
+  );
+}
+.seccion[data-con-fondo='true'] .titulo,
+.seccion[data-con-fondo='true'] .subtitulo,
+.seccion[data-con-fondo='true'] .indiceEnlace { color: white; }
+.seccion[data-con-fondo='true'] .indiceEnlace:hover { color: white; text-decoration: underline; }
+.seccion[data-con-fondo='true'] .indice li { border-color: oklch(1 0 0 / 0.25); }

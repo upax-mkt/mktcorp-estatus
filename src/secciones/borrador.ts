@@ -79,6 +79,26 @@ export function loQueFalta(borrador: BorradorSeccion, tituloDeRespaldo?: string)
   return faltas
 }
 
+/**
+ * QUÉ CAMPO es el que falta, no solo cómo se llama.
+ *
+ * `loQueFalta` devuelve texto para leer; esto devuelve la clave, que es lo que
+ * permite marcar el campo culpable en el formulario. Sin ella, el aviso vivía
+ * al final de la tarjeta y el campo al que se refería estaba arriba, sin nada
+ * que los uniera.
+ */
+export function campoQueFalta(
+  borrador: BorradorSeccion,
+  tituloDeRespaldo?: string,
+): CampoSeccion | 'titulo' | null {
+  if (!tieneContenido(borrador.titulo) && !tieneContenido(tituloDeRespaldo)) return 'titulo'
+  const tipo = tipoDeSeccion(borrador.layout)
+  if (tipo?.exige && !tieneContenido(borrador[tipo.exige as keyof BorradorSeccion])) {
+    return tipo.exige
+  }
+  return null
+}
+
 /** Cómo se llama cada campo cuando hay que decirle a alguien que le falta. */
 export const NOMBRE_DE_CAMPO: Record<CampoSeccion, string> = {
   subtitulo: 'el subtítulo',
