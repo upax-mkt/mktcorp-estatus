@@ -208,7 +208,8 @@ export function GraficoCartesiano({
               />
               {/* El rótulo va SOBRE su línea, dentro del área de trazado. */}
               <text x={0} y={y(tick) - 5} textAnchor="start" className={estilos.rotuloEje}>
-                {formatearTick(tick, serieDeReferencia)}
+                {/* El techo del eje decide la unidad de TODAS sus marcas. */}
+                {formatearTick(tick, serieDeReferencia, ticks[ticks.length - 1])}
               </text>
             </g>
           ))}

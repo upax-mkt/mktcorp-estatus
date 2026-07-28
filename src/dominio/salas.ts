@@ -145,6 +145,9 @@ export interface SesionMinutable {
   id: string
   titulo: string
   fecha: string // ISO
+  /** De qué sala. Solo hace falta cuando la lista cruza salas (el Home). */
+  salaNombre?: string
+  salaColor?: string
 }
 
 /**
@@ -155,6 +158,53 @@ export interface SesionMinutable {
  * diferencia. Las presentaciones sin `sesionId` quedan fuera — no hay
  * sesión detrás a la que colgar nada.
  */
+/**
+ * QUÉ REUNIONES SE PUEDEN MINUTAR.
+ *
+ * Franco: "a la minuta le falta el motor para cargar una transcripción de la
+ * reunión y que precargue la minuta con IA".
+ *
+ * El motor estaba —`generarMinuta`, con Claude, desde la primera versión— pero
+ * ENTERRADO: solo se ofrecía para sesiones ya marcadas como «presentada», y
+ * marcar una sesión como presentada es papeleo. La reunión ocurrió la marque
+ * alguien o no, y obligar a hacer el papeleo antes de poder hacer el trabajo
+ * es la forma más segura de que nadie encuentre la herramienta.
+ *
+ * Ahora se puede minutar cualquier sesión cuyo día ya llegó y que no tenga
+ * minuta todavía, sea borrador, lista o presentada. Lo que NO se puede es
+ * minutar algo que aún no ha pasado: no hay nada que transcribir.
+ *
+ * Se compara por DÍA CIVIL y no por instante: una sesión creada hoy a las
+ * 17:00 se puede minutar a las 16:50 si la reunión se adelantó, y afinar al
+ * minuto convertiría "hoy" en una lotería.
+ */
+export function sesionesMinutables(
+  sesiones: Array<{
+    id: string
+    titulo: string
+    fecha: string
+    salaSlug: string | null
+    salaNombre?: string
+    salaColor?: string
+    estado: string
+  }>,
+  /** Ids de sesión que YA tienen minuta. */
+  conMinuta: Set<string>,
+  hoyCivil: string,
+): SesionMinutable[] {
+  return sesiones
+    .filter((s) => !conMinuta.has(s.id))
+    .filter((s) => s.fecha.slice(0, 10) <= hoyCivil)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .map((s) => ({
+      id: s.id,
+      titulo: s.titulo,
+      fecha: s.fecha,
+      salaNombre: s.salaNombre,
+      salaColor: s.salaColor,
+    }))
+}
+
 export function sesionesSinMinuta(s: EstadoSala): SesionMinutable[] {
   const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter(Boolean))
   return s.presentaciones

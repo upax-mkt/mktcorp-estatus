@@ -49,14 +49,31 @@ export function formatearValor(
  * Lo que escribe el EJE. Misma unidad que los rótulos de dato —antes el rótulo
  * decía "$28,235.46" y el eje "29.473", sin decir de qué— y compactado, para
  * que un eje de millones no mida ocho dígitos.
+ *
+ * LA UNIDAD LA DECIDE EL EJE ENTERO, no cada marca por su cuenta.
+ *
+ * Antes cada valor miraba su propia magnitud, y un eje que iba de 0 a 15.000
+ * salía "15 k · 10 k · 5,000 · 0": tres marcas en miles y una en unidades,
+ * en la misma columna. Quien lo lee tiene que hacer la cuenta para saber si
+ * 5,000 está por encima o por debajo de 10 k, que es justo lo que un eje
+ * existe para ahorrar. Y de paso, "5,000" es más ancho que el carril y se
+ * recortaba a "5,0".
+ *
+ * `techo` es el valor más alto del eje: de él sale la unidad de todas.
  */
-export function formatearTick(valor: number, serie: Pick<SerieDatos, 'prefijo' | 'sufijo'>): string {
-  const abs = Math.abs(valor)
+export function formatearTick(
+  valor: number,
+  serie: Pick<SerieDatos, 'prefijo' | 'sufijo'>,
+  techo?: number,
+): string {
+  // El cero no lleva unidad: "0 k" no es más preciso que "0", solo más raro.
+  if (valor === 0) return `${serie.prefijo ?? ''}0${serie.sufijo ?? ''}`
+  const escala = Math.abs(techo ?? valor)
   const cuerpo =
-    abs >= 1_000_000
+    escala >= 1_000_000
       ? `${(valor / 1_000_000).toLocaleString('es-MX', { maximumFractionDigits: 1 })} M`
-      : abs >= 10_000
-        ? `${(valor / 1_000).toLocaleString('es-MX', { maximumFractionDigits: 0 })} k`
+      : escala >= 10_000
+        ? `${(valor / 1_000).toLocaleString('es-MX', { maximumFractionDigits: 1 })} k`
         : valor.toLocaleString('es-MX')
   return `${serie.prefijo ?? ''}${cuerpo}${serie.sufijo ?? ''}`
 }

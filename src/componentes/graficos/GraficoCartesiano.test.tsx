@@ -142,3 +142,53 @@ describe('GraficoCartesiano', () => {
   })
 
 })
+
+describe('la unidad del eje', () => {
+  /**
+   * Antes cada marca miraba su propia magnitud y un eje de 0 a 15.000 salía
+   * "15 k · 10 k · 5,000 · 0": tres en miles y una en unidades, en la misma
+   * columna. Quien lo lee tiene que hacer la cuenta para saber si 5,000 está
+   * por encima o por debajo de 10 k — justo lo que el eje viene a ahorrar.
+   */
+  it('todas las marcas comparten unidad, la del techo del eje', () => {
+    const { container } = render(
+      <GraficoCartesiano
+        datos={{
+          categorias: ['ago', 'sep', 'oct'],
+          series: [{ etiqueta: 'Sesiones', valores: [9800, 12100, 15000] }],
+        }}
+        alto={240}
+      />,
+    )
+    const ejes = Array.from(container.querySelectorAll('text'))
+      .map((t) => t.textContent ?? '')
+      .filter((t) => /k$|^\d[\d.,]*$/.test(t.trim()))
+    const enMiles = ejes.filter((t) => t.trim().endsWith('k'))
+    // Todas menos el cero llevan la misma unidad.
+    expect(enMiles.length).toBeGreaterThan(1)
+    expect(ejes.some((t) => /^\d{1,2},\d{3}$/.test(t.trim()))).toBe(false)
+  })
+
+  it('un eje pequeño no compacta nada: 8 no es "0,0 k"', () => {
+    const { container } = render(
+      <GraficoCartesiano
+        datos={{ categorias: ['a', 'b'], series: [{ etiqueta: 'Reuniones', valores: [7, 13] }] }}
+        alto={240}
+      />,
+    )
+    const textos = Array.from(container.querySelectorAll('text')).map((t) => t.textContent ?? '')
+    expect(textos.some((t) => t.includes('k'))).toBe(false)
+  })
+
+  it('el cero no lleva unidad: "0", no "0 k"', () => {
+    const { container } = render(
+      <GraficoCartesiano
+        datos={{ categorias: ['a', 'b'], series: [{ etiqueta: 'S', valores: [9800, 15000] }] }}
+        alto={240}
+      />,
+    )
+    const textos = Array.from(container.querySelectorAll('text')).map((t) => (t.textContent ?? '').trim())
+    expect(textos).toContain('0')
+    expect(textos).not.toContain('0 k')
+  })
+})

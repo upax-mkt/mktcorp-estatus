@@ -240,11 +240,15 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {sesion.estado !== 'borrador' && (
-            <>
-              <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver documento →</Link>
-              <Link href={`/preparar/${sesion.id}/minuta`} className={estilos.volver}>Minuta →</Link>
-            </>
+            <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver documento →</Link>
           )}
+          {/* LA MINUTA NO ESPERA A QUE SE MAQUETE. Estaba escondida detrás de
+              «no es borrador», y una reunión puede darse sin que a nadie le dé
+              tiempo de maquetar: la transcripción existe igual y el acta hace
+              falta igual. Es aquí donde uno está cuando sale de la reunión. */}
+          <Link href={`/preparar/${sesion.id}/minuta`} className={estilos.volver}>
+            Minuta con IA →
+          </Link>
         </div>
       </header>
 

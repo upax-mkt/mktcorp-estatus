@@ -9,18 +9,17 @@ import {
   estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
   acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
-import { sesionesSinMinuta } from '@/dominio/salas'
-import { altoDeLogo, SIN_LOGO } from '@/temas/logos'
+import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
+import { altoDeLogo, archivoDeLogo, logoPrestado } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { listarSesiones } from '@/db/sesiones'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
-import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta } from '@/lib/fecha'
+import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta, diaCivil } from '@/lib/fecha'
 import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
-import type { SesionMinutable } from '@/componentes/LevantarMinuta'
 
 /**
  * El Home.
@@ -99,12 +98,15 @@ export default async function Hub() {
     )
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  // Las reuniones presentadas SIN minuta, de las diez salas. Antes esto era un
-  // número —"3 sesiones sin minuta"— y con un número no se puede levantar
-  // ninguna: hay que saber cuáles son.
-  const sinMinuta: SesionMinutable[] = salasCrudas.flatMap((s) =>
-    sesionesSinMinuta(s).map((x) => ({ ...x, salaNombre: s.nombre, salaColor: s.color })),
+  // TODA reunión cuyo día ya llegó y que no tenga minuta, sea borrador o no.
+  // Antes solo se ofrecían las marcadas como «presentada», y marcar una sesión
+  // como presentada es papeleo: la reunión ocurrió igual. Obligar al papeleo
+  // antes de poder minutar es la forma más segura de que nadie encuentre el
+  // motor de transcripción.
+  const conMinuta = new Set(
+    salasCrudas.flatMap((s) => s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x))),
   )
+  const sinMinuta: SesionMinutable[] = sesionesMinutables(sesiones, conMinuta, diaCivil(hoy.toISOString()))
 
   const paraCalendario = sesiones.map((s) => ({
     id: s.id,
@@ -206,24 +208,27 @@ export default async function Hub() {
                   style={{ '--marca': s.color } as CSSProperties}
                 >
                   {/* El logotipo ES el nombre: la marca identifica más rápido
-                      que su nombre escrito en la tipografía del sistema.
-                      Salvo en Ceci, que hereda la identidad de Grupo UPAX —
-                      poner ahí el logo de UPAX daría dos tarjetas idénticas
-                      con salas distintas, que es peor que no poner ninguno. */}
+                      que su nombre escrito en la tipografía del sistema. Ceci
+                      hereda el de Grupo UPAX — decisión de Franco: "el de UPAX
+                      y Ceci dejémoslo como solo uno"; lo que las distingue son
+                      sus datos y el nombre de su barra al entrar. */}
                   <span className={estilos.salaLogo}>
-                    {SIN_LOGO.has(s.slug) ? (
-                      <span className={estilos.salaNombre}>{s.nombre}</span>
-                    ) : (
-                      <Image
-                        src={`/logos/${s.slug}-color.png`}
-                        alt={s.nombre}
-                        width={240}
-                        height={56}
-                        className={estilos.salaLogoImg}
-                        // Cada marca a SU altura: igualar alturas hace que un
-                        // logotipo apaisado ocupe cuatro veces más mancha.
-                        style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
-                      />
+                    <Image
+                      src={archivoDeLogo(s.slug)}
+                      alt={s.nombre}
+                      width={180}
+                      height={40}
+                      className={estilos.salaLogoImg}
+                      // Cada marca a SU altura: igualar alturas hace que un
+                      // logotipo apaisado ocupe cuatro veces más mancha.
+                      style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
+                    />
+                    {/* Con el logotipo prestado, el nombre es lo ÚNICO que
+                        separa esta tarjeta de la de Grupo UPAX. En las ocho
+                        UDNs el logotipo ya ES el nombre y escribirlo sería
+                        repetirse. */}
+                    {logoPrestado(s.slug) && (
+                      <span className={estilos.salaPrestado}>{s.nombre}</span>
                     )}
                   </span>
 

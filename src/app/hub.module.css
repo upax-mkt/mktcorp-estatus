@@ -166,7 +166,11 @@
   min-width: 1.5rem; height: 1.5rem; border-radius: var(--r-lleno);
   display: inline-flex; align-items: center; justify-content: center; font-weight: 600;
 }
-.diaCelda[data-ocupado='true'] .diaNumero { font-weight: 600; color: var(--tinta); }
+/* `:not([data-hoy])` no es un adorno: esta regla va DESPUÉS de la de hoy y
+   tiene su misma especificidad, así que sin la exclusión le pisaba el color y
+   el número de hoy quedaba en tinta sobre el círculo de tinta — invisible.
+   Solo pasa el día que además tiene sesión, que es justo el día que importa. */
+.diaCelda[data-ocupado='true']:not([data-hoy='true']) .diaNumero { font-weight: 600; color: var(--tinta); }
 .diaPuntos { display: flex; align-items: center; gap: 2px; height: 5px; }
 .diaPunto { width: 5px; height: 5px; border-radius: 50%; }
 .diaMas { font-size: 0.55rem; color: var(--tinta-4); line-height: 1; }
@@ -258,9 +262,16 @@
    línea de datos. Dentro, cada logo se dibuja a SU altura, que sale de
    igualar la mancha — ver `src/temas/logos.ts`. Normalizar por altura hacía
    que Research Land, 4,2 veces más apaisado, se leyera como si gritara. */
-.salaLogo { display: flex; align-items: center; height: 56px; }
+.salaLogo { display: flex; align-items: center; gap: 0.7rem; height: 38px; }
+/* El nombre de una sala que toma prestado su logotipo. Va en un tono menor
+   que el logo: identifica, no compite con la marca. */
+.salaPrestado {
+  padding-left: 0.7rem; border-left: 1px solid var(--linea);
+  font-size: 0.95rem; font-weight: 600; letter-spacing: var(--track-titulo);
+  color: var(--tinta-2);
+}
 .salaLogoImg {
-  height: var(--alto-logo, 40px); width: auto;
+  height: var(--alto-logo, 28px); width: auto;
   max-width: 100%; object-fit: contain; object-position: left center;
 }
 

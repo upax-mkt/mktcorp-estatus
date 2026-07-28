@@ -8,8 +8,8 @@ import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
-import { sesionesSinMinuta, reunionesDeSala } from '@/dominio/salas'
-import { altoDeLogo, SIN_LOGO } from '@/temas/logos'
+import { sesionesMinutables, reunionesDeSala } from '@/dominio/salas'
+import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
@@ -27,9 +27,9 @@ import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
-import { crearSesionConEstructura } from '@/db/sesiones'
+import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import { fechaBreve, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
+import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
 import {
   esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala,
@@ -73,12 +73,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()
-  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres] = await Promise.all([
+  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres, todasLasSesiones] = await Promise.all([
     obtenerBenchmark(slug),
     esEquipo(),
     listarArchivos(slug, 'presentacion'),
     listarArchivos(slug, 'interes'),
+    listarSesiones(),
   ])
+  const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
   const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
@@ -264,7 +266,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // Una reunión = la presentación y su minuta, unidas por la sesión de la que
   // salieron. Ver `reunionesDeSala`.
   const reuniones = reunionesDeSala(s.presentaciones, s.minutas)
-  const pendientesDeMinuta = sesionesSinMinuta(s)
+  // Toda sesión de ESTA sala cuyo día ya llegó y siga sin minuta, sea
+  // borrador o no. Ver `sesionesMinutables`.
+  const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x)))
+  const pendientesDeMinuta = sesionesMinutables(
+    sesionesDeLaSala.map((x) => ({ ...x, salaSlug: slug })),
+    conMinuta,
+    diaCivil(new Date().toISOString()),
+  )
 
   return (
     <div className={estilos.app} style={estiloMarca}>
@@ -291,27 +300,26 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       <div className={estilos.hero}>
         <div className={estilos.heroInner}>
           <div className={estilos.heroKicker}>Sala · Marketing Corp</div>
-          {SIN_LOGO.has(slug) ? (
-            <h1 className={estilos.heroNombre}>{s.nombre}</h1>
-          ) : (
-            <>
-              <Image
-                src={`/logos/${slug}-blanco.png`}
-                alt={s.nombre}
-                width={320}
-                height={72}
-                priority
-                className={estilos.heroLogo}
-                // Cada marca a SU altura: igualar alturas hace que un logotipo
-                // apaisado ocupe cuatro veces más mancha. Ver `temas/logos.ts`.
-                style={{ '--alto-logo': `${altoDeLogo(slug) * 1.7}px` } as CSSProperties}
-              />
-              {/* El nombre sigue existiendo para quien no ve la imagen: el
-                  logotipo lleva `alt`, pero un h1 real es lo que da a la
-                  página su encabezado. */}
-              <h1 className={estilos.heroNombreOculto}>{s.nombre}</h1>
-            </>
-          )}
+          <Image
+            src={archivoDeLogo(slug, 'blanco')}
+            alt={s.nombre}
+            width={340}
+            height={80}
+            priority
+            className={estilos.heroLogo}
+            // Cada marca a SU altura: igualar alturas hace que un logotipo
+            // apaisado ocupe cuatro veces más mancha. Ver `temas/logos.ts`.
+            // El ×2,2 es porque aquí el logo ES el título de la página, no una
+            // marca de identificación dentro de una tarjeta.
+            style={{ '--alto-logo': `${altoDeLogo(slug) * 2.2}px` } as CSSProperties}
+          />
+          {/* El nombre sigue existiendo para quien no ve la imagen: el
+              logotipo lleva `alt`, pero un h1 real es lo que da a la página su
+              encabezado. Y en Ceci, que comparte el logotipo de Grupo UPAX, es
+              lo único que las distingue: por eso aquí sí se enseña. */}
+          {slug === 'ceci'
+            ? <h1 className={estilos.heroNombre}>{s.nombre}</h1>
+            : <h1 className={estilos.heroNombreOculto}>{s.nombre}</h1>}
           <div className={estilos.heroMeta}>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{textoDiasDesde(s.diasDesdeUltima)}</span>

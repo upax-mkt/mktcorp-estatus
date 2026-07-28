@@ -6,6 +6,7 @@ import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
 import { exigirEquipo } from '@/auth/sesion'
+import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
 import { MinutaPublicada } from '@/componentes/MinutaPublicada'
 import { MinutaExternaForm } from '@/componentes/MinutaExternaForm'
@@ -22,11 +23,23 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
 
   const estiloSala = { '--sala': sesion.salaColor } as CSSProperties
 
-  // Gate del spec §9: "Solo disponible cuando la sesión está presentada/lista."
-  // Hoy ningún flujo mueve una sesión a 'presentada' todavía (pendiente el
-  // modo Presentar); el criterio real es "ya se maquetó" — cualquier estado
-  // que no sea 'borrador'.
-  if (sesion.estado === 'borrador') {
+  /**
+   * LO QUE DECIDE ES SI LA REUNIÓN YA OCURRIÓ, no si alguien alcanzó a
+   * maquetar.
+   *
+   * El spec §9 decía "solo disponible cuando la sesión está presentada/lista",
+   * y eso se implementó como "cualquier estado que no sea borrador". Confundía
+   * dos cosas distintas: que el DOCUMENTO esté maquetado y que la REUNIÓN haya
+   * pasado. Una reunión se da igual aunque nadie haya tenido tiempo de
+   * maquetar nada —o aunque se diera sin presentación— y el acta hace falta
+   * igual. El resultado era que el motor de transcripción, que existe desde la
+   * primera versión, no se encontraba.
+   *
+   * Lo único que sigue sin tener sentido es minutar algo que aún no ha
+   * pasado: no hay nada que transcribir.
+   */
+  const yaOcurrio = diaCivil(sesion.fecha) <= diaCivil(new Date().toISOString())
+  if (!yaOcurrio) {
     return (
       <div className={estilos.app} style={estiloSala}>
         <header className={estilos.barra}>
@@ -35,8 +48,9 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
         </header>
         <main className={estilos.main}>
           <p className={estilos.panelMaquetarAviso}>
-            La minuta solo está disponible cuando la sesión ya está lista o presentada.{' '}
-            <Link href={`/preparar/${sesion.id}`}>Vuelve al cuestionario</Link> y usa el botón «Maquetar» primero.
+            Esta reunión está agendada para el {fechaCompleta(sesion.fecha)}. La minuta se levanta
+            cuando ya se dio: se pega su transcripción y la IA propone el acta y los acuerdos.{' '}
+            <Link href={`/preparar/${sesion.id}`}>Volver al cuestionario</Link>.
           </p>
         </main>
       </div>
