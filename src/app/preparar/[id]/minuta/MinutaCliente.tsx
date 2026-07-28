@@ -13,6 +13,13 @@ interface FilaAcuerdo extends AcuerdoPropuesto {
 
 interface Props {
   sesionId: string
+  /**
+   * Qué hacer cuando la minuta queda publicada. Por defecto vuelve al
+   * cuestionario de la sesión — lo correcto cuando el flujo se abre desde el
+   * preparador. Desde la SALA, en cambio, no hay a dónde volver: se cierra la
+   * ventana flotante y la sala se refresca.
+   */
+  alPublicar?: () => void
 }
 
 const SUGERENCIAS_PRIORIDAD = ['alta', 'media', 'baja']
@@ -21,7 +28,7 @@ function aFilaEditable(a: AcuerdoPropuesto): FilaAcuerdo {
   return { ...a, incluir: true }
 }
 
-export function MinutaCliente({ sesionId }: Props) {
+export function MinutaCliente({ sesionId, alPublicar }: Props) {
   const router = useRouter()
   const [transcripcion, setTranscripcion] = useState('')
   const [textoCorreo, setTextoCorreo] = useState<string | null>(null)
@@ -60,7 +67,11 @@ export function MinutaCliente({ sesionId }: Props) {
         setError(r.error ?? 'No se pudo publicar la minuta.')
         return
       }
-      router.push(`/preparar/${sesionId}`)
+      if (alPublicar) {
+        alPublicar()
+      } else {
+        router.push(`/preparar/${sesionId}`)
+      }
       router.refresh()
     })
   }

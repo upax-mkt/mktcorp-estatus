@@ -2,21 +2,33 @@
    por --marca (inline); el resto son neutros cálidos como en el hub. */
 
 .app {
-  --acento: oklch(0.62 0.19 42);
-  --fondo: oklch(0.985 0.006 70);
-  --superficie: oklch(1 0 0);
-  --superficie-2: oklch(0.975 0.008 70);
-  --borde: oklch(0.91 0.012 70);
-  --borde-fuerte: oklch(0.84 0.014 70);
-  --tx: oklch(0.26 0.025 55);
-  --tx-2: oklch(0.52 0.02 55);
-  --tx-3: oklch(0.66 0.015 55);
-  --alerta: oklch(0.57 0.2 25);
-  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
-  --ok: oklch(0.6 0.12 155);
-  --tibia: oklch(0.72 0.13 70);
-  --barra: oklch(0.24 0.03 55);
-  --barra-tx: oklch(0.96 0.008 70);
+  /* Los neutros ya no se declaran aquí: se toman de `sistema.css`, que es la
+     única fuente. Antes cada pantalla tenía los suyos —casi iguales pero no
+     iguales— y "casi igual" repetido por cinco pantallas es exactamente lo
+     que se lee como desordenado.
+
+     Los nombres locales se conservan como alias para no reescribir cuatro
+     hojas de estilo enteras: lo que cambia es de dónde sale el valor. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  /* El acento del cascarón es el color de LA SALA cuando hay una; fuera de
+     una sala, la tinta. Así el naranja fijo deja de competir con la marca. */
+  --acento: var(--marca, var(--tinta));
+  --acento-suave: color-mix(in oklch, var(--marca, var(--tinta)) 10%, transparent);
 
   min-height: 100dvh;
   background: var(--fondo);
@@ -27,16 +39,22 @@
 
 /* ---- barra superior ---- */
 .barra {
-  position: sticky; top: 0; z-index: 10;
+  /* Material translúcido en vez de un bloque oscuro: la barra deja de ser
+     una franja que corta la página y pasa a flotar sobre ella. */
+  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
-  background: var(--barra); color: var(--barra-tx);
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
 }
 .volver {
   display: inline-flex; align-items: center; gap: 0.45rem;
-  color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-size: 0.88rem; font-weight: 500;
+  color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; font-weight: 500;
 }
-.volver:hover { opacity: 1; }
+.volver:hover { color: var(--tinta); }
 .barraSala { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; margin-left: auto; }
 .barraPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); }
 
@@ -56,13 +74,26 @@
 
 /* ---- contenedor ---- */
 .main { max-width: 1080px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
-.seccion { margin-bottom: 3rem; }
-.seccionTitulo {
-  display: flex; align-items: baseline; justify-content: space-between;
-  font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--tx-3); font-weight: 600; margin: 0 0 1rem;
+.seccion {
+  /* La sección ES la tarjeta, como los módulos del Home. Antes cada bloque
+     era texto suelto sobre el lienzo con tarjetas sueltas dentro: dos niveles
+     de elevación discutiendo cuál es el contenedor. */
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+  padding: 1.35rem 1.4rem 1.25rem;
+  margin-bottom: 1.25rem;
 }
-.seccionTitulo .conteo { color: var(--tx-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.seccionTitulo {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  font-size: 1.02rem; font-weight: 600; letter-spacing: var(--track-titulo);
+  color: var(--tinta); text-transform: none;
+  margin: 0 0 1rem;
+}
+.seccionTitulo .conteo {
+  font-size: 0.78rem; font-weight: 500; letter-spacing: var(--track-normal);
+  color: var(--tinta-3);
+}
 
 /* ---- acuerdos ---- */
 .acuerdos { display: flex; flex-direction: column; }
@@ -108,11 +139,11 @@
 /* ---- presentaciones ---- */
 .presDestacada {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
-  padding: 1.4rem; border-radius: 0.9rem; border: 1px solid var(--borde);
-  background: var(--superficie); text-decoration: none; color: inherit;
+  padding: 1.4rem; border-radius: var(--r-3);
+  background: var(--papel-hundido); text-decoration: none; color: inherit;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.presDestacada:hover { border-color: var(--marca); box-shadow: 0 4px 20px oklch(0.26 0.025 55 / 0.06); }
+.presDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
 .presTag { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--marca); font-weight: 700; }
 .presTitulo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0.35rem 0 0.2rem; }
 .presFecha { font-size: 0.82rem; color: var(--tx-2); }
@@ -126,27 +157,205 @@
   padding: 0.75rem 0.25rem; border-top: 1px solid var(--borde); font-size: 0.9rem;
 }
 .presFila:last-child { border-bottom: 1px solid var(--borde); }
+a.presFila { text-decoration: none; color: inherit; transition: background 0.15s ease, padding-inline 0.15s ease; }
+a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
+
+/* Un escalón dentro de una sección, para cuando dos listas son la misma cosa
+   para el lector pero se comportan distinto (documento web vs. archivo). */
+.subseccion { margin-top: 1.75rem; }
+.subseccionTitulo {
+  font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 700; margin: 0 0 0.6rem;
+}
 .presFilaTitulo { color: var(--tx); font-weight: 500; }
 .presFilaFecha { color: var(--tx-3); font-variant-numeric: tabular-nums; font-size: 0.82rem; }
 
 /* ---- minutas ---- */
 .minutas { display: flex; flex-direction: column; }
+
+/* Cada minuta ABRE UNA VENTANA, no navega: por eso son <button>, y por eso hay
+   que devolverles a mano la apariencia que el navegador les quita. */
 .minuta {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde); font-size: 0.92rem;
+  width: 100%; text-align: left; font: inherit; font-size: 0.92rem; color: inherit;
+  padding: 0.85rem 0.25rem; border: none; border-top: 1px solid var(--borde);
+  background: none; cursor: pointer;
+  transition: background 0.15s ease, padding-inline 0.15s ease;
 }
 .minuta:last-child { border-bottom: 1px solid var(--borde); }
-/* Las que tienen sesión detrás son enlaces: se nota al pasar por encima. */
-a.minuta { text-decoration: none; color: inherit; transition: background 0.15s ease, padding-inline 0.15s ease; }
-a.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
+.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
+.minuta:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .minutaIzq { display: flex; align-items: center; gap: 0.7rem; }
 .minutaIcono { color: var(--tx-3); }
 .minutaEnviada { font-size: 0.78rem; color: var(--tx-3); }
 
+.minutaDestacada {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
+  width: 100%; text-align: left; font: inherit; color: inherit;
+  padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3); background: var(--papel-hundido); cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.minutaDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
+.minutaDestacada:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+.vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
+
+/* ---- lightbox de minuta ----
+   Es un <dialog> nativo: el foco atrapado, el Escape y el fondo inerte los
+   pone el navegador. Aquí solo va el aspecto. */
+.lightbox {
+  /* La caja mide lo que mide la lectura. Antes eran 46rem con el texto
+     limitado a 62ch dentro: un hueco muerto a la derecha de cada línea. */
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: min(82vh, 50rem);
+  /* El navegador centra un <dialog> modal con `margin: auto`, y el reset de
+     `globals.css` se lo quita a todo. Sin esto sale pegado a la esquina
+     superior izquierda. */
+  margin: auto;
+  padding: 0;
+  border-radius: var(--r-5);
+  background: var(--superficie);
+  color: var(--tx);
+  box-shadow: 0 24px 70px oklch(0.2 0.03 55 / 0.25);
+  overflow: hidden;
+}
+.lightbox::backdrop { background: oklch(0.2 0.03 55 / 0.42); backdrop-filter: blur(2px); }
+
+.lightboxCaja { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: inherit; }
+
+.lightboxCabecera {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.3rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--borde);
+  /* El filo de la marca: identifica de qué sala es la minuta sin escribirlo. */
+  box-shadow: inset 0 3px 0 0 var(--marca);
+}
+.lightboxTitulo { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.lightboxFecha { margin-top: 0.25rem; font-size: 0.8rem; color: var(--tx-3); }
+.lightboxCerrar {
+  font: inherit; font-size: 1rem; line-height: 1; flex: none;
+  width: 2rem; height: 2rem; padding: 0; border: none; border-radius: 0.5rem;
+  color: var(--tx-3); background: none; cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.lightboxCerrar:hover { color: var(--tx); background: var(--superficie-2); }
+
+/* La minuta es un correo: se lee en su propio texto, con sus saltos de línea,
+   y a una medida que no obligue a barrer la cabeza de lado a lado. */
+.lightboxTexto {
+  padding: 1.4rem 1.5rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+.lightboxVacio { padding: 1.4rem 1.5rem; color: var(--tx-3); font-size: 0.9rem; }
+
+.lightboxPie {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.9rem 1.5rem; border-top: 1px solid var(--borde); background: var(--superficie-2);
+}
+.lightboxBoton {
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.45rem 0.85rem; border-radius: 0.5rem; cursor: pointer;
+  color: var(--superficie); background: var(--marca); border: none;
+}
+.lightboxEnlace { margin-left: auto; font-size: 0.85rem; font-weight: 600; color: var(--marca); text-decoration: none; }
+.lightboxEnlace:hover { text-decoration: underline; }
+
+/* ---- levantar minuta desde la sala ---- */
+/* Más ancha que la de lectura: dentro va el flujo entero de revisión de
+   acuerdos, que es una tabla de campos, no un párrafo. */
+.lightboxAncho { width: min(64rem, calc(100vw - 2rem)); }
+.lightboxCuerpo { padding: 1.3rem 1.5rem; overflow-y: auto; }
+
+.nuevaMinutaBoton {
+  margin-top: 1.1rem; font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.55rem 0.95rem; border-radius: 0.6rem; cursor: pointer;
+  color: var(--tx); background: var(--superficie); border: 1px dashed var(--borde-fuerte);
+  transition: border-color 140ms ease, color 140ms ease;
+}
+.nuevaMinutaBoton:hover { border-color: var(--marca); color: var(--marca); border-style: solid; }
+
+.eleccionSesion { display: flex; flex-direction: column; }
+.eleccionFila {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  width: 100%; text-align: left; font: inherit; color: inherit;
+  padding: 0.85rem 0.5rem; border: none; border-top: 1px solid var(--borde);
+  background: none; cursor: pointer; transition: background 0.15s ease;
+}
+.eleccionFila:last-child { border-bottom: 1px solid var(--borde); }
+.eleccionFila:hover { background: var(--superficie-2); }
+.eleccionTitulo { font-weight: 600; font-size: 0.95rem; }
+.eleccionFecha { font-size: 0.8rem; color: var(--tx-3); }
+
+.botonVolverSesion {
+  font: inherit; font-size: 0.85rem; color: var(--tx-2);
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+}
+.botonVolverSesion:hover { color: var(--tx); }
+.botonVolverSesion:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---- archivos colgados en la sala ---- */
+.archivos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.archivo {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.9rem;
+  padding: 0.7rem 0.25rem; border-top: 1px solid var(--borde);
+}
+.archivos .archivo:last-child { border-bottom: 1px solid var(--borde); }
+.archivo:hover { background: var(--superficie-2); }
+
+/* La extensión hace de icono: dice más que un clip genérico y no depende de
+   que la fuente traiga el glifo. */
+.archivoTipo {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
+  padding: 0.3rem 0.4rem; border-radius: 0.3rem; min-width: 3rem; text-align: center;
+  color: var(--marca); background: color-mix(in oklch, var(--marca) 12%, transparent);
+}
+
+.archivoEnlace { display: grid; gap: 0.15rem; text-decoration: none; color: inherit; min-width: 0; }
+.archivoEnlace:hover .archivoTitulo { text-decoration: underline; }
+.archivoTitulo { font-size: 0.94rem; font-weight: 550; }
+.archivoMeta { font-size: 0.78rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+
+.archivoAcciones { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+.archivoEditando {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.6rem 0.25rem; border-top: 1px solid var(--borde);
+}
+.archivoInput, .archivoFechaInput {
+  font: inherit; font-size: 0.9rem; color: var(--tx);
+  padding: 0.4rem 0.55rem; border: 1px solid var(--borde-fuerte); border-radius: 0.45rem;
+  background: var(--superficie);
+}
+.archivoInput { flex: 1 1 14rem; min-width: 0; }
+.archivoFechaInput { font-variant-numeric: tabular-nums; }
+.archivoInput:focus, .archivoFechaInput:focus { outline: none; border-color: var(--marca); }
+.archivoGuardar {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  padding: 0.4rem 0.75rem; border: none; border-radius: 0.45rem; cursor: pointer;
+  color: var(--superficie); background: var(--marca);
+}
+.archivoGuardar:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- caja de subida ---- */
+.subirCaja {
+  margin-top: 1.1rem; padding: 1rem; border-radius: var(--r-3); background: var(--papel-hundido);
+  display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start;
+}
+.subirCampos { display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%; }
+.subirCampo { display: grid; gap: 0.3rem; flex: 1 1 14rem; }
+.subirEtiqueta { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); font-weight: 600; }
+.subirEntrada { font: inherit; font-size: 0.85rem; color: var(--tx-2); max-width: 100%; }
+.subirEntrada:disabled { opacity: 0.45; cursor: not-allowed; }
+.subirPista { font-size: 0.8rem; color: var(--tx-3); margin: 0; }
+.subirError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
+
 /* ---- benchmark competitivo ---- */
-.benchmark {
-  border: 1px solid var(--borde); border-radius: 0.9rem;
-  padding: clamp(1.1rem, 3vw, 1.75rem); background: var(--superficie);
+.benchmark { border-radius: var(--r-3);
+  padding: clamp(1.1rem, 3vw, 1.75rem); background: none;
 }
 .benchmarkPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); flex: none; }
 .benchmarkNota { font-size: 0.78rem; color: var(--tx-3); }
@@ -215,14 +424,71 @@ a.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   border: 1px dashed var(--borde-fuerte); opacity: 0.85;
 }
 
-.benchmarkActualizado { font-size: 0.78rem; color: var(--tx-3); margin-top: 1rem; }
+.benchmarkActualizado { font-size: 0.78rem; color: var(--tx-3); }
+
+/* Un solo selector por nivel, con `data-nivel`: tres clases sueltas obligaban
+   a una función que las traduzca en cada sitio donde se pinta un nivel. */
+.nivel {
+  display: inline-block; font-size: 0.76rem; font-weight: 600;
+  padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap;
+}
+.nivel[data-nivel='lider'] {
+  background: color-mix(in oklch, var(--marca) 18%, transparent);
+  color: var(--marca); font-weight: 700;
+}
+.nivel[data-nivel='a_la_par'] { background: var(--superficie-2); color: var(--tx-2); }
+.nivel[data-nivel='rezagado'] {
+  background: transparent; color: var(--tx-3);
+  border: 1px dashed var(--borde-fuerte);
+}
+
+/* ---- resumen del benchmark en la sala ----
+   Aquí va el titular, no la matriz: seis columnas por cinco filas de
+   etiquetas es una tabla que se estudia, y la sala se mira de paso. */
+.benchmarkResumen { display: grid; gap: 1rem; }
+.benchmarkCifras { display: flex; flex-wrap: wrap; gap: 0 2.25rem; }
+.benchmarkCifra { display: grid; gap: 0.1rem; }
+.benchmarkCifra strong {
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.benchmarkCifra span { font-size: 0.78rem; color: var(--tx-3); }
+.benchmarkCifra[data-nivel='lider'] strong { color: var(--marca); }
+.benchmarkCifra[data-nivel='rezagado'] strong { color: var(--tibia); }
+
+.benchmarkBrechas {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem;
+  font-size: 0.88rem; color: var(--tx-2); margin: 0;
+}
+.benchmarkBrechasEtiqueta {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  color: var(--tibia);
+}
+
+.benchmarkPie {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--borde);
+}
+
+/* ---- vista completa del benchmark ---- */
+.benchmarkLecturaGrande {
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem); line-height: 1.55; color: var(--tx);
+  max-width: 68ch; margin: 0;
+  border-left: 3px solid var(--marca); padding-left: 1.15rem;
+}
+.brechasLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.brechaItem {
+  padding: 0.7rem 0.95rem; border-radius: var(--r-4); font-size: 0.95rem; border-left: 3px solid var(--tibia);
+  background: var(--superficie);
+  box-shadow: var(--e-1);
+}
 
 /* ---- Acceso del director: el link firmado de esta sala (solo lo ve el equipo) ---- */
 .acceso {
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
   padding: 1.1rem 1.25rem;
-  background: var(--superficie);
-  border: 1px dashed var(--borde-fuerte); border-radius: 0.75rem;
+  background: var(--papel-hundido); border-radius: var(--r-3);
 }
 .accesoTexto { min-width: 0; }
 .accesoTitulo { font-size: 0.92rem; font-weight: 600; margin-bottom: 0.25rem; }
@@ -295,3 +561,26 @@ a.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   padding: 0.3rem 0.4rem; color: var(--tx-2);
   background: none; border: none; cursor: pointer;
 }
+
+/* ---- clave de acceso de la sala ----
+   Se enseña entera UNA vez, al generarla: lo que se guarda es su hash. */
+.claveAcciones { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.claveNueva {
+  display: grid; gap: 0.7rem;
+  padding: 1.2rem 1.3rem; border-radius: var(--r-4);
+  border: 1px solid var(--marca); background: color-mix(in oklch, var(--marca) 5%, var(--superficie));
+  box-shadow: var(--e-1);
+}
+.claveEtiqueta {
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; color: var(--marca);
+}
+.claveFila { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.claveTexto {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.35rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 0.5rem 0.9rem; border-radius: 0.55rem;
+  background: var(--superficie); color: var(--tx);
+  user-select: all;
+}
+.claveNota { font-size: 0.85rem; color: var(--tx-2); margin: 0; line-height: 1.5; max-width: 62ch; }

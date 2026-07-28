@@ -12,7 +12,7 @@ describe('ProveedorTema', () => {
       </ProveedorTema>,
     )
     const contenedor = screen.getByTestId('tema')
-    expect(contenedor.style.getPropertyValue('--primario')).toBe('#FF004F')
+    expect(contenedor.style.getPropertyValue('--primario')).toBe('#614ACA')
   })
 
   it('usa la superficie clara u oscura según se pida', () => {

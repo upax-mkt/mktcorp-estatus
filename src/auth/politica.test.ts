@@ -56,23 +56,46 @@ describe('puedeVerRuta', () => {
   })
 
   it('el equipo entra a todo', () => {
-    for (const ruta of ['/', '/sala/zeus', '/preparar', '/preparar/abc/minuta', '/motor-demo', '/demo/uix']) {
+    for (const ruta of ['/', '/sala/zeus', '/preparar', '/preparar/abc/minuta']) {
       expect(puedeVerRuta(EQUIPO, ruta)).toBe(true)
     }
   })
 
   it('un acceso de sala entra a su sala y a su deck, nada más', () => {
     expect(puedeVerRuta(SALA_NC, '/sala/neracode')).toBe(true)
-    expect(puedeVerRuta(SALA_NC, '/demo/neracode')).toBe(true)
+    // La sesión publicada pasa el filtro optimista; la página comprueba de qué
+    // sala es, porque la ruta lleva un id y no un slug.
+    expect(puedeVerRuta(SALA_NC, '/sesion/abc-123')).toBe(true)
     expect(puedeVerRuta(SALA_NC, '/sala/zeus')).toBe(false)
-    expect(puedeVerRuta(SALA_NC, '/demo/zeus')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/sala/zeus')).toBe(false)
+  })
+
+  it('un acceso de sala descarga los archivos de su sala', () => {
+    // Mismo caso que /sesion/<id>: pasa el filtro optimista y la ruta
+    // comprueba de qué sala es el archivo. Sin esto, un director no podría
+    // abrir los archivos de su propia sala.
+    expect(puedeVerRuta(SALA_NC, '/api/archivo/abc-123')).toBe(true)
+    // Pero NO puede pedir un token para subir: eso es del equipo.
+    expect(puedeVerRuta(SALA_NC, '/api/archivos/subir')).toBe(false)
+    // Y nada más bajo /api se abre por parecerse.
+    expect(puedeVerRuta(SALA_NC, '/api/archivo')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/api/archivos/abc-123')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/api/otra/cosa')).toBe(false)
+  })
+
+  it('un acceso de sala abre el benchmark de SU sala y no el de otra', () => {
+    expect(puedeVerRuta(SALA_NC, '/sala/neracode/benchmark')).toBe(true)
+    expect(puedeVerRuta(SALA_NC, '/sala/zeus/benchmark')).toBe(false)
+    // Lista blanca de hijas: una página nueva bajo /sala/<slug>/ no se abre
+    // por olvido.
+    expect(puedeVerRuta(SALA_NC, '/sala/neracode/lo-que-sea')).toBe(false)
   })
 
   it('un acceso de sala no entra al hub ni a la preparación ni al motor', () => {
     expect(puedeVerRuta(SALA_NC, '/')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/preparar')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/preparar/abc')).toBe(false)
-    expect(puedeVerRuta(SALA_NC, '/motor-demo')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/preparar/abc')).toBe(false)
   })
 
   it('no se deja engañar por un slug que empieza igual que el suyo', () => {

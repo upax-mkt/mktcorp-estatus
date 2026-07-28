@@ -1,80 +1,77 @@
+import Link from 'next/link'
 import estilos from '@/app/sala/sala.module.css'
-import type { Benchmark, NivelBenchmark } from '@/db/benchmark'
-
-const ETIQUETA_NIVEL: Record<NivelBenchmark, string> = {
-  lider: 'Líder',
-  a_la_par: 'A la par',
-  rezagado: 'Rezagado',
-}
-
-function claseNivel(n: NivelBenchmark): string {
-  if (n === 'lider') return estilos.chipLider
-  if (n === 'rezagado') return estilos.chipRezagado
-  return estilos.chipPar
-}
-
-function fechaLarga(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-}
+import type { Benchmark } from '@/db/benchmark'
+import { resumirBenchmark } from '@/dominio/benchmark'
+import { fechaCompleta } from '@/lib/fecha'
 
 /**
- * Espacio Benchmark de una sala (spec §5): la lectura de Mkt Corp destacada
- * arriba, la matriz dimensiones × (UDN + 5 competidores) debajo, y la fecha
- * de la última actualización. Vive a nivel de sala, no de sesión — se nutre
- * en el tiempo conforme Mkt Corp lo actualiza.
+ * El benchmark EN LA SALA: el resumen, no la matriz.
  *
- * Estructura preliminar (ver cabecera de src/datos-benchmark.ts): sujeta a
- * ajuste cuando llegue la presentación de benchmark real de Franco.
+ * Antes se pintaba aquí la tabla entera —seis columnas por cinco filas de
+ * etiquetas— y una tabla así se estudia, no se mira de paso. La sala es una
+ * pantalla de las que se miran de paso: se entra a ver acuerdos y la última
+ * presentación. Lo que aquí cabe es el titular —en cuántas dimensiones la UDN
+ * va delante y en cuáles va detrás— y una puerta a la vista completa.
  */
-export function BenchmarkSala({ benchmark, nombreSala }: { benchmark: Benchmark | null; nombreSala: string }) {
+export function BenchmarkSala({
+  benchmark,
+  nombreSala,
+  salaSlug,
+}: {
+  benchmark: Benchmark | null
+  nombreSala: string
+  salaSlug: string
+}) {
   if (!benchmark) {
     return (
       <div className={estilos.benchmark}>
-        <p className={estilos.benchmarkNota}>Benchmark aún no configurado para esta sala.</p>
+        <p className={estilos.benchmarkNota}>
+          Benchmark aún no cargado para esta sala. Cuando llegue el análisis competitivo, aparece
+          aquí el resumen y se puede entrar a verlo completo.
+        </p>
       </div>
     )
   }
 
+  const resumen = resumirBenchmark(benchmark)
+
   return (
     <div className={estilos.benchmark}>
-      <div className={estilos.benchmarkLectura}>
-        <div className={estilos.benchmarkLecturaEtiqueta}>
-          <span className={estilos.benchmarkPunto} />
-          Lectura de Mkt Corp
+      <div className={estilos.benchmarkResumen}>
+        <div className={estilos.benchmarkCifras}>
+          <span className={estilos.benchmarkCifra} data-nivel="lider">
+            <strong>{resumen.lider}</strong>
+            <span>de {resumen.total} liderando</span>
+          </span>
+          <span className={estilos.benchmarkCifra} data-nivel="a_la_par">
+            <strong>{resumen.aLaPar}</strong>
+            <span>a la par</span>
+          </span>
+          <span className={estilos.benchmarkCifra} data-nivel="rezagado">
+            <strong>{resumen.rezagado}</strong>
+            <span>por detrás</span>
+          </span>
         </div>
+
         <p className={estilos.benchmarkLecturaTexto}>{benchmark.lectura}</p>
+
+        {resumen.brechas.length > 0 && (
+          <p className={estilos.benchmarkBrechas}>
+            <span className={estilos.benchmarkBrechasEtiqueta}>Brecha por cerrar</span>
+            {resumen.brechas.join(' · ')}
+          </p>
+        )}
       </div>
 
-      <div className={estilos.benchmarkMatrizWrap}>
-        <table className={estilos.benchmarkMatriz}>
-          <thead>
-            <tr>
-              <th className={estilos.benchmarkColDimension}>Dimensión</th>
-              <th className={`${estilos.benchmarkColUdn} ${estilos.benchmarkColUdnEtiqueta}`}>{nombreSala}</th>
-              {benchmark.competidores.map((c) => (
-                <th key={c}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {benchmark.dimensiones.map((f) => (
-              <tr key={f.dimension}>
-                <td className={estilos.benchmarkFilaDimension}>{f.dimension}</td>
-                <td className={estilos.benchmarkColUdn}>
-                  <span className={`${estilos.chip} ${claseNivel(f.udn)}`}>{ETIQUETA_NIVEL[f.udn]}</span>
-                </td>
-                {f.competidores.map((n, i) => (
-                  <td key={i}>
-                    <span className={`${estilos.chip} ${claseNivel(n)}`}>{ETIQUETA_NIVEL[n]}</span>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className={estilos.benchmarkPie}>
+        <span className={estilos.benchmarkActualizado}>
+          {nombreSala} contra {benchmark.competidores.length} competidores · actualizado el{' '}
+          {fechaCompleta(benchmark.actualizado)}
+        </span>
+        <Link href={`/sala/${salaSlug}/benchmark`} className={estilos.presVer}>
+          Ver el benchmark completo →
+        </Link>
       </div>
-
-      <div className={estilos.benchmarkActualizado}>Actualizado el {fechaLarga(benchmark.actualizado)}</div>
     </div>
   )
 }

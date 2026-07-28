@@ -1,0 +1,227 @@
+/* Agenda — mismos neutros OKLCH cálidos y barra oscura que el hub y la vista
+   de sala, para que se lea como parte del mismo sistema. */
+
+.app {
+  /* Los neutros ya no se declaran aquí: se toman de `sistema.css`, que es la
+     única fuente. Antes cada pantalla tenía los suyos —casi iguales pero no
+     iguales— y "casi igual" repetido por cinco pantallas es exactamente lo
+     que se lee como desordenado.
+
+     Los nombres locales se conservan como alias para no reescribir cuatro
+     hojas de estilo enteras: lo que cambia es de dónde sale el valor. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  /* El acento del cascarón es el color de LA SALA cuando hay una; fuera de
+     una sala, la tinta. Así el naranja fijo deja de competir con la marca. */
+  --acento: var(--marca, var(--tinta));
+  --acento-suave: color-mix(in oklch, var(--marca, var(--tinta)) 10%, transparent);
+
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.barra {
+  /* Material translúcido en vez de un bloque oscuro: la barra deja de ser
+     una franja que corta la página y pasa a flotar sobre ella. */
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
+}
+.volver { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.volver:hover { color: var(--tinta-2); }
+.barraTitulo { font-weight: 650; font-size: 0.95rem; }
+.barraDcha { margin-left: auto; display: flex; align-items: center; gap: 1.2rem; }
+.barraLink { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.barraLink:hover { color: var(--tinta-2); }
+.barraFecha { font-size: 0.82rem; color: var(--tinta-4); }
+
+.main { max-width: 84rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.encabezado { margin-bottom: 1.75rem; }
+.titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
+.subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 46ch; }
+
+/* El cuadro manda y la lista acompaña: la pregunta principal de esta pantalla
+   es "¿cómo viene el mes?". Por debajo de 62rem se apilan. */
+.panel { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.75rem; align-items: start; }
+@media (max-width: 62rem) { .panel { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- calendario ---- */
+.calendario { border-radius: var(--r-4); background: var(--superficie); overflow: hidden; }
+.calendarioBarra {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--borde);
+  box-shadow: var(--e-1);
+}
+.calendarioMes { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.calendarioNav { display: flex; align-items: center; gap: 0.35rem; }
+.calendarioBoton {
+  font: inherit; width: 2rem; height: 2rem; line-height: 1; padding: 0;
+  border: 1px solid var(--borde); border-radius: 0.45rem;
+  background: var(--superficie); color: var(--tx-2); cursor: pointer;
+}
+.calendarioBoton:hover { border-color: var(--borde-fuerte); color: var(--tx); }
+.calendarioHoy {
+  font: inherit; font-size: 0.8rem; padding: 0.35rem 0.7rem;
+  border: 1px solid var(--borde); border-radius: 0.45rem;
+  background: var(--superficie); color: var(--tx-2); cursor: pointer;
+}
+.calendarioHoy:hover { border-color: var(--borde-fuerte); color: var(--tx); }
+
+.rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cabeceraDia {
+  padding: 0.55rem 0.6rem; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 700; border-bottom: 1px solid var(--borde);
+}
+
+.celda {
+  min-height: 6.5rem; padding: 0.4rem;
+  border-right: 1px solid var(--borde); border-bottom: 1px solid var(--borde);
+  display: flex; flex-direction: column; gap: 0.25rem; cursor: pointer;
+  transition: background 120ms ease;
+}
+.celda:nth-child(7n + 7) { border-right: none; }
+.celda:hover { background: var(--superficie-2); }
+/* Los días del mes vecino existen para cuadrar la rejilla, no para leerse. */
+.celda[data-fuera='true'] { background: var(--superficie-2); cursor: default; }
+.celda[data-fuera='true'] .numeroDia { color: var(--tx-3); opacity: 0.55; }
+.celda[data-fuera='true']:hover { background: var(--superficie-2); }
+
+.numeroDia { font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--tx-2); font-weight: 600; }
+.celda[data-hoy='true'] .numeroDia {
+  align-self: flex-start;
+  color: var(--superficie); background: var(--tx);
+  min-width: 1.4rem; text-align: center; border-radius: 999px; padding: 0.1rem 0.35rem;
+}
+
+/* Cada sesión lleva el color de SU sala: la pregunta que se hace de un
+   vistazo no es "¿cuántas hay el martes?" sino "¿cuándo me toca Mexa?". */
+.marca {
+  display: grid; gap: 0.05rem; text-decoration: none;
+  padding: 0.25rem 0.35rem; border-radius: 0.35rem;
+  border-left: 3px solid var(--sala);
+  background: color-mix(in oklch, var(--sala) 10%, transparent);
+  color: var(--tx); min-width: 0;
+}
+.marca:hover { background: color-mix(in oklch, var(--sala) 20%, transparent); }
+/* Una sesión que solo está agendada se dibuja en trazo, no en relleno:
+   todavía no hay nada dentro. */
+.marca[data-estado='agendada'] { background: none; border-left-style: dashed; }
+.marcaHora { font-size: 0.66rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+.marcaSala { font-size: 0.72rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* La leyenda reproduce la marca REAL del calendario, no un cuadradito de
+   adorno: si la muestra no se parece a lo que hay dentro del cuadro, hay que
+   traducir mentalmente, que es exactamente lo que una leyenda evita. */
+.leyendaCalendario {
+  display: flex; gap: 1.25rem; flex-wrap: wrap; margin: 0;
+  padding: 0.75rem 1.1rem; font-size: 0.78rem; color: var(--tx-2);
+  border-top: 1px solid var(--borde); background: var(--superficie-2);
+}
+.leyendaItem { display: inline-flex; align-items: center; gap: 0.45rem; }
+.leyendaItem::before {
+  content: ''; width: 1.3rem; height: 0.95rem; border-radius: 0.25rem;
+  border-left: 3px solid var(--tx-2);
+  background: color-mix(in oklch, var(--tx-2) 16%, transparent);
+}
+.leyendaItem[data-estado='agendada']::before {
+  background: none; border-left-style: dashed;
+}
+.leyendaItem[data-estado='presentada']::before {
+  border-left-color: var(--ok); background: color-mix(in oklch, var(--ok) 16%, transparent);
+}
+
+/* ---- lateral ---- */
+.lateral { display: grid; gap: 1.5rem; }
+.lateralTitulo {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 700; margin: 0 0 0.75rem;
+}
+.conteo { font-size: 0.75rem; letter-spacing: 0; text-transform: none; color: var(--tx-3); font-weight: 500; }
+.vacio { color: var(--tx-3); font-size: 0.88rem; margin: 0; }
+
+.botonAgendar {
+  font: inherit; font-size: 0.9rem; font-weight: 600; width: 100%;
+  padding: 0.75rem 1rem; border-radius: var(--r-4); cursor: pointer;
+  color: var(--tx); background: var(--superficie);
+  transition: border-color 140ms ease, color 140ms ease;
+  box-shadow: var(--e-1);
+}
+.botonAgendar:hover { border-color: var(--acento); color: var(--acento); border-style: solid; }
+
+.tarjetaFormulario {
+  padding: 1.1rem; border-radius: var(--r-4); background: var(--superficie);
+  box-shadow: var(--e-1);
+}
+
+/* ---- lo que viene ---- */
+.proximas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.proxima {
+  padding: 0.9rem 1rem; border-radius: var(--r-4); border-left: 3px solid var(--sala);
+  background: var(--superficie);
+  box-shadow: var(--e-1);
+}
+.proximaCabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.proximaSala { font-size: 0.82rem; font-weight: 700; color: var(--sala); }
+.proximaEstado {
+  font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  padding: 0.15rem 0.4rem; border-radius: 0.3rem;
+  color: var(--tx-3); background: var(--superficie-2);
+}
+.proximaEstado[data-estado='borrador'] { color: var(--acento); background: color-mix(in oklch, var(--acento) 12%, transparent); }
+.proximaEstado[data-estado='lista'] { color: var(--ok); background: color-mix(in oklch, var(--ok) 14%, transparent); }
+.proximaTitulo { font-size: 0.95rem; font-weight: 600; margin-top: 0.3rem; }
+.proximaCuando { font-size: 0.8rem; color: var(--tx-2); margin-top: 0.2rem; }
+.proximaGente { font-size: 0.78rem; color: var(--tx-3); margin-top: 0.3rem; }
+.proximaAvance { font-size: 0.78rem; color: var(--acento); margin-top: 0.3rem; font-weight: 600; }
+.proximaAcciones { display: flex; align-items: center; justify-content: space-between; margin-top: 0.6rem; }
+.proximaEnlace { font-size: 0.82rem; font-weight: 600; color: var(--tx); text-decoration: none; }
+.proximaEnlace:hover { text-decoration: underline; }
+
+/* ---- formulario ---- */
+.formulario { display: grid; gap: 0.8rem; }
+.campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.7rem; }
+.campo, .campoAncho { display: grid; gap: 0.3rem; min-width: 0; }
+.etiqueta { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); font-weight: 700; }
+.entrada {
+  font: inherit; font-size: 0.88rem; color: var(--tx); width: 100%; min-width: 0;
+  padding: 0.45rem 0.6rem; border: 1px solid var(--borde-fuerte); border-radius: 0.45rem;
+  background: var(--superficie);
+}
+.entrada:focus { outline: none; border-color: var(--acento); }
+.formularioError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
+.formularioAcciones { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.2rem; }
+.botonPrimario {
+  font: inherit; font-size: 0.88rem; font-weight: 600;
+  padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer;
+  color: white; background: var(--acento);
+}
+.botonPrimario:disabled { opacity: 0.45; cursor: not-allowed; }
+.botonTexto {
+  font: inherit; font-size: 0.85rem; color: var(--tx-2);
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+}
+.botonTexto:hover { color: var(--tx); }
+.botonTexto:disabled { opacity: 0.4; cursor: not-allowed; }

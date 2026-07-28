@@ -3,12 +3,13 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* SIN MODO OSCURO, a propósito.
+   Estaba a medias: el cascarón invertía con `prefers-color-scheme` y el
+   documento forzaba superficie clara, así que en un sistema en oscuro la
+   barra salía negra y la presentación blanca — y el documento es lo que se
+   proyecta delante de un director. Un modo oscuro de verdad exige decidir
+   cómo se comportan las diez marcas y su escala de datos sobre fondo oscuro,
+   que es trabajo real; medio modo oscuro es peor que ninguno. */
 
 html {
   height: 100%;
@@ -26,7 +27,12 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Outfit, no Arial. La app entera —barra, formularios, mensajes de error—
+     hereda de aquí, y cada pantalla que no declaraba su tipografía salía en
+     Arial mientras la de al lado salía en Outfit. Dos tipografías en una
+     misma app, sin que nadie lo hubiera decidido. La familia por sala sigue
+     mandando dentro del documento (ver ProveedorTema). */
+  font-family: var(--f-outfit), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -42,8 +48,9 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* `color-scheme: light` fijo: sin esto, en un sistema en oscuro el navegador
+   pinta en oscuro los controles nativos —selects, inputs de fecha, barras de
+   scroll— dentro de una app clara. */
+html {
+  color-scheme: light;
 }

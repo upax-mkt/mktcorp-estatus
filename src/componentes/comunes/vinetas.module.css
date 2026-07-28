@@ -1,0 +1,43 @@
+/* Solo lo que el consumidor no puede resolver: la sangría por nivel y el
+   enlace. La tipografía y la viñeta las pone la clase que llega por
+   `className` (ver el comentario de ListaVinetas.tsx). */
+
+.anidada {
+  /* `em` y no `rem`: la sangría se mide contra el texto de ESTE nivel, así
+     escala igual en el deck (que mide en cqw) y en el documento (en rem). */
+  margin-top: 0.35em;
+  padding-left: 1.1em;
+}
+
+/* CADA NIVEL, UNA FORMA. Antes los tres niveles llevaban el mismo punto
+   redondo del consumidor y solo los separaba la sangría: una jerarquía de
+   tres niveles se leía como una lista plana mal alineada.
+
+   La `::marker` que había aquí era código muerto — el consumidor pone
+   `list-style: none`, así que ese pseudo-elemento no existe. Y bajar la
+   opacidad del tercer nivel restaba contraste a un texto ya pequeño en vez de
+   distinguirlo; la forma lo distingue mejor y sin coste de legibilidad. */
+.anidada > li::before {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 0;
+  background: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+.anidada[data-nivel='3'] > li::before {
+  width: 0.4rem;
+  height: 1px;
+  top: 0.75em;
+  background: color-mix(in oklch, var(--texto) 35%, transparent);
+}
+
+.enlace {
+  color: var(--primario-sobre-superficie);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+.enlace:hover {
+  text-decoration-thickness: 2px;
+}

@@ -4,7 +4,7 @@
 // componente de cliente.
 import { cookies } from 'next/headers'
 import { firmar, verificar, type Sesion } from './firma'
-import { puedeEditar, puedeVerSala } from './politica'
+import { puedeEditar, puedeEditarAcuerdos, puedeVerSala } from './politica'
 import { COOKIE_SESION } from './nombres'
 
 /**
@@ -119,6 +119,26 @@ export async function exigirEquipo(): Promise<Sesion> {
     throw new Error('Esta acción es solo para el equipo de Marketing Corporativo.')
   }
   return sesion as Sesion
+}
+
+/**
+ * Lanza si quien pide no puede tocar los acuerdos de ESTA sala.
+ *
+ * La usan las acciones de acuerdos en vez de `exigirEquipo`: el director de
+ * la UDN sí puede moverlos en la suya. Todo lo demás de la sala —archivos,
+ * minutas, preparar— sigue exigiendo equipo.
+ */
+export async function exigirEdicionDeAcuerdos(slug: string): Promise<Sesion> {
+  const sesion = await sesionActual()
+  if (!puedeEditarAcuerdos(sesion, slug)) {
+    throw new Error('No puedes editar los acuerdos de esta sala.')
+  }
+  return sesion as Sesion
+}
+
+/** true si quien pide puede mover los acuerdos de esta sala. */
+export async function puedeEditarAcuerdosDe(slug: string): Promise<boolean> {
+  return puedeEditarAcuerdos(await sesionActual(), slug)
 }
 
 /** true si quien pide puede ver esta sala. */

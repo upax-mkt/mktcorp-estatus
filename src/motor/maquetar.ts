@@ -12,7 +12,8 @@ import { normalizar } from './normalizar'
 import { decidir, crearClientePorDefecto, type ClienteDecision } from './decidir'
 import { validarDecision, aLayoutSeguro } from './validar'
 import { sanearDecision, completarKpisFaltantes } from './sanear'
-import { obtenerTema } from '@/temas'
+import { aDecision, type BorradorSeccion } from '@/secciones/borrador'
+import { temaDeSala } from '@/temas'
 
 export interface ResultadoMaquetacion {
   decision: DecisionSlide
@@ -145,17 +146,28 @@ export async function maquetarItem(
  */
 export async function maquetarSesion(
   items: EntradaCruda[],
-  slugSala: string,
+  /** Nulo en una reunión que no pertenece a ninguna sala: usa la de UPAX. */
+  slugSala: string | null,
   cliente?: ClienteDecision,
 ): Promise<ResultadoMaquetacion[]> {
-  const tema = obtenerTema(slugSala)
-  const clienteFinal = cliente ?? crearClientePorDefecto()
+  const tema = temaDeSala(slugSala)
+  // El cliente se crea PEREZOSAMENTE: una sesión armada entera a mano no debe
+  // exigir ANTHROPIC_API_KEY para presentarse. La IA es un atajo opcional, no
+  // un requisito de arranque.
+  let clienteFinal = cliente
+  const clienteDeIa = () => (clienteFinal ??= crearClientePorDefecto())
 
   const resultados: ResultadoMaquetacion[] = []
   for (const item of items) {
     try {
-      const resultado = await maquetarItem(item, tema, clienteFinal)
-      resultados.push(resultado)
+      // Sección compuesta a mano: se usa tal cual. Ni una llamada, ni un
+      // segundo de espera, ni la posibilidad de que un modelo reinterprete lo
+      // que alguien ya decidió.
+      if (item.seccion) {
+        resultados.push(maquetarBorrador(item.seccion, item.titulo))
+        continue
+      }
+      resultados.push(await maquetarItem(item, tema, clienteDeIa()))
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : String(error)
       const motivo = `fallo inesperado al maquetar el ítem: ${mensaje}`
@@ -163,4 +175,20 @@ export async function maquetarSesion(
     }
   }
   return resultados
+}
+
+/**
+ * Maqueta una sección que el equipo armó a mano.
+ *
+ * Determinista y sin red. Si el borrador está incompleto no se descarta: se
+ * degrada con el motivo a la vista ("Falta el título"), porque quien la
+ * escribió tiene que poder ver QUÉ le falta en el documento, no descubrir que
+ * su sección desapareció.
+ */
+export function maquetarBorrador(borrador: BorradorSeccion, tituloItem: string): ResultadoMaquetacion {
+  const resultado = aDecision(borrador, tituloItem)
+  if (resultado.ok) {
+    return { decision: resultado.decision, degradado: false }
+  }
+  return degradarSinDecision(borrador.titulo || tituloItem, borrador.layout, resultado.motivo)
 }

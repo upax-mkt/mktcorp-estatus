@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../sala.module.css'
@@ -7,13 +7,30 @@ import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
+import { sesionesSinMinuta } from '@/dominio/salas'
 import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
+import {
+  listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, type CategoriaArchivo,
+} from '@/db/archivos'
+import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
+import { MinutasSala } from '@/componentes/MinutasSala'
+import { NuevaMinutaSala } from '@/componentes/NuevaMinutaSala'
+import { ArchivosSala } from '@/componentes/ArchivosSala'
+import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
+import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
+import { secretoConfigurado } from '@/auth/sesion'
+import { crearSesionConEstructura } from '@/db/sesiones'
+import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
-import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
+import {
+  esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
+  generarTokenDeSala, puedeVerEstaSala,
+} from '@/auth/sesion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
 
@@ -53,9 +70,20 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()
-  const benchmark = await obtenerBenchmark(slug)
-  const equipo = await esEquipo()
+  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres] = await Promise.all([
+    obtenerBenchmark(slug),
+    esEquipo(),
+    listarArchivos(slug, 'presentacion'),
+    listarArchivos(slug, 'interes'),
+  ])
   const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
+  // El director de la UDN mueve los acuerdos de SU sala; el resto de la
+  // pantalla sigue siendo de solo lectura para él.
+  const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
+  const secreto = secretoConfigurado()
+  const clave = equipo && secreto
+    ? await estadoDeClave(slug, secreto)
+    : { tiene: false, creadaEn: null }
 
   // ---- Server actions: acuerdos editables (spec §4/§6) ----
   // "Solo el equipo Mkt Corp mueve el estatus": cada acción lo exige por su
@@ -64,7 +92,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function cambiarEstatusAction(acuerdoId: string, estatus: EstatusAcuerdo) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await moverEstatus(acuerdoId, estatus)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -72,7 +100,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function editarFechaAction(acuerdoId: string, fecha: string | null) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -85,7 +113,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     fechaCompromiso: string | null
   }) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await crearAcuerdo(slug, {
       que: datos.que,
       responsable: datos.responsable,
@@ -98,10 +126,129 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function eliminarAcuerdoAction(acuerdoId: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await eliminarAcuerdo(acuerdoId)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
+  }
+
+  /**
+   * Preparar una presentación desde la sala (Franco, punto 3).
+   *
+   * La sala ya sabe de quién es: no se vuelve a preguntar. Redirige al editor
+   * porque crear una sesión sin abrirla es dejar a alguien mirando la misma
+   * pantalla preguntándose si pasó algo.
+   */
+  async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
+    'use server'
+    // EQUIPO, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
+    // editar un acuerdo. El director de la UDN mueve sus compromisos; no
+    // arma la sesión en la que se los van a presentar.
+    await exigirEquipo()
+    if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
+      return { error: 'Plantilla desconocida.' }
+    }
+    let nueva: { id: string }
+    try {
+      nueva = await crearSesionConEstructura({
+        salaSlug: slug,
+        plantilla: datos.plantilla,
+        tipo: 'mensual',
+        alcance: 'todos',
+        // Las 10:00 de CDMX, no la medianoche UTC: sin huso explícito una
+        // reunión "del 19" se guarda como las 18:00 del 18 en México.
+        fecha: new Date(`${datos.dia}T10:00:00-06:00`),
+        estado: 'agendada',
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo crear la sesión.' }
+    }
+    revalidatePath(`/sala/${slug}`)
+    revalidatePath('/')
+    redirect(`/preparar/${nueva.id}`)
+  }
+
+  /**
+   * Pone una clave nueva y la devuelve EN CLARO, una sola vez.
+   *
+   * Se guarda su hash, así que esta es la única oportunidad de leerla. El
+   * componente la enseña con un "cópiala ahora".
+   */
+  async function regenerarClaveAction(): Promise<{ clave?: string; error?: string }> {
+    'use server'
+    await exigirEquipo()
+    const s = secretoConfigurado()
+    if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
+    try {
+      const nueva = await regenerarClave(slug, s)
+      revalidatePath(`/sala/${slug}`)
+      return { clave: nueva }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo generar la clave.' }
+    }
+  }
+
+  async function quitarClaveAction() {
+    'use server'
+    await exigirEquipo()
+    await quitarClave(slug)
+    revalidatePath(`/sala/${slug}`)
+  }
+
+  // ---- Server actions: archivos colgados en la sala ----
+
+  async function registrarArchivoAction(datos: {
+    categoria: CategoriaArchivo
+    titulo: string
+    fecha: string | null
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ error?: string }> {
+    'use server'
+    await exigirEquipo()
+    try {
+      await registrarArchivo({
+        salaSlug: slug,
+        categoria: datos.categoria,
+        titulo: datos.titulo,
+        fecha: datos.fecha ? new Date(datos.fecha) : null,
+        ruta: datos.ruta,
+        nombreOriginal: datos.nombreOriginal,
+        tipoContenido: datos.tipoContenido,
+        tamanoBytes: datos.tamanoBytes,
+      })
+    } catch (error) {
+      // El binario ya está en el almacén: si la fila no se puede crear, se
+      // quita también el archivo. Un blob sin fila es basura invisible que
+      // se sigue pagando.
+      await del(datos.ruta).catch(() => {})
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar el archivo.' }
+    }
+    revalidatePath(`/sala/${slug}`)
+    return {}
+  }
+
+  async function editarArchivoAction(id: string, cambios: { titulo: string; fecha: string | null }) {
+    'use server'
+    await exigirEquipo()
+    await editarArchivo(id, {
+      titulo: cambios.titulo,
+      fecha: cambios.fecha ? new Date(cambios.fecha) : null,
+    })
+    revalidatePath(`/sala/${slug}`)
+  }
+
+  async function eliminarArchivoAction(id: string) {
+    'use server'
+    await exigirEquipo()
+    // Franco: "si algo se elimina también se elimina del almacenamiento".
+    // Primero la fila, luego el binario: al revés, un fallo al borrar el
+    // archivo dejaría una fila que apunta a la nada.
+    const quitado = await eliminarArchivo(id)
+    if (quitado) await del(quitado.ruta).catch(() => {})
+    revalidatePath(`/sala/${slug}`)
   }
 
   const estiloMarca = {
@@ -113,6 +260,8 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const vencidos = acuerdosVencidos(s)
   const presReciente = s.presentaciones[0]
   const presAnteriores = s.presentaciones.slice(1)
+
+  const pendientesDeMinuta = sesionesSinMinuta(s)
 
   return (
     <div className={estilos.app} style={estiloMarca}>
@@ -182,7 +331,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                     <div className={estilos.acuerdoDcha}>
                       <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
                       {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
-                      {equipo && (
+                      {editaAcuerdos && (
                         <AcuerdoControles
                           acuerdoId={a.id}
                           estatusInicial={a.estatus}
@@ -198,14 +347,17 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               })}
             </div>
           )}
-          {equipo && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
+          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
         </section>
 
-        {/* Presentaciones */}
+        {/* Presentaciones — las armadas en la app y las antiguas subidas */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>Presentaciones</h2>
-          {presReciente && (
-            <Link href={`/demo/${slug}`} className={estilos.presDestacada}>
+          {/* Enlaza a la sesión REAL. Una presentación sin `sesionId` es de
+              los datos de ejemplo (sin DB): se muestra sin enlace en vez de
+              llevar a un documento que no existe. */}
+          {presReciente && presReciente.sesionId && (
+            <Link href={`/sesion/${presReciente.sesionId}`} className={estilos.presDestacada}>
               <div>
                 <div className={estilos.presTag}>Más reciente</div>
                 <h3 className={estilos.presTitulo}>{presReciente.titulo}</h3>
@@ -214,45 +366,51 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               <span className={estilos.presVer}>Ver presentación →</span>
             </Link>
           )}
+          {equipo && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
+
           {presAnteriores.length > 0 && (
             <div className={estilos.presTimeline}>
               {presAnteriores.map((p) => (
-                <div key={p.fecha} className={estilos.presFila}>
+                <Link
+                  key={p.sesionId ?? p.fecha}
+                  href={p.sesionId ? `/sesion/${p.sesionId}` : '#'}
+                  className={estilos.presFila}
+                >
                   <span className={estilos.presFilaTitulo}>{p.titulo}</span>
                   <span className={estilos.presFilaFecha}>{fechaBreveConAnio(p.fecha)}</span>
-                </div>
+                </Link>
               ))}
+            </div>
+          )}
+
+          {/* Las anteriores a esta herramienta: archivos, no documentos web.
+              Van en la misma sección porque para el director son lo mismo —
+              "las presentaciones de mi sala"—, con su propio subtítulo para
+              que se entienda por qué unas se abren y otras se descargan. */}
+          {(archivosPresentaciones.length > 0 || equipo) && (
+            <div className={estilos.subseccion}>
+              <h3 className={estilos.subseccionTitulo}>Antes de esta herramienta</h3>
+              <ArchivosSala
+                salaSlug={slug}
+                categoria="presentacion"
+                archivos={archivosPresentaciones}
+                equipo={equipo}
+                registrarAction={registrarArchivoAction}
+                editarAction={editarArchivoAction}
+                eliminarAction={eliminarArchivoAction}
+              />
             </div>
           )}
         </section>
 
         {/* Minutas */}
         <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Minutas</h2>
-          <div className={estilos.minutas}>
-            {s.minutas.map((m) => {
-              const meta = (
-                <>
-                  <div className={estilos.minutaIzq}>
-                    <span className={estilos.minutaIcono}>▤</span>
-                    <span>{m.titulo}</span>
-                  </div>
-                  <span className={estilos.minutaEnviada}>
-                    {fechaBreveConAnio(m.fecha)} · enviada a {m.enviadaA}
-                  </span>
-                </>
-              )
-              // Las minutas de ejemplo no tienen sesión detrás: se listan sin
-              // enlace en vez de llevar a un 404.
-              return m.sesionId ? (
-                <Link key={m.sesionId} href={`/preparar/${m.sesionId}/minuta`} className={estilos.minuta}>
-                  {meta}
-                </Link>
-              ) : (
-                <div key={m.fecha} className={estilos.minuta}>{meta}</div>
-              )
-            })}
-          </div>
+          <h2 className={estilos.seccionTitulo}>
+            Minutas
+            {s.minutas.length > 0 && <span className={estilos.conteo}>{s.minutas.length}</span>}
+          </h2>
+          <MinutasSala minutas={s.minutas} equipo={equipo} />
+          {equipo && <NuevaMinutaSala sesiones={pendientesDeMinuta} />}
         </section>
 
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}
@@ -261,14 +419,48 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             Benchmark competitivo
             {benchmark && <span className={estilos.conteo}>{s.nombre} + {benchmark.competidores.length} competidores</span>}
           </h2>
-          <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} />
+          <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} salaSlug={slug} />
         </section>
 
+        {/* Archivos de interés — al final, como los pidió Franco: lo que el
+            equipo estime conveniente tener a mano en la sala. */}
+        {(archivosDeInteres.length > 0 || equipo) && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              Archivos de interés
+              {archivosDeInteres.length > 0 && (
+                <span className={estilos.conteo}>{archivosDeInteres.length}</span>
+              )}
+            </h2>
+            <ArchivosSala
+              salaSlug={slug}
+              categoria="interes"
+              archivos={archivosDeInteres}
+              equipo={equipo}
+              registrarAction={registrarArchivoAction}
+              editarAction={editarArchivoAction}
+              eliminarAction={eliminarArchivoAction}
+            />
+          </section>
+        )}
+
         {/* Compartir la sala con su director. Solo lo ve el equipo. */}
-        {equipo && tokenDeAcceso && (
+        {equipo && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
-            <div className={estilos.acceso}>
+            <ClaveDeSala
+              nombreSala={s.nombre}
+              tiene={clave.tiene}
+              creadaEn={clave.creadaEn}
+              regenerarAction={regenerarClaveAction}
+              quitarAction={quitarClaveAction}
+            />
+
+            {/* El link firmado sigue existiendo, DENTRO de la misma tarjeta:
+                las dos son la misma pregunta —cómo entra el director— y
+                separarlas en dos secciones las hacía parecer dos temas. */}
+            {tokenDeAcceso && (
+            <div className={estilos.acceso} style={{ marginTop: '0.9rem' }}>
               <div className={estilos.accesoTexto}>
                 <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>
                 <p className={estilos.accesoNota}>
@@ -281,6 +473,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 className={estilos.accesoBoton}
               />
             </div>
+            )}
           </section>
         )}
       </main>

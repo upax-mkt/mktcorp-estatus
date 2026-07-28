@@ -1,7 +1,7 @@
 /**
  * Capa de acceso a datos que consume el shell (hub + vista de sala).
  *
- * Reimplementa las funciones de src/datos-ejemplo.ts, ahora async: si
+ * Reimplementa las funciones de src/dominio/salas.ts, ahora async: si
  * hayDB() consultan Postgres vía Drizzle; si no, delegan al fallback de
  * datos de ejemplo — así producción sin DATABASE_URL sigue mostrando el
  * shell exactamente igual.
@@ -9,14 +9,15 @@
  * Los derivados puros (acuerdosAbiertos, acuerdosVencidos, temperatura,
  * ordenarPorUrgencia) no tocan la base de datos — operan sobre EstadoSala ya
  * resuelto, venga de donde venga — así que se re-exportan tal cual desde
- * datos-ejemplo.ts en vez de duplicar su lógica.
+ * dominio/salas.ts en vez de duplicar su lógica.
  */
 import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { obtenerTema, slugsDeSalas } from '@/temas'
-import * as fallback from '@/datos-ejemplo'
+import * as fallback from '@/dominio/salas'
+import { esLlenado, type ContenidoItemCrudo } from './sesiones'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
@@ -24,7 +25,7 @@ import type {
   Minuta,
   Presentacion,
   PulsoDelMes,
-} from '@/datos-ejemplo'
+} from '@/dominio/salas'
 
 export type {
   Acuerdo,
@@ -35,7 +36,7 @@ export type {
   Presentacion,
   PulsoDelMes,
   Temperatura,
-} from '@/datos-ejemplo'
+} from '@/dominio/salas'
 
 // Derivados puros: misma función, sin importar la fuente de los datos.
 export {
@@ -43,7 +44,7 @@ export {
   acuerdosVencidos,
   temperatura,
   ordenarPorUrgencia,
-} from '@/datos-ejemplo'
+} from '@/dominio/salas'
 
 const MS_POR_DIA = 86_400_000
 
@@ -59,7 +60,7 @@ function isoFecha(d: Date): string {
  * La tabla minutas no guarda un título propio: se deriva de la sesión que
  * la originó, igual que el título de una Presentacion. Si la estructura
  * congelada de la sesión trae un `titulo` explícito se usa; si no, se
- * construye a partir de tipo + fecha (mismo patrón que datos-ejemplo.ts).
+ * construye a partir de tipo + fecha (mismo patrón que dominio/salas.ts).
  */
 function tituloDeSesion(sesion: { tipo: 'semanal' | 'mensual'; fecha: Date; estructura: unknown }): string {
   const estructura = sesion.estructura as { titulo?: unknown } | null
@@ -80,15 +81,20 @@ interface FilaSesion {
 }
 
 /**
- * Heurística de avance de una sesión en preparación (borrador/lista).
- * El modelo de datos actual no guarda un % explícito (no forma parte del
- * spec §4); hasta que exista el editor de estructura real (pendiente:
- * "Flujo de preparación de sesión"), se aproxima por el estado.
+ * Cuánto lleva escrito una sesión en preparación.
+ *
+ * Antes era una heurística por estado —35% si borrador, 90% si lista— porque
+ * no se contaban los items. Se cuentan: una sesión con 3 de 14 secciones
+ * escritas dice 21%, no 35%. Y es lo que hace visible el borrador
+ * colaborativo: varias personas llenan secciones distintas y la barra sube.
+ *
+ * `lista` significa maquetada, así que va al 100 aunque queden secciones
+ * vacías: alguien ya decidió que con eso se presenta.
  */
-function avancePorEstado(estado: FilaSesion['estado']): number {
-  if (estado === 'lista') return 90
-  if (estado === 'borrador') return 35
-  return 100
+function avanceDeItems(estado: FilaSesion['estado'], llenados: number, total: number): number {
+  if (estado === 'lista') return 100
+  if (total === 0) return 0
+  return Math.round((llenados / total) * 100)
 }
 
 /**
@@ -106,7 +112,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   const conexion = db()
   const ahora = new Date()
 
-  const [salaRow, sesionesRows, acuerdosRows, minutasRows] = await Promise.all([
+  const [salaRow, sesionesRows, acuerdosRows, minutasRows, itemsRows] = await Promise.all([
     conexion.select().from(esquema.salas).where(eq(esquema.salas.slug, slug)).then((r) => r[0]),
     conexion
       .select({
@@ -125,6 +131,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
         id: esquema.minutas.id,
         enviadaA: esquema.minutas.enviadaA,
         sesionId: esquema.minutas.sesionId,
+        textoFinal: esquema.minutas.textoFinal,
         fecha: esquema.sesiones.fecha,
         tipo: esquema.sesiones.tipo,
         estructura: esquema.sesiones.estructura,
@@ -133,6 +140,17 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
       .innerJoin(esquema.sesiones, eq(esquema.minutas.sesionId, esquema.sesiones.id))
       .where(eq(esquema.sesiones.salaSlug, slug))
       .orderBy(desc(esquema.sesiones.fecha)),
+    // El contenido de los items, para saber cuánto lleva escrito la sesión
+    // que se está preparando. Con join, no una consulta por sesión: son diez
+    // salas × N sesiones y el hub las pide todas a la vez.
+    conexion
+      .select({
+        sesionId: esquema.items.sesionId,
+        contenidoCrudo: esquema.items.contenidoCrudo,
+      })
+      .from(esquema.items)
+      .innerJoin(esquema.sesiones, eq(esquema.items.sesionId, esquema.sesiones.id))
+      .where(eq(esquema.sesiones.salaSlug, slug)),
   ])
 
   const sesiones = sesionesRows as FilaSesion[]
@@ -142,6 +160,16 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     .filter((s) => s.fecha.getTime() > ahora.getTime())
     .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
   const enPreparacionRows = sesiones.filter((s) => estaEnPreparacion(s.estado))
+  // La que se está preparando: la más próxima, no la primera que devuelva la
+  // base. Con dos abiertas a la vez, la que importa es la que toca antes.
+  const enPreparacion = [...enPreparacionRows].sort(
+    (a, b) => a.fecha.getTime() - b.fecha.getTime(),
+  )[0]
+  const itemsDeEsa = enPreparacion
+    ? itemsRows.filter((i) => i.sesionId === enPreparacion.id)
+    : []
+  const total = itemsDeEsa.length
+  const llenados = itemsDeEsa.filter((i) => esLlenado(i.contenidoCrudo as ContenidoItemCrudo)).length
 
   const ultima = yaSucedidas[0] // ya viene ordenada desc por fecha
   const proxima = futuras[0]
@@ -150,6 +178,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     fecha: isoFecha(s.fecha),
     titulo: tituloDeSesion(s),
     tipo: s.tipo,
+    sesionId: s.id,
   }))
 
   const minutas: Minuta[] = minutasRows.map((m) => ({
@@ -157,6 +186,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     titulo: tituloDeSesion(m),
     enviadaA: Array.isArray(m.enviadaA) ? m.enviadaA.length : 0,
     sesionId: m.sesionId,
+    texto: m.textoFinal ?? undefined,
   }))
 
   // 'cancelado' no existe en el tipo EstatusAcuerdo del shell (solo
@@ -172,6 +202,10 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
       fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
       estatus: a.estatus as fallback.EstatusAcuerdo,
     }))
+    // `vencido` se deriva de la fecha, no se lee de la base: ver
+    // `estatusVigente`. Sin esto un compromiso de hace dos semanas seguía
+    // contando como abierto.
+    .map((a) => ({ ...a, estatus: fallback.estatusVigente(a, isoFecha(ahora)) }))
 
   return {
     slug,
@@ -181,7 +215,10 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     ultimaSesion: ultima ? isoFecha(ultima.fecha) : null,
     proximaSesion: proxima ? isoFecha(proxima.fecha) : null,
     enPreparacion: enPreparacionRows.length > 0,
-    avancePreparacion: enPreparacionRows.length > 0 ? avancePorEstado(enPreparacionRows[0].estado) : undefined,
+    avancePreparacion: enPreparacion ? avanceDeItems(enPreparacion.estado, llenados, total) : undefined,
+    sesionEnPreparacionId: enPreparacion?.id,
+    seccionesEscritas: enPreparacion ? llenados : undefined,
+    seccionesTotales: enPreparacion ? total : undefined,
     acuerdos,
     presentaciones,
     minutas,
@@ -212,30 +249,22 @@ function construirPulso(salas: EstadoSala[]): PulsoDelMes {
   const sesionesUltimos30 = salas.filter((s) => s.diasDesdeUltima != null && s.diasDesdeUltima <= 30).length
   const abiertos = salas.reduce((n, s) => n + fallback.acuerdosAbiertos(s), 0)
   const vencidos = salas.reduce((n, s) => n + fallback.acuerdosVencidos(s), 0)
-  const desatendida = salas
-    .filter((s) => s.diasDesdeUltima != null)
-    .sort((a, b) => (b.diasDesdeUltima ?? 0) - (a.diasDesdeUltima ?? 0))[0]
   return {
     salas: salas.length,
     sesionesUltimos30,
     acuerdosAbiertos: abiertos,
     acuerdosVencidos: vencidos,
-    salaMasDesatendida:
-      desatendida?.diasDesdeUltima != null
-        ? { nombre: desatendida.nombre, dias: desatendida.diasDesdeUltima }
-        : null,
+    salaMasDesatendida: fallback.salaMasDesatendida(salas),
   }
 }
 
-// ---- Modo sin DB: acuerdos vivos desde el store en memoria ----
+// ---- Modo sin DB: todo sale del store en memoria ----
 //
-// fallback.estadoDeSala() siempre devuelve el mismo Acuerdo[] estático (los
-// datos de ejemplo): sin esto, mover un estatus o editar una fecha desde la
-// vista de sala (src/db/acuerdos.ts, sin DATABASE_URL) nunca se reflejaría en
-// pantalla. Se siembra el store en memoria con los acuerdos de ejemplo de esa
-// sala la primera vez que se consulta (una sola vez, ver
-// store-memoria.acuerdosDeSalaYaSembrados) y desde ahí se lee — y escribe —
-// siempre del store, igual que src/db/sesiones.ts hace con sesiones/items.
+// El store arranca VACÍO y solo tiene lo que se haya creado en la app durante
+// esta ejecución del proceso. Antes se sembraba con acuerdos de ejemplo para
+// que la vista de sala tuviera algo sobre lo que operar en dev; eso significaba
+// que la app enseñaba contenido que nadie había escrito. Una sala sin actividad
+// se ve vacía, que es la verdad.
 
 function acuerdoDeFilaMemoria(a: memoria.FilaAcuerdoMemoria): Acuerdo {
   return {
@@ -248,29 +277,8 @@ function acuerdoDeFilaMemoria(a: memoria.FilaAcuerdoMemoria): Acuerdo {
   }
 }
 
-/** Acuerdos vivos de una sala en modo memoria: siembra una vez, lee siempre del store. */
-function acuerdosVivosMemoria(salaSlug: string, semillasFallback: Acuerdo[]): Acuerdo[] {
-  if (!memoria.acuerdosDeSalaYaSembrados(salaSlug)) {
-    const ahora = new Date()
-    memoria.sembrarAcuerdosDeSalaMemoria(
-      salaSlug,
-      semillasFallback.map((a) => ({
-        id: a.id,
-        salaSlug,
-        que: a.que,
-        responsable: a.responsable,
-        squad: a.squad,
-        prioridad: undefined,
-        fechaCompromiso: a.fechaCompromiso ? new Date(a.fechaCompromiso) : null,
-        estatus: a.estatus,
-        sesionOrigenId: null,
-        historia: [],
-        createdAt: ahora,
-        updatedAt: ahora,
-      })),
-    )
-  }
-  // 'cancelado' deja de mostrarse — mismo criterio que el camino con DB (arriba).
+/** Acuerdos vivos de una sala en modo memoria. 'cancelado' deja de mostrarse, igual que con DB. */
+function acuerdosVivosMemoria(salaSlug: string): Acuerdo[] {
   return memoria
     .listarAcuerdosDeSalaMemoria(salaSlug)
     .filter((a) => a.estatus !== 'cancelado')
@@ -278,18 +286,16 @@ function acuerdosVivosMemoria(salaSlug: string, semillasFallback: Acuerdo[]): Ac
 }
 
 async function estadoDeSalasMemoria(): Promise<EstadoSala[]> {
-  return fallback
-    .estadoDeSalas()
-    .map((s) => ({ ...s, acuerdos: acuerdosVivosMemoria(s.slug, s.acuerdos) }))
+  return fallback.estadoDeSalas().map((s) => ({ ...s, acuerdos: acuerdosVivosMemoria(s.slug) }))
 }
 
 async function estadoDeSalaMemoria(slug: string): Promise<EstadoSala | undefined> {
   const base = fallback.estadoDeSala(slug)
   if (!base) return base
-  return { ...base, acuerdos: acuerdosVivosMemoria(slug, base.acuerdos) }
+  return { ...base, acuerdos: acuerdosVivosMemoria(slug) }
 }
 
-// ---- API pública — misma firma que datos-ejemplo.ts, ahora async ----
+// ---- API pública — misma firma que dominio/salas.ts, ahora async ----
 
 export async function estadoDeSalas(): Promise<EstadoSala[]> {
   if (!hayDB()) return estadoDeSalasMemoria()

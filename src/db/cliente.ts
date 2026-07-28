@@ -3,7 +3,7 @@
  * funciones serverless de Vercel). NO se conecta ni lanza al importar este
  * módulo si falta DATABASE_URL: solo al llamar a db() sin ella configurada.
  * Mientras Franco no dé el DATABASE_URL, toda la app debe usar hayDB() para
- * decidir si consulta Postgres o cae al fallback de src/datos-ejemplo.ts.
+ * decidir si consulta Postgres o cae al fallback de src/dominio/salas.ts.
  */
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'

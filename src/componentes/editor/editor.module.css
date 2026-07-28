@@ -1,0 +1,821 @@
+/* El editor de una sección. Consume los tokens de la página de preparación
+   (--sala, --tx, --linea…), no publica ninguno propio: el editor vive dentro
+   del flujo de preparación y tiene que verse parte de él. */
+
+.editor {
+  display: grid;
+  gap: 1rem;
+}
+
+/* ---- campos ---- */
+
+.campo,
+.campoAncho,
+.campoChico,
+.campoMinimo {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.campoAncho { flex: 3 1 12rem; }
+.campoChico { flex: 1 1 7rem; }
+.campoMinimo { flex: 0 1 4.5rem; }
+
+.campo > span,
+.campoAncho > span,
+.campoChico > span,
+.campoMinimo > span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+/* `:where()` deja esta regla en especificidad de una sola clase, para que la
+   rejilla pueda redefinir sus celdas sin pelear. Sin esto, `.editor
+   input:not([type])` (0,2,1) le ganaba a `.rejilla input` (0,1,1) y las celdas
+   salían con esquinas redondeadas y muescas de luz entre ellas. */
+.editor :where(input[type='text'], input:not([type]), select, textarea) {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 18%, transparent);
+  border-radius: 0.5rem;
+  background: var(--superficie, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.editor textarea {
+  resize: vertical;
+  /* Monoespaciada a propósito: aquí se pegan rejillas y se cuenta la sangría.
+     Con una proporcional, dos espacios no se ven como dos espacios. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+.editor :where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--sala, currentColor);
+  outline-offset: 1px;
+}
+
+.filaCampos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: flex-end;
+}
+
+.filaOpciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+}
+
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.casilla input {
+  width: auto;
+  accent-color: var(--sala, currentColor);
+}
+
+.pista {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  font-style: normal;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+.paraQue {
+  flex: 2 1 14rem;
+  align-self: center;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: color-mix(in oklch, var(--tx, #222) 60%, transparent);
+}
+
+.subtituloCampo {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+/* ---- grupos ---- */
+
+.grupo {
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 13%, transparent);
+  border-radius: 0.6rem;
+  padding: 0.9rem 1rem 1rem;
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.grupoTitulo {
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sala, inherit);
+}
+
+.bloqueCampo {
+  display: grid;
+  gap: 0.8rem;
+}
+
+/* ---- listas repetibles ---- */
+
+.repetible {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.repetibleItem {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border-radius: 0.5rem;
+  background: color-mix(in oklch, var(--tx, #222) 4%, transparent);
+}
+
+.repetibleCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.repetibleIndice {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}
+
+.repetibleAcciones {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.botonIcono {
+  width: 1.7rem;
+  height: 1.7rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 18%, transparent);
+  border-radius: 0.4rem;
+  background: var(--superficie, #fff);
+  color: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.botonIcono:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.botonIcono:not(:disabled):hover {
+  border-color: var(--sala, currentColor);
+}
+
+.botonAnadir {
+  justify-self: start;
+  padding: 0.45rem 0.8rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 28%, transparent);
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.botonAnadir:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+}
+
+.serieNombre {
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding-bottom: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.series {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.3rem;
+}
+
+/* ---- guardar ---- */
+
+.barraGuardar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid color-mix(in oklch, var(--tx, #222) 10%, transparent);
+}
+
+.aviso {
+  font-size: 0.82rem;
+  color: var(--alerta, oklch(0.57 0.2 25));
+}
+
+.listo {
+  font-size: 0.82rem;
+  color: var(--ok, oklch(0.6 0.12 155));
+}
+
+.botonGuardar {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--sala, #333);
+  color: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonGuardar:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---- asistente de IA ---- */
+
+.asistenteAbrir {
+  justify-self: start;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 60%, transparent);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.asistente {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 22%, transparent);
+  border-radius: 0.6rem;
+}
+
+.asistenteCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---- añadir sección ---- */
+
+.botonAnadirSeccion {
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 28%, transparent);
+  border-radius: 0.7rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.botonAnadirSeccion:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+}
+
+.menuSecciones {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 15%, transparent);
+  border-radius: 0.7rem;
+}
+
+.opcionesSeccion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.5rem;
+}
+
+.opcionSeccion {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 13%, transparent);
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcionSeccion:hover:not(:disabled) {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--tx, #222) 4%, transparent);
+}
+
+.opcionSeccion:disabled { opacity: 0.5; cursor: default; }
+
+.opcionNombre {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.opcionParaQue {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: color-mix(in oklch, var(--tx, #222) 58%, transparent);
+}
+
+.confirmar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.botonPeligro {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--alerta, oklch(0.57 0.2 25));
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--alerta, oklch(0.57 0.2 25));
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonPeligro:disabled { opacity: 0.5; cursor: default; }
+
+/* Añadir subsección: más discreto que añadir un bloque — es una acción de
+   dentro, no de la estructura de la reunión. */
+.botonAnadirSub {
+  justify-self: start;
+  padding: 0.5rem 0.9rem;
+  border: 1px dashed color-mix(in oklch, var(--tx, #222) 25%, transparent);
+  border-radius: 0.55rem;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 70%, transparent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.botonAnadirSub:hover {
+  border-color: var(--sala, currentColor);
+  border-style: solid;
+  color: inherit;
+}
+
+/* ---- plegar y desplegar una sección ---- */
+
+.cabeceraPlegable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.disparador {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border: none;
+  background: none;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.disparador:hover { color: inherit; }
+
+.disparador:focus-visible {
+  outline: 2px solid var(--sala, currentColor);
+  outline-offset: 2px;
+  border-radius: 0.3rem;
+}
+
+.flecha {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.flecha[data-abierta='true'] { transform: rotate(90deg); }
+
+.disparadorTexto { text-decoration: underline; text-underline-offset: 0.18em; }
+
+/* Qué hay dentro sin tener que abrir. */
+.resumen {
+  font-size: 0.78rem;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flecha { transition: none; }
+}
+
+/* ---- pasos guiados (gráfico, matriz) ---- */
+
+/* Cada paso es un bloque con su número: el orden no es decorativo, es el
+   orden en que se puede decidir. No se puede elegir el tipo de gráfico sin
+   haber visto los datos. */
+.paso {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid color-mix(in oklch, var(--tx, #222) 10%, transparent);
+}
+
+.paso:first-of-type { border-top: none; padding-top: 0; }
+
+.pasoTitulo {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sala, inherit);
+}
+
+/* ---- elegir escalas ---- */
+
+.opcionesEje {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.6rem;
+}
+
+.radio {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 14%, transparent);
+  border-radius: 0.55rem;
+  cursor: pointer;
+}
+
+.radio:has(input:checked) {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--sala, #888) 6%, transparent);
+}
+
+.radio input { width: auto; margin-top: 0.2rem; accent-color: var(--sala, currentColor); }
+.radio span { display: grid; gap: 0.15rem; }
+.radio strong { font-size: 0.88rem; font-weight: 600; }
+.radio em {
+  font-style: normal;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: color-mix(in oklch, var(--tx, #222) 58%, transparent);
+}
+
+.asignacionEjes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+/* ---- elegir tipo de gráfico ---- */
+
+.tiposGrafico {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.tipoGrafico {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.5rem;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 14%, transparent);
+  border-radius: 0.55rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.tipoGrafico:hover { border-color: color-mix(in oklch, var(--sala, #888) 60%, transparent); }
+
+.tipoGrafico[data-elegido='true'] {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--sala, #888) 10%, transparent);
+}
+
+.tipoIcono {
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--sala, inherit);
+}
+
+.tipoNombre {
+  font-size: 0.76rem;
+  line-height: 1.25;
+  text-align: center;
+}
+
+/* Lo fino, plegado: se abre solo quien lo necesita. */
+.detalles > summary {
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+  padding: 0.3rem 0;
+}
+
+.detalles > summary:hover { color: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tipoGrafico { transition: none; }
+}
+
+/* ---- título con la pinta que va a tener ---- */
+
+/* Escribir el titular en una caja gris de 14px y descubrir después cómo queda
+   es el viaje que hace lento cualquier editor. Aquí se escribe grande y con la
+   tipografía de display, como se va a leer. */
+.campoTitular {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.campoTitular > span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+.campoTitular input {
+  padding: 0.5rem 0.7rem;
+  font-family: var(--f-outfit), var(--fuente-display), system-ui, sans-serif;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.campoTitular input::placeholder {
+  font-weight: 400;
+  letter-spacing: 0;
+  color: color-mix(in oklch, var(--tx, #222) 32%, transparent);
+}
+
+.entradaSubtitulo {
+  font-size: 1rem !important;
+  color: color-mix(in oklch, var(--tx, #222) 78%, transparent);
+}
+
+/* ---- estado de guardado ---- */
+
+.estadoGuardado {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}
+
+/* Lo que falta en una sección que nadie ha tocado todavía: información, no
+   alarma. El rojo se reserva para cuando ya se empezó. */
+.porEmpezar {
+  font-size: 0.82rem;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
+}
+
+/* ---- vista previa junto al formulario ----
+   El problema nº1 de la auditoría: se llenaban catorce secciones a ciegas y
+   el resultado se veía al final, de golpe, cuando corregir significa volver a
+   entrar en cada una. Aquí el bucle se cierra en el sitio.
+
+   Por debajo de 78rem se apila: en un portátil, dos columnas dejarían el
+   formulario en 300px y eso es peor que no tener vista previa. */
+.conPrevia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (min-width: 78rem) {
+  .conPrevia { grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr); }
+}
+
+.previa {
+  position: sticky;
+  top: 5rem;
+  border: 1px solid var(--linea, #e5e5e5);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--superficie-2, #fafafa);
+}
+
+.previaBarra {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--linea, #e5e5e5);
+}
+.previaTitulo {
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;
+  color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}
+.previaBoton {
+  font: inherit; font-size: 0.78rem;
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 60%, transparent);
+}
+.previaBoton:hover { color: var(--tx, #222); }
+
+/* El documento se dibuja a tamaño real y se REDUCE con zoom, en vez de
+   maquetarse con tipos más pequeños: así lo que se ve es proporcionalmente lo
+   que se va a presentar, no una versión distinta que casualmente se parece. */
+.previaLienzo {
+  padding: 0.5rem;
+  max-height: 32rem;
+  overflow: auto;
+  zoom: 0.62;
+}
+
+.previaAviso {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--alerta, #b23);
+  background: color-mix(in oklch, var(--alerta, #b23) 8%, transparent);
+}
+
+/* ---- cambio de tipo de sección ---- */
+.avisoCambioTipo {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: color-mix(in oklch, var(--tx, #222) 78%, transparent);
+  background: color-mix(in oklch, var(--tibia, #c80) 12%, transparent);
+}
+.deshacerCambio {
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--sala, #333); text-decoration: underline;
+}
+
+/* ---- selector visual de tipo de sección ----
+   Antes era un <select> con trece nombres: "Meta contra real" no dice qué
+   forma tiene la página, y averiguarlo obligaba a elegir y mirar, trece
+   veces. */
+.selectorTipo { position: relative; }
+
+.selectorBoton {
+  display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left;
+  font: inherit; color: var(--tx, #222);
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--linea, #ddd); border-radius: 0.55rem;
+  background: var(--superficie, #fff); cursor: pointer;
+  transition: border-color 140ms ease;
+}
+.selectorBoton:hover { border-color: var(--sala, #888); }
+.selectorTexto { display: grid; gap: 0.1rem; min-width: 0; flex: 1; }
+.selectorNombre { font-size: 0.92rem; font-weight: 600; }
+.selectorParaQue {
+  font-size: 0.78rem; color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.selectorFlecha { color: color-mix(in oklch, var(--tx, #222) 45%, transparent); flex: none; }
+
+.selectorPanel {
+  /* Más ancho que el botón que lo abre: encerrado en su ancho, las trece
+     descripciones se rompían en cinco líneas cada una y el panel se volvía
+     una columna de texto donde había que buscar el dibujo. */
+  position: absolute; z-index: 20; left: 0; top: calc(100% + 0.35rem);
+  width: max(100%, 40rem); max-width: 90vw;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.4rem; padding: 0.5rem;
+  max-height: 26rem; overflow-y: auto;
+  border: 1px solid var(--linea, #ddd); border-radius: 0.65rem;
+  background: var(--superficie, #fff);
+  box-shadow: 0 12px 32px oklch(0.26 0.025 55 / 0.16);
+}
+
+.selectorOpcion {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+  column-gap: 0.6rem; row-gap: 0.15rem; align-items: center; text-align: left;
+  font: inherit; color: var(--tx, #222);
+  padding: 0.5rem; border: 1px solid transparent; border-radius: 0.5rem;
+  background: none; cursor: pointer;
+}
+.selectorOpcion:hover { background: var(--superficie-2, #f6f6f6); }
+.selectorOpcion[data-elegido='true'] {
+  border-color: var(--sala, #888);
+  background: color-mix(in oklch, var(--sala, #888) 7%, transparent);
+}
+.selectorOpcion .miniatura { grid-row: 1 / span 2; }
+.selectorOpcionNombre { font-size: 0.86rem; font-weight: 600; }
+.selectorOpcionParaQue {
+  font-size: 0.74rem; line-height: 1.35;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+/* La miniatura es un ESQUEMA, no una captura: lo que importa es la
+   disposición —dónde va el título, si hay columnas, si hay tabla— que es
+   justo lo que el tipo decide y no cambia con el contenido. */
+.miniatura {
+  width: 3.4rem; height: 2.27rem; flex: none;
+  border-radius: 0.25rem; display: block;
+  color: var(--tx, #222);
+}
+.miniaturaFondo { fill: color-mix(in oklch, var(--tx, #222) 5%, transparent); }
+
+.etiquetaCampo {
+  font-size: 0.78rem; font-weight: 600;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+}
+
+/* El icono de cada tipo de gráfico. Antes eran caracteres Unicode (▊ ≋ ◣ ◕):
+   no comunican —◣ no se parece a un área— y su cobertura depende de la fuente
+   del sistema, así que en una máquina sin el glifo salía un rectángulo. */
+.iconoGrafico {
+  width: 1.6rem; height: 1.47rem; display: block; flex: none;
+  color: var(--tx, #222);
+}
+
+/* El campo que impide presentar la sección. Se marca en el sitio, no solo en
+   el aviso del final: "Falta la tabla" obligaba a adivinar cuál de los campos
+   era "la tabla". */
+.campoQueFalta {
+  border-left: 3px solid var(--alerta, #b23);
+  padding-left: 0.7rem;
+  margin-left: -0.7rem;
+  scroll-margin-top: 5rem;
+}
+.enlaceAlCampo { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---- campo de imagen ----
+   Se sube desde el disco. Pedir una URL era pedirle a alguien que subiera el
+   archivo a otro sitio y volviera con el enlace — y si ese enlace era de
+   Drive, la imagen no se veía. */
+.entradaArchivo { font: inherit; font-size: 0.85rem; color: var(--tx-2, #555); max-width: 100%; }
+.entradaArchivo:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.imagenPuesta {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.6rem; border-radius: var(--r-3, 14px);
+  background: var(--superficie-2, #f6f6f6);
+}
+.imagenMiniatura {
+  width: 5.5rem; height: 3.6rem; object-fit: cover; flex: none;
+  border-radius: var(--r-2, 10px); background: var(--papel, #fff);
+}
+.imagenAcciones { display: grid; gap: 0.3rem; min-width: 0; }
+.imagenRuta {
+  font-size: 0.72rem; color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.quitarImagen {
+  font: inherit; font-size: 0.8rem; font-weight: 600; justify-self: start;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--alerta, #b23);
+}
+.errorImagen { font-size: 0.82rem; color: var(--alerta, #b23); margin: 0; }
+.enlacePlegado {
+  font: inherit; font-size: 0.78rem; justify-self: start;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.enlacePlegado:hover { color: var(--tx, #222); }

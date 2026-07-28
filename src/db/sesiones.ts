@@ -17,7 +17,14 @@ import * as memoria from './store-memoria'
 import { esPermutacionValida } from './orden'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import type { EntradaCruda } from '@/motor/inventario'
+import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
+import type { DecisionSlide } from '@/decision/esquema'
+import {
+  obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
+} from '@/secciones/plantillas'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
+
+export type { DefinicionItem } from '@/secciones/plantillas'
 
 export type TipoSesion = 'semanal' | 'mensual'
 // Mismo conjunto que el enum de la base (ver src/db/esquema.ts): 'agendada'
@@ -32,16 +39,19 @@ export interface CifraCruda {
 
 /** Lo que el equipo pegó/cargó para un item — capa "contenido cargado" del spec §4. */
 export interface ContenidoItemCrudo {
+  /**
+   * La sección compuesta a mano en el editor. Es el camino PRINCIPAL: cuando
+   * está, el maquetado la usa tal cual y no llama a la IA.
+   */
+  seccion?: BorradorSeccion
+  /** Material crudo del camino asistido: se pega texto y se pide una propuesta. */
   texto?: string
   cifras?: CifraCruda[]
+  /** Rejillas pegadas (una por bloque). Filas × columnas, ya separadas. */
+  tablas?: string[][][]
+  /** Rutas o URLs de imágenes que acompañan al item. */
+  imagenes?: string[]
   nota?: string
-}
-
-/** Una entrada de la estructura precargada: qué item, con qué pregunta guía. */
-export interface DefinicionItem {
-  tipo: string
-  titulo: string
-  pregunta: string
 }
 
 export interface ItemSesion {
@@ -52,19 +62,33 @@ export interface ItemSesion {
   pregunta: string
   contenido: ContenidoItemCrudo
   llenado: boolean
+  /** `tipo` de la sección base que la contiene. Ausente = es una sección base. */
+  padre?: string
+  /** Una de las ocho secciones base: se puede editar y reordenar, no borrar. */
+  esBase: boolean
   /** Lo que resolvió el motor (etapa 2) para este item. Nulo hasta maquetar. */
   resultado: ResultadoMaquetacion | null
 }
 
 export interface SesionResumen {
   id: string
-  salaSlug: string
+  /** Nulo en una reunión que no pertenece a ninguna sala. */
+  salaSlug: string | null
+  /** El nombre de la sala, o "Marketing Corp" si la reunión no es de ninguna. */
   salaNombre: string
   salaColor: string
+  /** Con qué plantilla nació. Decide qué secciones no se pueden borrar. */
+  plantilla: string
   tipo: TipoSesion
   alcance: string
   estado: EstadoSesion
   fecha: string // ISO
+  /** Cómo se llama la sesión. Vive en la estructura congelada; es editable. */
+  titulo: string
+  /** Quién va. Vacío mientras nadie lo haya dicho. */
+  participantes: string[]
+  /** Dónde se da: sala física, link, "por definir". */
+  lugar: string | null
   totalItems: number
   itemsLlenados: number
 }
@@ -74,32 +98,13 @@ export interface SesionCompleta extends SesionResumen {
 }
 
 /**
- * Estructura precargada por defecto (spec §6, "Paso 1"): los items típicos
- * de un estatus mensual/semanal. `tipo` es el identificador estable que
- * sobrevive a un reordenamiento (el `orden` de cada item sí puede cambiar).
+ * Las ocho secciones del estatus de una UDN.
+ *
+ * Se reexporta desde `plantillas.ts`, que es donde vive ahora: dejaron de ser
+ * una ley del dominio y pasaron a ser UNA plantilla entre varias cuando la
+ * herramienta dejó de servir solo para el estatus de las UDNs.
  */
-export const ESTRUCTURA_POR_DEFECTO: DefinicionItem[] = [
-  {
-    tipo: 'portada',
-    titulo: 'Portada',
-    pregunta: 'Título del estatus y el periodo que cubre. Puedes agregar contexto breve (un subtítulo, el objetivo de la sesión).',
-  },
-  {
-    tipo: 'performance-sitio',
-    titulo: 'Performance del sitio web',
-    pregunta: 'Pega las cifras de tráfico/SEO (una por línea: valor | rótulo | delta) y describe los hallazgos y acciones principales.',
-  },
-  {
-    tipo: 'pipeline-demanda',
-    titulo: 'Pipeline y demanda',
-    pregunta: 'Pega las cifras de pipeline/demanda (una por línea: valor | rótulo | delta) y el análisis o narrativa asociada.',
-  },
-  {
-    tipo: 'acuerdos-proximos-pasos',
-    titulo: 'Acuerdos y próximos pasos',
-    pregunta: 'Lista los acuerdos vigentes y los próximos pasos acordados, con responsable si aplica.',
-  },
-]
+export const ESTRUCTURA_POR_DEFECTO = obtenerPlantilla('estatus-udn').items
 
 interface EstructuraSesion {
   titulo: string
@@ -114,25 +119,52 @@ function leerEstructura(bruta: unknown): EstructuraSesion {
   }
 }
 
+/**
+ * Con qué se viste una reunión.
+ *
+ * Una que no pertenece a ninguna sala —un comité, un arranque de campaña—
+ * lleva la identidad de Marketing Corp: es de quien la convoca. Antes esto
+ * no existía porque `salaSlug` era obligatorio.
+ */
+const MARKETING_CORP = { nombre: 'Marketing Corp', primario: '#E34714' }
+
+function identidadDe(salaSlug: string | null): { nombre: string; color: string } {
+  if (!salaSlug) return { nombre: MARKETING_CORP.nombre, color: MARKETING_CORP.primario }
+  const tema = obtenerTema(salaSlug)
+  return { nombre: tema.nombre, color: tema.primario }
+}
+
 function tituloPorDefecto(tipo: TipoSesion, fecha: Date): string {
   const mes = fecha.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })
   const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1)
   return `Estatus ${tipo} · ${mesCap}`
 }
 
-function esLlenado(c: ContenidoItemCrudo | undefined | null): boolean {
+/** Si un item tiene algo escrito. Lo usa también el hub, para el avance real. */
+export function esLlenado(c: ContenidoItemCrudo | undefined | null): boolean {
   if (!c) return false
-  return Boolean((c.texto && c.texto.trim().length > 0) || (c.cifras && c.cifras.length > 0))
+  // Una tabla o una imagen sola SÍ es un item llenado: la comparativa Mayo|Junio
+  // del deck real es exactamente eso, una tabla sin una línea de texto al lado.
+  return Boolean(
+    borradorTieneContenido(c.seccion) ||
+      (c.texto && c.texto.trim().length > 0) ||
+      (c.cifras && c.cifras.length > 0) ||
+      (c.tablas && c.tablas.length > 0) ||
+      (c.imagenes && c.imagenes.length > 0),
+  )
 }
 
 interface FilaSesionComun {
   id: string
-  salaSlug: string
+  salaSlug: string | null
+  plantilla?: string | null
   fecha: Date
   tipo: TipoSesion
   alcance: string
   estado: EstadoSesion
   estructura: unknown
+  participantes?: string[] | null
+  lugar?: string | null
 }
 
 interface FilaItemComun {
@@ -144,7 +176,8 @@ interface FilaItemComun {
 }
 
 function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]): SesionCompleta {
-  const tema = obtenerTema(fila.salaSlug)
+  const identidad = identidadDe(fila.salaSlug)
+  const fijos = tiposFijosDe(fila.plantilla)
   const estructura = leerEstructura(fila.estructura)
   // Por `tipo`, no por índice: el `orden` de un item cambia al reordenar,
   // pero su `tipo` (identidad de qué pregunta es) no.
@@ -160,10 +193,15 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
         id: row.id,
         orden: row.orden,
         tipo: row.tipo,
-        titulo: def.titulo,
+        // El título que escribió el equipo manda sobre el nombre de plantilla:
+        // en la lista de secciones se quiere leer "Performance · Sitio web",
+        // no "Sección 4".
+        titulo: contenido.seccion?.titulo?.trim() || def.titulo,
         pregunta: def.pregunta,
         contenido,
         llenado: esLlenado(contenido),
+        padre: def.padre,
+        esBase: fijos.has(row.tipo),
         resultado: (row.decisionMaquetacion as ResultadoMaquetacion | null) ?? null,
       }
     })
@@ -171,12 +209,16 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
-    salaNombre: tema.nombre,
-    salaColor: tema.primario,
+    salaNombre: identidad.nombre,
+    salaColor: identidad.color,
+    plantilla: fila.plantilla ?? PLANTILLA_POR_DEFECTO,
     tipo: fila.tipo,
     alcance: fila.alcance,
     estado: fila.estado,
     fecha: fila.fecha.toISOString(),
+    titulo: estructura.titulo || tituloPorDefecto(fila.tipo, fila.fecha),
+    participantes: fila.participantes ?? [],
+    lugar: fila.lugar ?? null,
     totalItems: items.length,
     itemsLlenados: items.filter((i) => i.llenado).length,
     items,
@@ -184,16 +226,20 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
 }
 
 function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]): SesionResumen {
-  const tema = obtenerTema(fila.salaSlug)
+  const identidad = identidadDe(fila.salaSlug)
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
-    salaNombre: tema.nombre,
-    salaColor: tema.primario,
+    salaNombre: identidad.nombre,
+    salaColor: identidad.color,
+    plantilla: fila.plantilla ?? PLANTILLA_POR_DEFECTO,
     tipo: fila.tipo,
     alcance: fila.alcance,
     estado: fila.estado,
     fecha: fila.fecha.toISOString(),
+    titulo: leerEstructura(fila.estructura).titulo || tituloPorDefecto(fila.tipo, fila.fecha),
+    participantes: fila.participantes ?? [],
+    lugar: fila.lugar ?? null,
     totalItems: contenidos.length,
     itemsLlenados: contenidos.filter(esLlenado).length,
   }
@@ -207,40 +253,54 @@ function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]):
  * precargada; `crearSesion` queda disponible por si en el futuro se crea una
  * sesión a partir de una estructura elegida por el usuario (fase posterior).
  */
-export async function crearSesion(datos: {
-  salaSlug: string
+export interface DatosDeSesion {
+  /** Nulo para una reunión que no pertenece a ninguna sala. */
+  salaSlug: string | null
+  /** Con qué plantilla nace. Por defecto, el estatus de UDN. */
+  plantilla?: string
   tipo: TipoSesion
   alcance: string
-}): Promise<{ id: string }> {
-  if (!slugsDeSalas().includes(datos.salaSlug)) {
+  /** Cuándo es. Por defecto, ahora — el flujo viejo de "Nueva sesión". */
+  fecha?: Date
+  /** Cómo se llama. Por defecto, "Estatus mensual · Julio de 2026". */
+  titulo?: string
+  participantes?: string[]
+  lugar?: string | null
+  /**
+   * `agendada` es una fecha en el calendario que nadie ha empezado a llenar;
+   * `borrador` es trabajo en curso. El hub los distingue.
+   */
+  estado?: Extract<EstadoSesion, 'agendada' | 'borrador'>
+}
+
+export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }> {
+  if (datos.salaSlug && !slugsDeSalas().includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   const id = crypto.randomUUID()
   const ahora = new Date()
-  const estructura: EstructuraSesion = { titulo: tituloPorDefecto(datos.tipo, ahora), items: [] }
+  const fecha = datos.fecha ?? ahora
+  const estructura: EstructuraSesion = {
+    titulo: datos.titulo?.trim() || tituloPorDefecto(datos.tipo, fecha),
+    items: [],
+  }
+  const comun = {
+    id,
+    salaSlug: datos.salaSlug,
+    plantilla: datos.plantilla ?? PLANTILLA_POR_DEFECTO,
+    fecha,
+    tipo: datos.tipo,
+    alcance: datos.alcance,
+    estado: datos.estado ?? ('borrador' as const),
+    estructura,
+    participantes: datos.participantes ?? [],
+    lugar: datos.lugar ?? null,
+  }
 
   if (hayDB()) {
-    await db().insert(esquema.sesiones).values({
-      id,
-      salaSlug: datos.salaSlug,
-      fecha: ahora,
-      tipo: datos.tipo,
-      alcance: datos.alcance,
-      estado: 'borrador',
-      estructura,
-    })
+    await db().insert(esquema.sesiones).values(comun)
   } else {
-    memoria.insertarSesionMemoria({
-      id,
-      salaSlug: datos.salaSlug,
-      fecha: ahora,
-      tipo: datos.tipo,
-      alcance: datos.alcance,
-      estado: 'borrador',
-      estructura,
-      createdAt: ahora,
-      updatedAt: ahora,
-    })
+    memoria.insertarSesionMemoria({ ...comun, createdAt: ahora, updatedAt: ahora })
   }
   return { id }
 }
@@ -250,24 +310,28 @@ export async function crearSesion(datos: {
  * §6): es lo que usa el flujo "Nueva sesión". Cada item nace con
  * `contenidoCrudo: {}` (sin llenar).
  */
-export async function crearSesionConEstructura(datos: {
-  salaSlug: string
-  tipo: TipoSesion
-  alcance: string
-}): Promise<{ id: string }> {
+export async function crearSesionConEstructura(datos: DatosDeSesion): Promise<{ id: string }> {
   const { id } = await crearSesion(datos)
   const ahora = new Date()
+  // Las secciones con las que nace salen de LA PLANTILLA, no de una constante:
+  // un comité no arranca con los ocho bloques del estatus de una UDN.
+  const plantilla = obtenerPlantilla(datos.plantilla)
   const estructura: EstructuraSesion = {
-    titulo: tituloPorDefecto(datos.tipo, ahora),
-    items: ESTRUCTURA_POR_DEFECTO,
+    titulo: datos.titulo?.trim() || tituloPorDefecto(datos.tipo, datos.fecha ?? ahora),
+    items: plantilla.items,
   }
 
-  const filasBase = ESTRUCTURA_POR_DEFECTO.map((d, i) => ({
+  const filasBase = plantilla.items.map((d, i) => ({
     id: crypto.randomUUID(),
     sesionId: id,
     orden: i,
     tipo: d.tipo,
-    contenidoCrudo: {} as ContenidoItemCrudo,
+    // Nace solo con su tipo de sección elegido. El TÍTULO no se siembra: si
+    // lo hiciera, la sección contaría como escrita y una sesión recién creada
+    // diría "8/8 listas" sin que nadie haya tocado nada. El nombre de la
+    // sección ("RevOps") actúa como título de respaldo al maquetar — ver
+    // `aDecision` en src/secciones/borrador.ts.
+    contenidoCrudo: { seccion: { layout: d.layout } } as ContenidoItemCrudo,
     decisionMaquetacion: null as unknown,
   }))
 
@@ -332,12 +396,212 @@ export async function guardarItemContenido(
 ): Promise<void> {
   if (!hayDB()) {
     memoria.actualizarContenidoItemMemoria(itemId, contenidoCrudo)
+    await empezarAPrepararse(sesionId)
     return
   }
   await db()
     .update(esquema.items)
     .set({ contenidoCrudo, updatedAt: new Date() })
     .where(and(eq(esquema.items.id, itemId), eq(esquema.items.sesionId, sesionId)))
+  await empezarAPrepararse(sesionId)
+}
+
+/**
+ * Una sesión agendada deja de ser solo una fecha en cuanto alguien escribe
+ * algo en ella.
+ *
+ * Va aquí y no en un botón porque nadie pulsa "empezar a preparar": se abre
+ * la sesión y se escribe. Si el paso dependiera de acordarse, el hub seguiría
+ * diciendo "agendada" con la mitad del estatus ya redactado.
+ */
+async function empezarAPrepararse(sesionId: string): Promise<void> {
+  if (hayDB()) {
+    await db()
+      .update(esquema.sesiones)
+      .set({ estado: 'borrador', updatedAt: new Date() })
+      .where(and(eq(esquema.sesiones.id, sesionId), eq(esquema.sesiones.estado, 'agendada')))
+    return
+  }
+  const fila = memoria.obtenerSesionMemoria(sesionId)
+  if (fila?.estado === 'agendada') memoria.actualizarEstadoSesionMemoria(sesionId, 'borrador')
+}
+
+
+/**
+ * Guarda la sección que el equipo compuso a mano, conservando el material
+ * crudo del asistente (si lo hubiera) que vive en el mismo item.
+ */
+export async function guardarSeccion(
+  sesionId: string,
+  itemId: string,
+  seccion: BorradorSeccion,
+): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  const item = sesion?.items.find((i) => i.id === itemId)
+  if (!item) throw new Error(`Sección no encontrada: "${itemId}"`)
+  await guardarItemContenido(sesionId, itemId, { ...item.contenido, seccion })
+}
+
+/**
+ * Añade una sección al final de la sesión.
+ *
+ * Toca DOS sitios porque la sesión los tiene separados a propósito: la
+ * `estructura` dice qué secciones la componen (y sobrevive a reordenar), y la
+ * tabla de items guarda el contenido de cada una. El `tipo` de la sección
+ * nueva es un id propio: los nombres fijos ("portada") solo valen para las que
+ * trae la plantilla, y dos secciones del mismo tipo se pisarían.
+ */
+export async function anadirSeccion(
+  sesionId: string,
+  layout: DecisionSlide['layout'],
+  nombre: string,
+  /** `tipo` de la sección base que la contiene. Sin esto, nace como base. */
+  padre?: string,
+): Promise<{ itemId: string }> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+
+  const itemId = crypto.randomUUID()
+  const definicion: DefinicionItem = {
+    tipo: `seccion-${itemId}`,
+    titulo: nombre,
+    pregunta: '',
+    layout,
+    ...(padre ? { padre } : {}),
+  }
+  const ahora = new Date()
+  const posicion = posicionDeInsercion(sesion.items, padre, layout)
+  const desplazados = sesion.items.slice(posicion)
+
+  const fila = {
+    id: itemId,
+    sesionId,
+    orden: posicion,
+    tipo: definicion.tipo,
+    contenidoCrudo: { seccion: { layout } } as ContenidoItemCrudo,
+    decisionMaquetacion: null as unknown,
+  }
+
+  if (hayDB()) {
+    const conexion = db()
+    const [filaSesion] = await conexion
+      .select({ estructura: esquema.sesiones.estructura })
+      .from(esquema.sesiones)
+      .where(eq(esquema.sesiones.id, sesionId))
+    const estructura = leerEstructura(filaSesion?.estructura)
+    await conexion
+      .update(esquema.sesiones)
+      .set({ estructura: { ...estructura, items: [...estructura.items, definicion] }, updatedAt: ahora })
+      .where(eq(esquema.sesiones.id, sesionId))
+    await conexion.insert(esquema.items).values(fila)
+    await Promise.all(
+      desplazados.map((i, k) =>
+        conexion.update(esquema.items).set({ orden: posicion + 1 + k, updatedAt: ahora }).where(eq(esquema.items.id, i.id)),
+      ),
+    )
+  } else {
+    const filaSesion = memoria.obtenerSesionMemoria(sesionId)
+    const estructura = leerEstructura(filaSesion?.estructura)
+    memoria.actualizarEstructuraSesionMemoria(sesionId, {
+      ...estructura,
+      items: [...estructura.items, definicion],
+    })
+    memoria.insertarItemsMemoria([{ ...fila, createdAt: ahora, updatedAt: ahora }])
+    desplazados.forEach((i, k) => memoria.actualizarOrdenItemMemoria(i.id, posicion + 1 + k))
+  }
+  return { itemId }
+}
+
+/**
+ * Dónde entra una sección nueva.
+ *
+ * - Una SUBSECCIÓN entra al final de las de su bloque, justo antes de la
+ *   siguiente sección base. Así el documento se lee en el orden en que está
+ *   escrito y nadie tiene que arrastrarla a su sitio.
+ * - Una sección BASE entra al final, pero antes del cierre si lo hay: el
+ *   cierre es el final por definición.
+ */
+function posicionDeInsercion(
+  items: ItemSesion[],
+  padre: string | undefined,
+  layout: DecisionSlide['layout'],
+): number {
+  if (padre) {
+    const inicio = items.findIndex((i) => i.tipo === padre)
+    if (inicio < 0) return items.length
+    // Justo antes del siguiente item que NO cuelgue de este padre.
+    let fin = inicio + 1
+    while (fin < items.length && items[fin].padre === padre) fin++
+    return fin
+  }
+  const indiceCierre = items.findIndex((i) => i.contenido.seccion?.layout === 'cierre')
+  return indiceCierre >= 0 && layout !== 'cierre' ? indiceCierre : items.length
+}
+
+/**
+ * Borra una sección y renumera las que quedan.
+ *
+ * La renumeración importa: sin ella queda un hueco en el orden (0,1,3,4) que
+ * el arrastre interpretaría como una permutación inválida y rechazaría.
+ */
+export async function eliminarSeccion(sesionId: string, itemId: string): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) return
+  const item = sesion.items.find((i) => i.id === itemId)
+  if (!item) return
+  // Las ocho secciones base son la estructura de la reunión: se editan y se
+  // reordenan, no se borran. El editor tampoco ofrece el botón, pero una
+  // Server Action es un endpoint y no se confía en que la pantalla lo tape.
+  if (item.esBase) throw new Error(`"${item.titulo}" es una sección base: no se puede eliminar.`)
+
+  // Una sección con subsecciones se lleva las suyas: dejarlas huérfanas las
+  // haría desaparecer del editor sin desaparecer de la base.
+  const aBorrar = new Set([itemId])
+  for (const hijo of sesion.items) {
+    if (hijo.padre === item.tipo) aBorrar.add(hijo.id)
+  }
+  const tiposBorrados = new Set(sesion.items.filter((i) => aBorrar.has(i.id)).map((i) => i.tipo))
+
+  const quedan = sesion.items.filter((i) => !aBorrar.has(i.id))
+  const ahora = new Date()
+
+  if (hayDB()) {
+    const conexion = db()
+    const [filaSesion] = await conexion
+      .select({ estructura: esquema.sesiones.estructura })
+      .from(esquema.sesiones)
+      .where(eq(esquema.sesiones.id, sesionId))
+    const estructura = leerEstructura(filaSesion?.estructura)
+    await conexion
+      .update(esquema.sesiones)
+      .set({
+        estructura: { ...estructura, items: estructura.items.filter((d) => !tiposBorrados.has(d.tipo)) },
+        updatedAt: ahora,
+      })
+      .where(eq(esquema.sesiones.id, sesionId))
+    await Promise.all(
+      [...aBorrar].map((borrarId) =>
+        conexion
+          .delete(esquema.items)
+          .where(and(eq(esquema.items.id, borrarId), eq(esquema.items.sesionId, sesionId))),
+      ),
+    )
+    await Promise.all(
+      quedan.map((i, orden) =>
+        conexion.update(esquema.items).set({ orden, updatedAt: ahora }).where(eq(esquema.items.id, i.id)),
+      ),
+    )
+    return
+  }
+
+  const filaSesion = memoria.obtenerSesionMemoria(sesionId)
+  const estructura = leerEstructura(filaSesion?.estructura)
+  memoria.actualizarEstructuraSesionMemoria(sesionId, {
+    ...estructura,
+    items: estructura.items.filter((d) => !tiposBorrados.has(d.tipo)),
+  })
+  for (const borrarId of aBorrar) memoria.eliminarItemMemoria(borrarId)
+  quedan.forEach((i, orden) => memoria.actualizarOrdenItemMemoria(i.id, orden))
 }
 
 /**
@@ -352,8 +616,20 @@ export async function reordenarItems(sesionId: string, idsEnOrden: string[]): Pr
   const sesion = await obtenerSesion(sesionId)
   if (!sesion) return
 
-  const actuales = sesion.items.map((i) => i.id)
-  if (!esPermutacionValida(actuales, idsEnOrden)) return
+  // Lo que llega del editor son los BLOQUES en su orden nuevo, no todos los
+  // items: las subsecciones no se arrastran sueltas, viajan con el suyo. Aquí
+  // se reconstruye el orden completo poniendo cada bloque seguido de sus
+  // hijas, en el orden que ya tenían.
+  const bases = sesion.items.filter((i) => !i.padre).map((i) => i.id)
+  if (!esPermutacionValida(bases, idsEnOrden)) return
+
+  const porId = new Map(sesion.items.map((i) => [i.id, i]))
+  const ordenCompleto = idsEnOrden.flatMap((idBase) => {
+    const base = porId.get(idBase)!
+    const hijas = sesion.items.filter((h) => h.padre === base.tipo).map((h) => h.id)
+    return [idBase, ...hijas]
+  })
+  idsEnOrden = ordenCompleto
 
   if (hayDB()) {
     const conexion = db()
@@ -373,9 +649,13 @@ export async function reordenarItems(sesionId: string, idsEnOrden: string[]): Pr
 }
 
 /**
- * Reordena un item intercambiando su `orden` con el del vecino inmediato. Es
- * lo que usan los botones ↑/↓, que siguen siendo el camino accesible por
- * teclado del que el arrastre es solo un atajo.
+ * Mueve una sección un puesto arriba o abajo, ENTRE SUS HERMANAS.
+ *
+ * Es lo que usan los botones ↑/↓, el camino accesible por teclado del que el
+ * arrastre es solo un atajo. Una subsección se mueve dentro de su bloque; un
+ * bloque se mueve entre bloques y se lleva sus subsecciones. Sin esta regla,
+ * bajar una subsección la sacaría de su bloque y entraría en el siguiente sin
+ * que nadie lo pidiera.
  */
 export async function moverItem(
   sesionId: string,
@@ -384,22 +664,48 @@ export async function moverItem(
 ): Promise<void> {
   const sesion = await obtenerSesion(sesionId)
   if (!sesion) return
-  const idx = sesion.items.findIndex((i) => i.id === itemId)
-  if (idx === -1) return
+  const item = sesion.items.find((i) => i.id === itemId)
+  if (!item) return
+
+  const hermanas = sesion.items.filter((i) => i.padre === item.padre)
+  const idx = hermanas.findIndex((i) => i.id === itemId)
   const destino = direccion === 'arriba' ? idx - 1 : idx + 1
-  if (destino < 0 || destino >= sesion.items.length) return
+  if (destino < 0 || destino >= hermanas.length) return
 
-  const a = sesion.items[idx]
-  const b = sesion.items[destino]
+  const nuevasHermanas = [...hermanas]
+  ;[nuevasHermanas[idx], nuevasHermanas[destino]] = [nuevasHermanas[destino], nuevasHermanas[idx]]
 
+  // Se recalcula el orden COMPLETO a partir del árbol nuevo: es más simple de
+  // razonar que intercambiar dos números y menos frágil ante huecos.
+  const bases = sesion.items.filter((i) => !i.padre)
+  const basesFinales = item.padre ? bases : nuevasHermanas
+  const ordenCompleto = basesFinales.flatMap((base) => {
+    const hijas = item.padre === base.tipo
+      ? nuevasHermanas
+      : sesion.items.filter((h) => h.padre === base.tipo)
+    return [base.id, ...hijas.map((h) => h.id)]
+  })
+
+  await reasignarOrden(sesionId, ordenCompleto)
+}
+
+/** Deja los items en el orden 0..n-1 que dice la lista. */
+async function reasignarOrden(sesionId: string, idsEnOrden: string[]): Promise<void> {
+  if (idsEnOrden.length === 0) return
   if (hayDB()) {
     const conexion = db()
-    await conexion.update(esquema.items).set({ orden: b.orden, updatedAt: new Date() }).where(eq(esquema.items.id, a.id))
-    await conexion.update(esquema.items).set({ orden: a.orden, updatedAt: new Date() }).where(eq(esquema.items.id, b.id))
-  } else {
-    memoria.actualizarOrdenItemMemoria(a.id, b.orden)
-    memoria.actualizarOrdenItemMemoria(b.id, a.orden)
+    const ahora = new Date()
+    await Promise.all(
+      idsEnOrden.map((itemId, posicion) =>
+        conexion
+          .update(esquema.items)
+          .set({ orden: posicion, updatedAt: ahora })
+          .where(and(eq(esquema.items.id, itemId), eq(esquema.items.sesionId, sesionId))),
+      ),
+    )
+    return
   }
+  idsEnOrden.forEach((itemId, posicion) => memoria.actualizarOrdenItemMemoria(itemId, posicion))
 }
 
 /**
@@ -413,8 +719,11 @@ export function entradasCrudasDeSesion(sesion: SesionCompleta): EntradaCruda[] {
     .filter((i) => i.llenado)
     .map((i) => ({
       titulo: i.titulo,
+      seccion: i.contenido.seccion,
       texto: i.contenido.texto,
       cifras: i.contenido.cifras,
+      tablas: i.contenido.tablas,
+      imagenes: i.contenido.imagenes,
       nota: i.contenido.nota,
     }))
 }
@@ -480,6 +789,44 @@ export function formatearCifrasTexto(cifras: CifraCruda[] | undefined): string {
 }
 
 /**
+ * Convierte una tabla pegada en la rejilla que espera el motor.
+ *
+ * Acepta las DOS formas en que llega una tabla en la vida real: pegada desde
+ * Google Sheets o Excel (las celdas vienen separadas por tabulador) o escrita a
+ * mano con barras. Es el caso que más pesa —en el deck de referencia la tabla
+ * aparece tres veces— y obligar a reescribirla a mano era garantizar que nadie
+ * la metiera.
+ *
+ * La primera línea es el encabezado. Las filas cortas se rellenan y las largas
+ * se recortan al ancho del encabezado: una fila desalineada descuadraría la
+ * tabla entera, y perder una celda de más es mejor que perder la rejilla.
+ */
+export function parsearTablaTexto(texto: string): string[][] {
+  const filas = texto
+    .split('\n')
+    .filter((linea) => linea.trim().length > 0)
+    .map((linea) =>
+      // Tabulador primero: una celda pegada desde Sheets puede contener "|"
+      // como parte de su texto, pero nunca un tabulador.
+      (linea.includes('\t') ? linea.split('\t') : linea.split('|')).map((c) => c.trim()),
+    )
+
+  const [encabezado, ...resto] = filas
+  if (!encabezado) return []
+
+  const ancho = encabezado.length
+  return [
+    encabezado,
+    ...resto.map((fila) => Array.from({ length: ancho }, (_, i) => fila[i] ?? '')),
+  ]
+}
+
+export function formatearTablaTexto(tablas: string[][][] | undefined): string {
+  if (!tablas || tablas.length === 0) return ''
+  return tablas[0].map((fila) => fila.join(' | ')).join('\n')
+}
+
+/**
  * Borra una sesión con todo lo que cuelga de ella: sus items (contenido y
  * decisiones del motor) y su minuta.
  *
@@ -487,6 +834,111 @@ export function formatearCifrasTexto(cifras: CifraCruda[] | undefined): string {
  * de la sesión (spec §4) — nacen aquí pero sobreviven a todas las siguientes.
  * Borrar la sesión que los originó no puede llevárselos por delante.
  */
+/**
+ * Cambia los datos de la reunión: cuándo, cómo se llama, quién va, dónde.
+ *
+ * El título vive dentro de la estructura congelada y no en su propia columna
+ * porque es lo que ya guardaba; sacarlo obligaría a migrar las sesiones
+ * existentes para no ganar nada. Se lee siempre por `leerEstructura`.
+ */
+export async function editarSesion(
+  sesionId: string,
+  cambios: {
+    fecha?: Date
+    titulo?: string
+    tipo?: TipoSesion
+    alcance?: string
+    participantes?: string[]
+    lugar?: string | null
+  },
+): Promise<void> {
+  const actual = await obtenerSesion(sesionId)
+  if (!actual) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+
+  const titulo = cambios.titulo?.trim()
+  if (titulo !== undefined && titulo.length === 0) {
+    throw new Error('La sesión necesita un título.')
+  }
+
+  const ahora = new Date()
+  const columnas: Record<string, unknown> = { updatedAt: ahora }
+  if (cambios.fecha !== undefined) columnas.fecha = cambios.fecha
+  if (cambios.tipo !== undefined) columnas.tipo = cambios.tipo
+  if (cambios.alcance !== undefined) columnas.alcance = cambios.alcance
+  if (cambios.participantes !== undefined) {
+    // Sin nombres vacíos ni repetidos: la lista se escribe a mano, separada
+    // por comas, y "Ceci, , Pablo," es lo normal, no la excepción.
+    columnas.participantes = [
+      ...new Set(cambios.participantes.map((p) => p.trim()).filter((p) => p.length > 0)),
+    ]
+  }
+  if (cambios.lugar !== undefined) columnas.lugar = cambios.lugar?.trim() || null
+
+  if (hayDB()) {
+    if (titulo !== undefined) {
+      const fila = (
+        await db()
+          .select({ estructura: esquema.sesiones.estructura })
+          .from(esquema.sesiones)
+          .where(eq(esquema.sesiones.id, sesionId))
+      )[0]
+      columnas.estructura = { ...leerEstructura(fila?.estructura), titulo }
+    }
+    await db().update(esquema.sesiones).set(columnas).where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+
+  const fila = memoria.obtenerSesionMemoria(sesionId)
+  if (!fila) return
+  if (titulo !== undefined) {
+    memoria.actualizarEstructuraSesionMemoria(sesionId, {
+      ...leerEstructura(fila.estructura),
+      titulo,
+    })
+  }
+  memoria.actualizarDatosSesionMemoria(sesionId, {
+    ...(columnas.fecha ? { fecha: columnas.fecha as Date } : {}),
+    ...(columnas.tipo ? { tipo: columnas.tipo as TipoSesion } : {}),
+    ...(columnas.alcance !== undefined ? { alcance: columnas.alcance as string } : {}),
+    ...(columnas.participantes ? { participantes: columnas.participantes as string[] } : {}),
+    ...(cambios.lugar !== undefined ? { lugar: columnas.lugar as string | null } : {}),
+  })
+}
+
+/**
+ * "Esta sesión ya se dio."
+ *
+ * Es el eslabón que faltaba entre preparar y la sala. El ciclo del spec §4 es
+ * `borrador → lista → presentada → minutada`, pero NADA movía a `presentada`:
+ * una sesión maquetada se quedaba en `lista` para siempre, y como la sala
+ * lista como presentaciones las que ya sucedieron, la sesión no aparecía
+ * nunca en la sala de su UDN. Tampoco había de dónde nacer una minuta.
+ *
+ * No lo hace "Maquetar" —maquetar es preparar, y se maqueta días antes— ni el
+ * modo Presentar, que solo proyecta a pantalla completa y puede ensayarse. Lo
+ * dice una persona cuando la reunión terminó.
+ *
+ * Es idempotente hacia adelante: una sesión ya `minutada` no retrocede a
+ * `presentada` por volver a pulsar.
+ */
+export async function marcarPresentada(sesionId: string): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+  if (sesion.estado === 'presentada' || sesion.estado === 'minutada') return
+  if (sesion.estado === 'borrador') {
+    throw new Error('Una sesión en borrador no se ha presentado: primero hay que maquetarla.')
+  }
+
+  if (hayDB()) {
+    await db()
+      .update(esquema.sesiones)
+      .set({ estado: 'presentada', updatedAt: new Date() })
+      .where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+  memoria.actualizarEstadoSesionMemoria(sesionId, 'presentada')
+}
+
 export async function eliminarSesion(sesionId: string): Promise<void> {
   if (hayDB()) {
     const conexion = db()

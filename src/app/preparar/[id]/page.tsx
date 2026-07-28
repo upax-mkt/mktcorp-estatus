@@ -5,25 +5,34 @@ import type { CSSProperties } from 'react'
 import estilos from '../preparar.module.css'
 import {
   obtenerSesion,
-  guardarItemContenido,
   moverItem,
   reordenarItems,
   entradasCrudasDeSesion,
   guardarDecisiones,
-  parsearCifrasTexto,
-  formatearCifrasTexto,
-  type ContenidoItemCrudo,
+  guardarSeccion,
+  anadirSeccion,
+  eliminarSeccion,
+  guardarItemContenido,
 } from '@/db/sesiones'
 import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
+import { maquetarItem } from '@/motor/maquetar'
+import { temaDeSala } from '@/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
+import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
+import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
+import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
+import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
+import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
+import { registrarArchivo } from '@/db/archivos'
+import { del } from '@vercel/blob'
 
-// El botón "Maquetar" llama al motor (etapa 2, Claude, ~25s en 2 intentos en
-// serie): el default serverless de Vercel (10s) no alcanza.
+// Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
+// el asistente de IA, que sí llama al modelo.
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
@@ -44,41 +53,116 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   if (!sesion) notFound()
 
   // ---- Server actions ----
+  // Cada una exige equipo por su cuenta: una Server Action es un endpoint, y
+  // ocultar el botón en la pantalla no protege nada.
 
-  async function guardarContenido(formData: FormData) {
+  async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const itemId = String(formData.get('itemId') ?? '')
-    const texto = String(formData.get('texto') ?? '').trim()
-    const notaTexto = String(formData.get('nota') ?? '').trim()
-    const cifras = parsearCifrasTexto(String(formData.get('cifras') ?? ''))
+    await guardarSeccion(id, itemId, seccion)
+    revalidatePath(`/preparar/${id}`)
+  }
 
-    const contenido: ContenidoItemCrudo = {}
-    if (texto.length > 0) contenido.texto = texto
-    if (cifras.length > 0) contenido.cifras = cifras
-    if (notaTexto.length > 0) contenido.nota = notaTexto
+  async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
+    'use server'
+    await exigirEquipo()
+    await anadirSeccion(id, layout, nombre)
+    revalidatePath(`/preparar/${id}`)
+  }
 
-    await guardarItemContenido(sesionId, itemId, contenido)
-    revalidatePath(`/preparar/${sesionId}`)
+  async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
+    'use server'
+    await exigirEquipo()
+    await anadirSeccion(id, layout, nombre, padre)
+    revalidatePath(`/preparar/${id}`)
+  }
+
+  async function eliminarSeccionAction(itemId: string) {
+    'use server'
+    await exigirEquipo()
+    await eliminarSeccion(id, itemId)
+    revalidatePath(`/preparar/${id}`)
+  }
+
+  /**
+   * El atajo opcional: texto crudo → propuesta de sección.
+   *
+   * Devuelve la propuesta SIN guardarla. Cae en el formulario del navegador y
+   * ahí se corrige; nadie presenta algo que no revisó. Guarda el texto crudo
+   * para que reabrir el asistente no obligue a volver a pegarlo.
+   */
+  async function proponerAction(itemId: string, texto: string): Promise<BorradorSeccion | { error: string }> {
+    'use server'
+    await exigirEquipo()
+    const sesionActual = await obtenerSesion(id)
+    const item = sesionActual?.items.find((i) => i.id === itemId)
+    if (!item) return { error: 'Esta sección ya no existe.' }
+
+    await guardarItemContenido(id, itemId, { ...item.contenido, texto })
+
+    try {
+      const { crearClientePorDefecto } = await import('@/motor/decidir')
+      const resultado = await maquetarItem(
+        { titulo: item.titulo, texto },
+        temaDeSala(sesionActual!.salaSlug),
+        crearClientePorDefecto(),
+      )
+      // `razon` es la explicación que da el modelo de su decisión. En cuanto
+      // una persona toca la sección, deja de ser suya: se descarta aquí.
+      const { razon: _razon, ...propuesta } = resultado.decision
+      return propuesta
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : String(error)
+      return { error: `No se pudo proponer: ${mensaje}. Puedes armar la sección a mano.` }
+    }
+  }
+
+  /**
+   * Registra una imagen ya subida a Blob y devuelve la URL con la que se
+   * sirve. Cuelga de LA SESIÓN, no de una sala: quien puede ver el documento
+   * puede ver su imagen, y hay reuniones que no son de ninguna sala.
+   */
+  async function subirImagenAction(datos: {
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ url?: string; error?: string }> {
+    'use server'
+    await exigirEquipo()
+    try {
+      const { id: archivoId } = await registrarArchivo({
+        salaSlug: null,
+        sesionId: id,
+        categoria: 'imagen',
+        titulo: datos.nombreOriginal,
+        fecha: null,
+        ruta: datos.ruta,
+        nombreOriginal: datos.nombreOriginal,
+        tipoContenido: datos.tipoContenido,
+        tamanoBytes: datos.tamanoBytes,
+      })
+      return { url: `/api/archivo/${archivoId}` }
+    } catch (error) {
+      // El binario ya está en el almacén: si la fila no se puede crear se
+      // quita también, o queda basura invisible que se sigue pagando.
+      await del(datos.ruta).catch(() => {})
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar la imagen.' }
+    }
   }
 
   async function subirItem(formData: FormData) {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const itemId = String(formData.get('itemId') ?? '')
-    await moverItem(sesionId, itemId, 'arriba')
-    revalidatePath(`/preparar/${sesionId}`)
+    await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
+    revalidatePath(`/preparar/${id}`)
   }
 
   async function bajarItem(formData: FormData) {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const itemId = String(formData.get('itemId') ?? '')
-    await moverItem(sesionId, itemId, 'abajo')
-    revalidatePath(`/preparar/${sesionId}`)
+    await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
+    revalidatePath(`/preparar/${id}`)
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
@@ -89,19 +173,18 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     revalidatePath(`/preparar/${id}`)
   }
 
-  async function maquetar(formData: FormData) {
+  async function maquetar() {
     'use server'
     await exigirEquipo()
-    const sesionId = String(formData.get('sesionId') ?? '')
-    const sesionActual = await obtenerSesion(sesionId)
+    const sesionActual = await obtenerSesion(id)
     if (!sesionActual) throw new Error('Sesión no encontrada')
 
     const entradas = entradasCrudasDeSesion(sesionActual)
-    if (entradas.length === 0) throw new Error('No hay items llenados para maquetar')
+    if (entradas.length === 0) throw new Error('No hay secciones llenadas que presentar')
 
     const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
-    await guardarDecisiones(sesionId, resultados)
-    redirect(`/preparar/${sesionId}/deck`)
+    await guardarDecisiones(id, resultados)
+    redirect(`/preparar/${id}/deck`)
   }
 
   async function borrarSesionAction() {
@@ -116,6 +199,26 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // ---- Vista ----
 
   const total = sesion.items.length
+  // Las secciones base son los bloques de la reunión; el resto cuelga de una.
+  const bases = sesion.items.filter((i) => !i.padre)
+  // El tema de la sala baja hasta cada editor: la vista previa tiene que
+  // pintarse con los colores con los que se va a presentar, no con los del
+  // cascarón de preparación.
+  const tema = temaDeSala(sesion.salaSlug)
+  // Si alguna sección se va a resolver con el asistente. Solo entonces
+  // maquetar tarda de verdad: una sesión armada a mano no llama a ningún
+  // modelo, y anunciar "~25 s" para algo instantáneo enseña a desconfiar del
+  // resto de los avisos.
+  const usaIA = sesion.items.some((i) => !borradorTieneContenido(i.contenido.seccion) && Boolean(i.contenido.texto?.trim()))
+
+  // El índice, en el orden REAL en que se leen: cada bloque seguido de sus
+  // subsecciones. `sesion.items` viene ordenado por posición, no por árbol.
+  const entradasIndice: EntradaIndice[] = bases.flatMap((base) => [
+    { id: base.id, titulo: base.titulo, llenado: base.llenado, esSub: false },
+    ...sesion.items
+      .filter((h) => h.padre === base.tipo)
+      .map((h) => ({ id: h.id, titulo: h.titulo, llenado: h.llenado, esSub: true })),
+  ])
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -125,14 +228,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         <div className={estilos.barraDcha}>
           {sesion.estado !== 'borrador' && (
             <>
-              <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver deck →</Link>
+              <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver documento →</Link>
               <Link href={`/preparar/${sesion.id}/minuta`} className={estilos.volver}>Minuta →</Link>
             </>
           )}
         </div>
       </header>
 
-      <main className={estilos.main}>
+      <main className={`${estilos.main} ${estilos.mainEditor}`}>
         <div className={estilos.heroSesion}>
           <div className={estilos.heroFila}>
             <div>
@@ -157,113 +260,90 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                     style={{ width: `${total > 0 ? Math.round((sesion.itemsLlenados / total) * 100) : 0}%` }}
                   />
                 </div>
-                <span className={estilos.avanceTexto}>{sesion.itemsLlenados}/{total} llenados</span>
+                <span className={estilos.avanceTexto}>{sesion.itemsLlenados}/{total} listas</span>
               </div>
             </div>
           </div>
         </div>
 
-        <ListaOrdenable ids={sesion.items.map((i) => i.id)} reordenarAction={reordenar}>
-          {sesion.items.map((item, i) => (
-            <form
-              key={item.id}
-              action={guardarContenido}
-              className={estilos.tarjeta}
-              data-llenado={item.llenado ? 'true' : 'false'}
-            >
-              <input type="hidden" name="sesionId" value={sesion.id} />
-              <input type="hidden" name="itemId" value={item.id} />
+        <div className={estilos.editorConIndice}>
+        <div className={estilos.columnaSecciones}>
+        {/* El editor enseña el ÁRBOL de la sesión: las secciones base son los
+            bloques de la reunión y dentro cuelgan sus subsecciones, que es lo
+            que cambia de un mes a otro. El arrastre reordena los bloques; las
+            subsecciones se mueven con las flechas dentro del suyo. */}
+        <ListaOrdenable ids={bases.map((i) => i.id)} reordenarAction={reordenar}>
+          {bases.map((base, i) => {
+            const hijas = sesion.items.filter((h) => h.padre === base.tipo)
+            return (
+              <div key={base.id} className={estilos.bloqueSeccion}>
+                <TarjetaSeccion
+                  item={base}
+                  primera={i === 0}
+                  ultima={i === bases.length - 1}
+                  subirAction={subirItem}
+                  bajarAction={bajarItem}
+                  guardarSeccionAction={guardarSeccionAction}
+                  proponerAction={proponerAction}
+                  eliminarSeccionAction={base.esBase ? undefined : eliminarSeccionAction}
+                  tema={tema}
+                  sesionId={id}
+                  subirImagenAction={subirImagenAction}
+                />
 
-              <div className={estilos.tarjetaCabecera}>
-                <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'flex-start', minWidth: 0 }}>
-                  <div>
-                    <div className={estilos.tarjetaTitulo}>
-                      {item.titulo}
-                      {item.llenado && <span style={{ color: 'var(--ok)', fontSize: '0.8rem' }}>✓</span>}
-                    </div>
-                    <p className={estilos.tarjetaPregunta}>{item.pregunta}</p>
-                  </div>
-                </div>
-                <div className={estilos.tarjetaAcciones}>
-                  <div className={estilos.tarjetaOrden}>
-                    <button
-                      type="submit"
-                      formAction={subirItem}
-                      className={estilos.botonIcono}
-                      disabled={i === 0}
-                      title="Subir"
-                      aria-label="Subir item"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="submit"
-                      formAction={bajarItem}
-                      className={estilos.botonIcono}
-                      disabled={i === total - 1}
-                      title="Bajar"
-                      aria-label="Bajar item"
-                    >
-                      ↓
-                    </button>
-                  </div>
+                <div className={estilos.subsecciones}>
+                  {hijas.map((hija, j) => (
+                    <TarjetaSeccion
+                      key={hija.id}
+                      item={hija}
+                      primera={j === 0}
+                      ultima={j === hijas.length - 1}
+                      subirAction={subirItem}
+                      bajarAction={bajarItem}
+                      guardarSeccionAction={guardarSeccionAction}
+                      proponerAction={proponerAction}
+                      eliminarSeccionAction={eliminarSeccionAction}
+                      esSub
+                      tema={tema}
+                      sesionId={id}
+                      subirImagenAction={subirImagenAction}
+                    />
+                  ))}
+                  {/* SOLO UN DIVISOR ABRE UN BLOQUE. Una sección que ya lleva
+                      contenido propio —la portada, la agenda, la tabla de
+                      pendientes— es una hoja del árbol: colgarle una
+                      subsección sería repetir lo que ya dice. */}
+                  {base.contenido.seccion?.layout === 'divisor-seccion' && (
+                      <AnadirSeccion
+                        dentroDe={base.titulo}
+                        anadirAction={anadirSubseccionAction.bind(null, base.tipo)}
+                    />
+                  )}
                 </div>
               </div>
-
-              <div className={estilos.tarjetaCampos}>
-                <div className={estilos.campoInline}>
-                  <span className={estilos.campoInlineLabel}>Contenido</span>
-                  <textarea
-                    name="texto"
-                    defaultValue={item.contenido.texto ?? ''}
-                    className={estilos.textarea}
-                    placeholder="Pega aquí el texto crudo: hallazgos, análisis, contexto…"
-                  />
-                </div>
-                <div className={estilos.campoInline}>
-                  <span className={estilos.campoInlineLabel}>
-                    Cifras (opcional) — una por línea: valor | rótulo | delta
-                  </span>
-                  <textarea
-                    name="cifras"
-                    defaultValue={formatearCifrasTexto(item.contenido.cifras)}
-                    className={`${estilos.textarea} ${estilos.textareaChica}`}
-                    placeholder={'9.2 | Posición media | -0.3\n29k | Impresiones | -16%'}
-                  />
-                  <span className={estilos.pistaTextarea}>Deja vacío si este item no trae cifras.</span>
-                </div>
-                <div className={estilos.campoInline}>
-                  <span className={estilos.campoInlineLabel}>Nota para la IA (opcional)</span>
-                  <input
-                    type="text"
-                    name="nota"
-                    defaultValue={item.contenido.nota ?? ''}
-                    className={estilos.inputTexto}
-                    placeholder="Ej. esto va destacado; no menciones el retraso"
-                  />
-                </div>
-              </div>
-
-              <div className={estilos.tarjetaGuardar}>
-                <button type="submit" className={`${estilos.boton} ${estilos.botonSecundario}`}>
-                  Guardar
-                </button>
-              </div>
-            </form>
-          ))}
+            )
+          })}
         </ListaOrdenable>
+
+        <AnadirSeccion anadirAction={anadirSeccionAction} />
+        </div>
+
+        {/* El índice va DESPUÉS en el orden del documento y a la izquierda en
+            la pantalla: el contenido primero para quien navega con teclado o
+            lector, y a la vista para quien mira. */}
+        <IndiceSesion entradas={entradasIndice} llenadas={sesion.itemsLlenados} total={total} />
+        </div>
 
         {sesion.itemsLlenados > 0 ? (
           <form action={maquetar} className={estilos.panelMaquetar}>
-            <input type="hidden" name="sesionId" value={sesion.id} />
             <span className={estilos.panelMaquetarTexto}>
-              {sesion.itemsLlenados} de {total} items listos para maquetar.
-              {sesion.estado !== 'borrador' && ' Ya hay un deck maquetado — volver a maquetar lo reemplaza.'}
+              {sesion.itemsLlenados} de {total} secciones listas.
+              {sesion.estado !== 'borrador' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
             </span>
-            <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} />
+            <BotonMaquetar className={`${estilos.boton} ${estilos.botonAcento}`} conIA={usaIA} />
           </form>
         ) : (
-          <p className={estilos.panelMaquetarAviso}>Llena al menos un item para poder maquetar la sesión.</p>
+          <p className={estilos.panelMaquetarAviso}>Llena al menos una sección para poder generar el documento.</p>
         )}
 
         <BorrarSesion borrarAction={borrarSesionAction} />

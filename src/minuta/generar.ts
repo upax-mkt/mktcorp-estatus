@@ -37,8 +37,16 @@ function formatearFechaTabla(fechaIso: string | null): string {
  * es trabajo de la tarea pendiente de tokens/SSO: mientras no exista, se
  * enlaza al link permanente de la sala, que ya existe y funciona hoy.
  */
-function urlSesion(salaSlug: string): string {
-  return `/sala/${salaSlug}`
+/**
+ * A dónde apunta la minuta.
+ *
+ * A la sala, si la reunión es de una. Una que no pertenece a ninguna —un
+ * comité, un arranque— apunta al documento de la propia sesión: es lo único
+ * que hay que enseñar.
+ */
+function urlSesion(salaSlug: string | null, sesionId?: string): string {
+  if (salaSlug) return `/sala/${salaSlug}`
+  return sesionId ? `/sesion/${sesionId}` : '/'
 }
 
 function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {
@@ -53,7 +61,7 @@ function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {
 }
 
 function ensamblarCorreo(
-  salaSlug: string,
+  salaSlug: string | null,
   minuta: { objetivo: string; temasYAcuerdos: string[]; proximosPasos: string },
   acuerdos: AcuerdoPropuesto[],
 ): string {
@@ -83,7 +91,7 @@ function ensamblarCorreo(
  * modelo.
  */
 export async function generarMinuta(
-  sesion: SesionParaMinuta & { salaSlug: string },
+  sesion: SesionParaMinuta & { salaSlug: string | null },
   transcripcion: string,
   cliente?: ClienteDecision,
 ): Promise<ResultadoMinuta> {

@@ -10,11 +10,11 @@ import { layoutsImplementados } from './catalogo'
 
 /**
  * Qué campos de `DecisionSlide` admite cada layout, en prosa para el prompt.
- * Deliberadamente NO es exhaustiva para todo `LAYOUTS`: solo describe los
- * layouts que hoy tienen componente (ver catalogo.ts). Si un layout implementado
- * no tiene entrada aquí, cae en la descripción genérica de abajo — así un
- * layout nuevo no rompe el prompt aunque nadie haya actualizado esta tabla,
- * y el catálogo ofrecido sigue derivándose únicamente de `layoutsImplementados()`.
+ *
+ * Es `Partial` a propósito: si un layout implementado no tiene entrada aquí,
+ * cae en la descripción genérica de abajo. Así un layout nuevo no rompe el
+ * prompt aunque nadie haya actualizado esta tabla, y el catálogo ofrecido
+ * sigue derivándose únicamente de `layoutsImplementados()`.
  */
 const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
   portada: 'admite "titulo" (obligatorio) y "subtitulo" (opcional, una línea de contexto).',
@@ -24,7 +24,8 @@ const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
     'REGLA DE COBERTURA: hay 4 espacios de KPI. Cuando el inventario trae 4 cifras o menos, TODAS ' +
     'van como KPIs — cada cifra del inventario ocupa un espacio, con su valor, rótulo y delta. Ninguna ' +
     'cifra se omite ni se degrada a texto de las columnas. Las columnas son para el análisis ' +
-    '(hallazgos, acciones), no para esconder una cifra que no cupo.',
+    '(hallazgos, acciones), no para esconder una cifra que no cupo. Admite además "notaPie" para ' +
+    'la salvedad de medición (de dónde salen los datos, qué queda fuera del corte).',
   agenda:
     'admite "titulo" (obligatorio, p. ej. "Agenda") y "cuerpo" (arreglo de líneas cortas, una por ' +
     'punto del orden del día). El layout numera cada línea automáticamente — nunca antepongas tú ' +
@@ -35,9 +36,9 @@ const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
     'contenido: nunca le repartas cifras, columnas ni cuerpo — usa "kpis-fila-dos-columnas" o ' +
     '"texto-multicolumna" para eso.',
   'texto-multicolumna':
-    'admite "titulo" y "columnas" (arreglo de 2 a 4, cada una con "titulo" y "puntos" — una lista de ' +
-    'líneas cortas). Úsalo cuando el contenido es puramente cualitativo, sin cifras, organizado en ' +
-    'bloques paralelos (por ejemplo, un tema por UDN o por frente). Si el inventario trae cifras, ' +
+    'admite "titulo" y "columnas" (arreglo de 2 a 4, cada una con "titulo", "etiqueta" opcional —una ' +
+    'fecha— y "puntos"). Úsalo cuando el contenido es puramente cualitativo, sin cifras, organizado ' +
+    'en bloques paralelos (por ejemplo, un tema por UDN o por frente). Si el inventario trae cifras, ' +
     'esas cifras van en "kpis-fila-dos-columnas", no aquí.',
   'imagen-a-sangre':
     'admite "imagen" (obligatoria, la ruta o URL https de la pieza [imagen] del inventario), ' +
@@ -46,8 +47,34 @@ const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
     'ni la uses para contenido que no sea, en esencia, esa imagen.',
   cierre:
     'admite "titulo" (obligatorio, p. ej. "Gracias" o "Acuerdos") y "subtitulo" (opcional). Cierre ' +
-    'institucional de la sesión — resérvalo para el último slide del deck, nunca para un separador ' +
+    'institucional de la sesión — resérvalo para la última sección, nunca para un separador ' +
     'intermedio (eso es "divisor-seccion").',
+  'pendientes-semaforo':
+    'admite "titulo" y "tablas" (una sola tabla). Es el repaso de lo que quedó de la sesión pasada: ' +
+    'cada fila lleva su "estado" ("listo", "en-proceso" o "no-realizado") y, si un mismo responsable ' +
+    'tiene varias tareas, pon "agruparPrimeraColumna": true para que su nombre aparezca una vez y no ' +
+    'una por tarea. Las columnas típicas son ["Responsable", "Tarea", "Estatus"].',
+  'comparativa-periodos':
+    'admite "titulo", "tablas" (la comparativa entre dos periodos, con los periodos como encabezados ' +
+    'de columna) y "columnas" (la lectura de esa comparativa: qué subió, qué bajó y por qué). ' +
+    'Admite también "graficos" si la tendencia se ve mejor dibujada que leída.',
+  'grafico-y-tabla':
+    'admite "titulo", "graficos" (hasta dos) y "tablas" (hasta tres), más "columnas" para el análisis ' +
+    'y "cuerpo" para un cierre en prosa. Úsalo cuando el dato exacto y la forma importan por igual: ' +
+    'la tabla da el número, el gráfico da la tendencia.',
+  'meta-real-porcentaje':
+    'admite "titulo", "metaReal" (el bloque de cumplimiento: un renglón por corte, con meta, real y ' +
+    'porcentaje; el primero suele ser el total y los siguientes lo abren por equipo) y ' +
+    '"cifrasDesglosadas" (un total con las partes en que se reparte). Admite además "columnas" para ' +
+    'lo cualitativo, como la lista de cuentas trabajadas.',
+  'tarjetas-numeradas':
+    'admite "titulo" y "bloques" (hasta 5, cada uno con "titulo", "etiqueta" opcional, "parrafo", ' +
+    '"puntos" y una línea "pie" rotulada). Son frentes de igual peso —los focos del trimestre—, ' +
+    'no una lista jerarquizada. El layout los numera solo: no antepongas "1." al título.',
+  'matriz-estados':
+    'admite "titulo", "matriz" (filas = conceptos, columnas = periodos, y en cada cruce qué toca ' +
+    'hacer, con "tono" para marcar dónde se concentra el esfuerzo) y su "leyenda". Admite también ' +
+    '"bloques" si en la misma sección va un foco además del calendario.',
 }
 
 const DESCRIPCION_GENERICA =
@@ -67,14 +94,10 @@ function serializarPieza(pieza: PiezaInventario, indice: number): string {
   switch (pieza.tipo) {
     case 'cifra':
       return `  ${indice + 1}. [cifra] valor="${pieza.valor}" rotulo="${pieza.rotulo}"${pieza.delta ? ` delta="${pieza.delta}"` : ''}`
-    case 'serie':
-      return `  ${indice + 1}. [serie] etiqueta="${pieza.etiqueta}" periodos=[${pieza.periodos.join(', ')}] valores=[${pieza.valores.join(', ')}]`
-    case 'comparativo':
+    case 'tabla':
       return (
-        `  ${indice + 1}. [comparativo] etiqueta="${pieza.etiqueta}" periodos=[${pieza.periodos.join(', ')}]\n` +
-        pieza.series
-          .map((s) => `       - ${s.etiqueta}: [${s.valores.join(', ')}]`)
-          .join('\n')
+        `  ${indice + 1}. [tabla] columnas=[${pieza.columnas.join(' | ')}]\n` +
+        pieza.filas.map((fila) => `       | ${fila.join(' | ')}`).join('\n')
       )
     case 'lista':
       return `  ${indice + 1}. [lista]\n` + pieza.items.map((item) => `       - ${item}`).join('\n')
@@ -139,6 +162,26 @@ no una ni tres. Los KPIs NO son opcionales cuando el inventario trae cifras: son
 obligatorios. El análisis cualitativo (hallazgos, acciones) va en las columnas;
 las cifras van en los KPIs. Nunca descartes una cifra por priorizar el análisis:
 un slide ejecutivo con 3 de 4 cifras es un slide incompleto y será rechazado.
+
+FORMA DE UNA VIÑETA:
+Cada línea de "puntos" es un objeto: {"texto": "…"}. Cuando el contenido tiene
+jerarquía de verdad —un servicio y las industrias donde se vende, un hallazgo y
+las cuentas que lo sostienen— esa dependencia va en "hijos", no aplanada al
+mismo nivel. No uses "hijos" para partir una frase larga en dos: eso son dos
+viñetas hermanas. Si una línea apunta a algo concreto, su URL va en "enlace".
+
+QUÉ HACER CON UNA PIEZA [tabla]:
+Una [tabla] es una rejilla de datos tal como la trae el equipo. Tienes tres
+salidas y eliges por lo que comunica, no por comodidad:
+- Mostrarla como TABLA ("tablas"), cuando el director necesita leer los valores
+  exactos fila a fila. Copia las celdas EXACTAS: "3,591" se queda "3,591".
+- GRAFICARLA ("graficos"), cuando lo que importa es la forma —una tendencia,
+  una brecha— y no cada número. Los "periodos" salen de los encabezados de
+  columna y cada fila de la tabla es una serie, con sus valores como NÚMEROS
+  (sin comas de millar, sin símbolos: "3,591" viaja como 3591, y el "$" va en
+  el campo "prefijo" de esa serie).
+- LAS DOS, cuando el dato exacto y la tendencia importan por igual.
+Nunca conviertas una tabla en viñetas: perder la rejilla es perder el dato.
 
 FORMA DE UN KPI — cada dato en SU campo:
 Un KPI tiene tres campos separados: "valor" (el número), "rotulo" (cómo se

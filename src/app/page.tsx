@@ -1,14 +1,34 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+import type { CSSProperties } from 'react'
 import estilos from './hub.module.css'
 import {
   estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
-  acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes,
+  acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
-import { fechaLarga, textoDiasDesde, textoProxima } from '@/lib/fecha'
-import { cerrarSesion } from '@/auth/sesion'
+import { sesionesSinMinuta } from '@/dominio/salas'
+import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
+import { listarSesiones } from '@/db/sesiones'
+import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta } from '@/lib/fecha'
+import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
+import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
+import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
+import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
 
+/**
+ * El Home.
+ *
+ * Era una lista de diez renglones con un puntito de color y un panel de
+ * acuerdos que solo se podía mirar. Ahora es un tablero: las salas como
+ * tarjetas con su logotipo, y tres módulos que se USAN sin salir de aquí —
+ * el mes, los acuerdos en riesgo (editables en el sitio) y las minutas.
+ *
+ * El orden de la página es el orden de las preguntas que uno se hace al
+ * abrirla: qué se me está venciendo, qué viene, y cómo está cada relación.
+ */
 export default async function Hub() {
   async function salir() {
     'use server'
@@ -16,26 +36,75 @@ export default async function Hub() {
     redirect('/entrar')
   }
 
-  // El hub muestra el día de hoy y cuenta días contra él: sin esto Next lo
-  // prerenderiza y la app queda congelada en la fecha del build.
+  async function cambiarEstatusAction(id: string, estatus: EstatusAcuerdo) {
+    'use server'
+    await exigirEquipo()
+    await moverEstatus(id, estatus)
+    revalidatePath('/')
+  }
+
+  async function ponerFechaAction(id: string, fecha: string | null) {
+    'use server'
+    await exigirEquipo()
+    await editarAcuerdo(id, { fechaCompromiso: fecha ? new Date(fecha) : null })
+    revalidatePath('/')
+  }
+
+  // Sin esto Next lo prerenderiza y la app queda congelada en la fecha del build.
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, riesgo, pulso] = await Promise.all([
+  const [salasCrudas, riesgo, pulso, sesiones] = await Promise.all([
     estadoDeSalas(),
     acuerdosEnRiesgo(),
     pulsoDelMes(),
+    listarSesiones(),
   ])
   const salas = ordenarPorUrgencia(salasCrudas)
+
+  // Las minutas de las diez salas en una sola lista, la más reciente arriba.
+  const minutas: MinutaEnHome[] = salasCrudas
+    .flatMap((s) =>
+      s.minutas.map((m) => ({
+        id: m.sesionId ?? `${s.slug}-${m.fecha}`,
+        titulo: m.titulo,
+        fecha: m.fecha,
+        salaSlug: s.slug,
+        salaNombre: s.nombre,
+        salaColor: s.color,
+        texto: m.texto,
+        sesionId: m.sesionId,
+      })),
+    )
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+
+  const sinMinuta = salasCrudas.reduce((n, s) => n + sesionesSinMinuta(s).length, 0)
+
+  const paraCalendario = sesiones.map((s) => ({
+    id: s.id,
+    fecha: s.fecha,
+    titulo: s.titulo,
+    salaSlug: s.salaSlug,
+    salaNombre: s.salaNombre,
+    salaColor: s.salaColor,
+    estado: s.estado,
+  }))
 
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <div className={estilos.marca}>
-          <span className={estilos.marcaLogo}>M<span className={estilos.marcaRayo}>/</span>C</span>
-          <span className={estilos.marcaSub}>Marketing Corp</span>
-        </div>
+        <Link href="/" className={estilos.marca}>
+          <Image
+            src="/logos/marketing-corp-blanco.png"
+            alt="Marketing Corp"
+            width={140}
+            height={33}
+            className={estilos.marcaLogo}
+            priority
+          />
+        </Link>
         <nav className={estilos.barraDcha}>
+          <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/preparar" className={estilos.barraLink}>Preparar</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
@@ -45,107 +114,126 @@ export default async function Hub() {
       </header>
 
       <main className={estilos.main}>
-        <div className={estilos.encabezado}>
-          <h1 className={estilos.saludo}>Salas</h1>
-          <p className={estilos.saludoSub}>El estado de la relación con cada unidad, de un vistazo.</p>
-
-          <div className={estilos.pulso}>
+        {/* El pulso: cuatro cifras grandes y sus rótulos diminutos. */}
+        <section className={estilos.pulso}>
+          <div>
+            <h1 className={estilos.saludo}>Marketing Corp</h1>
+            <p className={estilos.saludoSub}>El estado de la relación con cada unidad.</p>
+          </div>
+          <div className={estilos.pulsoCifras}>
             <div className={estilos.pulsoItem}>
-              <span className={estilos.pulsoCifra}>{pulso.salas}</span>
-              <span className={estilos.pulsoLabel}>salas</span>
+              <span className="cifra">{pulso.salas}</span>
+              <span className="micro">salas</span>
             </div>
             <div className={estilos.pulsoItem}>
-              <span className={estilos.pulsoCifra}>{pulso.sesionesUltimos30}</span>
-              <span className={estilos.pulsoLabel}>con sesión este mes</span>
+              <span className="cifra">{pulso.sesionesUltimos30}</span>
+              <span className="micro">con sesión este mes</span>
             </div>
             <div className={estilos.pulsoItem}>
-              <span className={estilos.pulsoCifra}>{pulso.acuerdosAbiertos}</span>
-              <span className={estilos.pulsoLabel}>acuerdos abiertos</span>
+              <span className="cifra">{pulso.acuerdosAbiertos}</span>
+              <span className="micro">acuerdos abiertos</span>
             </div>
             <div className={estilos.pulsoItem}>
-              <span className={`${estilos.pulsoCifra} ${pulso.acuerdosVencidos > 0 ? estilos.alerta : ''}`}>
+              <span className="cifra" data-alerta={pulso.acuerdosVencidos > 0 ? 'true' : undefined}>
                 {pulso.acuerdosVencidos}
               </span>
-              <span className={estilos.pulsoLabel}>vencidos</span>
+              <span className="micro">vencidos</span>
             </div>
-            {pulso.salaMasDesatendida && (
-              <div className={estilos.pulsoDesatendida}>
-                <div className={estilos.n}>más desatendida</div>
-                <div className={estilos.v}>{pulso.salaMasDesatendida.nombre} · {pulso.salaMasDesatendida.dias} d</div>
-              </div>
-            )}
           </div>
+        </section>
+
+        {/* Los módulos: lo que hay que atender y lo que viene. */}
+        <div className={estilos.modulos}>
+          <ModuloAcuerdos
+            acuerdos={riesgo}
+            cambiarEstatusAction={cambiarEstatusAction}
+            ponerFechaAction={ponerFechaAction}
+          />
+          <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
+          <ModuloMinutas minutas={minutas} pendientes={sinMinuta} />
         </div>
 
-        <div className={estilos.cuerpo}>
-          {/* Lista de salas por urgencia */}
-          <section>
-            <h2 className={estilos.seccionTitulo}>
-              Las 10 salas
-              <span className={estilos.conteo}>ordenadas por atención pendiente</span>
-            </h2>
-            <div className={estilos.salas}>
-              {salas.map((s) => {
-                const t = temperatura(s)
-                const abiertos = acuerdosAbiertos(s)
-                const vencidos = acuerdosVencidos(s)
-                return (
-                  <Link key={s.slug} href={`/sala/${s.slug}`} className={estilos.sala}>
-                    <div className={estilos.salaCentro}>
-                      <div className={estilos.salaNombre}>
-                        <span className={estilos.salaPunto} style={{ background: s.color }} />
-                        {s.nombre}
-                      </div>
-                      <div className={estilos.salaMeta}>
-                        <span className={`${estilos.temp} ${estilos[t]}`}>{textoDiasDesde(s.diasDesdeUltima)}</span>
-                        <span className={estilos.sep}>·</span>
-                        <span>{textoProxima(s.proximaSesion, hoy)}</span>
-                      </div>
-                    </div>
-                    <div className={estilos.salaDcha}>
-                      <div className={estilos.chips}>
-                        {s.enPreparacion && <span className={estilos.chip + ' ' + estilos.prep}>en preparación</span>}
-                        {vencidos > 0 && <span className={estilos.chip + ' ' + estilos.vencidos}>{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
-                        {abiertos > 0 && <span className={estilos.chip}>{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
-                      </div>
-                      <span className={estilos.flecha}>→</span>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
+        {/* Las salas, con su logotipo. */}
+        <section>
+          <div className={estilos.seccionCabecera}>
+            <h2 className={estilos.seccionTitulo}>Las diez salas</h2>
+            <span className="micro" data-sinpunto>ordenadas por atención pendiente</span>
+          </div>
 
-          {/* Acuerdos en riesgo */}
-          <aside className={estilos.riesgo}>
-            <h2 className={estilos.seccionTitulo}>
-              Acuerdos en riesgo
-              <span className={estilos.conteo}>{riesgo.length}</span>
-            </h2>
-            {riesgo.length === 0 ? (
-              <p className={estilos.vacio}>Nada vencido ni sin fecha. Todo bajo control.</p>
-            ) : (
-              <div className={estilos.riesgoLista}>
-                {riesgo.map((a) => (
-                  <Link key={a.id} href={`/sala/${a.salaSlug}`} className={estilos.riesgoItem}>
-                    <span className={estilos.riesgoColor} style={{ background: a.salaColor }} />
-                    <div>
-                      <div className={estilos.riesgoQue}>{a.que}</div>
-                      <div className={estilos.riesgoMeta}>
-                        <span className={`${estilos.riesgoEstado} ${a.estatus === 'vencido' ? estilos.vencido : estilos.sinfecha}`}>
-                          {a.estatus === 'vencido' ? 'vencido' : 'sin fecha'}
-                        </span>
-                        <span className={estilos.riesgoSala}>{a.salaNombre}</span>
-                        {a.responsable && a.responsable !== 'por asignar' && <span>· {a.responsable}</span>}
-                        {a.responsable === 'por asignar' && <span>· sin dueño</span>}
-                      </div>
+          <div className={estilos.salas}>
+            {salas.map((s) => {
+              const t = temperatura(s)
+              const abiertos = acuerdosAbiertos(s)
+              const vencidos = acuerdosVencidos(s)
+              const dias = s.proximaSesion ? diasHasta(s.proximaSesion, hoy) : null
+              return (
+                <Link
+                  key={s.slug}
+                  href={`/sala/${s.slug}`}
+                  className={`tarjeta ${estilos.sala}`}
+                  style={{ '--marca': s.color } as CSSProperties}
+                >
+                  {/* El logotipo ES el nombre: la marca identifica más rápido
+                      que su nombre escrito en la tipografía del sistema.
+                      Salvo en Ceci, que hereda la identidad de Grupo UPAX —
+                      poner ahí el logo de UPAX daría dos tarjetas idénticas
+                      con salas distintas, que es peor que no poner ninguno. */}
+                  <span className={estilos.salaLogo}>
+                    {s.slug === 'ceci' ? (
+                      <span className={estilos.salaNombre}>{s.nombre}</span>
+                    ) : (
+                      <Image
+                        src={`/logos/${s.slug}-color.png`}
+                        alt={s.nombre}
+                        width={220}
+                        height={52}
+                        className={estilos.salaLogoImg}
+                      />
+                    )}
+                  </span>
+
+                  <div className={estilos.salaCuando}>
+                    <span className={estilos.salaDato}>
+                      <span className={estilos.salaDatoV} data-temp={t}>
+                        {textoDiasDesde(s.diasDesdeUltima)}
+                      </span>
+                      <span className="micro" data-sinpunto>última</span>
+                    </span>
+                    <span className={estilos.salaDato}>
+                      <span className={estilos.salaDatoV} data-pendiente={s.proximaSesion ? undefined : 'true'}>
+                        {s.proximaSesion
+                          ? `${fechaBreve(s.proximaSesion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
+                          : 'por agendar'}
+                      </span>
+                      <span className="micro" data-sinpunto>próxima</span>
+                    </span>
+                  </div>
+
+                  {s.enPreparacion && s.seccionesTotales ? (
+                    <div className={estilos.salaAvance}>
+                      <span className={estilos.salaAvanceTexto}>
+                        <span>{s.seccionesEscritas} de {s.seccionesTotales} secciones</span>
+                        <span>{s.avancePreparacion}%</span>
+                      </span>
+                      <span className={estilos.salaBarra}>
+                        <span className={estilos.salaBarraRelleno} style={{ width: `${s.avancePreparacion ?? 0}%` }} />
+                      </span>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </aside>
-        </div>
+                  ) : (
+                    <span />
+                  )}
+
+                  <div className={estilos.salaChips}>
+                    {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
+                    {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
+                    {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
+                    {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
       </main>
     </div>
   )

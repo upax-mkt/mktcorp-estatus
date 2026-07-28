@@ -1,0 +1,203 @@
+/* SISTEMA VISUAL — la capa que comparten todas las pantallas.
+ *
+ * Antes cada módulo CSS declaraba sus propios neutros, sus propios radios y
+ * sus propias transiciones. Salían casi iguales pero no iguales, y "casi
+ * igual" repetido por cinco pantallas es exactamente lo que se lee como
+ * desordenado.
+ *
+ * La referencia es el CRM que pasó Franco (behance.net/…/Callivio-CRM). Lo
+ * que se toma de ahí no es su paleta —las diez marcas ponen el color— sino su
+ * ESTRUCTURA:
+ *
+ *   · el contenido FLOTA sobre un lienzo casi-blanco, no se encierra en cajas
+ *     con borde;
+ *   · las superficies se separan por ELEVACIÓN, no por línea de 1px;
+ *   · radios grandes y coherentes, no siete valores distintos;
+ *   · contraste tipográfico brutal: la cifra enorme, su rótulo diminuto;
+ *   · el color aparece POCO, y cuando aparece significa algo.
+ */
+
+:root {
+  /* ---- lienzo y superficies ----
+     El fondo es casi-blanco FRÍO y las tarjetas son blanco puro: así una
+     tarjeta se ve por ser más clara que el lienzo, sin necesidad de borde. */
+  --lienzo: oklch(0.976 0.002 250);
+  --papel: oklch(1 0 0);
+  --papel-2: oklch(0.985 0.002 250);
+  --papel-hundido: oklch(0.958 0.003 250);
+
+  /* La línea sigue existiendo para separar filas DENTRO de una tarjeta, donde
+     una sombra no tendría sentido. Fuera de eso, no se usa. */
+  --linea: oklch(0.925 0.004 250);
+  --linea-fuerte: oklch(0.87 0.006 250);
+
+  /* ---- texto ----
+     Cuatro niveles, no más. El cuarto es para los micro-rótulos. */
+  --tinta: oklch(0.22 0.012 260);
+  --tinta-2: oklch(0.48 0.011 260);
+  --tinta-3: oklch(0.62 0.010 260);
+  --tinta-4: oklch(0.72 0.008 260);
+
+  /* ---- señales ----
+     Desaturadas a propósito: un verde de semáforo al lado de un logo de marca
+     compite con él. Aquí el color de marca manda y estas solo informan. */
+  --bien: oklch(0.62 0.11 155);
+  --ojo: oklch(0.74 0.12 75);
+  --mal: oklch(0.60 0.17 25);
+  --bien-tenue: oklch(0.62 0.11 155 / 0.10);
+  --ojo-tenue: oklch(0.74 0.12 75 / 0.12);
+  --mal-tenue: oklch(0.60 0.17 25 / 0.10);
+
+  /* ---- radios ----
+     Una escala, no un valor por componente. */
+  --r-1: 8px;    /* píldoras pequeñas, chips */
+  --r-2: 12px;   /* controles, campos */
+  --r-3: 16px;   /* tarjetas internas */
+  --r-4: 22px;   /* tarjetas y módulos */
+  --r-5: 30px;   /* contenedores grandes */
+  --r-lleno: 999px;
+
+  /* ---- elevación ----
+     Dos sombras por nivel: una corta y densa que asienta el objeto, y una
+     larga y difusa que lo despega. Una sola sombra siempre se ve o dura o
+     sucia. */
+  --e-0: 0 1px 2px oklch(0.22 0.012 260 / 0.04);
+  --e-1: 0 1px 2px oklch(0.22 0.012 260 / 0.05), 0 6px 16px oklch(0.22 0.012 260 / 0.05);
+  --e-2: 0 2px 4px oklch(0.22 0.012 260 / 0.05), 0 12px 28px oklch(0.22 0.012 260 / 0.07);
+  --e-3: 0 4px 8px oklch(0.22 0.012 260 / 0.06), 0 24px 56px oklch(0.22 0.012 260 / 0.10);
+
+  /* ---- movimiento ----
+     Muelle corto: sale rápido y frena con un rebote mínimo. La duración es
+     baja a propósito — una interfaz de trabajo no se admira, se usa. */
+  --muelle: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --suave: cubic-bezier(0.32, 0.72, 0, 1);
+  --rapido: 140ms;
+  --medio: 240ms;
+
+  /* ---- tipografía ----
+     El tracking se cierra conforme el tamaño crece: a 40px, el espaciado por
+     defecto de una geométrica se ve suelto. */
+  --track-display: -0.035em;
+  --track-titulo: -0.022em;
+  --track-normal: -0.006em;
+  --track-micro: 0.08em;
+}
+
+/* Quien pida menos movimiento, no lo tiene. No es un extra: para alguien con
+   trastorno vestibular una interfaz que rebota es una interfaz que marea. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --muelle: linear; --suave: linear; --rapido: 1ms; --medio: 1ms; }
+}
+
+/* ---- piezas compartidas ---- */
+
+/* LA TARJETA. Blanca, sin borde, elevada. Es la unidad de todo el sistema. */
+.tarjeta {
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+  transition: box-shadow var(--medio) var(--suave), transform var(--medio) var(--muelle);
+}
+a.tarjeta, button.tarjeta { display: block; text-align: left; border: none; font: inherit; color: inherit; cursor: pointer; width: 100%; }
+a.tarjeta:hover, button.tarjeta:hover { box-shadow: var(--e-2); transform: translateY(-2px); }
+
+/* EL MICRO-RÓTULO. Diminuto, con un punto delante. Lo que en la referencia
+   acompaña a cada cifra: "• Your Score". */
+.micro {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.7rem;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--tinta-3);
+}
+.micro::before {
+  content: '';
+  width: 4px; height: 4px; border-radius: 50%;
+  background: currentColor;
+  opacity: 0.65;
+  flex: none;
+}
+.micro[data-sinpunto]::before { display: none; }
+
+/* LA CIFRA. Grande y ligera, con su unidad pequeña al lado — no debajo, no
+   del mismo tamaño. Es el gesto más reconocible de la referencia. */
+.cifra {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  font-size: clamp(1.9rem, 4.5vw, 2.9rem);
+  font-weight: 300;
+  letter-spacing: var(--track-display);
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}
+.cifra small {
+  font-size: 0.32em;
+  font-weight: 500;
+  letter-spacing: var(--track-normal);
+  color: var(--tinta-3);
+}
+
+/* LA PÍLDORA. Etiqueta o control. El estado activo va en tinta sólida, como
+   en la referencia — no en color de marca, que se reserva para la marca. */
+.pildora {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--r-lleno);
+  font-size: 0.78rem;
+  font-weight: 550;
+  letter-spacing: var(--track-normal);
+  background: var(--papel-hundido);
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+.pildora[data-tono='activo'] { background: var(--tinta); color: var(--papel); }
+.pildora[data-tono='bien'] { background: var(--bien-tenue); color: var(--bien); }
+.pildora[data-tono='ojo'] { background: var(--ojo-tenue); color: var(--ojo); }
+.pildora[data-tono='mal'] { background: var(--mal-tenue); color: var(--mal); }
+/* La de marca se pinta con --marca, que publica cada sala. */
+.pildora[data-tono='marca'] {
+  background: color-mix(in oklch, var(--marca, var(--tinta)) 12%, transparent);
+  color: var(--marca, var(--tinta));
+}
+
+/* EL BOTÓN. Tinta sólida el primario; el secundario es papel elevado, no un
+   borde. */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--r-lleno);
+  border: none;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: var(--track-normal);
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--tinta);
+  color: var(--papel);
+  transition: transform var(--rapido) var(--muelle), box-shadow var(--rapido) var(--suave), opacity var(--rapido) linear;
+}
+.boton:hover { transform: translateY(-1px); box-shadow: var(--e-1); }
+.boton:active { transform: translateY(0); }
+.boton:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+.boton[data-tono='suave'] { background: var(--papel); color: var(--tinta); box-shadow: var(--e-0); }
+.boton[data-tono='suave']:hover { box-shadow: var(--e-1); }
+.boton[data-tono='fantasma'] { background: none; color: var(--tinta-2); }
+.boton[data-tono='fantasma']:hover { background: var(--papel-hundido); color: var(--tinta); transform: none; box-shadow: none; }
+
+/* El foco se ve SIEMPRE, y se ve igual en toda la app. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--marca, var(--tinta));
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}

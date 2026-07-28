@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { derivarEscalaDatos } from './escala-datos'
+import { distanciaPerceptual, distanciaVisionNormal } from './distancia-color'
+import { TEMAS } from '@/temas'
+import { derivarEscalaDatos, PISOS_DE_SEPARACION } from './escala-datos'
 import { contraste, hexAHsl } from './color'
 
 const CASOS: Array<{ sala: string; primario: string; superficie: string }> = [
@@ -28,22 +30,17 @@ describe('derivarEscalaDatos', () => {
     expect(Math.abs(matizPrimero - matizPrimario)).toBeLessThan(6)
   })
 
-  it.each(CASOS)('$sala: los 6 colores contrastan ≥ 3:1 contra su superficie', ({ primario, superficie }) => {
+  it.each(CASOS)('$sala: los 6 colores contrastan lo suficiente contra su superficie', ({ primario, superficie }) => {
     for (const color of derivarEscalaDatos(primario, superficie)) {
-      expect(contraste(color, superficie)).toBeGreaterThanOrEqual(3)
+      expect(contraste(color, superficie)).toBeGreaterThanOrEqual(PISOS_DE_SEPARACION.contraste)
     }
   })
 
-  it.each(CASOS)('$sala: los matices están separados al menos 20°', ({ primario, superficie }) => {
-    const matices = derivarEscalaDatos(primario, superficie).map((c) => hexAHsl(c).h)
-    for (let i = 0; i < matices.length; i++) {
-      for (let j = i + 1; j < matices.length; j++) {
-        const bruto = Math.abs(matices[i] - matices[j])
-        const distancia = Math.min(bruto, 360 - bruto)
-        expect(distancia).toBeGreaterThanOrEqual(20)
-      }
-    }
-  })
+  // El test que había aquí exigía 20° de separación de MATIZ, que es justo el
+  // criterio que resultó estar equivocado: el matiz de HSL no es distancia
+  // percibida. Dos verdes a 56° de matiz eran indistinguibles (ΔE 0.9) y el
+  // test los daba por buenos. Lo sustituye la comprobación perceptual de más
+  // abajo, que mide lo que de verdad decide si un gráfico se lee.
 
   it('es determinista: la misma entrada da la misma salida', () => {
     expect(derivarEscalaDatos('#00CFAB', '#FFFFFF')).toEqual(derivarEscalaDatos('#00CFAB', '#FFFFFF'))
@@ -57,4 +54,42 @@ describe('derivarEscalaDatos', () => {
       }
     },
   )
+})
+
+describe('ninguna sala puede desplegar una paleta ilegible', () => {
+  // Este es el test que faltaba. La escala anterior fallaba a partir de la
+  // TERCERA serie en las diez marcas —pares de verdes a ΔE 0.9— y nadie se
+  // enteró porque los gráficos de entonces usaban dos series. El primer
+  // gráfico de cuatro habría salido ilegible en las diez salas a la vez, y eso
+  // se descubre proyectando en una reunión.
+  const SUPERFICIES: Array<[string, string]> = [
+    ['clara', '#FFFFFF'],
+    ['oscura', '#141414'],
+  ]
+
+  for (const [slug, tema] of Object.entries(TEMAS)) {
+    for (const [nombreSuperficie, superficie] of SUPERFICIES) {
+      it(`${slug} sobre superficie ${nombreSuperficie}: seis series separables`, () => {
+        const escala = derivarEscalaDatos(tema.primario, superficie, 6)
+        expect(new Set(escala).size, 'hay colores repetidos').toBe(6)
+
+        for (let i = 0; i < escala.length; i++) {
+          for (let j = i + 1; j < escala.length; j++) {
+            const bajoDaltonismo = distanciaPerceptual(escala[i], escala[j])
+            const conVisionNormal = distanciaVisionNormal(escala[i], escala[j])
+
+            expect(
+              bajoDaltonismo,
+              `series ${i + 1} y ${j + 1} (${escala[i]} / ${escala[j]}) se confunden bajo daltonismo`,
+            ).toBeGreaterThanOrEqual(PISOS_DE_SEPARACION.daltonismo)
+
+            expect(
+              conVisionNormal,
+              `series ${i + 1} y ${j + 1} (${escala[i]} / ${escala[j]}) se confunden con visión normal`,
+            ).toBeGreaterThanOrEqual(PISOS_DE_SEPARACION.visionNormal)
+          }
+        }
+      })
+    }
+  }
 })

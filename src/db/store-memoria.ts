@@ -12,12 +12,16 @@
 
 export interface FilaSesionMemoria {
   id: string
-  salaSlug: string
+  /** Nulo en una reunión que no pertenece a ninguna sala. */
+  salaSlug: string | null
+  plantilla: string
   fecha: Date
   tipo: 'semanal' | 'mensual'
   alcance: string
-  estado: 'borrador' | 'lista' | 'presentada' | 'minutada'
+  estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
   estructura: unknown
+  participantes: string[]
+  lugar: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -65,24 +69,48 @@ export interface FilaMinutaMemoria {
   createdAt: Date
 }
 
+export interface FilaArchivoMemoria {
+  id: string
+  salaSlug: string | null
+  sesionId?: string | null
+  categoria: 'presentacion' | 'interes' | 'imagen'
+  titulo: string
+  fecha: Date | null
+  ruta: string
+  nombreOriginal: string
+  tipoContenido: string | null
+  tamanoBytes: number | null
+  subidoPor: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 const sesiones = new Map<string, FilaSesionMemoria>()
 const items = new Map<string, FilaItemMemoria>()
 const acuerdos = new Map<string, FilaAcuerdoMemoria>()
 const minutas = new Map<string, FilaMinutaMemoria>()
-/** Salas cuyos acuerdos de ejemplo (src/datos-ejemplo.ts) ya se sembraron en `acuerdos`. */
-const salasAcuerdosSembradas = new Set<string>()
-
+const archivos = new Map<string, FilaArchivoMemoria>()
 /** Sólo para tests: vuelve el store a estado vacío. */
 export function reiniciarStoreMemoria(): void {
   sesiones.clear()
   items.clear()
   acuerdos.clear()
   minutas.clear()
-  salasAcuerdosSembradas.clear()
+  archivos.clear()
 }
 
 export function insertarSesionMemoria(fila: FilaSesionMemoria): void {
   sesiones.set(fila.id, fila)
+}
+
+/** Espejo en memoria de `editarSesion` (ver src/db/sesiones.ts). */
+export function actualizarDatosSesionMemoria(
+  sesionId: string,
+  cambios: Partial<Pick<FilaSesionMemoria, 'fecha' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>,
+): void {
+  const fila = sesiones.get(sesionId)
+  if (!fila) return
+  sesiones.set(sesionId, { ...fila, ...cambios, updatedAt: new Date() })
 }
 
 export function actualizarEstructuraSesionMemoria(sesionId: string, estructura: unknown): void {
@@ -135,6 +163,10 @@ export function actualizarOrdenItemMemoria(itemId: string, orden: number): void 
   fila.updatedAt = new Date()
 }
 
+export function eliminarItemMemoria(itemId: string): void {
+  items.delete(itemId)
+}
+
 export function actualizarDecisionItemMemoria(itemId: string, decisionMaquetacion: unknown): void {
   const fila = items.get(itemId)
   if (!fila) return
@@ -143,22 +175,8 @@ export function actualizarDecisionItemMemoria(itemId: string, decisionMaquetacio
 }
 
 // ---- Acuerdos ----
-// Cuelgan de la SALA (spec §4), no de la sesión. En modo memoria, la primera
-// vez que se consulta una sala (ver src/db/consultas.ts) se siembra este store
-// con sus acuerdos de ejemplo (src/datos-ejemplo.ts) para que mover un estatus
-// o editar una fecha en dev, sin DATABASE_URL, tenga algo real sobre qué
-// operar — exactamente una vez por sala (`salasAcuerdosSembradas`), para no
-// pisar ediciones ya hechas en siembras posteriores.
-
-export function acuerdosDeSalaYaSembrados(salaSlug: string): boolean {
-  return salasAcuerdosSembradas.has(salaSlug)
-}
-
-export function sembrarAcuerdosDeSalaMemoria(salaSlug: string, filas: FilaAcuerdoMemoria[]): void {
-  if (salasAcuerdosSembradas.has(salaSlug)) return
-  salasAcuerdosSembradas.add(salaSlug)
-  for (const fila of filas) acuerdos.set(fila.id, fila)
-}
+// Los acuerdos cuelgan de la SALA (spec §4), no de la sesión. El store arranca
+// vacío: solo contiene lo que se haya creado en la app.
 
 export function insertarAcuerdoMemoria(fila: FilaAcuerdoMemoria): void {
   acuerdos.set(fila.id, fila)
@@ -203,6 +221,33 @@ export function eliminarMinutaDeSesionMemoria(sesionId: string): void {
   for (const [id, fila] of minutas) {
     if (fila.sesionId === sesionId) minutas.delete(id)
   }
+}
+
+// ---- Archivos de sala (ver src/db/archivos.ts) ----
+
+export function insertarArchivoMemoria(fila: FilaArchivoMemoria): void {
+  archivos.set(fila.id, fila)
+}
+
+export function obtenerArchivoMemoria(id: string): FilaArchivoMemoria | undefined {
+  return archivos.get(id)
+}
+
+export function listarArchivosDeSalaMemoria(salaSlug: string): FilaArchivoMemoria[] {
+  return [...archivos.values()].filter((a) => a.salaSlug === salaSlug)
+}
+
+export function actualizarArchivoMemoria(
+  id: string,
+  cambios: Partial<Pick<FilaArchivoMemoria, 'titulo' | 'fecha'>>,
+): void {
+  const fila = archivos.get(id)
+  if (!fila) return
+  archivos.set(id, { ...fila, ...cambios, updatedAt: new Date() })
+}
+
+export function eliminarArchivoMemoria(id: string): void {
+  archivos.delete(id)
 }
 
 /** Espejo en memoria del borrado de una sesión con sus items (ver src/db/sesiones.ts). */

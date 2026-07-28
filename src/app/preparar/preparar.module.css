@@ -5,23 +5,33 @@
    tema — aquí solo vive el "chrome" de preparación. */
 
 .app {
-  --acento: oklch(0.62 0.19 42);
-  --acento-suave: oklch(0.62 0.19 42 / 0.1);
-  --fondo: oklch(0.985 0.006 70);
-  --superficie: oklch(1 0 0);
-  --superficie-2: oklch(0.975 0.008 70);
-  --borde: oklch(0.91 0.012 70);
-  --borde-fuerte: oklch(0.84 0.014 70);
-  --tx: oklch(0.26 0.025 55);
-  --tx-2: oklch(0.52 0.02 55);
-  --tx-3: oklch(0.66 0.015 55);
-  --alerta: oklch(0.57 0.2 25);
-  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
-  --ok: oklch(0.6 0.12 155);
-  --ok-suave: oklch(0.6 0.12 155 / 0.12);
-  --tibia: oklch(0.72 0.13 70);
-  --barra: oklch(0.24 0.03 55);
-  --barra-tx: oklch(0.96 0.008 70);
+  /* Los neutros ya no se declaran aquí: se toman de `sistema.css`, que es la
+     única fuente. Antes cada pantalla tenía los suyos —casi iguales pero no
+     iguales— y "casi igual" repetido por cinco pantallas es exactamente lo
+     que se lee como desordenado.
+
+     Los nombres locales se conservan como alias para no reescribir cuatro
+     hojas de estilo enteras: lo que cambia es de dónde sale el valor. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  /* El acento del cascarón es el color de LA SALA cuando hay una; fuera de
+     una sala, la tinta. Así el naranja fijo deja de competir con la marca. */
+  --acento: var(--marca, var(--tinta));
+  --acento-suave: color-mix(in oklch, var(--marca, var(--tinta)) 10%, transparent);
 
   min-height: 100dvh;
   background: var(--fondo);
@@ -32,21 +42,31 @@
 
 /* ---- barra superior ---- */
 .barra {
-  position: sticky; top: 0; z-index: 10;
+  /* Material translúcido en vez de un bloque oscuro: la barra deja de ser
+     una franja que corta la página y pasa a flotar sobre ella. */
+  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
-  background: var(--barra); color: var(--barra-tx);
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
 }
 .volver {
   display: inline-flex; align-items: center; gap: 0.45rem;
-  color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-size: 0.88rem; font-weight: 500;
+  color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; font-weight: 500;
 }
-.volver:hover { opacity: 1; }
+.volver:hover { color: var(--tinta); }
 .barraTitulo { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; margin-left: 0.25rem; }
 .barraDcha { margin-left: auto; display: flex; align-items: center; gap: 0.9rem; }
 
 /* ---- contenedor ---- */
 .main { max-width: 900px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+/* El editor de secciones necesita más sitio: dentro conviven una fila de
+   cuatro campos, una rejilla pegada y la configuración por serie de un
+   gráfico. A 900px eso se apila hasta volverse una columna de cajitas. */
+.mainEditor { max-width: 1440px; }
 .mainAncho { max-width: 1180px; }
 
 .encabezado {
@@ -59,27 +79,50 @@
 /* ---- botón primario ---- */
 .boton {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-  padding: 0.65rem 1.15rem; border-radius: 0.6rem; border: none;
-  background: var(--tx); color: var(--fondo);
-  font-family: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer;
-  text-decoration: none; transition: opacity 140ms ease, transform 140ms ease;
+  padding: 0.6rem 1.15rem; border-radius: var(--r-lleno); border: none;
+  background: var(--tinta); color: var(--papel);
+  font-family: inherit; font-size: 0.88rem; font-weight: 600;
+  letter-spacing: var(--track-normal); cursor: pointer; text-decoration: none;
+  transition: transform var(--rapido) var(--muelle), box-shadow var(--rapido) var(--suave);
 }
-.boton:hover { opacity: 0.85; }
+.boton:hover { transform: translateY(-1px); box-shadow: var(--e-1); }
 .boton:disabled { opacity: 0.4; cursor: not-allowed; }
-.botonAcento { background: var(--acento); color: white; }
-.botonSecundario { background: var(--superficie); color: var(--tx); border: 1px solid var(--borde-fuerte); }
-.botonSecundario:hover { background: var(--superficie-2); opacity: 1; }
+.botonAcento { background: var(--acento); color: var(--papel); }
+.botonSecundario { background: var(--papel); color: var(--tx); box-shadow: var(--e-0); }
+.botonSecundario:hover { box-shadow: var(--e-1); }
 .botonChico { padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 0.45rem; }
 
+/* Confirmación en dos tiempos, en línea: la consecuencia se ESCRIBE, no se
+   deja al usuario deducirla del verbo del botón. */
+.confirmarInline { display: inline-flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+.confirmarTexto { font-size: 0.8rem; color: var(--tx-2); }
+.botonTexto {
+  font: inherit; font-size: 0.8rem; color: var(--tx-3);
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+}
+.botonTexto:hover { color: var(--tx); }
+
 /* ---- lista de sesiones ---- */
-.lista { display: flex; flex-direction: column; }
+.lista {
+  /* La lista ES la tarjeta, y las sesiones son filas dentro. Antes eran
+     renglones sueltos sobre el lienzo, que es lo que hacía que la pantalla se
+     leyera como una tabla y no como parte del sistema. */
+  display: flex; flex-direction: column;
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+  padding: 0.35rem 1.1rem;
+  margin-bottom: 2rem;
+}
 .fila {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
-  padding: 1rem 0.9rem; border-top: 1px solid var(--borde);
-  text-decoration: none; color: inherit; transition: background 140ms ease;
+  padding: 0.95rem 0.35rem;
+  border-top: 1px solid var(--borde);
+  text-decoration: none; color: inherit;
+  transition: padding-inline var(--rapido) var(--suave);
 }
-.lista .fila:last-child { border-bottom: 1px solid var(--borde); }
-.fila:hover { background: var(--superficie-2); }
+.lista .fila:first-child { border-top: none; }
+.fila:hover { padding-inline: 0.7rem 0; }
 .filaIzq { min-width: 0; }
 .filaNombre { font-size: 1.02rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
 .filaPunto { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; }
@@ -89,26 +132,27 @@
 .flecha { color: var(--tx-3); font-size: 1.1rem; }
 
 .vacio {
-  padding: 2.5rem 1rem; text-align: center; color: var(--tx-3); font-size: 0.92rem;
-  border: 1px dashed var(--borde-fuerte); border-radius: 0.8rem;
+  padding: 2.5rem 1rem; text-align: center; color: var(--tx-3); font-size: 0.92rem; border-radius: var(--r-4);
+  box-shadow: var(--e-1);
 }
 
 /* ---- chips de estado ---- */
 .chip {
-  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 0.2rem 0.55rem; border-radius: 999px;
-  background: var(--superficie-2); color: var(--tx-2); border: 1px solid var(--borde);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: var(--track-normal);
+  text-transform: none;
+  padding: 0.22rem 0.6rem; border-radius: var(--r-lleno);
+  background: var(--hundido); color: var(--tx-2); border: none;
 }
 /* Agendada: solo tiene fecha, nadie la ha empezado. Más tenue que borrador. */
-.chip.agendada { background: var(--superficie-2); color: var(--tx-3); border-color: var(--borde); }
-.chip.borrador { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
-.chip.lista { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
+.chip.agendada { background: var(--hundido); color: var(--tx-3); }
+.chip.borrador { background: var(--acento-suave); color: var(--acento); }
+.chip.lista { background: var(--ok-suave); color: var(--ok); }
 .chip.presentada, .chip.minutada { background: var(--superficie-2); color: var(--tx-2); }
 
 /* ---- barra de avance ---- */
 .avance { display: flex; align-items: center; gap: 0.5rem; min-width: 110px; }
-.avanceBarra { flex: 1; height: 6px; border-radius: 999px; background: var(--borde); overflow: hidden; }
-.avanceRelleno { height: 100%; background: var(--acento); border-radius: 999px; transition: width 200ms ease; }
+.avanceBarra { flex: 1; height: 4px; border-radius: var(--r-lleno); background: var(--hundido); overflow: hidden; }
+.avanceRelleno { height: 100%; background: var(--acento); border-radius: var(--r-lleno); transition: width var(--medio) var(--suave); }
 .avanceTexto { font-size: 0.76rem; color: var(--tx-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---- formulario "nueva sesión" ---- */
@@ -118,9 +162,10 @@
 
 .salasGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
 .salaOpcion {
-  position: relative; cursor: pointer; border: 1.5px solid var(--borde); border-radius: 0.7rem;
+  position: relative; cursor: pointer; border-radius: var(--r-4);
   padding: 0.75rem 0.85rem; background: var(--superficie); transition: border-color 140ms ease, background 140ms ease;
   display: flex; align-items: center; gap: 0.55rem;
+  box-shadow: var(--e-1);
 }
 .salaOpcion:hover { background: var(--superficie-2); }
 .salaOpcion input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
@@ -130,9 +175,10 @@
 
 .opcionesFila { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .opcionPill {
-  position: relative; cursor: pointer; border: 1.5px solid var(--borde); border-radius: 999px;
+  position: relative; cursor: pointer; border-radius: var(--r-4);
   padding: 0.5rem 1.1rem; font-size: 0.88rem; font-weight: 600; color: var(--tx-2);
   background: var(--superficie); transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+  box-shadow: var(--e-1);
 }
 .opcionPill input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
 .opcionPill:has(input:checked) { border-color: var(--acento); color: var(--acento); background: var(--acento-suave); }
@@ -149,9 +195,9 @@
 
 /* ---- cabecera de sesión ---- */
 .heroSesion {
-  border-radius: 1rem; padding: clamp(1.25rem, 4vw, 1.75rem); margin-bottom: 2rem;
+  border-radius: var(--r-4); padding: clamp(1.25rem, 4vw, 1.75rem); margin-bottom: 2rem;
   background: linear-gradient(120deg, color-mix(in srgb, var(--sala) 14%, var(--superficie)), var(--superficie));
-  border: 1px solid var(--borde);
+  box-shadow: var(--e-1);
 }
 .heroFila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .heroSala { display: flex; align-items: center; gap: 0.6rem; font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em; }
@@ -162,13 +208,14 @@
 /* ---- cuestionario: tarjetas ---- */
 /* El contenedor de las tarjetas lo aporta ahora ListaOrdenable (que también
    añade el asa de arrastre); esta clase quedó sin uso al adoptarlo. */
-.tarjeta { background: var(--superficie); border: 1px solid var(--borde); border-radius: 0.9rem; padding: 1.25rem 1.4rem; }
+.tarjeta { background: var(--superficie); border-radius: var(--r-4); padding: 1.25rem 1.4rem; }
 .tarjeta[data-llenado="true"] { border-color: color-mix(in srgb, var(--ok) 45%, var(--borde)); }
 .tarjetaCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
 .tarjetaNumero {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 1.7rem; height: 1.7rem; border-radius: 50%; font-size: 0.78rem; font-weight: 700;
+  width: 1.7rem; height: 1.7rem; border-radius: var(--r-4); font-size: 0.78rem; font-weight: 700;
   background: var(--superficie-2); color: var(--tx-2); flex: none;
+  box-shadow: var(--e-1);
 }
 .tarjeta[data-llenado="true"] .tarjetaNumero { background: var(--ok-suave); color: var(--ok); }
 .tarjetaTitulo { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
@@ -191,7 +238,7 @@
 /* ---- panel de maquetar ---- */
 .panelMaquetar {
   position: sticky; bottom: 1rem; margin-top: 2rem;
-  background: var(--barra); color: var(--barra-tx); border-radius: 0.9rem;
+  background: var(--barra); color: var(--tinta-2); border-radius: 0.9rem;
   padding: 1rem 1.3rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
   box-shadow: 0 8px 30px oklch(0 0 0 / 0.18);
 }
@@ -281,3 +328,98 @@
   border: 1px dashed var(--borde-fuerte); border-radius: 0.7rem;
 }
 .zonaPeligroTexto { font-size: 0.85rem; line-height: 1.5; color: var(--tx-2); max-width: 60ch; }
+
+/* ---- árbol de secciones del editor ---- */
+
+/* Un bloque de la sesión: la sección base y las subsecciones que cuelgan. */
+.bloqueSeccion { display: grid; gap: 0.9rem; }
+
+/* Las subsecciones se sangran y se marcan con una guía a la izquierda: se ve
+   de un vistazo qué cuelga de qué sin tener que leer los títulos. */
+.subsecciones {
+  display: grid;
+  gap: 0.9rem;
+  margin-left: 1.4rem;
+  padding-left: 1.4rem;
+  border-left: 2px solid color-mix(in oklch, var(--sala, #888) 30%, transparent);
+}
+
+.tarjeta[data-sub='true'] { background: color-mix(in oklch, var(--tx) 3%, var(--superficie)); }
+
+/* El tipo de sección baja a distintivo: informa sin ocupar el sitio de la
+   pregunta guía, que es lo que de verdad orienta. */
+.chipTipo {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  background: var(--superficie-2);
+  color: var(--tx-2);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ---- índice lateral del editor ----
+   El editor mide unos 5.900px de alto y se navegaba a scroll, sin saber
+   cuántas secciones quedaban ni cuáles estaban vacías. El documento que esta
+   herramienta produce sí tiene índice; la herramienta no lo tenía. */
+.editorConIndice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+.columnaSecciones { display: grid; gap: 0.9rem; min-width: 0; order: 2; }
+.indice { order: 1; }
+
+@media (min-width: 68rem) {
+  .editorConIndice { grid-template-columns: 12.5rem minmax(0, 1fr); align-items: start; }
+  .columnaSecciones { order: 2; }
+  .indice { order: 1; position: sticky; top: 5rem; }
+}
+
+.indiceCabecera {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem;
+  padding-bottom: 0.5rem; margin-bottom: 0.35rem; border-bottom: 1px solid var(--borde);
+}
+.indiceTitulo {
+  font-size: 0.7rem; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--tx-3); font-weight: 700;
+}
+.indiceConteo { font-size: 0.76rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+
+.indiceLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.indiceEnlace {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.3rem 0.35rem; border-radius: 0.35rem;
+  font-size: 0.82rem; color: var(--tx-2); text-decoration: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.indiceEnlace:hover { background: var(--superficie-2); color: var(--tx); }
+.indiceEnlace[data-sub='true'] { padding-left: 1.15rem; font-size: 0.78rem; color: var(--tx-3); }
+
+/* El punto dice si la sección tiene algo escrito: es la lectura de un vistazo
+   —qué falta— que antes obligaba a bajar por las catorce tarjetas. */
+.indicePunto {
+  width: 0.45rem; height: 0.45rem; border-radius: 50%; flex: none;
+  border: 1px solid var(--borde-fuerte);
+}
+.indiceEnlace[data-llenado='true'] .indicePunto { background: var(--ok); border-color: var(--ok); }
+.indiceNombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- elegir plantilla de reunión ----
+   Va antes que la sala porque decide con qué secciones nace: es lo que hace
+   que la herramienta sirva para un comité y no solo para el estatus de una
+   UDN. */
+.plantillas { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.6rem; }
+.plantilla {
+  position: relative; cursor: pointer;
+  display: grid; gap: 0.25rem; align-content: start;
+  padding: 0.9rem 1rem; border-radius: var(--r-4); background: var(--superficie);
+  transition: border-color 140ms ease, background 140ms ease;
+  box-shadow: var(--e-1);
+}
+.plantilla:hover { background: var(--superficie-2); }
+.plantilla input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.plantilla:has(input:checked) {
+  border-color: var(--acento);
+  background: color-mix(in srgb, var(--acento) 6%, var(--superficie));
+}
+.plantillaNombre { font-size: 0.95rem; font-weight: 650; }
+.plantillaParaQue { font-size: 0.8rem; color: var(--tx-2); line-height: 1.4; }
+.plantillaCuenta { font-size: 0.72rem; color: var(--tx-3); margin-top: 0.2rem; }

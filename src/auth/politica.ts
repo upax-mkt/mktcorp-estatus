@@ -19,7 +19,10 @@ import type { Sesion } from './firma'
 const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/retorno']
 
 /** Rutas de solo-equipo, por prefijo de primer segmento. */
-const SECCIONES_DE_EQUIPO = ['preparar', 'motor-demo']
+const SECCIONES_DE_EQUIPO = ['preparar']
+
+/** Páginas que cuelgan de una sala y su director sí puede ver. */
+const HIJAS_DE_SALA = ['benchmark']
 
 /** Primer segmento y resto de una ruta: '/sala/neracode' → ['sala', 'neracode']. */
 function segmentos(ruta: string): string[] {
@@ -33,6 +36,26 @@ export function esRutaPublica(ruta: string): boolean {
 /** Solo Mkt Corp escribe: mover estatus, editar fechas, maquetar, minutar. */
 export function puedeEditar(sesion: Sesion | null): boolean {
   return sesion?.rol === 'equipo'
+}
+
+/**
+ * Quién puede tocar los ACUERDOS de una sala.
+ *
+ * Marketing Corp, en todas. Y el director de una UDN, en la suya y solo en la
+ * suya (Franco, 28-jul: "solo pueden editar los acuerdos y pendientes").
+ *
+ * Es la única excepción a "solo Mkt Corp escribe", y tiene sentido: un
+ * acuerdo es un compromiso de la UDN. Que su dueño no pueda marcarlo como
+ * cumplido obliga a pedirlo por Slack para que alguien lo teclee — el trámite
+ * que esta app viene a quitar.
+ *
+ * NO alcanza a nada más: ni preparar sesiones, ni subir archivos, ni minutar,
+ * ni tocar otra sala.
+ */
+export function puedeEditarAcuerdos(sesion: Sesion | null, slug: string): boolean {
+  if (!sesion) return false
+  if (sesion.rol === 'equipo') return true
+  return sesion.rol === 'sala' && sesion.sala === slug
 }
 
 /** El equipo ve todas las salas; un acceso de sala, únicamente la suya. */
@@ -55,9 +78,27 @@ export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
 
   // A partir de aquí: rol 'sala'. Lista blanca estricta.
   const partes = segmentos(ruta)
+  // `/api/archivo/<id>` es el mismo caso que `/sesion/<id>`: lleva un id, y
+  // hasta no leer el archivo no se sabe de qué sala es. Pasa el filtro
+  // optimista y la ruta comprueba contra la sala REAL del archivo antes de
+  // servir un byte. Sin esto, un director no podría abrir los archivos de su
+  // propia sala.
+  if (partes.length === 3 && partes[0] === 'api' && partes[1] === 'archivo') return true
+  // Las páginas que cuelgan de una sala llevan su slug delante, así que aquí
+  // SÍ se puede decidir: `/sala/neracode/benchmark` es del director de
+  // NeraCode y de nadie más. Lista blanca de hijas: una ruta nueva bajo
+  // /sala/<slug>/ no se abre por olvido.
+  if (partes.length === 3 && partes[0] === 'sala' && HIJAS_DE_SALA.includes(partes[2])) {
+    return puedeVerSala(sesion, partes[1])
+  }
   if (partes.length !== 2) return false
   const [seccion, slug] = partes
   if (SECCIONES_DE_EQUIPO.includes(seccion)) return false
-  if (seccion !== 'sala' && seccion !== 'demo') return false
+  // `/sesion/<id>` lleva un id, no un slug: aquí no se puede saber de qué sala
+  // es. Pasa el filtro optimista y la PÁGINA comprueba contra la sesión real
+  // que ese director puede verla — que es donde vive la verificación que
+  // manda, pegada al dato.
+  if (seccion === 'sesion') return true
+  if (seccion !== 'sala') return false
   return puedeVerSala(sesion, slug)
 }

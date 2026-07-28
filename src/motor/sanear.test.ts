@@ -79,7 +79,7 @@ describe('completarKpisFaltantes', () => {
       layout: 'kpis-fila-dos-columnas',
       titulo: 'x',
       kpis: [{ valor: '29k', rotulo: 'Impresiones' }],
-      columnas: [{ titulo: 'Hallazgos', puntos: ['La posicion media subio a 9.2 este mes'] }],
+      columnas: [{ titulo: 'Hallazgos', puntos: [{ texto: 'La posicion media subio a 9.2 este mes' }] }],
       razon: 'y',
     }
     const valores = completarKpisFaltantes(conTexto, CUATRO_CIFRAS).kpis?.map((k) => k.valor)

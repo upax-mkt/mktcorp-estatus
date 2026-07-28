@@ -1,0 +1,486 @@
+/* Piezas de contenido de una sección del documento: tabla, matriz, bloques
+   numerados y cumplimiento. Los tokens de marca (--primario-sobre-superficie,
+   --texto, --superficie, --gradiente, --dato-N) los publica ProveedorTema, y
+   las dos escalas —`--t-N` de tipografía, `--e-N` de espaciado— las publica
+   `.documento`: heredan por el árbol, así que estas piezas suben solas al
+   proyectar sin una regla propia.
+
+   Nunca --primario directo para texto: no todas las marcas contrastan ≥4.5:1
+   sobre su superficie (Promo Espacio cae a 2.97:1). Ver ProveedorTema.tsx. */
+
+/* SIN `uppercase`: convertía "SQLs" en "SQLS" y "MQLs" en "MQLS". Un
+   acrónimo mixto es contenido, no estilo, y forzarlo lo escribe mal. El
+   rótulo se distingue por peso y tracking, que ya bastan. */
+.piezaTitulo {
+  font-size: var(--t--2);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: var(--primario-sobre-superficie);
+  margin-bottom: var(--e-3);
+}
+
+/* ---- tabla ------------------------------------------------------------- */
+
+.tablaEnvoltorio {
+  margin-top: var(--e-5);
+}
+
+/* El scroll horizontal se queda DENTRO de la tabla: una comparativa de ocho
+   columnas no puede hacer que el documento entero se mueva de lado. */
+.tablaScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-0);
+  /* Sin esto heredaba `normal` (~1.2) mientras el resto del documento va a
+     1.5: las tablas salían más densas que el cuerpo sin que fuera una
+     decisión. */
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla th,
+.tabla td {
+  text-align: left;
+  padding: var(--e-3) var(--e-4);
+  border-bottom: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  vertical-align: top;
+}
+
+/* La primera celda vuelve a la bandera izquierda del documento. El relleno
+   la separaba 14px del título de su sección, y ese desfase —repetido en cada
+   tabla— se percibe como desalineación general: la bandera izquierda es la
+   única estructura horizontal que mantiene unido el documento. */
+.tabla th:first-child,
+.tabla td:first-child { padding-left: 0; }
+.tabla th:last-child,
+.tabla td:last-child { padding-right: 0; }
+
+.tabla thead th {
+  font-size: var(--t--2);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  border-bottom-color: color-mix(in oklch, var(--texto) 22%, transparent);
+  white-space: nowrap;
+}
+
+/* Alineación por CONTENIDO, no por posición: los números se comparan por su
+   última cifra y van a la derecha; una frase alineada a la derecha es
+   ilegible. El atributo lo pone TablaSeccion celda a celda — en una
+   comparativa la segunda columna es un número, en pendientes es una tarea. */
+.tabla td[data-cifra='true'],
+.tabla th[data-cifra='true'] {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tabla tbody td:has(.semaforo) {
+  white-space: nowrap;
+}
+
+/* La última fila cierra sin filete… salvo si es la fila de TOTAL, que sí lo
+   necesita: una banda gris con línea arriba y nada abajo se derrama hacia el
+   blanco. Lo mismo si la tabla tiene una sola fila, que se quedaba colgando
+   del encabezado sin cierre. */
+.tabla tbody tr:last-child:not([data-destacada='true']):not(:first-child) th,
+.tabla tbody tr:last-child:not([data-destacada='true']):not(:first-child) td {
+  border-bottom: none;
+}
+
+/* La fila de total no es una fila más: cierra la tabla. */
+.tabla tbody tr[data-destacada='true'] td,
+.tabla tbody tr[data-destacada='true'] th {
+  font-weight: 700;
+  background: color-mix(in oklch, var(--texto) 5%, transparent);
+  border-top: 1px solid color-mix(in oklch, var(--texto) 22%, transparent);
+}
+
+.celdaGrupo {
+  font-weight: 600;
+  vertical-align: top;
+  white-space: nowrap;
+  border-right: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+}
+
+.filaNota {
+  display: block;
+  margin-top: var(--e-1);
+  font-size: var(--t--1);
+  font-weight: 400;
+  white-space: normal;
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+/* ---- semáforo ---------------------------------------------------------- */
+
+/* Los tres colores de estado se declaran AQUÍ y no se heredan de la página:
+   la misma tabla se pinta dentro de /preparar y de /demo, que son módulos
+   distintos, y un semáforo gris porque el token no llegó es peor que ninguno.
+   Los valores son los mismos que usa la sala (sala.module.css). */
+.tablaEnvoltorio {
+  --semaforo-listo: oklch(0.6 0.12 155);
+  --semaforo-en-proceso: oklch(0.72 0.13 70);
+  --semaforo-no-realizado: oklch(0.57 0.2 25);
+}
+
+.semaforo {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  vertical-align: baseline;
+  background: color-mix(in oklch, var(--texto) 30%, transparent);
+}
+
+/* Color + posición en la leyenda: el color solo no basta como información
+   (no todo el mundo lo distingue), por eso cada estado lleva SIEMPRE su
+   palabra al lado, tanto en la celda como en la leyenda. */
+.semaforo[data-estado='listo'] { background: var(--semaforo-listo); }
+.semaforo[data-estado='en-proceso'] { background: var(--semaforo-en-proceso); }
+.semaforo[data-estado='no-realizado'] { background: var(--semaforo-no-realizado); }
+
+.leyenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-5);
+  margin-top: var(--e-4);
+  font-size: var(--t--1);
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+/* ---- matriz ------------------------------------------------------------ */
+
+/* Separadas, no soldadas. Con `border-collapse: collapse` los fondos
+   adyacentes se tocaban y una fila "Vende | Prepara | Vende" se leía como una
+   barra continua — justo la forma del trimestre que la matriz existe para
+   enseñar. El radio de la celda tampoco se veía. */
+.matriz {
+  border-collapse: separate;
+  border-spacing: 3px;
+  /* Anchos iguales. Con layout automático, "SEPTIEMBRE" hacía su columna un
+     51% más ancha que la de "JULIO": la forma del trimestre —que es lo que
+     esta pieza existe para enseñar— salía deformada por el largo del nombre
+     del mes. */
+  table-layout: fixed;
+}
+
+.matriz td {
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: none;
+}
+
+.matriz tbody td:not(:first-child) {
+  text-align: center;
+}
+
+.celdaMatriz {
+  font-size: var(--t--1);
+  border-radius: 0.35rem;
+  padding: var(--e-3) var(--e-4);
+}
+
+/* La intensidad ES el dato: se lee la forma del trimestre antes que la
+   palabra. El texto sigue ahí para que el tono nunca sea la única señal. */
+/* 34 / 18 / 8 / 0. Antes eran 30 / 16 / 12: entre 16% y 12% no hay
+   diferencia perceptible, así que cuatro niveles declarados se veían como
+   dos. Estos cuatro escalones sí se separan a simple vista. */
+.celdaMatriz[data-tono='alto'] {
+  background: color-mix(in oklch, var(--primario) 34%, transparent);
+  font-weight: 700;
+}
+.celdaMatriz[data-tono='medio'] {
+  background: color-mix(in oklch, var(--primario) 18%, transparent);
+}
+.celdaMatriz[data-tono='bajo'] {
+  background: color-mix(in oklch, var(--primario) 8%, transparent);
+}
+.celdaMatriz[data-tono='neutro'] {
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+/* ---- bloques numerados ------------------------------------------------- */
+
+/* SIN CAJAS. Cinco rectángulos redondeados idénticos apilados son la
+   plantilla que se ve en cualquier página generada, y aquí sobraban: la
+   numeración ya agrupa. El número pasa a ser la estructura —cuelga en el rail
+   izquierdo, a plena intensidad— y el filete superior separa un bloque del
+   siguiente. Antes el contador iba al 55% de opacidad junto a un título en
+   negrita al 100%: el elemento que ordena la secuencia era el más débil de su
+   propio bloque. */
+.bloques {
+  list-style: none;
+  counter-reset: bloque;
+  display: grid;
+  margin-top: var(--e-5);
+}
+
+.bloque {
+  counter-increment: bloque;
+  display: grid;
+  grid-template-columns: var(--rail, 3.5rem) 1fr;
+  gap: 0 var(--e-4);
+  padding: var(--e-5) 0;
+  border-top: 1px solid color-mix(in oklch, var(--texto) 12%, transparent);
+}
+
+.bloque:first-child { border-top: none; padding-top: 0; }
+
+.bloque::before {
+  content: counter(bloque);
+  grid-row: 1 / -1;
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: var(--t-3);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--primario-sobre-superficie);
+}
+
+.bloque > * { grid-column: 2; }
+
+.bloqueCabecera {
+  display: flex;
+  /* `baseline` con `wrap` dejaba la etiqueta suelta a la izquierda cuando el
+     título ocupaba dos líneas, con un ritmo distinto al de sus hermanos. */
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-3);
+}
+
+.bloqueTitulo {
+  font-size: var(--t-2);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.bloqueEtiqueta {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: var(--t--2);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* El fondo baja al 6%: `--primario-sobre-superficie` se calcula para
+     contrastar 4.5:1 contra la SUPERFICIE, y pintarlo sobre un teñido al 12%
+     anulaba esa garantía — medido, 3.80:1 en texto de 11px. Si el fondo
+     cambia, la garantía deja de valer. */
+  color: var(--primario-sobre-superficie);
+  background: color-mix(in oklch, var(--primario) 6%, transparent);
+}
+
+.bloqueParrafo {
+  margin-top: var(--e-3);
+  font-size: var(--t-0);
+  line-height: 1.55;
+  color: color-mix(in oklch, var(--texto) 85%, transparent);
+  max-width: var(--medida);
+  text-wrap: pretty;
+}
+
+.bloquePuntos {
+  list-style: none;
+  display: grid;
+  /* El hueco entre puntos por encima del interlineado: con 0.4rem contra 1.5
+     líneas, un punto de dos renglones se leía como dos puntos. */
+  gap: var(--e-3);
+  margin-top: var(--e-4);
+}
+
+.bloquePuntos li {
+  position: relative;
+  padding-left: var(--e-4);
+  font-size: var(--t-0);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.bloquePuntos li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: var(--primario-sobre-superficie);
+}
+
+.bloquePie {
+  margin-top: var(--e-4);
+  padding-top: var(--e-3);
+  border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  font-size: var(--t-0);
+  line-height: 1.5;
+  max-width: var(--medida);
+}
+
+.bloquePieRotulo {
+  display: inline-block;
+  margin-right: var(--e-2);
+  font-weight: 700;
+  color: var(--primario-sobre-superficie);
+}
+
+/* ---- meta / real / % --------------------------------------------------- */
+
+.metaReal {
+  margin-top: var(--e-5);
+}
+
+.metaRealFilas {
+  display: grid;
+  gap: var(--e-3);
+}
+
+/* La barra tiene un ancho ACOTADO. Con `1fr` se comía todo el sobrante —590px
+   de carril para un relleno de 84px— y empujaba el porcentaje tan lejos de su
+   número que había que leer la fila dos veces. */
+.metaRealFila {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 9rem) minmax(6rem, auto) minmax(8rem, 18rem) 3.2rem;
+  justify-content: start;
+  align-items: center;
+  gap: var(--e-4);
+}
+
+/* La primera fila es el total: pesa más que su desglose. */
+.metaRealFila[data-primera='true'] {
+  font-weight: 700;
+}
+
+.metaRealRotulo {
+  font-size: var(--t--1);
+  color: color-mix(in oklch, var(--texto) 72%, transparent);
+}
+
+.metaRealCifras {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.metaRealMeta {
+  font-size: var(--t--1);
+  font-weight: 400;
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+.metaRealBarra {
+  display: block;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--texto) 10%, transparent);
+  overflow: hidden;
+}
+
+/* Color plano de marca, NO el degradado. Comprimido en 84px solo mostraba su
+   primer tramo, así que cada fila enseñaba una porción distinta del degradado
+   —magenta en el 14%, magenta-a-violeta en el 25%—. El degradado se reserva
+   para donde se ve entero: la portada y los divisores. */
+.metaRealRelleno {
+  display: block;
+  height: 100%;
+  /* Un 0% dibujaba una barra de ancho cero: un carril vacío que no se
+     distingue de un fallo de render. Con este mínimo se lee "existe y está
+     en cero", que es lo que dice el dato. */
+  min-width: 3px;
+  border-radius: 999px;
+  background: var(--primario);
+}
+
+.metaRealPorcentaje {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+@media (max-width: 40rem) {
+  /* En pantalla angosta la barra se lleva su propia línea antes que
+     estrujar el rótulo hasta partirlo por sílabas. */
+  .metaRealFila {
+    grid-template-columns: 1fr auto;
+  }
+  .metaRealBarra {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---- cifras con desglose ----------------------------------------------- */
+
+/* Tres pistas, no cuatro: el esquema permite seis cifras y con `minmax(13rem)`
+   entraban 4, dejando una fila huérfana de 2 con medio ancho vacío. Con 15rem
+   caben 3 exactas (3+3 en lectura, 6 en fila al proyectar).
+   El `subgrid` alinea rótulo, valor y partes ENTRE tarjetas: sin él, un rótulo
+   de dos líneas hundía su cifra 17px respecto a las vecinas, y una fila de
+   cifras existe justamente para compararlas de un golpe de vista. */
+.desgloses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--e-4);
+  margin-top: var(--e-5);
+}
+
+@supports (grid-template-rows: subgrid) {
+  .desgloses { grid-template-rows: auto auto auto; }
+  .desglose { display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+}
+
+.desglose {
+  padding: var(--e-4) var(--e-4);
+  border: 1px solid color-mix(in oklch, var(--texto) 13%, transparent);
+  border-radius: 0.7rem;
+}
+
+.desglose[data-destacada='true'] {
+  border-color: color-mix(in oklch, var(--primario) 45%, transparent);
+  background: color-mix(in oklch, var(--primario) 5%, transparent);
+}
+
+.desgloseRotulo {
+  font-size: var(--t--1);
+  line-height: 1.35;
+  color: color-mix(in oklch, var(--texto) 68%, transparent);
+}
+
+.desgloseValor {
+  margin-top: var(--e-1);
+  font-family: var(--fuente-display), system-ui, sans-serif;
+  font-size: var(--t-3);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.desglosePartes {
+  list-style: none;
+  display: grid;
+  gap: var(--e-1);
+  margin-top: var(--e-4);
+  padding-top: var(--e-3);
+  border-top: 1px solid color-mix(in oklch, var(--texto) 10%, transparent);
+  font-size: var(--t--1);
+  align-self: start;
+}
+
+.desglosePartes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  color: color-mix(in oklch, var(--texto) 72%, transparent);
+}
+
+.desgloseParteValor {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto);
+}

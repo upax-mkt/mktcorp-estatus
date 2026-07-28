@@ -12,7 +12,9 @@ describe('registro de temas', () => {
   })
 
   it('obtenerTema devuelve el tema pedido', () => {
-    expect(obtenerTema('zeus').primario).toBe('#FF004F')
+    // El principal del brandbook 2026 (Pantone 275c). El #FF004F que había
+    // aquí es uno de sus dos acentos: estaban intercambiados.
+    expect(obtenerTema('zeus').primario).toBe('#614ACA')
   })
 
   it('obtenerTema lanza si la sala no existe', () => {

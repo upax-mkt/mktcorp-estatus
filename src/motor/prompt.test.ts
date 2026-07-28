@@ -1,14 +1,16 @@
 import { describe, it, expect } from 'vitest'
+import { layoutsImplementados } from './catalogo'
 import { construirPrompt } from './prompt'
 import { obtenerTema } from '@/temas'
 
 describe('construirPrompt', () => {
   const inv = { titulo: 'Performance', piezas: [{ tipo: 'cifra' as const, valor: '9.2', rotulo: 'Posición' }] }
 
-  it('solo ofrece layouts implementados, nunca los del catálogo sin componente', () => {
+  it('ofrece exactamente los layouts que el documento sabe dibujar', () => {
     const { system } = construirPrompt(inv, obtenerTema('neracode'))
-    expect(system).toContain('kpis-fila-dos-columnas')
-    expect(system).not.toContain('matriz-estados')  // declarado pero sin componente
+    for (const layout of layoutsImplementados()) {
+      expect(system, `el prompt no ofrece "${layout}"`).toContain(`"${layout}"`)
+    }
   })
 
   it('prohíbe explícitamente el estilo', () => {

@@ -3,6 +3,7 @@ import type { Acuerdo } from '@/db/consultas'
 import type { Tema } from '@/temas/tipos'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import { SeccionDocumento, anclaDeSeccion } from './SeccionDocumento'
+import { papelDe } from '@/secciones/catalogo'
 import { ModoPresentar } from './ModoPresentar'
 import { fechaBreve } from '@/lib/fecha'
 import estilos from './documento.module.css'
@@ -34,10 +35,30 @@ const ETIQUETA: Record<Acuerdo['estatus'], string> = {
 
 export function DocumentoSesion({ tema, secciones, acuerdos, encabezado }: Props) {
   // El índice se arma con las secciones que tienen entidad propia: la portada
-  // es el encabezado del documento y el propio índice no se lista a sí mismo.
+  // es el encabezado del documento, el cierre es el final —no un destino al
+  // que saltar— y el propio índice no se lista a sí mismo.
+  //
+  // Los divisores SÍ entran: son los bloques de la sesión, y saltar a
+  // "Outbound & pipeline" es lo que alguien quiere hacer desde aquí. Pero un
+  // divisor cuyo título REPITE el de la sección que le sigue se salta: la
+  // agenda enseñaba dos veces la misma línea, con dos anclas distintas, en la
+  // primera página que lee un director.
   const indiceGeneral = secciones
-    .map((s, i) => ({ titulo: s.decision.titulo, ancla: anclaDeSeccion(i), layout: s.decision.layout }))
-    .filter((e) => e.layout !== 'portada' && e.layout !== 'agenda')
+    .map((s, i) => ({
+      titulo: s.decision.titulo,
+      ancla: anclaDeSeccion(i),
+      layout: s.decision.layout,
+      repiteALaSiguiente:
+        papelDe(s.decision.layout) === 'hito' &&
+        secciones[i + 1]?.decision.titulo.trim().toLowerCase() === s.decision.titulo.trim().toLowerCase(),
+    }))
+    .filter(
+      (e) =>
+        e.layout !== 'portada' &&
+        e.layout !== 'cierre' &&
+        papelDe(e.layout) !== 'indice' &&
+        !e.repiteALaSiguiente,
+    )
 
   return (
     <ProveedorTema tema={tema} superficie="clara">
@@ -51,12 +72,19 @@ export function DocumentoSesion({ tema, secciones, acuerdos, encabezado }: Props
                 key={`${seccion.decision.layout}-${i}`}
                 decision={seccion.decision}
                 indice={i}
-                indice_general={indiceGeneral}
+                indice_general={
+                  acuerdos.length > 0
+                    ? [...indiceGeneral, { titulo: 'Acuerdos', ancla: 'acuerdos-vivos' }]
+                    : indiceGeneral
+                }
                 degradado={seccion.degradado}
                 motivo={seccion.motivo}
               />
             ))}
 
+            {/* Los acuerdos son la única sección VIVA del documento y no
+                estaban en el índice: la agenda listaba los divisores vacíos y
+                omitía esto. */}
             {acuerdos.length > 0 && (
               <section
                 id="acuerdos-vivos"

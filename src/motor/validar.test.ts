@@ -16,8 +16,11 @@ describe('validarDecision', () => {
     expect(validarDecision(d, invConDosCifras).ok).toBe(true)
   })
 
-  it('rechaza un layout aún no implementado', () => {
-    const d = { layout: 'matriz-estados' as const, titulo: 'x', razon: 'r' }
+  it('rechaza un layout que el documento no sabe dibujar', () => {
+    // Ya no quedan layouts declarados sin dibujo: el caso real que protege
+    // este candado es una decisión vieja guardada en la base con un layout
+    // que desde entonces se retiró del catálogo.
+    const d = { layout: 'layout-retirado' as DecisionSlide['layout'], titulo: 'x', razon: 'r' }
     const v = validarDecision(d, invConDosCifras)
     expect(v.ok).toBe(false)
   })
@@ -49,7 +52,7 @@ describe('validarDecision', () => {
   })
 
   it('el motivo de rechazo es un string no vacío', () => {
-    const d = { layout: 'matriz-estados' as const, titulo: 'x', razon: 'r' }
+    const d = { layout: 'layout-retirado' as DecisionSlide['layout'], titulo: 'x', razon: 'r' }
     const v = validarDecision(d, invConDosCifras)
     if (!v.ok) expect(v.motivo.length).toBeGreaterThan(0)
   })
@@ -91,8 +94,8 @@ describe('aLayoutSeguro', () => {
     expect(seguro.layout).toBe(original.layout)
   })
 
-  it('dado un layout ya no-implementado, el resultado sigue sin estar implementado (Slide.tsx cae a LayoutSeguro sin más)', () => {
-    const noImplementado: DecisionSlide = { layout: 'matriz-estados', titulo: 'x', razon: 'r' }
+  it('degradar no re-habilita un layout retirado: sigue sin estar implementado', () => {
+    const noImplementado = { layout: 'layout-retirado' as DecisionSlide['layout'], titulo: 'x', razon: 'r' }
     const seguro = aLayoutSeguro(noImplementado, 'layout no implementado')
     expect(esLayoutImplementado(seguro.layout)).toBe(false)
   })
