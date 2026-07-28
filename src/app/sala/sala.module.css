@@ -2,21 +2,33 @@
    por --marca (inline); el resto son neutros cálidos como en el hub. */
 
 .app {
-  --acento: oklch(0.62 0.19 42);
-  --fondo: oklch(0.985 0.006 70);
-  --superficie: oklch(1 0 0);
-  --superficie-2: oklch(0.975 0.008 70);
-  --borde: oklch(0.91 0.012 70);
-  --borde-fuerte: oklch(0.84 0.014 70);
-  --tx: oklch(0.26 0.025 55);
-  --tx-2: oklch(0.52 0.02 55);
-  --tx-3: oklch(0.66 0.015 55);
-  --alerta: oklch(0.57 0.2 25);
-  --alerta-suave: oklch(0.57 0.2 25 / 0.1);
-  --ok: oklch(0.6 0.12 155);
-  --tibia: oklch(0.72 0.13 70);
-  --barra: oklch(0.24 0.03 55);
-  --barra-tx: oklch(0.96 0.008 70);
+  /* Los neutros ya no se declaran aquí: se toman de `sistema.css`, que es la
+     única fuente. Antes cada pantalla tenía los suyos —casi iguales pero no
+     iguales— y "casi igual" repetido por cinco pantallas es exactamente lo
+     que se lee como desordenado.
+
+     Los nombres locales se conservan como alias para no reescribir cuatro
+     hojas de estilo enteras: lo que cambia es de dónde sale el valor. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  /* El acento del cascarón es el color de LA SALA cuando hay una; fuera de
+     una sala, la tinta. Así el naranja fijo deja de competir con la marca. */
+  --acento: var(--marca, var(--tinta));
+  --acento-suave: color-mix(in oklch, var(--marca, var(--tinta)) 10%, transparent);
 
   min-height: 100dvh;
   background: var(--fondo);
@@ -27,16 +39,22 @@
 
 /* ---- barra superior ---- */
 .barra {
-  position: sticky; top: 0; z-index: 10;
+  /* Material translúcido en vez de un bloque oscuro: la barra deja de ser
+     una franja que corta la página y pasa a flotar sobre ella. */
+  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
-  background: var(--barra); color: var(--barra-tx);
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
 }
 .volver {
   display: inline-flex; align-items: center; gap: 0.45rem;
-  color: var(--barra-tx); opacity: 0.7; text-decoration: none; font-size: 0.88rem; font-weight: 500;
+  color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; font-weight: 500;
 }
-.volver:hover { opacity: 1; }
+.volver:hover { color: var(--tinta); }
 .barraSala { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; margin-left: auto; }
 .barraPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); }
 
@@ -56,13 +74,26 @@
 
 /* ---- contenedor ---- */
 .main { max-width: 1080px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
-.seccion { margin-bottom: 3rem; }
-.seccionTitulo {
-  display: flex; align-items: baseline; justify-content: space-between;
-  font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--tx-3); font-weight: 600; margin: 0 0 1rem;
+.seccion {
+  /* La sección ES la tarjeta, como los módulos del Home. Antes cada bloque
+     era texto suelto sobre el lienzo con tarjetas sueltas dentro: dos niveles
+     de elevación discutiendo cuál es el contenedor. */
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+  padding: 1.35rem 1.4rem 1.25rem;
+  margin-bottom: 1.25rem;
 }
-.seccionTitulo .conteo { color: var(--tx-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.seccionTitulo {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  font-size: 1.02rem; font-weight: 600; letter-spacing: var(--track-titulo);
+  color: var(--tinta); text-transform: none;
+  margin: 0 0 1rem;
+}
+.seccionTitulo .conteo {
+  font-size: 0.78rem; font-weight: 500; letter-spacing: var(--track-normal);
+  color: var(--tinta-3);
+}
 
 /* ---- acuerdos ---- */
 .acuerdos { display: flex; flex-direction: column; }
@@ -108,11 +139,11 @@
 /* ---- presentaciones ---- */
 .presDestacada {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
-  padding: 1.4rem; border-radius: 0.9rem; border: 1px solid var(--borde);
-  background: var(--superficie); text-decoration: none; color: inherit;
+  padding: 1.4rem; border-radius: var(--r-3);
+  background: var(--papel-hundido); text-decoration: none; color: inherit;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.presDestacada:hover { border-color: var(--marca); box-shadow: 0 4px 20px oklch(0.26 0.025 55 / 0.06); }
+.presDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
 .presTag { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--marca); font-weight: 700; }
 .presTitulo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0.35rem 0 0.2rem; }
 .presFecha { font-size: 0.82rem; color: var(--tx-2); }
@@ -161,11 +192,10 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .minutaDestacada {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
   width: 100%; text-align: left; font: inherit; color: inherit;
-  padding: 1.4rem; margin-bottom: 1rem; border-radius: 0.9rem;
-  border: 1px solid var(--borde); background: var(--superficie); cursor: pointer;
+  padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3); background: var(--papel-hundido); cursor: pointer;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
-.minutaDestacada:hover { border-color: var(--marca); box-shadow: 0 4px 20px oklch(0.26 0.025 55 / 0.06); }
+.minutaDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
 .minutaDestacada:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
 
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
@@ -183,8 +213,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
      superior izquierda. */
   margin: auto;
   padding: 0;
-  border: 1px solid var(--borde);
-  border-radius: 1rem;
+  border-radius: var(--r-5);
   background: var(--superficie);
   color: var(--tx);
   box-shadow: 0 24px 70px oklch(0.2 0.03 55 / 0.25);
@@ -313,8 +342,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 
 /* ---- caja de subida ---- */
 .subirCaja {
-  margin-top: 1.1rem; padding: 1rem;
-  border: 1px dashed var(--borde-fuerte); border-radius: 0.75rem; background: var(--superficie);
+  margin-top: 1.1rem; padding: 1rem; border-radius: var(--r-3); background: var(--papel-hundido);
   display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start;
 }
 .subirCampos { display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%; }
@@ -326,9 +354,8 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .subirError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
 
 /* ---- benchmark competitivo ---- */
-.benchmark {
-  border: 1px solid var(--borde); border-radius: 0.9rem;
-  padding: clamp(1.1rem, 3vw, 1.75rem); background: var(--superficie);
+.benchmark { border-radius: var(--r-3);
+  padding: clamp(1.1rem, 3vw, 1.75rem); background: none;
 }
 .benchmarkPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); flex: none; }
 .benchmarkNota { font-size: 0.78rem; color: var(--tx-3); }
@@ -452,17 +479,16 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .brechasLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
 .brechaItem {
-  padding: 0.7rem 0.95rem; border-radius: 0.6rem; font-size: 0.95rem;
-  border: 1px solid var(--borde); border-left: 3px solid var(--tibia);
+  padding: 0.7rem 0.95rem; border-radius: var(--r-4); font-size: 0.95rem; border-left: 3px solid var(--tibia);
   background: var(--superficie);
+  box-shadow: var(--e-1);
 }
 
 /* ---- Acceso del director: el link firmado de esta sala (solo lo ve el equipo) ---- */
 .acceso {
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
   padding: 1.1rem 1.25rem;
-  background: var(--superficie);
-  border: 1px dashed var(--borde-fuerte); border-radius: 0.75rem;
+  background: var(--papel-hundido); border-radius: var(--r-3);
 }
 .accesoTexto { min-width: 0; }
 .accesoTitulo { font-size: 0.92rem; font-weight: 600; margin-bottom: 0.25rem; }
@@ -541,8 +567,9 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .claveAcciones { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .claveNueva {
   display: grid; gap: 0.7rem;
-  padding: 1.2rem 1.3rem; border-radius: 0.9rem;
+  padding: 1.2rem 1.3rem; border-radius: var(--r-4);
   border: 1px solid var(--marca); background: color-mix(in oklch, var(--marca) 5%, var(--superficie));
+  box-shadow: var(--e-1);
 }
 .claveEtiqueta {
   font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;

@@ -2,16 +2,18 @@
    quien llega aquí ya debe reconocer la app antes de estar dentro. */
 
 .pantalla {
-  --acento: oklch(0.62 0.19 42);
-  --fondo: oklch(0.985 0.006 70);
-  --superficie: oklch(1 0 0);
-  --borde: oklch(0.91 0.012 70);
-  --borde-fuerte: oklch(0.84 0.014 70);
-  --tx: oklch(0.26 0.025 55);
-  --tx-2: oklch(0.52 0.02 55);
-  --tx-3: oklch(0.66 0.015 55);
-  --alerta: oklch(0.57 0.2 25);
-  --alerta-suave: oklch(0.57 0.2 25 / 0.08);
+  /* Los neutros salen de `sistema.css`. Quien llega aquí todavía no está
+     dentro de la app, y aun así tiene que reconocerla. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --acento: var(--tinta);
 
   min-height: 100dvh;
   display: grid;
@@ -27,8 +29,7 @@
   width: 100%;
   max-width: 420px;
   background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-radius: 16px;
+  border-radius: var(--r-5);
   padding: 40px 36px;
   box-shadow: 0 1px 2px oklch(0.26 0.025 55 / 0.04), 0 12px 32px oklch(0.26 0.025 55 / 0.06);
 }
@@ -41,9 +42,7 @@
 }
 
 .marcaLogo {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  height: 30px; width: auto; display: block;
 }
 
 .marcaRayo {
@@ -61,7 +60,7 @@
 .titulo {
   font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--track-titulo);
   margin-bottom: 8px;
 }
 
@@ -95,7 +94,7 @@
   color: var(--tx);
   background: var(--fondo);
   border: 1px solid var(--borde-fuerte);
-  border-radius: 10px;
+  border-radius: var(--r-2);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -114,7 +113,7 @@
   color: oklch(1 0 0);
   background: var(--acento);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-lleno);
   cursor: pointer;
   transition: filter 0.15s ease;
 }

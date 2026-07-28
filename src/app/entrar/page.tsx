@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import estilos from './entrar.module.css'
 import {
@@ -65,8 +66,16 @@ export default async function Entrar({
     <div className={estilos.pantalla}>
       <div className={estilos.tarjeta}>
         <div className={estilos.marca}>
-          <span className={estilos.marcaLogo}>M<span className={estilos.marcaRayo}>/</span>C</span>
-          <span className={estilos.marcaSub}>Marketing Corp</span>
+          {/* El logotipo real, ahora que existe. El "M/C" dibujado con dos
+              spans era un apaño de cuando no había activos de marca. */}
+          <Image
+            src="/logos/marketing-corp-color.png"
+            alt="Marketing Corp"
+            width={200}
+            height={47}
+            className={estilos.marcaLogo}
+            priority
+          />
         </div>
 
         <h1 className={estilos.titulo}>Estatus a las salas</h1>
@@ -135,9 +144,13 @@ export default async function Entrar({
           </>
         )}
 
+        {/* El texto anterior decía que un director NO necesitaba clave, y
+            desde que existe la clave por sala eso dejó de ser cierto: le
+            estaba diciendo que esperara un link que ya no tiene por qué
+            llegar. */}
         <p className={estilos.pie}>
-          <span className={estilos.pieFuerte}>¿Diriges una UDN?</span> No necesitas clave: entra por el
-          link de tu sala que te compartió Marketing Corporativo.
+          <span className={estilos.pieFuerte}>¿Diriges una UDN?</span> Usa la clave que te compartió
+          Marketing Corporativo y entrarás directo a tu sala. Si no la tienes, pídesela al equipo.
         </p>
       </div>
     </div>

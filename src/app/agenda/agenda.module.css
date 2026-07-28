@@ -2,19 +2,33 @@
    de sala, para que se lea como parte del mismo sistema. */
 
 .app {
-  --acento: oklch(0.62 0.19 42);
-  --fondo: oklch(0.985 0.006 70);
-  --superficie: oklch(1 0 0);
-  --superficie-2: oklch(0.975 0.008 70);
-  --borde: oklch(0.91 0.012 70);
-  --borde-fuerte: oklch(0.84 0.014 70);
-  --tx: oklch(0.26 0.025 55);
-  --tx-2: oklch(0.52 0.02 55);
-  --tx-3: oklch(0.66 0.015 55);
-  --alerta: oklch(0.57 0.2 25);
-  --ok: oklch(0.6 0.12 155);
-  --barra: oklch(0.24 0.03 55);
-  --barra-tx: oklch(0.96 0.008 70);
+  /* Los neutros ya no se declaran aquí: se toman de `sistema.css`, que es la
+     única fuente. Antes cada pantalla tenía los suyos —casi iguales pero no
+     iguales— y "casi igual" repetido por cinco pantallas es exactamente lo
+     que se lee como desordenado.
+
+     Los nombres locales se conservan como alias para no reescribir cuatro
+     hojas de estilo enteras: lo que cambia es de dónde sale el valor. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  /* El acento del cascarón es el color de LA SALA cuando hay una; fuera de
+     una sala, la tinta. Así el naranja fijo deja de competir con la marca. */
+  --acento: var(--marca, var(--tinta));
+  --acento-suave: color-mix(in oklch, var(--marca, var(--tinta)) 10%, transparent);
 
   min-height: 100dvh;
   background: var(--fondo);
@@ -24,18 +38,24 @@
 }
 
 .barra {
-  position: sticky; top: 0; z-index: 10;
+  /* Material translúcido en vez de un bloque oscuro: la barra deja de ser
+     una franja que corta la página y pasa a flotar sobre ella. */
+  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 60px;
-  background: var(--barra); color: var(--barra-tx);
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
 }
-.volver { color: color-mix(in oklch, var(--barra-tx) 72%, transparent); text-decoration: none; font-size: 0.88rem; }
-.volver:hover { color: var(--barra-tx); }
+.volver { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.volver:hover { color: var(--tinta-2); }
 .barraTitulo { font-weight: 650; font-size: 0.95rem; }
 .barraDcha { margin-left: auto; display: flex; align-items: center; gap: 1.2rem; }
-.barraLink { color: color-mix(in oklch, var(--barra-tx) 72%, transparent); text-decoration: none; font-size: 0.88rem; }
-.barraLink:hover { color: var(--barra-tx); }
-.barraFecha { font-size: 0.82rem; color: color-mix(in oklch, var(--barra-tx) 55%, transparent); }
+.barraLink { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.barraLink:hover { color: var(--tinta-2); }
+.barraFecha { font-size: 0.82rem; color: var(--tinta-4); }
 
 .main { max-width: 84rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
 .encabezado { margin-bottom: 1.75rem; }
@@ -48,10 +68,11 @@
 @media (max-width: 62rem) { .panel { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- calendario ---- */
-.calendario { border: 1px solid var(--borde); border-radius: 0.9rem; background: var(--superficie); overflow: hidden; }
+.calendario { border-radius: var(--r-4); background: var(--superficie); overflow: hidden; }
 .calendarioBarra {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--borde);
+  box-shadow: var(--e-1);
 }
 .calendarioMes { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
 .calendarioNav { display: flex; align-items: center; gap: 0.35rem; }
@@ -143,22 +164,24 @@
 
 .botonAgendar {
   font: inherit; font-size: 0.9rem; font-weight: 600; width: 100%;
-  padding: 0.75rem 1rem; border-radius: 0.7rem; cursor: pointer;
-  color: var(--tx); background: var(--superficie); border: 1px dashed var(--borde-fuerte);
+  padding: 0.75rem 1rem; border-radius: var(--r-4); cursor: pointer;
+  color: var(--tx); background: var(--superficie);
   transition: border-color 140ms ease, color 140ms ease;
+  box-shadow: var(--e-1);
 }
 .botonAgendar:hover { border-color: var(--acento); color: var(--acento); border-style: solid; }
 
 .tarjetaFormulario {
-  padding: 1.1rem; border: 1px solid var(--borde); border-radius: 0.9rem; background: var(--superficie);
+  padding: 1.1rem; border-radius: var(--r-4); background: var(--superficie);
+  box-shadow: var(--e-1);
 }
 
 /* ---- lo que viene ---- */
 .proximas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
 .proxima {
-  padding: 0.9rem 1rem; border-radius: 0.75rem;
-  border: 1px solid var(--borde); border-left: 3px solid var(--sala);
+  padding: 0.9rem 1rem; border-radius: var(--r-4); border-left: 3px solid var(--sala);
   background: var(--superficie);
+  box-shadow: var(--e-1);
 }
 .proximaCabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
 .proximaSala { font-size: 0.82rem; font-weight: 700; color: var(--sala); }

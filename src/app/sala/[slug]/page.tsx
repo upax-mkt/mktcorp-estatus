@@ -455,15 +455,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               regenerarAction={regenerarClaveAction}
               quitarAction={quitarClaveAction}
             />
-          </section>
-        )}
 
-        {/* El link firmado sigue existiendo: sirve para compartir la sala una
-            vez sin que nadie tenga que teclear nada. Caduca en 30 días. */}
-        {equipo && tokenDeAcceso && (
-          <section className={estilos.seccion}>
-            <h2 className={estilos.seccionTitulo}>…o un link de un solo uso</h2>
-            <div className={estilos.acceso}>
+            {/* El link firmado sigue existiendo, DENTRO de la misma tarjeta:
+                las dos son la misma pregunta —cómo entra el director— y
+                separarlas en dos secciones las hacía parecer dos temas. */}
+            {tokenDeAcceso && (
+            <div className={estilos.acceso} style={{ marginTop: '0.9rem' }}>
               <div className={estilos.accesoTexto}>
                 <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>
                 <p className={estilos.accesoNota}>
@@ -476,6 +473,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 className={estilos.accesoBoton}
               />
             </div>
+            )}
           </section>
         )}
       </main>
