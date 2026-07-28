@@ -61,6 +61,8 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
         tema={temaDeSala(sesion.salaSlug)}
         secciones={secciones}
         acuerdos={sala?.acuerdos ?? []}
+        sesionId={sesion.id}
+        equipo={equipo}
       />
     </div>
   )

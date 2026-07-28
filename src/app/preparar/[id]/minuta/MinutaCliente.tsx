@@ -20,6 +20,14 @@ interface Props {
    * ventana flotante y la sala se refresca.
    */
   alPublicar?: () => void
+  /**
+   * Transcripción ya capturada, si la reunión se grabó desde el modo
+   * presentación. Es un valor INICIAL, no controlado: quien lo recibe puede
+   * corregirlo antes de generar — una transcripción automática se equivoca
+   * con los nombres propios, y esos nombres acaban siendo responsables de
+   * acuerdos.
+   */
+  transcripcionInicial?: string
 }
 
 const SUGERENCIAS_PRIORIDAD = ['alta', 'media', 'baja']
@@ -28,9 +36,9 @@ function aFilaEditable(a: AcuerdoPropuesto): FilaAcuerdo {
   return { ...a, incluir: true }
 }
 
-export function MinutaCliente({ sesionId, alPublicar }: Props) {
+export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Props) {
   const router = useRouter()
-  const [transcripcion, setTranscripcion] = useState('')
+  const [transcripcion, setTranscripcion] = useState(transcripcionInicial ?? '')
   const [textoCorreo, setTextoCorreo] = useState<string | null>(null)
   const [filas, setFilas] = useState<FilaAcuerdo[]>([])
   const [error, setError] = useState<string | null>(null)

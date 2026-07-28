@@ -25,6 +25,10 @@ interface Props {
    */
   acuerdos: Acuerdo[]
   encabezado?: React.ReactNode
+  /** De qué sesión es. Lo necesita el modo presentación para poder minutarla. */
+  sesionId?: string
+  /** Si quien mira es del equipo: solo el equipo levanta el acta. */
+  equipo?: boolean
 }
 
 const ETIQUETA: Record<Acuerdo['estatus'], string> = {
@@ -33,7 +37,7 @@ const ETIQUETA: Record<Acuerdo['estatus'], string> = {
   vencido: 'vencido',
 }
 
-export function DocumentoSesion({ tema, secciones, acuerdos, encabezado }: Props) {
+export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionId, equipo }: Props) {
   // El índice se arma con las secciones que tienen entidad propia: la portada
   // es el encabezado del documento, el cierre es el final —no un destino al
   // que saltar— y el propio índice no se lista a sí mismo.
@@ -62,7 +66,7 @@ export function DocumentoSesion({ tema, secciones, acuerdos, encabezado }: Props
 
   return (
     <ProveedorTema tema={tema} superficie="clara">
-      <ModoPresentar>
+      <ModoPresentar sesionId={sesionId} equipo={equipo}>
         <div className={estilos.documento}>
           <div className={estilos.contenido}>
             {encabezado}

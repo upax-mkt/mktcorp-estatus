@@ -1,6 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { RelojReunion } from './RelojReunion'
+import { PunteroLaser } from './PunteroLaser'
+import { GrabarReunion } from './GrabarReunion'
+import { MinutaCliente } from '@/app/preparar/[id]/minuta/MinutaCliente'
 import estilos from './presentar.module.css'
 
 /**
@@ -14,11 +18,34 @@ import estilos from './presentar.module.css'
  * Fuera del modo presentación no interfiere con nada: el documento se lee
  * normal y esto solo aporta el botón.
  */
-export function ModoPresentar({ children }: { children: ReactNode }) {
+interface Props {
+  children: ReactNode
+  /**
+   * De qué sesión es. Sin ella no se puede minutar lo grabado —la minuta
+   * cuelga de una sesión— y las herramientas de grabar no se ofrecen.
+   */
+  sesionId?: string
+  /** Solo el equipo minuta. Un director presenta y señala; no levanta el acta. */
+  equipo?: boolean
+}
+
+export function ModoPresentar({ children, sesionId, equipo }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
   const [actual, setActual] = useState(0)
   const [total, setTotal] = useState(0)
+  const [arrancadoEn, setArrancadoEn] = useState(0)
+  const [laser, setLaser] = useState(false)
+  /** Lo grabado, esperando a que alguien lo revise y lo convierta en minuta. */
+  const [transcripcion, setTranscripcion] = useState<string | null>(null)
+  const dialogoMinuta = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const n = dialogoMinuta.current
+    if (!n) return
+    if (transcripcion !== null && !n.open) n.showModal()
+    if (transcripcion === null && n.open) n.close()
+  }, [transcripcion])
 
   // Sin useCallback/useMemo a propósito: el proyecto compila con React
   // Compiler, que memoiza por su cuenta y avisa (como error de lint) cuando una
@@ -47,6 +74,9 @@ export function ModoPresentar({ children }: { children: ReactNode }) {
       /* se sigue sin pantalla completa */
     }
     setPresentando(true)
+    // El reloj arranca AQUÍ y no al montar: mide la reunión, no el rato que
+    // alguien lleva con el documento abierto.
+    setArrancadoEn(Date.now())
     irA(0)
   }
 
@@ -59,6 +89,9 @@ export function ModoPresentar({ children }: { children: ReactNode }) {
       }
     }
     setPresentando(false)
+    // El láser se apaga solo: un punto rojo persiguiendo al lector en una
+    // página que se lee con scroll es un estorbo, no una herramienta.
+    setLaser(false)
   }
 
   function irA(indice: number) {
@@ -130,12 +163,64 @@ export function ModoPresentar({ children }: { children: ReactNode }) {
             <button type="button" onClick={() => irA(actual + 1)} aria-label="Sección siguiente">
               →
             </button>
+
+            <span className={estilos.separadorControl} aria-hidden />
+
+            <RelojReunion arrancadoEn={arrancadoEn} />
+
+            <button
+              type="button"
+              onClick={() => setLaser((v) => !v)}
+              data-activo={laser ? 'true' : undefined}
+              aria-pressed={laser}
+              title="Puntero láser"
+            >
+              Láser
+            </button>
+
+            {/* Grabar solo si hay sesión y quien presenta puede minutar. */}
+            {sesionId && equipo && <GrabarReunion alTerminar={setTranscripcion} />}
+
             <button type="button" onClick={salir} className={estilos.salir}>
               Salir
             </button>
           </nav>
         )}
       </div>
+
+      {presentando && laser && <PunteroLaser />}
+
+      {/* Lo grabado NO se publica solo: se abre la misma pantalla de revisión
+          de siempre con la transcripción ya puesta. Un reconocimiento de voz
+          se equivoca con los nombres propios, y esos nombres acaban siendo
+          responsables de acuerdos en la sala de alguien. */}
+      <dialog
+        ref={dialogoMinuta}
+        className={estilos.dialogoMinuta}
+        aria-label="Minuta de la reunión grabada"
+        onClose={() => setTranscripcion(null)}
+      >
+        {transcripcion !== null && sesionId && (
+          <div className={estilos.cajaMinuta}>
+            <header className={estilos.cabeceraMinuta}>
+              <div>
+                <h3>Lo que se grabó</h3>
+                <p>
+                  {transcripcion.trim().length === 0
+                    ? 'No se oyó nada. Puedes pegar la transcripción a mano.'
+                    : 'Revísalo antes de generar: el reconocimiento de voz falla sobre todo con los nombres propios, y esos nombres acaban siendo responsables de acuerdos.'}
+                </p>
+              </div>
+              <button type="button" onClick={() => setTranscripcion(null)} aria-label="Cerrar">✕</button>
+            </header>
+            <MinutaCliente
+              sesionId={sesionId}
+              transcripcionInicial={transcripcion}
+              alPublicar={() => setTranscripcion(null)}
+            />
+          </div>
+        )}
+      </dialog>
 
       {!presentando && (
         <button type="button" onClick={entrar} className={estilos.boton}>

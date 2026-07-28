@@ -82,7 +82,14 @@ export default async function PagSesionMaquetada({ params }: { params: Promise<{
           </p>
         </main>
       ) : (
-        <DocumentoSesion tema={tema} secciones={secciones} acuerdos={sala?.acuerdos ?? []} />
+        // Esta ruta ya exige equipo para entrar: quien la ve puede minutar.
+        <DocumentoSesion
+          tema={tema}
+          secciones={secciones}
+          acuerdos={sala?.acuerdos ?? []}
+          sesionId={sesion.id}
+          equipo
+        />
       )}
     </div>
   )

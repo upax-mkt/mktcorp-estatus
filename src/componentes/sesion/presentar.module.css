@@ -126,3 +126,95 @@
 @media (prefers-reduced-motion: reduce) {
   .presentando { scroll-behavior: auto; }
 }
+
+/* ---- herramientas de la presentación ---------------------------------- */
+
+.separadorControl {
+  width: 1px; height: 1.3rem; flex: none;
+  background: currentColor; opacity: 0.22;
+}
+
+/* El reloj. Tabular para que no baile al cambiar de dígito: un contador que
+   se mueve de sitio cada segundo se lee peor que uno quieto. */
+.reloj { position: relative; display: flex; align-items: center; }
+.relojCifra {
+  display: inline-flex; align-items: baseline; gap: 0.35rem;
+  font-variant-numeric: tabular-nums; font-weight: 600;
+}
+.relojCifra[data-tono='cerca'] { color: oklch(0.72 0.16 75); }
+.relojCifra[data-tono='pasado'] { color: oklch(0.65 0.19 25); }
+.relojObjetivo { font-size: 0.75em; opacity: 0.6; font-weight: 500; }
+
+.relojMenu {
+  position: absolute; bottom: calc(100% + 0.6rem); left: 50%; transform: translateX(-50%);
+  display: flex; gap: 0.2rem; padding: 0.3rem;
+  background: oklch(0.18 0.02 55 / 0.96); border-radius: var(--r-2);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.35);
+}
+.relojMenu button { white-space: nowrap; font-size: 0.8rem; }
+.relojMenu button[data-activo='true'] { background: oklch(1 0 0 / 0.18); }
+
+/* EL LÁSER. `pointer-events: none` no es opcional: sin eso se traga los clics
+   de todo lo que hay debajo y la presentación deja de poder navegarse. */
+.laser {
+  position: fixed; top: 0; left: 0; z-index: 999;
+  width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms linear;
+  background: radial-gradient(
+    circle,
+    oklch(0.72 0.24 25 / 0.95) 0%,
+    oklch(0.65 0.26 25 / 0.55) 38%,
+    oklch(0.62 0.26 25 / 0) 72%
+  );
+  border-radius: 50%;
+}
+.laser[data-visible='true'] { opacity: 1; }
+
+/* Grabar */
+.grabar { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+.grabarParar { display: inline-flex; align-items: center; gap: 0.45rem; }
+.grabarPunto {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: oklch(0.65 0.24 25);
+  animation: latido 1.4s ease-in-out infinite;
+}
+@keyframes latido { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+@media (prefers-reduced-motion: reduce) { .grabarPunto { animation: none } }
+
+.grabarEstado {
+  display: flex; align-items: baseline; gap: 0.5rem; min-width: 0;
+  font-size: 0.78rem; opacity: 0.75;
+}
+.grabarParcial {
+  font-style: normal; opacity: 0.55; max-width: 16rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.grabarNota, .grabarError { font-size: 0.75rem; opacity: 0.6; }
+.grabarError { color: oklch(0.75 0.16 25); }
+
+/* La ventana de revisión de lo grabado. */
+.dialogoMinuta {
+  border: none; padding: 0; background: none;
+  max-width: min(52rem, 94vw); width: 100%; margin: auto;
+}
+.dialogoMinuta::backdrop { background: oklch(0.26 0.025 55 / 0.45); backdrop-filter: blur(3px); }
+.cajaMinuta {
+  max-height: 88dvh; overflow-y: auto;
+  padding: 1.4rem 1.5rem 1.5rem;
+  background: var(--papel); color: var(--tinta);
+  border-radius: var(--r-4); box-shadow: var(--e-3);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+}
+.cabeceraMinuta {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  margin-bottom: 1.1rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--linea);
+}
+.cabeceraMinuta h3 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+.cabeceraMinuta p { font-size: 0.85rem; color: var(--tinta-3); margin: 0.35rem 0 0; line-height: 1.5; max-width: 44ch; }
+.cabeceraMinuta button {
+  font: inherit; border: none; background: none; color: var(--tinta-3);
+  cursor: pointer; padding: 0.2rem 0.4rem; border-radius: var(--r-1);
+}
+.cabeceraMinuta button:hover { background: var(--papel-hundido); color: var(--tinta); }
