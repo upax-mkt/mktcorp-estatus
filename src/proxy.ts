@@ -35,28 +35,48 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/entrar', request.url))
   }
 
+  const cookieActual = request.cookies.get(COOKIE_SESION)?.value
+
   // 1. ¿Trae un link de acceso de sala?
   const tokenDeLink = searchParams.get(PARAMETRO_ACCESO)
   if (tokenDeLink) {
-    const sesion = await verificar(tokenDeLink, secreto)
-    if (sesion) {
+    const sesionDelLink = await verificar(tokenDeLink, secreto)
+    if (sesionDelLink) {
       const limpia = request.nextUrl.clone()
       limpia.searchParams.delete(PARAMETRO_ACCESO)
       const respuesta = NextResponse.redirect(limpia)
-      respuesta.cookies.set(COOKIE_SESION, tokenDeLink, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        expires: new Date(sesion.exp),
-      })
+
+      /**
+       * UN LINK DE SALA NUNCA DEGRADA UNA SESIÓN DE EQUIPO.
+       *
+       * El link existe para un director que no tiene sesión. Quien lo copia
+       * para compartirlo es del equipo, y lo normal es que lo abra para
+       * comprobar que funciona — y así se quedaba con una cookie de solo
+       * lectura de esa sala, encima de la suya. A partir de ese momento la
+       * raíz lo mandaba a esa sala y no había forma de volver: 30 días de
+       * caducidad, sin botón de salir.
+       *
+       * Le pasó a Franco con Mexa Creativa. El link se sigue canjeando para
+       * quien no tiene sesión o tiene una de sala; para el equipo solo se
+       * limpia el parámetro y sigue viendo la sala como quien es.
+       */
+      const yaEsEquipo = (await verificar(cookieActual, secreto))?.rol === 'equipo'
+      if (!yaEsEquipo) {
+        respuesta.cookies.set(COOKIE_SESION, tokenDeLink, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          expires: new Date(sesionDelLink.exp),
+        })
+      }
       return respuesta
     }
     // Token vencido o falso: sigue el camino normal y acabará en /entrar.
   }
 
   // 2. Filtro optimista por cookie.
-  const sesion = await verificar(request.cookies.get(COOKIE_SESION)?.value, secreto)
+  const sesion = await verificar(cookieActual, secreto)
   if (puedeVerRuta(sesion, pathname)) return NextResponse.next()
 
   // Con sesión pero sin permiso para ESTA ruta (p. ej. una sala ajena), se

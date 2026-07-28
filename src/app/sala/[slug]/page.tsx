@@ -32,7 +32,7 @@ import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
 import {
   esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
-  generarTokenDeSala, puedeVerEstaSala,
+  generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
@@ -81,6 +81,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     listarSesiones(),
   ])
   const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
+  async function salirDeLaSala() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
+
   const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
@@ -284,6 +290,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           <Link href="/" className={estilos.volver}>← Salas</Link>
         ) : (
           <span className={estilos.volver}>Marketing Corp</span>
+        )}
+        {/* SIEMPRE HAY SALIDA. Quien entra con un link de sala se quedaba sin
+            ninguna: la raíz lo devolvía aquí, esta pantalla no ofrecía nada, y
+            la cookie dura 30 días. Una sesión que no se puede terminar no es
+            una sesión, es una trampa — y en un ordenador compartido, además,
+            deja la sala de una UDN abierta a quien se siente después. */}
+        {!equipo && (
+          <form action={salirDeLaSala} className={estilos.salirForm}>
+            <button type="submit" className={estilos.salirBoton}>Salir</button>
+          </form>
         )}
         <div className={estilos.barraSala}>
           <span className={estilos.barraPunto} />
