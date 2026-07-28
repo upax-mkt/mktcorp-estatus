@@ -455,3 +455,53 @@ Identidad desbloquea lo visual; lo visual es la queja principal; la
 arquitectura agnóstica toca el editor, que es donde más código hay; imágenes
 reutiliza lo de la fase 3; acceso y Monday son los dos que salen de la app
 hacia afuera y van al final, cuando lo de dentro ya está firme.
+
+---
+
+## CERRADO — la Ronda 2 está en producción (28-jul-2026)
+
+`main` = `51f59cf`. Rama `editor-de-secciones` fusionada con `--no-ff`.
+573 tests, lint y build limpios. https://mktcorp-estatus.vercel.app
+
+**Antes de fusionar se vació la base de los datos de verificación.** Eran
+8 sesiones, 5 acuerdos y 1 minuta que se habían sembrado para que los módulos
+del Home no se vieran vacíos. Importaban porque atribuían compromisos
+inventados a personas reales del grupo (Pablo Levy, Fernando Ruiz, Andrea
+Soto, Ileana Cruz): en producción, un director que entra con su clave los
+habría leído como suyos. La base de producción y la de preview son la MISMA.
+
+**Cinco defectos que solo se vieron mirando los prints de producción**, no los
+tests, y que están corregidos en `51f59cf`:
+
+| Qué se veía | Qué pasaba |
+|---|---|
+| El campo de clave parecía en error nada más entrar | Llega enfocado por `autoFocus` y su halo estaba incrustado en naranja, ajeno al sistema visual |
+| "Todo lo abierto tiene dueño y día" con la base en cero | Un solo vacío para dos casos opuestos: *no hay acuerdos* y *los hay y ninguno está en riesgo* |
+| Medio metro de papel en blanco en el Home | El calendario abarca dos filas y una fila `auto` se lleva parte de esa altura repartida |
+| "Crear → llenar → maquetar → ver el deck" | Los decks se borraron el 27-jul |
+| Anillo de arrastre naranja con movimiento reducido | Sobrevivió al sistema visual |
+
+**Lección de método, la misma de la Fase 2:** los 573 tests pasaban con las
+cinco. Ninguno es un fallo de lógica — son cosas que solo existen cuando algo
+se pinta. Mirar la app desplegada es una técnica de revisión, no una
+formalidad de cierre.
+
+## LO QUE ESPERA A FRANCO — tres decisiones, no código
+
+1. **En qué grupo de Monday viven los acuerdos.** Sin `MONDAY_GRUPO` la
+   integración está apagada entera. Ver la Fase 11 arriba.
+2. **Las paletas de NeraCode y House of Films.** Las otras ocho se validaron
+   contra el brandbook; en estas dos la evidencia es ambigua y se dejaron como
+   estaban en vez de adivinar.
+3. **El responsable no viaja a Monday.** Su columna es de personas y exige el
+   id de usuario del tablero; el nuestro es un nombre escrito a mano.
+
+## Tensión pendiente con una decisión dura de marca
+
+El encabezado de sala (`.hero` en `sala.module.css`) pinta el degradado de la
+UDN **con texto blanco encima**, y la regla de Franco dice que el degradado se
+muestra exacto y NUNCA lleva texto encima. Viene del cascarón del 24-jul y
+lleva ahí desde entonces. Contra el extremo magenta de Zeus el blanco da
+3.9:1 — pasa para el título por tamaño, no para las etiquetas pequeñas. No se
+tocó por cuenta propia: cambiar el encabezado de las diez salas es una
+decisión suya, no un arreglo.
