@@ -144,6 +144,14 @@ export const acuerdos = pgTable('acuerdos', {
   /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
   sesionOrigenId: text('sesion_origen_id').references(() => sesiones.id),
   /**
+   * El elemento de Monday que le corresponde, si está sincronizado.
+   *
+   * Es lo que convierte la escritura en actualización: sin él, mover un
+   * estatus crearía un elemento nuevo cada vez y el tablero se llenaría de
+   * duplicados del mismo compromiso.
+   */
+  mondayId: text('monday_id'),
+  /**
    * Historia de cambios (v1 mínima, spec §4 "historia de cambios"): un jsonb
    * con un registro por movimiento de estatus o edición — `{ en, estatusAnterior? ,
    * cambios? }` (ver src/db/acuerdos.ts). No es una tabla aparte a propósito:

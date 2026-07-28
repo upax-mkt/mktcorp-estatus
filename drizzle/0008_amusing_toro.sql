@@ -1,0 +1,1 @@
+ALTER TABLE "acuerdos" ADD COLUMN "monday_id" text;

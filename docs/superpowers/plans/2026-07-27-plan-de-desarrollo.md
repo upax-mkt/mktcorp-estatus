@@ -396,7 +396,7 @@ con ocho secciones fijas. Las dos cosas dejan de ser ley.
 | ✅ 10.2 | **Clave por sala.** Hoy el acceso de un director es un link firmado que caduca; pasa a ser una clave que él teclea y que lo lleva a SU sala. |
 | ✅ 10.3 | Permisos: quien entra por clave de sala solo escribe en acuerdos y pendientes. Se comprueba en cada Server Action, no en la pantalla. |
 
-## FASE 11 — Monday, ida y vuelta ☐
+## FASE 11 — Monday, ida y vuelta ◐ *(28-jul: construida; falta que Franco decida dónde)*
 
 Tablero `18044324200` "Marketing Corporativo ⚡", 955 elementos, lo usa el
 equipo entero. El mapeo sale de la estructura real del tablero:
@@ -412,13 +412,36 @@ equipo entero. El mapeo sale de la estructura real del tablero:
 
 | # | Qué |
 |---|---|
-| ☐ 11.1 | Lectura: los acuerdos de una sala se leen del tablero. |
-| ☐ 11.2 | Escritura: crear y mover acuerdos escribe en Monday. |
-| ☐ 11.3 | Conflictos y fallos: qué pasa si Monday no responde o si alguien editó del otro lado. |
+| ✅ 11.1 | Lectura: los acuerdos de una sala se leen del tablero. |
+| ✅ 11.2 | Escritura: crear y mover acuerdos escribe en Monday. |
+| ✅ 11.3 | Conflictos y fallos: qué pasa si Monday no responde o si alguien editó del otro lado. |
 
-**Riesgo declarado:** escribir en ese tablero afecta al equipo entero. La
-primera escritura real se prueba sobre un elemento de prueba que se borra
-después, y no se activa la escritura general sin decírselo a Franco.
+**Está construida y APAGADA.** Tres interruptores, y son distintos a propósito:
+
+| Variable | Sin ella |
+|---|---|
+| `MONDAY_TOKEN` | No hay integración de ninguna clase. |
+| `MONDAY_GRUPO` | No se lee ni se escribe: no hay dónde. |
+| `MONDAY_ESCRITURA=si` | Se LEE pero no se escribe. |
+
+**Lo que falta es una decisión de Franco, no código.** El tablero tiene
+"Delivery Mkt Corp 2026" (entregables) y "Reuniones Semanales, Quincenales,
+Mensuales" — y este último contiene LAS REUNIONES ("RL | Weekly 27julio26"),
+no los acuerdos que salen de ellas. Ninguno de los dos es una lista limpia de
+compromisos. Escribir 955 vecinos nuevos en el grupo equivocado lo sufre gente
+que no sabe que esta app existe, así que `MONDAY_GRUPO` no tiene valor por
+defecto: sin él la escritura se niega en vez de adivinar.
+
+**Un pendiente declarado:** el responsable no se escribe. La columna es de
+PERSONAS y exige el id de usuario de Monday; nuestro `responsable` es un
+nombre escrito a mano ("Fernando Ruiz", "por asignar"). Adivinar la
+correspondencia asignaría tareas a quien no toca.
+
+**La regla que ordena todo lo demás:** Monday nunca puede tumbar la app.
+Primero nuestra base, después el tablero, y si el tablero falla se registra y
+se sigue. Lo contrario —escribir allá primero para "garantizar" que están
+alineados— garantiza justo lo opuesto: un acuerdo en Monday que en la sala no
+existe.
 
 **Hallazgo de la Fase 7, arreglado de paso:** `vencido` solo existía si
 alguien lo escribía a mano. Nada lo derivaba de la fecha, así que un

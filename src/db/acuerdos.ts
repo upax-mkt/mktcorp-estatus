@@ -16,6 +16,7 @@ import { eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
+import { sincronizarAlta, sincronizarCambio } from '@/monday/sincronizar'
 import { slugsDeSalas } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
@@ -55,6 +56,10 @@ function validarSala(salaSlug: string): void {
   }
 }
 
+function isoDia(d: Date | null | undefined): string | null {
+  return d ? d.toISOString().slice(0, 10) : null
+}
+
 /** Da de alta un acuerdo nuevo, siempre en estatus `abierto`. */
 export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promise<{ id: string }> {
   validarSala(salaSlug)
@@ -92,6 +97,16 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
       updatedAt: ahora,
     })
   }
+
+  // Monday DESPUÉS de nuestra base y sin bloquear: si el tablero está caído,
+  // el acuerdo existe igual en la sala. Ver src/monday/sincronizar.ts.
+  await sincronizarAlta(id, {
+    salaSlug,
+    que: datos.que,
+    estatus: 'abierto',
+    fechaCompromiso: isoDia(datos.fechaCompromiso),
+  })
+
   return { id }
 }
 
@@ -120,6 +135,28 @@ export async function moverEstatus(acuerdoId: string, nuevoEstatus: EstatusAcuer
     })
     memoria.actualizarAcuerdoMemoria(acuerdoId, { estatus: nuevoEstatus, historia })
   }
+
+  await sincronizarDespuesDeEditar(acuerdoId)
+}
+
+/**
+ * Lleva a Monday el estado ACTUAL del acuerdo, releyéndolo de nuestra base.
+ *
+ * Se relee en vez de recibir los campos por parámetro para que lo que viaje
+ * al tablero sea lo que quedó guardado, no lo que se pidió guardar: si algo
+ * de la escritura no cuajó, Monday no debe recibir una versión que aquí no
+ * existe.
+ */
+async function sincronizarDespuesDeEditar(acuerdoId: string): Promise<void> {
+  if (!hayDB()) return
+  const fila = (await db().select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
+  if (!fila) return
+  await sincronizarCambio(acuerdoId, {
+    salaSlug: fila.salaSlug,
+    que: fila.que,
+    estatus: fila.estatus,
+    fechaCompromiso: isoDia(fila.fechaCompromiso),
+  })
 }
 
 /** Edita los campos de un acuerdo (qué, responsable, squad, prioridad, fecha), registrando los cambios en su historia. */
@@ -141,6 +178,8 @@ export async function editarAcuerdo(acuerdoId: string, cambios: CambiosAcuerdo):
     const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
     memoria.actualizarAcuerdoMemoria(acuerdoId, { ...cambios, historia })
   }
+
+  await sincronizarDespuesDeEditar(acuerdoId)
 }
 
 /**
