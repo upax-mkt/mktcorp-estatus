@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
-import { CATALOGO, tipoDeSeccion, type CampoSeccion } from '@/secciones/catalogo'
+import { tipoDeSeccion, type CampoSeccion } from '@/secciones/catalogo'
 import { loQueFalta, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import { parsearLineas } from '@/secciones/parseo'
 import {
@@ -11,6 +11,10 @@ import {
 } from './CamposEstructurados'
 import { AreaTexto } from './AreaTexto'
 import { AsistenteIA } from './AsistenteIA'
+import { VistaPrevia } from './VistaPrevia'
+import { SelectorTipo } from './SelectorTipo'
+import { soloCamposDelTipo, NOMBRE_DE_CAMPO } from '@/secciones/borrador'
+import type { Tema } from '@/temas/tipos'
 import estilos from './editor.module.css'
 
 /**
@@ -37,12 +41,113 @@ interface Props {
   /** Texto crudo ya guardado para el asistente, si lo hay. */
   textoCrudo?: string
   proponerAction?: (texto: string) => Promise<BorradorSeccion | { error: string }>
+  /** El tema de la sala: la vista previa se pinta con SUS colores. */
+  tema: Tema
 }
+
+/**
+ * Qué se dejaría de presentar al cambiar de tipo.
+ *
+ * Lo escrito NO se borra —sigue guardado y vuelve si se deshace el cambio—,
+ * pero el tipo nuevo no lo enseña, y esa diferencia era invisible: se cambiaba
+ * "Cifras y análisis" por "Portada" y tres KPIs desaparecían de la pantalla
+ * sin una palabra.
+ */
+function loQueDejaDeVerse(borrador: BorradorSeccion, nuevoLayout: DecisionSlide['layout']): string[] {
+  const antes = soloCamposDelTipo(borrador)
+  const despues = soloCamposDelTipo({ ...borrador, layout: nuevoLayout })
+  return (Object.keys(antes) as (keyof BorradorSeccion)[])
+    .filter((campo) => campo !== 'layout' && campo !== 'titulo')
+    .filter((campo) => antes[campo] !== undefined && despues[campo] === undefined)
+    .map((campo) => NOMBRE_DE_CAMPO[campo as keyof typeof NOMBRE_DE_CAMPO] ?? String(campo))
+}
+
+/** Cómo se llama, en singular, lo que vive dentro de cada lista. */
+const UNO_DE: Record<string, string> = {
+  tablas: 'una tabla',
+  graficos: 'un gráfico',
+  kpis: 'una cifra',
+  columnas: 'una columna',
+  filas: 'una fila',
+  celdas: 'una celda',
+  puntos: 'una línea',
+  hijos: 'una línea',
+  series: 'una serie',
+  valores: 'un valor',
+  bloques: 'un bloque',
+  cifrasDesglosadas: 'una cifra',
+  cuerpo: 'una línea',
+  periodos: 'un periodo',
+}
+
+/**
+ * Dónde se acortó una lista, mirando TAN ADENTRO como haga falta.
+ *
+ * Tiene que ser recursivo porque quitar una fila no acorta ninguna lista de
+ * primer nivel: `tablas` sigue teniendo una tabla, y lo que menguó es
+ * `tablas[0].filas`. Una comparación superficial no veía nada y el deshacer no
+ * aparecía justo en el caso más frecuente.
+ */
+function dondeSeAcorto(antes: unknown, despues: unknown): string | null {
+  if (Array.isArray(antes) && Array.isArray(despues)) {
+    for (let i = 0; i < Math.min(antes.length, despues.length); i++) {
+      const dentro = dondeSeAcorto(antes[i], despues[i])
+      if (dentro) return dentro
+    }
+    return null
+  }
+  if (antes && despues && typeof antes === 'object' && typeof despues === 'object') {
+    const a = antes as Record<string, unknown>
+    const d = despues as Record<string, unknown>
+    for (const clave of Object.keys(a)) {
+      if (Array.isArray(a[clave]) && Array.isArray(d[clave])) {
+        if ((d[clave] as unknown[]).length < (a[clave] as unknown[]).length) return clave
+      }
+      const dentro = dondeSeAcorto(a[clave], d[clave])
+      if (dentro) return dentro
+    }
+  }
+  return null
+}
+
+/**
+ * Si un cambio QUITÓ algo, y qué.
+ *
+ * Se detecta comparando en vez de pedirle a cada widget que avise: quitar una
+ * fila de la tabla, un gráfico, una columna o un bloque son cuatro botones en
+ * cuatro componentes distintos, y hacer que los cuatro se acuerden de marcar
+ * su acción como destructiva es garantizar que el quinto no lo haga.
+ *
+ * Devuelve null cuando el cambio solo añade o edita — que es la inmensa
+ * mayoría, y no debe ofrecer un deshacer que nadie pidió.
+ */
+function loQueSeQuito(antes: BorradorSeccion, despues: BorradorSeccion): string | null {
+  for (const clave of Object.keys(despues) as (keyof BorradorSeccion)[]) {
+    if (clave === 'layout' || clave === 'titulo') continue
+    const a = antes[clave]
+    const d = despues[clave]
+    const nombre = NOMBRE_DE_CAMPO[clave as keyof typeof NOMBRE_DE_CAMPO] ?? String(clave)
+
+    if (a !== undefined && d === undefined) return nombre
+
+    if (Array.isArray(a) && Array.isArray(d) && d.length < a.length) {
+      return UNO_DE[clave] ?? `un elemento de ${nombre}`
+    }
+    const dentro = dondeSeAcorto(a, d)
+    if (dentro) return `${UNO_DE[dentro] ?? 'un elemento'} de ${nombre}`
+  }
+  return null
+}
+
+/** Marca interna: el deshacer viene de un cambio de tipo, no de un borrado. */
+const TIPO_CAMBIADO = '\u0000tipo'
 
 /** Cuánto se espera desde la última tecla antes de guardar solo. */
 const ESPERA_AUTOGUARDADO = 1200
 
-export function EditorSeccion({ borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction }: Props) {
+export function EditorSeccion({
+  borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction, tema,
+}: Props) {
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
   const [guardado, setGuardado] = useState(true)
   const [pendiente, empezar] = useTransition()
@@ -55,8 +160,23 @@ export function EditorSeccion({ borrador: inicial, tituloDeRespaldo, guardarActi
 
   const tipo = tipoDeSeccion(borrador.layout)
   const faltas = loQueFalta(borrador, tituloDeRespaldo)
+  /**
+   * LO ÚLTIMO QUE SE PUEDE DESHACER.
+   *
+   * Un solo nivel, a propósito: lo que hace falta es rescatar el clic que
+   * acaba de borrar una fila, no navegar un historial. Una pila entera en un
+   * formulario con guardado automático plantea la pregunta de qué pasa cuando
+   * se deshacen cinco pasos ya guardados, y esa pregunta no hace falta
+   * contestarla para resolver el problema.
+   */
+  const [deshacer, setDeshacer] = useState<{ estado: BorradorSeccion; que: string } | null>(null)
 
   function cambiar(parcial: Partial<BorradorSeccion>) {
+    // El deshacer se arma AQUÍ, comparando: así vale para quitar una fila,
+    // un gráfico, una columna o un bloque sin que ninguno de esos botones
+    // tenga que acordarse de nada.
+    const quitado = loQueSeQuito(borrador, { ...borrador, ...parcial })
+    setDeshacer(quitado ? { estado: borrador, que: quitado } : null)
     setBorrador((previo) => ({ ...previo, ...parcial }))
     setGuardado(false)
     setTocada(true)
@@ -93,25 +213,45 @@ export function EditorSeccion({ borrador: inicial, tituloDeRespaldo, guardarActi
   }, [borrador, guardado])
 
   return (
-    <div className={estilos.editor}>
-      <div className={estilos.filaCampos}>
-        <label className={estilos.campoAncho}>
-          <span>Tipo de sección</span>
-          <select
-            value={borrador.layout}
-            onChange={(e) => cambiar({ layout: e.target.value as DecisionSlide['layout'] })}
-            aria-label="Tipo de sección"
-          >
-            {CATALOGO.map((t) => (
-              <option key={t.layout} value={t.layout}>{t.nombre}</option>
-            ))}
-          </select>
-        </label>
-        {/* Cambiar de tipo NO borra lo escrito: lo que el tipo nuevo no admite
-            se guarda igual y vuelve a aparecer si se deshace el cambio. Solo
-            se descarta al maquetar. */}
-        <p className={estilos.paraQue}>{tipo?.paraQue}</p>
+    <div className={estilos.conPrevia}>
+      <div className={estilos.editor}>
+      {/* Cambiar de tipo NO borra lo escrito: lo que el tipo nuevo no admite
+          se guarda igual y vuelve a aparecer si se deshace el cambio. Solo se
+          descarta al maquetar. */}
+      <div className={estilos.campoAncho}>
+        <span className={estilos.etiquetaCampo}>Tipo de sección</span>
+        <SelectorTipo
+          valor={borrador.layout}
+          alCambiar={(nuevo) => {
+            // El tipo no borra nada del borrador, así que `loQueSeQuito` no lo
+            // detecta: lo que cambia es qué se PRESENTA. Se arma el deshacer a
+            // mano cuando el tipo nuevo deja algo fuera de la vista.
+            const oculta = loQueDejaDeVerse(borrador, nuevo)
+            const anterior = borrador
+            cambiar({ layout: nuevo })
+            if (oculta.length > 0) setDeshacer({ estado: anterior, que: TIPO_CAMBIADO })
+          }}
+        />
       </div>
+
+      {deshacer && (
+        <p className={estilos.avisoCambioTipo} role="status">
+          {deshacer.que === TIPO_CAMBIADO
+            ? 'Este tipo ya no muestra parte de lo escrito. Sigue guardado y vuelve si deshaces el cambio.'
+            : `Se quitó ${deshacer.que}.`}{' '}
+          <button
+            type="button"
+            className={estilos.deshacerCambio}
+            onClick={() => {
+              setBorrador(deshacer.estado)
+              setGuardado(false)
+              setDeshacer(null)
+            }}
+          >
+            Deshacer
+          </button>
+        </p>
+      )}
 
       {/* El título se escribe con la pinta que va a tener: grande y con la
           tipografía de display. Escribirlo en una caja gris de 14px y
@@ -159,20 +299,17 @@ export function EditorSeccion({ borrador: inicial, tituloDeRespaldo, guardarActi
         ) : (
           <span className={estilos.porEmpezar}>Falta {faltas.join(' y ')}.</span>
         )}
-        {/* Estado, no botón: se guarda solo. El botón sigue existiendo para
-            quien quiera forzarlo, pero apagado cuando no hay nada que hacer. */}
+        {/* ESTADO, NO BOTÓN. El "Guardar ahora" que había aquí era una
+            invitación a desconfiar del guardado automático: ocho botones
+            apagados repartidos por la pantalla, uno por sección, que no hacían
+            nada distinto de lo que ya pasaba solo. */}
         <span className={estilos.estadoGuardado} aria-live="polite">
           {pendiente ? 'Guardando…' : guardado ? 'Guardado' : 'Sin guardar'}
         </span>
-        <button
-          type="button"
-          className={estilos.botonGuardar}
-          onClick={guardar}
-          disabled={pendiente || guardado}
-        >
-          Guardar ahora
-        </button>
       </div>
+      </div>
+
+      <VistaPrevia borrador={borrador} tituloDeRespaldo={tituloDeRespaldo} tema={tema} />
     </div>
   )
 }

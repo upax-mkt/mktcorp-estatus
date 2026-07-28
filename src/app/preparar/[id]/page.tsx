@@ -164,6 +164,10 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   const total = sesion.items.length
   // Las secciones base son los bloques de la reunión; el resto cuelga de una.
   const bases = sesion.items.filter((i) => !i.padre)
+  // El tema de la sala baja hasta cada editor: la vista previa tiene que
+  // pintarse con los colores con los que se va a presentar, no con los del
+  // cascarón de preparación.
+  const tema = obtenerTema(sesion.salaSlug)
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -229,6 +233,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                   guardarSeccionAction={guardarSeccionAction}
                   proponerAction={proponerAction}
                   eliminarSeccionAction={base.esBase ? undefined : eliminarSeccionAction}
+                  tema={tema}
                 />
 
                 <div className={estilos.subsecciones}>
@@ -244,6 +249,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       proponerAction={proponerAction}
                       eliminarSeccionAction={eliminarSeccionAction}
                       esSub
+                      tema={tema}
                     />
                   ))}
                   {/* SOLO UN DIVISOR ABRE UN BLOQUE. Una sección que ya lleva

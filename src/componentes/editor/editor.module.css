@@ -618,3 +618,150 @@
   font-size: 0.82rem;
   color: color-mix(in oklch, var(--tx, #222) 52%, transparent);
 }
+
+/* ---- vista previa junto al formulario ----
+   El problema nº1 de la auditoría: se llenaban catorce secciones a ciegas y
+   el resultado se veía al final, de golpe, cuando corregir significa volver a
+   entrar en cada una. Aquí el bucle se cierra en el sitio.
+
+   Por debajo de 78rem se apila: en un portátil, dos columnas dejarían el
+   formulario en 300px y eso es peor que no tener vista previa. */
+.conPrevia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (min-width: 78rem) {
+  .conPrevia { grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr); }
+}
+
+.previa {
+  position: sticky;
+  top: 5rem;
+  border: 1px solid var(--linea, #e5e5e5);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--superficie-2, #fafafa);
+}
+
+.previaBarra {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--linea, #e5e5e5);
+}
+.previaTitulo {
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700;
+  color: color-mix(in oklch, var(--tx, #222) 50%, transparent);
+}
+.previaBoton {
+  font: inherit; font-size: 0.78rem;
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 60%, transparent);
+}
+.previaBoton:hover { color: var(--tx, #222); }
+
+/* El documento se dibuja a tamaño real y se REDUCE con zoom, en vez de
+   maquetarse con tipos más pequeños: así lo que se ve es proporcionalmente lo
+   que se va a presentar, no una versión distinta que casualmente se parece. */
+.previaLienzo {
+  padding: 0.5rem;
+  max-height: 32rem;
+  overflow: auto;
+  zoom: 0.62;
+}
+
+.previaAviso {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--alerta, #b23);
+  background: color-mix(in oklch, var(--alerta, #b23) 8%, transparent);
+}
+
+/* ---- cambio de tipo de sección ---- */
+.avisoCambioTipo {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: color-mix(in oklch, var(--tx, #222) 78%, transparent);
+  background: color-mix(in oklch, var(--tibia, #c80) 12%, transparent);
+}
+.deshacerCambio {
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--sala, #333); text-decoration: underline;
+}
+
+/* ---- selector visual de tipo de sección ----
+   Antes era un <select> con trece nombres: "Meta contra real" no dice qué
+   forma tiene la página, y averiguarlo obligaba a elegir y mirar, trece
+   veces. */
+.selectorTipo { position: relative; }
+
+.selectorBoton {
+  display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left;
+  font: inherit; color: var(--tx, #222);
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--linea, #ddd); border-radius: 0.55rem;
+  background: var(--superficie, #fff); cursor: pointer;
+  transition: border-color 140ms ease;
+}
+.selectorBoton:hover { border-color: var(--sala, #888); }
+.selectorTexto { display: grid; gap: 0.1rem; min-width: 0; flex: 1; }
+.selectorNombre { font-size: 0.92rem; font-weight: 600; }
+.selectorParaQue {
+  font-size: 0.78rem; color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.selectorFlecha { color: color-mix(in oklch, var(--tx, #222) 45%, transparent); flex: none; }
+
+.selectorPanel {
+  /* Más ancho que el botón que lo abre: encerrado en su ancho, las trece
+     descripciones se rompían en cinco líneas cada una y el panel se volvía
+     una columna de texto donde había que buscar el dibujo. */
+  position: absolute; z-index: 20; left: 0; top: calc(100% + 0.35rem);
+  width: max(100%, 40rem); max-width: 90vw;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.4rem; padding: 0.5rem;
+  max-height: 26rem; overflow-y: auto;
+  border: 1px solid var(--linea, #ddd); border-radius: 0.65rem;
+  background: var(--superficie, #fff);
+  box-shadow: 0 12px 32px oklch(0.26 0.025 55 / 0.16);
+}
+
+.selectorOpcion {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+  column-gap: 0.6rem; row-gap: 0.15rem; align-items: center; text-align: left;
+  font: inherit; color: var(--tx, #222);
+  padding: 0.5rem; border: 1px solid transparent; border-radius: 0.5rem;
+  background: none; cursor: pointer;
+}
+.selectorOpcion:hover { background: var(--superficie-2, #f6f6f6); }
+.selectorOpcion[data-elegido='true'] {
+  border-color: var(--sala, #888);
+  background: color-mix(in oklch, var(--sala, #888) 7%, transparent);
+}
+.selectorOpcion .miniatura { grid-row: 1 / span 2; }
+.selectorOpcionNombre { font-size: 0.86rem; font-weight: 600; }
+.selectorOpcionParaQue {
+  font-size: 0.74rem; line-height: 1.35;
+  color: color-mix(in oklch, var(--tx, #222) 55%, transparent);
+}
+
+/* La miniatura es un ESQUEMA, no una captura: lo que importa es la
+   disposición —dónde va el título, si hay columnas, si hay tabla— que es
+   justo lo que el tipo decide y no cambia con el contenido. */
+.miniatura {
+  width: 3.4rem; height: 2.27rem; flex: none;
+  border-radius: 0.25rem; display: block;
+  color: var(--tx, #222);
+}
+.miniaturaFondo { fill: color-mix(in oklch, var(--tx, #222) 5%, transparent); }
+
+.etiquetaCampo {
+  font-size: 0.78rem; font-weight: 600;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+}

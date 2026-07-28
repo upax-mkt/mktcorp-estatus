@@ -84,7 +84,7 @@ validador de paleta en verde para las 10 salas × 2 superficies.
 
 ---
 
-## FASE 2 — Vista previa en el editor ☐
+## FASE 2 — Vista previa en el editor ✅ *(cerrada 27-jul)*
 
 **Por qué segundo:** es el problema nº1 de la auditoría de UX, y es lo que hace
 que todo lo demás del editor se pueda verificar sin salir de él. Además la
@@ -92,10 +92,24 @@ arquitectura ya lo permite sin código nuevo de cliente.
 
 | # | Qué |
 |---|---|
-| ☐ 2.1 | Panel de vista previa junto al formulario: `maquetarBorrador` ya es puro y síncrono, y `SeccionDocumento` ya es componente de servidor. Se pasa como slot; el formulario no pierde su estado. |
-| ☐ 2.2 | Miniaturas por tipo de sección en el selector, para elegir por lo que se ve y no por una línea de texto. |
-| ☐ 2.3 | Cambiar de tipo avisa de lo que queda fuera, en vez de esconderlo en silencio. |
-| ☐ 2.4 | Deshacer la última acción destructiva (quitar fila, quitar gráfico, cambiar de escalas). |
+| ✅ 2.1 | Panel de vista previa junto al formulario: `maquetarBorrador` ya es puro y síncrono, y `SeccionDocumento` ya es componente de servidor. Se pasa como slot; el formulario no pierde su estado. |
+| ✅ 2.2 | Miniaturas por tipo de sección en el selector, para elegir por lo que se ve y no por una línea de texto. |
+| ✅ 2.3 | Cambiar de tipo avisa de lo que queda fuera, en vez de esconderlo en silencio. |
+| ✅ 2.4 | Deshacer la última acción destructiva (quitar fila, quitar gráfico, cambiar de escalas). |
+
+**Cómo quedó el deshacer:** se arma COMPARANDO el borrador antes y después de
+cada cambio, no pidiéndole a cada botón de borrar que avise — quitar una fila,
+un gráfico, una columna o un bloque son botones en componentes distintos, y
+hacer que todos se acuerden es garantizar que el siguiente no lo haga. La
+comparación tuvo que hacerse recursiva: quitar una fila no acorta ninguna
+lista de primer nivel (`tablas` sigue teniendo una tabla; lo que menguó es
+`tablas[0].filas`), así que la versión superficial no veía nada justo en el
+caso más frecuente. Lo encontró un test.
+
+**De paso se cerró 4.3:** desaparecen los ocho botones "Guardar ahora". Eran
+una invitación a desconfiar del guardado automático — botones apagados
+repartidos por la pantalla que no hacían nada distinto de lo que ya pasaba
+solo.
 
 ---
 
@@ -165,7 +179,7 @@ Lo que queda de la auditoría de UX, ordenado por coste/beneficio.
 |---|---|
 | ☐ 4.1 | Índice lateral pegajoso: hoy se navegan ~5.900px a scroll sin mapa. El documento que produce esta herramienta sí tiene índice; la herramienta no. |
 | ☐ 4.2 | "Maquetar →" anuncia "~25 s" incluso en una sesión 100% manual, donde el trabajo son microsegundos y el resultado es idéntico al anterior. Etiquetar según si hay algo de IA. |
-| ☐ 4.3 | Quitar los ocho botones "Guardar ahora" (se guarda solo) y dejar una barra única de estado + acción. |
+| ✅ 4.3 | Quitar los ocho botones "Guardar ahora" (se guarda solo) y dejar una barra única de estado + acción. *(hecho en Fase 2)* |
 | ☐ 4.4 | El error se enuncia al final de la tarjeta y el campo culpable está al principio. Marcar el campo (`aria-invalid`) y enlazar. |
 | ☐ 4.5 | El paso de escalas del gráfico borra la configuración por serie al alternar. |
 | ☐ 4.6 | Iconos de tipo de gráfico: hoy son caracteres Unicode que no comunican y cuya cobertura de fuente no está garantizada. Sustituir por SVG (comparte artwork con 2.2). |
