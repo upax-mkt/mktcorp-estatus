@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
@@ -8,6 +9,8 @@ import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
 import { sesionesSinMinuta, reunionesDeSala } from '@/dominio/salas'
+import { altoDeLogo, SIN_LOGO } from '@/temas/logos'
+import { IconoSeccion } from '@/componentes/IconoSeccion'
 import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
@@ -279,11 +282,36 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         </div>
       </header>
 
-      {/* Encabezado vestido de la marca de la UDN */}
+      {/* Encabezado vestido de la marca de la UDN.
+          Franco: "la sala de cada UDN debería estar bandeada con su logo
+          también". El logotipo va en su variante BLANCA sobre el degradado: la
+          de color trae tintas que contra el degradado de su propia marca
+          desaparecen —el morado de Zeus sobre morado— y ninguna de las diez
+          está pensada para ir sobre color. */}
       <div className={estilos.hero}>
         <div className={estilos.heroInner}>
           <div className={estilos.heroKicker}>Sala · Marketing Corp</div>
-          <h1 className={estilos.heroNombre}>{s.nombre}</h1>
+          {SIN_LOGO.has(slug) ? (
+            <h1 className={estilos.heroNombre}>{s.nombre}</h1>
+          ) : (
+            <>
+              <Image
+                src={`/logos/${slug}-blanco.png`}
+                alt={s.nombre}
+                width={320}
+                height={72}
+                priority
+                className={estilos.heroLogo}
+                // Cada marca a SU altura: igualar alturas hace que un logotipo
+                // apaisado ocupe cuatro veces más mancha. Ver `temas/logos.ts`.
+                style={{ '--alto-logo': `${altoDeLogo(slug) * 1.7}px` } as CSSProperties}
+              />
+              {/* El nombre sigue existiendo para quien no ve la imagen: el
+                  logotipo lleva `alt`, pero un h1 real es lo que da a la
+                  página su encabezado. */}
+              <h1 className={estilos.heroNombreOculto}>{s.nombre}</h1>
+            </>
+          )}
           <div className={estilos.heroMeta}>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{textoDiasDesde(s.diasDesdeUltima)}</span>
@@ -307,6 +335,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {/* Acuerdos primero — es lo que el director quiere ver */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
+            <IconoSeccion nombre="acuerdos" />
             Acuerdos
             <span className={estilos.conteo}>{s.acuerdos.length}</span>
           </h2>
@@ -358,6 +387,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             que buscar mayo dos veces. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
+            <IconoSeccion nombre="reuniones" />
             Reuniones
             {reuniones.length > 0 && <span className={estilos.conteo}>{reuniones.length}</span>}
           </h2>
@@ -394,6 +424,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
+            <IconoSeccion nombre="benchmark" />
             Benchmark competitivo
             {benchmark && <span className={estilos.conteo}>{s.nombre} + {benchmark.competidores.length} competidores</span>}
           </h2>
@@ -405,6 +436,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {(archivosDeInteres.length > 0 || equipo) && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
+              <IconoSeccion nombre="archivos" />
               Archivos de interés
               {archivosDeInteres.length > 0 && (
                 <span className={estilos.conteo}>{archivosDeInteres.length}</span>
@@ -425,7 +457,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {/* Compartir la sala con su director. Solo lo ve el equipo. */}
         {equipo && (
           <section className={estilos.seccion}>
-            <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
+            <h2 className={estilos.seccionTitulo}>
+              <IconoSeccion nombre="clave" />
+              Acceso del director
+            </h2>
             <ClaveDeSala
               nombreSala={s.nombre}
               tiene={clave.tiene}

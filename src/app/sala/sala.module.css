@@ -85,12 +85,17 @@
   margin-bottom: 1.25rem;
 }
 .seccionTitulo {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  /* Icono y texto JUNTOS a la izquierda; el contador empujado a la derecha
+     con `margin-left:auto`, no con `space-between` — con tres hijos,
+     `space-between` reparte los huecos y manda el título al centro. */
+  display: flex; align-items: center; gap: 0.6rem;
   font-size: 1.02rem; font-weight: 600; letter-spacing: var(--track-titulo);
   color: var(--tinta); text-transform: none;
   margin: 0 0 1rem;
 }
+.seccionTitulo svg { flex: none; color: var(--marca); }
 .seccionTitulo .conteo {
+  margin-left: auto;
   font-size: 0.78rem; font-weight: 500; letter-spacing: var(--track-normal);
   color: var(--tinta-3);
 }
@@ -605,4 +610,22 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   display: inline-block; margin-right: 0.5rem;
   font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--marca);
+}
+
+/* El logotipo de la sala sobre el degradado, en su variante blanca. Cada
+   marca a SU altura (ver `src/temas/logos.ts`): igualar alturas hace que un
+   lockup apaisado ocupe cuatro veces más mancha que uno compacto. */
+.heroLogo {
+  height: var(--alto-logo, 68px); width: auto;
+  max-width: min(100%, 22rem);
+  object-fit: contain; object-position: left center;
+  margin-bottom: 0.2rem;
+}
+
+/* El nombre sigue en el árbol para quien no ve la imagen, y para que la
+   página tenga un h1 de verdad. `clip-path` y no `display:none`: lo segundo
+   lo esconde también de los lectores de pantalla. */
+.heroNombreOculto {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
