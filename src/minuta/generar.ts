@@ -207,7 +207,19 @@ export async function generarMinuta(
     // Solo se reintenta lo que el modelo puede corregir. Un fallo de red o de
     // credenciales no mejora por pedirlo otra vez.
     if (!/valid|too_big|too_small|schema|parse/i.test(motivo)) throw error
-    resp = await intentar(resumirRechazo(motivo))
+    try {
+      // EL SEGUNDO INTENTO TAMBIÉN SE CAPTURA. Envolver solo el primero no
+      // sirve de nada: si el modelo vuelve a pasarse, la excepción sale igual
+      // y quien la lee ve el JSON de Zod, que es justo lo que el reintento
+      // venía a evitar.
+      resp = await intentar(resumirRechazo(motivo))
+    } catch {
+      throw new Error(
+        'La minuta salió demasiado larga dos veces seguidas. Suele pasar con transcripciones ' +
+        'muy largas o con varias reuniones pegadas en el mismo archivo. Prueba a recortarla, ' +
+        'o afloja el largo de los bloques en el molde de la minuta.',
+      )
+    }
   }
   if (!resp.parsed_output) {
     throw new Error(`El modelo no devolvió una minuta (stop_reason: ${resp.stop_reason ?? 'desconocido'})`)

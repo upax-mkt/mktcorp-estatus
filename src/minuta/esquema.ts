@@ -51,11 +51,16 @@ export const EsquemaMinuta = z
      * Con la instrucción sola —"viñetas cortas"— el modelo devolvió trece
      * viñetas de párrafo entero: 1.180 palabras donde caben 60. Una minuta es
      * un resumen para quien ESTUVO en la reunión, no un sustituto de la
-     * transcripción. 700 caracteres por bloque son unas cinco líneas: bastan
-     * para tres o cuatro viñetas de una línea y no para un acta paralela.
+     * transcripción.
+     *
+     * 900 y no 700: el bloque de temas pide de tres a CINCO viñetas de una
+     * línea, y cinco rondan los 750 caracteres. Con 700 el modelo fallaba dos
+     * veces seguidas cumpliendo lo que se le pedía — un tope que castiga la
+     * forma correcta está mal calibrado. 900 siguen siendo unas siete líneas,
+     * lejísimos de las 1.180 palabras que salían antes.
      */
-    bloques: z.array(TextoPlano.max(700)).min(1).max(8).describe(
-      'Un texto por bloque, en el orden en que se piden. BREVE: máximo 700 caracteres por bloque. Cada uno responde solo a lo que pide SU bloque, sin repetir lo dicho en otro.',
+    bloques: z.array(TextoPlano.max(900)).min(1).max(8).describe(
+      'Un texto por bloque, en el orden en que se piden. BREVE: máximo 900 caracteres por bloque. Cada uno responde solo a lo que pide SU bloque, sin repetir lo dicho en otro.',
     ),
     /** Borrador de acuerdos accionables extraídos de la transcripción — nada se publica sin revisión humana (spec §9). */
     /**

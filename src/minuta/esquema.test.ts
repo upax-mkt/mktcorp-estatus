@@ -87,7 +87,7 @@ describe('parsearMinuta', () => {
   it('rechaza un bloque que se convirtió en un acta paralela', () => {
     // El tope de largo es lo único que de verdad frena: con la instrucción
     // sola, el modelo devolvió viñetas de párrafo entero.
-    const kilometrico = 'x'.repeat(701)
+    const kilometrico = 'x'.repeat(901)
     expect(EsquemaMinuta.safeParse({ ...VALIDA, bloques: [kilometrico] }).success).toBe(false)
   })
 
