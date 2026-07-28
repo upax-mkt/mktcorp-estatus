@@ -505,3 +505,73 @@ lleva ahí desde entonces. Contra el extremo magenta de Zeus el blanco da
 3.9:1 — pasa para el título por tamaño, no para las etiquetas pequeñas. No se
 tocó por cuenta propia: cambiar el encabezado de las diez salas es una
 decisión suya, no un arreglo.
+
+---
+---
+
+# RONDA 3 — feedback de Franco del 28-jul-2026
+
+Doce puntos, textuales, agrupados por dónde caen. Se anotan enteros antes de
+tocar nada: la mitad se pisan entre sí y decidir el orden importa más que
+empezar rápido.
+
+| # | Dónde | Lo que dijo |
+|---|---|---|
+| 1 | Home | "sigo sin ver la generación de minutas como módulo agnóstico en el Home" |
+| 2 | Home | "las salas se ven feas en esas cajas, los logos están desproporcionados con respecto a la caja, no está bien resuelto el diseño de esta parte, además todo se ve súper chico y junto" |
+| 3 | Preparar | "detecté problemas cuando se configuran algunos elementos y componentes tiran error en la maquetación" |
+| 4 | Preparar | "la edición de la ppt también debería ser en drag & drop desde un previsualizador, y ya cuando todos hayan terminado de editar y estén ok con el diseño se genera la presentación web" |
+| 5 | Tipo de reunión | "para algunos tipos de reunión podríamos definir templates preparados; por ejemplo la Estatus Mensual con RL debería tener una estructura predefinida" |
+| 6 | Minutas | "el módulo minutas debería tener un editor del template del tipo de minuta" |
+| 7 | Sala | "la sala de cada UDN debería estar bandeada con su logo también" |
+| 8 | Sala | "faltan algunos iconos o elementos para hacerla más dinámica" |
+| 9 | Sala | "el módulo Presentaciones y minutas creo que debe ser uno, así la presentación está asociada a una minuta, es decir a una reunión" |
+| 10 | Presentar | "cuando se activa el modo pantalla completa debe aparecer un contador para llevar el control del tiempo" |
+| 11 | Presentar | "una opción que despliegue herramientas interactivas como un puntero láser" |
+| 12 | Presentar | "una opción para grabar la reunión y luego generar la minuta directamente en la webapp, conectada al módulo de minutas" |
+
+## El punto 3, reproducido antes de escribir el plan
+
+No era una impresión: está medido. El esquema pone topes —4 cifras, 4
+columnas, 2 gráficos, 3 tablas, 6 columnas por tabla, 5 bloques— y **el editor
+no ponía ninguno**. Los botones de "añadir" seguían añadiendo, y el tope se
+descubría al maquetar, después de haberlo escrito todo. Peor: el aviso que
+salía era el de Zod en inglés —`kpis: Too big: expected array to have <=4
+items`— colgado del nombre interno del campo, no del que ve quien escribe.
+
+Lo mismo con los mínimos, que no se ven venir: una columna añadida y dejada
+sin líneas, una cifra sin valor, un gráfico al que se le vació la fila de
+encabezados. Los tres son configuraciones que el editor ofrece y el esquema
+rechaza.
+
+Fijado en `src/secciones/limites.test.ts` antes de arreglarlo.
+
+## El punto 9 manda sobre el 1: el orden no es el de la lista
+
+"La presentación está asociada a una minuta, es decir a una reunión" no es un
+cambio de pantalla, es la unidad del modelo. Hoy presentaciones y minutas son
+dos listas paralelas que se miran de reojo; si se unifican DESPUÉS de rehacer
+el módulo de minutas del Home, el módulo se hace dos veces. Va antes.
+
+**Orden de ejecución:** `12 → 13 → 14 → 15 → 16 → 17 → 18`.
+
+| Fase | Qué | Puntos |
+|---|---|---|
+| 12 | El editor no deja armar lo que el esquema rechaza | 3 |
+| 13 | La reunión como unidad: presentación y minuta, un módulo | 9 |
+| 14 | El Home: minutas agnósticas y las salas rediseñadas | 1, 2 |
+| 15 | Plantillas por tipo de reunión y editor de plantilla de minuta | 5, 6 |
+| 16 | La sala bandeada con su logo y más viva | 7, 8 |
+| 17 | Editar sobre la vista previa, con arrastre | 4 |
+| 18 | Modo presentación: reloj, puntero y grabar → minuta | 10, 11, 12 |
+
+## Un límite declarado del punto 12, antes de construirlo
+
+La API de Anthropic no acepta audio: Claude lee texto, imágenes y PDF. Así que
+"grabar y generar la minuta" no puede ser una llamada al mismo sitio que ya
+usamos. Se resuelve con lo que trae el navegador: `MediaRecorder` guarda el
+audio y la Web Speech API transcribe en vivo, y esa transcripción entra por el
+mismo sitio por el que hoy entra una pegada a mano. **Es de Chrome** —que es
+donde trabaja el equipo— y la calidad depende del micrófono y del ruido de la
+sala. Se dice en la propia pantalla en vez de dejar que se descubra en una
+reunión con un director.
