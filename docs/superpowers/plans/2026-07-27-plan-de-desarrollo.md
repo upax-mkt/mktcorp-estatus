@@ -575,3 +575,28 @@ mismo sitio por el que hoy entra una pegada a mano. **Es de Chrome** —que es
 donde trabaja el equipo— y la calidad depende del micrófono y del ruido de la
 sala. Se dice en la propia pantalla en vez de dejar que se descubra en una
 reunión con un director.
+
+---
+
+## RONDA 3 CERRADA — los doce puntos (28-jul-2026)
+
+| # | Punto | Cómo quedó |
+|---|---|---|
+| 3 | Componentes que reventaban al maquetar | Reproducido y arreglado en su raíz. La rejilla topaba las columnas en 6 para las tres que la usan: un GRÁFICO no pasaba de cinco periodos —una tendencia anual era imposible— y una MATRIZ se quedaba en cinco de las doce que admite. Quitar la última fila dejaba la tabla en cero. Y el aviso era el de Zod en inglés. Los topes viven en `LIMITES` y los leen el esquema y el editor. |
+| 9 | Presentaciones y minutas, un módulo | `reunionesDeSala`: la presentación y su minuta se unen por la sesión de la que salieron. No empareja por fecha — dos reuniones el mismo martes son dos. |
+| 1 | Generar minutas desde el Home | El módulo solo leía. Ahora usa la MISMA pieza que la sala con las sesiones de las diez salas. |
+| 2 | Las tarjetas de sala | El carril normalizaba por altura y los lockups van de 1,64:1 a 6,80:1: Research Land ocupaba 4,2 veces más mancha que House of Films. Ahora cada logo se dibuja a la altura que iguala su área, medida sobre la tinta real del PNG. Tarjetas de 16rem a 19rem. |
+| 6 | Editor del molde de minuta | El molde estaba incrustado en el código. Ahora se edita: qué bloques, en qué orden y qué se le pide al modelo en cada uno. Quien no lo toque recibe el correo de siempre — hay un test que lo fija. |
+| 5 | Plantillas por tipo de reunión | Construido el MECANISMO, no la estructura de RL. Qué lleva ese estatus lo sabe quien lo da; escribirlo aquí sería inventar un compromiso entre Mkt Corp y una unidad. El camino es "guarda ESTA estructura como plantilla de esta sala". |
+| 7 | La sala bandeada con su logo | En variante blanca sobre el degradado: la de color desaparece contra el degradado de su propia marca. El nombre sigue en el árbol, oculto con `clip-path`, para que la página tenga un h1 real. |
+| 8 | Iconos que hagan la sala más viva | Seis SVG a mano. Una librería trae un paquete entero para usar seis y sus trazos vienen con su propio peso, que no es el de esta app. |
+| 4 | Editar arrastrando desde un previsualizador | Convive con los formularios, no los sustituye: se escribe donde están los campos y se ordena donde se ve. Con `zoom` y no `transform: scale`, que no afecta al layout. Y el botón de generar dice qué falta, sin bloquear. |
+| 10 | Contador de tiempo | Cuenta hacia arriba. Una cuenta atrás llega a cero y deja de informar justo cuando más falta. |
+| 11 | Puntero láser | Fuera de React: la posición se escribe en el nodo con `requestAnimationFrame`. Un `setState` por `mousemove` son 60 renders por segundo del documento entero. |
+| 12 | Grabar y minutar | Con la Web Speech API del navegador — la API de Anthropic no acepta audio. Es de Chrome y se dice en pantalla. Nada se publica solo: la transcripción entra en la pantalla de revisión de siempre. |
+
+**Lo que esto volvió a demostrar:** los cinco defectos de la ronda anterior y
+tres de esta —los huecos grises del previsualizador, el verbo en plural, el
+título del icono empujado al centro— salieron de MIRAR LOS PRINTS, con 654
+tests en verde. Ninguno es un fallo de lógica: son cosas que solo existen
+cuando algo se pinta.
