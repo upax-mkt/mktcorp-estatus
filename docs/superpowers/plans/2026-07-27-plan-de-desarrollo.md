@@ -113,7 +113,7 @@ solo.
 
 ---
 
-## FASE 3 — Las salas ▶ *(3.0–3.3 cerradas; queda 3.4, que va al final)*
+## FASE 3 — Las salas ✅ *(cerrada 27-jul, 3.4 a falta de los datos)*
 
 Todo lo que Franco pidió sobre la vista de sala. Blob `archivos-mktcorp`
 creado, privado y enlazado — los archivos se sirven por URL firmada desde el
@@ -129,7 +129,24 @@ almacenamiento.
 | ✅ 3.1 | **Presentaciones.** Subir archivos con título y fecha para las antiguas. Editar y eliminar la lista. Las nuevas serán URLs de la presentación armada en la app (eso ya existe: `/sesion/[id]`). |
 | ✅ 3.2 | **Minutas.** Lista de anteriores + la última. Al pinchar, se abre en lightbox flotante. Botón para cargar transcripción y generar la minuta con IA — el motor ya existe y funciona. |
 | ✅ 3.3 | **Archivos de interés.** Presentaciones comerciales, Excel, imágenes, lo que el equipo estime. Mismo módulo de subida que 3.1. |
-| ☐ 3.4 | **Benchmark.** Resumen en la sala + vista completa en formato web, con el mismo lenguaje que el documento de presentación. **Esta info sí será incrustada, y es lo último que se hace** (decisión de Franco). |
+| ◐ 3.4 | **Benchmark.** Resumen en la sala + vista completa en formato web ✅. **Los datos faltan** — ver abajo. |
+
+**3.4 — qué está hecho y qué falta.** La pantalla entera: el resumen en la
+sala (cuántas dimensiones lidera, cuáles son brecha, la lectura y la puerta) y
+la vista completa en `/sala/<slug>/benchmark`, con el mismo lenguaje del
+documento de una sesión — degradado de marca exacto y sin texto encima, la
+conclusión primero y la matriz después. Verificado con datos de prueba, que
+se borraron.
+
+**Faltan los datos.** `src/datos/benchmark.ts` es el único sitio de la app con
+datos escritos en el código —la excepción que decidió Franco, porque el
+análisis competitivo no lo produce esta herramienta— y está VACÍO a propósito:
+los competidores reales de cada UDN, sus niveles por dimensión y la lectura de
+Mkt Corp salen de la presentación de benchmark que Franco iba a pasar como
+referencia. Rellenarlo a ojo produciría un análisis de la competencia
+inventado que la app enseñaría al director de la UDN como si fuera trabajo
+hecho — la única forma de que esta pantalla haga daño. El archivo lleva
+documentado el formato: pegar los datos y aparece.
 
 **3.0 — el eslabón que faltaba.** Nada movía una sesión a `presentada`. El
 ciclo es `borrador → lista → presentada → minutada`, pero una sesión maquetada

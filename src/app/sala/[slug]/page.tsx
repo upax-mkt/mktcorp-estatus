@@ -338,7 +338,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             Benchmark competitivo
             {benchmark && <span className={estilos.conteo}>{s.nombre} + {benchmark.competidores.length} competidores</span>}
           </h2>
-          <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} />
+          <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} salaSlug={slug} />
         </section>
 
         {/* Archivos de interés — al final, como los pidió Franco: lo que el

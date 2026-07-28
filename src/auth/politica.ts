@@ -21,6 +21,9 @@ const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/re
 /** Rutas de solo-equipo, por prefijo de primer segmento. */
 const SECCIONES_DE_EQUIPO = ['preparar']
 
+/** Páginas que cuelgan de una sala y su director sí puede ver. */
+const HIJAS_DE_SALA = ['benchmark']
+
 /** Primer segmento y resto de una ruta: '/sala/neracode' → ['sala', 'neracode']. */
 function segmentos(ruta: string): string[] {
   return ruta.split('/').filter((s) => s.length > 0)
@@ -61,6 +64,13 @@ export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
   // servir un byte. Sin esto, un director no podría abrir los archivos de su
   // propia sala.
   if (partes.length === 3 && partes[0] === 'api' && partes[1] === 'archivo') return true
+  // Las páginas que cuelgan de una sala llevan su slug delante, así que aquí
+  // SÍ se puede decidir: `/sala/neracode/benchmark` es del director de
+  // NeraCode y de nadie más. Lista blanca de hijas: una ruta nueva bajo
+  // /sala/<slug>/ no se abre por olvido.
+  if (partes.length === 3 && partes[0] === 'sala' && HIJAS_DE_SALA.includes(partes[2])) {
+    return puedeVerSala(sesion, partes[1])
+  }
   if (partes.length !== 2) return false
   const [seccion, slug] = partes
   if (SECCIONES_DE_EQUIPO.includes(seccion)) return false

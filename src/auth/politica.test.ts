@@ -83,6 +83,14 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/api/otra/cosa')).toBe(false)
   })
 
+  it('un acceso de sala abre el benchmark de SU sala y no el de otra', () => {
+    expect(puedeVerRuta(SALA_NC, '/sala/neracode/benchmark')).toBe(true)
+    expect(puedeVerRuta(SALA_NC, '/sala/zeus/benchmark')).toBe(false)
+    // Lista blanca de hijas: una página nueva bajo /sala/<slug>/ no se abre
+    // por olvido.
+    expect(puedeVerRuta(SALA_NC, '/sala/neracode/lo-que-sea')).toBe(false)
+  })
+
   it('un acceso de sala no entra al hub ni a la preparación ni al motor', () => {
     expect(puedeVerRuta(SALA_NC, '/')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/preparar')).toBe(false)

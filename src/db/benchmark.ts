@@ -6,14 +6,16 @@
  * src/datos-benchmark.ts — así el espacio se ve igual en dev sin
  * DATABASE_URL.
  *
- * Preliminar (§5, [PENDIENTE]): a la espera de la presentación de benchmark
- * real que Franco va a pasar como referencia. Dimensiones y estructura sujetas
- * a ajuste cuando llegue.
+ * Dos orígenes, en este orden: el archivo incrustado
+ * (`src/datos/benchmark.ts`, la excepción decidida por Franco) y, si no hay
+ * entrada ahí, la tabla `benchmarks`. Sin ninguno de los dos, la sala enseña
+ * su espacio vacío — que es la verdad mientras nadie haya cargado el
+ * análisis.
  */
 import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
-import { obtenerBenchmarkEjemplo } from '@/dominio/benchmark'
+import { benchmarkIncrustado } from '@/datos/benchmark'
 import type { Benchmark } from '@/dominio/benchmark'
 
 export type { Benchmark, FilaDimensionBenchmark, NivelBenchmark } from '@/dominio/benchmark'
@@ -28,7 +30,14 @@ function isoFecha(d: Date): string {
  * todavía (en DB: sin fila; en el fallback de ejemplo: slug desconocido).
  */
 export async function obtenerBenchmark(salaSlug: string): Promise<Benchmark | null> {
-  if (!hayDB()) return obtenerBenchmarkEjemplo(salaSlug)
+  // El benchmark INCRUSTADO manda (ver src/datos/benchmark.ts): es la
+  // excepción decidida por Franco, porque el análisis competitivo no se
+  // produce en esta herramienta. La tabla queda por si algún día se carga
+  // desde la app, y para no perder los que ya hubiera.
+  const incrustado = benchmarkIncrustado(salaSlug)
+  if (incrustado) return incrustado
+
+  if (!hayDB()) return null
 
   const fila = (
     await db()

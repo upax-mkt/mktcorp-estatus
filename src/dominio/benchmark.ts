@@ -30,8 +30,31 @@ export interface Benchmark {
   actualizado: string
 }
 
+/** Cuántas dimensiones tiene la UDN en cada nivel. Es el resumen de la sala. */
+export interface ResumenBenchmark {
+  lider: number
+  aLaPar: number
+  rezagado: number
+  total: number
+  /** Las dimensiones donde la UDN va por detrás. Lo que hay que cerrar. */
+  brechas: string[]
+}
 
-/** Sin base de datos no hay benchmark que enseñar: nadie lo ha cargado. */
-export function obtenerBenchmarkEjemplo(_salaSlug: string): Benchmark | null {
-  return null
+/**
+ * El benchmark en una línea.
+ *
+ * La sala enseña esto y no la matriz entera: seis columnas por cinco filas de
+ * etiquetas es una tabla que se estudia, no que se mira de paso, y la sala es
+ * una pantalla de las que se miran de paso. La matriz vive en su propia
+ * página.
+ */
+export function resumirBenchmark(b: Benchmark): ResumenBenchmark {
+  const cuenta = (nivel: NivelBenchmark) => b.dimensiones.filter((d) => d.udn === nivel).length
+  return {
+    lider: cuenta('lider'),
+    aLaPar: cuenta('a_la_par'),
+    rezagado: cuenta('rezagado'),
+    total: b.dimensiones.length,
+    brechas: b.dimensiones.filter((d) => d.udn === 'rezagado').map((d) => d.dimension),
+  }
 }

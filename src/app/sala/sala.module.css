@@ -397,7 +397,65 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   border: 1px dashed var(--borde-fuerte); opacity: 0.85;
 }
 
-.benchmarkActualizado { font-size: 0.78rem; color: var(--tx-3); margin-top: 1rem; }
+.benchmarkActualizado { font-size: 0.78rem; color: var(--tx-3); }
+
+/* Un solo selector por nivel, con `data-nivel`: tres clases sueltas obligaban
+   a una función que las traduzca en cada sitio donde se pinta un nivel. */
+.nivel {
+  display: inline-block; font-size: 0.76rem; font-weight: 600;
+  padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap;
+}
+.nivel[data-nivel='lider'] {
+  background: color-mix(in oklch, var(--marca) 18%, transparent);
+  color: var(--marca); font-weight: 700;
+}
+.nivel[data-nivel='a_la_par'] { background: var(--superficie-2); color: var(--tx-2); }
+.nivel[data-nivel='rezagado'] {
+  background: transparent; color: var(--tx-3);
+  border: 1px dashed var(--borde-fuerte);
+}
+
+/* ---- resumen del benchmark en la sala ----
+   Aquí va el titular, no la matriz: seis columnas por cinco filas de
+   etiquetas es una tabla que se estudia, y la sala se mira de paso. */
+.benchmarkResumen { display: grid; gap: 1rem; }
+.benchmarkCifras { display: flex; flex-wrap: wrap; gap: 0 2.25rem; }
+.benchmarkCifra { display: grid; gap: 0.1rem; }
+.benchmarkCifra strong {
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.benchmarkCifra span { font-size: 0.78rem; color: var(--tx-3); }
+.benchmarkCifra[data-nivel='lider'] strong { color: var(--marca); }
+.benchmarkCifra[data-nivel='rezagado'] strong { color: var(--tibia); }
+
+.benchmarkBrechas {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem;
+  font-size: 0.88rem; color: var(--tx-2); margin: 0;
+}
+.benchmarkBrechasEtiqueta {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  color: var(--tibia);
+}
+
+.benchmarkPie {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--borde);
+}
+
+/* ---- vista completa del benchmark ---- */
+.benchmarkLecturaGrande {
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem); line-height: 1.55; color: var(--tx);
+  max-width: 68ch; margin: 0;
+  border-left: 3px solid var(--marca); padding-left: 1.15rem;
+}
+.brechasLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.brechaItem {
+  padding: 0.7rem 0.95rem; border-radius: 0.6rem; font-size: 0.95rem;
+  border: 1px solid var(--borde); border-left: 3px solid var(--tibia);
+  background: var(--superficie);
+}
 
 /* ---- Acceso del director: el link firmado de esta sala (solo lo ve el equipo) ---- */
 .acceso {
