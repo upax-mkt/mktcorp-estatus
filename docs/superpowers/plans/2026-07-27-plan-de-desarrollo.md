@@ -600,3 +600,34 @@ tres de esta —los huecos grises del previsualizador, el verbo en plural, el
 título del icono empujado al centro— salieron de MIRAR LOS PRINTS, con 654
 tests en verde. Ninguno es un fallo de lógica: son cosas que solo existen
 cuando algo se pinta.
+
+---
+---
+
+# RONDA 5 — feedback del 28-jul (tarde), tras usar la app de verdad
+
+| # | Dónde | Lo que dijo |
+|---|---|---|
+| 1 | Maquetado | "desprolijo, varios errores de diagramación, líneas súper gruesas, el diseño debe ser fino" |
+| 2 | Maquetado | "tablas rotas o con textos salidos de sus márgenes" |
+| 3 | Maquetado | "módulos de textos pegados entre otros" |
+| 4 | Maquetado | "faltan en general iconografía para hacerlo más dinámico" |
+| 5 | Presentar | "el láser no funciona, debería proyectar un haz con el puntero del mouse para seguir la vista de los oyentes" |
+| 6 | Presentar | "la herramienta de grabación no generó nada, al parecer no se configuró ni buscó permisos de utilizar mi mic" |
+| 7 | Cuestionario | "con todo el draft precargado se ve roto: la columna de las secciones, los textos sobrepasan a la columna central" |
+| 8 | Home | "dejaste la sala de UPAX + Ceci y otra de UPAX sola, esta última hay que eliminarla" |
+| 9 | Minuta | "«Levantar una minuta» → «Generar una minuta» (con icono de IA)" |
+| 10 | Minuta | "el lightbox que abre se rompe" |
+| 11 | Minuta | "no debe obligarme a asociar la minuta a una reunión: el componente lo puedo ocupar para cualquier reunión" |
+
+## Medido antes de tocar
+
+- **El 7 está cuantificado:** el índice de secciones desborda **235 px** sobre la
+  columna central. Los títulos largos no se recortan ni se ajustan al carril.
+- **El 11 no es cosmético, es de modelo:** hoy una minuta CUELGA de una sesión
+  (`minutas.sesion_id`, obligatorio). "Cualquier reunión" significa que una
+  minuta tiene que poder existir sin sesión detrás — una junta que nunca se
+  preparó en la app.
+- **El 6 tiene una causa concreta:** la Web Speech API no pide permiso de
+  micrófono por sí sola en todos los casos, y el `onerror` de `not-allowed` no
+  se disparaba porque nunca se llegaba a pedir. Falta `getUserMedia` explícito.
