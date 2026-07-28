@@ -77,11 +77,19 @@ export function ensamblarCorreo(
 ): string {
   const lineas: string[] = [molde.saludo, '']
 
-  molde.bloques.forEach((b, i) => {
+  // El modelo devuelve un texto por bloque REDACTABLE; el de la tabla no se le
+  // pide (ver `construirPromptMinuta`). Por eso el índice avanza solo con
+  // esos: si se recorriera `molde.bloques` a secas, el bloque de la tabla se
+  // comería el texto del siguiente y todo saldría corrido una posición.
+  let siguiente = 0
+  molde.bloques.forEach((b) => {
     lineas.push(b.titulo)
-    const texto = (bloques[i] ?? '').trim()
-    if (texto) lineas.push(texto)
-    if (b.conTabla) lineas.push(tablaAcuerdos(acuerdos))
+    if (b.conTabla) {
+      lineas.push(tablaAcuerdos(acuerdos))
+    } else {
+      const texto = (bloques[siguiente++] ?? '').trim()
+      if (texto) lineas.push(texto)
+    }
     lineas.push('')
   })
 

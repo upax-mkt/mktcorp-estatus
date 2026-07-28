@@ -74,10 +74,20 @@ export function construirPromptMinuta(
   // equipo al editar el molde, así que el contrato solo puede fijar cuántos
   // son y que vengan en orden. Numerarlos aquí es lo que hace que "bloques[2]"
   // signifique algo.
-  const bloques = molde.bloques
-    .map((b, i) => `${i + 1}. «${b.titulo}» — ${b.guia || 'lo que corresponda a este bloque.'}${
-      b.conTabla ? ' (La tabla de acuerdos la pone el sistema aquí: no la escribas.)' : ''
-    }`)
+  // EL BLOQUE DE LA TABLA NO SE LE PIDE.
+  //
+  // Antes se le pedía con la nota "la tabla la pone el sistema: no la
+  // escribas", y el modelo obedecía a medias: no escribía la tabla, pero sí un
+  // párrafo resumiendo los mismos compromisos que la tabla lista debajo. Salió
+  // probando el motor en producción — el correo decía dos veces lo mismo, una
+  // en prosa y otra en filas.
+  //
+  // No es un problema de redacción de la instrucción: pedirle texto para un
+  // bloque cuyo contenido ya existe es pedirle que rellene. Se le pide solo lo
+  // que tiene que escribir.
+  const aRedactar = molde.bloques.filter((b) => !b.conTabla)
+  const bloques = aRedactar
+    .map((b, i) => `${i + 1}. «${b.titulo}» — ${b.guia || 'lo que corresponda a este bloque.'}`)
     .join('\n')
 
   const user = [
@@ -86,7 +96,7 @@ export function construirPromptMinuta(
     `Alcance: ${sesion.alcance}`,
     `Fecha de la sesión (ancla para fechas relativas): ${fechaSesionIso} (${fechaSesionLegible})`,
     '',
-    `Los ${molde.bloques.length} bloques de esta minuta, en orden. Devuelve un texto por cada uno, en "bloques":`,
+    `Los ${aRedactar.length} bloques que tienes que redactar, en orden. Devuelve un texto por cada uno, en "bloques":`,
     bloques,
     '',
     'Transcripción:',

@@ -30,6 +30,11 @@ export const EsquemaBloqueMolde = z.object({
   /**
    * Marca el bloque donde va la tabla de acuerdos. Uno como mucho: dos tablas
    * de los mismos acuerdos en un correo es pedirle a alguien que compare.
+   *
+   * Un bloque marcado NO SE REDACTA: su contenido es la tabla. Pedirle además
+   * un texto al modelo hacía que resumiera en prosa los mismos compromisos que
+   * la tabla lista debajo — el correo decía dos veces lo mismo. Si hace falta
+   * una entradilla, se añade un bloque aparte antes.
    */
   conTabla: z.boolean().optional().describe('true en el bloque donde se inserta la tabla de acuerdos.'),
 })
@@ -62,8 +67,10 @@ export const MOLDE_POR_DEFECTO: MoldeMinuta = {
       guia: 'Los temas que se trataron, uno por línea, con lo que se concluyó en cada uno.',
     },
     {
+      // Sin guía: este bloque no se redacta, se rellena con la tabla de
+      // acuerdos. Ver `construirPromptMinuta`.
       titulo: 'Acuerdos y accionables',
-      guia: 'Los compromisos con dueño y fecha.',
+      guia: '',
       conTabla: true,
     },
     {

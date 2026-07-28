@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { MOLDE_POR_DEFECTO, moldeODefecto, loQueFaltaAlMolde, type MoldeMinuta } from './molde'
 import { ensamblarCorreo } from './generar'
+import { construirPromptMinuta } from './prompt'
 
 /**
  * El molde de la minuta, ahora editable.
@@ -107,5 +108,57 @@ describe('moldeODefecto', () => {
     // siempre, que es el que ya funcionaba.
     expect(moldeODefecto({ hola: 1 })).toEqual(MOLDE_POR_DEFECTO)
     expect(moldeODefecto(null)).toEqual(MOLDE_POR_DEFECTO)
+  })
+})
+
+describe('el bloque de la tabla no se redacta', () => {
+  /**
+   * Salió probando el motor en producción. Al bloque marcado con `conTabla` se
+   * le pedía texto con la nota "la tabla la pone el sistema, no la escribas", y
+   * el modelo obedecía a medias: no escribía la tabla, pero sí un párrafo
+   * resumiendo los mismos compromisos que la tabla lista debajo. El correo
+   * decía dos veces lo mismo, una en prosa y otra en filas.
+   */
+  it('al modelo solo se le piden los bloques que sí redacta', () => {
+    const { user } = construirPromptMinuta(
+      { salaNombre: 'NeraCode', tipo: 'mensual', alcance: 'todos', fecha: '2026-07-28T12:00:00.000Z' },
+      'transcripción',
+    )
+    // El molde de siempre tiene 4 bloques y uno es el de la tabla.
+    expect(user).toContain('Los 3 bloques que tienes que redactar')
+    expect(user).not.toContain('«Acuerdos y accionables»')
+  })
+
+  it('el texto se reparte SALTÁNDOSE el bloque de la tabla', () => {
+    // Si el índice avanzara con todos los bloques, el de la tabla se comería
+    // el texto del siguiente y el correo saldría corrido una posición:
+    // "Próximos pasos" llevaría el texto de los temas.
+    const correo = ensamblarCorreo(
+      'neracode',
+      ['EL-OBJETIVO', 'LOS-TEMAS', 'LO-QUE-SIGUE'],
+      ACUERDOS,
+    )
+    const pos = (t: string) => correo.indexOf(t)
+    expect(pos('EL-OBJETIVO')).toBeGreaterThan(pos('Objetivo de la reunión'))
+    expect(pos('LOS-TEMAS')).toBeGreaterThan(pos('Temas generales y acuerdos'))
+    expect(pos('LO-QUE-SIGUE')).toBeGreaterThan(pos('Próximos pasos'))
+    // Y entre la tabla y "Próximos pasos" no se cuela ningún texto del modelo.
+    expect(correo.slice(pos('Acuerdos y accionables'), pos('Próximos pasos'))).not.toContain('LO-QUE-SIGUE')
+  })
+
+  it('con dos bloques redactables y la tabla en medio, el orden se respeta', () => {
+    const molde: MoldeMinuta = {
+      saludo: 'Hola,',
+      bloques: [
+        { titulo: 'Antes', guia: '' },
+        { titulo: 'Compromisos', guia: '', conTabla: true },
+        { titulo: 'Después', guia: '' },
+      ],
+      conEnlace: false,
+    }
+    const correo = ensamblarCorreo('zeus', ['UNO', 'DOS'], ACUERDOS, molde)
+    expect(correo.indexOf('UNO')).toBeGreaterThan(correo.indexOf('Antes'))
+    expect(correo.indexOf('DOS')).toBeGreaterThan(correo.indexOf('Después'))
+    expect(correo.indexOf('Acción | Squad')).toBeLessThan(correo.indexOf('Después'))
   })
 })
