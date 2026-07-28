@@ -33,13 +33,18 @@ const MINUTA_VALIDA = {
 }
 
 describe('generarMinuta', () => {
-  it('sin molde propio, produce el correo de siempre: los cuatro bloques y la tabla', async () => {
+  it('produce el correo con su entradilla, sus cuatro bloques, la tabla y el cierre', async () => {
     const r = await generarMinuta(sesion, 'transcripción de ejemplo', clienteQueDevuelve(MINUTA_VALIDA))
     expect(r.textoCorreo).toContain('Objetivo de la reunión')
     expect(r.textoCorreo).toContain('Temas generales y acuerdos')
     expect(r.textoCorreo).toContain('Acuerdos y accionables')
-    expect(r.textoCorreo).toContain('Acción | Squad | Owner | Prioridad | Fecha compromiso')
+    expect(r.textoCorreo).toContain('Acción | Owner | Fecha')
     expect(r.textoCorreo).toContain('Próximos pasos')
+    // La entradilla dice DE QUÉ es la minuta: sin ella, quien la abre tres
+    // semanas después no sabe de qué reunión le hablan.
+    expect(r.textoCorreo).toContain('Les comparto la minuta')
+    expect(r.textoCorreo).toContain('NeraCode')
+    expect(r.textoCorreo).toContain('con gusto lo revisamos')
   })
 
   it('incluye la URL de la sesión (link de la sala)', async () => {

@@ -76,9 +76,19 @@ describe('parsearMinuta', () => {
     expect(() => parsearMinuta({ ...VALIDA, bloques: ['**Revisar** el avance del mes'] })).toThrow()
   })
 
-  it('acepta hasta 20 acuerdos propuestos', () => {
-    const veinte = Array.from({ length: 20 }, (_, i) => ({ ...VALIDA.acuerdosPropuestos[0], que: `Acuerdo ${i}` }))
-    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: veinte }).success).toBe(true)
+  it('acepta hasta 8 acuerdos, y rechaza el noveno', () => {
+    // Ocho y no veinte: con veinte salieron veinte, y catorce iban sin dueño.
+    // Eso no es una lista de compromisos, es la reunión transcrita en filas.
+    const uno = VALIDA.acuerdosPropuestos[0]
+    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: Array(8).fill(uno) }).success).toBe(true)
+    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: Array(9).fill(uno) }).success).toBe(false)
+  })
+
+  it('rechaza un bloque que se convirtió en un acta paralela', () => {
+    // El tope de largo es lo único que de verdad frena: con la instrucción
+    // sola, el modelo devolvió viñetas de párrafo entero.
+    const kilometrico = 'x'.repeat(701)
+    expect(EsquemaMinuta.safeParse({ ...VALIDA, bloques: [kilometrico] }).success).toBe(false)
   })
 
   it('rechaza más de 20 acuerdos propuestos', () => {

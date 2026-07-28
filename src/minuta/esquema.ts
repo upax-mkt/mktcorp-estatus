@@ -24,7 +24,8 @@ const FechaCompromiso = z
 
 export const EsquemaAcuerdoPropuesto = z
   .object({
-    que: TextoPlano,
+    /** Una frase. Un accionable que necesita tres líneas no es un accionable. */
+    que: TextoPlano.max(160),
     responsable: TextoPlano,
     /** Omitido (no `null`) cuando la transcripción no menciona un squad — mismo criterio que `Kpi.delta` en decision/esquema.ts. */
     squad: TextoPlano.optional(),
@@ -44,12 +45,29 @@ export const EsquemaMinuta = z
      * los nombra el equipo. Lo que sí sabe es cuántos hay y qué se pide en
      * cada uno, y eso viaja en el prompt.
      */
-    bloques: z.array(TextoPlano).min(1).max(8).describe(
-      'Un texto por bloque de la minuta, en el mismo orden en que se piden. Cada uno responde solo a lo que pide SU bloque.',
+    /**
+     * EL TOPE DE LARGO NO ES DECORACIÓN: es lo único que de verdad frena.
+     *
+     * Con la instrucción sola —"viñetas cortas"— el modelo devolvió trece
+     * viñetas de párrafo entero: 1.180 palabras donde caben 60. Una minuta es
+     * un resumen para quien ESTUVO en la reunión, no un sustituto de la
+     * transcripción. 700 caracteres por bloque son unas cinco líneas: bastan
+     * para tres o cuatro viñetas de una línea y no para un acta paralela.
+     */
+    bloques: z.array(TextoPlano.max(700)).min(1).max(8).describe(
+      'Un texto por bloque, en el orden en que se piden. BREVE: máximo 700 caracteres por bloque. Cada uno responde solo a lo que pide SU bloque, sin repetir lo dicho en otro.',
     ),
     /** Borrador de acuerdos accionables extraídos de la transcripción — nada se publica sin revisión humana (spec §9). */
-    acuerdosPropuestos: z.array(EsquemaAcuerdoPropuesto).max(20).describe(
-      'Los compromisos que se oyen en la transcripción, con quién responde y para cuándo. Solo lo que se dijo: si nadie puso fecha, va sin fecha.',
+    /**
+     * OCHO, no veinte.
+     *
+     * Con veinte salieron veinte, y catorce iban sin dueño: eso no es una
+     * lista de compromisos, es la reunión transcrita en filas. Un accionable
+     * es algo que ALGUIEN se comprometió a hacer; lo que se mencionó y nadie
+     * tomó es un tema, y su sitio es el bloque de temas.
+     */
+    acuerdosPropuestos: z.array(EsquemaAcuerdoPropuesto).max(8).describe(
+      'Los compromisos REALES: aquello que alguien se comprometió a hacer, con su nombre. Máximo 8, los que de verdad mueven algo. Lo que se mencionó y nadie tomó NO es un accionable: va en los temas. Solo lo que se dijo — si nadie puso fecha, va sin fecha.',
     ),
   })
   .strict() // strict rechaza cualquier clave extra, mismo candado que decision/esquema.ts

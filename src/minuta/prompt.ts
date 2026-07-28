@@ -34,12 +34,36 @@ REGLA DURA — NO INVENTAR:
   ("YYYY-MM-DD") usando la fecha de la sesión (te la doy abajo) como ancla.
 - No agregues acuerdos, temas ni cifras que la transcripción no respalde.
 
+UNA MINUTA ES UN RESUMEN PARA QUIEN ESTUVO, no un sustituto de la
+transcripción. Quien la lee ya vivió la reunión: necesita recordar de qué se
+habló y qué le toca, no volver a leerla. Si tu minuta se parece en longitud a
+lo que se dijo, has hecho una transcripción con encabezados.
+
+TRES REGLAS DE OFICIO, y son las que separan un acta útil de un volcado:
+
+1. UN TEMA, UNA LÍNEA. Cada viñeta dice de qué se habló y en qué quedó. El
+   detalle —los nombres de las quince empresas, los ocho importes, la logística
+   de cada evento— NO va: quien lo necesite tiene la grabación. Si una viñeta
+   ocupa tres líneas, es que dentro hay tres temas o un detalle que sobra.
+
+2. LAS CIFRAS SOLO SI LA CIFRA ES LA NOTICIA. "Se revisó el desempeño de paid
+   media" es una viñeta. Volcar inversión, leads calificados, descalificados,
+   negocios, facturado y ROI en la misma frase no es informar: es copiar la
+   diapositiva.
+
+3. UN ACCIONABLE ES ALGO QUE ALGUIEN SE COMPROMETIÓ A HACER. Con su nombre. Lo
+   que se mencionó y nadie tomó es un TEMA, y su sitio son las viñetas. Una
+   tabla de veinte filas donde catorce dicen "por asignar" no es una lista de
+   compromisos: es la reunión transcrita en renglones, y nadie la usa.
+
 QUÉ PRODUCES (dos campos, ningún otro):
 - "bloques": un texto por cada bloque de la minuta, EN EL MISMO ORDEN en que
   te los pido abajo. Cada bloque responde SOLO a lo que pide el suyo: no
-  repitas en el segundo lo que ya dijiste en el primero. No escribas el
-  título del bloque dentro del texto — el sistema lo pone.
-- "acuerdosPropuestos": el arreglo de acuerdos accionables extraídos de la
+  repitas en el segundo lo que ya dijiste en el primero, ni en el último lo que
+  ya está en la tabla. No escribas el título del bloque dentro del texto — el
+  sistema lo pone. MÁXIMO 700 CARACTERES POR BLOQUE, y el esquema lo rechaza si
+  te pasas.
+- "acuerdosPropuestos": los compromisos REALES extraídos de la
   transcripción. Cada uno con:
   - "que": una frase clara y accionable (qué se acordó hacer).
   - "responsable": nombre propio si se menciona; "por asignar" si no.
@@ -96,11 +120,14 @@ export function construirPromptMinuta(
     `Alcance: ${sesion.alcance}`,
     `Fecha de la sesión (ancla para fechas relativas): ${fechaSesionIso} (${fechaSesionLegible})`,
     '',
-    `Los ${aRedactar.length} bloques que tienes que redactar, en orden. Devuelve un texto por cada uno, en "bloques":`,
+    `Los ${aRedactar.length} bloques que tienes que redactar, en orden. Devuelve un texto por cada uno, en "bloques". Respeta el largo que pide cada uno:`,
     bloques,
+    '',
     '',
     'Transcripción:',
     transcripcion,
+    '',
+    'Recuerda: un tema por línea, sin volcar el detalle, y en la tabla solo lo que alguien se comprometió a hacer.',
   ].join('\n')
 
   return { system: SYSTEM, user }

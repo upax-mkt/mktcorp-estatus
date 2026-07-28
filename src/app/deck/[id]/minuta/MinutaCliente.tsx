@@ -32,6 +32,28 @@ interface Props {
 
 const SUGERENCIAS_PRIORIDAD = ['alta', 'media', 'baja']
 
+/**
+ * Lee el archivo con SU codificación, no con la que suponemos.
+ *
+ * `File.text()` decodifica SIEMPRE como UTF-8, y las transcripciones de Teams
+ * en Windows salen en UTF-16 — con marca de orden de bytes al principio. Leer
+ * un UTF-16 como UTF-8 no falla: devuelve el texto con un byte nulo entre cada
+ * letra. Es el peor tipo de error, porque no rompe nada: llega al modelo, el
+ * modelo se las arregla, y nadie se entera de que la mitad de lo que se envió
+ * era basura.
+ *
+ * Se mira el BOM, que es exactamente para esto. Sin BOM se asume UTF-8, que es
+ * lo que es todo lo demás.
+ */
+async function leerTexto(archivo: File): Promise<string> {
+  const bytes = new Uint8Array(await archivo.arrayBuffer())
+  const bom =
+    bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le'
+    : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be'
+    : 'utf-8'
+  return new TextDecoder(bom).decode(bytes)
+}
+
 /** Cuántas palabras hay. Es la señal de que el archivo entró de verdad. */
 function palabras(texto: string): number {
   return texto.trim().split(/\s+/).filter(Boolean).length
@@ -75,7 +97,7 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
       return
     }
     try {
-      const texto = await archivo.text()
+      const texto = await leerTexto(archivo)
       if (!texto.trim()) {
         setError('El archivo está vacío.')
         return

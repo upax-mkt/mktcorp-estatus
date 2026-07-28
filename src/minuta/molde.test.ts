@@ -16,25 +16,24 @@ const ACUERDOS = [
 ]
 
 describe('el molde de siempre', () => {
-  it('produce el MISMO correo que antes de que fuera editable', () => {
-    // Es el contrato con quien ya usaba la herramienta: hacer algo
-    // configurable no puede cambiarle el resultado a quien no lo configura.
+  it('trae saludo, entradilla, los cuatro bloques, la tabla y el cierre', () => {
     const correo = ensamblarCorreo(
       'neracode',
-      ['El objetivo.', 'Los temas.', '', 'Lo que sigue.'],
+      ['El objetivo.', 'Los temas.', 'Lo que sigue.'],
       ACUERDOS,
     )
-    expect(correo.startsWith('Hola equipo,')).toBe(true)
+    expect(correo.startsWith('Hola, equipo:')).toBe(true)
     expect(correo).toContain('Objetivo de la reunión')
     expect(correo).toContain('Temas generales y acuerdos')
     expect(correo).toContain('Acuerdos y accionables')
-    expect(correo).toContain('Acción | Squad | Owner | Prioridad | Fecha compromiso')
+    expect(correo).toContain('Acción | Owner | Fecha')
     expect(correo).toContain('Próximos pasos')
-    expect(correo).toContain('Sesión: /cliente/neracode')
+    expect(correo).toContain('/cliente/neracode')
+    expect(correo).toContain('con gusto lo revisamos')
   })
 
   it('sin fecha, la tabla dice "por definir" y no inventa una', () => {
-    const correo = ensamblarCorreo('neracode', ['a', 'b', '', 'd'], ACUERDOS)
+    const correo = ensamblarCorreo('neracode', ['a', 'b', 'd'], ACUERDOS)
     expect(correo).toContain('por definir')
   })
 })
@@ -42,15 +41,17 @@ describe('el molde de siempre', () => {
 describe('un molde propio', () => {
   const COMITE: MoldeMinuta = {
     saludo: 'Estimados,',
+    entradilla: '',
     bloques: [
       { titulo: 'Qué se decidió', guia: 'La decisión, en una frase.' },
       { titulo: 'Compromisos', guia: '', conTabla: true },
     ],
+    cierre: '',
     conEnlace: false,
   }
 
   it('manda: sus bloques, su orden y su saludo', () => {
-    const correo = ensamblarCorreo('zeus', ['Se aprobó el presupuesto.', ''], ACUERDOS, COMITE)
+    const correo = ensamblarCorreo('zeus', ['Se aprobó el presupuesto.'], ACUERDOS, COMITE)
     expect(correo.startsWith('Estimados,')).toBe(true)
     expect(correo).toContain('Qué se decidió')
     expect(correo).toContain('Se aprobó el presupuesto.')
@@ -60,17 +61,17 @@ describe('un molde propio', () => {
   })
 
   it('sin enlace, no cuela el enlace', () => {
-    const correo = ensamblarCorreo('zeus', ['x', ''], ACUERDOS, COMITE)
-    expect(correo).not.toContain('Sesión:')
+    const correo = ensamblarCorreo('zeus', ['x'], ACUERDOS, COMITE)
+    expect(correo).not.toContain('/cliente/')
   })
 
   it('la tabla va donde el molde la puso, no al final por costumbre', () => {
-    const correo = ensamblarCorreo('zeus', ['x', ''], ACUERDOS, COMITE)
-    expect(correo.indexOf('Acción | Squad')).toBeGreaterThan(correo.indexOf('Compromisos'))
+    const correo = ensamblarCorreo('zeus', ['x'], ACUERDOS, COMITE)
+    expect(correo.indexOf('Acción | Owner')).toBeGreaterThan(correo.indexOf('Compromisos'))
   })
 
   it('una reunión sin sala enlaza a su documento, no a la raíz', () => {
-    const correo = ensamblarCorreo(null, ['x', 'y', '', 'z'], ACUERDOS, MOLDE_POR_DEFECTO, 'abc-123')
+    const correo = ensamblarCorreo(null, ['x', 'y', 'z'], ACUERDOS, MOLDE_POR_DEFECTO, 'abc-123')
     expect(correo).toContain('/reunion/abc-123')
   })
 })
@@ -79,15 +80,17 @@ describe('lo que se comprueba AL GUARDAR el molde, no al usarlo', () => {
   // Descubrir que el molde no sirve cuando ya se pegó la transcripción de una
   // reunión de una hora es descubrirlo tarde.
   it('sin bloque marcado para la tabla, lo dice', () => {
-    const sinTabla: MoldeMinuta = { saludo: 'Hola,', bloques: [{ titulo: 'Todo', guia: '' }], conEnlace: true }
+    const sinTabla: MoldeMinuta = {
+      saludo: 'Hola,', entradilla: '', cierre: '', conEnlace: true,
+      bloques: [{ titulo: 'Todo', guia: '' }],
+    }
     expect(loQueFaltaAlMolde(sinTabla)).toContain('marcar en qué bloque va la tabla de acuerdos')
   })
 
   it('con la tabla en dos bloques, también', () => {
     const dosTablas: MoldeMinuta = {
-      saludo: 'Hola,',
+      saludo: 'Hola,', entradilla: '', cierre: '', conEnlace: true,
       bloques: [{ titulo: 'A', guia: '', conTabla: true }, { titulo: 'B', guia: '', conTabla: true }],
-      conEnlace: true,
     }
     expect(loQueFaltaAlMolde(dosTablas)).toContain('dejar la tabla de acuerdos en un solo bloque')
   })
@@ -99,7 +102,10 @@ describe('lo que se comprueba AL GUARDAR el molde, no al usarlo', () => {
 
 describe('moldeODefecto', () => {
   it('lo guardado, si es válido', () => {
-    const propio: MoldeMinuta = { saludo: 'Hey,', bloques: [{ titulo: 'X', guia: '', conTabla: true }], conEnlace: false }
+    const propio: MoldeMinuta = {
+      saludo: 'Hey,', entradilla: '', cierre: '', conEnlace: false,
+      bloques: [{ titulo: 'X', guia: '', conTabla: true }],
+    }
     expect(moldeODefecto(propio).saludo).toBe('Hey,')
   })
 
@@ -148,17 +154,16 @@ describe('el bloque de la tabla no se redacta', () => {
 
   it('con dos bloques redactables y la tabla en medio, el orden se respeta', () => {
     const molde: MoldeMinuta = {
-      saludo: 'Hola,',
+      saludo: 'Hola,', entradilla: '', cierre: '', conEnlace: false,
       bloques: [
         { titulo: 'Antes', guia: '' },
         { titulo: 'Compromisos', guia: '', conTabla: true },
         { titulo: 'Después', guia: '' },
       ],
-      conEnlace: false,
     }
     const correo = ensamblarCorreo('zeus', ['UNO', 'DOS'], ACUERDOS, molde)
     expect(correo.indexOf('UNO')).toBeGreaterThan(correo.indexOf('Antes'))
     expect(correo.indexOf('DOS')).toBeGreaterThan(correo.indexOf('Después'))
-    expect(correo.indexOf('Acción | Squad')).toBeLessThan(correo.indexOf('Después'))
+    expect(correo.indexOf('Acción | Owner')).toBeLessThan(correo.indexOf('Después'))
   })
 })

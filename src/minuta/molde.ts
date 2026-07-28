@@ -41,9 +41,21 @@ export const EsquemaBloqueMolde = z.object({
 
 export const EsquemaMoldeMinuta = z.object({
   saludo: z.string().max(120).describe('Cómo abre el correo.'),
+  /**
+   * La línea que dice DE QUÉ es esta minuta, antes del primer bloque.
+   *
+   * Sin ella el correo empieza con "Objetivo de la reunión" a secas y quien lo
+   * abre tres semanas después no sabe de qué reunión le hablan. `{reunion}` y
+   * `{fecha}` se sustituyen al armarlo.
+   */
+  entradilla: z.string().max(240).describe(
+    'Línea de apertura. Admite {reunion} y {fecha}, que se sustituyen.',
+  ),
   bloques: z.array(EsquemaBloqueMolde).min(1).max(8).describe('Los bloques, en el orden en que se leen.'),
+  /** Cómo se despide. Vacío = sin despedida. */
+  cierre: z.string().max(240).describe('Las líneas de despedida, al final del correo.'),
   /** Si el correo cierra con el enlace a la sala o al documento. */
-  conEnlace: z.boolean().describe('true para cerrar con el enlace a la sala o a la sesión.'),
+  conEnlace: z.boolean().describe('true para cerrar con el enlace al espacio del cliente.'),
 })
 
 export type BloqueMolde = z.infer<typeof EsquemaBloqueMolde>
@@ -56,15 +68,16 @@ export type MoldeMinuta = z.infer<typeof EsquemaMoldeMinuta>
  * palabra: quien no toque nada sigue recibiendo la minuta que ya conocía.
  */
 export const MOLDE_POR_DEFECTO: MoldeMinuta = {
-  saludo: 'Hola equipo,',
+  saludo: 'Hola, equipo:',
+  entradilla: 'Les comparto la minuta de {reunion}, del {fecha}.',
   bloques: [
     {
       titulo: 'Objetivo de la reunión',
-      guia: 'Una o dos frases: a qué se convocó y qué se buscaba resolver.',
+      guia: 'UNA sola frase: a qué se convocó. Nada de enumerar lo que se trató — eso va en el bloque siguiente.',
     },
     {
       titulo: 'Temas generales y acuerdos',
-      guia: 'Los temas que se trataron, uno por línea, con lo que se concluyó en cada uno.',
+      guia: 'DE 3 A 5 viñetas, de UNA línea cada una, empezando con «* ». Cada una es un tema y lo que se concluyó, no su detalle. Sin cifras salvo que la cifra SEA la noticia.',
     },
     {
       // Sin guía: este bloque no se redacta, se rellena con la tabla de
@@ -75,9 +88,10 @@ export const MOLDE_POR_DEFECTO: MoldeMinuta = {
     },
     {
       titulo: 'Próximos pasos',
-      guia: 'Qué pasa después de esta reunión y cuándo se vuelve a revisar.',
+      guia: 'UNA frase con hacia dónde va el trabajo. No repitas los accionables: ya están en la tabla.',
     },
   ],
+  cierre: 'Si tienen alguna duda o desean profundizar en algún tema, con gusto lo revisamos.\n\n¡Saludos!',
   conEnlace: true,
 }
 

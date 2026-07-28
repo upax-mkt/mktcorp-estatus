@@ -48,13 +48,21 @@ function urlSesion(salaSlug: string | null, sesionId?: string): string {
   return sesionId ? `/reunion/${sesionId}` : '/'
 }
 
+/**
+ * La tabla del correo: TRES columnas, no cinco.
+ *
+ * Squad y prioridad siguen viajando en los datos —los necesita el acuerdo que
+ * nace en el espacio del cliente, con su dueño y su seguimiento— pero en el
+ * correo eran dos columnas donde casi todas las filas decían "—" y "media".
+ * Una columna que casi siempre dice lo mismo no informa: ocupa.
+ */
 function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {
   if (acuerdos.length === 0) {
     return '(sin acuerdos accionables identificados en la transcripción)'
   }
-  const encabezado = 'Acción | Squad | Owner | Prioridad | Fecha compromiso'
+  const encabezado = 'Acción | Owner | Fecha'
   const filas = acuerdos.map((a) =>
-    [a.que, a.squad ?? '—', a.responsable, a.prioridad, formatearFechaTabla(a.fechaCompromiso)].join(' | '),
+    [a.que, a.responsable, formatearFechaTabla(a.fechaCompromiso)].join(' | '),
   )
   return [encabezado, ...filas].join('\n')
 }
@@ -74,8 +82,22 @@ export function ensamblarCorreo(
   acuerdos: AcuerdoPropuesto[],
   molde: MoldeMinuta = MOLDE_POR_DEFECTO,
   sesionId?: string,
+  /** De qué reunión y de cuándo, para la entradilla. */
+  contexto?: { reunion: string; fecha: string },
 ): string {
   const lineas: string[] = [molde.saludo, '']
+
+  // La entradilla dice DE QUÉ es esta minuta. Sin ella, el correo abre con
+  // "Objetivo de la reunión" a secas y quien lo abre tres semanas después no
+  // sabe de qué reunión le hablan.
+  if (molde.entradilla?.trim()) {
+    lineas.push(
+      molde.entradilla
+        .replace('{reunion}', contexto?.reunion ?? 'la reunión')
+        .replace('{fecha}', contexto?.fecha ?? ''),
+      '',
+    )
+  }
 
   // El modelo devuelve un texto por bloque REDACTABLE; el de la tabla no se le
   // pide (ver `construirPromptMinuta`). Por eso el índice avanza solo con
@@ -93,7 +115,8 @@ export function ensamblarCorreo(
     lineas.push('')
   })
 
-  if (molde.conEnlace) lineas.push(`Sesión: ${urlSesion(salaSlug, sesionId)}`)
+  if (molde.cierre?.trim()) lineas.push(molde.cierre, '')
+  if (molde.conEnlace) lineas.push(urlSesion(salaSlug, sesionId))
   return lineas.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
@@ -135,6 +158,12 @@ export async function generarMinuta(
   return {
     textoCorreo: ensamblarCorreo(
       sesion.salaSlug, minuta.bloques, minuta.acuerdosPropuestos, molde, sesion.id,
+      {
+        reunion: `la reunión ${sesion.tipo} de ${sesion.salaNombre}`,
+        fecha: new Date(sesion.fecha).toLocaleDateString('es-MX', {
+          day: 'numeric', month: 'long', year: 'numeric',
+        }),
+      },
     ),
     acuerdosPropuestos: minuta.acuerdosPropuestos,
   }
