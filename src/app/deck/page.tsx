@@ -6,6 +6,7 @@ import { obtenerMinuta } from '@/db/minutas'
 import { exigirEquipo } from '@/auth/sesion'
 import { fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
+import { BorrarBorrador } from '@/componentes/BorrarBorrador'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,8 +92,8 @@ export default async function PagPreparar() {
           ) : (
             <div className={estilos.lista}>
               {enPreparacion.map((s) => (
-                <Link key={s.id} href={`/deck/${s.id}`} className={estilos.fila}>
-                  <div className={estilos.filaIzq}>
+                <div key={s.id} className={estilos.fila}>
+                  <Link href={`/deck/${s.id}`} className={estilos.filaIzq}>
                     <div className={estilos.filaNombre}>
                       <span className={estilos.filaPunto} style={{ background: s.salaColor }} />
                       {s.salaNombre}
@@ -104,7 +105,7 @@ export default async function PagPreparar() {
                       <span className={estilos.sep}>·</span>
                       <span>{fechaBreveConAnio(s.fecha)}</span>
                     </div>
-                  </div>
+                  </Link>
                   <div className={estilos.filaDcha}>
                     <div className={estilos.avance}>
                       <div className={estilos.avanceBarra}>
@@ -116,9 +117,18 @@ export default async function PagPreparar() {
                       <span className={estilos.avanceTexto}>{s.itemsLlenados}/{s.totalItems}</span>
                     </div>
                     <span className={`${estilos.chip} ${estilos[s.estado]}`}>{ETIQUETA_ESTADO[s.estado]}</span>
-                    <span className={estilos.flecha}>→</span>
+                    {/* Un borrador que ya no va a ninguna parte tiene que
+                        poder borrarse desde donde se ve. Sin esto, la lista
+                        solo crece — y esas mismas sesiones reaparecían luego
+                        en el selector de «Generar una minuta», donde no hay
+                        forma de limpiarlas. */}
+                    <BorrarBorrador
+                      sesionId={s.id}
+                      titulo={`${s.salaNombre} · ${s.titulo}`}
+                      eliminarAction={eliminarAction}
+                    />
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}

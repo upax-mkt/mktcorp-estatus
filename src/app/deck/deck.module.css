@@ -496,3 +496,16 @@
   .app { background: #fff; }
   .main { max-width: none; padding: 0; }
 }
+
+/* ---- añadir y quitar acuerdos en la revisión de la minuta ---- */
+.acuerdosAcciones { margin-top: 0.8rem; }
+.filaAcuerdoPie {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-top: 0.4rem;
+}
+.quitarAcuerdo {
+  margin-left: auto;
+  font: inherit; font-size: 0.78rem; color: var(--tx-3);
+  background: none; border: none; cursor: pointer; padding: 0.2rem 0.3rem;
+}
+.quitarAcuerdo:hover { color: var(--alerta); }

@@ -64,15 +64,15 @@ export const EsquemaMinuta = z
     ),
     /** Borrador de acuerdos accionables extraídos de la transcripción — nada se publica sin revisión humana (spec §9). */
     /**
-     * OCHO, no veinte.
+     * SEIS, no veinte.
      *
      * Con veinte salieron veinte, y catorce iban sin dueño: eso no es una
      * lista de compromisos, es la reunión transcrita en filas. Un accionable
-     * es algo que ALGUIEN se comprometió a hacer; lo que se mencionó y nadie
-     * tomó es un tema, y su sitio es el bloque de temas.
+     * existe solo cuando alguien tiene que ENTREGAR algo después de la
+     * reunión; lo que se habló y no produce entregable es un tema.
      */
-    acuerdosPropuestos: z.array(EsquemaAcuerdoPropuesto).max(8).describe(
-      'Los compromisos REALES: aquello que alguien se comprometió a hacer, con su nombre. Máximo 8, los que de verdad mueven algo. Lo que se mencionó y nadie tomó NO es un accionable: va en los temas. Solo lo que se dijo — si nadie puso fecha, va sin fecha.',
+    acuerdosPropuestos: z.array(EsquemaAcuerdoPropuesto).max(6).describe(
+      'Los ENTREGABLES futuros: lo que alguien tiene que entregar después de la reunión. De cuatro a seis, los que de verdad mueven algo. Lo que se mencionó y nadie tomó NO es un accionable: va en los temas. Solo lo que se dijo — si nadie puso fecha, va sin fecha.',
     ),
   })
   .strict() // strict rechaza cualquier clave extra, mismo candado que decision/esquema.ts

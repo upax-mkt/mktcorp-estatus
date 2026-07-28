@@ -69,15 +69,15 @@ export type MoldeMinuta = z.infer<typeof EsquemaMoldeMinuta>
  */
 export const MOLDE_POR_DEFECTO: MoldeMinuta = {
   saludo: 'Hola, equipo:',
-  entradilla: 'Les comparto la minuta de {reunion}, del {fecha}.',
+  entradilla: 'Les comparto la minuta de {reunion} correspondiente a {fecha}.',
   bloques: [
     {
       titulo: 'Objetivo de la reunión',
-      guia: 'UNA sola frase: a qué se convocó. Nada de enumerar lo que se trató — eso va en el bloque siguiente.',
+      guia: 'UN párrafo muy corto: a qué se convocó y qué se buscaba definir. Nada de enumerar lo que se trató — eso va en el bloque siguiente.',
     },
     {
       titulo: 'Temas generales y acuerdos',
-      guia: 'DE 3 A 5 viñetas, de UNA línea cada una, empezando con «* ». Cada una es un tema y lo que se concluyó, no su detalle. Sin cifras salvo que la cifra SEA la noticia.',
+      guia: 'MÁXIMO 4 viñetas, de UNA línea cada una, empezando con «* ». Cada viñeta es una DECISIÓN importante y su resultado, no la conversación que la produjo. Sin métricas ni avances operativos, salvo que hayan provocado un cambio de rumbo.',
     },
     {
       // Sin guía: este bloque no se redacta, se rellena con la tabla de
@@ -88,7 +88,7 @@ export const MOLDE_POR_DEFECTO: MoldeMinuta = {
     },
     {
       titulo: 'Próximos pasos',
-      guia: 'UNA frase con hacia dónde va el trabajo. No repitas los accionables: ya están en la tabla.',
+      guia: 'UN párrafo de dos líneas como mucho con el siguiente GRAN paso del trabajo. No repitas los accionables: ya están en la tabla.',
     },
   ],
   cierre: 'Si tienen alguna duda o desean profundizar en algún tema, con gusto lo revisamos.\n\n¡Saludos!',

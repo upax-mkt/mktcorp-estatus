@@ -230,10 +230,17 @@ export async function generarMinuta(
     textoCorreo: ensamblarCorreo(
       sesion.salaSlug, minuta.bloques, minuta.acuerdosPropuestos, molde, sesion.id,
       {
-        reunion: `la reunión ${sesion.tipo} de ${sesion.salaNombre}`,
-        fecha: new Date(sesion.fecha).toLocaleDateString('es-MX', {
-          day: 'numeric', month: 'long', year: 'numeric',
-        }),
+        // "Marketing United y Mkt Corp": las dos partes. La reunión no es de
+        // la unidad sola — es la que Marketing Corporativo le da.
+        reunion: `la reunión ${sesion.tipo} de ${sesion.salaNombre} y Mkt Corp`,
+        // UNA REUNIÓN MENSUAL SE NOMBRA POR SU MES, no por el día en que se
+        // dio: "correspondiente a junio de 2026", no "del 23 de julio". El día
+        // exacto solo importa en una semanal.
+        fecha: new Date(sesion.fecha).toLocaleDateString('es-MX',
+          sesion.tipo === 'mensual'
+            ? { month: 'long', year: 'numeric' }
+            : { day: 'numeric', month: 'long', year: 'numeric' },
+        ),
       },
     ),
     acuerdosPropuestos: minuta.acuerdosPropuestos,

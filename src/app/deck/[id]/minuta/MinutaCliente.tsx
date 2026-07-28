@@ -279,13 +279,48 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
                         disabled={!f.incluir}
                       />
                     </div>
-                    {f.incluir && !f.fechaCompromiso && (
-                      <span className={estilos.etiquetaPorDefinir}>por definir — revisa antes de enviar</span>
-                    )}
+                    <div className={estilos.filaAcuerdoPie}>
+                      {f.incluir && !f.fechaCompromiso && (
+                        <span className={estilos.etiquetaPorDefinir}>por definir — revisa antes de enviar</span>
+                      )}
+                      {/* QUITAR es distinto de DESMARCAR: desmarcar deja el
+                          acuerdo a la vista, por si uno se arrepiente; quitar
+                          lo borra de la lista. Lo primero es para dudar, lo
+                          segundo para lo que el modelo no debió proponer. */}
+                      <button
+                        type="button"
+                        className={estilos.quitarAcuerdo}
+                        onClick={() => setFilas((fs) => fs.filter((_, j) => j !== i))}
+                        aria-label={`Quitar el acuerdo ${i + 1}`}
+                      >
+                        Quitar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
             )}
+            {/* AÑADIR Y QUITAR, no solo incluir o excluir.
+                La casilla sirve para dejar fuera lo que el modelo propuso de
+                más, pero una reunión siempre tiene el acuerdo que nadie dijo
+                en voz alta y todos dieron por hecho — y ese no se puede
+                escribir en ningún sitio si la lista es de solo lectura. */}
+            <div className={estilos.acuerdosAcciones}>
+              <button
+                type="button"
+                className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`}
+                onClick={() => setFilas((f) => [...f, {
+                  que: '',
+                  responsable: 'por asignar',
+                  prioridad: 'media',
+                  fechaCompromiso: null,
+                  incluir: true,
+                }])}
+              >
+                + Añadir un acuerdo
+              </button>
+            </div>
+
             <datalist id="prioridades-sugeridas">
               {SUGERENCIAS_PRIORIDAD.map((p) => (
                 <option key={p} value={p} />

@@ -76,12 +76,13 @@ describe('parsearMinuta', () => {
     expect(() => parsearMinuta({ ...VALIDA, bloques: ['**Revisar** el avance del mes'] })).toThrow()
   })
 
-  it('acepta hasta 8 acuerdos, y rechaza el noveno', () => {
-    // Ocho y no veinte: con veinte salieron veinte, y catorce iban sin dueño.
+  it('acepta hasta 6 acuerdos, y rechaza el séptimo', () => {
+    // Seis y no veinte: con veinte salieron veinte, y catorce iban sin dueño.
     // Eso no es una lista de compromisos, es la reunión transcrita en filas.
+    // Un accionable existe solo cuando alguien tiene que ENTREGAR algo.
     const uno = VALIDA.acuerdosPropuestos[0]
-    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: Array(8).fill(uno) }).success).toBe(true)
-    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: Array(9).fill(uno) }).success).toBe(false)
+    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: Array(6).fill(uno) }).success).toBe(true)
+    expect(EsquemaMinuta.safeParse({ ...VALIDA, acuerdosPropuestos: Array(7).fill(uno) }).success).toBe(false)
   })
 
   it('rechaza un bloque que se convirtió en un acta paralela', () => {
