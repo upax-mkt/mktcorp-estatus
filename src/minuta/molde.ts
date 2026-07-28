@@ -73,7 +73,7 @@ export const MOLDE_POR_DEFECTO: MoldeMinuta = {
   bloques: [
     {
       titulo: 'Objetivo de la reunión',
-      guia: 'UN párrafo muy corto: a qué se convocó y qué se buscaba definir. Nada de enumerar lo que se trató — eso va en el bloque siguiente.',
+      guia: 'MÁXIMO 35 PALABRAS: a qué se convocó y qué se buscaba definir. Nada de enumerar lo que se trató — eso va en el bloque siguiente.',
     },
     {
       titulo: 'Temas generales y acuerdos',
@@ -88,7 +88,7 @@ export const MOLDE_POR_DEFECTO: MoldeMinuta = {
     },
     {
       titulo: 'Próximos pasos',
-      guia: 'UN párrafo de dos líneas como mucho con el siguiente GRAN paso del trabajo. No repitas los accionables: ya están en la tabla.',
+      guia: 'MÁXIMO 35 PALABRAS con el siguiente GRAN paso del trabajo. No repitas los accionables: ya están en la tabla.',
     },
   ],
   cierre: 'Si tienen alguna duda o desean profundizar en algún tema, con gusto lo revisamos.\n\n¡Saludos!',
