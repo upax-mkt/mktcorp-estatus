@@ -267,10 +267,18 @@ export interface DatosDeSesion {
   participantes?: string[]
   lugar?: string | null
   /**
-   * `agendada` es una fecha en el calendario que nadie ha empezado a llenar;
-   * `borrador` es trabajo en curso. El hub los distingue.
+   * En qué estado NACE.
+   *
+   * - `agendada`: una fecha en el calendario que nadie ha empezado a llenar.
+   * - `borrador`: trabajo en curso. Es el por defecto.
+   * - `presentada`: una reunión que YA SE DIO y que se registra ahora, para
+   *   minutarla. No pasó por preparación porque no había nada que preparar —
+   *   ocurrió fuera de la app.
+   *
+   * `minutada` NO está: a ese estado se llega guardando una minuta, no
+   * declarándolo al crear. Una sesión que naciera minutada no tendría minuta.
    */
-  estado?: Extract<EstadoSesion, 'agendada' | 'borrador'>
+  estado?: Extract<EstadoSesion, 'agendada' | 'borrador' | 'presentada'>
 }
 
 export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }> {

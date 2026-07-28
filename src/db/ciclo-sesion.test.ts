@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  crearSesionConEstructura, obtenerSesion, marcarPresentada, guardarSeccion,
+  crearSesion, crearSesionConEstructura, obtenerSesion, marcarPresentada, guardarSeccion,
   entradasCrudasDeSesion, guardarDecisiones, editarSesion,
 } from './sesiones'
+import { guardarMinuta } from './minutas'
 import { reiniciarStoreMemoria } from './store-memoria'
 
 /**
@@ -163,5 +164,71 @@ describe('editar los datos de la reunión', () => {
 
   it('una sesión que no existe se dice, no se ignora', async () => {
     await expect(editarSesion('no-existe', { lugar: 'Teams' })).rejects.toThrow(/no encontrada/i)
+  })
+})
+
+describe('registrar una reunión que YA SE DIO, para minutarla', () => {
+  /**
+   * Franco, intentando crear una minuta: "me dice «Una sesión en borrador no
+   * se ha presentado: primero hay que maquetarla»".
+   *
+   * La acción creaba la reunión en `borrador` y llamaba después a
+   * `marcarPresentada`, que rechaza los borradores. El rodeo era el error, no
+   * la guarda: una reunión que ya ocurrió no pasó por preparación porque no
+   * había nada que preparar — ocurrió fuera de la app. Nace presentada.
+   */
+  it('nace presentada, sin pasar por borrador', async () => {
+    const { id } = await crearSesion({
+      salaSlug: 'neracode',
+      titulo: 'Comité de dirección · julio',
+      tipo: 'mensual',
+      alcance: 'todos',
+      fecha: new Date('2026-07-20T12:00:00.000Z'),
+      estado: 'presentada',
+    })
+    const s = await obtenerSesion(id)
+    expect(s?.estado).toBe('presentada')
+  })
+
+  it('y se puede minutar de inmediato', async () => {
+    const { id } = await crearSesion({
+      salaSlug: 'neracode',
+      titulo: 'Junta de pasillo',
+      tipo: 'mensual',
+      alcance: 'todos',
+      fecha: new Date('2026-07-20T12:00:00.000Z'),
+      estado: 'presentada',
+    })
+    await guardarMinuta(id, 'lo que se dijo', 'Hola equipo,\n\nLo acordado.', [])
+    expect((await obtenerSesion(id))?.estado).toBe('minutada')
+  })
+
+  it('una reunión SIN sala también se puede registrar y minutar', async () => {
+    // Un comité, un arranque: no son de ninguna UDN y su minuta hace falta
+    // igual. Sus acuerdos se quedan en el texto porque no hay sala donde
+    // colgarlos, y eso es lo honesto.
+    const { id } = await crearSesion({
+      salaSlug: null,
+      titulo: 'Comité de dirección',
+      tipo: 'mensual',
+      alcance: 'todos',
+      fecha: new Date('2026-07-20T12:00:00.000Z'),
+      estado: 'presentada',
+    })
+    await guardarMinuta(id, 'transcripción', 'texto', [])
+    expect((await obtenerSesion(id))?.estado).toBe('minutada')
+  })
+
+  it('lo que SIGUE rechazándose es marcar presentado un borrador de verdad', async () => {
+    // La guarda no se relajó: sigue protegiendo el botón de la interfaz, que
+    // es de donde vino. Lo que cambió es que registrar una reunión pasada ya
+    // no pasa por ahí.
+    const { id } = await crearSesion({
+      salaSlug: 'neracode',
+      tipo: 'mensual',
+      alcance: 'todos',
+      fecha: new Date('2026-07-20T12:00:00.000Z'),
+    })
+    await expect(marcarPresentada(id)).rejects.toThrow(/borrador/i)
   })
 })

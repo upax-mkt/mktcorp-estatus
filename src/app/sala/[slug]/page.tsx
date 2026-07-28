@@ -27,7 +27,7 @@ import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
-import { crearSesionConEstructura, listarSesiones, crearSesion, marcarPresentada } from '@/db/sesiones'
+import { crearSesionConEstructura, listarSesiones, crearSesion } from '@/db/sesiones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
 import {
@@ -194,14 +194,17 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     'use server'
     await exigirEquipo()
     try {
+      // NACE PRESENTADA: ya se dio. Ver la nota en el Home — crearla en
+      // borrador y ascenderla con `marcarPresentada` fallaba siempre, porque
+      // esa función rechaza los borradores.
       const { id } = await crearSesion({
         salaSlug: datos.salaSlug ?? slug,
         titulo: datos.titulo,
         tipo: 'mensual',
         alcance: 'todos',
         fecha: new Date(datos.fecha),
+        estado: 'presentada',
       })
-      await marcarPresentada(id)
       revalidatePath(`/sala/${slug}`)
       return { id }
     } catch (error) {

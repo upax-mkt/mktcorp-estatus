@@ -12,7 +12,7 @@ import {
 import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo, logoPrestado } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
-import { listarSesiones, crearSesion, marcarPresentada } from '@/db/sesiones'
+import { listarSesiones, crearSesion } from '@/db/sesiones'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta, diaCivil } from '@/lib/fecha'
@@ -67,14 +67,22 @@ export default async function Hub() {
     'use server'
     await exigirEquipo()
     try {
+      // NACE PRESENTADA, no nace borrador y asciende.
+      //
+      // Estaba creándola en `borrador` y llamando después a
+      // `marcarPresentada`, que RECHAZA los borradores —"primero hay que
+      // maquetarla"— así que registrar una reunión para minutarla fallaba
+      // siempre. Y la guarda tiene razón: marcar como presentada algo que
+      // nadie preparó no tiene sentido. Lo que no tiene sentido es el rodeo:
+      // esta reunión YA SE DIO, y ese es su estado desde el primer momento.
       const { id } = await crearSesion({
         salaSlug: datos.salaSlug,
         titulo: datos.titulo,
         tipo: 'mensual',
         alcance: 'todos',
         fecha: new Date(datos.fecha),
+        estado: 'presentada',
       })
-      await marcarPresentada(id)
       revalidatePath('/')
       return { id }
     } catch (error) {

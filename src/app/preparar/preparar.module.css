@@ -254,7 +254,15 @@
 
 /* ---- minuta (spec §9) ---- */
 .minutaFlujo { display: flex; flex-direction: column; gap: 1.75rem; }
-.textareaGrande { min-height: 16rem; font-family: ui-monospace, monospace; font-size: 0.86rem; line-height: 1.55; }
+/* 16rem de mínimo y 22 de máximo. Sin el techo, dentro de la ventana flotante
+   de «Generar una minuta» el campo empujaba el botón de generar fuera de la
+   vista: quedaba una caja enorme y ninguna acción visible. Una transcripción
+   se PEGA, no se escribe a mano, así que el alto útil es el que deja ver que
+   hay algo pegado — no el que la muestra entera. */
+.textareaGrande {
+  min-height: 16rem; max-height: 22rem;
+  font-family: ui-monospace, monospace; font-size: 0.86rem; line-height: 1.55;
+}
 
 .avisoError {
   border: 1px solid color-mix(in srgb, var(--alerta) 45%, var(--borde));
