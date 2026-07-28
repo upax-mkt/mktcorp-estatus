@@ -20,6 +20,7 @@ import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
+import { colorDeTextoDeMarca } from '@/temas'
 
 /**
  * El Home.
@@ -244,7 +245,7 @@ export default async function Hub() {
                   key={s.slug}
                   href={`/cliente/${s.slug}`}
                   className={`tarjeta ${estilos.sala}`}
-                  style={{ '--marca': s.color } as CSSProperties}
+                  style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
                 >
                   {/* El logotipo ES el nombre: la marca identifica más rápido
                       que su nombre escrito en la tipografía del sistema. Las

@@ -95,7 +95,7 @@
   color: var(--tinta); text-transform: none;
   margin: 0 0 1rem;
 }
-.seccionTitulo svg { flex: none; color: var(--marca); }
+.seccionTitulo svg { flex: none; color: var(--marca-texto, var(--marca)); }
 .seccionTitulo .conteo {
   margin-left: auto;
   font-size: 0.78rem; font-weight: 500; letter-spacing: var(--track-normal);
@@ -151,12 +151,12 @@
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 .presDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
-.presTag { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--marca); font-weight: 700; }
+.presTag { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--marca-texto, var(--marca)); font-weight: 700; }
 .presTitulo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0.35rem 0 0.2rem; }
 .presFecha { font-size: 0.82rem; color: var(--tx-2); }
 .presVer {
   display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.9rem;
-  color: var(--marca); white-space: nowrap;
+  color: var(--marca-texto, var(--marca)); white-space: nowrap;
 }
 .presTimeline { margin-top: 1rem; display: flex; flex-direction: column; }
 .presFila {
@@ -281,7 +281,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   padding: 0.45rem 0.85rem; border-radius: 0.5rem; cursor: pointer;
   color: var(--superficie); background: var(--marca); border: none;
 }
-.lightboxEnlace { margin-left: auto; font-size: 0.85rem; font-weight: 600; color: var(--marca); text-decoration: none; }
+.lightboxEnlace { margin-left: auto; font-size: 0.85rem; font-weight: 600; color: var(--marca-texto, var(--marca)); text-decoration: none; }
 .lightboxEnlace:hover { text-decoration: underline; }
 
 /* ---- levantar minuta desde la sala ---- */
@@ -296,7 +296,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   color: var(--tx); background: var(--superficie); border: 1px dashed var(--borde-fuerte);
   transition: border-color 140ms ease, color 140ms ease;
 }
-.nuevaMinutaBoton:hover { border-color: var(--marca); color: var(--marca); border-style: solid; }
+.nuevaMinutaBoton:hover { border-color: var(--marca); color: var(--marca-texto, var(--marca)); border-style: solid; }
 
 .eleccionSesion { display: flex; flex-direction: column; }
 .eleccionFila {
@@ -332,7 +332,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .archivoTipo {
   font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
   padding: 0.3rem 0.4rem; border-radius: 0.3rem; min-width: 3rem; text-align: center;
-  color: var(--marca); background: color-mix(in oklch, var(--marca) 12%, transparent);
+  color: var(--marca-texto, var(--marca)); background: color-mix(in oklch, var(--marca) 12%, transparent);
 }
 
 .archivoEnlace { display: grid; gap: 0.15rem; text-decoration: none; color: inherit; min-width: 0; }
@@ -390,7 +390,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .benchmarkLecturaEtiqueta {
   display: flex; align-items: center; gap: 0.5rem;
   font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
-  font-weight: 700; color: var(--marca); margin-bottom: 0.4rem;
+  font-weight: 700; color: var(--marca-texto, var(--marca)); margin-bottom: 0.4rem;
 }
 .benchmarkLecturaTexto { font-size: 0.95rem; line-height: 1.55; color: var(--tx); max-width: 72ch; }
 
@@ -428,7 +428,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   border-left: 2px solid var(--marca); border-right: 2px solid var(--marca);
   background: color-mix(in oklch, var(--marca) 5%, var(--superficie));
 }
-.benchmarkColUdnEtiqueta { color: var(--marca); }
+.benchmarkColUdnEtiqueta { color: var(--marca-texto, var(--marca)); }
 
 /* Chips de valoración: líder destacado con --marca, rezagado tenue. */
 .chip {
@@ -437,7 +437,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .chipLider {
   background: color-mix(in oklch, var(--marca) 18%, transparent);
-  color: var(--marca); font-weight: 700;
+  color: var(--marca-texto, var(--marca)); font-weight: 700;
 }
 .chipPar { background: var(--superficie-2); color: var(--tx-2); }
 .chipRezagado {
@@ -455,7 +455,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .nivel[data-nivel='lider'] {
   background: color-mix(in oklch, var(--marca) 18%, transparent);
-  color: var(--marca); font-weight: 700;
+  color: var(--marca-texto, var(--marca)); font-weight: 700;
 }
 .nivel[data-nivel='a_la_par'] { background: var(--superficie-2); color: var(--tx-2); }
 .nivel[data-nivel='rezagado'] {
@@ -474,7 +474,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   font-variant-numeric: tabular-nums;
 }
 .benchmarkCifra span { font-size: 0.78rem; color: var(--tx-3); }
-.benchmarkCifra[data-nivel='lider'] strong { color: var(--marca); }
+.benchmarkCifra[data-nivel='lider'] strong { color: var(--marca-texto, var(--marca)); }
 .benchmarkCifra[data-nivel='rezagado'] strong { color: var(--tibia); }
 
 .benchmarkBrechas {
@@ -532,7 +532,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .nuevoAcuerdoAbrir {
   font-family: inherit; font-size: 0.85rem; font-weight: 500;
   margin-top: 0.9rem; padding: 0.55rem 0.9rem;
-  color: var(--marca); background: none;
+  color: var(--marca-texto, var(--marca)); background: none;
   border: 1px dashed var(--borde-fuerte); border-radius: 0.55rem; cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
@@ -594,7 +594,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .claveEtiqueta {
   font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
-  font-weight: 700; color: var(--marca);
+  font-weight: 700; color: var(--marca-texto, var(--marca));
 }
 .claveFila { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .claveTexto {
@@ -611,7 +611,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .eleccionSala {
   display: inline-block; margin-right: 0.5rem;
   font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--marca);
+  text-transform: uppercase; color: var(--marca-texto, var(--marca));
 }
 
 /* El logotipo de la sala sobre el degradado, en su variante blanca. Cada
@@ -656,6 +656,6 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .avisoAcceso strong { color: var(--tx); font-weight: 600; }
 .avisoEnlace {
-  color: var(--marca); font-weight: 600; text-decoration: none; white-space: nowrap;
+  color: var(--marca-texto, var(--marca)); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
 .avisoEnlace:hover { text-decoration: underline; }

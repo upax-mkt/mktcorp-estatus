@@ -9,6 +9,7 @@ import { uix } from './uix'
 import { zeus } from './zeus'
 import { ceci } from './ceci'
 import { grupoUpax } from './grupo-upax'
+import { ajustarColorParaContraste } from '@/lib/superficie-texto'
 
 export type { Tema } from './tipos'
 
@@ -59,6 +60,32 @@ export function obtenerTema(slug: string): Tema {
  */
 export function temaDeSala(slug: string | null | undefined): Tema {
   return slug ? obtenerTema(slug) : grupoUpax
+}
+
+/**
+ * EL COLOR DE MARCA, PERO LEGIBLE COMO TEXTO.
+ *
+ * Franco: "el verde de MU no tiene buena lectura en textos, es muy flúor".
+ * Medido: el #DCFF00 de Marketing United da **1,14:1 sobre blanco** — no es
+ * poco contraste, es invisible. Y no es el único: seis de las nueve marcas
+ * bajan de 4,5:1, el mínimo para texto corrido.
+ *
+ * Dentro del documento esto ya estaba resuelto (`--primario-sobre-superficie`
+ * de `ProveedorTema`), pero el Home, la agenda y el espacio del cliente pintan
+ * texto con `--marca` a secas, que es el color CRUDO.
+ *
+ * Así que hay dos tokens y hacen cosas distintas:
+ *
+ * - `--marca` — el color exacto del brandbook. Para rellenos, filos, puntos y
+ *   barras: ahí la fidelidad manda y no hay nada que leer.
+ * - `--marca-texto` — el mismo matiz, oscurecido lo justo para alcanzar 4,5:1.
+ *   Solo para texto.
+ *
+ * Se DERIVA, no se guarda en el tema: un valor guardado se desincroniza el día
+ * que alguien corrija un hex del brandbook.
+ */
+export function colorDeTextoDeMarca(color: string): string {
+  return ajustarColorParaContraste(color, '#ffffff', 4.5)
 }
 
 export function slugsDeSalas(): string[] {

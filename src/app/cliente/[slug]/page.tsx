@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
-import { obtenerTema, slugsDeSalas } from '@/temas'
+import { obtenerTema, slugsDeSalas, colorDeTextoDeMarca } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
@@ -297,6 +297,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const estiloMarca = {
     '--marca': tema.primario,
+    '--marca-texto': colorDeTextoDeMarca(tema.primario),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
   } as CSSProperties
 

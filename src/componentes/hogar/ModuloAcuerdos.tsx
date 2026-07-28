@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { AcuerdoEnRiesgo, EstatusAcuerdo } from '@/db/consultas'
 import { fechaBreve } from '@/lib/fecha'
 import estilos from '@/app/hub.module.css'
+import { colorDeTextoDeMarca } from '@/temas'
 
 /**
  * Acuerdos y pendientes, dentro del Home y EDITABLES ahí mismo.
@@ -82,7 +83,7 @@ function Fila({
   const [editandoFecha, setEditandoFecha] = useState(false)
 
   return (
-    <li className={estilos.acuerdo} style={{ '--marca': acuerdo.salaColor } as React.CSSProperties}>
+    <li className={estilos.acuerdo} style={{ '--marca': acuerdo.salaColor, '--marca-texto': colorDeTextoDeMarca(acuerdo.salaColor) } as React.CSSProperties}>
       <div className={estilos.acuerdoCuerpo}>
         <p className={estilos.acuerdoQue}>{acuerdo.que}</p>
         <div className={estilos.acuerdoMeta}>

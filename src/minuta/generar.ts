@@ -20,6 +20,22 @@ export interface ResultadoMinuta {
   acuerdosPropuestos: AcuerdoPropuesto[]
 }
 
+/**
+ * El motivo del rechazo, en una línea que el modelo pueda usar.
+ *
+ * El error de Zod viene con el JSON entero de los `issues`; pasárselo tal cual
+ * gasta contexto en corchetes. Lo que necesita saber es QUÉ campo y POR QUÉ.
+ */
+function resumirRechazo(mensaje: string): string {
+  const campos = [...mensaje.matchAll(/"path":\s*\[\s*"([^"]+)"(?:,\s*(\d+))?/g)]
+    .map((m) => (m[2] ? `${m[1]}[${m[2]}]` : m[1]))
+  const largo = /too_big/.test(mensaje)
+  const donde = campos.length > 0 ? campos.join(', ') : 'algún campo'
+  return largo
+    ? `te pasaste del largo permitido en ${donde}. Recorta ahí.`
+    : `${donde} no cumple el contrato.`
+}
+
 /** "por definir" es el rótulo que el spec exige mostrar antes de enviar el correo (§9). */
 function formatearFechaTabla(fechaIso: string | null): string {
   if (!fechaIso) return 'por definir'
@@ -140,16 +156,59 @@ export async function generarMinuta(
   const clienteFinal = cliente ?? crearClientePorDefecto()
   const { system, user } = construirPromptMinuta(sesion, texto, molde)
 
-  const resp = await clienteFinal.messages.parse({
-    // Mismo modelo que el motor (ver src/motor/decidir.ts). La minuta ya salía
-    // bien con 4.8; se mueve por consistencia y porque Opus 5 cuesta lo mismo.
-    model: 'claude-opus-5',
-    max_tokens: 8000,
-    thinking: { type: 'adaptive' },
-    output_config: { effort: 'medium', format: zodOutputFormat(EsquemaMinuta) },
-    system,
-    messages: [{ role: 'user', content: user }],
-  })
+  /**
+   * UN REINTENTO, con el motivo del rechazo delante.
+   *
+   * El esquema tiene topes de largo, y son los que impiden que la minuta se
+   * convierta en la transcripción con encabezados. Pero un tope que no se
+   * cumple no puede acabar en un error de Zod en pantalla: quien pegó una
+   * transcripción de nueve mil palabras esperó cuarenta segundos para leer
+   * "Too big: expected string to have <=700 characters", que no es ni su
+   * problema ni su idioma.
+   *
+   * OJO CON LA FORMA DE FALLAR: `messages.parse()` LANZA cuando la salida no
+   * valida — no devuelve un resultado vacío. Un reintento escrito sobre
+   * `if (!resp.parsed_output)` no se ejecutaría nunca.
+   *
+   * Es el mismo patrón que el motor de maquetación (`intentarDecision`): se le
+   * dice al modelo exactamente qué se pasó y se le pide otra vez. Recortarlo
+   * nosotros sería peor — cortar por el carácter 700 parte una frase a la
+   * mitad, y el modelo sí sabe qué le sobra.
+   */
+  async function intentar(motivoRechazo?: string) {
+    return clienteFinal.messages.parse({
+      // Mismo modelo que el motor (ver src/motor/decidir.ts).
+      model: 'claude-opus-5',
+      max_tokens: 8000,
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'medium', format: zodOutputFormat(EsquemaMinuta) },
+      system,
+      messages: [
+        { role: 'user', content: user },
+        ...(motivoRechazo
+          ? [{
+              role: 'user' as const,
+              content:
+                `Tu respuesta anterior NO pasó la validación: ${motivoRechazo}\n\n` +
+                'Vuelve a redactarla RECORTANDO lo que sobra: un tema por línea, sin el ' +
+                'detalle, porque quien la lee estuvo en la reunión. No inventes nada nuevo ' +
+                'ni añadas temas: quita.',
+            }]
+          : []),
+      ],
+    })
+  }
+
+  let resp
+  try {
+    resp = await intentar()
+  } catch (error) {
+    const motivo = error instanceof Error ? error.message : String(error)
+    // Solo se reintenta lo que el modelo puede corregir. Un fallo de red o de
+    // credenciales no mejora por pedirlo otra vez.
+    if (!/valid|too_big|too_small|schema|parse/i.test(motivo)) throw error
+    resp = await intentar(resumirRechazo(motivo))
+  }
   if (!resp.parsed_output) {
     throw new Error(`El modelo no devolvió una minuta (stop_reason: ${resp.stop_reason ?? 'desconocido'})`)
   }

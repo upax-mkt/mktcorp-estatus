@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
 import { fechaCompleta } from '@/lib/fecha'
 import estilos from './minuta.module.css'
+import { colorDeTextoDeMarca } from '@/temas'
 
 /**
  * GENERAR UNA MINUTA, de la reunión que sea.
@@ -238,7 +239,10 @@ export function LevantarMinuta({
                           key={s.id}
                           type="button"
                           className={estilos.fila}
-                          style={{ '--marca': s.salaColor } as React.CSSProperties}
+                          style={{
+                            '--marca': s.salaColor,
+                            '--marca-texto': s.salaColor ? colorDeTextoDeMarca(s.salaColor) : undefined,
+                          } as React.CSSProperties}
                           onClick={() => setElegida(s)}
                         >
                           <span className={estilos.filaTitulo}>

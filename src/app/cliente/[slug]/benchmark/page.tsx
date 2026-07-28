@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { CSSProperties } from 'react'
 import estilos from '../../cliente.module.css'
-import { obtenerTema } from '@/temas'
+import { obtenerTema, colorDeTextoDeMarca } from '@/temas'
 import { obtenerBenchmark } from '@/db/benchmark'
 import { resumirBenchmark, type NivelBenchmark } from '@/dominio/benchmark'
 import { puedeVerEstaSala } from '@/auth/sesion'
@@ -45,6 +45,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
   const resumen = resumirBenchmark(benchmark)
   const estiloMarca = {
     '--marca': tema.primario,
+    '--marca-texto': colorDeTextoDeMarca(tema.primario),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
   } as CSSProperties
 

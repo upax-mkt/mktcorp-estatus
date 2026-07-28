@@ -125,7 +125,7 @@
   display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
   margin-top: 0.3rem; font-size: 0.8rem; color: var(--tinta-3);
 }
-.acuerdoSala { color: var(--marca); font-weight: 600; text-decoration: none; }
+.acuerdoSala { color: var(--marca-texto, var(--marca)); font-weight: 600; text-decoration: none; }
 .acuerdoSala:hover { text-decoration: underline; }
 .punto { color: var(--tinta-4); }
 .acuerdoControles { display: flex; align-items: center; gap: 0.5rem; flex: none; }
@@ -189,7 +189,7 @@
 }
 .filaDia:hover { background: var(--papel-hundido); }
 .filaDiaHora { font-size: 0.76rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.filaDiaSala { font-size: 0.82rem; font-weight: 650; color: var(--marca); white-space: nowrap; }
+.filaDiaSala { font-size: 0.82rem; font-weight: 650; color: var(--marca-texto, var(--marca)); white-space: nowrap; }
 .filaDiaTitulo { font-size: 0.82rem; color: var(--tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- minutas ---- */
@@ -202,7 +202,7 @@
   transition: background var(--rapido) linear;
 }
 .filaMinuta:hover { background: var(--papel-hundido); }
-.filaMinutaSala { font-size: 0.8rem; font-weight: 650; color: var(--marca); white-space: nowrap; }
+.filaMinutaSala { font-size: 0.8rem; font-weight: 650; color: var(--marca-texto, var(--marca)); white-space: nowrap; }
 .filaMinutaTitulo { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filaMinutaFecha { font-size: 0.76rem; color: var(--tinta-4); font-variant-numeric: tabular-nums; white-space: nowrap; }
 

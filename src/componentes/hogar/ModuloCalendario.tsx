@@ -6,6 +6,7 @@ import { semanasDelMes, agruparPorDia, mesVecino, NOMBRES_DE_DIA } from '@/domin
 import { mesLargo, horaBreve, diaCivil, fechaCompleta } from '@/lib/fecha'
 import type { SesionEnCalendario } from '@/componentes/agenda/Calendario'
 import estilos from '@/app/hub.module.css'
+import { colorDeTextoDeMarca } from '@/temas'
 
 /**
  * El mes, dentro del Home.
@@ -112,7 +113,7 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
                   <Link
                     href={`/deck/${s.id}`}
                     className={estilos.filaDia}
-                    style={{ '--marca': s.salaColor } as React.CSSProperties}
+                    style={{ '--marca': s.salaColor, '--marca-texto': colorDeTextoDeMarca(s.salaColor) } as React.CSSProperties}
                   >
                     <span className={estilos.filaDiaHora}>{horaBreve(s.fecha)}</span>
                     <span className={estilos.filaDiaSala}>{s.salaNombre}</span>
@@ -157,7 +158,7 @@ function Proximas({ sesiones, hoy }: Props) {
             <Link
               href={`/deck/${s.id}`}
               className={estilos.filaDia}
-              style={{ '--marca': s.salaColor } as React.CSSProperties}
+              style={{ '--marca': s.salaColor, '--marca-texto': colorDeTextoDeMarca(s.salaColor) } as React.CSSProperties}
             >
               <span className={estilos.filaDiaHora}>{fechaCompleta(s.fecha).replace(/ de \d{4}$/, '')}</span>
               <span className={estilos.filaDiaSala}>{s.salaNombre}</span>

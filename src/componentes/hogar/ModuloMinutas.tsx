@@ -9,6 +9,7 @@ import {
 import { EditorMolde } from '@/componentes/EditorMolde'
 import type { MoldeMinuta } from '@/minuta/molde'
 import estilos from '@/app/hub.module.css'
+import { colorDeTextoDeMarca } from '@/temas'
 
 /**
  * Las minutas de todas las salas, en el Home, Y LEVANTAR UNA DESDE AQUÍ.
@@ -90,7 +91,7 @@ export function ModuloMinutas({
               <button
                 type="button"
                 className={estilos.filaMinuta}
-                style={{ '--marca': m.salaColor } as React.CSSProperties}
+                style={{ '--marca': m.salaColor, '--marca-texto': colorDeTextoDeMarca(m.salaColor) } as React.CSSProperties}
                 onClick={() => setAbierta(m)}
               >
                 <span className={estilos.filaMinutaSala}>{m.salaNombre}</span>

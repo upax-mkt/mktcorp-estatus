@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TEMAS, obtenerTema, slugsDeSalas, temaDeSala } from './index'
+import { TEMAS, obtenerTema, slugsDeSalas, temaDeSala, colorDeTextoDeMarca } from './index'
 import { contraste } from '@/lib/color'
 import { derivarEscalaDatos } from '@/lib/escala-datos'
 
@@ -71,5 +71,42 @@ describe('la identidad de lo que no es de ninguna sala', () => {
 
   it('con sala, la suya', () => {
     expect(temaDeSala('zeus').slug).toBe('zeus')
+  })
+})
+
+describe('el color de marca en TEXTO', () => {
+  /**
+   * Franco: "el verde de MU no tiene buena lectura en textos, es muy flúor".
+   *
+   * Medido: el #DCFF00 de Marketing United da 1,14:1 sobre blanco — no es poco
+   * contraste, es invisible. Y no era el único: seis de las nueve marcas
+   * bajaban de 4,5:1.
+   *
+   * Dos tokens con trabajos distintos: `--marca` es el color EXACTO del
+   * brandbook, para rellenos y filos donde no hay nada que leer;
+   * `--marca-texto` es el mismo matiz oscurecido lo justo. Este test es el que
+   * impide que una marca nueva entre con un color ilegible sin que nadie lo
+   * note.
+   */
+  it('todas las marcas alcanzan 4,5:1 sobre blanco como texto', () => {
+    for (const [slug, tema] of Object.entries(TEMAS)) {
+      const c = contraste(colorDeTextoDeMarca(tema.primario), '#ffffff')
+      expect(c, `${slug} se lee a ${c.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('una marca que YA se lee no se toca', () => {
+    // Research Land está a 8,4:1: ajustarla sería apagarla sin motivo.
+    expect(colorDeTextoDeMarca('#770EB3')).toBe('#770EB3')
+  })
+
+  it('conserva el matiz: el verde sigue siendo verde', () => {
+    // Lo que se ajusta es la luminosidad, no el tono. Un ajuste que cambiara
+    // el matiz dejaría de ser la marca.
+    const ajustado = colorDeTextoDeMarca('#DCFF00')
+    expect(ajustado).not.toBe('#DCFF00')
+    const [, r, g, b] = /^#(..)(..)(..)$/.exec(ajustado)!.map((x, i) => (i ? parseInt(x, 16) : 0))
+    expect(g).toBeGreaterThan(r)
+    expect(g).toBeGreaterThan(b)
   })
 })
