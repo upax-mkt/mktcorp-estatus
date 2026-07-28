@@ -291,20 +291,23 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         ) : (
           <span className={estilos.volver}>Marketing Corp</span>
         )}
-        {/* SIEMPRE HAY SALIDA. Quien entra con un link de sala se quedaba sin
-            ninguna: la raíz lo devolvía aquí, esta pantalla no ofrecía nada, y
-            la cookie dura 30 días. Una sesión que no se puede terminar no es
-            una sesión, es una trampa — y en un ordenador compartido, además,
-            deja la sala de una UDN abierta a quien se siente después. */}
-        {!equipo && (
-          <form action={salirDeLaSala} className={estilos.salirForm}>
-            <button type="submit" className={estilos.salirBoton}>Salir</button>
-          </form>
-        )}
         <div className={estilos.barraSala}>
           <span className={estilos.barraPunto} />
           {s.nombre}
         </div>
+        {/* SIEMPRE HAY SALIDA. Quien entra con un link de sala se quedaba sin
+            ninguna: la raíz lo devolvía aquí, esta pantalla no ofrecía nada, y
+            la cookie dura 30 días. Una sesión que no se puede terminar no es
+            una sesión, es una trampa — y en un ordenador compartido, además,
+            deja la sala de una UDN abierta a quien se siente después.
+            Va DESPUÉS del nombre: el `margin-left:auto` del nombre ya empuja
+            el bloque a la derecha, y con dos autos el primero se comía todo el
+            hueco y dejaba «Salir» flotando en mitad de la barra. */}
+        {!equipo && (
+          <form action={salirDeLaSala}>
+            <button type="submit" className={estilos.salirBoton}>Salir</button>
+          </form>
+        )}
       </header>
 
       {/* Encabezado vestido de la marca de la UDN.
