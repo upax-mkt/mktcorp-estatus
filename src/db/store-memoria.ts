@@ -16,8 +16,10 @@ export interface FilaSesionMemoria {
   fecha: Date
   tipo: 'semanal' | 'mensual'
   alcance: string
-  estado: 'borrador' | 'lista' | 'presentada' | 'minutada'
+  estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
   estructura: unknown
+  participantes: string[]
+  lugar: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -96,6 +98,16 @@ export function reiniciarStoreMemoria(): void {
 
 export function insertarSesionMemoria(fila: FilaSesionMemoria): void {
   sesiones.set(fila.id, fila)
+}
+
+/** Espejo en memoria de `editarSesion` (ver src/db/sesiones.ts). */
+export function actualizarDatosSesionMemoria(
+  sesionId: string,
+  cambios: Partial<Pick<FilaSesionMemoria, 'fecha' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>,
+): void {
+  const fila = sesiones.get(sesionId)
+  if (!fila) return
+  sesiones.set(sesionId, { ...fila, ...cambios, updatedAt: new Date() })
 }
 
 export function actualizarEstructuraSesionMemoria(sesionId: string, estructura: unknown): void {

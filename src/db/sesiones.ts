@@ -94,6 +94,12 @@ export interface SesionResumen {
   alcance: string
   estado: EstadoSesion
   fecha: string // ISO
+  /** Cómo se llama la sesión. Vive en la estructura congelada; es editable. */
+  titulo: string
+  /** Quién va. Vacío mientras nadie lo haya dicho. */
+  participantes: string[]
+  /** Dónde se da: sala física, link, "por definir". */
+  lugar: string | null
   totalItems: number
   itemsLlenados: number
 }
@@ -188,7 +194,8 @@ function tituloPorDefecto(tipo: TipoSesion, fecha: Date): string {
   return `Estatus ${tipo} · ${mesCap}`
 }
 
-function esLlenado(c: ContenidoItemCrudo | undefined | null): boolean {
+/** Si un item tiene algo escrito. Lo usa también el hub, para el avance real. */
+export function esLlenado(c: ContenidoItemCrudo | undefined | null): boolean {
   if (!c) return false
   // Una tabla o una imagen sola SÍ es un item llenado: la comparativa Mayo|Junio
   // del deck real es exactamente eso, una tabla sin una línea de texto al lado.
@@ -209,6 +216,8 @@ interface FilaSesionComun {
   alcance: string
   estado: EstadoSesion
   estructura: unknown
+  participantes?: string[] | null
+  lugar?: string | null
 }
 
 interface FilaItemComun {
@@ -258,6 +267,9 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
     alcance: fila.alcance,
     estado: fila.estado,
     fecha: fila.fecha.toISOString(),
+    titulo: estructura.titulo || tituloPorDefecto(fila.tipo, fila.fecha),
+    participantes: fila.participantes ?? [],
+    lugar: fila.lugar ?? null,
     totalItems: items.length,
     itemsLlenados: items.filter((i) => i.llenado).length,
     items,
@@ -275,6 +287,9 @@ function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]):
     alcance: fila.alcance,
     estado: fila.estado,
     fecha: fila.fecha.toISOString(),
+    titulo: leerEstructura(fila.estructura).titulo || tituloPorDefecto(fila.tipo, fila.fecha),
+    participantes: fila.participantes ?? [],
+    lugar: fila.lugar ?? null,
     totalItems: contenidos.length,
     itemsLlenados: contenidos.filter(esLlenado).length,
   }
@@ -288,40 +303,50 @@ function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]):
  * precargada; `crearSesion` queda disponible por si en el futuro se crea una
  * sesión a partir de una estructura elegida por el usuario (fase posterior).
  */
-export async function crearSesion(datos: {
+export interface DatosDeSesion {
   salaSlug: string
   tipo: TipoSesion
   alcance: string
-}): Promise<{ id: string }> {
+  /** Cuándo es. Por defecto, ahora — el flujo viejo de "Nueva sesión". */
+  fecha?: Date
+  /** Cómo se llama. Por defecto, "Estatus mensual · Julio de 2026". */
+  titulo?: string
+  participantes?: string[]
+  lugar?: string | null
+  /**
+   * `agendada` es una fecha en el calendario que nadie ha empezado a llenar;
+   * `borrador` es trabajo en curso. El hub los distingue.
+   */
+  estado?: Extract<EstadoSesion, 'agendada' | 'borrador'>
+}
+
+export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }> {
   if (!slugsDeSalas().includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   const id = crypto.randomUUID()
   const ahora = new Date()
-  const estructura: EstructuraSesion = { titulo: tituloPorDefecto(datos.tipo, ahora), items: [] }
+  const fecha = datos.fecha ?? ahora
+  const estructura: EstructuraSesion = {
+    titulo: datos.titulo?.trim() || tituloPorDefecto(datos.tipo, fecha),
+    items: [],
+  }
+  const comun = {
+    id,
+    salaSlug: datos.salaSlug,
+    fecha,
+    tipo: datos.tipo,
+    alcance: datos.alcance,
+    estado: datos.estado ?? ('borrador' as const),
+    estructura,
+    participantes: datos.participantes ?? [],
+    lugar: datos.lugar ?? null,
+  }
 
   if (hayDB()) {
-    await db().insert(esquema.sesiones).values({
-      id,
-      salaSlug: datos.salaSlug,
-      fecha: ahora,
-      tipo: datos.tipo,
-      alcance: datos.alcance,
-      estado: 'borrador',
-      estructura,
-    })
+    await db().insert(esquema.sesiones).values(comun)
   } else {
-    memoria.insertarSesionMemoria({
-      id,
-      salaSlug: datos.salaSlug,
-      fecha: ahora,
-      tipo: datos.tipo,
-      alcance: datos.alcance,
-      estado: 'borrador',
-      estructura,
-      createdAt: ahora,
-      updatedAt: ahora,
-    })
+    memoria.insertarSesionMemoria({ ...comun, createdAt: ahora, updatedAt: ahora })
   }
   return { id }
 }
@@ -331,15 +356,11 @@ export async function crearSesion(datos: {
  * §6): es lo que usa el flujo "Nueva sesión". Cada item nace con
  * `contenidoCrudo: {}` (sin llenar).
  */
-export async function crearSesionConEstructura(datos: {
-  salaSlug: string
-  tipo: TipoSesion
-  alcance: string
-}): Promise<{ id: string }> {
+export async function crearSesionConEstructura(datos: DatosDeSesion): Promise<{ id: string }> {
   const { id } = await crearSesion(datos)
   const ahora = new Date()
   const estructura: EstructuraSesion = {
-    titulo: tituloPorDefecto(datos.tipo, ahora),
+    titulo: datos.titulo?.trim() || tituloPorDefecto(datos.tipo, datos.fecha ?? ahora),
     items: ESTRUCTURA_POR_DEFECTO,
   }
 
@@ -418,12 +439,34 @@ export async function guardarItemContenido(
 ): Promise<void> {
   if (!hayDB()) {
     memoria.actualizarContenidoItemMemoria(itemId, contenidoCrudo)
+    await empezarAPrepararse(sesionId)
     return
   }
   await db()
     .update(esquema.items)
     .set({ contenidoCrudo, updatedAt: new Date() })
     .where(and(eq(esquema.items.id, itemId), eq(esquema.items.sesionId, sesionId)))
+  await empezarAPrepararse(sesionId)
+}
+
+/**
+ * Una sesión agendada deja de ser solo una fecha en cuanto alguien escribe
+ * algo en ella.
+ *
+ * Va aquí y no en un botón porque nadie pulsa "empezar a preparar": se abre
+ * la sesión y se escribe. Si el paso dependiera de acordarse, el hub seguiría
+ * diciendo "agendada" con la mitad del estatus ya redactado.
+ */
+async function empezarAPrepararse(sesionId: string): Promise<void> {
+  if (hayDB()) {
+    await db()
+      .update(esquema.sesiones)
+      .set({ estado: 'borrador', updatedAt: new Date() })
+      .where(and(eq(esquema.sesiones.id, sesionId), eq(esquema.sesiones.estado, 'agendada')))
+    return
+  }
+  const fila = memoria.obtenerSesionMemoria(sesionId)
+  if (fila?.estado === 'agendada') memoria.actualizarEstadoSesionMemoria(sesionId, 'borrador')
 }
 
 
@@ -834,6 +877,77 @@ export function formatearTablaTexto(tablas: string[][][] | undefined): string {
  * de la sesión (spec §4) — nacen aquí pero sobreviven a todas las siguientes.
  * Borrar la sesión que los originó no puede llevárselos por delante.
  */
+/**
+ * Cambia los datos de la reunión: cuándo, cómo se llama, quién va, dónde.
+ *
+ * El título vive dentro de la estructura congelada y no en su propia columna
+ * porque es lo que ya guardaba; sacarlo obligaría a migrar las sesiones
+ * existentes para no ganar nada. Se lee siempre por `leerEstructura`.
+ */
+export async function editarSesion(
+  sesionId: string,
+  cambios: {
+    fecha?: Date
+    titulo?: string
+    tipo?: TipoSesion
+    alcance?: string
+    participantes?: string[]
+    lugar?: string | null
+  },
+): Promise<void> {
+  const actual = await obtenerSesion(sesionId)
+  if (!actual) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+
+  const titulo = cambios.titulo?.trim()
+  if (titulo !== undefined && titulo.length === 0) {
+    throw new Error('La sesión necesita un título.')
+  }
+
+  const ahora = new Date()
+  const columnas: Record<string, unknown> = { updatedAt: ahora }
+  if (cambios.fecha !== undefined) columnas.fecha = cambios.fecha
+  if (cambios.tipo !== undefined) columnas.tipo = cambios.tipo
+  if (cambios.alcance !== undefined) columnas.alcance = cambios.alcance
+  if (cambios.participantes !== undefined) {
+    // Sin nombres vacíos ni repetidos: la lista se escribe a mano, separada
+    // por comas, y "Ceci, , Pablo," es lo normal, no la excepción.
+    columnas.participantes = [
+      ...new Set(cambios.participantes.map((p) => p.trim()).filter((p) => p.length > 0)),
+    ]
+  }
+  if (cambios.lugar !== undefined) columnas.lugar = cambios.lugar?.trim() || null
+
+  if (hayDB()) {
+    if (titulo !== undefined) {
+      const fila = (
+        await db()
+          .select({ estructura: esquema.sesiones.estructura })
+          .from(esquema.sesiones)
+          .where(eq(esquema.sesiones.id, sesionId))
+      )[0]
+      columnas.estructura = { ...leerEstructura(fila?.estructura), titulo }
+    }
+    await db().update(esquema.sesiones).set(columnas).where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+
+  const fila = memoria.obtenerSesionMemoria(sesionId)
+  if (!fila) return
+  if (titulo !== undefined) {
+    memoria.actualizarEstructuraSesionMemoria(sesionId, {
+      ...leerEstructura(fila.estructura),
+      titulo,
+    })
+  }
+  memoria.actualizarDatosSesionMemoria(sesionId, {
+    ...(columnas.fecha ? { fecha: columnas.fecha as Date } : {}),
+    ...(columnas.tipo ? { tipo: columnas.tipo as TipoSesion } : {}),
+    ...(columnas.alcance !== undefined ? { alcance: columnas.alcance as string } : {}),
+    ...(columnas.participantes ? { participantes: columnas.participantes as string[] } : {}),
+    ...(cambios.lugar !== undefined ? { lugar: columnas.lugar as string | null } : {}),
+  })
+}
+
 /**
  * "Esta sesión ya se dio."
  *

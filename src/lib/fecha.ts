@@ -69,6 +69,36 @@ export function diasHasta(iso: string, referencia: Date): number {
   return Math.round((hasta - desde) / MS_POR_DIA)
 }
 
+/**
+ * El día civil (YYYY-MM-DD) al que pertenece una fecha del dominio, visto
+ * desde CDMX. Es con lo que el calendario agrupa: una sesión del 30 de junio
+ * a las 19:00 en México es la 01:00 UTC del 1 de julio, y en un servidor en
+ * UTC —Vercel— aparecería en el mes siguiente.
+ */
+export function diaCivil(iso: string): string {
+  return fechaCivil(instanteDe(iso))
+}
+
+/** "10:30" */
+export function horaBreve(iso: string): string {
+  return instanteDe(iso).toLocaleTimeString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: ZONA,
+  })
+}
+
+/** "julio de 2026", con mayúscula inicial. Encabeza el mes del calendario. */
+export function mesLargo(anio: number, mes: number): string {
+  const texto = new Date(Date.UTC(anio, mes, 15, 12)).toLocaleDateString('es-MX', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: ZONA,
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
 /** "19 ago" */
 export function fechaBreve(iso: string): string {
   return instanteDe(iso).toLocaleDateString('es-MX', {

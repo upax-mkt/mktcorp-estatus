@@ -6,7 +6,8 @@ import {
   estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
   acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes,
 } from '@/db/consultas'
-import { fechaLarga, textoDiasDesde, textoProxima } from '@/lib/fecha'
+import type { CSSProperties } from 'react'
+import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta } from '@/lib/fecha'
 import { cerrarSesion } from '@/auth/sesion'
 
 export default async function Hub() {
@@ -36,6 +37,7 @@ export default async function Hub() {
           <span className={estilos.marcaSub}>Marketing Corp</span>
         </div>
         <nav className={estilos.barraDcha}>
+          <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/preparar" className={estilos.barraLink}>Preparar</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
@@ -71,7 +73,12 @@ export default async function Hub() {
             {pulso.salaMasDesatendida && (
               <div className={estilos.pulsoDesatendida}>
                 <div className={estilos.n}>más desatendida</div>
-                <div className={estilos.v}>{pulso.salaMasDesatendida.nombre} · {pulso.salaMasDesatendida.dias} d</div>
+                <div className={estilos.v}>
+                  {pulso.salaMasDesatendida.nombre} ·{' '}
+                  {pulso.salaMasDesatendida.dias == null
+                    ? 'sin sesión aún'
+                    : `${pulso.salaMasDesatendida.dias} d`}
+                </div>
               </div>
             )}
           </div>
@@ -89,26 +96,64 @@ export default async function Hub() {
                 const t = temperatura(s)
                 const abiertos = acuerdosAbiertos(s)
                 const vencidos = acuerdosVencidos(s)
+                const dias = s.proximaSesion ? diasHasta(s.proximaSesion, hoy) : null
                 return (
-                  <Link key={s.slug} href={`/sala/${s.slug}`} className={estilos.sala}>
-                    <div className={estilos.salaCentro}>
-                      <div className={estilos.salaNombre}>
-                        <span className={estilos.salaPunto} style={{ background: s.color }} />
-                        {s.nombre}
-                      </div>
-                      <div className={estilos.salaMeta}>
-                        <span className={`${estilos.temp} ${estilos[t]}`}>{textoDiasDesde(s.diasDesdeUltima)}</span>
-                        <span className={estilos.sep}>·</span>
-                        <span>{textoProxima(s.proximaSesion, hoy)}</span>
-                      </div>
-                    </div>
-                    <div className={estilos.salaDcha}>
-                      <div className={estilos.chips}>
-                        {s.enPreparacion && <span className={estilos.chip + ' ' + estilos.prep}>en preparación</span>}
-                        {vencidos > 0 && <span className={estilos.chip + ' ' + estilos.vencidos}>{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
-                        {abiertos > 0 && <span className={estilos.chip}>{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
-                      </div>
+                  <Link
+                    key={s.slug}
+                    href={`/sala/${s.slug}`}
+                    className={estilos.sala}
+                    style={{ '--marca': s.color } as CSSProperties}
+                  >
+                    <div className={estilos.salaCabecera}>
+                      <span className={estilos.salaNombre}>{s.nombre}</span>
                       <span className={estilos.flecha}>→</span>
+                    </div>
+
+                    <div className={estilos.salaCuando}>
+                      <span className={estilos.salaDato}>
+                        <span className={`${estilos.salaDatoV} ${estilos.temp} ${estilos[t]}`}>
+                          {textoDiasDesde(s.diasDesdeUltima)}
+                        </span>
+                        <span className={estilos.salaDatoL}>última</span>
+                      </span>
+                      {/* Sale de la agenda: una sesión agendada tiene fecha
+                          aunque nadie haya empezado a prepararla. */}
+                      <span className={estilos.salaDato}>
+                        <span
+                          className={`${estilos.salaDatoV} ${s.proximaSesion ? '' : estilos.pendiente}`}
+                        >
+                          {s.proximaSesion
+                            ? `${fechaBreve(s.proximaSesion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
+                            : 'por agendar'}
+                        </span>
+                        <span className={estilos.salaDatoL}>próxima</span>
+                      </span>
+                    </div>
+
+                    {s.enPreparacion && s.seccionesTotales ? (
+                      <div className={estilos.salaAvance}>
+                        <span className={estilos.salaAvanceTexto}>
+                          <span>{s.seccionesEscritas} de {s.seccionesTotales} secciones</span>
+                          <span>{s.avancePreparacion}%</span>
+                        </span>
+                        <span className={estilos.salaAvanceBarra}>
+                          <span
+                            className={estilos.salaAvanceRelleno}
+                            style={{ width: `${s.avancePreparacion ?? 0}%` }}
+                          />
+                        </span>
+                      </div>
+                    ) : (
+                      <span />
+                    )}
+
+                    <div className={estilos.chips}>
+                      {s.enPreparacion && <span className={`${estilos.chip} ${estilos.prep}`}>en preparación</span>}
+                      {vencidos > 0 && <span className={`${estilos.chip} ${estilos.vencidos}`}>{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
+                      {abiertos > 0 && <span className={estilos.chip}>{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
+                      {abiertos === 0 && vencidos === 0 && (
+                        <span className={`${estilos.chip} ${estilos.limpio}`}>sin acuerdos abiertos</span>
+                      )}
                     </div>
                   </Link>
                 )

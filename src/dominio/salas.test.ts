@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sesionesSinMinuta, type EstadoSala } from './salas'
+import { sesionesSinMinuta, salaMasDesatendida, type EstadoSala } from './salas'
 
 /**
  * De qué sesiones falta minuta. Es lo que decide qué ofrece el botón
@@ -63,5 +63,41 @@ describe('sesionesSinMinuta', () => {
 
   it('una sala sin presentaciones no revienta', () => {
     expect(sesionesSinMinuta(sala({}))).toEqual([])
+  })
+})
+
+describe('salaMasDesatendida', () => {
+  const conDias = (nombre: string, diasDesdeUltima: number | null) =>
+    sala({ nombre, diasDesdeUltima })
+
+  it('una sala que NUNCA ha tenido sesión es lo más desatendido que hay', () => {
+    // Antes se descartaban por tener `diasDesdeUltima` nulo, que es
+    // exactamente al revés de lo que significa.
+    expect(salaMasDesatendida([conDias('Al día', 3), conDias('Nunca', null)])).toEqual({
+      nombre: 'Nunca',
+      dias: null,
+    })
+  })
+
+  it('entre dos con historial, la que lleva más tiempo', () => {
+    expect(salaMasDesatendida([conDias('Hace 40', 40), conDias('Hace 25', 25)])?.nombre).toBe('Hace 40')
+  })
+
+  it('si todas están al día no anuncia ninguna', () => {
+    // El bug visible: con una sola sala con historial, el hub decía "más
+    // desatendida: Mexa Creativa · 0 d" — la que tuvo sesión HOY.
+    expect(salaMasDesatendida([conDias('Hoy', 0), conDias('Ayer', 1)])).toBeNull()
+  })
+
+  it('sin salas no revienta', () => {
+    expect(salaMasDesatendida([])).toBeNull()
+  })
+
+  it('respeta la cadencia: 12 días es tibio en mensual y frío en semanal', () => {
+    const mensual = sala({ nombre: 'Mensual', diasDesdeUltima: 12, cadencia: 'mensual' })
+    expect(salaMasDesatendida([mensual])).toBeNull()
+
+    const semanal = sala({ nombre: 'Semanal', diasDesdeUltima: 12, cadencia: 'semanal' })
+    expect(salaMasDesatendida([semanal])?.nombre).toBe('Semanal')
   })
 })

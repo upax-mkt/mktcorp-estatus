@@ -17,6 +17,7 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import * as fallback from '@/dominio/salas'
+import { esLlenado, type ContenidoItemCrudo } from './sesiones'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
@@ -80,15 +81,20 @@ interface FilaSesion {
 }
 
 /**
- * Heurística de avance de una sesión en preparación (borrador/lista).
- * El modelo de datos actual no guarda un % explícito (no forma parte del
- * spec §4); hasta que exista el editor de estructura real (pendiente:
- * "Flujo de preparación de sesión"), se aproxima por el estado.
+ * Cuánto lleva escrito una sesión en preparación.
+ *
+ * Antes era una heurística por estado —35% si borrador, 90% si lista— porque
+ * no se contaban los items. Se cuentan: una sesión con 3 de 14 secciones
+ * escritas dice 21%, no 35%. Y es lo que hace visible el borrador
+ * colaborativo: varias personas llenan secciones distintas y la barra sube.
+ *
+ * `lista` significa maquetada, así que va al 100 aunque queden secciones
+ * vacías: alguien ya decidió que con eso se presenta.
  */
-function avancePorEstado(estado: FilaSesion['estado']): number {
-  if (estado === 'lista') return 90
-  if (estado === 'borrador') return 35
-  return 100
+function avanceDeItems(estado: FilaSesion['estado'], llenados: number, total: number): number {
+  if (estado === 'lista') return 100
+  if (total === 0) return 0
+  return Math.round((llenados / total) * 100)
 }
 
 /**
@@ -106,7 +112,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   const conexion = db()
   const ahora = new Date()
 
-  const [salaRow, sesionesRows, acuerdosRows, minutasRows] = await Promise.all([
+  const [salaRow, sesionesRows, acuerdosRows, minutasRows, itemsRows] = await Promise.all([
     conexion.select().from(esquema.salas).where(eq(esquema.salas.slug, slug)).then((r) => r[0]),
     conexion
       .select({
@@ -134,6 +140,17 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
       .innerJoin(esquema.sesiones, eq(esquema.minutas.sesionId, esquema.sesiones.id))
       .where(eq(esquema.sesiones.salaSlug, slug))
       .orderBy(desc(esquema.sesiones.fecha)),
+    // El contenido de los items, para saber cuánto lleva escrito la sesión
+    // que se está preparando. Con join, no una consulta por sesión: son diez
+    // salas × N sesiones y el hub las pide todas a la vez.
+    conexion
+      .select({
+        sesionId: esquema.items.sesionId,
+        contenidoCrudo: esquema.items.contenidoCrudo,
+      })
+      .from(esquema.items)
+      .innerJoin(esquema.sesiones, eq(esquema.items.sesionId, esquema.sesiones.id))
+      .where(eq(esquema.sesiones.salaSlug, slug)),
   ])
 
   const sesiones = sesionesRows as FilaSesion[]
@@ -143,6 +160,16 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     .filter((s) => s.fecha.getTime() > ahora.getTime())
     .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
   const enPreparacionRows = sesiones.filter((s) => estaEnPreparacion(s.estado))
+  // La que se está preparando: la más próxima, no la primera que devuelva la
+  // base. Con dos abiertas a la vez, la que importa es la que toca antes.
+  const enPreparacion = [...enPreparacionRows].sort(
+    (a, b) => a.fecha.getTime() - b.fecha.getTime(),
+  )[0]
+  const itemsDeEsa = enPreparacion
+    ? itemsRows.filter((i) => i.sesionId === enPreparacion.id)
+    : []
+  const total = itemsDeEsa.length
+  const llenados = itemsDeEsa.filter((i) => esLlenado(i.contenidoCrudo as ContenidoItemCrudo)).length
 
   const ultima = yaSucedidas[0] // ya viene ordenada desc por fecha
   const proxima = futuras[0]
@@ -184,7 +211,10 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     ultimaSesion: ultima ? isoFecha(ultima.fecha) : null,
     proximaSesion: proxima ? isoFecha(proxima.fecha) : null,
     enPreparacion: enPreparacionRows.length > 0,
-    avancePreparacion: enPreparacionRows.length > 0 ? avancePorEstado(enPreparacionRows[0].estado) : undefined,
+    avancePreparacion: enPreparacion ? avanceDeItems(enPreparacion.estado, llenados, total) : undefined,
+    sesionEnPreparacionId: enPreparacion?.id,
+    seccionesEscritas: enPreparacion ? llenados : undefined,
+    seccionesTotales: enPreparacion ? total : undefined,
     acuerdos,
     presentaciones,
     minutas,
@@ -215,18 +245,12 @@ function construirPulso(salas: EstadoSala[]): PulsoDelMes {
   const sesionesUltimos30 = salas.filter((s) => s.diasDesdeUltima != null && s.diasDesdeUltima <= 30).length
   const abiertos = salas.reduce((n, s) => n + fallback.acuerdosAbiertos(s), 0)
   const vencidos = salas.reduce((n, s) => n + fallback.acuerdosVencidos(s), 0)
-  const desatendida = salas
-    .filter((s) => s.diasDesdeUltima != null)
-    .sort((a, b) => (b.diasDesdeUltima ?? 0) - (a.diasDesdeUltima ?? 0))[0]
   return {
     salas: salas.length,
     sesionesUltimos30,
     acuerdosAbiertos: abiertos,
     acuerdosVencidos: vencidos,
-    salaMasDesatendida:
-      desatendida?.diasDesdeUltima != null
-        ? { nombre: desatendida.nombre, dias: desatendida.diasDesdeUltima }
-        : null,
+    salaMasDesatendida: fallback.salaMasDesatendida(salas),
   }
 }
 

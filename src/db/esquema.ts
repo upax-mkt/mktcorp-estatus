@@ -67,6 +67,17 @@ export const sesiones = pgTable('sesiones', {
   estado: estadoSesionEnum('estado').notNull().default('borrador'),
   /** Copia congelada de la estructura (agenda de items) al momento de crear la sesión. */
   estructura: jsonb('estructura').$type<unknown>().notNull(),
+  /**
+   * Quién va a la reunión. Nombres, tal como los escribe quien la agenda.
+   *
+   * No referencia a ninguna tabla de personas porque no la hay, y no la va a
+   * haber por esto: a la sesión de una UDN va su director, que no tiene
+   * cuenta en la app. El día que entre Outlook, esto es lo que se rellena
+   * desde el evento — por eso es una lista y no un texto libre.
+   */
+  participantes: jsonb('participantes').$type<string[]>().notNull().default([]),
+  /** Dónde se da: sala física, link de Teams, "por definir". Texto libre. */
+  lugar: text('lugar'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

@@ -73,7 +73,9 @@
 
 /* ---- disposición dos columnas ---- */
 .cuerpo { display: grid; grid-template-columns: 1fr; gap: 2.5rem; }
-@media (min-width: 940px) { .cuerpo { grid-template-columns: 1.7fr 1fr; } }
+/* Las tarjetas quieren ancho: con 1.7fr solo entraban dos por fila y el
+   panel de riesgo quedaba medio vacío al lado. */
+@media (min-width: 940px) { .cuerpo { grid-template-columns: minmax(0, 2.6fr) minmax(15rem, 1fr); } }
 
 .seccionTitulo {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -82,41 +84,74 @@
 }
 .seccionTitulo .conteo { color: var(--tx-3); font-weight: 500; letter-spacing: 0; text-transform: none; }
 
-/* ---- lista de salas ---- */
-.salas { display: flex; flex-direction: column; }
-.sala {
+/* ---- tarjetas de sala ----
+   Era una lista de filas: diez renglones iguales con puntitos de color, y la
+   única jerarquía era el orden. Como tarjeta, cada sala puede mostrar de un
+   vistazo su marca, cuándo toca y en qué va — que es lo que se viene a mirar.
+   El color de la UDN deja de ser un punto de 11px y pasa a ser el filo de la
+   tarjeta: identifica sin que haya que leer. */
+.salas {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center; gap: 1rem;
-  padding: 1rem 0.75rem;
-  border-top: 1px solid var(--borde);
-  text-decoration: none; color: inherit;
-  transition: background 160ms ease, padding-left 160ms ease;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.85rem;
 }
-.sala:last-child { border-bottom: 1px solid var(--borde); }
-.sala:hover { background: var(--superficie-2); padding-left: 1.1rem; }
 
-.salaCentro { min-width: 0; }
-.salaNombre { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.6rem; }
-.salaPunto { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex: none; }
-.salaMeta { font-size: 0.82rem; color: var(--tx-2); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.salaMeta .sep { color: var(--borde-fuerte); }
-.temp { font-weight: 600; }
+.sala {
+  position: relative;
+  display: grid; grid-template-rows: auto auto auto auto; gap: 0.5rem;
+  padding: 1.05rem 1.1rem 0.9rem;
+  border: 1px solid var(--borde); border-radius: 0.85rem;
+  background: var(--superficie);
+  text-decoration: none; color: inherit;
+  overflow: hidden;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+/* El filo de marca, arriba. Es el gradiente de la UDN, sin texto encima. */
+.sala::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--marca);
+}
+.sala:hover {
+  border-color: color-mix(in oklch, var(--marca) 45%, var(--borde));
+  box-shadow: 0 6px 24px oklch(0.26 0.025 55 / 0.07);
+  transform: translateY(-1px);
+}
+
+.salaCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
+.salaNombre { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.015em; min-width: 0; }
+.flecha { color: var(--tx-3); font-size: 1rem; flex: none; transition: transform 160ms ease, color 160ms ease; }
+.sala:hover .flecha { color: var(--marca); transform: translateX(2px); }
+
+/* Las dos fechas en una fila de dos columnas: se leen en vertical entre
+   tarjetas, que es como se compara "¿a quién no he visto?". */
+.salaCuando { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.15rem; }
+.salaDato { display: grid; gap: 0.1rem; min-width: 0; }
+.salaDatoV { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.salaDatoL { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); }
 .temp.reciente { color: var(--ok); }
 .temp.tibia { color: var(--tibia); }
 .temp.fria { color: var(--alerta); }
+/* Sin fecha agendada no es un dato neutro: es lo que hay que resolver. */
+.salaDatoV.pendiente { color: var(--tibia); }
 
-.salaDcha { display: flex; align-items: center; gap: 1.1rem; }
-.chips { display: flex; align-items: center; gap: 0.4rem; }
+/* La barra de avance del borrador colaborativo. Solo aparece cuando hay
+   algo que preparar: una barra al 0% en ocho tarjetas es ruido. */
+.salaAvance { display: grid; gap: 0.3rem; margin-top: 0.2rem; }
+.salaAvanceTexto { font-size: 0.75rem; color: var(--tx-2); display: flex; justify-content: space-between; gap: 0.5rem; }
+.salaAvanceBarra { height: 4px; border-radius: 999px; background: var(--superficie-2); overflow: hidden; }
+.salaAvanceRelleno { height: 100%; border-radius: 999px; background: var(--marca); min-width: 2px; }
+
+/* Los chips se pegan abajo aunque la tarjeta no lleve barra de avance: así
+   las de una fila terminan a la misma altura sin dejar un hueco muerto. */
+.chips { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: auto; padding-top: 0.35rem; }
 .chip {
-  font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums;
-  padding: 0.15rem 0.5rem; border-radius: 0.4rem;
+  font-size: 0.72rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 0.15rem 0.45rem; border-radius: 0.35rem;
   background: var(--superficie-2); color: var(--tx-2); border: 1px solid var(--borde);
 }
 .chip.vencidos { background: var(--alerta-suave); color: var(--alerta); border-color: transparent; }
 .chip.prep { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
-.flecha { color: var(--tx-3); font-size: 1.1rem; transition: transform 160ms ease, color 160ms ease; }
-.sala:hover .flecha { color: var(--acento); transform: translateX(2px); }
+.chip.limpio { color: var(--tx-3); }
 
 /* ---- panel acuerdos en riesgo ---- */
 .riesgo { }

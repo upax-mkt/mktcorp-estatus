@@ -141,7 +141,7 @@ nombre propios; no se adelanta aquí para no hacerlo dos veces.
 
 ---
 
-## FASE 3B — Sesiones, calendario y home ☐ *(nuevo, 27-jul)*
+## FASE 3B — Sesiones, calendario y home ✅ *(cerrada 27-jul)*
 
 Feedback de Franco: el home se ve anticuado y los avisos de sesión salen de la
 nada. Va aquí y no antes porque depende de que exista el registro de sesiones,
@@ -149,11 +149,11 @@ que es lo primero de la fase.
 
 | # | Qué | Por qué |
 |---|---|---|
-| ☐ 3B.1 | **Editor de reuniones.** Registrar a mano una sesión: sala, fecha, hora, tipo, integrantes. Outlook queda para después; el modelo de datos se diseña para que integrarlo luego no obligue a rehacerlo. | Hoy "sin sesión aún" y "próxima sesión" se calculan de las sesiones que existen en la base. No hay forma de AGENDAR una sin empezar a prepararla, así que el aviso nunca puede ser verde. |
-| ☐ 3B.2 | **Los avisos del home salen de ahí.** "Sin sesión aún" / "próxima sesión" dejan de ser un cálculo indirecto y pasan a leer la reunión agendada. | Es lo que Franco pidió literalmente: que se jalen del editor de reuniones. |
-| ☐ 3B.3 | **Calendario** donde el equipo ve las sesiones de un vistazo: mes, las diez salas, qué hay agendado y qué se está preparando. | Diez salas con cadencias distintas no se siguen en una lista. |
-| ☐ 3B.4 | **Rediseñar el módulo de salas del home.** Hoy es una lista de filas y se lee anticuado. | Es la primera pantalla de la app. |
-| ☐ 3B.5 | **Borrador colaborativo visible.** El guardado automático ya existe y varias personas ya pueden editar la misma sesión. Falta que se VEA: quién llenó qué y cuándo, y que el estado de borrador sea explícito mientras se completa. | Franco: "se deben ir guardando como borrador en la medida que las personas (distintas) vayan completando la info". La mitad ya está; falta la señal. |
+| ✅ 3B.1 | **Editor de reuniones.** Registrar a mano una sesión: sala, fecha, hora, tipo, integrantes. Outlook queda para después; el modelo de datos se diseña para que integrarlo luego no obligue a rehacerlo. | Hoy "sin sesión aún" y "próxima sesión" se calculan de las sesiones que existen en la base. No hay forma de AGENDAR una sin empezar a prepararla, así que el aviso nunca puede ser verde. |
+| ✅ 3B.2 | **Los avisos del home salen de ahí.** "Sin sesión aún" / "próxima sesión" dejan de ser un cálculo indirecto y pasan a leer la reunión agendada. | Es lo que Franco pidió literalmente: que se jalen del editor de reuniones. |
+| ✅ 3B.3 | **Calendario** donde el equipo ve las sesiones de un vistazo: mes, las diez salas, qué hay agendado y qué se está preparando. | Diez salas con cadencias distintas no se siguen en una lista. |
+| ✅ 3B.4 | **Rediseñar el módulo de salas del home.** Hoy es una lista de filas y se lee anticuado. | Es la primera pantalla de la app. |
+| ✅ 3B.5 | **Borrador colaborativo visible.** El guardado automático ya existe y varias personas ya pueden editar la misma sesión. Falta que se VEA: quién llenó qué y cuándo, y que el estado de borrador sea explícito mientras se completa. | Franco: "se deben ir guardando como borrador en la medida que las personas (distintas) vayan completando la info". La mitad ya está; falta la señal. |
 
 ---
 

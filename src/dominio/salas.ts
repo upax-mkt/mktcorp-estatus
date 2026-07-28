@@ -59,6 +59,17 @@ export interface EstadoSala {
   proximaSesion: string | null // ISO
   enPreparacion: boolean
   avancePreparacion?: number // 0..100
+  /** La sesión que se está preparando, para poder ir directo a ella. */
+  sesionEnPreparacionId?: string
+  /**
+   * Cuántas secciones lleva escritas y cuántas tiene.
+   *
+   * Es lo que hace VISIBLE el borrador colaborativo: varias personas llenan
+   * secciones distintas de la misma sesión y el hub lo enseña en crudo — "5
+   * de 14" dice más que una barra al 36%.
+   */
+  seccionesEscritas?: number
+  seccionesTotales?: number
   acuerdos: Acuerdo[]
   presentaciones: Presentacion[]
   minutas: Minuta[]
@@ -178,7 +189,31 @@ export interface PulsoDelMes {
   sesionesUltimos30: number
   acuerdosAbiertos: number
   acuerdosVencidos: number
-  salaMasDesatendida: { nombre: string; dias: number } | null
+  /** `dias: null` = nunca ha tenido sesión, que es lo más desatendido que hay. */
+  salaMasDesatendida: { nombre: string; dias: number | null } | null
+}
+
+/**
+ * La sala que más necesita atención, o ninguna si todas están al día.
+ *
+ * Dos cosas que hacía mal antes:
+ *
+ * 1. Descartaba las salas que NUNCA han tenido sesión (`diasDesdeUltima ==
+ *    null`), que son precisamente las más desatendidas.
+ * 2. Anunciaba una aunque estuviera al día: con una sola sala con historial,
+ *    el hub decía "más desatendida: Mexa Creativa · 0 d" — la que tuvo sesión
+ *    HOY.
+ *
+ * El criterio es la temperatura, que ya sabe la cadencia acordada de cada
+ * sala: mensual y semanal no se desatienden al mismo ritmo.
+ */
+export function salaMasDesatendida(salas: EstadoSala[]): { nombre: string; dias: number | null } | null {
+  const candidatas = salas.filter((s) => temperatura(s) !== 'reciente')
+  if (candidatas.length === 0) return null
+  const peor = [...candidatas].sort(
+    (a, b) => (b.diasDesdeUltima ?? Infinity) - (a.diasDesdeUltima ?? Infinity),
+  )[0]
+  return { nombre: peor.nombre, dias: peor.diasDesdeUltima }
 }
 
 export function pulsoDelMes(): PulsoDelMes {
@@ -186,16 +221,11 @@ export function pulsoDelMes(): PulsoDelMes {
   const sesionesUltimos30 = salas.filter((s) => s.diasDesdeUltima != null && s.diasDesdeUltima <= 30).length
   const abiertos = salas.reduce((n, s) => n + acuerdosAbiertos(s), 0)
   const vencidos = salas.reduce((n, s) => n + acuerdosVencidos(s), 0)
-  const desatendida = salas
-    .filter((s) => s.diasDesdeUltima != null)
-    .sort((a, b) => (b.diasDesdeUltima ?? 0) - (a.diasDesdeUltima ?? 0))[0]
   return {
     salas: salas.length,
     sesionesUltimos30,
     acuerdosAbiertos: abiertos,
     acuerdosVencidos: vencidos,
-    salaMasDesatendida: desatendida?.diasDesdeUltima != null
-      ? { nombre: desatendida.nombre, dias: desatendida.diasDesdeUltima }
-      : null,
+    salaMasDesatendida: salaMasDesatendida(salas),
   }
 }
