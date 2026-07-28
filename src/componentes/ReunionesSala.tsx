@@ -47,7 +47,7 @@ export function ReunionesSala({ reuniones, equipo }: Props) {
   if (reuniones.length === 0) {
     return (
       <p className={estilos.vacioNota}>
-        Todavía no se ha dado ninguna reunión en esta sala. La primera nace al preparar una
+        Todavía no se ha dado ninguna reunión con este cliente. La primera nace al preparar una
         presentación; su minuta se levanta al terminarla.
       </p>
     )

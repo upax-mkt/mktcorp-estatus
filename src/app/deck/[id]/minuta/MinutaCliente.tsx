@@ -295,7 +295,7 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
 
           <div className={estilos.panelMaquetar}>
             <span className={estilos.panelMaquetarTexto}>
-              {incluidos.length} de {filas.length} acuerdos se publicarán en la sala.
+              {incluidos.length} de {filas.length} acuerdos se publicarán en el espacio del cliente.
               {sinFecha > 0 && ' Revisa los que dicen "por definir" antes de enviar el correo.'}
             </span>
             <button

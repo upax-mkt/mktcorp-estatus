@@ -556,7 +556,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               <div className={estilos.accesoTexto}>
                 <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>
                 <p className={estilos.accesoNota}>
-                  Quien tenga este link entra a esta sala —y solo a esta— sin clave: compártelo por
+                  Quien tenga este link entra a este espacio —y solo a este— sin clave: compártelo por
                   canal privado. Caduca en 30 días y no permite mover acuerdos.
                 </p>
               </div>

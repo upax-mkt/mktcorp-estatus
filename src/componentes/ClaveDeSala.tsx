@@ -54,7 +54,7 @@ export function ClaveDeSala({ nombreSala, tiene, creadaEn, regenerarAction, quit
         </div>
         <p className={estilos.claveNota}>
           Con ella, quien la tenga entra a {nombreSala} —y solo a {nombreSala}— y puede mover los
-          acuerdos de la sala. No puede preparar sesiones, subir archivos ni ver otras salas.
+          acuerdos de su espacio. No puede preparar sesiones, subir archivos ni ver otros clientes.
         </p>
         <button type="button" className={estilos.botonVolverSesion} onClick={() => setClave(null)}>
           Ya la copié
@@ -77,7 +77,7 @@ export function ClaveDeSala({ nombreSala, tiene, creadaEn, regenerarAction, quit
             </>
           ) : (
             <>
-              Con una clave, el director entra tecleándola y llega directo a su sala. Puede mover
+              Con una clave, el director entra tecleándola y llega directo a su espacio. Puede mover
               acuerdos; nada más.
             </>
           )}

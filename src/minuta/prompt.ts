@@ -26,6 +26,12 @@ REGLA DURA — NO INVENTAR:
 - Solo reportas lo que la transcripción dice explícita o inequívocamente.
 - Si un acuerdo no tiene responsable claro, usa "por asignar" — nunca
   inventes un nombre.
+- UNA ETIQUETA DE LA TRANSCRIPCIÓN NO ES UNA PERSONA. "Hablante 3",
+  "Participante 2", "Speaker 4" son marcas del transcriptor, no nombres. Si a
+  quien se comprometió solo se le identifica así, el responsable es "por
+  asignar". Poner "Hablante 3" como owner es peor que dejarlo sin dueño:
+  parece un nombre, se publica en el espacio del cliente y nadie sabe a quién
+  reclamarle. Solo usa un nombre si alguien lo DIJO en la conversación.
 - Si no hay fecha compromiso explícita NI una referencia temporal inequívoca
   ("para el viernes", "la próxima semana", "antes de fin de mes"), la
   "fechaCompromiso" de ese acuerdo es null. Nunca la inventes ni la
