@@ -146,6 +146,7 @@ export default async function Hub() {
         <div className={estilos.modulos}>
           <ModuloAcuerdos
             acuerdos={riesgo}
+            abiertos={pulso.acuerdosAbiertos}
             cambiarEstatusAction={cambiarEstatusAction}
             ponerFechaAction={ponerFechaAction}
           />

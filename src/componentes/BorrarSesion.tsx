@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import estilos from '@/app/preparar/preparar.module.css'
 
 /**
- * Borrar una sesión creada por error, con su cuestionario y su deck.
+ * Borrar una sesión creada por error, con su cuestionario y su documento.
  *
  * Hasta ahora una sesión mal creada se quedaba para siempre ensuciando la
  * lista de preparación y el histórico de la sala. Los acuerdos que se hayan
@@ -19,7 +19,7 @@ export function BorrarSesion({ borrarAction }: { borrarAction: () => Promise<voi
     <div className={estilos.zonaPeligro}>
       <p className={estilos.zonaPeligroTexto}>
         {confirmando
-          ? 'Se borran el cuestionario, su contenido y el deck maquetado. Los acuerdos ya publicados en la sala se quedan.'
+          ? 'Se borran el cuestionario, su contenido y el documento maquetado. Los acuerdos ya publicados en la sala se quedan.'
           : '¿Creaste esta sesión por error?'}
       </p>
       {confirmando ? (

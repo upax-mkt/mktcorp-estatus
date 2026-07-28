@@ -89,5 +89,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fila { transition: none; }
-  .sobrevolando { transform: none; box-shadow: 0 0 0 2px oklch(0.62 0.19 42); }
+  /* Sin animación, el anillo es lo único que dice cuál fila va con el cursor.
+     Sale del sistema visual, no de un naranja suelto. */
+  .sobrevolando { transform: none; box-shadow: 0 0 0 2px var(--marca, var(--tinta)); }
 }

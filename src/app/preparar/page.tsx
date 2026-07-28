@@ -37,7 +37,9 @@ export default async function PagPreparar() {
         <div className={estilos.encabezado}>
           <div>
             <h1 className={estilos.titulo}>Preparar una sesión</h1>
-            <p className={estilos.subtitulo}>Crear → llenar → maquetar → ver el deck.</p>
+            {/* Ya no hay decks: el resultado es un documento web que se lee con
+                scroll y se proyecta. Prometer un deck es prometer otra cosa. */}
+            <p className={estilos.subtitulo}>Crear → llenar → maquetar → presentar.</p>
           </div>
           <Link href="/preparar/nueva" className={`${estilos.boton} ${estilos.botonAcento}`}>
             + Nueva sesión

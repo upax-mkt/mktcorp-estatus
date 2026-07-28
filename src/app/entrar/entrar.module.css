@@ -101,7 +101,10 @@
 .input:focus {
   outline: none;
   border-color: var(--acento);
-  box-shadow: 0 0 0 3px oklch(0.62 0.19 42 / 0.12);
+  /* El halo SALE del acento. Cuando estaba incrustado en naranja, el campo
+     —que llega enfocado por `autoFocus`— se leía como un error de validación
+     antes de que nadie escribiera nada. */
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--acento) 12%, transparent);
 }
 
 .boton {

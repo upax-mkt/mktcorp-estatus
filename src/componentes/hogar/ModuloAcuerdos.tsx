@@ -20,19 +20,29 @@ import estilos from '@/app/hub.module.css'
 
 interface Props {
   acuerdos: AcuerdoEnRiesgo[]
+  /** Cuántos hay abiertos EN TOTAL. Ver el vacío de abajo. */
+  abiertos: number
   cambiarEstatusAction: (id: string, estatus: EstatusAcuerdo) => Promise<void>
   ponerFechaAction: (id: string, fecha: string | null) => Promise<void>
 }
 
-export function ModuloAcuerdos({ acuerdos, cambiarEstatusAction, ponerFechaAction }: Props) {
+export function ModuloAcuerdos({
+  acuerdos, abiertos, cambiarEstatusAction, ponerFechaAction,
+}: Props) {
   if (acuerdos.length === 0) {
     return (
       <section className={`tarjeta ${estilos.modulo}`}>
         <header className={estilos.moduloCabecera}>
           <h2 className={estilos.moduloTitulo}>Acuerdos y pendientes</h2>
         </header>
+        {/* DOS vacíos, no uno. Sin acuerdos de ninguna clase, decir "todo lo
+            abierto tiene dueño y día" es cantar victoria sobre un conjunto
+            vacío: se lee como que el trabajo está al día cuando en realidad
+            nadie ha registrado nada. */}
         <p className={estilos.moduloVacio}>
-          Nada vencido ni sin fecha. Todo lo abierto tiene dueño y día.
+          {abiertos === 0
+            ? 'Todavía no hay acuerdos. Se levantan en la sala o al cerrar una minuta.'
+            : 'Nada vencido ni sin fecha. Todo lo abierto tiene dueño y día.'}
         </p>
       </section>
     )
