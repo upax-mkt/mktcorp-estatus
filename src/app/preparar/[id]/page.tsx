@@ -17,7 +17,7 @@ import {
 import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
-import { obtenerTema, temaDeSala } from '@/temas'
+import { temaDeSala } from '@/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
