@@ -3,14 +3,22 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
+import { LevantarMinuta, type SesionMinutable } from '@/componentes/LevantarMinuta'
 import estilos from '@/app/hub.module.css'
 
 /**
- * Las minutas de todas las salas, en el Home, y el botón de levantar una.
+ * Las minutas de todas las salas, en el Home, Y LEVANTAR UNA DESDE AQUÍ.
  *
- * Antes vivían enterradas: había que saber de qué sala era, entrar, y
- * buscarla. Una minuta se cita durante semanas — es material de consulta, y
- * el material de consulta va donde uno ya está mirando.
+ * Franco, dos veces: "sigo sin ver la generación de minutas como módulo
+ * agnóstico en el Home". Tenía razón — este módulo solo LEÍA. Levantar una
+ * seguía obligando a saber de qué sala era, entrar a esa sala y buscar el
+ * botón allí, que es exactamente el rodeo que el módulo venía a quitar.
+ *
+ * Agnóstico significa dos cosas y las dos se cumplen aquí: sirve para
+ * cualquier tipo de reunión —no solo un estatus de UDN— y no le importa de
+ * qué sala viene. Es la MISMA pieza que usa la sala (`LevantarMinuta`), con
+ * las sesiones de las diez en vez de las de una; tenerla dos veces
+ * garantizaría que una de las dos se quede atrás.
  *
  * Se lee en una ventana flotante, con el mismo `<dialog>` nativo de la sala:
  * foco atrapado, Escape y fondo inerte los pone el navegador.
@@ -29,8 +37,8 @@ export interface MinutaEnHome {
 
 interface Props {
   minutas: MinutaEnHome[]
-  /** Salas con una sesión presentada sin minuta: de ahí se puede levantar una. */
-  pendientes: number
+  /** Reuniones presentadas que todavía no tienen minuta, de las diez salas. */
+  pendientes: SesionMinutable[]
 }
 
 export function ModuloMinutas({ minutas, pendientes }: Props) {
@@ -48,15 +56,21 @@ export function ModuloMinutas({ minutas, pendientes }: Props) {
     <section className={`tarjeta ${estilos.modulo}`}>
       <header className={estilos.moduloCabecera}>
         <h2 className={estilos.moduloTitulo}>Minutas</h2>
-        {pendientes > 0 && (
-          <span className="pildora" data-tono="ojo">{pendientes} sesión(es) sin minuta</span>
+        {pendientes.length > 0 && (
+          <span className="pildora" data-tono="ojo">
+            {pendientes.length === 1 ? '1 reunión sin minuta' : `${pendientes.length} reuniones sin minuta`}
+          </span>
         )}
       </header>
 
       {minutas.length === 0 ? (
+        // UN solo vacío, no dos. Cuando no hay minutas Y tampoco reuniones que
+        // minutar, el módulo decía dos veces lo mismo con otras palabras —el
+        // suyo y el del disparador— y parecían dos problemas distintos.
         <p className={estilos.moduloVacio}>
-          Todavía no hay ninguna. Se levantan desde la sala, cargando la transcripción de la
-          reunión.
+          {pendientes.length === 0
+            ? 'Todavía no hay ninguna. Se levantan desde una reunión ya presentada: al terminarla, márcala como presentada desde su documento.'
+            : 'Todavía no hay ninguna. Levanta la primera cargando la transcripción de la reunión.'}
         </p>
       ) : (
         <ul className={estilos.listaMinutas}>
@@ -75,6 +89,18 @@ export function ModuloMinutas({ minutas, pendientes }: Props) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* El disparador solo cuando hay algo que minutar. Sin reuniones
+          presentadas, por qué no se puede ya lo dice el vacío de arriba. */}
+      {pendientes.length > 0 && (
+        <div className={estilos.moduloPie}>
+          <LevantarMinuta
+            sesiones={pendientes}
+            claseBoton="boton"
+            etiquetaBoton="Levantar una minuta"
+          />
+        </div>
       )}
 
       <dialog

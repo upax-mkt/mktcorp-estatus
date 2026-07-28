@@ -10,6 +10,7 @@ import {
   acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
 import { sesionesSinMinuta } from '@/dominio/salas'
+import { altoDeLogo, SIN_LOGO } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { listarSesiones } from '@/db/sesiones'
 import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta } from '@/lib/fecha'
@@ -17,6 +18,7 @@ import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
+import type { SesionMinutable } from '@/componentes/LevantarMinuta'
 
 /**
  * El Home.
@@ -78,7 +80,12 @@ export default async function Hub() {
     )
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  const sinMinuta = salasCrudas.reduce((n, s) => n + sesionesSinMinuta(s).length, 0)
+  // Las reuniones presentadas SIN minuta, de las diez salas. Antes esto era un
+  // número —"3 sesiones sin minuta"— y con un número no se puede levantar
+  // ninguna: hay que saber cuáles son.
+  const sinMinuta: SesionMinutable[] = salasCrudas.flatMap((s) =>
+    sesionesSinMinuta(s).map((x) => ({ ...x, salaNombre: s.nombre, salaColor: s.color })),
+  )
 
   const paraCalendario = sesiones.map((s) => ({
     id: s.id,
@@ -180,15 +187,18 @@ export default async function Hub() {
                       poner ahí el logo de UPAX daría dos tarjetas idénticas
                       con salas distintas, que es peor que no poner ninguno. */}
                   <span className={estilos.salaLogo}>
-                    {s.slug === 'ceci' ? (
+                    {SIN_LOGO.has(s.slug) ? (
                       <span className={estilos.salaNombre}>{s.nombre}</span>
                     ) : (
                       <Image
                         src={`/logos/${s.slug}-color.png`}
                         alt={s.nombre}
-                        width={220}
-                        height={52}
+                        width={240}
+                        height={56}
                         className={estilos.salaLogoImg}
+                        // Cada marca a SU altura: igualar alturas hace que un
+                        // logotipo apaisado ocupe cuatro veces más mancha.
+                        style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
                       />
                     )}
                   </span>

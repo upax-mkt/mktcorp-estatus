@@ -250,3 +250,69 @@ export function pulsoDelMes(): PulsoDelMes {
     salaMasDesatendida: salaMasDesatendida(salas),
   }
 }
+
+/**
+ * UNA REUNIÓN: lo que se presentó y lo que se acordó, juntos.
+ *
+ * Franco: "el módulo Presentaciones y minutas creo que debe ser uno, así la
+ * presentación está asociada a una minuta, es decir a una reunión".
+ *
+ * Tiene razón y el modelo ya lo decía: presentación y minuta cuelgan de la
+ * MISMA `sesionId`. Lo que estaba partido era la pantalla — dos listas
+ * paralelas, cada una ordenada por su cuenta, y para saber qué se acordó en la
+ * presentación de mayo había que buscar mayo dos veces.
+ *
+ * Aquí se unen por la sesión de la que salieron. El caso raro también existe y
+ * no se esconde: una minuta cargada a mano sin presentación (una reunión que
+ * se dio antes de esta herramienta) es una reunión igual, sin documento.
+ */
+export interface Reunion {
+  /** La sesión. Es la identidad de la reunión. */
+  sesionId?: string
+  fecha: string // ISO
+  titulo: string
+  /** El documento que se presentó, si se armó en la app. */
+  presentacion?: Presentacion
+  /** Lo que se acordó, si ya se levantó. */
+  minuta?: Minuta
+}
+
+/**
+ * Las reuniones de una sala, de la más reciente a la más antigua.
+ *
+ * Una presentación y una minuta de la misma sesión son UNA reunión. Lo que no
+ * tiene `sesionId` —los datos que llegaron sin ella— no se puede emparejar con
+ * nada, así que va suelto en vez de emparejarse por fecha: coincidir en el día
+ * no significa ser la misma reunión, y una sala puede tener dos el mismo día.
+ */
+export function reunionesDeSala(
+  presentaciones: Presentacion[],
+  minutas: Minuta[],
+): Reunion[] {
+  const porSesion = new Map<string, Reunion>()
+  const sueltas: Reunion[] = []
+
+  for (const p of presentaciones) {
+    const r: Reunion = { sesionId: p.sesionId, fecha: p.fecha, titulo: p.titulo, presentacion: p }
+    if (p.sesionId) porSesion.set(p.sesionId, r)
+    else sueltas.push(r)
+  }
+
+  for (const m of minutas) {
+    const existente = m.sesionId ? porSesion.get(m.sesionId) : undefined
+    if (existente) {
+      existente.minuta = m
+      continue
+    }
+    const r: Reunion = { sesionId: m.sesionId, fecha: m.fecha, titulo: m.titulo, minuta: m }
+    if (m.sesionId) porSesion.set(m.sesionId, r)
+    else sueltas.push(r)
+  }
+
+  return [...porSesion.values(), ...sueltas].sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+/** Reuniones que se presentaron y siguen sin minuta. */
+export function reunionesSinMinuta(reuniones: Reunion[]): Reunion[] {
+  return reuniones.filter((r) => r.presentacion && !r.minuta)
+}

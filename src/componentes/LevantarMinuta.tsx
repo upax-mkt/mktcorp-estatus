@@ -7,12 +7,17 @@ import { fechaCompleta } from '@/lib/fecha'
 import estilos from '@/app/sala/sala.module.css'
 
 /**
- * Levantar una minuta desde la propia sala.
+ * Levantar una minuta desde donde se esté.
  *
  * Franco: "un botón para cargar una transcripción y generar con IA la minuta
  * directamente". Directamente significa DESDE AQUÍ: hasta ahora había que
  * acordarse de qué sesión era, entrar al preparador, buscarla y abrir su
  * pantalla de minuta.
+ *
+ * AGNÓSTICO de dónde vive: la sala le pasa sus sesiones sin minuta y el Home
+ * le pasa las de las diez. Lo único que cambia es si cada fila dice de qué
+ * sala es. Es la misma pieza porque es la misma tarea, y tenerla dos veces
+ * garantiza que una de las dos se quede atrás.
  *
  * Lo que NO se salta es la revisión. La generación propone acuerdos y esos
  * acuerdos, al publicarse, nacen en la sala con dueño y fecha: pasan por la
@@ -25,14 +30,30 @@ export interface SesionMinutable {
   id: string
   titulo: string
   fecha: string // ISO
+  /**
+   * De qué sala es. Solo hace falta cuando la lista cruza salas —el Home—;
+   * dentro de una sala repetir su nombre en cada fila es ruido.
+   */
+  salaNombre?: string
+  salaColor?: string
 }
 
 interface Props {
   /** Sesiones ya presentadas que todavía no tienen minuta. */
   sesiones: SesionMinutable[]
+  /** Cómo se ve el disparador. Cada sitio lo viste con su hoja de estilos. */
+  claseBoton?: string
+  etiquetaBoton?: string
+  /** Qué decir cuando no hay ninguna sesión que minutar. */
+  claseVacio?: string
 }
 
-export function NuevaMinutaSala({ sesiones }: Props) {
+export function LevantarMinuta({
+  sesiones,
+  claseBoton,
+  etiquetaBoton = 'Levantar minuta con IA',
+  claseVacio,
+}: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [sesionId, setSesionId] = useState<string | null>(null)
@@ -55,9 +76,9 @@ export function NuevaMinutaSala({ sesiones }: Props) {
   // sesión como presentada al terminar la reunión.
   if (sesiones.length === 0) {
     return (
-      <p className={estilos.vacioNota}>
-        Para levantar una minuta hace falta una sesión ya presentada. Al terminar la reunión,
-        marca la sesión como presentada desde su documento.
+      <p className={claseVacio ?? estilos.vacioNota}>
+        Para levantar una minuta hace falta una reunión ya presentada. Al terminar, marca la
+        sesión como presentada desde su documento.
       </p>
     )
   }
@@ -66,8 +87,12 @@ export function NuevaMinutaSala({ sesiones }: Props) {
 
   return (
     <>
-      <button type="button" className={estilos.nuevaMinutaBoton} onClick={() => setAbierto(true)}>
-        Levantar minuta con IA
+      <button
+        type="button"
+        className={claseBoton ?? estilos.nuevaMinutaBoton}
+        onClick={() => setAbierto(true)}
+      >
+        {etiquetaBoton}
       </button>
 
       <dialog
@@ -85,7 +110,7 @@ export function NuevaMinutaSala({ sesiones }: Props) {
               <h3 className={estilos.lightboxTitulo}>Levantar minuta</h3>
               <div className={estilos.lightboxFecha}>
                 {elegida
-                  ? `${elegida.titulo} · ${fechaCompleta(elegida.fecha)}`
+                  ? `${elegida.salaNombre ? `${elegida.salaNombre} · ` : ''}${elegida.titulo} · ${fechaCompleta(elegida.fecha)}`
                   : 'Elige de qué sesión, y pega la transcripción.'}
               </div>
             </div>
@@ -109,7 +134,20 @@ export function NuevaMinutaSala({ sesiones }: Props) {
                     className={estilos.eleccionFila}
                     onClick={() => setSesionId(s.id)}
                   >
-                    <span className={estilos.eleccionTitulo}>{s.titulo}</span>
+                    <span className={estilos.eleccionTitulo}>
+                      {/* El punto de color y el nombre de la sala solo salen
+                          cuando la lista cruza salas: dentro de una, repetir
+                          su nombre en cada fila es ruido. */}
+                      {s.salaNombre && (
+                        <span
+                          className={estilos.eleccionSala}
+                          style={{ '--marca': s.salaColor } as React.CSSProperties}
+                        >
+                          {s.salaNombre}
+                        </span>
+                      )}
+                      {s.titulo}
+                    </span>
                     <span className={estilos.eleccionFecha}>{fechaCompleta(s.fecha)}</span>
                   </button>
                 ))}

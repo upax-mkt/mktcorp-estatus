@@ -170,33 +170,47 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .presFilaTitulo { color: var(--tx); font-weight: 500; }
 .presFilaFecha { color: var(--tx-3); font-variant-numeric: tabular-nums; font-size: 0.82rem; }
 
-/* ---- minutas ---- */
-.minutas { display: flex; flex-direction: column; }
-
-/* Cada minuta ABRE UNA VENTANA, no navega: por eso son <button>, y por eso hay
-   que devolverles a mano la apariencia que el navegador les quita. */
-.minuta {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  width: 100%; text-align: left; font: inherit; font-size: 0.92rem; color: inherit;
-  padding: 0.85rem 0.25rem; border: none; border-top: 1px solid var(--borde);
-  background: none; cursor: pointer;
-  transition: background 0.15s ease, padding-inline 0.15s ease;
+/* ---- reuniones: la presentación y su minuta, en la misma fila ----
+   Las dos "caras" comparten aspecto aunque una sea <a> y la otra <button>:
+   para quien mira son la misma clase de cosa —una parte de esta reunión— y
+   distinguirlas visualmente por su etiqueta HTML sería un accidente. */
+.reunionDestacada {
+  padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3);
+  background: var(--papel-hundido);
 }
-.minuta:last-child { border-bottom: 1px solid var(--borde); }
-.minuta:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
-.minuta:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
-.minutaIzq { display: flex; align-items: center; gap: 0.7rem; }
-.minutaIcono { color: var(--tx-3); }
-.minutaEnviada { font-size: 0.78rem; color: var(--tx-3); }
-
-.minutaDestacada {
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem;
-  width: 100%; text-align: left; font: inherit; color: inherit;
-  padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3); background: var(--papel-hundido); cursor: pointer;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+.reunionCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.reuniones { display: flex; flex-direction: column; }
+.reunionFila {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde);
 }
-.minutaDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
-.minutaDestacada:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+.reunionFila:last-child { border-bottom: 1px solid var(--borde); }
+.reunionFilaTexto { display: flex; align-items: baseline; gap: 0.7rem; min-width: 0; }
+.reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
+
+.caras { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.carasCompactas { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+
+.cara {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.42rem 0.8rem; border-radius: var(--r-lleno);
+  border: 1px solid var(--borde); background: var(--papel);
+  font: inherit; font-size: 0.83rem; font-weight: 600; color: var(--tx);
+  text-decoration: none; cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cara:hover { border-color: var(--marca); background: color-mix(in oklch, var(--marca) 7%, transparent); }
+.cara:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+/* Lo que FALTA se dice; no se omite. Una fila que simplemente no enseña el
+   botón de minuta no se distingue de una que sí la tiene. */
+.caraPendiente, .caraAusente {
+  display: inline-flex; align-items: center;
+  padding: 0.42rem 0.8rem; border-radius: var(--r-lleno);
+  font-size: 0.83rem; font-weight: 500;
+}
+.caraPendiente { color: var(--ojo); background: var(--ojo-tenue); }
+.caraAusente { color: var(--tx-3); background: var(--papel-hundido); }
 
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 
@@ -584,3 +598,11 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   user-select: all;
 }
 .claveNota { font-size: 0.85rem; color: var(--tx-2); margin: 0; line-height: 1.5; max-width: 62ch; }
+
+/* El nombre de la sala en la elección de sesión. Solo sale cuando la lista
+   cruza salas —el Home—; dentro de una, repetirlo en cada fila es ruido. */
+.eleccionSala {
+  display: inline-block; margin-right: 0.5rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--marca);
+}

@@ -7,7 +7,7 @@ import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
 } from '@/db/consultas'
-import { sesionesSinMinuta } from '@/dominio/salas'
+import { sesionesSinMinuta, reunionesDeSala } from '@/dominio/salas'
 import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
@@ -17,8 +17,8 @@ import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
-import { MinutasSala } from '@/componentes/MinutasSala'
-import { NuevaMinutaSala } from '@/componentes/NuevaMinutaSala'
+import { ReunionesSala } from '@/componentes/ReunionesSala'
+import { LevantarMinuta } from '@/componentes/LevantarMinuta'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
@@ -26,7 +26,7 @@ import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
 import { crearSesionConEstructura } from '@/db/sesiones'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
+import { fechaBreve, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
 import {
   esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala,
@@ -258,9 +258,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const abiertos = acuerdosAbiertos(s)
   const vencidos = acuerdosVencidos(s)
-  const presReciente = s.presentaciones[0]
-  const presAnteriores = s.presentaciones.slice(1)
-
+  // Una reunión = la presentación y su minuta, unidas por la sesión de la que
+  // salieron. Ver `reunionesDeSala`.
+  const reuniones = reunionesDeSala(s.presentaciones, s.minutas)
   const pendientesDeMinuta = sesionesSinMinuta(s)
 
   return (
@@ -350,43 +350,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
         </section>
 
-        {/* Presentaciones — las armadas en la app y las antiguas subidas */}
+        {/* REUNIONES — la presentación y su minuta, juntas.
+            Franco: "el módulo Presentaciones y minutas creo que debe ser uno,
+            así la presentación está asociada a una minuta, es decir a una
+            reunión". Eran dos listas paralelas ordenadas cada una por su
+            cuenta; para saber qué se acordó en la presentación de mayo había
+            que buscar mayo dos veces. */}
         <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Presentaciones</h2>
-          {/* Enlaza a la sesión REAL. Una presentación sin `sesionId` es de
-              los datos de ejemplo (sin DB): se muestra sin enlace en vez de
-              llevar a un documento que no existe. */}
-          {presReciente && presReciente.sesionId && (
-            <Link href={`/sesion/${presReciente.sesionId}`} className={estilos.presDestacada}>
-              <div>
-                <div className={estilos.presTag}>Más reciente</div>
-                <h3 className={estilos.presTitulo}>{presReciente.titulo}</h3>
-                <div className={estilos.presFecha}>{fechaCompleta(presReciente.fecha)}</div>
-              </div>
-              <span className={estilos.presVer}>Ver presentación →</span>
-            </Link>
-          )}
-          {equipo && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
+          <h2 className={estilos.seccionTitulo}>
+            Reuniones
+            {reuniones.length > 0 && <span className={estilos.conteo}>{reuniones.length}</span>}
+          </h2>
 
-          {presAnteriores.length > 0 && (
-            <div className={estilos.presTimeline}>
-              {presAnteriores.map((p) => (
-                <Link
-                  key={p.sesionId ?? p.fecha}
-                  href={p.sesionId ? `/sesion/${p.sesionId}` : '#'}
-                  className={estilos.presFila}
-                >
-                  <span className={estilos.presFilaTitulo}>{p.titulo}</span>
-                  <span className={estilos.presFilaFecha}>{fechaBreveConAnio(p.fecha)}</span>
-                </Link>
-              ))}
+          <ReunionesSala reuniones={reuniones} equipo={equipo} />
+
+          {equipo && (
+            <div className={estilos.reunionAcciones}>
+              <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />
+              <LevantarMinuta sesiones={pendientesDeMinuta} />
             </div>
           )}
 
           {/* Las anteriores a esta herramienta: archivos, no documentos web.
-              Van en la misma sección porque para el director son lo mismo —
-              "las presentaciones de mi sala"—, con su propio subtítulo para
-              que se entienda por qué unas se abren y otras se descargan. */}
+              Van en la misma sección porque para el director son lo mismo —lo
+              que se le presentó— con su propio subtítulo para que se entienda
+              por qué unas se abren y otras se descargan. */}
           {(archivosPresentaciones.length > 0 || equipo) && (
             <div className={estilos.subseccion}>
               <h3 className={estilos.subseccionTitulo}>Antes de esta herramienta</h3>
@@ -401,16 +389,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               />
             </div>
           )}
-        </section>
-
-        {/* Minutas */}
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>
-            Minutas
-            {s.minutas.length > 0 && <span className={estilos.conteo}>{s.minutas.length}</span>}
-          </h2>
-          <MinutasSala minutas={s.minutas} equipo={equipo} />
-          {equipo && <NuevaMinutaSala sesiones={pendientesDeMinuta} />}
         </section>
 
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}

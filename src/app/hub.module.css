@@ -231,31 +231,43 @@
 
 /* ---- salas ---- */
 .salas {
-  display: grid; gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  display: grid; gap: 1.25rem;
+  /* 19rem y no 16: con 16 entraban cuatro tarjetas en las que el logotipo,
+     dos datos y las píldoras se pisaban. Franco: "todo se ve súper chico y
+     junto". Una tarjeta tiene que caber en lo que enseña. */
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
 }
 .sala {
   position: relative;
-  display: grid; grid-template-rows: auto auto auto auto; gap: 0.85rem;
-  padding: 1.3rem 1.25rem 1.1rem;
+  display: grid; grid-template-rows: auto auto auto auto; gap: 1.1rem;
+  padding: 1.6rem 1.5rem 1.35rem;
   text-decoration: none; color: inherit; overflow: hidden;
+  transition: transform var(--rapido) var(--suave), box-shadow var(--rapido) var(--suave);
 }
+.sala:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
+@media (prefers-reduced-motion: reduce) { .sala:hover { transform: none; } }
+
 /* El filo de marca, arriba. Es lo único de color de la tarjeta además del
-   logotipo — el resto es neutro, como en la referencia. */
+   logotipo — el resto es neutro. */
 .sala::before {
   content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--marca);
 }
 
-/* El logotipo vive en un carril de altura fija y se ajusta DENTRO: los
-   lockups van de 1,6:1 a 7:1, y sin carril una marca apaisada saldría el
-   triple de grande que una compacta. */
-.salaLogo { display: flex; align-items: center; height: 34px; }
-.salaLogoImg { max-height: 100%; max-width: min(100%, 11rem); width: auto; height: auto; object-fit: contain; object-position: left center; }
+/* EL CARRIL DEL LOGOTIPO tiene la altura de la tarjeta más alta (la de House
+   of Films, casi cuadrada) para que las diez tarjetas alineen su primera
+   línea de datos. Dentro, cada logo se dibuja a SU altura, que sale de
+   igualar la mancha — ver `src/temas/logos.ts`. Normalizar por altura hacía
+   que Research Land, 4,2 veces más apaisado, se leyera como si gritara. */
+.salaLogo { display: flex; align-items: center; height: 56px; }
+.salaLogoImg {
+  height: var(--alto-logo, 40px); width: auto;
+  max-width: 100%; object-fit: contain; object-position: left center;
+}
 
-.salaCuando { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.salaDato { display: grid; gap: 0.2rem; min-width: 0; }
+.salaCuando { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+.salaDato { display: grid; gap: 0.25rem; min-width: 0; }
 .salaDatoV {
-  font-size: 0.86rem; font-weight: 600; letter-spacing: var(--track-normal);
+  font-size: 0.95rem; font-weight: 600; letter-spacing: var(--track-normal);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .salaDatoV[data-temp='reciente'] { color: var(--bien); }
@@ -263,17 +275,23 @@
 .salaDatoV[data-temp='fria'] { color: var(--mal); }
 .salaDatoV[data-pendiente='true'] { color: var(--ojo); }
 
-.salaAvance { display: grid; gap: 0.35rem; }
-.salaAvanceTexto { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.74rem; color: var(--tinta-3); }
-.salaBarra { height: 4px; border-radius: var(--r-lleno); background: var(--papel-hundido); overflow: hidden; }
+.salaAvance { display: grid; gap: 0.4rem; }
+.salaAvanceTexto { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.78rem; color: var(--tinta-3); }
+.salaBarra { height: 5px; border-radius: var(--r-lleno); background: var(--papel-hundido); overflow: hidden; }
 .salaBarraRelleno { display: block; height: 100%; border-radius: var(--r-lleno); background: var(--marca); min-width: 3px; }
 
-.salaChips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: auto; padding-top: 0.2rem; }
+.salaChips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.3rem; }
 
 /* Ceci hereda la identidad de Grupo UPAX, así que su tarjeta lleva el nombre
    en vez del logotipo: dos tarjetas con el mismo logo y distinta sala es peor
    que ninguna marca. */
 .salaNombre {
-  font-size: 1.15rem; font-weight: 600; letter-spacing: var(--track-titulo);
+  font-size: 1.3rem; font-weight: 600; letter-spacing: var(--track-titulo);
   color: var(--tinta);
+}
+
+/* El pie de un módulo: donde vive su acción, separada de lo que se lee. */
+.moduloPie {
+  margin-top: 1rem; padding-top: 0.9rem;
+  border-top: 1px solid var(--linea);
 }
