@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import estilos from '@/app/preparar/preparar.module.css'
+import estilos from '@/app/deck/deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
@@ -48,11 +48,11 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href={`/sala/${sesion.salaSlug}`} className={estilos.volver}>← {sesion.salaNombre}</Link>
+        <Link href={`/cliente/${sesion.salaSlug}`} className={estilos.volver}>← {sesion.salaNombre}</Link>
         <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {equipo && (
-            <Link href={`/preparar/${sesion.id}`} className={estilos.volver}>Editar →</Link>
+            <Link href={`/deck/${sesion.id}`} className={estilos.volver}>Editar →</Link>
           )}
         </div>
       </header>

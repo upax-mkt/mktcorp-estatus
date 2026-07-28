@@ -5,7 +5,7 @@ import { upload } from '@vercel/blob/client'
 import type { ArchivoSala, CategoriaArchivo } from '@/db/archivos'
 import { extensionDe, pesoLegible, rutaDeArchivo, TAMANO_MAXIMO } from '@/lib/blob'
 import { fechaBreveConAnio } from '@/lib/fecha'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 
 /**
  * Los archivos colgados en una sala: subir, renombrar, refechar y quitar.

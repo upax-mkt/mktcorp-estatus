@@ -1,6 +1,6 @@
 'use client'
 
-import estilos from '@/app/preparar/preparar.module.css'
+import estilos from '@/app/deck/deck.module.css'
 
 /**
  * El mapa de la sesión, siempre a la vista.

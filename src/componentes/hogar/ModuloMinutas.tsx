@@ -149,7 +149,7 @@ export function ModuloMinutas({
             )}
 
             <footer className={estilos.lightboxPie}>
-              <Link href={`/sala/${abierta.salaSlug}`} className="boton" data-tono="suave">
+              <Link href={`/cliente/${abierta.salaSlug}`} className="boton" data-tono="suave">
                 Ir a {abierta.salaNombre} →
               </Link>
             </footer>

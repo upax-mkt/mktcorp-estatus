@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { CSSProperties } from 'react'
-import estilos from '../../preparar.module.css'
+import estilos from '../../deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
@@ -43,14 +43,14 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
     return (
       <div className={estilos.app} style={estiloSala}>
         <header className={estilos.barra}>
-          <Link href={`/preparar/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
+          <Link href={`/deck/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
           <div className={estilos.barraTitulo}>{sesion.salaNombre} · Minuta</div>
         </header>
         <main className={estilos.main}>
           <p className={estilos.panelMaquetarAviso}>
             Esta reunión está agendada para el {fechaCompleta(sesion.fecha)}. La minuta se levanta
             cuando ya se dio: se pega su transcripción y la IA propone el acta y los acuerdos.{' '}
-            <Link href={`/preparar/${sesion.id}`}>Volver al cuestionario</Link>.
+            <Link href={`/deck/${sesion.id}`}>Volver al cuestionario</Link>.
           </p>
         </main>
       </div>
@@ -65,27 +65,27 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
     'use server'
     await exigirEquipo()
     await editarTextoMinuta(id, texto)
-    revalidatePath(`/preparar/${id}/minuta`)
+    revalidatePath(`/deck/${id}/minuta`)
   }
 
   async function eliminarAction() {
     'use server'
     await exigirEquipo()
     await eliminarMinuta(id)
-    revalidatePath(`/preparar/${id}/minuta`)
+    revalidatePath(`/deck/${id}/minuta`)
   }
 
   async function cargarExternaAction(texto: string) {
     'use server'
     await exigirEquipo()
     await cargarMinutaExterna(id, texto)
-    revalidatePath(`/preparar/${id}/minuta`)
+    revalidatePath(`/deck/${id}/minuta`)
   }
 
   return (
     <div className={estilos.app} style={estiloSala}>
       <header className={estilos.barra}>
-        <Link href={`/preparar/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
+        <Link href={`/deck/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
         <div className={estilos.barraTitulo}>{sesion.salaNombre} · Minuta</div>
       </header>
 

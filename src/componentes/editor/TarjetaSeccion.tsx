@@ -6,7 +6,7 @@ import { EditorSeccion, type SubirImagen } from './EditorSeccion'
 import { EliminarSeccion } from './EliminarSeccion'
 import { SeccionPlegable } from './SeccionPlegable'
 import { loQueFalta } from '@/secciones/borrador'
-import estilos from '@/app/preparar/preparar.module.css'
+import estilos from '@/app/deck/deck.module.css'
 
 /**
  * Una sección de la sesión dentro del editor: su cabecera (nombre, tipo,

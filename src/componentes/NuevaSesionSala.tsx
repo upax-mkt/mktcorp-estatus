@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 
 /**
  * Preparar una presentación DESDE la sala.
  *
- * Lo pidió Franco (punto 3): antes había que salir a `/preparar/nueva`,
+ * Lo pidió Franco (punto 3): antes había que salir a `/deck/nueva`,
  * elegir otra vez de qué sala era —estando ya dentro de ella— y volver. La
  * sala ya sabe de quién es; lo único que falta preguntar es qué reunión es y
  * para cuándo.

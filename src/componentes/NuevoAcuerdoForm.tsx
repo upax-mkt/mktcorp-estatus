@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 
 interface Props {
   crearAction: (datos: {

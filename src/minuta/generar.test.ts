@@ -44,7 +44,7 @@ describe('generarMinuta', () => {
 
   it('incluye la URL de la sesión (link de la sala)', async () => {
     const r = await generarMinuta(sesion, 'x', clienteQueDevuelve(MINUTA_VALIDA))
-    expect(r.textoCorreo).toContain('/sala/neracode')
+    expect(r.textoCorreo).toContain('/cliente/neracode')
   })
 
   it('marca "por definir" en la tabla cuando el acuerdo no trae fecha, sin inventarla', async () => {

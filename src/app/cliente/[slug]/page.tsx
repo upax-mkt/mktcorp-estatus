@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
-import estilos from '../sala.module.css'
+import estilos from '../cliente.module.css'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
@@ -105,7 +105,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     'use server'
     await exigirEdicionDeAcuerdos(slug)
     await moverEstatus(acuerdoId, estatus)
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
 
@@ -113,7 +113,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     'use server'
     await exigirEdicionDeAcuerdos(slug)
     await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
 
@@ -131,7 +131,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       squad: datos.squad,
       fechaCompromiso: datos.fechaCompromiso ? new Date(datos.fechaCompromiso) : null,
     })
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
 
@@ -139,7 +139,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     'use server'
     await exigirEdicionDeAcuerdos(slug)
     await eliminarAcuerdo(acuerdoId)
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
 
@@ -174,9 +174,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo crear la sesión.' }
     }
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
-    redirect(`/preparar/${nueva.id}`)
+    redirect(`/deck/${nueva.id}`)
   }
 
   /**
@@ -205,7 +205,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         fecha: new Date(datos.fecha),
         estado: 'presentada',
       })
-      revalidatePath(`/sala/${slug}`)
+      revalidatePath(`/cliente/${slug}`)
       return { id }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo registrar la reunión.' }
@@ -225,7 +225,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
     try {
       const nueva = await regenerarClave(slug, s)
-      revalidatePath(`/sala/${slug}`)
+      revalidatePath(`/cliente/${slug}`)
       return { clave: nueva }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo generar la clave.' }
@@ -236,7 +236,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     'use server'
     await exigirEquipo()
     await quitarClave(slug)
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
   }
 
   // ---- Server actions: archivos colgados en la sala ----
@@ -270,7 +270,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       await del(datos.ruta).catch(() => {})
       return { error: error instanceof Error ? error.message : 'No se pudo registrar el archivo.' }
     }
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
     return {}
   }
 
@@ -281,7 +281,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       titulo: cambios.titulo,
       fecha: cambios.fecha ? new Date(cambios.fecha) : null,
     })
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
   }
 
   async function eliminarArchivoAction(id: string) {
@@ -292,7 +292,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     // archivo dejaría una fila que apunta a la nada.
     const quitado = await eliminarArchivo(id)
     if (quitado) await del(quitado.ruta).catch(() => {})
-    revalidatePath(`/sala/${slug}`)
+    revalidatePath(`/cliente/${slug}`)
   }
 
   const estiloMarca = {
@@ -560,7 +560,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 </p>
               </div>
               <CopiarBoton
-                texto={`${await urlBase()}/sala/${slug}?acceso=${tokenDeAcceso}`}
+                texto={`${await urlBase()}/cliente/${slug}?acceso=${tokenDeAcceso}`}
                 className={estilos.accesoBoton}
               />
             </div>

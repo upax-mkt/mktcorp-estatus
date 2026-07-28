@@ -520,3 +520,24 @@
   margin-bottom: var(--e-3);
   color: var(--primario-sobre-superficie, var(--texto));
 }
+
+/*
+ * EN PAPEL.
+ *
+ * El PDF sale del navegador, del mismo render que se proyecta. Lo que cambia
+ * aquí es solo lo que no tiene sentido impreso: el cromo de la app —barras,
+ * botones, el flotante de Presentar— y los fondos de color, que en una
+ * impresora de oficina salen como manchas grises.
+ *
+ * `break-inside: avoid` en las piezas: una tabla partida entre dos páginas por
+ * la mitad de una fila es lo que hace que un PDF parezca roto.
+ */
+@media print {
+  .documento { --escala: 0.82; }
+
+  .seccion { break-inside: avoid-page; }
+  .seccion:first-child { break-after: page; }
+
+  /* Cada bloque completo o en la página siguiente, nunca partido a la mitad. */
+  .cifras, .columnas { break-inside: avoid; }
+}

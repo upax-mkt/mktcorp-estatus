@@ -170,7 +170,7 @@ export default async function Hub() {
         </Link>
         <nav className={estilos.barraDcha}>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
-          <Link href="/preparar" className={estilos.barraLink}>Deck Designer</Link>
+          <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
             <button type="submit" className={estilos.barraSalir}>Salir</button>
@@ -242,7 +242,7 @@ export default async function Hub() {
               return (
                 <Link
                   key={s.slug}
-                  href={`/sala/${s.slug}`}
+                  href={`/cliente/${s.slug}`}
                   className={`tarjeta ${estilos.sala}`}
                   style={{ '--marca': s.color } as CSSProperties}
                 >

@@ -19,12 +19,12 @@ import type { Sesion } from './firma'
 const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/retorno']
 
 /** Rutas de solo-equipo, por prefijo de primer segmento. */
-const SECCIONES_DE_EQUIPO = ['preparar']
+const SECCIONES_DE_EQUIPO = ['deck']
 
 /** Páginas que cuelgan de una sala y su director sí puede ver. */
 const HIJAS_DE_SALA = ['benchmark']
 
-/** Primer segmento y resto de una ruta: '/sala/neracode' → ['sala', 'neracode']. */
+/** Primer segmento y resto de una ruta: '/cliente/neracode' → ['cliente', 'neracode']. */
 function segmentos(ruta: string): string[] {
   return ruta.split('/').filter((s) => s.length > 0)
 }
@@ -78,27 +78,27 @@ export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
 
   // A partir de aquí: rol 'sala'. Lista blanca estricta.
   const partes = segmentos(ruta)
-  // `/api/archivo/<id>` es el mismo caso que `/sesion/<id>`: lleva un id, y
+  // `/api/archivo/<id>` es el mismo caso que `/reunion/<id>`: lleva un id, y
   // hasta no leer el archivo no se sabe de qué sala es. Pasa el filtro
   // optimista y la ruta comprueba contra la sala REAL del archivo antes de
   // servir un byte. Sin esto, un director no podría abrir los archivos de su
   // propia sala.
   if (partes.length === 3 && partes[0] === 'api' && partes[1] === 'archivo') return true
-  // Las páginas que cuelgan de una sala llevan su slug delante, así que aquí
-  // SÍ se puede decidir: `/sala/neracode/benchmark` es del director de
+  // Las páginas que cuelgan de un cliente llevan su slug delante, así que
+  // aquí SÍ se puede decidir: `/cliente/neracode/benchmark` es del director de
   // NeraCode y de nadie más. Lista blanca de hijas: una ruta nueva bajo
-  // /sala/<slug>/ no se abre por olvido.
-  if (partes.length === 3 && partes[0] === 'sala' && HIJAS_DE_SALA.includes(partes[2])) {
+  // /cliente/<slug>/ no se abre por olvido.
+  if (partes.length === 3 && partes[0] === 'cliente' && HIJAS_DE_SALA.includes(partes[2])) {
     return puedeVerSala(sesion, partes[1])
   }
   if (partes.length !== 2) return false
   const [seccion, slug] = partes
   if (SECCIONES_DE_EQUIPO.includes(seccion)) return false
-  // `/sesion/<id>` lleva un id, no un slug: aquí no se puede saber de qué sala
-  // es. Pasa el filtro optimista y la PÁGINA comprueba contra la sesión real
-  // que ese director puede verla — que es donde vive la verificación que
-  // manda, pegada al dato.
-  if (seccion === 'sesion') return true
-  if (seccion !== 'sala') return false
+  // `/reunion/<id>` lleva un id, no un slug: aquí no se puede saber de qué
+  // cliente es. Pasa el filtro optimista y la PÁGINA comprueba contra la
+  // sesión real que ese director puede verla — que es donde vive la
+  // verificación que manda, pegada al dato.
+  if (seccion === 'reunion') return true
+  if (seccion !== 'cliente') return false
   return puedeVerSala(sesion, slug)
 }

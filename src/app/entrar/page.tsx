@@ -44,7 +44,7 @@ export default async function Entrar({
       const sala = await salaDeClave(clave, secreto)
       if (sala) {
         await abrirSesionSala(sala)
-        redirect(`/sala/${sala}`)
+        redirect(`/cliente/${sala}`)
       }
     }
 

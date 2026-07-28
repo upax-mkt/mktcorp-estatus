@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { RelojReunion } from './RelojReunion'
 import { PunteroLaser } from './PunteroLaser'
 import { GrabarReunion } from './GrabarReunion'
-import { MinutaCliente } from '@/app/preparar/[id]/minuta/MinutaCliente'
+import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
 import estilos from './presentar.module.css'
 
 /**

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { CSSProperties } from 'react'
-import estilos from '../../sala.module.css'
+import estilos from '../../cliente.module.css'
 import { obtenerTema } from '@/temas'
 import { obtenerBenchmark } from '@/db/benchmark'
 import { resumirBenchmark, type NivelBenchmark } from '@/dominio/benchmark'
@@ -51,7 +51,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
   return (
     <div className={estilos.app} style={estiloMarca}>
       <header className={estilos.barra}>
-        <Link href={`/sala/${slug}`} className={estilos.volver}>← {tema.nombre}</Link>
+        <Link href={`/cliente/${slug}`} className={estilos.volver}>← {tema.nombre}</Link>
         <div className={estilos.barraSala}>
           <span className={estilos.barraPunto} />
           Benchmark competitivo

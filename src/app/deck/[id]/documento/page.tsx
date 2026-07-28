@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import estilos from '../../preparar.module.css'
+import estilos from '../../deck.module.css'
 import { obtenerSesion, marcarPresentada } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
+import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
 
 // Normalmente solo lee decisiones ya guardadas (rápido); se marca igual como
@@ -22,7 +23,14 @@ export const dynamic = 'force-dynamic'
  * acuerdos muestran su estado de hoy, y el botón "Presentar" lo proyecta a
  * pantalla completa sin exportar ningún archivo.
  */
-export default async function PagSesionMaquetada({ params }: { params: Promise<{ id: string }> }) {
+export default async function PagSesionMaquetada({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ imprimir?: string }>
+}) {
+  const { imprimir } = await searchParams
   const { id } = await params
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()
@@ -46,23 +54,27 @@ export default async function PagSesionMaquetada({ params }: { params: Promise<{
     'use server'
     await exigirEquipo()
     await marcarPresentada(id)
-    revalidatePath(`/preparar/${id}/deck`)
-    if (sesion!.salaSlug) revalidatePath(`/sala/${sesion!.salaSlug}`)
+    revalidatePath(`/deck/${id}/documento`)
+    if (sesion!.salaSlug) revalidatePath(`/cliente/${sesion!.salaSlug}`)
     revalidatePath('/')
   }
 
   const yaSePresento = sesion.estado === 'presentada' || sesion.estado === 'minutada'
 
   return (
-    <div className={estilos.app}>
+    <div className={estilos.app} data-imprimiendo={imprimir ? 'true' : undefined}>
+      {/* Con `?imprimir=1` se lanza el diálogo del navegador al cargar: es lo
+          que hay detrás de «Presentación PDF» en la lista. El PDF sale del
+          MISMO render que se proyecta. */}
+      {imprimir && <AlImprimir />}
       <header className={estilos.barra}>
-        <Link href={`/preparar/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
+        <Link href={`/deck/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
         <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {secciones.length > 0 &&
             (yaSePresento ? (
               sesion.salaSlug ? (
-                <Link href={`/sala/${sesion.salaSlug}`} className={estilos.volver}>
+                <Link href={`/cliente/${sesion.salaSlug}`} className={estilos.volver}>
                   Presentada · ver en la sala →
                 </Link>
               ) : (
@@ -78,7 +90,7 @@ export default async function PagSesionMaquetada({ params }: { params: Promise<{
         <main className={estilos.main}>
           <p className={estilos.panelMaquetarAviso}>
             Esta sesión todavía no se ha maquetado.{' '}
-            <Link href={`/preparar/${sesion.id}`}>Vuelve al cuestionario</Link> y usa el botón «Maquetar».
+            <Link href={`/deck/${sesion.id}`}>Vuelve al cuestionario</Link> y usa el botón «Maquetar».
           </p>
         </main>
       ) : (

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { MinutaCliente } from '@/app/preparar/[id]/minuta/MinutaCliente'
+import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
 import { fechaCompleta } from '@/lib/fecha'
 import estilos from './minuta.module.css'
 

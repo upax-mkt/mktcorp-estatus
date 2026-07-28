@@ -91,6 +91,15 @@ export interface SesionResumen {
   lugar: string | null
   totalItems: number
   itemsLlenados: number
+  /**
+   * Si tiene una minuta GUARDADA de verdad.
+   *
+   * No se deduce del estado. `minutada` es una etiqueta que se pone al
+   * guardar, y una sesión puede estar `presentada` con minuta o sin ella; sin
+   * este dato, la lista de reuniones cerradas mezclaba las dos —"Presentadas
+   * y minutadas"— y nadie sabía qué estaba mirando.
+   */
+  tieneMinuta: boolean
 }
 
 export interface SesionCompleta extends SesionResumen {
@@ -221,11 +230,19 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
     lugar: fila.lugar ?? null,
     totalItems: items.length,
     itemsLlenados: items.filter((i) => i.llenado).length,
+    // La vista completa no consulta minutas: quien la usa ya está dentro de
+    // la sesión y tiene su propia pantalla de minuta. El dato existe para la
+    // LISTA, que es donde hay que distinguir cerrada de a medias.
+    tieneMinuta: false,
     items,
   }
 }
 
-function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]): SesionResumen {
+function resumenDeFila(
+  fila: FilaSesionComun,
+  contenidos: ContenidoItemCrudo[],
+  tieneMinuta = false,
+): SesionResumen {
   const identidad = identidadDe(fila.salaSlug)
   return {
     id: fila.id,
@@ -242,6 +259,7 @@ function resumenDeFila(fila: FilaSesionComun, contenidos: ContenidoItemCrudo[]):
     lugar: fila.lugar ?? null,
     totalItems: contenidos.length,
     itemsLlenados: contenidos.filter(esLlenado).length,
+    tieneMinuta,
   }
 }
 
@@ -361,19 +379,33 @@ export async function listarSesiones(): Promise<SesionResumen[]> {
   if (!hayDB()) {
     return memoria.listarSesionesMemoria().map((fila) => {
       const itemsRows = memoria.obtenerItemsDeSesionMemoria(fila.id)
-      return resumenDeFila(fila, itemsRows.map((i) => i.contenidoCrudo as ContenidoItemCrudo))
+      return resumenDeFila(
+        fila,
+        itemsRows.map((i) => i.contenidoCrudo as ContenidoItemCrudo),
+        memoria.obtenerMinutaDeSesionMemoria(fila.id) != null,
+      )
     })
   }
 
   const conexion = db()
   const filas = await conexion.select().from(esquema.sesiones).orderBy(desc(esquema.sesiones.createdAt))
+  // Los ids con minuta, en UNA consulta y no una por sesión: con veinte
+  // reuniones eso son veinte viajes a la base para una casilla.
+  const conMinuta = new Set(
+    (await conexion.select({ sesionId: esquema.minutas.sesionId }).from(esquema.minutas))
+      .map((m) => m.sesionId),
+  )
   const resultado: SesionResumen[] = []
   for (const fila of filas) {
     const itemsRows = await conexion
       .select({ contenidoCrudo: esquema.items.contenidoCrudo })
       .from(esquema.items)
       .where(eq(esquema.items.sesionId, fila.id))
-    resultado.push(resumenDeFila(fila, itemsRows.map((i) => i.contenidoCrudo as ContenidoItemCrudo)))
+    resultado.push(resumenDeFila(
+      fila,
+      itemsRows.map((i) => i.contenidoCrudo as ContenidoItemCrudo),
+      conMinuta.has(fila.id),
+    ))
   }
   return resultado
 }

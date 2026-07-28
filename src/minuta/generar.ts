@@ -32,7 +32,7 @@ function formatearFechaTabla(fechaIso: string | null): string {
 }
 
 /**
- * La ruta congelada por sesión (spec §10, `/sala/{slug}/{fecha}?t={token}`)
+ * La ruta congelada por sesión (spec §10, `/cliente/{slug}/{fecha}?t={token}`)
  * es trabajo de la tarea pendiente de tokens/SSO: mientras no exista, se
  * enlaza al link permanente de la sala, que ya existe y funciona hoy.
  */
@@ -44,8 +44,8 @@ function formatearFechaTabla(fechaIso: string | null): string {
  * que hay que enseñar.
  */
 function urlSesion(salaSlug: string | null, sesionId?: string): string {
-  if (salaSlug) return `/sala/${salaSlug}`
-  return sesionId ? `/sesion/${sesionId}` : '/'
+  if (salaSlug) return `/cliente/${salaSlug}`
+  return sesionId ? `/reunion/${sesionId}` : '/'
 }
 
 function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {

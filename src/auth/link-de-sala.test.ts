@@ -67,8 +67,8 @@ describe('el token del link', () => {
     // una y otra vez. El comportamiento es correcto; lo que faltaba era no
     // haberle puesto esa cookie encima, y una salida.
     expect(puedeVerRuta(s, '/')).toBe(false)
-    expect(puedeVerRuta(s, '/sala/mexa-creativa')).toBe(true)
-    expect(puedeVerRuta(s, '/sala/zeus')).toBe(false)
+    expect(puedeVerRuta(s, '/cliente/mexa-creativa')).toBe(true)
+    expect(puedeVerRuta(s, '/cliente/zeus')).toBe(false)
   })
 
   it('/entrar es pública: la salida siempre lleva a algún sitio', async () => {
@@ -112,7 +112,7 @@ describe('/entrar como salida garantizada', () => {
   })
 
   it('ninguna otra ruta borra la sesión al visitarla', () => {
-    for (const ruta of ['/', '/agenda', '/sala/zeus', '/preparar']) {
+    for (const ruta of ['/', '/agenda', '/cliente/zeus', '/deck']) {
       expect(limpiaLaSesion(ruta, 'GET', true)).toBe(false)
     }
   })

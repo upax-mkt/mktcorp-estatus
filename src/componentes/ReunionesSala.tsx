@@ -5,7 +5,7 @@ import Link from 'next/link'
 import type { Reunion } from '@/dominio/salas'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
 import { CopiarBoton } from './CopiarBoton'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 
 /**
  * LAS REUNIONES DE UNA SALA: lo que se presentó y lo que se acordó, juntos.
@@ -130,12 +130,12 @@ export function ReunionesSala({ reuniones, equipo }: Props) {
               {/* Desde la minuta se llega al documento de SU reunión: es la
                   pregunta que sigue a leer un acuerdo — "¿qué se presentó?". */}
               {abierta.presentacion?.sesionId && (
-                <Link href={`/sesion/${abierta.presentacion.sesionId}`} className={estilos.lightboxEnlace}>
+                <Link href={`/reunion/${abierta.presentacion.sesionId}`} className={estilos.lightboxEnlace}>
                   Ver la presentación →
                 </Link>
               )}
               {equipo && abierta.sesionId && (
-                <Link href={`/preparar/${abierta.sesionId}/minuta`} className={estilos.lightboxEnlace}>
+                <Link href={`/deck/${abierta.sesionId}/minuta`} className={estilos.lightboxEnlace}>
                   Corregir el texto →
                 </Link>
               )}
@@ -167,7 +167,7 @@ function Caras({
   return (
     <div className={compacta ? estilos.carasCompactas : estilos.caras}>
       {idDoc ? (
-        <Link href={`/sesion/${idDoc}`} className={estilos.cara}>
+        <Link href={`/reunion/${idDoc}`} className={estilos.cara}>
           <span aria-hidden>▤</span> Presentación
         </Link>
       ) : (

@@ -77,10 +77,10 @@ export async function publicarMinutaAction(
 
     await guardarMinuta(sesionId, transcripcion, textoFinal, acuerdosConfirmados)
 
-    revalidatePath(`/preparar/${sesionId}`)
-    revalidatePath(`/preparar/${sesionId}/minuta`)
-    revalidatePath('/preparar')
-    revalidatePath(`/sala/${sesion.salaSlug}`)
+    revalidatePath(`/deck/${sesionId}`)
+    revalidatePath(`/deck/${sesionId}/minuta`)
+    revalidatePath('/deck')
+    revalidatePath(`/cliente/${sesion.salaSlug}`)
     revalidatePath('/')
 
     return { ok: true }

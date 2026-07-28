@@ -17,7 +17,7 @@ import estilos from './lista-ordenable.module.css'
 // este componente es el que conoce el orden optimista: si lo pintara el
 // servidor, al arrastrar se verían los números descolocados hasta que llegara
 // la respuesta. Se reusa el estilo de la página para que se vea idéntico.
-import estilosPreparar from '@/app/preparar/preparar.module.css'
+import estilosPreparar from '@/app/deck/deck.module.css'
 
 interface Props {
   /** Ids de las secciones, en el mismo orden que `children`. */

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import estilos from '../../preparar.module.css'
+import estilos from '../../deck.module.css'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { generarMinutaAction, publicarMinutaAction } from './acciones'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
@@ -128,7 +128,7 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
       if (alPublicar) {
         alPublicar()
       } else {
-        router.push(`/preparar/${sesionId}`)
+        router.push(`/deck/${sesionId}`)
       }
       router.refresh()
     })

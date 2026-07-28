@@ -119,7 +119,7 @@ export default async function PagAgenda() {
         <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
         <div className={estilos.barraTitulo}>Agenda</div>
         <nav className={estilos.barraDcha}>
-          <Link href="/preparar" className={estilos.barraLink}>Deck Designer</Link>
+          <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
         </nav>
       </header>

@@ -103,7 +103,7 @@ export function Calendario({ sesiones, hoy, mesInicial, alElegirDia }: Props) {
               {delDia.map((s) => (
                 <a
                   key={s.id}
-                  href={`/preparar/${s.id}`}
+                  href={`/deck/${s.id}`}
                   className={estilos.marca}
                   style={{ '--sala': s.salaColor } as React.CSSProperties}
                   data-estado={s.estado}

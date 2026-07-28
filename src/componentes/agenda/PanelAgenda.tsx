@@ -179,7 +179,7 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
                     >
                       Editar
                     </button>
-                    <Link href={`/preparar/${s.id}`} className={estilos.proximaEnlace}>
+                    <Link href={`/deck/${s.id}`} className={estilos.proximaEnlace}>
                       Preparar →
                     </Link>
                   </div>

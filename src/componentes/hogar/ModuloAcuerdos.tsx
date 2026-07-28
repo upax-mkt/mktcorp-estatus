@@ -86,7 +86,7 @@ function Fila({
       <div className={estilos.acuerdoCuerpo}>
         <p className={estilos.acuerdoQue}>{acuerdo.que}</p>
         <div className={estilos.acuerdoMeta}>
-          <Link href={`/sala/${acuerdo.salaSlug}`} className={estilos.acuerdoSala}>
+          <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.acuerdoSala}>
             {acuerdo.salaNombre}
           </Link>
           <span className={estilos.punto} aria-hidden>·</span>

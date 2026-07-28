@@ -234,3 +234,6 @@
   cursor: pointer; padding: 0.2rem 0.4rem; border-radius: var(--r-1);
 }
 .cabeceraMinuta button:hover { background: var(--papel-hundido); color: var(--tinta); }
+
+/* El flotante de «Presentar» no existe en papel. */
+@media print { .boton { display: none !important; } }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import estilos from '@/app/preparar/preparar.module.css'
+import estilos from '@/app/deck/deck.module.css'
 import { CopiarBoton } from './CopiarBoton'
 
 interface Props {

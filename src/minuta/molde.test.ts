@@ -30,7 +30,7 @@ describe('el molde de siempre', () => {
     expect(correo).toContain('Acuerdos y accionables')
     expect(correo).toContain('Acción | Squad | Owner | Prioridad | Fecha compromiso')
     expect(correo).toContain('Próximos pasos')
-    expect(correo).toContain('Sesión: /sala/neracode')
+    expect(correo).toContain('Sesión: /cliente/neracode')
   })
 
   it('sin fecha, la tabla dice "por definir" y no inventa una', () => {
@@ -71,7 +71,7 @@ describe('un molde propio', () => {
 
   it('una reunión sin sala enlaza a su documento, no a la raíz', () => {
     const correo = ensamblarCorreo(null, ['x', 'y', '', 'z'], ACUERDOS, MOLDE_POR_DEFECTO, 'abc-123')
-    expect(correo).toContain('/sesion/abc-123')
+    expect(correo).toContain('/reunion/abc-123')
   })
 })
 

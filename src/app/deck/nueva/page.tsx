@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { CSSProperties } from 'react'
-import estilos from '../preparar.module.css'
+import estilos from '../deck.module.css'
 import { slugsDeSalas, obtenerTema } from '@/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
@@ -33,13 +33,13 @@ export default function PagNuevaSesion() {
     const alcance = alcanceModo === 'tema' && alcanceTema.length > 0 ? alcanceTema : 'todos'
 
     const { id } = await crearSesionConEstructura({ salaSlug, plantilla, tipo, alcance })
-    redirect(`/preparar/${id}`)
+    redirect(`/deck/${id}`)
   }
 
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href="/preparar" className={estilos.volver}>← Deck Designer</Link>
+        <Link href="/deck" className={estilos.volver}>← Deck Designer</Link>
         <div className={estilos.barraTitulo}>Nueva sesión</div>
       </header>
 

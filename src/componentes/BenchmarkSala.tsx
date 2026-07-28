@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 import type { Benchmark } from '@/db/benchmark'
 import { resumirBenchmark } from '@/dominio/benchmark'
 import { fechaCompleta } from '@/lib/fecha'
@@ -68,7 +68,7 @@ export function BenchmarkSala({
           {nombreSala} contra {benchmark.competidores.length} competidores · actualizado el{' '}
           {fechaCompleta(benchmark.actualizado)}
         </span>
-        <Link href={`/sala/${salaSlug}/benchmark`} className={estilos.presVer}>
+        <Link href={`/cliente/${salaSlug}/benchmark`} className={estilos.presVer}>
           Ver el benchmark completo →
         </Link>
       </div>

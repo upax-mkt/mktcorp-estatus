@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
-import estilos from '../preparar.module.css'
+import estilos from '../deck.module.css'
 import {
   obtenerSesion,
   moverItem,
@@ -61,28 +61,28 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     'use server'
     await exigirEquipo()
     await guardarSeccion(id, itemId, seccion)
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
     'use server'
     await exigirEquipo()
     await anadirSeccion(id, layout, nombre)
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
     'use server'
     await exigirEquipo()
     await anadirSeccion(id, layout, nombre, padre)
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   async function eliminarSeccionAction(itemId: string) {
     'use server'
     await exigirEquipo()
     await eliminarSeccion(id, itemId)
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   /**
@@ -156,14 +156,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     'use server'
     await exigirEquipo()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   async function bajarItem(formData: FormData) {
     'use server'
     await exigirEquipo()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
@@ -171,7 +171,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     'use server'
     await exigirEquipo()
     await reordenarItems(id, idsEnOrden)
-    revalidatePath(`/preparar/${id}`)
+    revalidatePath(`/deck/${id}`)
   }
 
   async function maquetar() {
@@ -185,16 +185,16 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
     const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
     await guardarDecisiones(id, resultados)
-    redirect(`/preparar/${id}/deck`)
+    redirect(`/deck/${id}/documento`)
   }
 
   async function borrarSesionAction() {
     'use server'
     await exigirEquipo()
     await eliminarSesion(id)
-    revalidatePath('/preparar')
+    revalidatePath('/deck')
     revalidatePath('/')
-    redirect('/preparar')
+    redirect('/deck')
   }
 
   // ---- Vista ----
@@ -236,17 +236,17 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
       <header className={estilos.barra}>
-        <Link href="/preparar" className={estilos.volver}>← Deck Designer</Link>
+        <Link href="/deck" className={estilos.volver}>← Deck Designer</Link>
         <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {sesion.estado !== 'borrador' && (
-            <Link href={`/preparar/${sesion.id}/deck`} className={estilos.volver}>Ver documento →</Link>
+            <Link href={`/deck/${sesion.id}/documento`} className={estilos.volver}>Ver documento →</Link>
           )}
           {/* LA MINUTA NO ESPERA A QUE SE MAQUETE. Estaba escondida detrás de
               «no es borrador», y una reunión puede darse sin que a nadie le dé
               tiempo de maquetar: la transcripción existe igual y el acta hace
               falta igual. Es aquí donde uno está cuando sale de la reunión. */}
-          <Link href={`/preparar/${sesion.id}/minuta`} className={estilos.volver}>
+          <Link href={`/deck/${sesion.id}/minuta`} className={estilos.volver}>
             Minuta con IA →
           </Link>
         </div>

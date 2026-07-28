@@ -110,7 +110,7 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
               {delDiaAbierto.map((s) => (
                 <li key={s.id}>
                   <Link
-                    href={`/preparar/${s.id}`}
+                    href={`/deck/${s.id}`}
                     className={estilos.filaDia}
                     style={{ '--marca': s.salaColor } as React.CSSProperties}
                   >
@@ -155,7 +155,7 @@ function Proximas({ sesiones, hoy }: Props) {
         {proximas.map((s) => (
           <li key={s.id}>
             <Link
-              href={`/preparar/${s.id}`}
+              href={`/deck/${s.id}`}
               className={estilos.filaDia}
               style={{ '--marca': s.salaColor } as React.CSSProperties}
             >

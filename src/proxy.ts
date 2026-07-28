@@ -9,7 +9,7 @@ import { COOKIE_SESION } from '@/auth/nombres'
  * Hace dos cosas:
  *
  * 1. **Canjea el link de acceso de una sala.** Un director abre
- *    `/sala/neracode?acceso=<token>`; aquí se valida la firma, se deja la
+ *    `/cliente/neracode?acceso=<token>`; aquí se valida la firma, se deja la
  *    sesión en una cookie httpOnly y se redirige a la misma URL sin el token,
  *    para que no quede a la vista ni en el historial.
  *
@@ -100,7 +100,7 @@ export async function proxy(request: NextRequest) {
   // Con sesión pero sin permiso para ESTA ruta (p. ej. una sala ajena), se
   // manda a donde sí puede estar, no al login: ya está autenticado.
   if (sesion?.rol === 'sala' && sesion.sala) {
-    return NextResponse.redirect(new URL(`/sala/${sesion.sala}`, request.url))
+    return NextResponse.redirect(new URL(`/cliente/${sesion.sala}`, request.url))
   }
 
   const destino = new URL('/entrar', request.url)

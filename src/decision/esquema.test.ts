@@ -131,7 +131,7 @@ describe('lo que un estatus real necesita representar', () => {
       columnas: [{ titulo: 'Insights', puntos: [{ texto: 'Ver la cuenta', enlace }] }],
     })
     expect(esDecisionValida(conEnlace('https://app.hubspot.com/x'))).toBe(true)
-    expect(esDecisionValida(conEnlace('/sala/mexa-creativa'))).toBe(true)
+    expect(esDecisionValida(conEnlace('/cliente/mexa-creativa'))).toBe(true)
     expect(esDecisionValida(conEnlace('javascript:alert(1)'))).toBe(false)
     expect(esDecisionValida(conEnlace('data:text/html;base64,PHNjcmlwdD4='))).toBe(false)
   })

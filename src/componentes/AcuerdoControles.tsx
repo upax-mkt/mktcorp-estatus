@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 
 type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
 

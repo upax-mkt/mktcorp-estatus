@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { CopiarBoton } from './CopiarBoton'
 import { fechaCompleta } from '@/lib/fecha'
-import estilos from '@/app/sala/sala.module.css'
+import estilos from '@/app/cliente/cliente.module.css'
 
 /**
  * La clave con la que entra el director de esta UDN.
