@@ -95,7 +95,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
             <h1 className={estilos.titulo}>Minuta</h1>
             <p className={estilos.subtitulo}>
               {minutaGuardada
-                ? 'Esta sesión ya tiene una minuta publicada. Sus acuerdos confirmados ya viven en la sala.'
+                ? 'Esta sesión ya tiene una minuta publicada. Sus acuerdos confirmados ya viven en el espacio del cliente.'
                 : 'Pega la transcripción de la reunión y genera el correo con la IA — nada se publica sin revisión.'}
             </p>
           </div>

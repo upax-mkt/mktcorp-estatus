@@ -32,6 +32,11 @@ interface Props {
 
 const SUGERENCIAS_PRIORIDAD = ['alta', 'media', 'baja']
 
+/** Cuántas palabras hay. Es la señal de que el archivo entró de verdad. */
+function palabras(texto: string): number {
+  return texto.trim().split(/\s+/).filter(Boolean).length
+}
+
 function aFilaEditable(a: AcuerdoPropuesto): FilaAcuerdo {
   return { ...a, incluir: true }
 }
@@ -42,10 +47,55 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
   const [textoCorreo, setTextoCorreo] = useState<string | null>(null)
   const [filas, setFilas] = useState<FilaAcuerdo[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [nombreArchivo, setNombreArchivo] = useState<string | null>(null)
   const [generando, startGenerar] = useTransition()
   const [publicando, startPublicar] = useTransition()
 
+  /**
+   * SUBIR LA TRANSCRIPCIÓN COMO ARCHIVO, además de pegarla.
+   *
+   * Franco: "debería además de pedir pegar el texto dar la opción de subir un
+   * archivo txt". Es el caso normal: Meet y Teams dejan la transcripción como
+   * archivo, y pegarla obliga a abrirlo, seleccionar todo y copiar — tres
+   * pasos para algo que el navegador sabe hacer solo.
+   *
+   * Se lee EN EL NAVEGADOR y se vuelca al campo: no se sube a ningún sitio, y
+   * lo que viaja al servidor es el mismo texto que si se hubiera pegado. Así
+   * quien lo sube puede corregirlo antes de generar —una transcripción
+   * automática se equivoca con los nombres propios— y no hay un archivo con
+   * la conversación entera de una junta guardado en ninguna parte.
+   */
+  async function cargarArchivo(archivo: File | undefined) {
+    if (!archivo) return
+    setError(null)
+    // Un .txt de una reunión de una hora ronda las 60 KB; un límite generoso
+    // evita que alguien intente cargar un vídeo por error y espere.
+    if (archivo.size > 2_000_000) {
+      setError('El archivo es demasiado grande. Una transcripción de texto no pasa de unos cientos de KB.')
+      return
+    }
+    try {
+      const texto = await archivo.text()
+      if (!texto.trim()) {
+        setError('El archivo está vacío.')
+        return
+      }
+      setTranscripcion(texto)
+      setNombreArchivo(archivo.name)
+    } catch {
+      setError('No se pudo leer el archivo.')
+    }
+  }
+
   function generar() {
+    // NO se deshabilita el botón cuando falta el texto: un botón al 40% de
+    // opacidad sobre una tarjeta blanca se lee como que no existe, y eso fue
+    // exactamente lo que pasó ("no tiene botón de acción para generar la
+    // minuta"). Se deja a plena tinta y se dice qué falta al pulsarlo.
+    if (transcripcion.trim().length === 0) {
+      setError('Pega la transcripción o sube el archivo antes de generar.')
+      return
+    }
     setError(null)
     startGenerar(async () => {
       const r = await generarMinutaAction(sesionId, transcripcion)
@@ -91,22 +141,42 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
     <div className={estilos.minutaFlujo}>
       {!textoCorreo && (
         <div className={estilos.campoInline}>
-          <span className={estilos.campoInlineLabel}>Transcripción de la reunión</span>
+          <div className={estilos.transcripcionCabecera}>
+            <span className={estilos.campoInlineLabel}>Transcripción de la reunión</span>
+            {/* Las dos vías, a la misma altura: pegar y subir. */}
+            <label className={estilos.subirTxt}>
+              <input
+                type="file"
+                accept=".txt,.md,.vtt,.srt,text/plain"
+                onChange={(e) => { void cargarArchivo(e.target.files?.[0]); e.target.value = '' }}
+              />
+              <span>Subir un archivo</span>
+            </label>
+          </div>
+
           <textarea
             className={`${estilos.textarea} ${estilos.textareaGrande}`}
             value={transcripcion}
-            onChange={(e) => setTranscripcion(e.target.value)}
-            placeholder="Pega aquí la transcripción completa de la reunión (Meet/Teams)…"
+            onChange={(e) => { setTranscripcion(e.target.value); setNombreArchivo(null) }}
+            placeholder="Pega aquí la transcripción completa de la reunión (Meet/Teams), o sube el archivo."
           />
-          <div>
+
+          <div className={estilos.generarFila}>
             <button
               type="button"
               className={`${estilos.boton} ${estilos.botonAcento}`}
-              disabled={generando || transcripcion.trim().length === 0}
+              disabled={generando}
               onClick={generar}
             >
               {generando ? 'Generando…' : 'Generar minuta →'}
             </button>
+            <span className={estilos.generarNota}>
+              {nombreArchivo
+                ? `${nombreArchivo} · ${palabras(transcripcion)} palabras`
+                : transcripcion.trim()
+                  ? `${palabras(transcripcion)} palabras`
+                  : 'Redactada con Claude Opus 5. Nada se publica sin que lo revises.'}
+            </span>
           </div>
         </div>
       )}

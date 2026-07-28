@@ -320,7 +320,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {/* El director solo tiene acceso a esta sala: mandarlo al hub sería
             ofrecerle una puerta que el proxy le cierra en la cara. */}
         {equipo ? (
-          <Link href="/" className={estilos.volver}>← Salas</Link>
+          <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
         ) : (
           <span className={estilos.volver}>Marketing Corp</span>
         )}
@@ -351,7 +351,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           está pensada para ir sobre color. */}
       <div className={estilos.hero}>
         <div className={estilos.heroInner}>
-          <div className={estilos.heroKicker}>Sala · Marketing Corp</div>
+          <div className={estilos.heroKicker}>Cliente · Marketing Corp</div>
           <Image
             src={archivoDeLogo(slug, 'blanco')}
             alt={s.nombre}
@@ -397,7 +397,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         {!equipo && (
           <div className={estilos.avisoAcceso}>
             <span>
-              Estás viendo la sala de <strong>{s.nombre}</strong> con un acceso de solo lectura.
+              Estás viendo el espacio de <strong>{s.nombre}</strong> con un acceso de solo lectura.
             </span>
             <a href="/entrar" className={estilos.avisoEnlace}>
               ¿Eres de Marketing Corporativo? Entra con tu clave →

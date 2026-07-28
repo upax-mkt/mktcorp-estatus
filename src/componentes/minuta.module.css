@@ -15,7 +15,45 @@
 }
 .dialogo::backdrop { background: oklch(0.26 0.025 55 / 0.42); backdrop-filter: blur(3px); }
 
+/*
+ * LOS ALIAS QUE ESPERAN LAS CLASES DE DENTRO.
+ *
+ * `MinutaCliente` está escrito sobre `preparar.module.css`, y esas clases leen
+ * variables que declara el `.app` de ESA página: `--acento`, `--papel`,
+ * `--tx`, `--borde`… Dentro de esta ventana, que vive en el Home o en una
+ * sala, ese `.app` es otro y esas variables no existen.
+ *
+ * El síntoma fue el peor posible: `botonAcento` pinta `background:
+ * var(--acento)` y `color: var(--papel)`. Sin `--acento` el fondo no se
+ * aplica, y el botón «Generar minuta» quedaba con TEXTO BLANCO SOBRE BLANCO.
+ * Franco: "no tiene botón de acción para generar la minuta". No es que no
+ * estuviera: es que era invisible.
+ *
+ * Se republican aquí, sobre los tokens compartidos de `sistema.css`, que sí
+ * están definidos en cualquier pantalla.
+ */
 .caja {
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  /* La tinta y no la marca: esta ventana cruza salas, así que no hay UNA
+     marca. Un acento de sala aquí sería el de la última que se miró. */
+  --acento: var(--tinta);
+  --acento-suave: color-mix(in oklch, var(--tinta) 10%, transparent);
+
   display: grid; grid-template-rows: auto 1fr;
   max-height: 88dvh;
   background: var(--papel); color: var(--tinta);

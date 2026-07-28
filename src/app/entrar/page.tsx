@@ -78,7 +78,7 @@ export default async function Entrar({
           />
         </div>
 
-        <h1 className={estilos.titulo}>Estatus a las salas</h1>
+        <h1 className={estilos.titulo}>Meeting Hub</h1>
         <p className={estilos.subtitulo}>
           El espacio donde Marketing Corporativo prepara, presenta y minuta el estatus de cada unidad.
         </p>

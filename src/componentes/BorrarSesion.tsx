@@ -19,7 +19,7 @@ export function BorrarSesion({ borrarAction }: { borrarAction: () => Promise<voi
     <div className={estilos.zonaPeligro}>
       <p className={estilos.zonaPeligroTexto}>
         {confirmando
-          ? 'Se borran el cuestionario, su contenido y el documento maquetado. Los acuerdos ya publicados en la sala se quedan.'
+          ? 'Se borran el cuestionario, su contenido y el documento maquetado. Los acuerdos ya publicados en el espacio del cliente se quedan.'
           : '¿Creaste esta sesión por error?'}
       </p>
       {confirmando ? (

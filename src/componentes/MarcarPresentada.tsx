@@ -34,7 +34,7 @@ export function MarcarPresentada({ marcarAction }: Props) {
 
   return (
     <span className={estilos.confirmarInline}>
-      <span className={estilos.confirmarTexto}>Aparecerá en la sala del director.</span>
+      <span className={estilos.confirmarTexto}>Aparecerá en el espacio del cliente.</span>
       <button
         type="button"
         className={`${estilos.boton} ${estilos.botonAcento} ${estilos.botonChico}`}

@@ -41,7 +41,7 @@ export function ModuloAcuerdos({
             nadie ha registrado nada. */}
         <p className={estilos.moduloVacio}>
           {abiertos === 0
-            ? 'Todavía no hay acuerdos. Se levantan en la sala o al cerrar una minuta.'
+            ? 'Todavía no hay acuerdos. Se levantan en el espacio del cliente o al cerrar una minuta.'
             : 'Nada vencido ni sin fecha. Todo lo abierto tiene dueño y día.'}
         </p>
       </section>

@@ -170,7 +170,7 @@ export default async function Hub() {
         </Link>
         <nav className={estilos.barraDcha}>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
-          <Link href="/preparar" className={estilos.barraLink}>Preparar</Link>
+          <Link href="/preparar" className={estilos.barraLink}>Deck Designer</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
             <button type="submit" className={estilos.barraSalir}>Salir</button>
@@ -182,13 +182,13 @@ export default async function Hub() {
         {/* El pulso: cuatro cifras grandes y sus rótulos diminutos. */}
         <section className={estilos.pulso}>
           <div>
-            <h1 className={estilos.saludo}>Marketing Corp</h1>
-            <p className={estilos.saludoSub}>El estado de la relación con cada unidad.</p>
+            <h1 className={estilos.saludo}>Meeting Hub</h1>
+            <p className={estilos.saludoSub}>El estado de la relación con cada cliente.</p>
           </div>
           <div className={estilos.pulsoCifras}>
             <div className={estilos.pulsoItem}>
               <span className="cifra">{pulso.salas}</span>
-              <span className="micro">salas</span>
+              <span className="micro">clientes</span>
             </div>
             <div className={estilos.pulsoItem}>
               <span className="cifra">{pulso.sesionesUltimos30}</span>
@@ -229,7 +229,7 @@ export default async function Hub() {
         {/* Las salas, con su logotipo. */}
         <section>
           <div className={estilos.seccionCabecera}>
-            <h2 className={estilos.seccionTitulo}>Las salas</h2>
+            <h2 className={estilos.seccionTitulo}>Los clientes</h2>
             <span className="micro" data-sinpunto>ordenadas por atención pendiente</span>
           </div>
 

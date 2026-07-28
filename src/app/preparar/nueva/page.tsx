@@ -39,7 +39,7 @@ export default function PagNuevaSesion() {
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href="/preparar" className={estilos.volver}>← Preparar</Link>
+        <Link href="/preparar" className={estilos.volver}>← Deck Designer</Link>
         <div className={estilos.barraTitulo}>Nueva sesión</div>
       </header>
 

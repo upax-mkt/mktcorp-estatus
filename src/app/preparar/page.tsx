@@ -29,14 +29,14 @@ export default async function PagPreparar() {
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Salas</Link>
-        <div className={estilos.barraTitulo}>Preparar</div>
+        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
+        <div className={estilos.barraTitulo}>Deck Designer</div>
       </header>
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>
           <div>
-            <h1 className={estilos.titulo}>Preparar una sesión</h1>
+            <h1 className={estilos.titulo}>Deck Designer</h1>
             {/* Ya no hay decks: el resultado es un documento web que se lee con
                 scroll y se proyecta. Prometer un deck es prometer otra cosa. */}
             <p className={estilos.subtitulo}>Crear → llenar → maquetar → presentar.</p>

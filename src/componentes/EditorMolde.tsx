@@ -163,7 +163,7 @@ export function EditorMolde({ molde: inicial, salaNombre, guardarAction }: Props
                     <input type="radio" name="tabla" checked={Boolean(b.conTabla)} onChange={() => ponerTabla(i)} />
                     <span>
                       Aquí va la tabla de acuerdos
-                      <em> — se arma con los compromisos que se publican en la sala; el modelo no la escribe.</em>
+                      <em> — se arma con los compromisos que se publican en el espacio del cliente; el modelo no la escribe.</em>
                     </span>
                   </label>
                 </li>

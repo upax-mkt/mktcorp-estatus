@@ -116,10 +116,10 @@ export default async function PagAgenda() {
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Salas</Link>
+        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
         <div className={estilos.barraTitulo}>Agenda</div>
         <nav className={estilos.barraDcha}>
-          <Link href="/preparar" className={estilos.barraLink}>Preparar</Link>
+          <Link href="/preparar" className={estilos.barraLink}>Deck Designer</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
         </nav>
       </header>
@@ -128,7 +128,7 @@ export default async function PagAgenda() {
         <div className={estilos.encabezado}>
           <h1 className={estilos.titulo}>Agenda</h1>
           <p className={estilos.subtitulo}>
-            Las sesiones de todas las salas. Lo que se agenda aquí es lo que el hub anuncia como
+            Las sesiones de todos los clientes. Lo que se agenda aquí es lo que el hub anuncia como
             próxima sesión.
           </p>
         </div>

@@ -438,3 +438,29 @@
 .plantillaNombre { font-size: 0.95rem; font-weight: 650; }
 .plantillaParaQue { font-size: 0.8rem; color: var(--tx-2); line-height: 1.4; }
 .plantillaCuenta { font-size: 0.72rem; color: var(--tx-3); margin-top: 0.2rem; }
+
+/* ---- transcripción: pegar o subir ---- */
+
+.transcripcionCabecera {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+
+/* El `<input type=file>` nativo no se puede vestir, así que se esconde y la
+   etiqueta hace de botón. Esconderlo con `opacity:0` y no con `display:none`
+   es lo que conserva el foco por teclado. */
+.subirTxt { position: relative; display: inline-flex; cursor: pointer; }
+.subirTxt input {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+}
+.subirTxt span {
+  font-size: 0.8rem; font-weight: 600; color: var(--tx-2);
+  padding: 0.3rem 0.7rem; border-radius: var(--r-lleno);
+  border: 1px solid var(--borde-fuerte); background: var(--papel);
+  transition: border-color var(--rapido) linear, color var(--rapido) linear;
+}
+.subirTxt:hover span { border-color: var(--tx); color: var(--tx); }
+.subirTxt input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+.generarFila { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.generarNota { font-size: 0.8rem; color: var(--tx-3); }
