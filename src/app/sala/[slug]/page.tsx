@@ -359,6 +359,22 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       </div>
 
       <main className={estilos.main}>
+        {/* POR QUÉ ESTÁS AQUÍ, dicho en vez de dejarlo adivinar.
+            Quien llega con un link de sala y no esperaba estar aquí —alguien
+            de Mkt Corp que abrió el link para comprobar que servía— veía una
+            sala ajena, sin explicación, y un «Salir» diminuto en la esquina.
+            Un redirect silencioso no deja a nadie de pie. */}
+        {!equipo && (
+          <div className={estilos.avisoAcceso}>
+            <span>
+              Estás viendo la sala de <strong>{s.nombre}</strong> con un acceso de solo lectura.
+            </span>
+            <a href="/entrar" className={estilos.avisoEnlace}>
+              ¿Eres de Marketing Corporativo? Entra con tu clave →
+            </a>
+          </div>
+        )}
+
         {/* Acuerdos primero — es lo que el director quiere ver */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>

@@ -83,3 +83,37 @@ describe('el token del link', () => {
     expect(puedeVerRuta(null, '/entrar')).toBe(true)
   })
 })
+
+/**
+ * La decisión del proxy al abrir /entrar a mano, extraída tal cual.
+ *
+ * Ir a la pantalla de login significa "quiero entrar como alguien": si había
+ * una sesión, sobra. Sin esto, quien llegaba con una sesión de sala encima
+ * veía el formulario pero seguía con su cookie, y bastaba equivocarse de clave
+ * una vez para quedarse igual de atascado.
+ */
+function limpiaLaSesion(pathname: string, metodo: string, hayCookie: boolean): boolean {
+  return pathname === '/entrar' && metodo === 'GET' && hayCookie
+}
+
+describe('/entrar como salida garantizada', () => {
+  it('abrirlo con una sesión encima la borra', () => {
+    expect(limpiaLaSesion('/entrar', 'GET', true)).toBe(true)
+  })
+
+  it('el ENVÍO del formulario no la borra: competiría con la que acaba de poner', () => {
+    // El formulario hace POST a esta misma ruta. Borrar ahí dejaría a quien
+    // acaba de teclear bien su clave sin sesión.
+    expect(limpiaLaSesion('/entrar', 'POST', true)).toBe(false)
+  })
+
+  it('sin cookie no hay nada que borrar', () => {
+    expect(limpiaLaSesion('/entrar', 'GET', false)).toBe(false)
+  })
+
+  it('ninguna otra ruta borra la sesión al visitarla', () => {
+    for (const ruta of ['/', '/agenda', '/sala/zeus', '/preparar']) {
+      expect(limpiaLaSesion(ruta, 'GET', true)).toBe(false)
+    }
+  })
+})

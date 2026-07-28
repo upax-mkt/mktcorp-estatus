@@ -641,3 +641,21 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   transition: color var(--rapido, 0.15s) linear, background var(--rapido, 0.15s) linear;
 }
 .salirBoton:hover { color: var(--tx); background: var(--papel-hundido); }
+
+/* El aviso de "estás aquí con un acceso de solo lectura". Va arriba del todo
+   y con el color de la marca de la sala: quien no esperaba estar aquí tiene
+   que verlo antes que nada, y quien sí lo esperaba lo lee una vez y sigue. */
+.avisoAcceso {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  margin-bottom: 1.5rem; padding: 0.85rem 1.1rem;
+  border-radius: var(--r-3);
+  background: color-mix(in oklch, var(--marca) 9%, transparent);
+  border: 1px solid color-mix(in oklch, var(--marca) 25%, transparent);
+  font-size: 0.88rem; color: var(--tx-2); line-height: 1.5;
+}
+.avisoAcceso strong { color: var(--tx); font-weight: 600; }
+.avisoEnlace {
+  color: var(--marca); font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.avisoEnlace:hover { text-decoration: underline; }

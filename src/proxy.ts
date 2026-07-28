@@ -37,6 +37,24 @@ export async function proxy(request: NextRequest) {
 
   const cookieActual = request.cookies.get(COOKIE_SESION)?.value
 
+  /**
+   * ABRIR /entrar A MANO ES UNA SALIDA GARANTIZADA.
+   *
+   * Ir a la pantalla de login significa "quiero entrar como alguien"; si ya
+   * había una sesión, sobra. Sin esto, quien llegaba con una sesión de sala
+   * encima veía el formulario pero seguía con su cookie: bastaba equivocarse
+   * de clave una vez para quedarse igual de atascado, y la única salida real
+   * era un botón pequeño en la esquina de una sala que no es la suya.
+   *
+   * Solo en GET: el envío del formulario es un POST a esta misma ruta, y
+   * borrar la cookie ahí competiría con la que la acción acaba de poner.
+   */
+  if (pathname === '/entrar' && request.method === 'GET') {
+    const respuesta = NextResponse.next()
+    if (cookieActual) respuesta.cookies.delete(COOKIE_SESION)
+    return respuesta
+  }
+
   // 1. ¿Trae un link de acceso de sala?
   const tokenDeLink = searchParams.get(PARAMETRO_ACCESO)
   if (tokenDeLink) {
