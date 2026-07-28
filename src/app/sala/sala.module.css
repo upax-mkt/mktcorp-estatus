@@ -535,3 +535,25 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   padding: 0.3rem 0.4rem; color: var(--tx-2);
   background: none; border: none; cursor: pointer;
 }
+
+/* ---- clave de acceso de la sala ----
+   Se enseña entera UNA vez, al generarla: lo que se guarda es su hash. */
+.claveAcciones { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.claveNueva {
+  display: grid; gap: 0.7rem;
+  padding: 1.2rem 1.3rem; border-radius: 0.9rem;
+  border: 1px solid var(--marca); background: color-mix(in oklch, var(--marca) 5%, var(--superficie));
+}
+.claveEtiqueta {
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; color: var(--marca);
+}
+.claveFila { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.claveTexto {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.35rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 0.5rem 0.9rem; border-radius: 0.55rem;
+  background: var(--superficie); color: var(--tx);
+  user-select: all;
+}
+.claveNota { font-size: 0.85rem; color: var(--tx-2); margin: 0; line-height: 1.5; max-width: 62ch; }

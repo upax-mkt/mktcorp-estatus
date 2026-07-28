@@ -388,13 +388,13 @@ con ocho secciones fijas. Las dos cosas dejan de ser ley.
 |---|---|
 | ✅ 9.1 | Subir la imagen desde el disco en vez de pegar una URL. Reutiliza el Blob privado y el registro de archivos de la Fase 3. |
 
-## FASE 10 — Acceso y permisos ☐
+## FASE 10 — Acceso y permisos ✅ *(28-jul)*
 
 | # | Qué |
 |---|---|
-| ☐ 10.1 | Slack para Marketing Corp (el flujo existe a medias; se termina). |
-| ☐ 10.2 | **Clave por sala.** Hoy el acceso de un director es un link firmado que caduca; pasa a ser una clave que él teclea y que lo lleva a SU sala. |
-| ☐ 10.3 | Permisos: quien entra por clave de sala solo escribe en acuerdos y pendientes. Se comprueba en cada Server Action, no en la pantalla. |
+| ✅ 10.1 | Slack para Marketing Corp (el flujo existe a medias; se termina). |
+| ✅ 10.2 | **Clave por sala.** Hoy el acceso de un director es un link firmado que caduca; pasa a ser una clave que él teclea y que lo lleva a SU sala. |
+| ✅ 10.3 | Permisos: quien entra por clave de sala solo escribe en acuerdos y pendientes. Se comprueba en cada Server Action, no en la pantalla. |
 
 ## FASE 11 — Monday, ida y vuelta ☐
 

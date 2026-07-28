@@ -38,6 +38,26 @@ export function puedeEditar(sesion: Sesion | null): boolean {
   return sesion?.rol === 'equipo'
 }
 
+/**
+ * Quién puede tocar los ACUERDOS de una sala.
+ *
+ * Marketing Corp, en todas. Y el director de una UDN, en la suya y solo en la
+ * suya (Franco, 28-jul: "solo pueden editar los acuerdos y pendientes").
+ *
+ * Es la única excepción a "solo Mkt Corp escribe", y tiene sentido: un
+ * acuerdo es un compromiso de la UDN. Que su dueño no pueda marcarlo como
+ * cumplido obliga a pedirlo por Slack para que alguien lo teclee — el trámite
+ * que esta app viene a quitar.
+ *
+ * NO alcanza a nada más: ni preparar sesiones, ni subir archivos, ni minutar,
+ * ni tocar otra sala.
+ */
+export function puedeEditarAcuerdos(sesion: Sesion | null, slug: string): boolean {
+  if (!sesion) return false
+  if (sesion.rol === 'equipo') return true
+  return sesion.rol === 'sala' && sesion.sala === slug
+}
+
 /** El equipo ve todas las salas; un acceso de sala, únicamente la suya. */
 export function puedeVerSala(sesion: Sesion | null, slug: string): boolean {
   if (!sesion) return false

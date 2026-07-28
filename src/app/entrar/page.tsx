@@ -7,6 +7,8 @@ import {
   hayClaveDeEquipo,
 } from '@/auth/sesion'
 import { slackConfigurado } from '@/auth/slack'
+import { salaDeClave } from '@/db/claves'
+import { abrirSesionSala, secretoConfigurado } from '@/auth/sesion'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +34,18 @@ export default async function Entrar({
 
     const clave = String(formData.get('clave') ?? '')
     const aDonde = String(formData.get('destino') ?? '') || '/'
+
+    // UNA SOLA CASILLA para las dos claves. El director de una UDN no tiene
+    // por qué saber que existe una "clave de equipo" ni elegir entre dos
+    // pestañas: teclea la suya y el sistema reconoce de quién es.
+    const secreto = secretoConfigurado()
+    if (secreto) {
+      const sala = await salaDeClave(clave, secreto)
+      if (sala) {
+        await abrirSesionSala(sala)
+        redirect(`/sala/${sala}`)
+      }
+    }
 
     if (!(await claveDeEquipoCorrecta(clave))) {
       // Se conserva el destino: si te equivocas de clave yendo a /preparar,
@@ -83,27 +97,34 @@ export default async function Entrar({
                 <a href="/api/auth/slack/inicio" className={estilos.botonSlack}>
                   Entrar con Slack
                 </a>
-                {conClave && <div className={estilos.separador}>o con la clave del equipo</div>}
+                <div className={estilos.separador}>o con una clave</div>
               </>
             )}
 
-            {conClave ? (
-              <form action={entrarConClave}>
-                <label className={estilos.campo}>
-                  <span className={estilos.etiqueta}>Clave del equipo</span>
-                  <input
-                    className={estilos.input}
-                    type="password"
-                    name="clave"
-                    autoComplete="current-password"
-                    autoFocus
-                    required
-                  />
-                </label>
-                <input type="hidden" name="destino" value={destino ?? '/'} />
-                <button type="submit" className={estilos.boton}>Entrar</button>
-              </form>
-            ) : (
+            {/* UNA SOLA CASILLA. Marketing Corp entra por Slack o con la clave
+                del equipo; el director de una UDN, con la de su sala. Que
+                elija entre dos pestañas obligaría a explicarle una
+                organización interna que no es suya. */}
+            <form action={entrarConClave}>
+              <label className={estilos.campo}>
+                <span className={estilos.etiqueta}>Clave</span>
+                <input
+                  className={estilos.input}
+                  type="password"
+                  name="clave"
+                  autoComplete="current-password"
+                  autoFocus
+                  required
+                />
+                <em className={estilos.pistaClave}>
+                  La de tu sala, si eres de una unidad. La del equipo, si eres de Marketing Corp.
+                </em>
+              </label>
+              <input type="hidden" name="destino" value={destino ?? '/'} />
+              <button type="submit" className={estilos.boton}>Entrar</button>
+            </form>
+
+            {!conClave && (
               !conSlack && (
                 <div className={estilos.aviso}>
                   <strong className={estilos.avisoTitulo}>No hay forma de entrar configurada</strong>

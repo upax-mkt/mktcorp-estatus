@@ -21,10 +21,16 @@ import { MinutasSala } from '@/componentes/MinutasSala'
 import { NuevaMinutaSala } from '@/componentes/NuevaMinutaSala'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
+import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
+import { secretoConfigurado } from '@/auth/sesion'
 import { crearSesionConEstructura } from '@/db/sesiones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta, textoDiasDesde } from '@/lib/fecha'
-import { esEquipo, exigirEquipo, generarTokenDeSala, puedeVerEstaSala } from '@/auth/sesion'
+import {
+  esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
+  generarTokenDeSala, puedeVerEstaSala,
+} from '@/auth/sesion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
 
@@ -71,6 +77,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     listarArchivos(slug, 'interes'),
   ])
   const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
+  // El director de la UDN mueve los acuerdos de SU sala; el resto de la
+  // pantalla sigue siendo de solo lectura para él.
+  const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
+  const secreto = secretoConfigurado()
+  const clave = equipo && secreto
+    ? await estadoDeClave(slug, secreto)
+    : { tiene: false, creadaEn: null }
 
   // ---- Server actions: acuerdos editables (spec §4/§6) ----
   // "Solo el equipo Mkt Corp mueve el estatus": cada acción lo exige por su
@@ -79,7 +92,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function cambiarEstatusAction(acuerdoId: string, estatus: EstatusAcuerdo) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await moverEstatus(acuerdoId, estatus)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -87,7 +100,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function editarFechaAction(acuerdoId: string, fecha: string | null) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -100,7 +113,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     fechaCompromiso: string | null
   }) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await crearAcuerdo(slug, {
       que: datos.que,
       responsable: datos.responsable,
@@ -113,7 +126,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function eliminarAcuerdoAction(acuerdoId: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEdicionDeAcuerdos(slug)
     await eliminarAcuerdo(acuerdoId)
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
@@ -128,6 +141,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    */
   async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
     'use server'
+    // EQUIPO, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
+    // editar un acuerdo. El director de la UDN mueve sus compromisos; no
+    // arma la sesión en la que se los van a presentar.
     await exigirEquipo()
     if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
       return { error: 'Plantilla desconocida.' }
@@ -150,6 +166,33 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     revalidatePath(`/sala/${slug}`)
     revalidatePath('/')
     redirect(`/preparar/${nueva.id}`)
+  }
+
+  /**
+   * Pone una clave nueva y la devuelve EN CLARO, una sola vez.
+   *
+   * Se guarda su hash, así que esta es la única oportunidad de leerla. El
+   * componente la enseña con un "cópiala ahora".
+   */
+  async function regenerarClaveAction(): Promise<{ clave?: string; error?: string }> {
+    'use server'
+    await exigirEquipo()
+    const s = secretoConfigurado()
+    if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
+    try {
+      const nueva = await regenerarClave(slug, s)
+      revalidatePath(`/sala/${slug}`)
+      return { clave: nueva }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo generar la clave.' }
+    }
+  }
+
+  async function quitarClaveAction() {
+    'use server'
+    await exigirEquipo()
+    await quitarClave(slug)
+    revalidatePath(`/sala/${slug}`)
   }
 
   // ---- Server actions: archivos colgados en la sala ----
@@ -288,7 +331,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                     <div className={estilos.acuerdoDcha}>
                       <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
                       {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
-                      {equipo && (
+                      {editaAcuerdos && (
                         <AcuerdoControles
                           acuerdoId={a.id}
                           estatusInicial={a.estatus}
@@ -304,7 +347,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               })}
             </div>
           )}
-          {equipo && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
+          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
         </section>
 
         {/* Presentaciones — las armadas en la app y las antiguas subidas */}
@@ -402,9 +445,24 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         )}
 
         {/* Compartir la sala con su director. Solo lo ve el equipo. */}
-        {equipo && tokenDeAcceso && (
+        {equipo && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
+            <ClaveDeSala
+              nombreSala={s.nombre}
+              tiene={clave.tiene}
+              creadaEn={clave.creadaEn}
+              regenerarAction={regenerarClaveAction}
+              quitarAction={quitarClaveAction}
+            />
+          </section>
+        )}
+
+        {/* El link firmado sigue existiendo: sirve para compartir la sala una
+            vez sin que nadie tenga que teclear nada. Caduca en 30 días. */}
+        {equipo && tokenDeAcceso && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>…o un link de un solo uso</h2>
             <div className={estilos.acceso}>
               <div className={estilos.accesoTexto}>
                 <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>

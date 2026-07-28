@@ -50,6 +50,13 @@
       "when": 1785260691368,
       "tag": "0006_black_annihilus",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785260992284,
+      "tag": "0007_wonderful_zuras",
+      "breakpoints": true
     }
   ]
 }

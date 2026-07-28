@@ -212,3 +212,11 @@
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* Una sola casilla para las dos claves: la del equipo y la de una sala. La
+   pista dice cuál es cuál sin obligar a elegir pestaña. */
+.pistaClave {
+  display: block; margin-top: 0.45rem;
+  font-size: 0.78rem; font-style: normal; line-height: 1.45;
+  color: color-mix(in oklch, currentColor 55%, transparent);
+}

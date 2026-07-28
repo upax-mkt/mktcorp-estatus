@@ -47,6 +47,18 @@ export const estatusAcuerdoEnum = pgEnum('estatus_acuerdo', [
 export const salas = pgTable('salas', {
   slug: text('slug').primaryKey(),
   cadencia: cadenciaEnum('cadencia').notNull().default('mensual'),
+  /**
+   * La clave con la que entra el director de esta UDN y su equipo.
+   *
+   * Se guarda el HASH, no la clave. Se enseña completa una sola vez, al
+   * generarla, y desde entonces solo se puede regenerar — el patrón de
+   * cualquier API key. Guardarla recuperable sería más cómodo para el equipo
+   * y convertiría la tabla `salas` en una lista de credenciales en claro.
+   *
+   * Regenerar es barato: compartirla otra vez es un mensaje de Slack.
+   */
+  claveHash: text('clave_hash'),
+  claveCreadaEn: timestamp('clave_creada_en', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
