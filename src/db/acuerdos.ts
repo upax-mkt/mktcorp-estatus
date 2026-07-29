@@ -17,8 +17,8 @@ import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { sincronizarCambio } from '@/monday/sincronizar'
-import { estadoInicialDeBandeja, type EstadoBandeja } from '@/monday/bandeja'
-import { slugsDeSalas } from '@/temas'
+import { estadoInicialDeBandeja, entraALaBandeja, type EstadoBandeja } from '@/monday/bandeja'
+import { slugsDeSalas, obtenerTema } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
 
@@ -229,4 +229,95 @@ export async function eliminarAcuerdo(acuerdoId: string): Promise<void> {
     return
   }
   memoria.eliminarAcuerdoMemoria(acuerdoId)
+}
+
+// ---- La bandeja (tarea 8, ronda 7) ----
+
+/**
+ * El nombre y color de marca de una sala, sin reventar si algún día hay una
+ * fila con un `salaSlug` que no está en `src/temas`. No debería pasar —la FK
+ * de `acuerdos.salaSlug` exige que la sala exista, y el registro de temas es
+ * lo que decide qué salas existen— pero un texto de más en la bandeja es más
+ * barato que una bandeja que no carga. Mismo patrón defensivo que
+ * `identidadDeSala` en src/app/deck/[id]/minuta/acciones.ts.
+ */
+function temaDeSalaSeguro(slug: string): { nombre: string; color?: string } {
+  try {
+    const tema = obtenerTema(slug)
+    return { nombre: tema.nombre, color: tema.primario }
+  } catch {
+    return { nombre: slug, color: undefined }
+  }
+}
+
+export interface AcuerdoPendienteDeSubir {
+  id: string
+  que: string
+  responsable: string
+  salaSlug: string
+  salaNombre: string
+  /** Para el filo de color de la fila (ver FilaBandeja) — opcional porque no todo consumidor lo necesita. */
+  salaColor?: string
+  /** yyyy-mm-dd, o null si no tiene fecha compromiso. */
+  fechaCompromiso: string | null
+}
+
+/**
+ * Los acuerdos que esperan una decisión en la bandeja: `bandeja = 'pendiente'`,
+ * con responsable de Mkt Corp, de una sala que no está en pausa.
+ *
+ * El WHERE de Postgres ya filtra por `bandeja = 'pendiente'` para no traer la
+ * tabla entera, pero la condición COMPLETA —que también exige responsable y
+ * sala activa (`salas.activa`)— se vuelve a comprobar con `entraALaBandeja`:
+ * es la única regla de qué entra a la bandeja (src/monday/bandeja.ts, ya
+ * probada en bandeja.test.ts) y conviene tenerla escrita en un solo sitio, no
+ * repetida aquí en SQL y allá en TypeScript donde se puedan desincronizar.
+ * Hoy todas las salas están activas, pero el filtro tiene que estar puesto
+ * desde ya: es lo que congela los acuerdos de una sala en freeze (tarea 12).
+ *
+ * Sin DB no hay bandeja que mostrar: el store en memoria no modela la tabla
+ * `salas` ni su columna `activa` (ver src/db/store-memoria.ts), así que falta
+ * la mitad de la regla — devolver `[]` es más honesto que fingir que todas
+ * las salas están activas.
+ */
+export async function acuerdosPendientesDeSubir(): Promise<AcuerdoPendienteDeSubir[]> {
+  if (!hayDB()) return []
+
+  const filas = await db()
+    .select({
+      id: esquema.acuerdos.id,
+      que: esquema.acuerdos.que,
+      responsable: esquema.acuerdos.responsable,
+      salaSlug: esquema.acuerdos.salaSlug,
+      fechaCompromiso: esquema.acuerdos.fechaCompromiso,
+      responsableMondayId: esquema.acuerdos.responsableMondayId,
+      bandeja: esquema.acuerdos.bandeja,
+      salaActiva: esquema.salas.activa,
+    })
+    .from(esquema.acuerdos)
+    .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
+    .where(eq(esquema.acuerdos.bandeja, 'pendiente'))
+
+  return filas
+    .filter((f) =>
+      entraALaBandeja({
+        responsableMondayId: f.responsableMondayId,
+        bandeja: f.bandeja as EstadoBandeja,
+        salaActiva: f.salaActiva,
+      }),
+    )
+    .map((f) => {
+      const tema = temaDeSalaSeguro(f.salaSlug)
+      return {
+        id: f.id,
+        que: f.que,
+        responsable: f.responsable,
+        salaSlug: f.salaSlug,
+        salaNombre: tema.nombre,
+        salaColor: tema.color,
+        fechaCompromiso: isoDia(f.fechaCompromiso),
+      }
+    })
+    // La fecha más próxima primero; sin fecha, al final: es lo que más urge decidir.
+    .sort((a, b) => (a.fechaCompromiso ?? '9999-99-99').localeCompare(b.fechaCompromiso ?? '9999-99-99'))
 }
