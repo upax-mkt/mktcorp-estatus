@@ -74,15 +74,34 @@ function comoEnlace(linea: string, base: string): string | null {
   return null
 }
 
+/**
+ * Cuánto mide, como mucho, cada columna. Una columna cuyos valores son TODOS
+ * cortos no debe partirse: el reparto automático de anchos le quita sitio para
+ * dárselo a la que lleva el texto largo, y entonces "3 ago 2026" cae en dos
+ * líneas y un nombre propio se parte por la mitad. Sixteen caracteres es el
+ * corte: nombres, fechas breves y "por definir" caben; una frase, no.
+ */
+const CORTO = 16
+
 function bloqueDeTabla(lineas: string[]): string {
   const [cabecera, ...cuerpo] = lineas.map(celdas)
-  const th = cabecera.map((c) => `<th style="${ESTILOS.th}">${escapar(c)}</th>`).join('')
+  const anchos = cabecera.map((c, i) =>
+    Math.max(c.length, ...cuerpo.map((f) => (f[i] ?? '').length)),
+  )
+  const estilo = (base: string, i: number) =>
+    anchos[i] <= CORTO ? `${base};white-space:nowrap` : base
+
+  const th = cabecera
+    .map((c, i) => `<th style="${estilo(ESTILOS.th, i)}">${escapar(c)}</th>`)
+    .join('')
   const filas = cuerpo
     .map((fila) => {
       // Se rellena hasta el ancho de la cabecera: una fila corta desalinearía
       // la tabla entera, y prefiero una celda vacía a una columna corrida.
       const celdasFila = Array.from({ length: cabecera.length }, (_, i) => fila[i] ?? '')
-      return `<tr>${celdasFila.map((c) => `<td style="${ESTILOS.td}">${escapar(c)}</td>`).join('')}</tr>`
+      return `<tr>${celdasFila
+        .map((c, i) => `<td style="${estilo(ESTILOS.td, i)}">${escapar(c)}</td>`)
+        .join('')}</tr>`
     })
     .join('')
   return `<table style="${ESTILOS.tabla}"><thead><tr>${th}</tr></thead><tbody>${filas}</tbody></table>`

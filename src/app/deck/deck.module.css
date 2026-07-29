@@ -289,7 +289,11 @@
    desplazamiento anidadas: se veía el saludo y la primera fila de la tabla, y
    el resto del correo quedaba detrás de un scroll que nadie descubre. Esto se
    enseña para revisarlo antes de mandarlo; hay que poder leerlo entero. */
-.minutaCorreoVista { word-break: break-word; }
+/* Y SIN `word-break`: partía "Fernando" en "Fernand / o" dentro de la tabla,
+   porque permite cortar por cualquier sitio en cuanto una columna se queda
+   estrecha. Gmail no hace eso, así que la vista previa tampoco debe hacerlo:
+   enseñaría un defecto que el correo no va a tener. */
+.minutaCorreoVista { overflow-wrap: break-word; }
 .minutaAcuerdos { display: flex; flex-direction: column; gap: 0.9rem; }
 .minutaAcuerdosCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .avisoSinFecha {

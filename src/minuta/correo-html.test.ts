@@ -39,6 +39,18 @@ describe('el correo de la minuta en HTML', () => {
     expect(html).not.toContain(' | ')
   })
 
+  it('no deja que se partan las columnas cortas', () => {
+    // Owner y Fecha son cortas: si se les deja partir, el reparto automático
+    // de anchos les quita sitio para dárselo a Acción y sale "Fernand / o".
+    // La de Acción sí tiene que poder ajustarse, que es la que lleva el texto.
+    const filas = [...html.matchAll(/<td style="([^"]*)"[^>]*>([^<]*)</g)].map((m) => ({
+      nowrap: m[1].includes('nowrap'), texto: m[2],
+    }))
+    expect(filas.find((f) => f.texto === 'Ileana Cruz')?.nowrap).toBe(true)
+    expect(filas.find((f) => f.texto === 'por definir')?.nowrap).toBe(true)
+    expect(filas.find((f) => f.texto === 'Cerrar cuentas objetivo')?.nowrap).toBe(false)
+  })
+
   it('pone en negrita los encabezados de bloque', () => {
     expect(html).toContain('<strong>Objetivo de la reunión</strong>')
     expect(html).toContain('<strong>Temas generales y acuerdos</strong>')
