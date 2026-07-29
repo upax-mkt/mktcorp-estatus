@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   UDN_DE_SALA, SALA_DE_UDN, FASE_DE_ESTATUS,
-  estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo,
+  estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo, columnasDe, COLUMNA_ELEMENTO, COLUMNA_SUBELEMENTO, INDICE_UDN,
 } from './mapeo'
 import { slugsDeSalas } from '@/temas'
 
@@ -108,5 +108,31 @@ describe('nombre en el tablero', () => {
   it('ida y vuelta conserva el texto', () => {
     const que = 'Entregar el plan de medios de agosto'
     expect(queSinPrefijo(nombreEnMonday('mexa-creativa', que))).toBe(que)
+  })
+})
+
+describe('columnas por destino', () => {
+  it('un elemento y un subelemento no comparten ni una sola columna de estado', () => {
+    expect(COLUMNA_ELEMENTO.udn).toBe('color_mm0ex2j0')
+    expect(COLUMNA_SUBELEMENTO.udn).toBe('color_mm15emh7')
+    expect(COLUMNA_ELEMENTO.fase).not.toBe(COLUMNA_SUBELEMENTO.fase)
+    expect(COLUMNA_ELEMENTO.deadline).not.toBe(COLUMNA_SUBELEMENTO.deadline)
+  })
+
+  it('la columna de personas sí se llama igual en los dos', () => {
+    expect(COLUMNA_ELEMENTO.responsable).toBe('person')
+    expect(COLUMNA_SUBELEMENTO.responsable).toBe('person')
+  })
+
+  it('columnasDe devuelve el juego que toca', () => {
+    expect(columnasDe('elemento')).toBe(COLUMNA_ELEMENTO)
+    expect(columnasDe('subelemento')).toBe(COLUMNA_SUBELEMENTO)
+  })
+
+  it('cada sala tiene el índice de su etiqueta de UdN, que es lo que acepta el filtro', () => {
+    expect(INDICE_UDN['mexa-creativa']).toBe(1)
+    expect(INDICE_UDN['research-land']).toBe(156)
+    expect(INDICE_UDN['marketing-united']).toBe(105)
+    expect(Object.keys(INDICE_UDN)).toHaveLength(Object.keys(UDN_DE_SALA).length)
   })
 })

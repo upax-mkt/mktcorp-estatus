@@ -20,7 +20,7 @@ export type EstatusGuardado = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
 
 export const TABLERO = 18044324200
 
-export const COLUMNA = {
+export const COLUMNA_ELEMENTO = {
   /** El texto del acuerdo. En Monday es el nombre del elemento. */
   que: 'name',
   /** De qué UDN es. */
@@ -34,6 +34,54 @@ export const COLUMNA = {
   /** Quién responde. Columna de PERSONAS: exige ids de Monday, no nombres. */
   responsable: 'person',
 } as const
+
+/**
+ * El tablero de SUBELEMENTOS. En Monday los subelementos viven en un tablero
+ * propio, con columnas propias: las del elemento no valen aquí y usarlas no
+ * revienta, simplemente crea el subelemento con todo vacío. Medido el
+ * 29-jul-2026.
+ */
+export const TABLERO_SUBELEMENTOS = 18044759026
+
+export type DestinoMonday = 'elemento' | 'subelemento'
+
+export const COLUMNA_SUBELEMENTO = {
+  que: 'name',
+  udn: 'color_mm15emh7',
+  fase: 'color_mkzjvp66',
+  deadline: 'date_mm1hnswx',
+  squad: 'color_mm15h1g6',
+  responsable: 'person',
+} as const
+
+export function columnasDe(destino: DestinoMonday) {
+  return destino === 'subelemento' ? COLUMNA_SUBELEMENTO : COLUMNA_ELEMENTO
+}
+
+/**
+ * El ÍNDICE de cada etiqueta de UdN, no su texto.
+ *
+ * Para filtrar por una columna de estado, Monday compara contra el índice de la
+ * etiqueta —`compare_value: [1]`, no `["Mexa Creativa"]`—. Los índices no son
+ * correlativos: los tres últimos que se añadieron valen 105, 156 y 7. Medidos
+ * el 29-jul-2026; si alguien reordena las etiquetas del tablero, esto miente y
+ * el filtro devuelve la UDN equivocada.
+ */
+export const INDICE_UDN: Record<string, number> = {
+  'zeus': 0,
+  'mexa-creativa': 1,
+  'neracode': 2,
+  'promo-espacio': 3,
+  'uix': 4,
+  'house-of-films': 7,
+  'ceci': 9,
+  'grupo-upax': 10,
+  'marketing-united': 105,
+  'research-land': 156,
+}
+
+/** Retrocompatibilidad: COLUMNA es COLUMNA_ELEMENTO. */
+export const COLUMNA = COLUMNA_ELEMENTO
 
 /**
  * Nuestro slug de sala ↔ la etiqueta de UdN en Monday.
