@@ -1,8 +1,8 @@
 import { consultarMonday, ErrorMonday, tokenDeMonday } from './red'
 import {
-  TABLERO, TABLERO_SUBELEMENTOS, COLUMNA, UDN_DE_SALA, SALA_DE_UDN,
+  TABLERO, TABLERO_SUBELEMENTOS, COLUMNA, COLUMNA_ELEMENTO, UDN_DE_SALA, SALA_DE_UDN,
   FASE_DE_ESTATUS, estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo,
-  columnasDe,
+  columnasDe, INDICE_UDN,
 } from './mapeo'
 import type { EstatusGuardado, DestinoMonday } from './mapeo'
 
@@ -267,4 +267,41 @@ export async function actualizarEnMonday(
 export async function borrarEnMonday(mondayId: string): Promise<void> {
   if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
   await consultarMonday(`mutation ($item: ID!) { delete_item(item_id: $item) { id } }`, { item: mondayId })
+}
+
+export interface ElementoDeDelivery {
+  id: string
+  nombre: string
+}
+
+/**
+ * Los elementos de Delivery de una UDN, para poder colgarles un acuerdo.
+ *
+ * Filtrar por la columna de UdN es lo que hace que la lista sea usable: el
+ * grupo entero tiene 950 elementos y una UDN tiene ocho. Monday compara las
+ * columnas de estado por el ÍNDICE de la etiqueta, no por su texto — ver
+ * INDICE_UDN en mapeo.ts.
+ */
+export async function elementosDeDelivery(salaSlug: string): Promise<ElementoDeDelivery[]> {
+  const grupo = grupoDeAcuerdos()
+  const indice = INDICE_UDN[salaSlug]
+  if (!grupo || indice === undefined) return []
+
+  const datos = await consultarMonday<{
+    boards: Array<{ groups: Array<{ items_page: { items: Array<{ id: string; name: string }> } }> }>
+  }>(
+    `query ($tablero: [ID!], $grupo: [String!], $udn: [CompareValue!]) {
+       boards(ids: $tablero) {
+         groups(ids: $grupo) {
+           items_page(limit: 100, query_params: {
+             rules: [{ column_id: "${COLUMNA_ELEMENTO.udn}", compare_value: $udn, operator: any_of }]
+           }) { items { id name } }
+         }
+       }
+     }`,
+    { tablero: [String(TABLERO)], grupo: [grupo], udn: [indice] },
+  )
+
+  const items = datos.boards?.[0]?.groups?.[0]?.items_page?.items ?? []
+  return items.map((i) => ({ id: i.id, nombre: i.name }))
 }

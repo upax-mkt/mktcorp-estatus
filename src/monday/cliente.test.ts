@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { crearElementoEnDelivery, crearSubelemento, existeElGrupo, actualizarEnMonday } from './cliente'
+import { crearElementoEnDelivery, crearSubelemento, existeElGrupo, actualizarEnMonday, elementosDeDelivery } from './cliente'
 import { TABLERO, TABLERO_SUBELEMENTOS } from './mapeo'
 
 afterEach(() => {
@@ -153,5 +153,26 @@ describe('existeElGrupo', () => {
   it('es cierto cuando está', async () => {
     conRed({ boards: [{ groups: [{ id: 'group_mm15cfz2', title: 'Delivery Mkt Corp 2026' }] }] })
     expect(await existeElGrupo()).toBe(true)
+  })
+})
+
+describe('elementosDeDelivery', () => {
+  it('filtra por el ÍNDICE de la etiqueta de UdN, no por su texto', async () => {
+    const espia = conRed({
+      boards: [{ groups: [{ items_page: { items: [{ id: '9', name: 'MC | Campaña Paid media' }] } }] }],
+    })
+
+    const elementos = await elementosDeDelivery('mexa-creativa')
+
+    expect(elementos).toEqual([{ id: '9', nombre: 'MC | Campaña Paid media' }])
+    const consulta = cuerpoDe(espia).query as string
+    expect(consulta).toContain('color_mm0ex2j0')
+    expect(cuerpoDe(espia).variables.udn).toEqual([1])
+  })
+
+  it('una sala que no está en el tablero devuelve lista vacía sin llamar a nadie', async () => {
+    const espia = conRed({ boards: [] })
+    expect(await elementosDeDelivery('sala-inventada')).toEqual([])
+    expect(espia).not.toHaveBeenCalled()
   })
 })
