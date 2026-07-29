@@ -163,7 +163,12 @@ function valoresDeColumna(
   // La columna de personas exige el id numérico. Si no lo tenemos, se omite la
   // columna entera: dejarla vacía es honesto, inventar un id asigna trabajo a
   // quien no toca en un tablero que mira el equipo entero.
-  if (datos.responsableMondayId) {
+  //
+  // Estricto (`!= null`), no truthy: mismo criterio que src/monday/bandeja.ts
+  // (estadoInicialDeBandeja/entraALaBandeja). El tipo admite '' además de
+  // null/undefined, y '' no es "sin responsable" — con coerción se leería como
+  // que sí lo tiene y `Number('')` es 0, un id de Monday inventado.
+  if (datos.responsableMondayId != null) {
     valores[col.responsable] = {
       personsAndTeams: [{ id: Number(datos.responsableMondayId), kind: 'person' }],
     }

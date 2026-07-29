@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { crearElementoEnDelivery, crearSubelemento, existeElGrupo } from './cliente'
+import { crearElementoEnDelivery, crearSubelemento, existeElGrupo, actualizarEnMonday } from './cliente'
+import { TABLERO, TABLERO_SUBELEMENTOS } from './mapeo'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -78,6 +79,49 @@ describe('crearSubelemento', () => {
     expect(valores['color_mkzjvp66']).toEqual({ label: '✅ Done' })
     expect(valores['date_mm1hnswx']).toEqual({ date: '2026-08-12' })
     expect(valores['color_mm0ex2j0']).toBeUndefined()
+  })
+})
+
+describe('actualizarEnMonday', () => {
+  // El ternario que elige el tablero (TABLERO vs TABLERO_SUBELEMENTOS) no lo
+  // ejercita ningún test de sincronizarCambio: los dos casos de
+  // sincronizar.test.ts retornan antes de llegar a llamar esta función. Sin
+  // esto, invertir el ternario o dejarlo fijo en TABLERO no lo detecta nadie
+  // hasta que la tarea 8 cree subelementos de verdad, contra el tablero real.
+  // Cada caso comprueba las DOS cosas que dependen de `destino` a la vez —el
+  // tablero Y el juego de columnas— porque son dos piezas de código distintas
+  // dentro de la función (el `tablero` del ternario, las `columnasDe(destino)`
+  // de valoresDeColumna): un test que solo mirara una no cubre a la otra.
+  it('con destino "elemento", manda TABLERO y las columnas del ELEMENTO', async () => {
+    const espia = conRed({ change_multiple_column_values: { id: '9' } })
+
+    await actualizarEnMonday('9', 'elemento', {
+      salaSlug: 'mexa-creativa',
+      estatus: 'cumplido',
+      fechaCompromiso: '2026-08-12',
+    })
+
+    const { variables } = cuerpoDe(espia)
+    expect(variables.tablero).toBe(String(TABLERO))
+    const valores = JSON.parse(variables.valores)
+    expect(valores['color_mkz09na']).toEqual({ label: '✅ Done' })
+    expect(valores['color_mkzjvp66']).toBeUndefined() // fase del SUBELEMENTO: no debe aparecer
+  })
+
+  it('con destino "subelemento", manda TABLERO_SUBELEMENTOS y las columnas del SUBELEMENTO', async () => {
+    const espia = conRed({ change_multiple_column_values: { id: '9' } })
+
+    await actualizarEnMonday('9', 'subelemento', {
+      salaSlug: 'mexa-creativa',
+      estatus: 'cumplido',
+      fechaCompromiso: '2026-08-12',
+    })
+
+    const { variables } = cuerpoDe(espia)
+    expect(variables.tablero).toBe(String(TABLERO_SUBELEMENTOS))
+    const valores = JSON.parse(variables.valores)
+    expect(valores['color_mkzjvp66']).toEqual({ label: '✅ Done' })
+    expect(valores['color_mkz09na']).toBeUndefined() // fase del ELEMENTO: no debe aparecer
   })
 })
 
