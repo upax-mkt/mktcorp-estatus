@@ -155,6 +155,16 @@ export default async function PagPreparar() {
                     <Link href={`/deck/${s.id}/minuta`} className={estilos.accionEnlace}>
                       Generar su minuta →
                     </Link>
+                    {/* Poder borrarla también desde aquí. Esta lista solo
+                        ofrecía "generar su minuta", así que una reunión que
+                        nunca la va a tener —se canceló, se registró de más—
+                        se quedaba pidiéndola para siempre. */}
+                    <BorrarBorrador
+                      sesionId={s.id}
+                      titulo={`${s.salaNombre} · ${s.titulo}`}
+                      eliminarAction={eliminarAction}
+                      aviso="Se borra la reunión y su documento. No llegó a tener minuta."
+                    />
                   </div>
                 </div>
               ))}

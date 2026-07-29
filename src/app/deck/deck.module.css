@@ -278,6 +278,13 @@
   max-height: 28rem; overflow-y: auto; padding-right: 0.25rem;
 }
 
+/* La vista de correo. El HTML trae sus estilos EN LÍNEA —los únicos que
+   sobreviven a Gmail— y ganan a cualquier regla de aquí, que es lo que se
+   quiere: lo que se ve es lo que se pega. Esto solo le pone caja. */
+.minutaCorreoVista {
+  max-height: 28rem; overflow-y: auto; padding-right: 0.35rem;
+  word-break: break-word;
+}
 .minutaAcuerdos { display: flex; flex-direction: column; gap: 0.9rem; }
 .minutaAcuerdosCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .avisoSinFecha {

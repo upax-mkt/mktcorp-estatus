@@ -219,7 +219,7 @@ export function ModoPresentar({ children, sesionId, equipo }: Props) {
               <button type="button" onClick={() => setTranscripcion(null)} aria-label="Cerrar">✕</button>
             </header>
             <MinutaCliente
-              sesionId={sesionId}
+              de={{ sesionId }}
               transcripcionInicial={transcripcion}
               alPublicar={() => setTranscripcion(null)}
             />

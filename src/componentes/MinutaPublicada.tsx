@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import estilos from '@/app/deck/deck.module.css'
 import { CopiarBoton } from './CopiarBoton'
+import { CorreoMinuta } from './CorreoMinuta'
 
 interface Props {
   texto: string
@@ -73,7 +74,7 @@ export function MinutaPublicada({ texto, editarAction, eliminarAction }: Props) 
       <div className={estilos.minutaCorreoCabecera}>
         <span className={estilos.campoInlineLabel}>Texto enviado</span>
         <div className={estilos.minutaAcciones}>
-          <CopiarBoton texto={texto} className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`} />
+          <CopiarBoton texto={texto} formatoCorreo className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`} />
           <button
             type="button"
             className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`}
@@ -116,7 +117,7 @@ export function MinutaPublicada({ texto, editarAction, eliminarAction }: Props) 
           si alguno tampoco debía existir, bórralo desde la sala.
         </p>
       )}
-      <pre className={estilos.minutaCorreo}>{texto}</pre>
+      <CorreoMinuta texto={texto} />
     </div>
   )
 }

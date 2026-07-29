@@ -49,15 +49,10 @@ interface Props {
   /** El molde con el que se arman: editable desde aquí. */
   molde: MoldeMinuta
   guardarMoldeAction: (molde: MoldeMinuta) => Promise<{ error?: string }>
-  crearReunionAction: (datos: {
-    titulo: string
-    fecha: string
-    salaSlug: string | null
-  }) => Promise<{ id?: string; error?: string }>
 }
 
 export function ModuloMinutas({
-  minutas, pendientes, salas, molde, guardarMoldeAction, crearReunionAction,
+  minutas, pendientes, salas, molde, guardarMoldeAction,
 }: Props) {
   const [abierta, setAbierta] = useState<MinutaEnHome | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -108,12 +103,7 @@ export function ModuloMinutas({
           salía si había alguna presentada sin minuta, y eso lo hacía parecer
           una herramienta de seguimiento en vez de lo que es. */}
       <div className={estilos.moduloPie}>
-        <LevantarMinuta
-          sesiones={pendientes}
-          salas={salas}
-          crearReunionAction={crearReunionAction}
-          claseBoton="boton"
-        />
+        <LevantarMinuta sesiones={pendientes} salas={salas} claseBoton="boton" />
         <EditorMolde molde={molde} guardarAction={guardarMoldeAction} />
       </div>
 

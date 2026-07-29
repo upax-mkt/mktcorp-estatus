@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
+import type { DeQueReunion } from '@/app/deck/[id]/minuta/acciones'
 import { fechaCompleta } from '@/lib/fecha'
 import estilos from './minuta.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
@@ -17,12 +18,16 @@ import { colorDeTextoDeMarca } from '@/temas'
  * caso más común: una junta que se dio y que nadie preparó aquí. Ahora hay dos
  * vías y la segunda no exige nada previo — se escribe de qué reunión fue y ya.
  *
- * POR DEBAJO SIGUE HABIENDO UNA REUNIÓN, a propósito. Una minuta suelta, sin
- * nada a lo que pertenecer, no se puede encontrar después: no sale en ninguna
- * sala, no entra en el histórico, no se puede volver a citar. Lo que se quita
- * es el TRABAJO de asociarla, no la asociación: al describir la reunión, la
- * app la registra como tal. Es justo lo que ya modela `reunionesDeSala` — una
- * reunión con minuta y sin presentación.
+ * POR DEBAJO ACABA HABIENDO UNA REUNIÓN, pero solo si acaba habiendo minuta.
+ * Una minuta suelta, sin nada a lo que pertenecer, no se puede encontrar
+ * después: no sale en ninguna sala, no entra en el histórico. Así que la
+ * asociación se mantiene y lo que se quita es el trabajo de hacerla.
+ *
+ * PERO NO SE REGISTRA AL EMPEZAR. Franco: "fueron intentos de generar una
+ * minuta, no debería haberse creado como una reunión". Describir de qué junta
+ * fue no es celebrarla: aquí eso se queda en la pantalla y viaja al servidor
+ * junto con la transcripción. La reunión nace en `publicarMinutaAction`,
+ * cuando ya tiene acta. Cerrar la ventana a medias no deja nada detrás.
  *
  * AGNÓSTICO de dónde vive: la sala le pasa sus sesiones y el Home las de
  * todas. Es la misma pieza porque es la misma tarea.
@@ -52,14 +57,15 @@ interface Props {
   salas?: SalaElegible[]
   /** Sala fija, cuando el componente vive dentro de una. */
   salaFija?: string
-  /** Registra una reunión que no estaba en la app y devuelve su id. */
-  crearReunionAction: (datos: {
-    titulo: string
-    fecha: string
-    salaSlug: string | null
-  }) => Promise<{ id?: string; error?: string }>
   claseBoton?: string
   etiquetaBoton?: string
+}
+
+/** La reunión que se está minutando, con lo justo para enseñarla en pantalla. */
+interface EnCurso {
+  de: DeQueReunion
+  titulo: string
+  fecha: string
 }
 
 /** El icono de la IA. A mano, con el mismo trazo que el resto (ver IconoSeccion). */
@@ -93,16 +99,14 @@ export function LevantarMinuta({
   sesiones,
   salas = [],
   salaFija,
-  crearReunionAction,
   claseBoton,
   etiquetaBoton = 'Generar una minuta',
 }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [via, setVia] = useState<'preparada' | 'otra'>(sesiones.length > 0 ? 'preparada' : 'otra')
-  const [elegida, setElegida] = useState<SesionMinutable | null>(null)
+  const [elegida, setElegida] = useState<EnCurso | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [pendiente, empezar] = useTransition()
   const dialogo = useRef<HTMLDialogElement>(null)
 
   // Campos de "otra reunión".
@@ -123,26 +127,24 @@ export function LevantarMinuta({
     setError(null)
   }
 
-  function registrarYSeguir() {
+  /**
+   * Pasar a la transcripción. NO REGISTRA NADA: la descripción se guarda aquí
+   * y viaja al servidor con la transcripción; la reunión nace al publicar.
+   */
+  function seguir() {
     setError(null)
     const nombre = titulo.trim()
     if (!nombre) {
       setError('Ponle un nombre a la reunión: es como se va a encontrar después.')
       return
     }
-    empezar(async () => {
-      const r = await crearReunionAction({
-        titulo: nombre,
-        // Mediodía y no medianoche: una fecha a las 00:00 UTC se corre de día
-        // al leerla en la zona de México.
-        fecha: `${fecha}T12:00:00.000Z`,
-        salaSlug: sala || null,
-      })
-      if (r.error || !r.id) {
-        setError(r.error ?? 'No se pudo registrar la reunión.')
-        return
-      }
-      setElegida({ id: r.id, titulo: nombre, fecha: `${fecha}T12:00:00.000Z` })
+    // Mediodía y no medianoche: una fecha a las 00:00 UTC se corre de día al
+    // leerla en la zona de México.
+    const cuando = `${fecha}T12:00:00.000Z`
+    setElegida({
+      de: { nueva: { titulo: nombre, fecha: cuando, salaSlug: sala || null } },
+      titulo: nombre,
+      fecha: cuando,
     })
   }
 
@@ -193,7 +195,7 @@ export function LevantarMinuta({
                   </button>
                 </div>
                 <MinutaCliente
-                  sesionId={elegida.id}
+                  de={elegida.de}
                   alPublicar={() => {
                     cerrar()
                     router.refresh()
@@ -243,7 +245,7 @@ export function LevantarMinuta({
                             '--marca': s.salaColor,
                             '--marca-texto': s.salaColor ? colorDeTextoDeMarca(s.salaColor) : undefined,
                           } as React.CSSProperties}
-                          onClick={() => setElegida(s)}
+                          onClick={() => setElegida({ de: { sesionId: s.id }, titulo: s.titulo, fecha: s.fecha })}
                         >
                           <span className={estilos.filaTitulo}>
                             {s.salaNombre && <span className={estilos.filaSala}>{s.salaNombre}</span>}
@@ -283,22 +285,16 @@ export function LevantarMinuta({
                     </div>
 
                     <div className={estilos.acciones}>
-                      <button
-                        type="button"
-                        className="boton"
-                        data-tono="marca"
-                        disabled={pendiente}
-                        onClick={registrarYSeguir}
-                      >
-                        {pendiente ? 'Registrando…' : 'Continuar'}
+                      <button type="button" className="boton" data-tono="marca" onClick={seguir}>
+                        Continuar
                       </button>
                       {error && <span className={estilos.aviso}>{error}</span>}
                     </div>
 
                     <p className={estilos.vacio} style={{ marginTop: '0.9rem' }}>
-                      Si la asignas a una sala, su minuta y sus acuerdos quedan ahí. Sin sala, la
-                      minuta existe igual y sus acuerdos se quedan en el texto: no hay dónde
-                      colgarlos.
+                      La reunión se registra al publicar la minuta, no ahora: si lo dejas a medias,
+                      no queda nada. Si la asignas a una sala, su minuta y sus acuerdos quedan ahí;
+                      sin sala, la minuta existe igual y sus acuerdos se quedan en el texto.
                     </p>
                   </>
                 )}

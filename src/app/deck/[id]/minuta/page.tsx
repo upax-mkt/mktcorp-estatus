@@ -109,7 +109,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
           />
         ) : (
           <>
-            <MinutaCliente sesionId={sesion.id} />
+            <MinutaCliente de={{ sesionId: sesion.id }} />
             <MinutaExternaForm cargarAction={cargarExternaAction} />
           </>
         )}

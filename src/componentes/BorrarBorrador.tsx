@@ -22,10 +22,13 @@ export function BorrarBorrador({
   sesionId,
   titulo,
   eliminarAction,
+  aviso = 'Se borra con todo lo escrito.',
 }: {
   sesionId: string
   titulo: string
   eliminarAction: (id: string) => Promise<{ error?: string }>
+  /** Qué se lleva por delante. Cambia según de qué lista se borre. */
+  aviso?: string
 }) {
   const [confirmando, setConfirmando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +52,7 @@ export function BorrarBorrador({
       {error ? (
         <span className={estilos.accionesAviso}>{error}</span>
       ) : (
-        <span className={estilos.accionesAviso}>Se borra con todo lo escrito.</span>
+        <span className={estilos.accionesAviso}>{aviso}</span>
       )}
       <button
         type="button"

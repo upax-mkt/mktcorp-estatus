@@ -631,3 +631,53 @@ cuando algo se pinta.
 - **El 6 tiene una causa concreta:** la Web Speech API no pide permiso de
   micrófono por sí sola en todos los casos, y el `onerror` de `not-allowed` no
   se disparaba porque nunca se llegaba a pedir. Falta `getUserMedia` explícito.
+
+---
+---
+
+# RONDA 6 — la reunión fantasma y el correo sin formato (28-jul, noche)
+
+| # | Dónde | Lo que dijo |
+|---|---|---|
+| 1 | Minutas | "no puedo eliminarlas… fueron intentos de generar una minuta, no debería haberse creado como una reunión" |
+| 2 | Minuta | "el resultado debería venir con algo de formato para copiar y pegar en mail, sobre todo las tablas, poner algo en bold" |
+
+## El 1 era un defecto de modelo, no de botones
+
+La reunión se registraba al pulsar **«Continuar»** —antes de que existiera
+transcripción, texto o acuerdos— así que cada intento fallido o abandonado
+dejaba una reunión marcada como *presentada*, que reaparecía en «se dieron,
+falta su minuta» pidiendo un acta que nunca iba a llegar. Poner un botón de
+borrar habría sido tratar el síntoma.
+
+**Ahora la reunión nace al PUBLICAR.** `DeQueReunion` es o una sesión que ya
+existe (`{ sesionId }`) o una descrita a mano que todavía no se ha registrado
+(`{ nueva: {…} }`); la descripción vive en la pantalla y viaja al servidor con
+la transcripción. `crearSesion` se llama dentro de `publicarMinutaAction`, con
+el acta ya en la mano. Cerrar la ventana a medias no deja nada detrás —
+verificado en el navegador: 18 filas antes, 18 después.
+
+Y **el botón de borrar también**, porque las dos que ya existían tenían que
+poder irse: la lista «Se dieron, falta su minuta» solo ofrecía «generar su
+minuta». Las dos de Franco se borraron desde la UI.
+
+## El 2: el problema real era la tabla
+
+El correo se arma con barras (`Acción | Owner | Fecha`) y eso solo se lee en
+tipografía monoespaciada. Gmail compone en Arial: al pegarlo, las columnas
+dejaban de existir.
+
+`correoAHtml` convierte **el texto que ya hay** — no se genera ni se guarda una
+segunda versión, que serían dos verdades separables. Encabezados de bloque en
+negrita, viñetas como lista, la tabla como `<table>` con sus estilos EN LÍNEA
+(los únicos que sobreviven a Gmail) y el enlace del pie absoluto y pinchable.
+Se copian las dos formas a la vez (`ClipboardItem` con `text/html` y
+`text/plain`): quien pega elige, y el original nunca se pierde.
+
+La vista previa dejó de ser un `<pre>` y pinta ESE MISMO HTML. Antes engañaba
+justo donde importaba: la tabla se veía alineada por la tipografía de ancho
+fijo y al pegarla se deshacía.
+
+**Cada regla del conversor falla hacia el lado seguro:** lo que no reconoce sale
+como párrafo. Un encabezado sin negrita es un correo feo; una tabla mal partida
+es un correo ilegible.

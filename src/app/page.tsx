@@ -12,7 +12,7 @@ import {
 import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
-import { listarSesiones, crearSesion } from '@/db/sesiones'
+import { listarSesiones } from '@/db/sesiones'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta, diaCivil } from '@/lib/fecha'
@@ -52,43 +52,6 @@ export default async function Hub() {
     await exigirEquipo()
     await editarAcuerdo(id, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath('/')
-  }
-
-  /**
-   * Registra una reunión que no estaba en la app, para poder minutarla.
-   *
-   * Nace sin secciones y ya presentada: no es algo que se vaya a preparar —
-   * ya pasó. Lo único que se le pide es cómo se llama y cuándo fue.
-   */
-  async function crearReunionAction(datos: {
-    titulo: string
-    fecha: string
-    salaSlug: string | null
-  }): Promise<{ id?: string; error?: string }> {
-    'use server'
-    await exigirEquipo()
-    try {
-      // NACE PRESENTADA, no nace borrador y asciende.
-      //
-      // Estaba creándola en `borrador` y llamando después a
-      // `marcarPresentada`, que RECHAZA los borradores —"primero hay que
-      // maquetarla"— así que registrar una reunión para minutarla fallaba
-      // siempre. Y la guarda tiene razón: marcar como presentada algo que
-      // nadie preparó no tiene sentido. Lo que no tiene sentido es el rodeo:
-      // esta reunión YA SE DIO, y ese es su estado desde el primer momento.
-      const { id } = await crearSesion({
-        salaSlug: datos.salaSlug,
-        titulo: datos.titulo,
-        tipo: 'mensual',
-        alcance: 'todos',
-        fecha: new Date(datos.fecha),
-        estado: 'presentada',
-      })
-      revalidatePath('/')
-      return { id }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo registrar la reunión.' }
-    }
   }
 
   async function guardarMoldeAction(nuevo: MoldeMinuta): Promise<{ error?: string }> {
@@ -223,7 +186,6 @@ export default async function Hub() {
             salas={salasCrudas.map((x) => ({ slug: x.slug, nombre: x.nombre }))}
             molde={molde}
             guardarMoldeAction={guardarMoldeAction}
-            crearReunionAction={crearReunionAction}
           />
         </div>
 

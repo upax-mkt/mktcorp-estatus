@@ -27,7 +27,7 @@ import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
-import { crearSesionConEstructura, listarSesiones, crearSesion } from '@/db/sesiones'
+import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
 import {
@@ -182,39 +182,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
     redirect(`/deck/${nueva.id}`)
-  }
-
-  /**
-   * Registra una reunión de esta sala que NO estaba en la app, para minutarla.
-   *
-   * Nace presentada y sin secciones: ya pasó, no es algo que se vaya a
-   * preparar. Es lo que permite que el módulo de minutas sirva para cualquier
-   * junta y no solo para las que se armaron aquí.
-   */
-  async function crearReunionAction(datos: {
-    titulo: string
-    fecha: string
-    salaSlug: string | null
-  }): Promise<{ id?: string; error?: string }> {
-    'use server'
-    await exigirEquipo()
-    try {
-      // NACE PRESENTADA: ya se dio. Ver la nota en el Home — crearla en
-      // borrador y ascenderla con `marcarPresentada` fallaba siempre, porque
-      // esa función rechaza los borradores.
-      const { id } = await crearSesion({
-        salaSlug: datos.salaSlug ?? slug,
-        titulo: datos.titulo,
-        tipo: 'mensual',
-        alcance: 'todos',
-        fecha: new Date(datos.fecha),
-        estado: 'presentada',
-      })
-      revalidatePath(`/cliente/${slug}`)
-      return { id }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo registrar la reunión.' }
-    }
   }
 
   /**
@@ -501,7 +468,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               <LevantarMinuta
                 sesiones={pendientesDeMinuta}
                 salaFija={slug}
-                crearReunionAction={crearReunionAction}
                 claseBoton={estilos.nuevaMinutaBoton}
               />
             </div>

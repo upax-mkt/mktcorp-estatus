@@ -125,7 +125,7 @@ export function ReunionesSala({ reuniones, equipo }: Props) {
 
             <footer className={estilos.lightboxPie}>
               {minutaDe(abierta)!.texto && (
-                <CopiarBoton texto={minutaDe(abierta)!.texto!} className={estilos.lightboxBoton} />
+                <CopiarBoton texto={minutaDe(abierta)!.texto!} formatoCorreo className={estilos.lightboxBoton} />
               )}
               {/* Desde la minuta se llega al documento de SU reunión: es la
                   pregunta que sigue a leer un acuerdo — "¿qué se presentó?". */}

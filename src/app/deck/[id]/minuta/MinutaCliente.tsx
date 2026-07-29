@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import estilos from '../../deck.module.css'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
-import { generarMinutaAction, publicarMinutaAction } from './acciones'
+import { CorreoMinuta } from '@/componentes/CorreoMinuta'
+import { generarMinutaAction, publicarMinutaAction, type DeQueReunion } from './acciones'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
 
 interface FilaAcuerdo extends AcuerdoPropuesto {
@@ -12,14 +13,19 @@ interface FilaAcuerdo extends AcuerdoPropuesto {
 }
 
 interface Props {
-  sesionId: string
+  /**
+   * De qué reunión es esta minuta: una que ya existe en la app, o una descrita
+   * a mano que todavía NO SE HA REGISTRADO. Lo segundo es lo que evita las
+   * reuniones fantasma — se registra al publicar, no al empezar a escribir.
+   */
+  de: DeQueReunion
   /**
    * Qué hacer cuando la minuta queda publicada. Por defecto vuelve al
    * cuestionario de la sesión — lo correcto cuando el flujo se abre desde el
    * preparador. Desde la SALA, en cambio, no hay a dónde volver: se cierra la
    * ventana flotante y la sala se refresca.
    */
-  alPublicar?: () => void
+  alPublicar?: (sesionId: string) => void
   /**
    * Transcripción ya capturada, si la reunión se grabó desde el modo
    * presentación. Es un valor INICIAL, no controlado: quien lo recibe puede
@@ -63,7 +69,7 @@ function aFilaEditable(a: AcuerdoPropuesto): FilaAcuerdo {
   return { ...a, incluir: true }
 }
 
-export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Props) {
+export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
   const router = useRouter()
   const [transcripcion, setTranscripcion] = useState(transcripcionInicial ?? '')
   const [textoCorreo, setTextoCorreo] = useState<string | null>(null)
@@ -120,7 +126,7 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
     }
     setError(null)
     startGenerar(async () => {
-      const r = await generarMinutaAction(sesionId, transcripcion)
+      const r = await generarMinutaAction(de, transcripcion)
       if (!r.ok || !r.textoCorreo || !r.acuerdosPropuestos) {
         setError(r.error ?? 'No se pudo generar la minuta.')
         return
@@ -142,15 +148,17 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
         .filter((f) => f.incluir)
         .map(({ incluir: _incluir, ...resto }) => resto)
 
-      const r = await publicarMinutaAction(sesionId, transcripcion, textoCorreo, confirmados)
-      if (!r.ok) {
+      const r = await publicarMinutaAction(de, transcripcion, textoCorreo, confirmados)
+      if (!r.ok || !r.sesionId) {
         setError(r.error ?? 'No se pudo publicar la minuta.')
         return
       }
+      // El id viene de la respuesta y no de las props: cuando la reunión se
+      // describió a mano, hasta este momento no existía.
       if (alPublicar) {
-        alPublicar()
+        alPublicar(r.sesionId)
       } else {
-        router.push(`/deck/${sesionId}`)
+        router.push(`/deck/${r.sesionId}`)
       }
       router.refresh()
     })
@@ -212,10 +220,11 @@ export function MinutaCliente({ sesionId, alPublicar, transcripcionInicial }: Pr
               <span className={estilos.campoInlineLabel}>Texto del correo</span>
               <CopiarBoton
                 texto={textoCorreo}
+                formatoCorreo
                 className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`}
               />
             </div>
-            <pre className={estilos.minutaCorreo}>{textoCorreo}</pre>
+            <CorreoMinuta texto={textoCorreo} />
           </div>
 
           <div className={estilos.minutaAcuerdos}>
