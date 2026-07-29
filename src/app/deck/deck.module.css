@@ -236,11 +236,19 @@
 .tarjetaGuardar { display: flex; justify-content: flex-end; margin-top: 0.4rem; }
 
 /* ---- panel de maquetar ---- */
+/* UN PANEL PEGAJOSO TIENE QUE SER OPACO.
+   Estaba pintado con `var(--barra)`, que no existe en ninguna hoja: el fondo
+   se resolvía a nada y el panel flotaba TRANSPARENTE sobre lo que se
+   desplazaba debajo — en la revisión de la minuta, el aviso y el botón de
+   publicar se leían encima de los campos del acuerdo. Los tokens base
+   (`--papel`, `--tinta`) están en `sistema.css` y valen en cualquier
+   contexto; los alias locales solo existen dentro de un `.app`, y esta pieza
+   también se usa dentro de la ventana flotante del Home. */
 .panelMaquetar {
   position: sticky; bottom: 1rem; margin-top: 2rem;
-  background: var(--barra); color: var(--tinta-2); border-radius: 0.9rem;
+  background: var(--papel); color: var(--tinta); border: 1px solid var(--linea); border-radius: 0.9rem;
   padding: 1rem 1.3rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
-  box-shadow: 0 8px 30px oklch(0 0 0 / 0.18);
+  box-shadow: 0 8px 30px oklch(0 0 0 / 0.12);
 }
 .panelMaquetarTexto { font-size: 0.88rem; opacity: 0.85; }
 .panelMaquetarAviso {
@@ -272,19 +280,16 @@
 
 .minutaCorreoWrap { background: var(--superficie); border: 1px solid var(--borde); border-radius: 0.9rem; padding: 1.1rem 1.3rem; }
 .minutaCorreoCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.7rem; }
-.minutaCorreo {
-  white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, monospace;
-  font-size: 0.84rem; line-height: 1.6; color: var(--tx); margin: 0;
-  max-height: 28rem; overflow-y: auto; padding-right: 0.25rem;
-}
-
 /* La vista de correo. El HTML trae sus estilos EN LÍNEA —los únicos que
    sobreviven a Gmail— y ganan a cualquier regla de aquí, que es lo que se
-   quiere: lo que se ve es lo que se pega. Esto solo le pone caja. */
-.minutaCorreoVista {
-  max-height: 28rem; overflow-y: auto; padding-right: 0.35rem;
-  word-break: break-word;
-}
+   quiere: lo que se ve es lo que se pega. Esto solo le pone caja.
+
+   SIN ALTURA MÁXIMA, a propósito. La tenía —28rem, heredadas del `<pre>` que
+   había antes— y dentro de la ventana flotante eso son DOS barras de
+   desplazamiento anidadas: se veía el saludo y la primera fila de la tabla, y
+   el resto del correo quedaba detrás de un scroll que nadie descubre. Esto se
+   enseña para revisarlo antes de mandarlo; hay que poder leerlo entero. */
+.minutaCorreoVista { word-break: break-word; }
 .minutaAcuerdos { display: flex; flex-direction: column; gap: 0.9rem; }
 .minutaAcuerdosCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .avisoSinFecha {
