@@ -57,6 +57,25 @@ describe('crearElementoEnDelivery', () => {
     expect(valores['date_mm1b10rx']).toEqual({})
     expect(valores['person']).toBeUndefined()
   })
+
+  it('con responsableMondayId vacío (\'\'), tampoco manda la columna de personas', async () => {
+    // Caso que nadie puede producir hoy desde la interfaz (no hay selector de
+    // responsable todavía — tarea 10), pero conviene clavarlo antes: una
+    // cadena vacía no es un id, y Number('') da 0 — asignaría el acuerdo a un
+    // usuario de Monday que no existe.
+    const espia = conRed({ create_item: { id: '1', url: 'https://x' } })
+
+    await crearElementoEnDelivery({
+      salaSlug: 'neracode',
+      que: 'Validar cifras',
+      estatus: 'abierto',
+      fechaCompromiso: null,
+      responsableMondayId: '',
+    })
+
+    const valores = JSON.parse(cuerpoDe(espia).variables.valores)
+    expect(valores['person']).toBeUndefined()
+  })
 })
 
 describe('crearSubelemento', () => {
