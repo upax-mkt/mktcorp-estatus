@@ -157,22 +157,62 @@ describe('existeElGrupo', () => {
 })
 
 describe('elementosDeDelivery', () => {
-  it('filtra por el ÍNDICE de la etiqueta de UdN, no por su texto', async () => {
+  it('filtra por el ÍNDICE de la etiqueta de UdN para mexa-creativa (índice 1)', async () => {
     const espia = conRed({
       boards: [{ groups: [{ items_page: { items: [{ id: '9', name: 'MC | Campaña Paid media' }] } }] }],
     })
 
-    const elementos = await elementosDeDelivery('mexa-creativa')
+    const resultado = await elementosDeDelivery('mexa-creativa')
 
-    expect(elementos).toEqual([{ id: '9', nombre: 'MC | Campaña Paid media' }])
+    expect(resultado.elementos).toEqual([{ id: '9', nombre: 'MC | Campaña Paid media' }])
+    expect(resultado.truncado).toBe(false)
     const consulta = cuerpoDe(espia).query as string
     expect(consulta).toContain('color_mm0ex2j0')
     expect(cuerpoDe(espia).variables.udn).toEqual([1])
   })
 
-  it('una sala que no está en el tablero devuelve lista vacía sin llamar a nadie', async () => {
+  it('filtra por el ÍNDICE correcto para otra UDN como research-land (índice 156)', async () => {
+    const espia = conRed({
+      boards: [{ groups: [{ items_page: { items: [{ id: '42', name: 'RL | Benchmarking' }] } }] }],
+    })
+
+    const resultado = await elementosDeDelivery('research-land')
+
+    expect(resultado.elementos).toEqual([{ id: '42', nombre: 'RL | Benchmarking' }])
+    expect(resultado.truncado).toBe(false)
+    expect(cuerpoDe(espia).variables.udn).toEqual([156])
+  })
+
+  it('marca truncado como cierto si devuelve exactamente 100 elementos', async () => {
+    const items100 = Array.from({ length: 100 }, (_, i) => ({
+      id: String(i),
+      name: `Item ${i}`,
+    }))
+    const espia = conRed({
+      boards: [{ groups: [{ items_page: { items: items100 } }] }],
+    })
+
+    const resultado = await elementosDeDelivery('mexa-creativa')
+
+    expect(resultado.elementos).toHaveLength(100)
+    expect(resultado.truncado).toBe(true)
+  })
+
+  it('una sala que no está en el mapa devuelve lista vacía sin llamar a nadie', async () => {
     const espia = conRed({ boards: [] })
-    expect(await elementosDeDelivery('sala-inventada')).toEqual([])
+    const resultado = await elementosDeDelivery('sala-inventada')
+    expect(resultado).toEqual({ elementos: [], truncado: false })
+    expect(espia).not.toHaveBeenCalled()
+  })
+
+  it('sin grupo configurado devuelve lista vacía sin llamar a nadie', async () => {
+    const espia = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { boards: [] } })))
+    vi.stubEnv('MONDAY_TOKEN', 'ficticio')
+    // No configurar MONDAY_GRUPO — debe quedar sin definir
+    vi.stubGlobal('fetch', espia)
+
+    const resultado = await elementosDeDelivery('mexa-creativa')
+    expect(resultado).toEqual({ elementos: [], truncado: false })
     expect(espia).not.toHaveBeenCalled()
   })
 })

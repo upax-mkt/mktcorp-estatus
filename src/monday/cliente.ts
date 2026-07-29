@@ -281,11 +281,18 @@ export interface ElementoDeDelivery {
  * grupo entero tiene 950 elementos y una UDN tiene ocho. Monday compara las
  * columnas de estado por el ÍNDICE de la etiqueta, no por su texto — ver
  * INDICE_UDN en mapeo.ts.
+ *
+ * Devuelve un objeto con `elementos` (la lista) y `truncado` (si se llegó al
+ * límite de 100). Si hay más elementos, `truncado` es cierto y el consumidor debe
+ * advertir al usuario: hoy una UDN tiene ocho, pero la pantalla tiene que estar
+ * preparada por si el tablero crece.
  */
-export async function elementosDeDelivery(salaSlug: string): Promise<ElementoDeDelivery[]> {
+export async function elementosDeDelivery(
+  salaSlug: string,
+): Promise<{ elementos: ElementoDeDelivery[]; truncado: boolean }> {
   const grupo = grupoDeAcuerdos()
   const indice = INDICE_UDN[salaSlug]
-  if (!grupo || indice === undefined) return []
+  if (!grupo || indice === undefined) return { elementos: [], truncado: false }
 
   const datos = await consultarMonday<{
     boards: Array<{ groups: Array<{ items_page: { items: Array<{ id: string; name: string }> } }> }>
@@ -303,5 +310,7 @@ export async function elementosDeDelivery(salaSlug: string): Promise<ElementoDeD
   )
 
   const items = datos.boards?.[0]?.groups?.[0]?.items_page?.items ?? []
-  return items.map((i) => ({ id: i.id, nombre: i.name }))
+  const elementos = items.map((i) => ({ id: i.id, nombre: i.name }))
+  const truncado = elementos.length === 100
+  return { elementos, truncado }
 }
