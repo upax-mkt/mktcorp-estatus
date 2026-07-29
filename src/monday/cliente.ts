@@ -5,6 +5,11 @@ import {
   columnasDe, INDICE_UDN,
 } from './mapeo'
 import type { EstatusGuardado, DestinoMonday } from './mapeo'
+// Solo el TIPO: sincronizar.ts importa de aquí en tiempo de ejecución
+// (actualizarEnMonday, ErrorMonday, escrituraActiva), así que un import de
+// valor en este sentido crearía un ciclo real. `import type` se borra al
+// compilar y no lo crea.
+import type { EstadoEnMonday } from './sincronizar'
 
 export { ErrorMonday, tokenDeMonday }
 
@@ -313,4 +318,84 @@ export async function elementosDeDelivery(
   const elementos = items.map((i) => ({ id: i.id, nombre: i.name }))
   const truncado = elementos.length === 100
   return { elementos, truncado }
+}
+
+interface FilaLeida {
+  id: string
+  updated_at: string
+  column_values: Array<{ id: string; text: string | null; value: string | null }>
+}
+
+/**
+ * EL ESTADO EN MONDAY de los acuerdos que ya subimos — la vuelta.
+ *
+ * Pide SOLO los ids que ya conocemos, nunca el grupo: recorrer Delivery
+ * serían 950 elementos para enterarse de veinte. Por eso usa `items(ids:
+ * …)`, la consulta raíz de Monday que trae elementos por id sin pasar por
+ * board/group — a diferencia de `acuerdosDeSalaEnMonday` y
+ * `elementosDeDelivery`, que sí necesitan recorrer un grupo porque todavía
+ * no saben qué id buscan.
+ *
+ * Dos consultas como mucho —una por tipo—, porque las columnas que hay que
+ * leer (`columnasDe`) son distintas en el elemento y en el subelemento.
+ *
+ * El NOMBRE del elemento no se pide: el texto del acuerdo no vuelve de
+ * Monday (ver la cabecera de sincronizar.ts). Si alguien renombra el
+ * elemento allá, aquí se conserva lo que se pactó en la reunión.
+ *
+ * Un id que Monday no devuelve es un elemento borrado allá, y eso NO borra
+ * nuestro acuerdo: se marca `existe: false` para que `reconciliar` (en
+ * sincronizar.ts) decida — nunca se decide aquí.
+ */
+export async function leerAcuerdosDeMonday(
+  refs: Array<{ mondayId: string; tipo: DestinoMonday }>,
+): Promise<Map<string, EstadoEnMonday>> {
+  const salida = new Map<string, EstadoEnMonday>()
+  if (refs.length === 0 || !mondayConectado()) return salida
+
+  for (const tipo of ['elemento', 'subelemento'] as DestinoMonday[]) {
+    const ids = refs.filter((r) => r.tipo === tipo).map((r) => r.mondayId)
+    if (ids.length === 0) continue
+
+    const col = columnasDe(tipo)
+    const datos = await consultarMonday<{ items: FilaLeida[] }>(
+      `query ($ids: [ID!]!) {
+         items(ids: $ids) {
+           id
+           updated_at
+           column_values(ids: ["${col.fase}", "${col.deadline}"]) { id text value }
+         }
+       }`,
+      { ids },
+    )
+
+    const vistos = new Set<string>()
+    for (const fila of datos.items ?? []) {
+      const celda = (id: string) => fila.column_values.find((c) => c.id === id)
+      const fecha = celda(col.deadline)
+      salida.set(fila.id, {
+        estatus: estatusDeFase(celda(col.fase)?.text),
+        fechaCompromiso: fechaDeColumna(
+          fecha?.value ? (JSON.parse(fecha.value) as unknown) : fecha?.text,
+        ),
+        actualizadoEn: new Date(fila.updated_at),
+        existe: true,
+      })
+      vistos.add(fila.id)
+    }
+
+    // Los pedidos que Monday NO devolvió: elementos borrados allá.
+    for (const id of ids) {
+      if (!vistos.has(id)) {
+        salida.set(id, {
+          estatus: 'abierto',
+          fechaCompromiso: null,
+          actualizadoEn: new Date(0),
+          existe: false,
+        })
+      }
+    }
+  }
+
+  return salida
 }

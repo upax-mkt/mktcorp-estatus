@@ -12,12 +12,14 @@
  * Historia de cambios: v1 mínima (spec §4), un jsonb por acuerdo con un
  * registro por movimiento de estatus o edición — ver `esquema.acuerdos.historia`.
  */
-import { eq } from 'drizzle-orm'
+import { eq, isNotNull } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
-import { sincronizarCambio } from '@/monday/sincronizar'
+import { sincronizarCambio, reconciliar } from '@/monday/sincronizar'
 import { estadoInicialDeBandeja, entraALaBandeja, type EstadoBandeja } from '@/monday/bandeja'
+import { leerAcuerdosDeMonday, mondayConectado } from '@/monday/cliente'
+import type { DestinoMonday } from '@/monday/mapeo'
 import { slugsDeSalas, obtenerTema } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
@@ -320,4 +322,98 @@ export async function acuerdosPendientesDeSubir(): Promise<AcuerdoPendienteDeSub
     })
     // La fecha más próxima primero; sin fecha, al final: es lo que más urge decidir.
     .sort((a, b) => (a.fechaCompromiso ?? '9999-99-99').localeCompare(b.fechaCompromiso ?? '9999-99-99'))
+}
+
+// ---- La vuelta (tarea 9, ronda 7) ----
+
+/**
+ * LA VUELTA: trae de Monday el estado de los acuerdos que ya viven allá y
+ * reconcilia cada uno contra lo que hay aquí — ver `reconciliar` en
+ * src/monday/sincronizar.ts.
+ *
+ * Quien llama a esto es una PÁGINA (/acuerdos, /cliente/[slug]) y la
+ * envuelve en try/catch: aquí NO se atrapan los errores de Monday, se dejan
+ * subir. Es la regla central de sincronizar.ts —Monday nunca puede tumbar la
+ * app— vista desde el otro lado: hay un único llamador por página y es él
+ * quien decide qué pasa si esto falla, así que atraparlo aquí también solo
+ * escondería el error de quien sí lo necesita.
+ *
+ * Sin DB no hay nada que refrescar: el store en memoria no modela las
+ * columnas de Monday (ver FilaAcuerdoMemoria en store-memoria.ts), así que
+ * ningún acuerdo en memoria tiene un mondayId del que partir.
+ */
+export async function refrescarDesdeMonday(): Promise<void> {
+  if (!hayDB() || !mondayConectado()) return
+  const conexion = db()
+
+  // SOLO los acuerdos que ya tienen mondayId — nunca el tablero entero (ver
+  // la cabecera de leerAcuerdosDeMonday en src/monday/cliente.ts).
+  const filas = await conexion
+    .select({
+      id: esquema.acuerdos.id,
+      mondayId: esquema.acuerdos.mondayId,
+      mondayTipo: esquema.acuerdos.mondayTipo,
+      estatus: esquema.acuerdos.estatus,
+      fechaCompromiso: esquema.acuerdos.fechaCompromiso,
+      historia: esquema.acuerdos.historia,
+      updatedAt: esquema.acuerdos.updatedAt,
+    })
+    .from(esquema.acuerdos)
+    .where(isNotNull(esquema.acuerdos.mondayId))
+
+  if (filas.length === 0) return
+
+  const refs: Array<{ mondayId: string; tipo: DestinoMonday }> = filas.map((f) => ({
+    mondayId: f.mondayId as string,
+    // NULL es un acuerdo creado antes de esta ronda (el crearEnMonday viejo
+    // solo escribía ELEMENTOS) — mismo criterio que mondayIdDe en
+    // src/monday/sincronizar.ts.
+    tipo: f.mondayTipo === 'subelemento' ? 'subelemento' : 'elemento',
+  }))
+
+  const remotos = await leerAcuerdosDeMonday(refs)
+  const ahora = new Date()
+
+  for (const fila of filas) {
+    const remoto = remotos.get(fila.mondayId as string)
+    // No debería faltar —leerAcuerdosDeMonday responde por cada id pedido,
+    // exista allá o no— pero si faltara, no tocar la fila es lo seguro.
+    if (!remoto) continue
+
+    const resultado = reconciliar(
+      { estatus: fila.estatus, fechaCompromiso: isoDia(fila.fechaCompromiso), updatedAt: fila.updatedAt },
+      remoto,
+    )
+
+    if (resultado === 'gana-monday') {
+      await conexion
+        .update(esquema.acuerdos)
+        .set({
+          estatus: remoto.estatus,
+          fechaCompromiso: remoto.fechaCompromiso ? new Date(remoto.fechaCompromiso) : null,
+          updatedAt: ahora,
+        })
+        .where(eq(esquema.acuerdos.id, fila.id))
+    } else if (resultado === 'desapareció') {
+      // El acuerdo NO se borra ni cambia de estatus: lo que se acordó en una
+      // reunión no lo deshace un borrado en otro sistema (ver la cabecera de
+      // sincronizar.ts). Se deja de sincronizar —mondayId a null— y queda
+      // constancia en la historia, con el mismo formato que usa cada cambio
+      // de este archivo.
+      const historia = historiaConEntrada(fila.historia, {
+        en: ahora.toISOString(),
+        cambios: {
+          mondayId: null,
+          aviso: 'El elemento ya no existe en Monday: se dejó de sincronizar.',
+        },
+      })
+      await conexion
+        .update(esquema.acuerdos)
+        .set({ mondayId: null, historia, updatedAt: ahora })
+        .where(eq(esquema.acuerdos.id, fila.id))
+    }
+    // 'gana-local': nuestro dato es más nuevo que el de Monday, no hay nada
+    // que hacer — Monday se pone al día en el siguiente cambio que pase por
+    // sincronizarCambio.
+  }
 }

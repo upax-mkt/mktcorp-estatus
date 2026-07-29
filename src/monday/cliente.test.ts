@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { crearElementoEnDelivery, crearSubelemento, existeElGrupo, actualizarEnMonday, elementosDeDelivery } from './cliente'
-import { TABLERO, TABLERO_SUBELEMENTOS } from './mapeo'
+import {
+  crearElementoEnDelivery, crearSubelemento, existeElGrupo, actualizarEnMonday, elementosDeDelivery,
+  leerAcuerdosDeMonday,
+} from './cliente'
+import { TABLERO, TABLERO_SUBELEMENTOS, COLUMNA_ELEMENTO, COLUMNA_SUBELEMENTO } from './mapeo'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -213,6 +216,113 @@ describe('elementosDeDelivery', () => {
 
     const resultado = await elementosDeDelivery('mexa-creativa')
     expect(resultado).toEqual({ elementos: [], truncado: false })
+    expect(espia).not.toHaveBeenCalled()
+  })
+})
+
+describe('leerAcuerdosDeMonday', () => {
+  it('pide SOLO los ids conocidos con items(ids:…) — nunca boards/groups, que sería el tablero entero', async () => {
+    const espia = conRed({
+      items: [
+        {
+          id: '9',
+          updated_at: '2026-07-29T11:00:00Z',
+          column_values: [
+            { id: COLUMNA_ELEMENTO.fase, text: '✅ Done', value: null },
+            { id: COLUMNA_ELEMENTO.deadline, text: '2026-08-12', value: '{"date":"2026-08-12"}' },
+          ],
+        },
+      ],
+    })
+
+    const resultado = await leerAcuerdosDeMonday([{ mondayId: '9', tipo: 'elemento' }])
+
+    const cuerpo = cuerpoDe(espia)
+    expect(cuerpo.query).toContain('items(ids: $ids)')
+    expect(cuerpo.query).not.toContain('boards')
+    expect(cuerpo.variables.ids).toEqual(['9'])
+    expect(resultado.get('9')).toEqual({
+      estatus: 'cumplido',
+      fechaCompromiso: '2026-08-12',
+      actualizadoEn: new Date('2026-07-29T11:00:00Z'),
+      existe: true,
+    })
+  })
+
+  it('no pide el nombre del elemento: el texto del acuerdo nunca vuelve de Monday', async () => {
+    const espia = conRed({ items: [] })
+
+    await leerAcuerdosDeMonday([{ mondayId: '9', tipo: 'elemento' }])
+
+    // La query solo declara id / updated_at / column_values(fase, deadline).
+    // Si algún día alguien le agrega "name" aquí, este test tiene que caer:
+    // es exactamente el campo que la regla central prohíbe leer de vuelta.
+    expect(cuerpoDe(espia).query).not.toMatch(/\bname\b/)
+  })
+
+  it('un id que Monday no devuelve queda "existe: false", sin inventar estatus ni fecha', async () => {
+    conRed({ items: [] }) // Monday respondió, pero sin el id pedido: borrado allá.
+
+    const resultado = await leerAcuerdosDeMonday([{ mondayId: '404', tipo: 'elemento' }])
+
+    expect(resultado.get('404')).toEqual({
+      estatus: 'abierto',
+      fechaCompromiso: null,
+      actualizadoEn: new Date(0),
+      existe: false,
+    })
+  })
+
+  it('con ids de los dos tipos, hace DOS consultas —una por tipo— con las columnas de cada uno', async () => {
+    const espia = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { items: [{ id: '9', updated_at: '2026-07-29T11:00:00Z', column_values: [] }] } }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { items: [{ id: '77', updated_at: '2026-07-29T12:00:00Z', column_values: [] }] } }),
+        ),
+      )
+    vi.stubEnv('MONDAY_TOKEN', 'ficticio')
+    vi.stubGlobal('fetch', espia)
+
+    const resultado = await leerAcuerdosDeMonday([
+      { mondayId: '9', tipo: 'elemento' },
+      { mondayId: '77', tipo: 'subelemento' },
+    ])
+
+    expect(espia).toHaveBeenCalledTimes(2)
+    const primero = cuerpoDe(espia, 0)
+    const segundo = cuerpoDe(espia, 1)
+    expect(primero.variables.ids).toEqual(['9'])
+    expect(primero.query).toContain(COLUMNA_ELEMENTO.fase)
+    expect(segundo.variables.ids).toEqual(['77'])
+    expect(segundo.query).toContain(COLUMNA_SUBELEMENTO.fase)
+    expect(resultado.get('9')?.existe).toBe(true)
+    expect(resultado.get('77')?.existe).toBe(true)
+  })
+
+  it('sin refs, no llama a nadie', async () => {
+    const espia = vi.fn()
+    vi.stubGlobal('fetch', espia)
+
+    const resultado = await leerAcuerdosDeMonday([])
+
+    expect(resultado.size).toBe(0)
+    expect(espia).not.toHaveBeenCalled()
+  })
+
+  it('sin MONDAY_TOKEN, no llama a nadie', async () => {
+    const espia = vi.fn()
+    vi.stubGlobal('fetch', espia)
+    // Sin vi.stubEnv('MONDAY_TOKEN', …): mondayConectado() es falso.
+
+    const resultado = await leerAcuerdosDeMonday([{ mondayId: '9', tipo: 'elemento' }])
+
+    expect(resultado.size).toBe(0)
     expect(espia).not.toHaveBeenCalled()
   })
 })

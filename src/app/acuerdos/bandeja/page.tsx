@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { acuerdosPendientesDeSubir } from '@/db/acuerdos'
+import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import {
   elementosDeDelivery, existeElGrupo, grupoDeAcuerdos, mondayConectado,
 } from '@/monday/cliente'
@@ -72,6 +72,16 @@ export default async function PagBandeja() {
         </main>
       </div>
     )
+  }
+
+  // LA VUELTA antes de leer: si Monday movió el estatus o la fecha de un
+  // acuerdo ya subido, que se refleje aquí también. Nunca debe tumbar la
+  // página —regla central de src/monday/sincronizar.ts—, así que el fallo se
+  // ignora: la bandeja se pinta igual con lo que ya hay en la base.
+  try {
+    await refrescarDesdeMonday()
+  } catch {
+    // Intencional: ver el comentario de arriba.
   }
 
   const [pendientes, grupoExiste] = await Promise.all([

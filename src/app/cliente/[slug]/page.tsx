@@ -11,7 +11,9 @@ import {
 import { sesionesMinutables, reunionesDeSala } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
-import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import {
+  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
+} from '@/db/acuerdos'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
   listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, type CategoriaArchivo,
@@ -70,6 +72,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // El proxy ya filtró, pero esta es la comprobación que cuenta: pegada al
   // dato, no en la puerta. Un director solo abre su sala.
   if (!(await puedeVerEstaSala(slug))) notFound()
+
+  // LA VUELTA antes de leer: si Monday movió el estatus o la fecha de un
+  // acuerdo, que se refleje en la sala. Nunca debe tumbar la página —regla
+  // central de src/monday/sincronizar.ts—, así que el fallo se ignora: la
+  // sala se pinta igual con lo que ya hay en la base.
+  try {
+    await refrescarDesdeMonday()
+  } catch {
+    // Intencional: ver el comentario de arriba.
+  }
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()

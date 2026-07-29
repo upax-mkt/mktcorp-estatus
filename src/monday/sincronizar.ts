@@ -91,3 +91,43 @@ export async function sincronizarCambio(
     }
   }
 }
+
+// ---- La vuelta (tarea 9, ronda 7): qué hacer cuando el estado cambió en los dos lados ----
+
+/**
+ * El estado en Monday de UN acuerdo ya sincronizado — lo que trae
+ * `leerAcuerdosDeMonday` (cliente.ts) por cada `mondayId` pedido.
+ *
+ * Vive aquí y no en cliente.ts porque es `reconciliar`, no la lectura, quien
+ * define qué forma necesita el dato para decidir.
+ */
+export interface EstadoEnMonday {
+  estatus: EstatusGuardado
+  fechaCompromiso: string | null
+  actualizadoEn: Date
+  existe: boolean
+}
+
+/**
+ * Quién manda cuando el acuerdo cambió en los dos lados.
+ *
+ * Gana el más reciente, comparando INSTANTES y no días civiles: por día
+ * habría empates cada vez que alguien mueve algo por la mañana aquí y por la
+ * tarde allá, y el empate lo tendría que romper una persona.
+ *
+ * El TEXTO del acuerdo nunca vuelve de Monday, así que no entra en esta
+ * comparación: lo que se pactó en la reunión lo dice la minuta, y renombrar
+ * el elemento en el tablero no reescribe un acta.
+ *
+ * Un elemento borrado en Monday (`existe: false`) NO borra nuestro acuerdo:
+ * ni siquiera se llega a comparar fechas, se marca `desapareció` sin mirar
+ * quién es más reciente — lo que se acordó en una reunión no lo deshace un
+ * borrado en otro sistema.
+ */
+export function reconciliar(
+  local: { estatus: EstatusGuardado; fechaCompromiso: string | null; updatedAt: Date },
+  remoto: EstadoEnMonday,
+): 'gana-local' | 'gana-monday' | 'desapareció' {
+  if (!remoto.existe) return 'desapareció'
+  return remoto.actualizadoEn > local.updatedAt ? 'gana-monday' : 'gana-local'
+}
