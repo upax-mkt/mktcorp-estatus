@@ -681,3 +681,30 @@ fijo y al pegarla se deshacía.
 **Cada regla del conversor falla hacia el lado seguro:** lo que no reconoce sale
 como párrafo. Un encabezado sin negrita es un correo feo; una tabla mal partida
 es un correo ilegible.
+
+## Dos defectos que solo aparecieron en el print de la ventana
+
+Ninguno de los dos rompía una prueba, y los 688 tests seguían en verde.
+
+- **El panel pegajoso de «Publicar minuta» era transparente.** Se pintaba con
+  `var(--barra)`, un token que no existe en ninguna hoja: el fondo se resolvía
+  a nada y el aviso y el botón se leían ENCIMA de los campos del acuerdo. Los
+  tokens base (`--papel`, `--tinta`, `--linea`) están en `sistema.css` y valen
+  en cualquier contexto; los alias locales solo existen dentro de un `.app`, y
+  esta pieza también vive en la ventana flotante del Home.
+- **La tabla partía nombres.** Con una acción larga, el reparto automático de
+  anchos estrujaba las otras dos columnas: "Fernando" salía como "Fernand / o"
+  y "3 ago 2026" caía en dos líneas. Una columna cuyos valores son TODOS
+  cortos (≤ 16 caracteres) se marca `nowrap`; la del texto largo se ajusta,
+  que es para lo que está.
+
+Y la vista del correo tenía 28rem de alto máximo, heredadas del `<pre>`: dentro
+de la ventana eran dos barras de desplazamiento anidadas, así que se veía el
+saludo y la primera fila de la tabla y el resto quedaba detrás de un scroll que
+nadie descubre.
+
+**Verificado en producción, no solo en local:** ventana entera visible sin
+scroll interno, panel opaco (`elPuntoDelPanelEsElPanel: true`), 1 tabla de 6
+filas, 4 encabezados en negrita, cero errores de consola. Y la casa quedó
+limpia: las reuniones y los 18 acuerdos que publicaron las pruebas se borraron
+— la base vuelve a tener 0 acuerdos, 0 minutas y las 4 sesiones de Franco.
