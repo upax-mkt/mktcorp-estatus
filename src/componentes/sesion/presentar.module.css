@@ -63,14 +63,41 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  /* NUNCA centrado: lo que no cabe desbordaría por arriba Y por abajo, y la
-     mitad de arriba es irrecuperable. Alineado al inicio, lo que sobra baja y
-     se alcanza con scroll. */
-  justify-content: flex-start;
-  padding-block: clamp(3rem, 6vh, 6rem);
+  /*
+   * CENTRADO SOLO SI CABE, y esa es la diferencia.
+   *
+   * Estaba fijo al inicio para que lo que no cupiera desbordara solo por
+   * abajo. Correcto para una sección larga, y desastroso para una corta: la
+   * portada dejaba dos tercios de pantalla en blanco bajo cuatro palabras.
+   *
+   * `safe center` resuelve las dos: centra mientras el contenido quepa y, en
+   * cuanto se pasa, se comporta como `flex-start` — nunca desborda por arriba,
+   * que es lo irrecuperable en una proyección.
+   */
+  justify-content: safe center;
+  padding-block: clamp(2rem, 5vh, 4.5rem);
   scroll-snap-align: start;
   padding-inline: clamp(2rem, 7vw, 8rem);
   border-top: none;
+}
+
+/*
+ * LO QUE SE PROYECTA SE ENCOGE PARA CABER.
+ *
+ * `--escala` la sube el documento para que se lea a distancia, y con una tabla
+ * de ocho filas eso desborda la pantalla: en la junta hay que hacer scroll
+ * delante del director, que es justo lo que una diapositiva evita.
+ *
+ * El tope va por ALTURA de ventana y no por sección, porque el CSS no sabe
+ * cuánto mide un contenido antes de pintarlo. En pantallas bajas —un proyector
+ * de sala suele ser 1080p con la barra del sistema— se baja la escala; en una
+ * pantalla alta se deja subir.
+ */
+@media (max-height: 900px) {
+  .presentando :global([data-layout]) { --escala: 1.15; }
+}
+@media (max-height: 760px) {
+  .presentando :global([data-layout]) { --escala: 1; }
 }
 
 

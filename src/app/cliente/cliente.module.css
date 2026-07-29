@@ -659,3 +659,22 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   color: var(--marca-texto, var(--marca)); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
 .avisoEnlace:hover { text-decoration: underline; }
+
+/* ---- lo que se está preparando para este cliente ---- */
+.enPreparacion { display: grid; gap: 0.5rem; margin-bottom: 1.2rem; }
+.enPreparacionFila {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: 0.85rem 1rem; border-radius: var(--r-3);
+  background: color-mix(in oklch, var(--marca) 8%, transparent);
+  border: 1px solid color-mix(in oklch, var(--marca) 22%, transparent);
+  text-decoration: none; color: inherit;
+  transition: border-color var(--rapido, 0.15s) linear;
+}
+.enPreparacionFila:hover { border-color: var(--marca); }
+.enPreparacionTexto { display: grid; gap: 0.2rem; font-size: 0.9rem; min-width: 0; }
+.enPreparacionTexto span { font-size: 0.8rem; color: var(--tx-3); }
+.enPreparacionSeguir {
+  font-size: 0.83rem; font-weight: 600; white-space: nowrap;
+  color: var(--marca-texto, var(--marca));
+}

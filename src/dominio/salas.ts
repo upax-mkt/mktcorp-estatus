@@ -194,6 +194,21 @@ export function sesionesMinutables(
 ): SesionMinutable[] {
   return sesiones
     .filter((s) => !conMinuta.has(s.id))
+    /**
+     * UN BORRADOR NO ES UNA REUNIÓN QUE OCURRIÓ.
+     *
+     * Franco: «quedó una lista de "borradores" en el modal de minutas». El
+     * filtro solo miraba la fecha, así que un borrador con fecha pasada
+     * —trabajo de preparación abandonado— aparecía como reunión minutable, y
+     * desde ahí no había forma de quitarlo.
+     *
+     * `borrador` es algo que se está preparando y todavía no tiene nada
+     * escrito; `agendada`, algo que ni siquiera empezó. Ninguna de las dos es
+     * una junta que se dio. Desde `lista` en adelante sí: está maquetada, y
+     * una reunión puede darse sin que a nadie le dé tiempo de marcarla como
+     * presentada.
+     */
+    .filter((s) => s.estado !== 'borrador' && s.estado !== 'agendada')
     .filter((s) => s.fecha.slice(0, 10) <= hoyCivil)
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .map((s) => ({

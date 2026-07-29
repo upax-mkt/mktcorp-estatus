@@ -86,7 +86,7 @@ export function TablaSeccion({ tabla }: { tabla: Tabla }) {
       {/* El scroll horizontal vive aquí y no en la página: una tabla ancha no
           puede arrastrar el documento entero de lado. */}
       <div className={estilos.tablaScroll}>
-        <table className={estilos.tabla}>
+        <table className={estilos.tabla} data-agrupa={agrupa ? "true" : undefined}>
           <thead>
             <tr>
               {tabla.columnas.map((columna, i) => (

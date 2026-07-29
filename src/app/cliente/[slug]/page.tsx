@@ -81,6 +81,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     listarSesiones(),
   ])
   const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
+  // Lo que está a medio armar para este cliente. No es una reunión todavía —no
+  // se ha dado— así que no entra en la lista de reuniones: es trabajo abierto.
+  const enPreparacion = sesionesDeLaSala.filter(
+    (x) => x.estado === 'agendada' || x.estado === 'borrador' || x.estado === 'lista',
+  )
   async function salirDeLaSala() {
     'use server'
     await cerrarSesion()
@@ -465,6 +470,28 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             Reuniones
             {reuniones.length > 0 && <span className={estilos.conteo}>{reuniones.length}</span>}
           </h2>
+
+          {/* LO QUE SE ESTÁ PREPARANDO, arriba y con su avance.
+              Franco: "si trae una presentación en preparación debería aparecer
+              dentro del espacio, así el usuario ingresa y sigue editando".
+              Tenía razón y era un agujero raro: el Home SÍ lo enseñaba —"18 de
+              18 secciones"— y el espacio del propio cliente, que es donde uno
+              entra a trabajar, no. */}
+          {equipo && enPreparacion.length > 0 && (
+            <div className={estilos.enPreparacion}>
+              {enPreparacion.map((p) => (
+                <Link key={p.id} href={`/deck/${p.id}`} className={estilos.enPreparacionFila}>
+                  <span className={estilos.enPreparacionTexto}>
+                    <strong>{p.titulo}</strong>
+                    <span>
+                      {fechaBreve(p.fecha)} · {p.itemsLlenados} de {p.totalItems} secciones
+                    </span>
+                  </span>
+                  <span className={estilos.enPreparacionSeguir}>Seguir editando →</span>
+                </Link>
+              ))}
+            </div>
+          )}
 
           <ReunionesSala reuniones={reuniones} equipo={equipo} />
 

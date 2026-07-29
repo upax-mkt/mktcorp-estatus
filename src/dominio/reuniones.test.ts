@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { reunionesDeSala, reunionesSinMinuta, type Presentacion, type Minuta } from './salas'
+import {
+  reunionesDeSala, reunionesSinMinuta, sesionesMinutables,
+  type Presentacion, type Minuta,
+} from './salas'
 
 /**
  * La reunión es la unidad, no la presentación ni la minuta por separado.
@@ -76,5 +79,40 @@ describe('reunionesSinMinuta', () => {
   it('una minuta suelta NO cuenta como pendiente', () => {
     const r = reunionesDeSala([], [M('s1', '2026-05-30T10:00:00Z', 'Suelta')])
     expect(reunionesSinMinuta(r)).toHaveLength(0)
+  })
+})
+
+describe('qué se puede minutar', () => {
+  const HOY = '2026-07-28'
+  const sesion = (id: string, estado: string, fecha = '2026-07-20T12:00:00Z') =>
+    ({ id, titulo: `Sesión ${id}`, fecha, salaSlug: 'zeus', estado })
+
+  it('un BORRADOR no se ofrece: no es una reunión que ocurrió', () => {
+    // Franco lo veía en el modal de minutas y no podía quitarlo de ahí. Un
+    // borrador es preparación a medias, no una junta que se dio.
+    const r = sesionesMinutables([sesion('a', 'borrador')], new Set(), HOY)
+    expect(r).toHaveLength(0)
+  })
+
+  it('una AGENDADA tampoco: ni siquiera empezó', () => {
+    expect(sesionesMinutables([sesion('a', 'agendada')], new Set(), HOY)).toHaveLength(0)
+  })
+
+  it('una LISTA sí: está maquetada y la reunión pudo darse', () => {
+    // Marcarla como presentada es papeleo; la reunión ocurre igual.
+    expect(sesionesMinutables([sesion('a', 'lista')], new Set(), HOY)).toHaveLength(1)
+  })
+
+  it('una PRESENTADA sí', () => {
+    expect(sesionesMinutables([sesion('a', 'presentada')], new Set(), HOY)).toHaveLength(1)
+  })
+
+  it('la que ya tiene minuta, no', () => {
+    expect(sesionesMinutables([sesion('a', 'presentada')], new Set(['a']), HOY)).toHaveLength(0)
+  })
+
+  it('la que aún no ha llegado, tampoco: no hay nada que transcribir', () => {
+    const futura = sesion('a', 'lista', '2026-08-15T12:00:00Z')
+    expect(sesionesMinutables([futura], new Set(), HOY)).toHaveLength(0)
   })
 })

@@ -55,8 +55,21 @@
    la separaba 14px del título de su sección, y ese desfase —repetido en cada
    tabla— se percibe como desalineación general: la bandera izquierda es la
    única estructura horizontal que mantiene unido el documento. */
-.tabla th:first-child,
-.tabla td:first-child { padding-left: 0; }
+/*
+ * OJO: `:first-child` es la posición en el DOM, NO la columna visual.
+ *
+ * En una tabla AGRUPADA, la celda del responsable lleva `rowspan` y las filas
+ * siguientes no la repiten — así que en esas filas la celda de TAREA es la
+ * primera del `<tr>` y se comía su sangría. El resultado: la columna de tarea
+ * saltaba 22 px de una fila a otra y aparecía una columna estrecha y vacía
+ * entre responsable y tarea. Se veía en el print de una tabla de pendientes.
+ *
+ * Por eso la regla solo aplica a las tablas SIN agrupar; en las agrupadas, la
+ * que va pegada al margen es siempre la celda de grupo.
+ */
+.tabla:not([data-agrupa]) th:first-child,
+.tabla:not([data-agrupa]) td:first-child { padding-left: 0; }
+.tabla[data-agrupa] .celdaGrupo { padding-left: 0; }
 .tabla th:last-child,
 .tabla td:last-child { padding-right: 0; }
 
