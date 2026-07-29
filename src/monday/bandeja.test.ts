@@ -9,6 +9,13 @@ describe('estadoInicialDeBandeja', () => {
   it('con responsable de la UDN, no aplica', () => {
     expect(estadoInicialDeBandeja(null)).toBe('no_aplica')
   })
+
+  it('compara estricto contra null, no por verdadero/falso: "" no es lo mismo que no tener responsable', () => {
+    // Mismo criterio que entraALaBandeja (`!== null`). Si esto volviera a
+    // decidir con `responsableMondayId ? ... : ...`, las dos funciones
+    // divergirían justo en este caso límite.
+    expect(estadoInicialDeBandeja('')).toBe('pendiente')
+  })
 })
 
 describe('entraALaBandeja', () => {

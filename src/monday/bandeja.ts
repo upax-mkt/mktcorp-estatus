@@ -9,7 +9,10 @@
 export type EstadoBandeja = 'no_aplica' | 'pendiente' | 'subido' | 'descartado'
 
 export function estadoInicialDeBandeja(responsableMondayId: string | null): EstadoBandeja {
-  return responsableMondayId ? 'pendiente' : 'no_aplica'
+  // Estricto (`!== null`), no truthy: mismo criterio que entraALaBandeja. Con
+  // coerción, un '' (que el tipo string | null permite y "no hay nadie" no
+  // es) se leería como "sin responsable" aquí y como "con responsable" allá.
+  return responsableMondayId !== null ? 'pendiente' : 'no_aplica'
 }
 
 export function entraALaBandeja(acuerdo: {
