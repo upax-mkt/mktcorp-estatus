@@ -135,12 +135,35 @@ export const FASE_DE_ESTATUS: Record<EstatusGuardado, string> = {
  * La Fase de Monday → nuestro estatus.
  *
  * Muchas a una: el tablero distingue seis fases de trabajo y a nosotros solo
- * nos importa si el compromiso sigue vivo. "Detenido" cuenta como abierto
- * —está parado, no cumplido— y quien mire la sala verá que su fecha pasó.
+ * nos importa si el compromiso sigue vivo.
+ *
+ * "Detenido" ES `cancelado`, no "abierto parado" — y desde la tarea 9 esto ya
+ * no es un matiz cosmético. Hasta esa tarea, esta función solo alimentaba
+ * texto informativo (la ficha de un acuerdo leído de Monday); desde que
+ * `reconciliar` usa su resultado para ESCRIBIR de vuelta en nuestra base (ver
+ * `refrescarDesdeMonday` en src/db/acuerdos.ts), la asimetría con
+ * `FASE_DE_ESTATUS.cancelado` de arriba es un bug con gatillo GARANTIZADO, no
+ * hipotético: cancelar un acuerdo aquí sincroniza "🚫 Detenido" a Monday
+ * (mismo mapeo, en el otro sentido), y esa escritura ocurre siempre DESPUÉS
+ * de guardar el cancelado localmente — así que el `updated_at` que Monday le
+ * pone queda siempre más nuevo que nuestro `updatedAt`. El siguiente refresh
+ * vería por tanto SIEMPRE `gana-monday`, y si "Detenido" cayera a `abierto`,
+ * el acuerdo resucitaría como compromiso activo en la sala del director sin
+ * que nadie más tocara nada en Monday. La simetría de abajo es lo que cierra
+ * ese ciclo — ver el test de regresión en
+ * src/db/refrescar-desde-monday-cancelado.test.ts.
+ *
+ * Consecuencia aceptada, no un efecto secundario a corregir: el tablero no
+ * tiene una fase mejor para "sin efecto" que la que ya usamos para cancelar,
+ * así que alguien del equipo que ponga un elemento en "Detenido" DIRECTAMENTE
+ * en Monday —sin haberlo cancelado desde aquí— también lo verá como
+ * cancelado en la siguiente vuelta. Es lo correcto dado el vocabulario fijo
+ * del tablero, no un bug de esta simetría.
  */
 export function estatusDeFase(fase: string | null | undefined): EstatusGuardado {
   if (!fase) return 'abierto'
   if (fase.includes('Done') || fase.includes('Materiales listos')) return 'cumplido'
+  if (fase.includes('Detenido')) return 'cancelado'
   return 'abierto'
 }
 

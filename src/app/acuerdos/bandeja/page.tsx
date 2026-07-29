@@ -1,11 +1,34 @@
 import Link from 'next/link'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import {
-  elementosDeDelivery, existeElGrupo, grupoDeAcuerdos, mondayConectado,
+  elementosDeDelivery, existeElGrupo, grupoDeAcuerdos, mondayConectado, ErrorMonday,
 } from '@/monday/cliente'
 import { FilaBandeja } from '@/componentes/acuerdos/FilaBandeja'
 import { subirAcuerdoAction, descartarAcuerdoAction } from '../acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
+
+/**
+ * La vuelta antes de leer: si Monday movió el estatus o la fecha de un
+ * acuerdo ya subido, que se refleje aquí también. Nunca debe tumbar la
+ * página —regla central de src/monday/sincronizar.ts—, así que el fallo se
+ * ignora para efectos de la pantalla. Pero "ignora" no es "en silencio para
+ * siempre" (corrección de revisión): si la causa NO es Monday —un
+ * SELECT/UPDATE nuestro que falló, no el tablero cayéndose— nadie se
+ * enteraría nunca de que la sincronización dejó de funcionar. Se distingue
+ * de un `ErrorMonday` (el tablero, que se cae y no es asunto nuestro) para
+ * no ensuciar los logs con algo esperable y sin acción posible de este lado.
+ */
+async function refrescarDesdeMondaySeguro(): Promise<void> {
+  try {
+    await refrescarDesdeMonday()
+  } catch (error) {
+    if (error instanceof ErrorMonday) {
+      console.error(`[refrescarDesdeMonday] Monday no respondió: ${error.message}`)
+    } else {
+      console.error('[refrescarDesdeMonday] Falló algo de nuestro lado, no de Monday:', error)
+    }
+  }
+}
 
 /**
  * LA BANDEJA: lo que espera un clic antes de subir a Delivery.
@@ -74,15 +97,9 @@ export default async function PagBandeja() {
     )
   }
 
-  // LA VUELTA antes de leer: si Monday movió el estatus o la fecha de un
-  // acuerdo ya subido, que se refleje aquí también. Nunca debe tumbar la
-  // página —regla central de src/monday/sincronizar.ts—, así que el fallo se
-  // ignora: la bandeja se pinta igual con lo que ya hay en la base.
-  try {
-    await refrescarDesdeMonday()
-  } catch {
-    // Intencional: ver el comentario de arriba.
-  }
+  // La bandeja se pinta igual con lo que ya hay en la base pase lo que pase
+  // aquí — ver el comentario de refrescarDesdeMondaySeguro más arriba.
+  await refrescarDesdeMondaySeguro()
 
   const [pendientes, grupoExiste] = await Promise.all([
     acuerdosPendientesDeSubir(),

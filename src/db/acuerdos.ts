@@ -386,11 +386,25 @@ export async function refrescarDesdeMonday(): Promise<void> {
     )
 
     if (resultado === 'gana-monday') {
+      // Deja rastro en la historia, igual que moverEstatus/editarAcuerdo:
+      // sin esto, un acuerdo que cambia de estatus por la vuelta no se
+      // distingue de uno que cambió por un clic en la sala, y es
+      // precisamente esa distinción la que hace falta para diagnosticar un
+      // caso como el de 'cancelado' resucitando (ver mapeo.ts,
+      // estatusDeFase) si algo parecido volviera a pasar de otra forma.
+      // `origen: 'monday'` es la marca que falta en las entradas de
+      // editarAcuerdo (su `cambios` es tal cual lo que pidió la persona).
+      const historia = historiaConEntrada(fila.historia, {
+        en: ahora.toISOString(),
+        estatusAnterior: fila.estatus,
+        cambios: { origen: 'monday', estatus: remoto.estatus, fechaCompromiso: remoto.fechaCompromiso },
+      })
       await conexion
         .update(esquema.acuerdos)
         .set({
           estatus: remoto.estatus,
           fechaCompromiso: remoto.fechaCompromiso ? new Date(remoto.fechaCompromiso) : null,
+          historia,
           updatedAt: ahora,
         })
         .where(eq(esquema.acuerdos.id, fila.id))

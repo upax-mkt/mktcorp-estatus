@@ -167,7 +167,18 @@ describe('refrescarDesdeMonday', () => {
     expect(a.fechaCompromiso).toEqual(new Date('2026-08-15'))
     expect(a.mondayId).toBe('9') // sigue sincronizado
     expect(a.updatedAt.getTime()).toBeGreaterThan(new Date('2026-07-29T10:00:00Z').getTime()) // se bumpeó: si no, el próximo refresco lo reescribiría en bucle
-    expect(a.historia).toHaveLength(1) // gana-monday no añade entrada de historia
+
+    // gana-monday SÍ deja rastro en la historia (corrección de revisión):
+    // sin esto, un cambio de estatus por la vuelta es indistinguible de uno
+    // por un clic en la sala — justo lo que hace falta para diagnosticar un
+    // caso como 'cancelado' resucitando si volviera a pasar de otra forma.
+    expect(a.historia).toHaveLength(2)
+    expect(a.historia[0]).toEqual(FILA_A.historia[0]) // la entrada previa se conserva
+    expect(a.historia[1]).toEqual({
+      en: expect.any(String),
+      estatusAnterior: 'abierto', // lo que tenía ANTES de esta vuelta
+      cambios: { origen: 'monday', estatus: 'cumplido', fechaCompromiso: '2026-08-15' },
+    })
 
     // La señuelo (gana-local) queda exactamente como estaba.
     const b = filas.find((f) => f.id === 'acuerdo-b')!

@@ -14,6 +14,7 @@ import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
 } from '@/db/acuerdos'
+import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
   listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, type CategoriaArchivo,
@@ -50,6 +51,29 @@ export function generateStaticParams() {
   return slugsDeSalas().map((slug) => ({ slug }))
 }
 
+/**
+ * La vuelta antes de leer: si Monday movió el estatus o la fecha de un
+ * acuerdo, que se refleje en la sala. Nunca debe tumbar la página —regla
+ * central de src/monday/sincronizar.ts—, así que el fallo se ignora para
+ * efectos de la pantalla. Pero "ignora" no es "en silencio para siempre"
+ * (corrección de revisión): si la causa NO es Monday —un SELECT/UPDATE
+ * nuestro que falló, no el tablero cayéndose— nadie se enteraría nunca de
+ * que la sincronización dejó de funcionar. Se distingue de un `ErrorMonday`
+ * (el tablero, que se cae y no es asunto nuestro) para no ensuciar los logs
+ * con algo esperable y sin acción posible de este lado.
+ */
+async function refrescarDesdeMondaySeguro(): Promise<void> {
+  try {
+    await refrescarDesdeMonday()
+  } catch (error) {
+    if (error instanceof ErrorMonday) {
+      console.error(`[refrescarDesdeMonday] Monday no respondió: ${error.message}`)
+    } else {
+      console.error('[refrescarDesdeMonday] Falló algo de nuestro lado, no de Monday:', error)
+    }
+  }
+}
+
 function textoFechaAcuerdo(a: Acuerdo): { txt: string; clase: string } {
   if (a.fechaCompromiso == null) return { txt: 'por definir', clase: 'pordef' }
   return {
@@ -73,15 +97,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // dato, no en la puerta. Un director solo abre su sala.
   if (!(await puedeVerEstaSala(slug))) notFound()
 
-  // LA VUELTA antes de leer: si Monday movió el estatus o la fecha de un
-  // acuerdo, que se refleje en la sala. Nunca debe tumbar la página —regla
-  // central de src/monday/sincronizar.ts—, así que el fallo se ignora: la
-  // sala se pinta igual con lo que ya hay en la base.
-  try {
-    await refrescarDesdeMonday()
-  } catch {
-    // Intencional: ver el comentario de arriba.
-  }
+  // La sala se pinta igual con lo que ya hay en la base pase lo que pase
+  // aquí — ver el comentario de refrescarDesdeMondaySeguro más arriba.
+  await refrescarDesdeMondaySeguro()
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()

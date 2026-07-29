@@ -43,10 +43,23 @@ describe('estatus y fase', () => {
     expect(estatusDeFase('✅ Materiales listos')).toBe('cumplido')
   })
 
-  it('cancelado no es cumplido: va a Detenido', () => {
+  it('cancelado va a Detenido y VUELVE como cancelado — la simetría que exige la vuelta (tarea 9)', () => {
     // El compromiso se dejó sin efecto, no se cumplió. Mandarlo a Done sería
     // apuntarse un logro que no pasó.
     expect(FASE_DE_ESTATUS.cancelado).toContain('Detenido')
+
+    // Hasta la tarea 9, "Detenido → abierto" era inofensivo: esta función
+    // solo alimentaba texto informativo. Desde que `reconciliar` usa su
+    // resultado para ESCRIBIR de vuelta en nuestra base (ver
+    // refrescarDesdeMonday en src/db/acuerdos.ts), esa asimetría resucitaba
+    // como abierto a cualquier acuerdo cancelado en cuanto se sincronizaba:
+    // al cancelar aquí escribimos "🚫 Detenido" en Monday con un updated_at
+    // necesariamente posterior a nuestro updatedAt local (la escritura a
+    // Monday siempre pasa DESPUÉS de guardar aquí), así que el siguiente
+    // refresh daba SIEMPRE gana-monday. No hacía falta que nadie más tocara
+    // nada en Monday. Ver el ciclo completo en
+    // src/db/refrescar-desde-monday-cancelado.test.ts.
+    expect(estatusDeFase('🚫 Detenido')).toBe('cancelado')
   })
 
   it('vencido NO se escribe como tal', () => {
@@ -56,8 +69,7 @@ describe('estatus y fase', () => {
     expect(FASE_DE_ESTATUS.vencido).toBe(FASE_DE_ESTATUS.abierto)
   })
 
-  it('lo que está parado sigue contando como abierto, no como cumplido', () => {
-    expect(estatusDeFase('🚫 Detenido')).toBe('abierto')
+  it('las demás fases de trabajo en curso cuentan como abierto, no como cumplido ni cancelado', () => {
     expect(estatusDeFase('⏳Backlog')).toBe('abierto')
     expect(estatusDeFase('🚧 Sprint')).toBe('abierto')
     expect(estatusDeFase('👀 Review')).toBe('abierto')
