@@ -79,5 +79,11 @@ export async function directorio(): Promise<PersonaMonday[]> {
     return formatearYOrdenar(guardadas)
   }
 
+  // Si Monday devolvió lista vacía y hay guardadas, no confío en esa respuesta.
+  // Una lista vacía no es una verdad: devuelvo la copia que tengo.
+  if (frescas.length === 0 && guardadas.length > 0) {
+    return formatearYOrdenar(guardadas)
+  }
+
   return frescas
 }
