@@ -16,7 +16,8 @@ import { eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
-import { sincronizarAlta, sincronizarCambio } from '@/monday/sincronizar'
+import { sincronizarCambio } from '@/monday/sincronizar'
+import { estadoInicialDeBandeja, type EstadoBandeja } from '@/monday/bandeja'
 import { slugsDeSalas } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
@@ -29,6 +30,12 @@ export interface NuevoAcuerdo {
   fechaCompromiso: Date | null
   /** Sesión donde nació el acuerdo. Omitir si se da de alta fuera de una sesión. */
   sesionOrigenId?: string | null
+  /**
+   * El id de usuario de Monday del responsable, solo si es alguien de Mkt
+   * Corp. Es lo único que decide si el acuerdo entra a la bandeja — ver
+   * src/monday/bandeja.ts. Nulo u omitido = responsable de la UDN.
+   */
+  responsableMondayId?: string | null
 }
 
 export interface CambiosAcuerdo {
@@ -37,6 +44,11 @@ export interface CambiosAcuerdo {
   squad?: string
   prioridad?: string
   fechaCompromiso?: Date | null
+  /**
+   * Traerlo en los cambios (aunque sea `null`) recalcula la bandeja del
+   * acuerdo — ver `editarAcuerdo`. Omitirlo deja la bandeja como está.
+   */
+  responsableMondayId?: string | null
 }
 
 interface EntradaHistoria {
@@ -60,11 +72,29 @@ function isoDia(d: Date | null | undefined): string | null {
   return d ? d.toISOString().slice(0, 10) : null
 }
 
+/**
+ * Si la edición trae `responsableMondayId` (aunque sea `null`), recalcula la
+ * bandeja con la misma regla del alta. `undefined` indica que la edición no
+ * toca ese campo, así que la bandeja no se recalcula.
+ *
+ * `subido` y `descartado` no se tocan: son estados definitivos (ver
+ * src/monday/bandeja.ts) y una edición del responsable no debe reabrir algo
+ * que ya se subió a Monday o que alguien ya decidió no subir.
+ */
+function bandejaTrasEditar(bandejaActual: string, cambios: CambiosAcuerdo): EstadoBandeja | undefined {
+  const { responsableMondayId } = cambios
+  if (responsableMondayId === undefined) return undefined
+  if (bandejaActual !== 'no_aplica' && bandejaActual !== 'pendiente') return undefined
+  return estadoInicialDeBandeja(responsableMondayId)
+}
+
 /** Da de alta un acuerdo nuevo, siempre en estatus `abierto`. */
 export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promise<{ id: string }> {
   validarSala(salaSlug)
   const id = crypto.randomUUID()
   const ahora = new Date()
+  const responsableMondayId = datos.responsableMondayId ?? null
+  const bandeja = estadoInicialDeBandeja(responsableMondayId)
 
   if (hayDB()) {
     await db()
@@ -79,6 +109,8 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
         fechaCompromiso: datos.fechaCompromiso,
         estatus: 'abierto',
         sesionOrigenId: datos.sesionOrigenId ?? null,
+        responsableMondayId,
+        bandeja,
         historia: [],
       })
   } else {
@@ -92,20 +124,18 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
       fechaCompromiso: datos.fechaCompromiso,
       estatus: 'abierto',
       sesionOrigenId: datos.sesionOrigenId ?? null,
+      responsableMondayId,
+      bandeja,
       historia: [],
       createdAt: ahora,
       updatedAt: ahora,
     })
   }
 
-  // Monday DESPUÉS de nuestra base y sin bloquear: si el tablero está caído,
-  // el acuerdo existe igual en la sala. Ver src/monday/sincronizar.ts.
-  await sincronizarAlta(id, {
-    salaSlug,
-    que: datos.que,
-    estatus: 'abierto',
-    fechaCompromiso: isoDia(datos.fechaCompromiso),
-  })
+  // El alta YA NO escribe en Monday. Antes creaba el elemento sola y eso es lo
+  // que Franco cambió el 29-jul: nada entra al tablero del equipo sin que
+  // alguien lo confirme en la bandeja (ver src/monday/bandeja.ts). Lo que hace
+  // el alta es dejarlo `pendiente` si tiene responsable de Mkt Corp.
 
   return { id }
 }
@@ -168,15 +198,17 @@ export async function editarAcuerdo(acuerdoId: string, cambios: CambiosAcuerdo):
     const actual = (await conexion.select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
     if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
     const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
+    const bandeja = bandejaTrasEditar(actual.bandeja, cambios)
     await conexion
       .update(esquema.acuerdos)
-      .set({ ...cambios, historia, updatedAt: ahora })
+      .set({ ...cambios, ...(bandeja !== undefined ? { bandeja } : {}), historia, updatedAt: ahora })
       .where(eq(esquema.acuerdos.id, acuerdoId))
   } else {
     const actual = memoria.obtenerAcuerdoMemoria(acuerdoId)
     if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
     const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
-    memoria.actualizarAcuerdoMemoria(acuerdoId, { ...cambios, historia })
+    const bandeja = bandejaTrasEditar(actual.bandeja, cambios)
+    memoria.actualizarAcuerdoMemoria(acuerdoId, { ...cambios, ...(bandeja !== undefined ? { bandeja } : {}), historia })
   }
 
   await sincronizarDespuesDeEditar(acuerdoId)
