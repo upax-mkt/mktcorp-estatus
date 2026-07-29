@@ -708,3 +708,48 @@ scroll interno, panel opaco (`elPuntoDelPanelEsElPanel: true`), 1 tabla de 6
 filas, 4 encabezados en negrita, cero errores de consola. Y la casa quedó
 limpia: las reuniones y los 18 acuerdos que publicaron las pruebas se borraron
 — la base vuelve a tener 0 acuerdos, 0 minutas y las 4 sesiones de Franco.
+
+---
+---
+
+# CIERRE DEL 28-JUL — dónde se quedó y por dónde se sigue
+
+Todo lo de las rondas 3, 5 y 6 está **en producción** (`mktcorp-estatus.vercel.app`),
+`main` limpio y al día en `66b9a4a`. 688 tests, lint y build en verde.
+
+## Estado de la base al cerrar
+
+4 sesiones (todas de Franco: una NeraCode *lista* y tres *agendadas*),
+**0 minutas y 0 acuerdos**. Los 18 acuerdos y las reuniones que publicaron mis
+verificaciones en Marketing United se borraron: la base no tenía ninguno antes,
+así que quedó como estaba.
+
+## Lo que espera a Franco — tres decisiones, siguen abiertas
+
+Las mismas de la Fase 11, sin novedad: el grupo de Monday para los acuerdos
+(sin `MONDAY_GRUPO` la integración está apagada entera), las paletas de
+NeraCode y House of Films, y el mapeo responsable → id de usuario de Monday.
+
+⚠️ Escribir en el tablero **18044324200** toca el trabajo de TODO el equipo
+(955 items). No se activa sin decírselo a Franco.
+
+## Lo que queda por preguntarle
+
+- **"Tablas rotas o con textos salidos de sus márgenes"** (ronda 5, punto 2).
+  Nunca se pudo reproducir con números: medido a 768, 1024, 1440 y 1920 y en
+  modo presentación. La columna fantasma de la tabla —`td:first-child` casando
+  por posición en el DOM y no por columna visible— PUEDE haber sido eso, pero
+  es una hipótesis, no una comprobación. Falta que diga dónde lo vio.
+
+## Un dato operativo para mañana
+
+**En local no se pueden generar minutas ni maquetar:** `ANTHROPIC_API_KEY` solo
+vive en el entorno de Vercel, no en `.env.local`. El motor falla con "Falta
+ANTHROPIC_API_KEY para la etapa de decisión del motor" — que es el mensaje
+correcto, no un bug. Todo lo que toque el modelo se verifica contra el
+despliegue, no contra `localhost:3000`.
+
+Y **local y producción comparten la MISMA base de Neon**: cualquier cosa que se
+publique probando queda en la app de Franco. Lo que se cree verificando, se
+borra al terminar — incluidos los acuerdos, que sobreviven al borrado de su
+reunión porque cuelgan de la sala.
