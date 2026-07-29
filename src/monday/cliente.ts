@@ -1,8 +1,11 @@
+import { consultarMonday, ErrorMonday, tokenDeMonday } from './red'
 import {
   TABLERO, COLUMNA, UDN_DE_SALA, SALA_DE_UDN,
   FASE_DE_ESTATUS, estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo,
 } from './mapeo'
 import type { EstatusGuardado } from './mapeo'
+
+export { ErrorMonday, tokenDeMonday }
 
 /**
  * EL CLIENTE DE MONDAY.
@@ -26,13 +29,6 @@ import type { EstatusGuardado } from './mapeo'
  * sin él la escritura se niega en vez de adivinar dónde meter 955 vecinos.
  */
 
-const API = 'https://api.monday.com/v2'
-
-export function tokenDeMonday(): string | null {
-  const t = process.env.MONDAY_TOKEN
-  return t && t.trim().length > 0 ? t.trim() : null
-}
-
 export function mondayConectado(): boolean {
   return tokenDeMonday() !== null
 }
@@ -45,37 +41,6 @@ export function grupoDeAcuerdos(): string | null {
 /** true si además de leer se puede escribir. Ver la cabecera. */
 export function escrituraActiva(): boolean {
   return mondayConectado() && process.env.MONDAY_ESCRITURA === 'si' && grupoDeAcuerdos() !== null
-}
-
-export class ErrorMonday extends Error {}
-
-async function consultar<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  const token = tokenDeMonday()
-  if (!token) throw new ErrorMonday('Falta MONDAY_TOKEN.')
-
-  const respuesta = await fetch(API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: token,
-      // La API de Monday versiona por cabecera. Fijarla evita que un cambio
-      // de su versión por defecto rompa esto sin que nadie toque el código.
-      'API-Version': '2024-10',
-    },
-    body: JSON.stringify({ query, variables }),
-  })
-
-  if (!respuesta.ok) {
-    throw new ErrorMonday(`Monday respondió ${respuesta.status}.`)
-  }
-  const cuerpo = (await respuesta.json()) as { data?: T; errors?: Array<{ message: string }> }
-  // Monday devuelve 200 con `errors` dentro: sin esto, un fallo de permisos
-  // llegaría como un resultado vacío y parecería "no hay acuerdos".
-  if (cuerpo.errors?.length) {
-    throw new ErrorMonday(cuerpo.errors.map((e) => e.message).join('; '))
-  }
-  if (!cuerpo.data) throw new ErrorMonday('Monday no devolvió datos.')
-  return cuerpo.data
 }
 
 export interface AcuerdoDeMonday {
@@ -141,7 +106,7 @@ export async function acuerdosDeSalaEnMonday(salaSlug: string): Promise<AcuerdoD
   const udn = UDN_DE_SALA[salaSlug]
   if (!udn) return []
 
-  const datos = await consultar<{ boards: Array<{ groups: Array<{ items_page: { items: FilaMonday[] } }> }> }>(
+  const datos = await consultarMonday<{ boards: Array<{ groups: Array<{ items_page: { items: FilaMonday[] } }> }> }>(
     `query ($tablero: [ID!], $grupo: [String!]) {
        boards(ids: $tablero) {
          groups(ids: $grupo) {
@@ -189,7 +154,7 @@ export async function crearEnMonday(datos: {
 }): Promise<string> {
   if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
 
-  const respuesta = await consultar<{ create_item: { id: string } }>(
+  const respuesta = await consultarMonday<{ create_item: { id: string } }>(
     `mutation ($tablero: ID!, $grupo: String!, $nombre: String!, $valores: JSON!) {
        create_item(board_id: $tablero, group_id: $grupo, item_name: $nombre, column_values: $valores) { id }
      }`,
@@ -210,7 +175,7 @@ export async function actualizarEnMonday(
 ): Promise<void> {
   if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
 
-  await consultar(
+  await consultarMonday(
     `mutation ($tablero: ID!, $item: ID!, $valores: JSON!) {
        change_multiple_column_values(board_id: $tablero, item_id: $item, column_values: $valores) { id }
      }`,
@@ -221,5 +186,5 @@ export async function actualizarEnMonday(
 /** Borra un elemento. Lo usa la verificación, para no dejar rastro. */
 export async function borrarEnMonday(mondayId: string): Promise<void> {
   if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
-  await consultar(`mutation ($item: ID!) { delete_item(item_id: $item) { id } }`, { item: mondayId })
+  await consultarMonday(`mutation ($item: ID!) { delete_item(item_id: $item) { id } }`, { item: mondayId })
 }
