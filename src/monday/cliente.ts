@@ -1,9 +1,10 @@
 import { consultarMonday, ErrorMonday, tokenDeMonday } from './red'
 import {
-  TABLERO, COLUMNA, UDN_DE_SALA, SALA_DE_UDN,
+  TABLERO, TABLERO_SUBELEMENTOS, COLUMNA, UDN_DE_SALA, SALA_DE_UDN,
   FASE_DE_ESTATUS, estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo,
+  columnasDe,
 } from './mapeo'
-import type { EstatusGuardado } from './mapeo'
+import type { EstatusGuardado, DestinoMonday } from './mapeo'
 
 export { ErrorMonday, tokenDeMonday }
 
@@ -121,56 +122,126 @@ export async function acuerdosDeSalaEnMonday(salaSlug: string): Promise<AcuerdoD
   return items.map(leerFila).filter((a) => a.salaSlug === salaSlug)
 }
 
-function valoresDeColumna(datos: {
-  salaSlug: string
-  estatus: EstatusGuardado
-  fechaCompromiso: string | null
-}): string {
-  const valores: Record<string, unknown> = {
-    [COLUMNA.udn]: { label: UDN_DE_SALA[datos.salaSlug] },
-    [COLUMNA.fase]: { label: FASE_DE_ESTATUS[datos.estatus] },
-  }
-  // Una fecha ausente se manda como objeto VACÍO, no se omite: omitirla deja
-  // la que hubiera puesto otra persona, y "quitar la fecha" tiene que poder
-  // hacerse.
-  valores[COLUMNA.deadline] = datos.fechaCompromiso ? { date: datos.fechaCompromiso } : {}
-  return JSON.stringify(valores)
-}
-
-/**
- * Crea el acuerdo en Monday y devuelve su id.
- *
- * El responsable NO se escribe: la columna es de personas y exige el id de
- * usuario de Monday, mientras que nuestro `responsable` es un nombre escrito
- * a mano ("Fernando Ruiz", "por asignar"). Adivinar la correspondencia
- * asignaría tareas a quien no toca, y en un tablero que el equipo entero mira
- * eso es peor que dejar la columna vacía. Queda como pendiente declarado.
- */
-export async function crearEnMonday(datos: {
+/** Lo que hace falta para escribir un acuerdo en Monday, sea elemento o subelemento. */
+export interface DatosParaMonday {
   salaSlug: string
   que: string
   estatus: EstatusGuardado
   fechaCompromiso: string | null
-}): Promise<string> {
-  if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
+  responsableMondayId: string | null
+}
 
-  const respuesta = await consultarMonday<{ create_item: { id: string } }>(
+/**
+ * Los valores de columna, comunes a crear y a actualizar.
+ *
+ * No pide `que`: ese campo es el NOMBRE del elemento (`item_name` en la
+ * mutación), nunca una columna. Quien ya tiene un `DatosParaMonday` completo
+ * lo puede seguir pasando igual — TypeScript ignora el campo de más.
+ *
+ * `destino` decide qué juego de columnas usar (ver `columnasDe` en
+ * mapeo.ts): el elemento y el subelemento son dos tableros con dos juegos de
+ * ids, y usar el del uno en el otro no da error, deja la columna vacía.
+ */
+function valoresDeColumna(
+  datos: {
+    salaSlug: string
+    estatus: EstatusGuardado
+    fechaCompromiso: string | null
+    responsableMondayId?: string | null
+  },
+  destino: DestinoMonday,
+): string {
+  const col = columnasDe(destino)
+  const valores: Record<string, unknown> = {
+    [col.udn]: { label: UDN_DE_SALA[datos.salaSlug] },
+    [col.fase]: { label: FASE_DE_ESTATUS[datos.estatus] },
+    // Una fecha ausente se manda como objeto VACÍO, no se omite: omitirla deja
+    // la que hubiera puesto otra persona, y "quitar la fecha" tiene que poder
+    // hacerse.
+    [col.deadline]: datos.fechaCompromiso ? { date: datos.fechaCompromiso } : {},
+  }
+  // La columna de personas exige el id numérico. Si no lo tenemos, se omite la
+  // columna entera: dejarla vacía es honesto, inventar un id asigna trabajo a
+  // quien no toca en un tablero que mira el equipo entero.
+  if (datos.responsableMondayId) {
+    valores[col.responsable] = {
+      personsAndTeams: [{ id: Number(datos.responsableMondayId), kind: 'person' }],
+    }
+  }
+  return JSON.stringify(valores)
+}
+
+/**
+ * ¿Sigue existiendo el grupo al que escribimos?
+ *
+ * Existe por lo que le pasó al dashboard viejo: escribe desde hace meses a un
+ * grupo que alguien borró, y nadie se enteró porque nada avisa. Un id de grupo
+ * en una constante no es una garantía de nada.
+ */
+export async function existeElGrupo(): Promise<boolean> {
+  const grupo = grupoDeAcuerdos()
+  if (!grupo) return false
+  const datos = await consultarMonday<{ boards: Array<{ groups: Array<{ id: string }> }> }>(
+    `query ($tablero: [ID!], $grupo: [String!]) {
+       boards(ids: $tablero) { groups(ids: $grupo) { id title } }
+     }`,
+    { tablero: [String(TABLERO)], grupo: [grupo] },
+  )
+  return (datos.boards?.[0]?.groups?.length ?? 0) > 0
+}
+
+/** Crea el acuerdo como elemento nuevo en el grupo de Delivery. */
+export async function crearElementoEnDelivery(
+  datos: DatosParaMonday,
+): Promise<{ id: string; url: string }> {
+  if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
+  const respuesta = await consultarMonday<{ create_item: { id: string; url: string } }>(
     `mutation ($tablero: ID!, $grupo: String!, $nombre: String!, $valores: JSON!) {
-       create_item(board_id: $tablero, group_id: $grupo, item_name: $nombre, column_values: $valores) { id }
+       create_item(board_id: $tablero, group_id: $grupo, item_name: $nombre, column_values: $valores) { id url }
      }`,
     {
       tablero: String(TABLERO),
       grupo: grupoDeAcuerdos(),
       nombre: nombreEnMonday(datos.salaSlug, datos.que),
-      valores: valoresDeColumna(datos),
+      valores: valoresDeColumna(datos, 'elemento'),
     },
   )
-  return respuesta.create_item.id
+  return respuesta.create_item
 }
 
-/** Mueve el estatus y la fecha de un acuerdo que ya existe en Monday. */
+/**
+ * Cuelga el acuerdo de un elemento que ya existe.
+ *
+ * El nombre va SIN prefijo: el padre ya dice de qué unidad es, y repetirlo
+ * daría "MC | MC | …" en el tablero.
+ */
+export async function crearSubelemento(
+  padreId: string,
+  datos: DatosParaMonday,
+): Promise<{ id: string; url: string }> {
+  if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
+  const respuesta = await consultarMonday<{ create_subitem: { id: string; url: string } }>(
+    `mutation ($padre: ID!, $nombre: String!, $valores: JSON!) {
+       create_subitem(parent_item_id: $padre, item_name: $nombre, column_values: $valores) { id url }
+     }`,
+    { padre: padreId, nombre: datos.que, valores: valoresDeColumna(datos, 'subelemento') },
+  )
+  return respuesta.create_subitem
+}
+
+/**
+ * Mueve el estatus y la fecha de un acuerdo que ya existe en Monday.
+ *
+ * `destino` importa tanto como el id: un elemento y su subelemento no solo
+ * tienen columnas distintas (ver `columnasDe` en mapeo.ts), viven en TABLEROS
+ * distintos — el subelemento es un item de `TABLERO_SUBELEMENTOS`, no de
+ * `TABLERO`. Mandar el board_id del elemento con el id de un subelemento no
+ * lo mueve: Monday responde que el item no existe en ese tablero, porque de
+ * verdad no existe ahí.
+ */
 export async function actualizarEnMonday(
   mondayId: string,
+  destino: DestinoMonday,
   datos: { salaSlug: string; estatus: EstatusGuardado; fechaCompromiso: string | null },
 ): Promise<void> {
   if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
@@ -179,7 +250,11 @@ export async function actualizarEnMonday(
     `mutation ($tablero: ID!, $item: ID!, $valores: JSON!) {
        change_multiple_column_values(board_id: $tablero, item_id: $item, column_values: $valores) { id }
      }`,
-    { tablero: String(TABLERO), item: mondayId, valores: valoresDeColumna(datos) },
+    {
+      tablero: String(destino === 'subelemento' ? TABLERO_SUBELEMENTOS : TABLERO),
+      item: mondayId,
+      valores: valoresDeColumna(datos, destino),
+    },
   )
 }
 

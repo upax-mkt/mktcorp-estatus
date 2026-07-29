@@ -44,13 +44,17 @@ describe('crearAcuerdo y la bandeja', () => {
     expect(guardado?.bandeja).toBe('no_aplica')
   })
 
-  it('el alta ya NO llama a sincronizarAlta: encola en la bandeja, no escribe sola en Monday', async () => {
-    // Es el cambio central de la tarea 5: antes crearAcuerdo llamaba a
-    // sincronizarAlta al final. Un spy sobre el módulo real (no un mock que
-    // reemplace toda la lógica) es lo único que cae si alguien reintroduce
-    // esa llamada — un test que solo mirara `bandeja` no lo detectaría,
-    // porque 'pendiente' es el resultado correcto CON o SIN la llamada vieja.
-    const espia = vi.spyOn(sincronizarMod, 'sincronizarAlta').mockResolvedValue({ intentado: false, ok: false })
+  it('el alta ya no llama a ninguna sincronización con Monday: encola en la bandeja, no escribe sola', async () => {
+    // Es el cambio central de la tarea 5, y la tarea 6 lo reforzó borrando
+    // `sincronizarAlta` (se quedó sin llamadores) y quitándole a
+    // `sincronizarCambio` la rama que creaba el elemento cuando no había
+    // `mondayId`. Con las dos rutas de creación automática fuera, el único
+    // símbolo que queda para vigilar aquí es `sincronizarCambio`. Un spy
+    // sobre el módulo real (no un mock que reemplace toda la lógica) es lo
+    // único que cae si alguien reintroduce una llamada a Monday desde el
+    // alta — un test que solo mirara `bandeja` no lo detectaría, porque
+    // 'pendiente' es el resultado correcto se llame o no a Monday.
+    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
 
     await crearAcuerdo('neracode', {
       que: 'Acuerdo cualquiera',
