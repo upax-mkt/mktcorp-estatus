@@ -148,3 +148,40 @@ export async function descartarAcuerdoAction(id: string): Promise<void> {
     .where(and(eq(esquema.acuerdos.id, id), eq(esquema.acuerdos.bandeja, 'pendiente')))
   revalidatePath('/acuerdos/bandeja')
 }
+
+// ---- La estrella (tarea 11, ronda 7) ----
+
+/**
+ * Marca o quita un acuerdo de los destacados: los pocos que se ven en el
+ * Home, cruzando las diez salas. Es la ÚNICA acción detrás de la estrella —
+ * `Estrella.tsx` no sabe nada de Drizzle, solo recibe esta función por prop—
+ * así que el mismo botón sirve en el espacio de acuerdos, el Home y la sala
+ * (tarea 12) sin que ninguna pantalla reimplemente la regla por su cuenta.
+ *
+ * `exigirEquipo()` y no `exigirEdicionDeAcuerdos(slug)`: destacar decide qué
+ * se ve en una vitrina COMPARTIDA por las diez salas, no el estatus de un
+ * compromiso dentro de la sala de su propio dueño. Es Mkt Corp quien cura esa
+ * vitrina — el director de la UDN sigue pudiendo mover el estatus y la fecha
+ * de los suyos, pero no auto-destacarse en el Home de todos.
+ */
+export async function destacarAction(id: string, destacado: boolean): Promise<void> {
+  await exigirEquipo()
+  // Sin DB no hay nada que persistir — mismo criterio que todosLosAcuerdos()
+  // en src/db/consultas.ts, que en ese caso ya devuelve la lista vacía.
+  if (!hayDB()) return
+
+  const fila = (
+    await db()
+      .update(esquema.acuerdos)
+      .set({ destacado, updatedAt: new Date() })
+      .where(eq(esquema.acuerdos.id, id))
+      .returning({ salaSlug: esquema.acuerdos.salaSlug })
+  )[0]
+  if (!fila) throw new Error(`Acuerdo no encontrado: "${id}"`)
+
+  // Las tres pantallas donde se puede ver o tocar la estrella hoy y mañana:
+  // este espacio, el Home (tarea 12) y la propia sala.
+  revalidatePath('/acuerdos')
+  revalidatePath('/')
+  revalidatePath(`/cliente/${fila.salaSlug}`)
+}

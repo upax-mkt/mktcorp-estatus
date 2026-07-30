@@ -128,3 +128,28 @@
 }
 .botonTexto:hover { color: var(--tinta); }
 .botonTexto:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- el espacio de acuerdos (tarea 11): filtros, la fila con estatus +
+   estrella, y el bloque de congelados ---- */
+
+.filtros {
+  display: flex; flex-wrap: wrap; gap: 0.9rem;
+  margin: 0 0 0.2rem;
+}
+.filtro { display: grid; gap: 0.35rem; min-width: 11rem; }
+
+/* La derecha de una fila del espacio de acuerdos: estatus + link a Monday +
+   estrella, en vez de las acciones de subir/descartar de la bandeja. */
+.filaDcha { display: flex; align-items: center; gap: 0.7rem; flex: none; }
+.enlaceMonday {
+  font-size: 0.78rem; color: var(--tinta-3); text-decoration: none; white-space: nowrap;
+}
+.enlaceMonday:hover { color: var(--tinta); text-decoration: underline; }
+
+/* El bloque aparte de las salas en pausa: apagado, para que se lea de un
+   vistazo que es historia congelada y no algo que falta atender hoy. */
+.congelados { opacity: 0.72; }
+.congeladosTitulo {
+  font-size: 0.98rem; font-weight: 600; margin: 0 0 0.3rem; letter-spacing: var(--track-normal);
+}
+.congeladosNota { font-size: 0.8rem; color: var(--tinta-3); margin: 0 0 0.6rem; line-height: 1.5; }

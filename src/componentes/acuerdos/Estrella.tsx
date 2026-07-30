@@ -1,0 +1,76 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import estilos from './Estrella.module.css'
+
+interface Props {
+  acuerdoId: string
+  destacado: boolean
+  /**
+   * `destacarAction` (src/app/acuerdos/acciones.ts), recibida por prop y no
+   * importada aquí a propósito: este componente es el MISMO en las tres
+   * pantallas donde se puede destacar (el espacio de acuerdos, el Home y la
+   * sala — tarea 12 cablea las dos últimas). La estrella es un dato, no tres
+   * listas que se puedan desincronizar entre sí. La acción exige sesión de
+   * equipo del lado servidor (ver su comentario); este botón no decide quién
+   * puede verlo, eso lo resuelve quien lo pinta.
+   */
+  destacar: (id: string, destacado: boolean) => Promise<void>
+}
+
+/**
+ * LA ESTRELLA: destaca o quita un acuerdo de lo que se ve en el Home.
+ *
+ * Sin estado local optimista a propósito: `destacar` revalida la ruta al
+ * terminar (mismo patrón que FilaBandeja con `subir`/`descartar`), así que el
+ * valor que se pinta siempre es el que quedó guardado, no uno que este botón
+ * se inventó mientras la petición viajaba.
+ */
+export function Estrella({ acuerdoId, destacado, destacar }: Props) {
+  const [pendiente, empezar] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  function manejarClic() {
+    setError(null)
+    empezar(async () => {
+      try {
+        await destacar(acuerdoId, !destacado)
+      } catch (e) {
+        // El fallo tiene que LLEGAR A LA PANTALLA — mismo criterio que
+        // FilaBandeja: quien pulsó necesita leer por qué, no ver una estrella
+        // que no se mueve.
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    })
+  }
+
+  return (
+    <span className={estilos.envoltura}>
+      <button
+        type="button"
+        className={estilos.boton}
+        data-activa={destacado || undefined}
+        disabled={pendiente}
+        aria-pressed={destacado}
+        aria-label={destacado ? 'Quitar de destacados' : 'Destacar en el Home'}
+        title={destacado ? 'Quitar de destacados' : 'Destacar en el Home'}
+        onClick={manejarClic}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill={destacado ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <polygon points="12 3.5 14.86 9.3 21.27 10.24 16.64 14.75 17.74 21.13 12 18.1 6.26 21.13 7.36 14.75 2.73 10.24 9.14 9.3" />
+        </svg>
+      </button>
+      {error && <span role="alert" className={estilos.error}>{error}</span>}
+    </span>
+  )
+}
