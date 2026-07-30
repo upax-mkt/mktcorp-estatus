@@ -214,6 +214,35 @@ export async function editarEnBandejaAction(
   cambios: { que: string; responsable: string; responsableMondayId: string | null; fechaCompromiso: string | null },
 ): Promise<void> {
   await exigirEquipo()
+
+  /**
+   * LA CONDICIÓN QUE LE FALTABA (corrección de revisión): esta edición solo
+   * vale mientras el acuerdo sigue `bandeja = 'pendiente'` — igual que
+   * `subirAcuerdoAction`/`descartarAcuerdoAction`, que sí llevan esa
+   * condición en su `WHERE`. Sin esto, el párrafo de arriba ("un acuerdo ya
+   * subido no se puede tocar desde aquí") era falso: se podía seguir
+   * editando un acuerdo YA SUBIDO, y su fecha llegaría a Monday por
+   * `sincronizarDespuesDeEditar` (dentro de `editarAcuerdo`) aunque ya no
+   * fuera asunto de la bandeja.
+   *
+   * No hace falta reclamar la fila como `subirAcuerdoAction` (no hay un
+   * segundo efecto —crear en Monday— que duplicar aquí, así que no hace
+   * falta la atomicidad de un UPDATE...WHERE): basta con leer el estado
+   * actual ANTES de delegar en `editarAcuerdo`, que sigue intacto —
+   * `editarEnBandejaAction` no reimplementa su lógica, solo decide si lo
+   * llama. Si el id no existe, se deja pasar igual: `editarAcuerdo` ya
+   * lanza su propio "Acuerdo no encontrado".
+   */
+  if (hayDB()) {
+    const fila = (
+      await db()
+        .select({ bandeja: esquema.acuerdos.bandeja })
+        .from(esquema.acuerdos)
+        .where(eq(esquema.acuerdos.id, id))
+    )[0]
+    if (fila && fila.bandeja !== 'pendiente') return
+  }
+
   await editarAcuerdo(id, {
     que: cambios.que,
     responsable: cambios.responsable,

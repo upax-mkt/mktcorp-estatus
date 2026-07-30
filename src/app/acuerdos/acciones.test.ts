@@ -450,4 +450,34 @@ describe('editarEnBandejaAction', () => {
 
     expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', expect.objectContaining({ responsableMondayId: null }))
   })
+
+  /**
+   * LA CONDICIÓN QUE LE FALTABA (corrección de revisión): el docstring de
+   * `editarEnBandejaAction` afirma "un acuerdo ya subido no se puede tocar
+   * desde aquí", pero a la acción le faltaba el `WHERE bandeja = 'pendiente'`
+   * que sí llevan `subirAcuerdoAction`/`descartarAcuerdoAction` — sin él, el
+   * comentario mentía: la edición llegaba igual a `editarAcuerdo` y de ahí a
+   * Monday. Estos dos tests son los que fijan que ahora es verdad.
+   */
+  it('un acuerdo ya subido no se puede tocar desde aquí: no llama a editarAcuerdo', async () => {
+    estado.fila = { ...BASE, bandeja: 'subido', mondayId: 'm1', mondayUrl: 'https://monday.com/m1' }
+
+    await editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)
+
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('un acuerdo descartado tampoco se puede tocar desde aquí', async () => {
+    estado.fila = { ...BASE, bandeja: 'descartado' }
+
+    await editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)
+
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('un acuerdo de verdad pendiente sí se sigue editando (la guarda no rompe el camino normal)', async () => {
+    await editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)
+
+    expect(editarAcuerdoMock).toHaveBeenCalledTimes(1)
+  })
 })
