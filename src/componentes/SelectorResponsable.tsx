@@ -7,15 +7,6 @@ import estilos from './SelectorResponsable.module.css'
 interface ValorInicial {
   nombre: string
   mondayId: string | null
-  /**
-   * `true` cuando `mondayId` no es una elección confirmada por una persona,
-   * sino la sugerencia de `personaMasParecida()` a partir de un nombre que
-   * detectó la IA en una transcripción — nunca lo decide la IA sola (ver
-   * MinutaCliente.tsx). Se muestra marcada como sugerencia, no como un
-   * hecho, y basta con tocar cualquiera de los dos controles para que deje
-   * de tratarse como tal.
-   */
-  sugerido?: boolean
 }
 
 interface Props {
@@ -27,6 +18,16 @@ interface Props {
   personas: PersonaMonday[]
   /** El responsable actual, al editar un acuerdo que ya lo tenía. Sin esto, arranca en blanco. */
   valorInicial?: ValorInicial
+  /**
+   * Alguien de Mkt Corp cuyo nombre se parece al que trae `valorInicial` —
+   * típicamente la salida de `personaMasParecida()` sobre un nombre que la
+   * IA detectó en una transcripción (ver MinutaCliente.tsx). SOLO SE OFRECE,
+   * nunca se aplica sola: el `<select>` arranca vacío igual, y esta persona
+   * aparece como un botón aparte para confirmarla con un clic. Lo que se ve
+   * elegido en el desplegable es siempre lo que se guarda — nunca una
+   * elección que nadie hizo.
+   */
+  sugerencia?: PersonaMonday | null
   /**
    * Modo controlado, para quien necesita enterarse de cada cambio en el
    * momento — MinutaCliente edita filas en estado de React, no lee un
@@ -51,6 +52,19 @@ interface Props {
  * src/db/acuerdos.ts— justo para no repetir ese error: emparejar por texto es
  * una apuesta, guardar el id que dio Monday no lo es.
  *
+ * LA SUGERENCIA NUNCA SE APLICA SOLA (corrección de revisión, ronda 7): la
+ * primera versión preseleccionaba al candidato de `personaMasParecida()` y
+ * lo marcaba con un borde de color — pero un desplegable que MUESTRA a
+ * alguien elegido y GUARDA ese mismo id es una elección, la llames como la
+ * llames en el código; el color es decoración, no consentimiento. Quien
+ * revisa cinco acuerdos y publica sin fijarse en cada campo aplicaba cinco
+ * emparejamientos sin saberlo — y el precio de una asignación equivocada lo
+ * paga alguien que ni sabe que esta app existe (le aparece trabajo en el
+ * tablero del equipo). Ahora el `<select>` arranca vacío pase lo que pase, y
+ * la sugerencia es un botón: "¿Es Fulano? Confirmar". Sin ese clic, el
+ * acuerdo se guarda con el nombre de texto y sin id — vive en la app, no
+ * entra a la bandeja, y ponerle dueño después es tan fácil como editarlo.
+ *
  * Elegir en uno limpia el otro: un acuerdo tiene un responsable, no dos. Lo
  * que este componente le entrega al resto del formulario viaja siempre en dos
  * campos ocultos — `responsable` (el nombre visible, lo que lee la sala y la
@@ -59,13 +73,10 @@ interface Props {
  * recoge el valor (el borde del formulario, o el candado compartido de
  * crearAcuerdo/editarAcuerdo en src/db/acuerdos.ts) — no de este componente.
  */
-export function SelectorResponsable({ personas, valorInicial, onCambiar, disabled = false }: Props) {
+export function SelectorResponsable({ personas, valorInicial, sugerencia, onCambiar, disabled = false }: Props) {
   const tieneMondayIdInicial = Boolean(valorInicial?.mondayId)
   const [mondayId, setMondayId] = useState(tieneMondayIdInicial ? (valorInicial!.mondayId as string) : '')
   const [libre, setLibre] = useState(tieneMondayIdInicial ? '' : (valorInicial?.nombre ?? ''))
-  const [esSugerenciaSinConfirmar, setEsSugerenciaSinConfirmar] = useState(
-    Boolean(valorInicial?.sugerido && valorInicial?.mondayId),
-  )
 
   function avisar(idNuevo: string, libreNuevo: string) {
     if (!onCambiar) return
@@ -76,7 +87,6 @@ export function SelectorResponsable({ personas, valorInicial, onCambiar, disable
 
   function elegirDeMktCorp(id: string) {
     setMondayId(id)
-    setEsSugerenciaSinConfirmar(false)
     const libreNuevo = id !== '' ? '' : libre
     if (id !== '') setLibre('')
     avisar(id, libreNuevo)
@@ -85,7 +95,6 @@ export function SelectorResponsable({ personas, valorInicial, onCambiar, disable
   function escribirLibre(valor: string) {
     setLibre(valor)
     setMondayId('')
-    setEsSugerenciaSinConfirmar(false)
     avisar('', valor)
   }
 
@@ -93,6 +102,11 @@ export function SelectorResponsable({ personas, valorInicial, onCambiar, disable
   // Si el id ya no aparece en la lista viva (alguien salió de Monday entre
   // que se guardó y hoy), el nombre que se conocía es mejor que uno vacío.
   const responsable = mondayId !== '' ? (personaElegida?.nombre ?? valorInicial?.nombre ?? '') : libre
+
+  // El botón de aceptar solo tiene sentido mientras nadie ha elegido nada
+  // todavía: en cuanto hay un mondayId (venga de aceptar la sugerencia o de
+  // elegir a otra persona a mano), ya no hay nada más que confirmar.
+  const ofrecerSugerencia = Boolean(sugerencia) && mondayId === ''
 
   return (
     <div className={estilos.responsable}>
@@ -104,7 +118,7 @@ export function SelectorResponsable({ personas, valorInicial, onCambiar, disable
           </p>
         ) : (
           <select
-            className={`${estilos.responsableSelect} ${esSugerenciaSinConfirmar ? estilos.responsableSelectSugerido : ''}`}
+            className={estilos.responsableSelect}
             value={mondayId}
             onChange={(e) => elegirDeMktCorp(e.target.value)}
             aria-label="Responsable de Mkt Corp"
@@ -115,9 +129,18 @@ export function SelectorResponsable({ personas, valorInicial, onCambiar, disable
             ))}
           </select>
         )}
-        {esSugerenciaSinConfirmar && (
+        {ofrecerSugerencia && sugerencia && (
           <p className={estilos.responsableSugerencia}>
-            Sugerencia por el nombre de la transcripción — confírmala o cambia a otra persona.
+            ¿Es <strong>{sugerencia.nombre}</strong>?{' '}
+            <button
+              type="button"
+              className={estilos.responsableSugerenciaBoton}
+              onClick={() => elegirDeMktCorp(sugerencia.id)}
+              disabled={disabled}
+              aria-label={`Confirmar a ${sugerencia.nombre} como responsable de Mkt Corp`}
+            >
+              Confirmar
+            </button>
           </p>
         )}
       </fieldset>

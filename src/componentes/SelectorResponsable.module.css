@@ -33,12 +33,21 @@
   border: 1px solid var(--linea-fuerte); border-radius: var(--r-2); cursor: pointer;
 }
 .responsableSelect:focus { outline: none; border-color: var(--tinta); }
-/* La sugerencia de personaMasParecida() se ve distinta a una elección
-   confirmada — el mismo tono de "atención" que usa el resto de la app para
-   lo que falta revisar (--ojo). Desaparece en cuanto se toca cualquiera de
-   los dos controles. */
-.responsableSelectSugerido { border-color: var(--ojo); background: var(--ojo-tenue); }
-.responsableSugerencia { font-size: 0.74rem; color: var(--ojo); margin: 0.35rem 0 0; }
+/* El botón que OFRECE la sugerencia de personaMasParecida() — nunca la
+   aplica solo. El <select> de arriba no lleva ninguna marca: lo que se ve
+   elegido ahí es siempre lo que se guarda, y mientras nadie pulsa este
+   botón, ahí no hay nadie elegido. */
+.responsableSugerencia {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
+  font-size: 0.78rem; color: var(--tinta-2); margin: 0.4rem 0 0;
+}
+.responsableSugerenciaBoton {
+  font-family: inherit; font-size: 0.76rem; font-weight: 600; color: var(--tinta);
+  background: var(--papel-2); border: 1px solid var(--linea-fuerte); border-radius: var(--r-1);
+  padding: 0.2rem 0.55rem; cursor: pointer;
+}
+.responsableSugerenciaBoton:hover { border-color: var(--tinta); }
+.responsableSugerenciaBoton:disabled { opacity: 0.6; cursor: default; }
 .responsableAviso { font-size: 0.78rem; color: var(--tinta-3); margin: 0; }
 .responsableLibre { flex: 1 1 12rem; min-width: 0; display: grid; gap: 0.3rem; }
 .responsableLibre input {

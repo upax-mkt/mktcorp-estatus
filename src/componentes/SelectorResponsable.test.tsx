@@ -65,28 +65,50 @@ describe('SelectorResponsable', () => {
     expect(ocultoDe(container, 'responsableMondayId')).toBe('')
   })
 
-  it('una sugerencia de personaMasParecida() se preselecciona pero se ve como sugerencia, no como un hecho', async () => {
+  it('con sugerencia y sin tocar nada, el desplegable arranca vacío y el id no viaja', () => {
+    // Lo que se ve elegido es lo que se guarda: la sugerencia se OFRECE, no
+    // se aplica. Publicar en este estado no debe mandar ningún id — así el
+    // acuerdo queda fuera de la bandeja (ver estadoInicialDeBandeja) hasta
+    // que alguien confirme un responsable de verdad.
+    const { container } = render(
+      <SelectorResponsable
+        personas={PERSONAS}
+        valorInicial={{ nombre: 'Iris Múgica', mondayId: null }}
+        sugerencia={PERSONAS[0]}
+      />,
+    )
+
+    const select = container.querySelector('select') as HTMLSelectElement
+    expect(select.value).toBe('')
+    expect(ocultoDe(container, 'responsableMondayId')).toBe('')
+    // El texto libre sigue siendo el nombre que trajo la IA, no un id.
+    expect(ocultoDe(container, 'responsable')).toBe('Iris Múgica')
+    // Pero la sugerencia SÍ se ve, ofrecida como algo aparte para confirmar.
+    expect(screen.getByRole('button', { name: /confirmar/i })).toBeInTheDocument()
+  })
+
+  it('aceptar la sugerencia con un clic sí manda el id, y el desplegable pasa a mostrarla elegida', async () => {
     const usuario = userEvent.setup()
     const { container } = render(
       <SelectorResponsable
         personas={PERSONAS}
-        valorInicial={{ nombre: 'Iris Múgica', mondayId: '65476486', sugerido: true }}
+        valorInicial={{ nombre: 'Iris Múgica', mondayId: null }}
+        sugerencia={PERSONAS[0]}
       />,
     )
 
-    // Preseleccionada de verdad: el id viaja aunque nadie la haya tocado.
-    expect(ocultoDe(container, 'responsableMondayId')).toBe('65476486')
-    // Pero marcada como sugerencia, no como una elección confirmada.
-    expect(screen.getByText(/sugerencia/i)).toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: /confirmar/i }))
 
-    // Confirmar (tocar el selector, aunque sea a la misma persona) apaga el aviso.
     const select = container.querySelector('select') as HTMLSelectElement
-    await usuario.selectOptions(select, '65476486')
-    expect(screen.queryByText(/sugerencia/i)).toBeNull()
+    expect(select.value).toBe('65476486')
+    expect(ocultoDe(container, 'responsableMondayId')).toBe('65476486')
+    expect(ocultoDe(container, 'responsable')).toBe('Iris Múgica')
+    // Ya no hay nada más que confirmar: el botón desaparece.
+    expect(screen.queryByRole('button', { name: /confirmar/i })).toBeNull()
   })
 
-  it('sin sugerido, un valorInicial con id se ve como una elección normal, no como sugerencia', () => {
-    render(<SelectorResponsable personas={PERSONAS} valorInicial={{ nombre: 'Iris Múgica', mondayId: '65476486' }} />)
-    expect(screen.queryByText(/sugerencia/i)).toBeNull()
+  it('sin sugerencia, no se ofrece ningún botón', () => {
+    render(<SelectorResponsable personas={PERSONAS} valorInicial={{ nombre: 'Fernando Ruiz', mondayId: null }} sugerencia={null} />)
+    expect(screen.queryByRole('button', { name: /confirmar/i })).toBeNull()
   })
 })

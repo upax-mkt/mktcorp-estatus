@@ -13,8 +13,14 @@ import type { AcuerdoConfirmado } from '@/db/minutas'
 
 interface FilaAcuerdo extends AcuerdoConfirmado {
   incluir: boolean
-  /** `true` si `responsableMondayId` es la sugerencia de personaMasParecida(), no una elección confirmada. Solo para pintar el aviso — no viaja a publicarMinutaAction. */
-  sugerido: boolean
+  /**
+   * La persona que `personaMasParecida()` encontró a partir del nombre que
+   * trajo la IA, para OFRECERLA como botón en SelectorResponsable — nunca se
+   * aplica sola. `null` sin coincidencia evidente. Se congela al crear la
+   * fila (no se recalcula si el campo se edita después) y no viaja a
+   * publicarMinutaAction: es un dato de pantalla, no del acuerdo.
+   */
+  sugerencia: PersonaMonday | null
   /**
    * Identidad de la fila para el `key` de React — el índice se corre al
    * quitar una fila (botón «Quitar»), y SelectorResponsable guarda estado
@@ -82,19 +88,20 @@ function palabras(texto: string): number {
 /**
  * El acuerdo que propuso la IA, listo para revisarse en pantalla.
  *
- * `personaMasParecida` NUNCA decide el responsable por su cuenta — solo
- * OFRECE, marcada como sugerencia (`sugerido: true`), la coincidencia más
- * obvia de la lista viva para que alguien la confirme o la cambie. Sin
- * coincidencia evidente, `responsableMondayId` queda en `null` y el nombre
- * que trajo la IA se ve como texto libre de la UDN — nunca se fuerza.
+ * `responsableMondayId` nace SIEMPRE en `null`, aunque haya una coincidencia
+ * evidente: `personaMasParecida` nunca decide el responsable por su cuenta,
+ * solo se calcula y se guarda aparte para que SelectorResponsable la OFREZCA
+ * como un botón — el id solo entra al estado si alguien pulsa "Confirmar" o
+ * elige a mano. Sin ese clic, el acuerdo se guarda con el nombre de texto que
+ * trajo la IA y sin id: vive en la sala, no entra a la bandeja, y ponerle
+ * dueño después es una edición, no una reconstrucción.
  */
 function aFilaEditable(a: AcuerdoPropuesto, personas: PersonaMonday[]): FilaAcuerdo {
-  const sugerencia = personaMasParecida(a.responsable, personas)
   return {
     ...a,
     incluir: true,
-    responsableMondayId: sugerencia?.id ?? null,
-    sugerido: sugerencia !== null,
+    responsableMondayId: null,
+    sugerencia: personaMasParecida(a.responsable, personas),
     claveUi: crypto.randomUUID(),
   }
 }
@@ -176,7 +183,7 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
     startPublicar(async () => {
       const confirmados = filas
         .filter((f) => f.incluir)
-        .map(({ incluir: _incluir, sugerido: _sugerido, claveUi: _claveUi, ...resto }) => resto)
+        .map(({ incluir: _incluir, sugerencia: _sugerencia, claveUi: _claveUi, ...resto }) => resto)
 
       const r = await publicarMinutaAction(de, transcripcion, textoCorreo, confirmados)
       if (!r.ok || !r.sesionId) {
@@ -287,7 +294,8 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
                     <div className={estilos.filaAcuerdoCamposChicos}>
                       <SelectorResponsable
                         personas={personas}
-                        valorInicial={{ nombre: f.responsable, mondayId: f.responsableMondayId ?? null, sugerido: f.sugerido }}
+                        valorInicial={{ nombre: f.responsable, mondayId: f.responsableMondayId ?? null }}
+                        sugerencia={f.sugerencia}
                         onCambiar={(v) => actualizarFila(i, { responsable: v.responsable, responsableMondayId: v.responsableMondayId })}
                         disabled={!f.incluir}
                       />
@@ -353,7 +361,7 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
                   prioridad: 'media',
                   fechaCompromiso: null,
                   incluir: true,
-                  sugerido: false,
+                  sugerencia: null,
                   claveUi: crypto.randomUUID(),
                 }])}
               >
