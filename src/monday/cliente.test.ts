@@ -113,15 +113,21 @@ describe('actualizarEnMonday', () => {
   // Cada caso comprueba las DOS cosas que dependen de `destino` a la vez —el
   // tablero Y el juego de columnas— porque son dos piezas de código distintas
   // dentro de la función (el `tablero` del ternario, las `columnasDe(destino)`
-  // de valoresDeColumna): un test que solo mirara una no cubre a la otra.
+  // de valoresDeActualizacion): un test que solo mirara una no cubre a la otra.
+  //
+  // `estatusAnterior: 'abierto'` en los dos: DISTINTO de `estatus: 'cumplido'`
+  // en clase (Sprint vs Done), así que la fase sí debe aparecer — es lo que
+  // permite seguir comprobando aquí las columnas del elemento/subelemento sin
+  // que la omisión de la revisión final (ver el siguiente describe) tape el dato.
   it('con destino "elemento", manda TABLERO y las columnas del ELEMENTO', async () => {
     const espia = conRed({ change_multiple_column_values: { id: '9' } })
 
-    await actualizarEnMonday('9', 'elemento', {
-      salaSlug: 'mexa-creativa',
-      estatus: 'cumplido',
-      fechaCompromiso: '2026-08-12',
-    })
+    await actualizarEnMonday(
+      '9',
+      'elemento',
+      { estatus: 'cumplido', fechaCompromiso: '2026-08-12' },
+      'abierto',
+    )
 
     const { variables } = cuerpoDe(espia)
     expect(variables.tablero).toBe(String(TABLERO))
@@ -133,11 +139,12 @@ describe('actualizarEnMonday', () => {
   it('con destino "subelemento", manda TABLERO_SUBELEMENTOS y las columnas del SUBELEMENTO', async () => {
     const espia = conRed({ change_multiple_column_values: { id: '9' } })
 
-    await actualizarEnMonday('9', 'subelemento', {
-      salaSlug: 'mexa-creativa',
-      estatus: 'cumplido',
-      fechaCompromiso: '2026-08-12',
-    })
+    await actualizarEnMonday(
+      '9',
+      'subelemento',
+      { estatus: 'cumplido', fechaCompromiso: '2026-08-12' },
+      'abierto',
+    )
 
     const { variables } = cuerpoDe(espia)
     expect(variables.tablero).toBe(String(TABLERO_SUBELEMENTOS))
@@ -145,17 +152,100 @@ describe('actualizarEnMonday', () => {
     expect(valores['color_mkzjvp66']).toEqual({ label: '✅ Done' })
     expect(valores['color_mkz09na']).toBeUndefined() // fase del ELEMENTO: no debe aparecer
   })
+
+  // ---- Corrección crítica de la revisión final de la ronda 7 ----
+  //
+  // `valoresDeColumna` (crear) siempre manda `udn` y `fase`; para actualizar,
+  // desde esta corrección, NINGUNA de las dos se manda incondicionalmente —
+  // ver la cabecera de `valoresDeActualizacion` en cliente.ts para el porqué
+  // completo.
+  describe('no reescribe lo que el equipo puso a mano en el tablero', () => {
+    it('estatus sin cambiar (abierto → abierto): omite la columna de Fase por completo', async () => {
+      // El caso real del bug: el acuerdo sigue "abierto" para nosotros —el
+      // equipo pudo haberlo movido a "👀 Review" en Monday sin que aquí se
+      // entere— y solo se edita la fecha. Antes de esta corrección, esta
+      // llamada mandaba SIEMPRE `color_mkz09na: { label: '🚧 Sprint' }` y
+      // devolvía el elemento a Sprint sin que nadie lo pidiera.
+      const espia = conRed({ change_multiple_column_values: { id: '9' } })
+
+      await actualizarEnMonday(
+        '9',
+        'elemento',
+        { estatus: 'abierto', fechaCompromiso: '2026-08-20' },
+        'abierto',
+      )
+
+      const valores = JSON.parse(cuerpoDe(espia).variables.valores)
+      expect(valores['color_mkz09na']).toBeUndefined() // la columna NI APARECE
+      expect(valores['date_mm1b10rx']).toEqual({ date: '2026-08-20' }) // pero la fecha sí se sincroniza
+    })
+
+    it('estatus que sí cambia de clase (abierto → cumplido): sí manda la Fase', async () => {
+      const espia = conRed({ change_multiple_column_values: { id: '9' } })
+
+      await actualizarEnMonday(
+        '9',
+        'elemento',
+        { estatus: 'cumplido', fechaCompromiso: null },
+        'abierto',
+      )
+
+      const valores = JSON.parse(cuerpoDe(espia).variables.valores)
+      expect(valores['color_mkz09na']).toEqual({ label: '✅ Done' })
+    })
+
+    it('abierto → vencido no cuenta como cambio de clase: vencido mapea a la misma fase que abierto (🚧 Sprint)', async () => {
+      const espia = conRed({ change_multiple_column_values: { id: '9' } })
+
+      await actualizarEnMonday(
+        '9',
+        'elemento',
+        { estatus: 'vencido', fechaCompromiso: null },
+        'abierto',
+      )
+
+      const valores = JSON.parse(cuerpoDe(espia).variables.valores)
+      expect(valores['color_mkz09na']).toBeUndefined()
+    })
+
+    it('la UdN nunca se manda al actualizar, cambie o no el estatus: un acuerdo no cambia de sala', async () => {
+      const espia = conRed({ change_multiple_column_values: { id: '9' } })
+
+      await actualizarEnMonday(
+        '9',
+        'elemento',
+        { estatus: 'cumplido', fechaCompromiso: null },
+        'abierto',
+      )
+
+      const valores = JSON.parse(cuerpoDe(espia).variables.valores)
+      expect(valores['color_mm0ex2j0']).toBeUndefined()
+    })
+  })
 })
 
 describe('existeElGrupo', () => {
-  it('es falso si el tablero no devuelve el grupo configurado', async () => {
+  it('es falso si el tablero no devuelve el grupo configurado, y sin título', async () => {
     conRed({ boards: [{ groups: [] }] })
-    expect(await existeElGrupo()).toBe(false)
+    expect(await existeElGrupo()).toEqual({ existe: false, titulo: null })
   })
 
-  it('es cierto cuando está', async () => {
+  it('es cierto cuando está, y devuelve SU título — no basta con que exista, hay que ver cuál es', async () => {
+    // Revisión final de la ronda 7: la query ya pedía `title` y se
+    // descartaba. Un id a mano en MONDAY_GRUPO puede coincidir con un grupo
+    // real pero equivocado ("Reuniones Semanales", "Done", un Benchmark) sin
+    // que esta comprobación lo note — devolver el título es lo que permite
+    // que una persona lo reconozca antes de confirmar la subida.
     conRed({ boards: [{ groups: [{ id: 'group_mm15cfz2', title: 'Delivery Mkt Corp 2026' }] }] })
-    expect(await existeElGrupo()).toBe(true)
+    expect(await existeElGrupo()).toEqual({ existe: true, titulo: 'Delivery Mkt Corp 2026' })
+  })
+
+  it('sin MONDAY_GRUPO configurado, es falso sin llamar a Monday', async () => {
+    const espia = vi.fn()
+    vi.stubEnv('MONDAY_TOKEN', 'ficticio')
+    vi.stubGlobal('fetch', espia)
+    expect(await existeElGrupo()).toEqual({ existe: false, titulo: null })
+    expect(espia).not.toHaveBeenCalled()
   })
 })
 
@@ -191,9 +281,12 @@ describe('elementosDeDelivery', () => {
       id: String(i),
       name: `Item ${i}`,
     }))
-    const espia = conRed({
-      boards: [{ groups: [{ items_page: { items: items100 } }] }],
-    })
+    // Sin asignar el espía a una variable (warning preexistente arreglado de
+    // paso, revisión final de la ronda 7): este test solo comprueba el
+    // RESULTADO (`resultado.truncado`), nunca inspecciona qué se mandó a
+    // fetch — a diferencia de los demás tests de este archivo, que sí lo
+    // hacen y por eso sí necesitan guardar la referencia.
+    conRed({ boards: [{ groups: [{ items_page: { items: items100 } }] }] })
 
     const resultado = await elementosDeDelivery('mexa-creativa')
 

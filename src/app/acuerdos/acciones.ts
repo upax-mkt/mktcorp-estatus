@@ -5,7 +5,8 @@ import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirEquipo } from '@/auth/sesion'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
-import { pausarSala, reactivarSala } from '@/db/salas'
+import { pausarSala, reactivarSala, salaEstaActiva } from '@/db/salas'
+import { editarAcuerdo } from '@/db/acuerdos'
 
 /**
  * Las acciones de la bandeja. Todas empiezan comprobando la sesión: esto
@@ -21,7 +22,11 @@ export async function subirAcuerdoAction(
 
   // El grupo se comprueba ANTES de escribir. Es la lección del dashboard viejo:
   // lleva meses mandando elementos a un grupo que alguien borró, y nada avisa.
-  if (!(await existeElGrupo())) {
+  // `existeElGrupo` devuelve además el título (revisión final de la ronda 7):
+  // existir no es ser el correcto — quien confirma en la bandeja es quien lo
+  // reconoce, esto solo asegura que HAY algo que reconocer.
+  const { existe: grupoExiste } = await existeElGrupo()
+  if (!grupoExiste) {
     throw new Error(
       `El grupo ${process.env.MONDAY_GRUPO ?? '(sin configurar)'} no existe en el tablero. No se sube nada hasta arreglarlo.`,
     )
@@ -71,6 +76,35 @@ export async function subirAcuerdoAction(
     return
   }
 
+  /**
+   * EL FREEZE, FRESCO, JUSTO ANTES DE ESCRIBIR (corrección de la revisión
+   * final de la ronda 7).
+   *
+   * `entraALaBandeja` (src/monday/bandeja.ts) ya excluye una sala en pausa de
+   * la LECTURA (`acuerdosPendientesDeSubir` en src/db/acuerdos.ts), pero eso
+   * solo protege el listado que se pintó al abrir la pantalla — una pestaña
+   * abierta antes de pausar la sala seguía pudiendo pulsar "Subir" y llegar
+   * hasta aquí. El diseño lo pide explícito (§7): "sala pausada con acuerdos
+   * en la bandeja: se congelan también, no se pueden subir hasta reactivar".
+   *
+   * Se comprueba DESPUÉS de reclamar la fila —`reclamada.salaSlug` sale
+   * gratis del RETURNING de arriba, sin una consulta aparte— y ANTES de
+   * llamar a Monday, que es la escritura que hay que frenar. `salaEstaActiva`
+   * (src/db/salas.ts) está escrita justo para esto: preguntar fresco, no
+   * fiarse de un estado ya resuelto en el render. Si la sala se pausó justo
+   * entre el reclamo y esta línea, se revierte la reclamación exactamente
+   * igual que cuando Monday falla más abajo — nadie más pudo reclamarla
+   * mientras tanto (bandeja ya no era 'pendiente'), así que devolverla no
+   * arriesga un duplicado.
+   */
+  if (!(await salaEstaActiva(reclamada.salaSlug))) {
+    await db()
+      .update(esquema.acuerdos)
+      .set({ bandeja: 'pendiente', updatedAt: new Date() })
+      .where(and(eq(esquema.acuerdos.id, id), eq(esquema.acuerdos.bandeja, 'subido')))
+    throw new Error('Esta sala está en pausa: sus acuerdos están congelados y no se pueden subir hasta reactivarla.')
+  }
+
   const datos = {
     salaSlug: reclamada.salaSlug,
     que: reclamada.que,
@@ -110,8 +144,10 @@ export async function subirAcuerdoAction(
    * arreglable desde la app; un elemento duplicado en un tablero de 950
    * filas que mira todo el equipo lo tiene que limpiar a mano alguien que ni
    * sabe que esta app existe. Entre un estado raro visible y un duplicado
-   * invisible, se elige el primero — decisión de Franco en la revisión de
-   * esta tarea. No lo "simplifiques" quitando el guardado en dos pasos.
+   * invisible, se elige el primero — decisión del coordinador de esta ronda
+   * al revisar esta tarea, PENDIENTE de que Franco la confirme cuando se le
+   * presente la rama (corrección de atribución: esto NO lo decidió Franco).
+   * No lo "simplifiques" quitando el guardado en dos pasos.
    */
   await db()
     .update(esquema.acuerdos)
@@ -148,6 +184,47 @@ export async function descartarAcuerdoAction(id: string): Promise<void> {
     .set({ bandeja: 'descartado', updatedAt: new Date() })
     .where(and(eq(esquema.acuerdos.id, id), eq(esquema.acuerdos.bandeja, 'pendiente')))
   revalidatePath('/acuerdos/bandeja')
+}
+
+// ---- Editar ahí mismo, en la bandeja (revisión final de la ronda 7, punto 8) ----
+
+/**
+ * Edita el acuerdo, su responsable o su fecha SIN salir de la bandeja.
+ *
+ * El diseño lo pide (§3, la bandeja): "El acuerdo, su responsable y su
+ * fecha, editables ahí mismo." Es el ÚLTIMO punto donde alguien puede
+ * corregir un nombre que la transcripción se comió o una fecha mal
+ * detectada ANTES de que aparezca en el tablero de 950 elementos que mira
+ * todo el equipo — después de subir, ya no (subir/descartar exigen
+ * `bandeja = 'pendiente'`, así que un acuerdo ya subido no se puede tocar
+ * desde aquí; sí desde su sala, con `AcuerdoControles`).
+ *
+ * Reusa `editarAcuerdo` (src/db/acuerdos.ts) tal cual — no reimplementa
+ * nada: ya sabe recalcular la bandeja si el responsable cambia
+ * (`bandejaTrasEditar` — si la corrección revela que en realidad es alguien
+ * de la UDN, el acuerdo SALE de la bandeja solo, que es lo correcto) y ya
+ * deja rastro en la historia. Lo único nuevo aquí es la guarda de sesión: es
+ * la primera acción de escritura de la bandeja que no es ni "subir" ni
+ * "descartar", así que empieza igual que las otras dos — `exigirEquipo()`
+ * antes de tocar nada.
+ */
+export async function editarEnBandejaAction(
+  id: string,
+  salaSlug: string,
+  cambios: { que: string; responsable: string; responsableMondayId: string | null; fechaCompromiso: string | null },
+): Promise<void> {
+  await exigirEquipo()
+  await editarAcuerdo(id, {
+    que: cambios.que,
+    responsable: cambios.responsable,
+    responsableMondayId: cambios.responsableMondayId,
+    fechaCompromiso: cambios.fechaCompromiso ? new Date(cambios.fechaCompromiso) : null,
+  })
+  // Las tres pantallas donde este acuerdo puede aparecer: la bandeja misma,
+  // el espacio de acuerdos (mismo `que`/fecha si ya se ve ahí) y su sala.
+  revalidatePath('/acuerdos/bandeja')
+  revalidatePath('/acuerdos')
+  revalidatePath(`/cliente/${salaSlug}`)
 }
 
 // ---- La estrella (tarea 11, ronda 7) ----

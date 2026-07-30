@@ -65,10 +65,15 @@ export function generateStaticParams() {
  * que la sincronización dejó de funcionar. Se distingue de un `ErrorMonday`
  * (el tablero, que se cae y no es asunto nuestro) para no ensuciar los logs
  * con algo esperable y sin acción posible de este lado.
+ *
+ * `slug`: se pasa SIEMPRE desde aquí (revisión final de la ronda 7, punto 4)
+ * — esta página es de UNA sala, así que solo hace falta reconciliar los
+ * acuerdos de esa sala, no los de las nueve. Antes `refrescarDesdeMonday()`
+ * sin argumento traía y reconciliaba TODOS en cada carga de CUALQUIER sala.
  */
-async function refrescarDesdeMondaySeguro(): Promise<void> {
+async function refrescarDesdeMondaySeguro(slug: string): Promise<void> {
   try {
-    await refrescarDesdeMonday()
+    await refrescarDesdeMonday(slug)
   } catch (error) {
     if (error instanceof ErrorMonday) {
       console.error(`[refrescarDesdeMonday] Monday no respondió: ${error.message}`)
@@ -103,19 +108,39 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   // La sala se pinta igual con lo que ya hay en la base pase lo que pase
   // aquí — ver el comentario de refrescarDesdeMondaySeguro más arriba.
-  await refrescarDesdeMondaySeguro()
+  await refrescarDesdeMondaySeguro(slug)
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()
-  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres, todasLasSesiones, personas] = await Promise.all([
+  // Se resuelve ANTES del Promise.all de abajo (y no dentro) porque decide
+  // si se pide `directorio()` — necesita el valor YA resuelto, no una
+  // promesa hermana que todavía no corrió.
+  const equipo = await esEquipo()
+  const [benchmark, archivosPresentaciones, archivosDeInteres, todasLasSesiones, personas] = await Promise.all([
     obtenerBenchmark(slug),
-    esEquipo(),
     listarArchivos(slug, 'presentacion'),
     listarArchivos(slug, 'interes'),
     listarSesiones(),
-    // Para el selector de responsable de NuevoAcuerdoForm — directorio() ya
-    // aguanta Monday caído devolviendo la copia local (o [], sin ninguna).
-    directorio(),
+    /**
+     * Para el selector de responsable de NuevoAcuerdoForm/LevantarMinuta —
+     * SOLO SI ES EQUIPO (corrección de la revisión final de la ronda 7,
+     * punto 7).
+     *
+     * Esta página se comparte con el cliente interno por un enlace firmado
+     * de 30 días (`generarTokenDeSala`, ver más abajo). Antes `directorio()`
+     * —los nombres Y CORREOS de las 24 personas de Mkt Corp— se pedía
+     * siempre, sin condicionar a quién mira, y viajaba entero al HTML/RSC de
+     * la página en cuanto algo lo renderizaba (`editaAcuerdos` es cierto
+     * para CUALQUIER director en su propia sala, así que esto no era un caso
+     * raro: era el camino normal de todo director que da de alta un
+     * acuerdo). Sin equipo, `personas` llega vacío: el grupo "Mkt Corp" del
+     * selector sale con su aviso de siempre ("no se pudo cargar…", el mismo
+     * que ya usa cuando Monday está caído) y el director sigue pudiendo
+     * escribir el responsable de su UDN en texto libre — lo que pierde es
+     * poder asignar directo a alguien de Mkt Corp, y eso Mkt Corp lo puede
+     * corregir después (ver FilaBandeja, ahora editable en sitio).
+     */
+    equipo ? directorio() : Promise.resolve([]),
   ])
   const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
   // Lo que está a medio armar para este cliente. No es una reunión todavía —no

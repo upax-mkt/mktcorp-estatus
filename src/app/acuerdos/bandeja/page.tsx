@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { exigirEquipo } from '@/auth/sesion'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
+import { directorio } from '@/db/personas'
 import {
   elementosDeDelivery, existeElGrupo, grupoDeAcuerdos, mondayConectado, ErrorMonday,
 } from '@/monday/cliente'
 import { FilaBandeja } from '@/componentes/acuerdos/FilaBandeja'
-import { subirAcuerdoAction, descartarAcuerdoAction } from '../acciones'
+import { subirAcuerdoAction, descartarAcuerdoAction, editarEnBandejaAction } from '../acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
 
 /**
@@ -76,11 +77,11 @@ async function elementosSeguro(slug: string) {
  * Asumir que sí está y dejar subir a ciegas es exactamente el error que esta
  * comprobación existe para evitar (ver la cabecera de existeElGrupo).
  */
-async function grupoExisteSeguro(): Promise<boolean> {
+async function grupoExisteSeguro(): Promise<{ existe: boolean; titulo: string | null }> {
   try {
     return await existeElGrupo()
   } catch {
-    return false
+    return { existe: false, titulo: null }
   }
 }
 
@@ -114,9 +115,14 @@ export default async function PagBandeja() {
   // aquí — ver el comentario de refrescarDesdeMondaySeguro más arriba.
   await refrescarDesdeMondaySeguro()
 
-  const [pendientes, grupoExiste] = await Promise.all([
+  const [pendientes, grupoExiste, personas] = await Promise.all([
     acuerdosPendientesDeSubir(),
     grupoExisteSeguro(),
+    // Para corregir el responsable ahí mismo (punto 8) — esta pantalla es
+    // SOLO EQUIPO (exigirEquipo() arriba, sin excepción de sala), así que a
+    // diferencia de /cliente/[slug] (punto 7) no hace falta condicionar esta
+    // carga: nunca se comparte por un enlace firmado con un cliente interno.
+    directorio(),
   ])
 
   // Por cada sala presente en la bandeja, una sola consulta a Delivery — no
@@ -132,7 +138,7 @@ export default async function PagBandeja() {
   const escrituraEncendida = process.env.MONDAY_ESCRITURA === 'si'
   // Hacen falta las DOS cosas para que un botón de subir sirva de algo: con
   // cualquiera de las dos apagada, Monday va a rechazar la escritura.
-  const puedeSubir = escrituraEncendida && grupoExiste
+  const puedeSubir = escrituraEncendida && grupoExiste.existe
 
   return (
     <div className={estilos.app}>
@@ -156,7 +162,7 @@ export default async function PagBandeja() {
           )}
         </div>
 
-        {/* Los dos avisos son independientes: cada uno describe SU propia
+        {/* Los avisos son independientes: cada uno describe SU propia
             condición y ninguno presupone el estado del otro. Alguien a punto
             de encender MONDAY_ESCRITURA (tarea 13) merece saber HOY si el
             grupo ya está roto, no descubrirlo justo después de encenderla. */}
@@ -166,10 +172,22 @@ export default async function PagBandeja() {
             puede revisar la bandeja, pero ningún botón de subir va a funcionar todavía.
           </p>
         )}
-        {!grupoExiste && (
+        {!grupoExiste.existe && (
           <p className={estilos.aviso} data-tono="mal">
             No se pudo confirmar que el grupo <code>{grupo ?? '(sin configurar)'}</code> existe
             en el tablero de Monday. No se sube nada hasta arreglar <code>MONDAY_GRUPO</code>.
+          </p>
+        )}
+        {/* EXISTIR no es SER EL CORRECTO (revisión final de la ronda 7):
+            `MONDAY_GRUPO` es un id a mano que podría apuntar a "Reuniones
+            Semanales", "Done" o un Benchmark y esta comprobación diría igual
+            que existe. No se compara contra un nombre escrito en el código
+            —el equipo puede renombrar el grupo sin avisar—, así que la
+            defensa es que una PERSONA lo reconozca antes de confirmar. */}
+        {grupoExiste.existe && grupoExiste.titulo && (
+          <p className={estilos.aviso} data-tono="bien">
+            Lo que se suba aquí va al grupo <strong>{grupoExiste.titulo}</strong> del tablero.
+            Si no es el que esperabas, avisa antes de confirmar nada.
           </p>
         )}
 
@@ -188,10 +206,12 @@ export default async function PagBandeja() {
                     key={acuerdo.id}
                     acuerdo={acuerdo}
                     elementos={info?.elementos ?? []}
+                    personas={personas}
                     truncado={info?.truncado ?? false}
                     puedeSubir={puedeSubir}
                     subir={subirAcuerdoAction}
                     descartar={descartarAcuerdoAction}
+                    editar={editarEnBandejaAction}
                   />
                 )
               })}

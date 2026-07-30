@@ -153,6 +153,13 @@ export default async function Hub() {
           />
         </Link>
         <nav className={estilos.barraDcha}>
+          {/* Enlace FIJO (revisión final de la ronda 7, punto 5): antes la
+              única puerta a /acuerdos vivía dentro del vacío "Nada destacado
+              todavía" de ModuloAcuerdos — en cuanto alguien destacaba un
+              acuerdo, ese vacío dejaba de pintarse y con él la única entrada
+              a media rama de esta ronda. Aquí no depende de que algo esté
+              vacío o lleno. */}
+          <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>

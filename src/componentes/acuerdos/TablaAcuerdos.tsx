@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
-import type { AcuerdoConSala } from '@/db/consultas'
+import { estaCongelado, type AcuerdoConSala } from '@/db/consultas'
 import { fechaBreve } from '@/lib/fecha'
 import { colorDeTextoDeMarca } from '@/temas'
 import { Estrella } from './Estrella'
@@ -149,6 +149,15 @@ function Fila({ acuerdo, destacar }: { acuerdo: AcuerdoConSala; destacar: Props[
     '--marca-texto': colorDeTextoDeMarca(acuerdo.salaColor),
   } as CSSProperties
 
+  // Congelado (revisión final de la ronda 7, punto menor): dentro del bloque
+  // "Congelados" esta MISMA fila se pintaba con el badge "Abierto" liso —
+  // `ETIQUETA_ESTATUS`/`TONO_ESTATUS` no sabían nada del freeze de la sala.
+  // `estaCongelado` ya distingue exactamente eso (solo un `abierto` de una
+  // sala en pausa lo es; un `cumplido` de esa misma sala NO — no tiene un
+  // plazo que congelar), así que se comprueba POR FILA, no por bloque: es lo
+  // mismo que ya hace src/app/cliente/[slug]/page.tsx.
+  const congelado = estaCongelado(acuerdo, { activa: acuerdo.salaActiva })
+
   return (
     <li className={estilos.fila} style={estiloFila}>
       <div className={estilos.cuerpo}>
@@ -169,12 +178,23 @@ function Fila({ acuerdo, destacar }: { acuerdo: AcuerdoConSala; destacar: Props[
               </a>
             </>
           )}
+          {/* El aviso que pide el diseño (§4) cuando el elemento desapareció
+              de Monday (revisión final de la ronda 7, punto 6): antes esta
+              fila se quedaba con `mondayUrl` colgado —"Ver en Monday ↗" a un
+              elemento que ya no existe—; ahora refrescarDesdeMonday lo limpia
+              y esta es la señal de que eso pasó. */}
+          {acuerdo.mondayDesvinculado && (
+            <>
+              <span className={estilos.punto} aria-hidden>·</span>
+              <span className={estilos.avisoDesvinculado}>Se dejó de sincronizar con Monday: el elemento ya no existe allá</span>
+            </>
+          )}
         </div>
       </div>
 
       <div className={estilos.filaDcha}>
-        <span className="pildora" data-tono={TONO_ESTATUS[acuerdo.estatus]}>
-          {ETIQUETA_ESTATUS[acuerdo.estatus]}
+        <span className="pildora" data-tono={congelado ? undefined : TONO_ESTATUS[acuerdo.estatus]}>
+          {congelado ? 'Congelado' : ETIQUETA_ESTATUS[acuerdo.estatus]}
         </span>
         <Estrella acuerdoId={acuerdo.id} destacado={acuerdo.destacado} destacar={destacar} />
       </div>

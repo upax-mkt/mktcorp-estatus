@@ -359,6 +359,23 @@ export interface AcuerdoConSala extends Acuerdo {
   mondayTipo?: string | null
   /** 'no_aplica' | 'pendiente' | 'subido' | 'descartado' — ver src/monday/bandeja.ts. */
   bandeja: string
+  /**
+   * Se sincronizó con Monday alguna vez y el elemento YA NO EXISTE allá
+   * (revisión final de la ronda 7, punto 6): el diseño pide un aviso en este
+   * espacio cuando eso pasa (§4 — "se marca... con un aviso en el espacio de
+   * acuerdos").
+   *
+   * Se deriva de `mondayId == null && mondaySincronizadoEn != null` — nunca
+   * se guarda como columna aparte. Un acuerdo que NUNCA se subió tiene los
+   * dos en null (`mondayDesvinculado` da falso); uno sincronizado que sigue
+   * vivo en Monday tiene los dos con valor. Solo el que se subió y luego
+   * `refrescarDesdeMonday` marcó como 'desapareció' queda con `mondayId =
+   * null` pero `mondaySincronizadoEn` con la fecha de cuando SÍ se sincronizó
+   * —esa combinación es la señal, y es la misma rama que limpia
+   * `mondayUrl`/`mondayTipo` (ver 'desapareció' en refrescarDesdeMonday,
+   * src/db/acuerdos.ts).
+   */
+  mondayDesvinculado: boolean
 }
 
 /**
@@ -404,6 +421,8 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
       destacado: esquema.acuerdos.destacado,
       mondayUrl: esquema.acuerdos.mondayUrl,
       mondayTipo: esquema.acuerdos.mondayTipo,
+      mondayId: esquema.acuerdos.mondayId,
+      mondaySincronizadoEn: esquema.acuerdos.mondaySincronizadoEn,
       bandeja: esquema.acuerdos.bandeja,
       salaSlug: esquema.acuerdos.salaSlug,
       salaActiva: esquema.salas.activa,
@@ -436,6 +455,7 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
         mondayUrl: f.mondayUrl,
         mondayTipo: f.mondayTipo,
         bandeja: f.bandeja,
+        mondayDesvinculado: f.mondayId == null && f.mondaySincronizadoEn != null,
       }
     })
     // La fecha más próxima primero; sin fecha, al final — mismo criterio que

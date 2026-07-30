@@ -182,22 +182,96 @@ function valoresDeColumna(
 }
 
 /**
- * ¿Sigue existiendo el grupo al que escribimos?
+ * Los valores de columna para ACTUALIZAR un acuerdo que YA EXISTE en Monday —
+ * distintos de `valoresDeColumna` (crear), con dos reglas propias que
+ * corrigen el hallazgo crítico de la revisión final de la ronda 7:
+ *
+ * 1. **La UdN nunca se manda.** Un acuerdo no cambia de sala una vez creado
+ *    (`CambiosAcuerdo`, en src/db/acuerdos.ts, no tiene `salaSlug`), así que
+ *    no hay nada que actualizar — la UdN solo se escribe una vez, al nacer el
+ *    elemento (`valoresDeColumna` desde `crearElementoEnDelivery`/
+ *    `crearSubelemento`).
+ * 2. **La Fase solo se manda si la CLASE de nuestro estatus cambió.** El
+ *    tablero distingue seis fases (`⏳Backlog`, `🚧 Sprint`, `👀 Review`, `⚙️
+ *    Modificación`, `✅ Done`, `🚫 Detenido`) y `estatusDeFase` (mapeo.ts) las
+ *    colapsa a los cuatro estatus nuestros: Backlog/Sprint/Review/
+ *    Modificación son las CUATRO `abierto`. Antes de esta corrección,
+ *    `actualizarEnMonday` mandaba SIEMPRE `col.fase` con
+ *    `FASE_DE_ESTATUS[abierto] = '🚧 Sprint'` — así que cualquier edición
+ *    (incluida una que solo mueve la fecha: `editarAcuerdo` ni siquiera puede
+ *    tocar el estatus, ver `CambiosAcuerdo`) devolvía a Sprint un acuerdo que
+ *    el equipo tenía en Review, Backlog o Modificación. El daño lo sufría
+ *    gente que no sabe que esta app existe, la línea roja que el propio
+ *    diseño se puso (ver la cabecera de este archivo).
+ *
+ * `estatusAnterior` es el estatus que tenía el acuerdo ANTES de esta
+ * escritura (ver `moverEstatus`/`editarAcuerdo` en src/db/acuerdos.ts, que lo
+ * leen de la fila antes de tocarla). Comparar su CLASE (`FASE_DE_ESTATUS`)
+ * contra la del estatus nuevo basta para decidir si hace falta escribir la
+ * columna — y es más simple y más seguro que leer la fase que Monday tiene
+ * AHORA MISMO antes de cada escritura:
+ *
+ * - No hace falta una consulta de red extra antes de cada actualización:
+ *   `FASE_DE_ESTATUS` y `estatusDeFase` son inversas exactas (round-trip
+ *   verificado: escribir `FASE_DE_ESTATUS[x]` y releerlo con `estatusDeFase`
+ *   devuelve `x`), así que mientras nadie más toque el tablero, la fase
+ *   remota YA está en la clase de nuestro último estatus escrito — comparar
+ *   antes/después local equivale a comparar contra la fase remota real.
+ * - Y cuando alguien SÍ toca el tablero a mano —el caso que de verdad importa
+ *   aquí—, leer la fase remota en el momento de escribir mezclaría esta
+ *   función con la reconciliación que YA existe para eso (`reconciliar` /
+ *   `refrescarDesdeMonday`, ver sincronizar.ts): si el equipo puso el
+ *   elemento en `✅ Done` a mano y nosotros mandamos una edición de fecha con
+ *   estatus local `abierto` sin cambiar, comparar contra el remoto forzaría
+ *   la fase de vuelta a Sprint, pisando ese `Done` — exactamente el tipo de
+ *   pelea de escrituras que este archivo (ver su cabecera) existe para
+ *   evitar. Comparar solo el antes/después LOCAL nunca pisa un estado que
+ *   nosotros no escribimos.
+ */
+function valoresDeActualizacion(
+  datos: { estatus: EstatusGuardado; fechaCompromiso: string | null },
+  destino: DestinoMonday,
+  estatusAnterior: EstatusGuardado,
+): string {
+  const col = columnasDe(destino)
+  const valores: Record<string, unknown> = {
+    [col.deadline]: datos.fechaCompromiso ? { date: datos.fechaCompromiso } : {},
+  }
+  if (FASE_DE_ESTATUS[estatusAnterior] !== FASE_DE_ESTATUS[datos.estatus]) {
+    valores[col.fase] = { label: FASE_DE_ESTATUS[datos.estatus] }
+  }
+  return JSON.stringify(valores)
+}
+
+/**
+ * ¿Sigue existiendo el grupo al que escribimos, y CUÁL es?
  *
  * Existe por lo que le pasó al dashboard viejo: escribe desde hace meses a un
  * grupo que alguien borró, y nadie se enteró porque nada avisa. Un id de grupo
  * en una constante no es una garantía de nada.
+ *
+ * Devuelve también `titulo` (revisión final de la ronda 7): existir no es lo
+ * mismo que ser el grupo correcto. `MONDAY_GRUPO` es un id a mano en
+ * `.env` — si alguien lo cambia por el de "Reuniones Semanales", "Done" o un
+ * Benchmark, ese grupo SÍ existe y esta función diría que todo está bien,
+ * pero cada acuerdo que se suba aterrizaría en el sitio equivocado del
+ * tablero que mira el equipo entero. La query ya pedía `title`; antes se
+ * descartaba. No se compara contra un nombre escrito a mano en el código
+ * —el equipo puede renombrar el grupo en Monday sin avisar— así que la
+ * defensa no es una comparación automática: es enseñárselo a quien confirma
+ * la subida (ver la bandeja), para que sea una persona quien lo reconozca.
  */
-export async function existeElGrupo(): Promise<boolean> {
+export async function existeElGrupo(): Promise<{ existe: boolean; titulo: string | null }> {
   const grupo = grupoDeAcuerdos()
-  if (!grupo) return false
-  const datos = await consultarMonday<{ boards: Array<{ groups: Array<{ id: string }> }> }>(
+  if (!grupo) return { existe: false, titulo: null }
+  const datos = await consultarMonday<{ boards: Array<{ groups: Array<{ id: string; title: string }> }> }>(
     `query ($tablero: [ID!], $grupo: [String!]) {
        boards(ids: $tablero) { groups(ids: $grupo) { id title } }
      }`,
     { tablero: [String(TABLERO)], grupo: [grupo] },
   )
-  return (datos.boards?.[0]?.groups?.length ?? 0) > 0
+  const encontrado = datos.boards?.[0]?.groups?.[0]
+  return { existe: encontrado != null, titulo: encontrado?.title ?? null }
 }
 
 /** Crea el acuerdo como elemento nuevo en el grupo de Delivery. */
@@ -248,11 +322,20 @@ export async function crearSubelemento(
  * `TABLERO`. Mandar el board_id del elemento con el id de un subelemento no
  * lo mueve: Monday responde que el item no existe en ese tablero, porque de
  * verdad no existe ahí.
+ *
+ * `estatusAnterior` — el estatus del acuerdo antes de esta escritura — decide
+ * si se manda la columna de Fase. Es OBLIGATORIO y a propósito no tiene
+ * valor por defecto: un default "manda siempre" reintroduciría en silencio el
+ * bug crítico de la revisión final de la ronda 7 (ver `valoresDeActualizacion`
+ * para el porqué completo), y uno "nunca manda" dejaría acuerdos que sí
+ * cambiaron de estatus sin reflejarse en el tablero. Cada llamador tiene que
+ * decidirlo explícitamente.
  */
 export async function actualizarEnMonday(
   mondayId: string,
   destino: DestinoMonday,
-  datos: { salaSlug: string; estatus: EstatusGuardado; fechaCompromiso: string | null },
+  datos: { estatus: EstatusGuardado; fechaCompromiso: string | null },
+  estatusAnterior: EstatusGuardado,
 ): Promise<void> {
   if (!escrituraActiva()) throw new ErrorMonday('La escritura a Monday está desactivada.')
 
@@ -263,7 +346,7 @@ export async function actualizarEnMonday(
     {
       tablero: String(destino === 'subelemento' ? TABLERO_SUBELEMENTOS : TABLERO),
       item: mondayId,
-      valores: valoresDeColumna(datos, destino),
+      valores: valoresDeActualizacion(datos, destino, estatusAnterior),
     },
   )
 }
@@ -346,6 +429,14 @@ interface FilaLeida {
  * Un id que Monday no devuelve es un elemento borrado allá, y eso NO borra
  * nuestro acuerdo: se marca `existe: false` para que `reconciliar` (en
  * sincronizar.ts) decida — nunca se decide aquí.
+ *
+ * `reintentarSiLimitado: false` (revisión final de la ronda 7, punto 4): la
+ * ÚNICA llamadora de esta función es `refrescarDesdeMonday`
+ * (src/db/acuerdos.ts), que corre DENTRO del render de tres páginas. Un 429
+ * ahí no puede esperar hasta 30 s con el `Retry-After` de Monday —eso es
+ * colgar la carga de quien abrió la sala, no "tardar"—; se rinde al instante
+ * y deja el refresco para la siguiente carga (`refrescarDesdeMondaySeguro`,
+ * en cada página, ya atrapa cualquier `ErrorMonday`).
  */
 export async function leerAcuerdosDeMonday(
   refs: Array<{ mondayId: string; tipo: DestinoMonday }>,
@@ -367,6 +458,7 @@ export async function leerAcuerdosDeMonday(
          }
        }`,
       { ids },
+      { reintentarSiLimitado: false },
     )
 
     const vistos = new Set<string>()

@@ -65,4 +65,29 @@ describe('consultarMonday', () => {
     await expect(consultarMonday('query { ok }')).rejects.toThrow(/MONDAY_TOKEN/)
     expect(fetchFalso).not.toHaveBeenCalled()
   })
+
+  // Revisión final de la ronda 7 (punto 4): un llamador desde el RENDER de
+  // una página no puede quedarse hasta 30 s esperando un 429 — eso es lo que
+  // dejaba colgada la carga de quien abría una sala.
+  describe('con reintentarSiLimitado: false', () => {
+    it('un 429 se rinde AL INSTANTE, sin esperar el Retry-After ni reintentar', async () => {
+      vi.stubEnv('MONDAY_TOKEN', 'ficticio')
+      const fetchFalso = vi.fn().mockResolvedValue(respuesta({}, { status: 429, headers: { 'Retry-After': '7' } }))
+      vi.stubGlobal('fetch', fetchFalso)
+
+      await expect(consultarMonday('query { ok }', {}, { reintentarSiLimitado: false })).rejects.toThrow(/7 s/)
+
+      // UNA sola llamada — sin la de reintento que sí hace el camino normal.
+      expect(fetchFalso).toHaveBeenCalledTimes(1)
+    })
+
+    it('sin 429, se comporta exactamente igual que siempre', async () => {
+      vi.stubEnv('MONDAY_TOKEN', 'ficticio')
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respuesta({ data: { ok: true } })))
+
+      const datos = await consultarMonday<{ ok: boolean }>('query { ok }', {}, { reintentarSiLimitado: false })
+
+      expect(datos.ok).toBe(true)
+    })
+  })
 })

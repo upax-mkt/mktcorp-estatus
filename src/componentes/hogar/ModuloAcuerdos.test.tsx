@@ -30,6 +30,7 @@ const BASE: AcuerdoConSala = {
   mondayUrl: null,
   mondayTipo: null,
   bandeja: 'no_aplica',
+  mondayDesvinculado: false,
 }
 
 describe('ModuloAcuerdos, los tres vacíos', () => {

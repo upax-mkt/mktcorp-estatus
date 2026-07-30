@@ -125,7 +125,14 @@ export function SelectorResponsable({ personas, valorInicial, sugerencia, onCamb
           >
             <option value="">Elegir de Mkt Corp…</option>
             {personas.map((p) => (
-              <option key={p.id} value={p.id} title={p.correo}>{p.nombre}</option>
+              // Sin `title={p.correo}` (corrección de la revisión final de la
+              // ronda 7, punto 7): este selector se pinta también en páginas
+              // que se comparten con el cliente interno por enlace firmado
+              // de 30 días — el correo de las 24 personas de Mkt Corp no
+              // tiene que viajar al HTML de esa página para elegir un
+              // nombre. El id (lo único que de verdad hace falta) sigue
+              // yendo en `value`, sin cambios.
+              <option key={p.id} value={p.id}>{p.nombre}</option>
             ))}
           </select>
         )}

@@ -51,7 +51,23 @@ async function llamar(token: string, query: string, variables: Record<string, un
 export async function consultarMonday<T>(
   query: string,
   variables: Record<string, unknown> = {},
+  opciones: {
+    /**
+     * Si ante un 429 se espera el `Retry-After` (hasta `ESPERA_MAXIMA_S`) y
+     * se reintenta una vez — el comportamiento de siempre, y el que quiere
+     * casi todo el mundo: una Server Action de escritura prefiere esperar 30
+     * s a perder el intento. `false` es la excepción, para quien llama desde
+     * el RENDER de una página: ahí esperar 30 s no es "tarda", es colgar la
+     * carga de alguien que no pidió esperar nada. Con `false`, un 429 se
+     * rinde de inmediato (mismo error, sin la espera) y dice cuántos
+     * segundos pedía Monday, para que quien llama decida qué hacer —
+     * `refrescarDesdeMonday` (src/db/acuerdos.ts) lo deja para la siguiente
+     * carga en vez de bloquear esta.
+     */
+    reintentarSiLimitado?: boolean
+  } = {},
 ): Promise<T> {
+  const { reintentarSiLimitado = true } = opciones
   const token = tokenDeMonday()
   if (!token) throw new ErrorMonday('Falta MONDAY_TOKEN.')
 
@@ -60,6 +76,9 @@ export async function consultarMonday<T>(
   if (respuesta.status === 429) {
     const pedidos = Number.parseInt(respuesta.headers.get('Retry-After') ?? '10', 10)
     const espera = Math.min(Number.isNaN(pedidos) ? 10 : pedidos, ESPERA_MAXIMA_S)
+    if (!reintentarSiLimitado) {
+      throw new ErrorMonday(`Monday está limitando las llamadas: pide ${espera} s de espera.`)
+    }
     await new Promise((seguir) => setTimeout(seguir, espera * 1000))
     respuesta = await llamar(token, query, variables)
     if (respuesta.status === 429) {

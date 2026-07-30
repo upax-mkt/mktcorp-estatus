@@ -64,6 +64,33 @@ vi.mock('@/monday/cliente', () => ({
   crearSubelemento: (...args: unknown[]) => crearSubelementoMock(...args),
 }))
 
+// El freeze de salas (revisión final de la ronda 7, punto 2): se mockea
+// aparte, igual que @/monday/cliente arriba — subirAcuerdoAction importa las
+// tres, y pausarSala/reactivarSala no las ejercita ningún test de este
+// archivo, pero sin darles un valor el import quedaría `undefined` y
+// reventaría si algo las llegara a invocar.
+const salaEstaActivaMock = vi.fn()
+vi.mock('@/db/salas', () => ({
+  salaEstaActiva: (...args: unknown[]) => salaEstaActivaMock(...args),
+  pausarSala: vi.fn(),
+  reactivarSala: vi.fn(),
+}))
+
+/**
+ * `editarEnBandejaAction` (punto 8) reusa `editarAcuerdo` de src/db/acuerdos.ts
+ * tal cual — se mockea aquí como colaborador externo, mismo criterio que
+ * @/monday/cliente y @/db/salas arriba: lo que se prueba en ESTE archivo es
+ * la acción (orden de la guarda, qué le pasa a editarAcuerdo, revalidación),
+ * no la lógica de editarAcuerdo, que ya tiene su propia batería de tests en
+ * db/acuerdos.test.ts. Dejarlo correr real aquí además reventaría: importa
+ * sincronizarCambio → escrituraActiva/actualizarEnMonday de @/monday/cliente,
+ * y ese módulo está mockeado arriba con solo tres símbolos.
+ */
+const editarAcuerdoMock = vi.fn()
+vi.mock('@/db/acuerdos', () => ({
+  editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
+}))
+
 // ---- El doble de fila + db() ----
 
 interface FilaFalsa {
@@ -161,7 +188,7 @@ vi.mock('@/db/cliente', () => ({
   db: () => dbMock(),
 }))
 
-const { subirAcuerdoAction, descartarAcuerdoAction, destacarAction } = await import('./acciones')
+const { subirAcuerdoAction, descartarAcuerdoAction, destacarAction, editarEnBandejaAction } = await import('./acciones')
 
 const BASE: FilaFalsa = {
   id: 'a1',
@@ -181,9 +208,11 @@ const BASE: FilaFalsa = {
 
 beforeEach(() => {
   estado.fila = { ...BASE }
-  existeElGrupoMock.mockReset().mockResolvedValue(true)
+  existeElGrupoMock.mockReset().mockResolvedValue({ existe: true, titulo: 'Delivery Mkt Corp 2026' })
+  salaEstaActivaMock.mockReset().mockResolvedValue(true)
   crearElementoEnDeliveryMock.mockReset()
   crearSubelementoMock.mockReset()
+  editarAcuerdoMock.mockReset().mockResolvedValue(undefined)
   // mockClear(), no mockReset(): hay que borrar el historial de llamadas de
   // cada test sin tocar la implementación (`() => ({ select, update })`) que
   // es la infraestructura permanente del doble — un mockReset() la dejaría
@@ -247,6 +276,56 @@ describe('subirAcuerdoAction — el id no existe', () => {
       'Acuerdo no encontrado: "no-existe"',
     )
     expect(crearElementoEnDeliveryMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('subirAcuerdoAction — el grupo configurado no existe en el tablero', () => {
+  it('no reclama la fila ni llama a Monday', async () => {
+    existeElGrupoMock.mockResolvedValue({ existe: false, titulo: null })
+
+    await expect(subirAcuerdoAction('a1', { tipo: 'elemento' })).rejects.toThrow('no existe en el tablero')
+
+    expect(crearElementoEnDeliveryMock).not.toHaveBeenCalled()
+    expect(estado.fila?.bandeja).toBe('pendiente') // nunca se tocó: la comprobación corta ANTES del UPDATE de reclamo
+  })
+})
+
+/**
+ * EL FREEZE llega a la escritura (revisión final de la ronda 7, punto 2).
+ *
+ * Antes de esta corrección, `subirAcuerdoAction` solo exigía
+ * `bandeja = 'pendiente'`: `entraALaBandeja` (src/monday/bandeja.ts) excluye
+ * una sala en pausa de la LECTURA (`acuerdosPendientesDeSubir`), pero eso no
+ * protegía la ESCRITURA — una pestaña abierta antes de pausar la sala podía
+ * llegar hasta aquí y subir el acuerdo igual. `salaEstaActiva` (src/db/salas.ts)
+ * se pregunta fresca, justo antes de llamar a Monday.
+ */
+describe('subirAcuerdoAction — la sala está en pausa', () => {
+  it('no llama a Monday y devuelve la fila a pendiente', async () => {
+    salaEstaActivaMock.mockResolvedValue(false)
+
+    await expect(subirAcuerdoAction('a1', { tipo: 'elemento' })).rejects.toThrow('en pausa')
+
+    expect(crearElementoEnDeliveryMock).not.toHaveBeenCalled()
+    expect(estado.fila?.bandeja).toBe('pendiente') // se reclamó y se devolvió, no se quedó en 'subido'
+    expect(estado.fila?.mondayId).toBeNull()
+  })
+
+  it('pregunta por la sala del acuerdo reclamado, no una constante', async () => {
+    salaEstaActivaMock.mockResolvedValue(false)
+
+    await expect(subirAcuerdoAction('a1', { tipo: 'elemento' })).rejects.toThrow()
+
+    expect(salaEstaActivaMock).toHaveBeenCalledWith('mexa-creativa') // BASE.salaSlug
+  })
+
+  it('con la sala activa, sí llega a llamar a Monday (la guarda no bloquea el camino normal)', async () => {
+    crearElementoEnDeliveryMock.mockResolvedValue({ id: 'm1', url: 'https://monday.com/m1' })
+
+    await subirAcuerdoAction('a1', { tipo: 'elemento' })
+
+    expect(crearElementoEnDeliveryMock).toHaveBeenCalledTimes(1)
+    expect(estado.fila?.bandeja).toBe('subido')
   })
 })
 
@@ -323,5 +402,52 @@ describe('destacarAction', () => {
   it('acuerdo inexistente: error explícito', async () => {
     estado.fila = null
     await expect(destacarAction('no-existe', true)).rejects.toThrow('Acuerdo no encontrado: "no-existe"')
+  })
+})
+
+/**
+ * editarEnBandejaAction (punto 8, revisión final de la ronda 7): "el
+ * acuerdo, su responsable y su fecha, editables ahí mismo" — la primera
+ * acción de escritura de la bandeja que no es ni subir ni descartar.
+ */
+describe('editarEnBandejaAction', () => {
+  const CAMBIOS = {
+    que: 'Enviar propuesta revisada',
+    responsable: 'Iris Múgica',
+    responsableMondayId: '65476486',
+    fechaCompromiso: '2026-08-20',
+  }
+
+  it('exige sesión de equipo ANTES de llamar a editarAcuerdo', async () => {
+    exigirEquipoMock.mockRejectedValueOnce(
+      new Error('Esta acción es solo para el equipo de Marketing Corporativo.'),
+    )
+
+    await expect(editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)).rejects.toThrow('solo para el equipo')
+
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('llama a editarAcuerdo con el id y los tres campos, convirtiendo la fecha a Date', async () => {
+    await editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)
+
+    expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', {
+      que: 'Enviar propuesta revisada',
+      responsable: 'Iris Múgica',
+      responsableMondayId: '65476486',
+      fechaCompromiso: new Date('2026-08-20'),
+    })
+  })
+
+  it('sin fecha (null), manda fechaCompromiso: null — no una cadena vacía ni Invalid Date', async () => {
+    await editarEnBandejaAction('a1', 'mexa-creativa', { ...CAMBIOS, fechaCompromiso: null })
+
+    expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', expect.objectContaining({ fechaCompromiso: null }))
+  })
+
+  it('responsableMondayId null (alguien de la UDN) viaja tal cual, no se pierde', async () => {
+    await editarEnBandejaAction('a1', 'mexa-creativa', { ...CAMBIOS, responsableMondayId: null })
+
+    expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', expect.objectContaining({ responsableMondayId: null }))
   })
 })

@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { crearAcuerdo, editarAcuerdo } from './acuerdos'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { crearAcuerdo, editarAcuerdo, moverEstatus } from './acuerdos'
 import { obtenerAcuerdoMemoria, actualizarAcuerdoMemoria, reiniciarStoreMemoria } from './store-memoria'
 import * as sincronizarMod from '@/monday/sincronizar'
+import * as clienteDB from './cliente'
+import * as esquema from './esquema'
 
 /**
  * Integración de acuerdos.ts contra el store en memoria (sin DATABASE_URL,
@@ -160,5 +162,110 @@ describe('editarAcuerdo y la bandeja', () => {
     // '' normalizado a null SÍ es un cambio de responsable de verdad (de
     // alguien de Mkt Corp a nadie), así que la bandeja debe reflejarlo.
     expect(guardado?.bandeja).toBe('no_aplica')
+  })
+})
+
+/**
+ * `estatusAnterior` hacia sincronizarCambio (corrección CRÍTICA de la
+ * revisión final de la ronda 7).
+ *
+ * Los tests de arriba corren contra el store en memoria (`hayDB()` real es
+ * falso en vitest, que no carga `.env.local`), así que nunca ejercitan la
+ * rama de Postgres de `moverEstatus`/`editarAcuerdo` — ni antes de esta
+ * corrección ni después. Aquí se simula esa rama con un doble mínimo de
+ * `db()` (UNA sola fila basta: no hay más de un acuerdo en juego en ningún
+ * test de este bloque, mismo criterio aceptado en el doble de
+ * src/app/acuerdos/acciones.test.ts) y se espía `sincronizarCambio` para ver
+ * exactamente qué le llega — sin ir hasta la red, que ya cubren
+ * cliente.test.ts y sincronizar.test.ts.
+ */
+describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Monday (rama Postgres)', () => {
+  interface FilaDB {
+    id: string
+    salaSlug: string
+    que: string
+    estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
+    fechaCompromiso: Date | null
+    responsable: string
+    responsableMondayId: string | null
+    bandeja: string
+    historia: unknown[]
+    updatedAt: Date
+  }
+
+  function claveDeColumna(columna: unknown): keyof FilaDB {
+    const entrada = Object.entries(esquema.acuerdos).find(([, valor]) => valor === columna)
+    if (!entrada) throw new Error('Columna no reconocida en el doble de prueba de db().')
+    return entrada[0] as keyof FilaDB
+  }
+
+  let fila: FilaDB
+
+  function dobleDB() {
+    return {
+      select(proyeccion?: Record<string, unknown>) {
+        return {
+          from: () => ({
+            where: () => {
+              if (!proyeccion) return Promise.resolve([{ ...fila }])
+              const salida: Record<string, unknown> = {}
+              for (const [clave, columna] of Object.entries(proyeccion)) salida[clave] = fila[claveDeColumna(columna)]
+              return Promise.resolve([salida])
+            },
+          }),
+        }
+      },
+      update() {
+        return {
+          set: (parche: Partial<FilaDB>) => ({
+            where: () => {
+              Object.assign(fila, parche)
+              return Promise.resolve(undefined)
+            },
+          }),
+        }
+      },
+    }
+  }
+
+  beforeEach(() => {
+    fila = {
+      id: 'a1',
+      salaSlug: 'neracode',
+      que: 'Mandar propuesta de staffing',
+      estatus: 'abierto',
+      fechaCompromiso: null,
+      responsable: 'Franco Cruzat',
+      responsableMondayId: null,
+      bandeja: 'no_aplica',
+      historia: [],
+      updatedAt: new Date('2026-07-01T00:00:00Z'),
+    }
+    vi.spyOn(clienteDB, 'hayDB').mockReturnValue(true)
+    vi.spyOn(clienteDB, 'db').mockReturnValue(dobleDB() as unknown as ReturnType<typeof clienteDB.db>)
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('moverEstatus manda el estatus REAL de antes del cambio, no el nuevo', async () => {
+    fila.estatus = 'abierto'
+    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
+
+    await moverEstatus('a1', 'cumplido')
+
+    // Firma: (acuerdoId, datos-con-el-estatus-NUEVO, estatusAnterior).
+    expect(espia).toHaveBeenCalledWith('a1', expect.objectContaining({ estatus: 'cumplido' }), 'abierto')
+  })
+
+  it('editarAcuerdo manda como "anterior" el MISMO estatus que ya tenía: nunca lo cambia', async () => {
+    fila.estatus = 'cumplido'
+    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
+
+    await editarAcuerdo('a1', { fechaCompromiso: new Date('2026-09-01T00:00:00Z') })
+
+    // Si esto alguna vez mandara un estatusAnterior DISTINTO del actual, una
+    // simple edición de fecha volvería a forzar la columna de Fase en
+    // Monday — justo el bug que esta ronda corrigió.
+    expect(espia).toHaveBeenCalledWith('a1', expect.objectContaining({ estatus: 'cumplido' }), 'cumplido')
   })
 })

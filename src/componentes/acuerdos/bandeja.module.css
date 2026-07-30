@@ -59,6 +59,11 @@
 .aviso[data-tono='ojo'] code { color: var(--ojo); }
 .aviso[data-tono='mal'] { background: var(--mal-tenue); color: var(--tinta-2); }
 .aviso[data-tono='mal'] code { color: var(--mal); }
+/* El grupo destino confirmado (revisión final de la ronda 7): existir no es
+   ser el correcto, así que se enseña de cuál se trata — no es una alerta,
+   así que va en el tono positivo, no en 'ojo'/'mal'. */
+.aviso[data-tono='bien'] { background: var(--bien-tenue); color: var(--tinta-2); }
+.aviso[data-tono='bien'] strong { color: var(--bien); }
 .aviso code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 0.85em; font-weight: 600; }
 
 .tarjetaLista { padding: 0.3rem 1.4rem; }
@@ -91,6 +96,32 @@
 .metaSala { color: var(--marca-texto, var(--marca)); font-weight: 600; text-decoration: none; }
 .metaSala:hover { text-decoration: underline; }
 .punto { color: var(--tinta-4); }
+/* El acuerdo se desincronizó de Monday (revisión final de la ronda 7, punto
+   6): mismo tono de "hay que fijarse" que .truncado, no de error — el
+   acuerdo sigue existiendo aquí igual, es la ida y vuelta con Monday la que
+   se cortó. */
+.avisoDesvinculado { color: var(--ojo); }
+
+/* Editar ahí mismo, en la bandeja (revisión final de la ronda 7, punto 8):
+   el acuerdo, su responsable y su fecha, sin salir de la fila. */
+.editarBoton {
+  font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--marca-texto, var(--marca));
+  background: none; border: none; padding: 0; cursor: pointer; text-decoration: none;
+}
+.editarBoton:hover:not(:disabled) { text-decoration: underline; }
+.editarBoton:disabled { color: var(--tinta-4); cursor: not-allowed; }
+
+.edicion { display: grid; gap: 0.5rem; }
+.edicionQue {
+  width: 100%; font: inherit; font-size: 0.95rem; color: var(--tinta);
+  padding: 0.45rem 0.6rem; border-radius: var(--r-2); border: none; background: var(--papel-hundido);
+}
+.edicionFila { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.6rem; }
+.edicionFecha {
+  font: inherit; font-size: 0.82rem; color: var(--tinta);
+  padding: 0.4rem 0.6rem; border-radius: var(--r-2); border: none; background: var(--papel-hundido);
+}
+.edicionAcciones { display: flex; align-items: center; gap: 0.6rem; }
 
 /* ---- de dónde cuelga ---- */
 .destino { display: grid; gap: 0.4rem; flex: 1 1 15rem; max-width: 19rem; }

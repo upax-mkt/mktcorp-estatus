@@ -72,16 +72,21 @@ async function mondayIdDe(acuerdoId: string): Promise<RefMonday | null> {
  * en la bandeja— NO se crea nada: se devuelve como "no intentado", que no es
  * un error, es que no había nada que sincronizar. Crearlo de paso es
  * exactamente lo que la bandeja existe para decidir.
+ *
+ * `estatusAnterior` viaja tal cual hasta `actualizarEnMonday`, que decide con
+ * él si hace falta escribir la columna de Fase — ver su cabecera en
+ * cliente.ts (corrección crítica de la revisión final de la ronda 7).
  */
 export async function sincronizarCambio(
   acuerdoId: string,
   datos: { salaSlug: string; que: string; estatus: EstatusGuardado; fechaCompromiso: string | null },
+  estatusAnterior: EstatusGuardado,
 ): Promise<ResultadoSync> {
   if (!escrituraActiva()) return APAGADO
   const ref = await mondayIdDe(acuerdoId)
   if (!ref) return { intentado: false, ok: false }
   try {
-    await actualizarEnMonday(ref.mondayId, ref.mondayTipo, datos)
+    await actualizarEnMonday(ref.mondayId, ref.mondayTipo, datos, estatusAnterior)
     return { intentado: true, ok: true }
   } catch (error) {
     return {

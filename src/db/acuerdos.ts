@@ -12,7 +12,7 @@
  * Historia de cambios: v1 mínima (spec §4), un jsonb por acuerdo con un
  * registro por movimiento de estatus o edición — ver `esquema.acuerdos.historia`.
  */
-import { eq, isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -171,11 +171,13 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
 /** Mueve el estatus de un acuerdo, dejando registro del estatus anterior en su historia. */
 export async function moverEstatus(acuerdoId: string, nuevoEstatus: EstatusAcuerdo): Promise<void> {
   const ahora = new Date()
+  let estatusAnterior: EstatusAcuerdo
 
   if (hayDB()) {
     const conexion = db()
     const actual = (await conexion.select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
     if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+    estatusAnterior = actual.estatus
     const historia = historiaConEntrada(actual.historia, {
       en: ahora.toISOString(),
       estatusAnterior: actual.estatus,
@@ -187,6 +189,7 @@ export async function moverEstatus(acuerdoId: string, nuevoEstatus: EstatusAcuer
   } else {
     const actual = memoria.obtenerAcuerdoMemoria(acuerdoId)
     if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+    estatusAnterior = actual.estatus
     const historia = historiaConEntrada(actual.historia, {
       en: ahora.toISOString(),
       estatusAnterior: actual.estatus,
@@ -194,7 +197,7 @@ export async function moverEstatus(acuerdoId: string, nuevoEstatus: EstatusAcuer
     memoria.actualizarAcuerdoMemoria(acuerdoId, { estatus: nuevoEstatus, historia })
   }
 
-  await sincronizarDespuesDeEditar(acuerdoId)
+  await sincronizarDespuesDeEditar(acuerdoId, estatusAnterior)
 }
 
 /**
@@ -204,28 +207,44 @@ export async function moverEstatus(acuerdoId: string, nuevoEstatus: EstatusAcuer
  * al tablero sea lo que quedó guardado, no lo que se pidió guardar: si algo
  * de la escritura no cuajó, Monday no debe recibir una versión que aquí no
  * existe.
+ *
+ * `estatusAnterior` — el estatus que tenía la fila ANTES de la escritura que
+ * disparó esto — se le pasa tal cual a `sincronizarCambio`, que lo usa para
+ * decidir si hace falta mandar la columna de Fase (corrección crítica de la
+ * revisión final de la ronda 7: ver la cabecera de `actualizarEnMonday` en
+ * src/monday/cliente.ts). `moverEstatus` manda el estatus real de antes;
+ * `editarAcuerdo` NUNCA cambia el estatus (`CambiosAcuerdo` no tiene ese
+ * campo), así que manda el mismo que la fila ya tenía — la comparación de
+ * clases da igual siempre, tal como debe ser para una edición que no toca el
+ * estatus.
  */
-async function sincronizarDespuesDeEditar(acuerdoId: string): Promise<void> {
+async function sincronizarDespuesDeEditar(acuerdoId: string, estatusAnterior: EstatusAcuerdo): Promise<void> {
   if (!hayDB()) return
   const fila = (await db().select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
   if (!fila) return
-  await sincronizarCambio(acuerdoId, {
-    salaSlug: fila.salaSlug,
-    que: fila.que,
-    estatus: fila.estatus,
-    fechaCompromiso: isoDia(fila.fechaCompromiso),
-  })
+  await sincronizarCambio(
+    acuerdoId,
+    {
+      salaSlug: fila.salaSlug,
+      que: fila.que,
+      estatus: fila.estatus,
+      fechaCompromiso: isoDia(fila.fechaCompromiso),
+    },
+    estatusAnterior,
+  )
 }
 
 /** Edita los campos de un acuerdo (qué, responsable, squad, prioridad, fecha), registrando los cambios en su historia. */
 export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcuerdo): Promise<void> {
   const ahora = new Date()
   const cambios = cambiosNormalizados(cambiosCrudos)
+  let estatusAnterior: EstatusAcuerdo
 
   if (hayDB()) {
     const conexion = db()
     const actual = (await conexion.select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
     if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+    estatusAnterior = actual.estatus
     const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
     const bandeja = bandejaTrasEditar(actual.bandeja, cambios)
     await conexion
@@ -235,12 +254,17 @@ export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcu
   } else {
     const actual = memoria.obtenerAcuerdoMemoria(acuerdoId)
     if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+    estatusAnterior = actual.estatus
     const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
     const bandeja = bandejaTrasEditar(actual.bandeja, cambios)
     memoria.actualizarAcuerdoMemoria(acuerdoId, { ...cambios, ...(bandeja !== undefined ? { bandeja } : {}), historia })
   }
 
-  await sincronizarDespuesDeEditar(acuerdoId)
+  // `editarAcuerdo` nunca cambia el estatus (CambiosAcuerdo no lo trae), así
+  // que `estatusAnterior` es aquí siempre el mismo que el que queda guardado
+  // — ver el comentario de `sincronizarDespuesDeEditar` sobre por qué eso es
+  // exactamente lo que se necesita para que la Fase no se reescriba.
+  await sincronizarDespuesDeEditar(acuerdoId, estatusAnterior)
 }
 
 /**
@@ -283,6 +307,12 @@ export interface AcuerdoPendienteDeSubir {
   id: string
   que: string
   responsable: string
+  /**
+   * El id de Monday del responsable — para poder editarlo ahí mismo con
+   * SelectorResponsable (revisión final de la ronda 7, punto 8) sin perder
+   * la selección de Mkt Corp que ya tenía. `null` si es de la UDN.
+   */
+  responsableMondayId: string | null
   salaSlug: string
   salaNombre: string
   /** Para el filo de color de la fila (ver FilaBandeja) — opcional porque no todo consumidor lo necesita. */
@@ -341,6 +371,7 @@ export async function acuerdosPendientesDeSubir(): Promise<AcuerdoPendienteDeSub
         id: f.id,
         que: f.que,
         responsable: f.responsable,
+        responsableMondayId: f.responsableMondayId,
         salaSlug: f.salaSlug,
         salaNombre: tema.nombre,
         salaColor: tema.color,
@@ -354,28 +385,60 @@ export async function acuerdosPendientesDeSubir(): Promise<AcuerdoPendienteDeSub
 // ---- La vuelta (tarea 9, ronda 7) ----
 
 /**
+ * Cuánto se considera "recién comprobado" contra Monday antes de volver a
+ * preguntarle por el MISMO acuerdo (revisión final de la ronda 7, punto 4).
+ *
+ * Sin esto, `refrescarDesdeMonday` llamaba a Monday por CADA acuerdo con
+ * `mondayId`, en el render de TRES páginas (/acuerdos, /acuerdos/bandeja,
+ * /cliente/[slug]), sin ninguna ventana: abrir la misma sala dos veces
+ * seguidas —o que un director la recargue— repetía la misma consulta a
+ * Monday sin que nada hubiera cambiado. 60 s es corto a propósito: esto no es
+ * una caché de datos que casi no cambian (como el directorio de personas,
+ * `VIGENCIA_MS` en src/monday/personas.ts, un día completo) — es la vuelta
+ * que hace que un cambio del equipo en el tablero se refleje aquí, así que la
+ * ventana solo existe para no repetir la MISMA consulta en la MISMA ráfaga de
+ * cargas, no para retrasar el reflejo de un cambio real.
+ */
+const VENTANA_FRESCURA_MS = 60_000
+
+/**
  * LA VUELTA: trae de Monday el estado de los acuerdos que ya viven allá y
  * reconcilia cada uno contra lo que hay aquí — ver `reconciliar` en
  * src/monday/sincronizar.ts.
  *
- * Quien llama a esto es una PÁGINA (/acuerdos, /cliente/[slug]) y la
- * envuelve en try/catch: aquí NO se atrapan los errores de Monday, se dejan
- * subir. Es la regla central de sincronizar.ts —Monday nunca puede tumbar la
- * app— vista desde el otro lado: hay un único llamador por página y es él
- * quien decide qué pasa si esto falla, así que atraparlo aquí también solo
- * escondería el error de quien sí lo necesita.
+ * Quien llama a esto es una PÁGINA (/acuerdos, /acuerdos/bandeja,
+ * /cliente/[slug]) y la envuelve en try/catch: aquí NO se atrapan los errores
+ * de Monday, se dejan subir. Es la regla central de sincronizar.ts —Monday
+ * nunca puede tumbar la app— vista desde el otro lado: hay un único llamador
+ * por página y es él quien decide qué pasa si esto falla, así que atraparlo
+ * aquí también solo escondería el error de quien sí lo necesita. Por la misma
+ * razón `leerAcuerdosDeMonday` corre con `reintentarSiLimitado: false` (ver
+ * su cabecera en src/monday/cliente.ts): un 429 aquí no puede colgar el
+ * render esperando hasta 30 s, se rinde y queda para la siguiente carga.
+ *
+ * `salaSlug` (revisión final de la ronda 7, punto 4): si se llama desde UNA
+ * sala (`/cliente/[slug]`), solo se refrescan los acuerdos de esa sala —antes
+ * se traían y reconciliaban los de las nueve, en CADA carga de CUALQUIER
+ * sala, para acabar usando solo los de la que se está pintando. Sin
+ * `salaSlug` (desde `/acuerdos` o `/acuerdos/bandeja`, que mezclan todas) se
+ * refrescan todos los que toquen por ventana de frescura.
  *
  * Sin DB no hay nada que refrescar: el store en memoria no modela las
  * columnas de Monday (ver FilaAcuerdoMemoria en store-memoria.ts), así que
  * ningún acuerdo en memoria tiene un mondayId del que partir.
  */
-export async function refrescarDesdeMonday(): Promise<void> {
+export async function refrescarDesdeMonday(salaSlug?: string): Promise<void> {
   if (!hayDB() || !mondayConectado()) return
   const conexion = db()
 
-  // SOLO los acuerdos que ya tienen mondayId — nunca el tablero entero (ver
-  // la cabecera de leerAcuerdosDeMonday en src/monday/cliente.ts).
-  const filas = await conexion
+  // SOLO los acuerdos que ya tienen mondayId —nunca el tablero entero (ver la
+  // cabecera de leerAcuerdosDeMonday en src/monday/cliente.ts)— y, si se pide
+  // desde una sala, solo los de esa sala.
+  const condicion = salaSlug
+    ? and(isNotNull(esquema.acuerdos.mondayId), eq(esquema.acuerdos.salaSlug, salaSlug))
+    : isNotNull(esquema.acuerdos.mondayId)
+
+  const candidatas = await conexion
     .select({
       id: esquema.acuerdos.id,
       mondayId: esquema.acuerdos.mondayId,
@@ -384,9 +447,19 @@ export async function refrescarDesdeMonday(): Promise<void> {
       fechaCompromiso: esquema.acuerdos.fechaCompromiso,
       historia: esquema.acuerdos.historia,
       updatedAt: esquema.acuerdos.updatedAt,
+      mondaySincronizadoEn: esquema.acuerdos.mondaySincronizadoEn,
     })
     .from(esquema.acuerdos)
-    .where(isNotNull(esquema.acuerdos.mondayId))
+    .where(condicion)
+
+  const ahora = new Date()
+
+  // LA VENTANA DE FRESCURA: fuera de la consulta SQL a propósito — es una
+  // comparación en memoria sobre una columna que ya se trajo, no vale una
+  // condición más en el WHERE para un puñado de filas por sala.
+  const filas = candidatas.filter(
+    (f) => !f.mondaySincronizadoEn || ahora.getTime() - f.mondaySincronizadoEn.getTime() > VENTANA_FRESCURA_MS,
+  )
 
   if (filas.length === 0) return
 
@@ -399,12 +472,16 @@ export async function refrescarDesdeMonday(): Promise<void> {
   }))
 
   const remotos = await leerAcuerdosDeMonday(refs)
-  const ahora = new Date()
 
   for (const fila of filas) {
     const remoto = remotos.get(fila.mondayId as string)
     // No debería faltar —leerAcuerdosDeMonday responde por cada id pedido,
-    // exista allá o no— pero si faltara, no tocar la fila es lo seguro.
+    // exista allá o no— pero si faltara, no tocar la fila es lo seguro. Esto
+    // incluye el caso "se rindió por un 429": esa llamada lanza en vez de
+    // responder a medias (ver ErrorMonday en consultarMonday), así que aquí
+    // nunca se ve un `remotos` incompleto por esa causa — un 429 tumba TODO
+    // el refresco de esta pasada, no fila por fila, y sin `mondaySincronizadoEn`
+    // bumpeado la próxima carga lo vuelve a intentar.
     if (!remoto) continue
 
     const resultado = reconciliar(
@@ -433,6 +510,7 @@ export async function refrescarDesdeMonday(): Promise<void> {
           fechaCompromiso: remoto.fechaCompromiso ? new Date(remoto.fechaCompromiso) : null,
           historia,
           updatedAt: ahora,
+          mondaySincronizadoEn: ahora,
         })
         .where(eq(esquema.acuerdos.id, fila.id))
     } else if (resultado === 'desapareció') {
@@ -441,6 +519,16 @@ export async function refrescarDesdeMonday(): Promise<void> {
       // sincronizar.ts). Se deja de sincronizar —mondayId a null— y queda
       // constancia en la historia, con el mismo formato que usa cada cambio
       // de este archivo.
+      //
+      // `mondayUrl`/`mondayTipo` se limpian aquí también (corrección de la
+      // revisión final de la ronda 7, punto 6): antes solo se limpiaba
+      // `mondayId`, y la fila se quedaba enseñando "Ver en Monday ↗" a una
+      // URL que ya no lleva a ningún sitio (ver TablaAcuerdos.tsx). El
+      // aviso en pantalla —el que pide el diseño (§4)— se pinta a partir de
+      // `mondayId === null && mondaySincronizadoEn !== null`: la MISMA
+      // combinación que deja esta rama, y que un acuerdo que NUNCA se
+      // sincronizó no puede tener (ver `AcuerdoConSala.mondayDesvinculado`
+      // en src/db/consultas.ts).
       const historia = historiaConEntrada(fila.historia, {
         en: ahora.toISOString(),
         cambios: {
@@ -450,11 +538,28 @@ export async function refrescarDesdeMonday(): Promise<void> {
       })
       await conexion
         .update(esquema.acuerdos)
-        .set({ mondayId: null, historia, updatedAt: ahora })
+        .set({
+          mondayId: null,
+          mondayUrl: null,
+          mondayTipo: null,
+          historia,
+          updatedAt: ahora,
+          mondaySincronizadoEn: ahora,
+        })
+        .where(eq(esquema.acuerdos.id, fila.id))
+    } else {
+      // 'gana-local': nuestro dato es más nuevo que el de Monday, no hay
+      // nada que RECONCILIAR — Monday se pone al día en el siguiente cambio
+      // que pase por sincronizarCambio. Pero SÍ se acaba de comprobar contra
+      // Monday ahora mismo, y es exactamente esa comprobación la que
+      // alimenta la ventana de frescura de arriba: sin bumpear esto aquí, un
+      // acuerdo estable —que nunca cambia en Monday— se volvería a consultar
+      // en cada carga sin límite, que es el problema que esta corrección
+      // existe para evitar.
+      await conexion
+        .update(esquema.acuerdos)
+        .set({ mondaySincronizadoEn: ahora })
         .where(eq(esquema.acuerdos.id, fila.id))
     }
-    // 'gana-local': nuestro dato es más nuevo que el de Monday, no hay nada
-    // que hacer — Monday se pone al día en el siguiente cambio que pase por
-    // sincronizarCambio.
   }
 }

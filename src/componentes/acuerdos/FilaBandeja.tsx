@@ -4,18 +4,36 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import type { AcuerdoPendienteDeSubir } from '@/db/acuerdos'
 import type { ElementoDeDelivery } from '@/monday/cliente'
+import type { PersonaMonday } from '@/monday/personas'
+import { SelectorResponsable } from '@/componentes/SelectorResponsable'
 import { fechaBreve } from '@/lib/fecha'
 import { colorDeTextoDeMarca } from '@/temas'
 import estilos from './bandeja.module.css'
 
 type Destino = { tipo: 'elemento' } | { tipo: 'subelemento'; padreId: string }
 
+interface CambiosEnBandeja {
+  que: string
+  responsable: string
+  responsableMondayId: string | null
+  fechaCompromiso: string | null
+}
+
 interface Props {
   acuerdo: AcuerdoPendienteDeSubir
   /** Los elementos de Delivery de SU sala, para poder colgar el acuerdo de uno. */
   elementos: ElementoDeDelivery[]
+  /** La gente viva de Mkt Corp, para corregir el responsable ahí mismo — ver directorio() en src/db/personas.ts. */
+  personas: PersonaMonday[]
   subir: (id: string, destino: Destino) => Promise<void>
   descartar: (id: string) => Promise<void>
+  /**
+   * Edita el acuerdo, su responsable o su fecha sin salir de la bandeja (spec
+   * §3: "editables ahí mismo"). `salaSlug` viaja aparte del resto de
+   * `acuerdo` para que la acción pueda revalidar también la sala, sin tener
+   * que releerla en el servidor.
+   */
+  editar: (id: string, salaSlug: string, cambios: CambiosEnBandeja) => Promise<void>
   /**
    * Si la subida a Monday está disponible hoy (token + escritura + grupo
    * comprobado). Por defecto encendido: lo que de verdad decide si se puede
@@ -29,7 +47,7 @@ interface Props {
 
 /**
  * UNA FILA DE LA BANDEJA: un acuerdo, listo para que alguien confirme qué
- * forma toma en Delivery, o lo descarte.
+ * forma toma en Delivery, lo edite ahí mismo, o lo descarte.
  *
  * Arranca en «elemento nuevo» — colgar de algo que ya existe es la
  * excepción, no lo normal, así que no se obliga a mirar una lista antes de
@@ -39,8 +57,10 @@ interface Props {
 export function FilaBandeja({
   acuerdo,
   elementos,
+  personas,
   subir,
   descartar,
+  editar,
   puedeSubir = true,
   truncado = false,
 }: Props) {
@@ -91,18 +111,7 @@ export function FilaBandeja({
 
   return (
     <li className={estilos.fila} style={estiloFila}>
-      <div className={estilos.cuerpo}>
-        <p className={estilos.que}>{acuerdo.que}</p>
-        <div className={estilos.meta}>
-          <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
-            {acuerdo.salaNombre}
-          </Link>
-          <span className={estilos.punto} aria-hidden>·</span>
-          <span>{acuerdo.responsable}</span>
-          <span className={estilos.punto} aria-hidden>·</span>
-          <span>{acuerdo.fechaCompromiso ? fechaBreve(acuerdo.fechaCompromiso) : 'sin fecha'}</span>
-        </div>
-      </div>
+      <EdicionEnSitio acuerdo={acuerdo} personas={personas} editar={editar} deshabilitado={pendiente} />
 
       <div className={estilos.destino}>
         <label className={estilos.opcion}>
@@ -199,5 +208,147 @@ export function FilaBandeja({
         )}
       </div>
     </li>
+  )
+}
+
+/**
+ * EL ACUERDO, SU RESPONSABLE Y SU FECHA, EDITABLES AHÍ MISMO (spec §3).
+ *
+ * Es el último punto donde alguien puede corregir un nombre que la
+ * transcripción se comió o una fecha mal detectada ANTES de que aparezca en
+ * el tablero de 950 elementos que mira todo el equipo — después de subir, ya
+ * no (subir/descartar exigen `bandeja = 'pendiente'`).
+ *
+ * Aparte, en su propio componente: mismo patrón que `FilaArchivo` dentro de
+ * ArchivosSala.tsx (un `editando` local que sustituye el texto por el
+ * formulario, Guardar/Cancelar) — no porque haga falta reinventar nada, sino
+ * porque es exactamente el mismo problema con el mismo formato de solución.
+ */
+function EdicionEnSitio({
+  acuerdo,
+  personas,
+  editar,
+  deshabilitado,
+}: {
+  acuerdo: AcuerdoPendienteDeSubir
+  personas: PersonaMonday[]
+  editar: Props['editar']
+  /** La fila ya está ocupada subiendo o descartando: no se abre edición encima. */
+  deshabilitado: boolean
+}) {
+  const [editando, setEditando] = useState(false)
+  const [que, setQue] = useState(acuerdo.que)
+  const [fecha, setFecha] = useState(acuerdo.fechaCompromiso ?? '')
+  // El responsable vive en dos campos, igual que en cualquier otro formulario
+  // de esta app que usa SelectorResponsable (ver NuevoAcuerdoForm): el
+  // nombre visible y el id de Monday, nunca uno sin el otro.
+  const [responsable, setResponsable] = useState(acuerdo.responsable)
+  const [responsableMondayId, setResponsableMondayId] = useState(acuerdo.responsableMondayId)
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, empezarGuardado] = useTransition()
+
+  function abrir() {
+    setQue(acuerdo.que)
+    setFecha(acuerdo.fechaCompromiso ?? '')
+    setResponsable(acuerdo.responsable)
+    setResponsableMondayId(acuerdo.responsableMondayId)
+    setError(null)
+    setEditando(true)
+  }
+
+  function cancelar() {
+    setEditando(false)
+    setError(null)
+  }
+
+  function guardar() {
+    if (que.trim().length === 0) {
+      setError('El acuerdo no puede quedar vacío.')
+      return
+    }
+    setError(null)
+    empezarGuardado(async () => {
+      try {
+        await editar(acuerdo.id, acuerdo.salaSlug, {
+          que: que.trim(),
+          responsable,
+          responsableMondayId,
+          fechaCompromiso: fecha || null,
+        })
+        // Sin más: editarEnBandejaAction revalida la ruta — mismo criterio
+        // que subir/descartar, no hay copia local que mantener a mano.
+        setEditando(false)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    })
+  }
+
+  if (editando) {
+    return (
+      <div className={estilos.cuerpo}>
+        <div className={estilos.edicion}>
+          <input
+            type="text"
+            className={estilos.edicionQue}
+            value={que}
+            onChange={(e) => setQue(e.target.value)}
+            aria-label="Qué se acordó"
+            disabled={guardando}
+            autoFocus
+          />
+          <div className={estilos.edicionFila}>
+            <SelectorResponsable
+              personas={personas}
+              valorInicial={{ nombre: acuerdo.responsable, mondayId: acuerdo.responsableMondayId }}
+              onCambiar={(v) => { setResponsable(v.responsable); setResponsableMondayId(v.responsableMondayId) }}
+              disabled={guardando}
+            />
+            <input
+              type="date"
+              className={estilos.edicionFecha}
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              disabled={guardando}
+              aria-label="Fecha compromiso"
+            />
+          </div>
+          {error && <p className={estilos.error}>{error}</p>}
+          <div className={estilos.edicionAcciones}>
+            <button
+              type="button"
+              className="boton"
+              data-tono="suave"
+              disabled={guardando || que.trim().length === 0}
+              onClick={guardar}
+            >
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button type="button" className={estilos.botonTexto} disabled={guardando} onClick={cancelar}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={estilos.cuerpo}>
+      <p className={estilos.que}>{acuerdo.que}</p>
+      <div className={estilos.meta}>
+        <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
+          {acuerdo.salaNombre}
+        </Link>
+        <span className={estilos.punto} aria-hidden>·</span>
+        <span>{acuerdo.responsable}</span>
+        <span className={estilos.punto} aria-hidden>·</span>
+        <span>{acuerdo.fechaCompromiso ? fechaBreve(acuerdo.fechaCompromiso) : 'sin fecha'}</span>
+        <span className={estilos.punto} aria-hidden>·</span>
+        <button type="button" className={estilos.editarBoton} disabled={deshabilitado} onClick={abrir}>
+          Editar
+        </button>
+      </div>
+    </div>
   )
 }

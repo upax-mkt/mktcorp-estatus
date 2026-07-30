@@ -54,7 +54,9 @@ describe('sincronizarCambio', () => {
     vi.stubEnv('MONDAY_ESCRITURA', 'si')
     vi.stubGlobal('fetch', espia)
 
-    const resultado = await sincronizarCambio('acuerdo-sin-monday-id', DATOS)
+    // 'abierto' como estatusAnterior: da igual cuál sea, esta rama corta en
+    // "sin mondayId" antes de llegar a mirarlo.
+    const resultado = await sincronizarCambio('acuerdo-sin-monday-id', DATOS, 'abierto')
 
     expect(resultado).toEqual({ intentado: false, ok: false })
     expect(espia).not.toHaveBeenCalled()
@@ -66,7 +68,7 @@ describe('sincronizarCambio', () => {
     // Sin MONDAY_ESCRITURA=si: escrituraActiva() es falso antes de mirar mondayId.
     vi.stubGlobal('fetch', espia)
 
-    const resultado = await sincronizarCambio('acuerdo-cualquiera', DATOS)
+    const resultado = await sincronizarCambio('acuerdo-cualquiera', DATOS, 'abierto')
 
     expect(resultado).toEqual({ intentado: false, ok: false })
     expect(espia).not.toHaveBeenCalled()
@@ -152,13 +154,19 @@ describe('sincronizarCambio — con mondayId guardado', () => {
       .mockResolvedValue(new Response(JSON.stringify({ data: { change_multiple_column_values: { id: '9' } } })))
     vi.stubGlobal('fetch', espia)
 
-    const resultado = await sincronizarCambio('acuerdo-1', DATOS)
+    // 'cumplido' → 'abierto' (DATOS.estatus): cambia de clase a propósito,
+    // para que la columna de fase SÍ aparezca y este test siga comprobando
+    // el cuerpo completo de la mutación, no uno recortado por la omisión de
+    // la revisión final (esa omisión tiene su propio describe más abajo).
+    const resultado = await sincronizarCambio('acuerdo-1', DATOS, 'cumplido')
 
     expect(resultado).toEqual({ intentado: true, ok: true })
     expect(espia).toHaveBeenCalledTimes(1)
     const cuerpo = JSON.parse(espia.mock.calls[0][1].body as string)
     expect(cuerpo.variables.item).toBe('9') // el mondayId de acuerdo-1, no el de la señuelo ('111')
     expect(cuerpo.variables.tablero).toBe(String(TABLERO)) // 'elemento' → TABLERO, no TABLERO_SUBELEMENTOS
+    const valores = JSON.parse(cuerpo.variables.valores)
+    expect(valores['color_mkz09na']).toEqual({ label: '🚧 Sprint' })
   })
 
   it('si Monday responde con error, lo devuelve como no-ok con el motivo (la otra mitad del try/catch, tampoco probada hasta ahora)', async () => {
@@ -173,11 +181,38 @@ describe('sincronizarCambio — con mondayId guardado', () => {
     vi.stubEnv('MONDAY_ESCRITURA', 'si')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('server error', { status: 500 })))
 
-    const resultado = await sincronizarCambio('acuerdo-1', DATOS)
+    const resultado = await sincronizarCambio('acuerdo-1', DATOS, 'cumplido')
 
     expect(resultado.intentado).toBe(true)
     expect(resultado.ok).toBe(false)
     expect(resultado.motivo).toContain('500')
+  })
+
+  // Corrección crítica de la revisión final de la ronda 7 (ver la cabecera de
+  // `valoresDeActualizacion` en cliente.ts): `estatusAnterior` tiene que
+  // llegar de verdad hasta la mutación, no perderse en el camino
+  // sincronizarCambio → actualizarEnMonday.
+  it('con el estatus sin cambiar, la mutación que llega a Monday NO trae la columna de Fase', async () => {
+    vi.spyOn(clienteDB, 'hayDB').mockReturnValue(true)
+    vi.spyOn(clienteDB, 'db').mockReturnValue(
+      dbConFilas([{ id: 'acuerdo-1', mondayId: '9', mondayTipo: 'elemento' }]) as unknown as ReturnType<
+        typeof clienteDB.db
+      >,
+    )
+    vi.stubEnv('MONDAY_TOKEN', 'ficticio')
+    vi.stubEnv('MONDAY_GRUPO', 'group_mm15cfz2')
+    vi.stubEnv('MONDAY_ESCRITURA', 'si')
+    const espia = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ data: { change_multiple_column_values: { id: '9' } } })))
+    vi.stubGlobal('fetch', espia)
+
+    // DATOS.estatus es 'abierto' — mismo estatusAnterior: sin cambio de clase.
+    await sincronizarCambio('acuerdo-1', DATOS, 'abierto')
+
+    const cuerpo = JSON.parse(espia.mock.calls[0][1].body as string)
+    const valores = JSON.parse(cuerpo.variables.valores)
+    expect(valores['color_mkz09na']).toBeUndefined()
   })
 })
 

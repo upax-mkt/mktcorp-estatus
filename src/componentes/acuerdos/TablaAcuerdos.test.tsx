@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TablaAcuerdos } from './TablaAcuerdos'
 
@@ -12,6 +12,7 @@ const base = {
   id: 'a1', que: 'Enviar propuesta', responsable: 'Iris Múgica', fechaCompromiso: '2026-08-12',
   estatus: 'abierto' as const, salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa',
   salaColor: '#000000', salaActiva: true, destacado: false, mondayUrl: null, bandeja: 'pendiente' as const,
+  mondayDesvinculado: false,
 }
 
 describe('TablaAcuerdos', () => {
@@ -30,6 +31,52 @@ describe('TablaAcuerdos', () => {
   it('sin un solo acuerdo lo dice, en vez de enseñar una tabla vacía', () => {
     render(<TablaAcuerdos acuerdos={[]} destacar={vi.fn()} />)
     expect(screen.getByText(/todavía no hay acuerdos/i)).toBeInTheDocument()
+  })
+
+  // Punto menor de la revisión final de la ronda 7: dentro de "Congelados"
+  // las filas salían con el badge "Abierto" liso, y el bloque agrupaba TODO
+  // lo de una sala en pausa —también lo ya cumplido, para lo que "congelado"
+  // no significa nada.
+  it('un abierto de una sala en pausa sale con el badge "Congelado", no "Abierto"', () => {
+    render(
+      <TablaAcuerdos
+        acuerdos={[{ ...base, id: 'a2', salaSlug: 'zeus', salaNombre: 'Zeus', salaActiva: false }]}
+        destacar={vi.fn()}
+      />,
+    )
+    const congelados = screen.getByRole('region', { name: /congelados/i })
+    // Texto EXACTO, no substring: el propio título de la sección ya dice
+    // "Congelados" y lo contendría igual si se comparara con un simple
+    // `toHaveTextContent`.
+    expect(within(congelados).getByText('Congelado', { exact: true })).toBeInTheDocument()
+    expect(within(congelados).queryByText('Abierto', { exact: true })).not.toBeInTheDocument()
+  })
+
+  it('un cumplido de una sala en pausa sigue diciendo "Cumplido": no tenía plazo que congelar', () => {
+    render(
+      <TablaAcuerdos
+        acuerdos={[
+          { ...base, id: 'a2', salaSlug: 'zeus', salaNombre: 'Zeus', salaActiva: false, estatus: 'cumplido' },
+        ]}
+        destacar={vi.fn()}
+      />,
+    )
+    const congelados = screen.getByRole('region', { name: /congelados/i })
+    expect(within(congelados).getByText('Cumplido', { exact: true })).toBeInTheDocument()
+    expect(within(congelados).queryByText('Congelado', { exact: true })).not.toBeInTheDocument()
+  })
+
+  // Revisión final de la ronda 7, punto 6: el acuerdo se sincronizó alguna
+  // vez y el elemento ya no existe en Monday.
+  it('un acuerdo desvinculado de Monday muestra el aviso', () => {
+    render(<TablaAcuerdos acuerdos={[{ ...base, mondayDesvinculado: true }]} destacar={vi.fn()} />)
+    expect(screen.getByText(/se dejó de sincronizar con Monday/i)).toBeInTheDocument()
+  })
+
+  it('un acuerdo que nunca se sincronizó no muestra ni el enlace ni el aviso', () => {
+    render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} />)
+    expect(screen.queryByRole('link', { name: /ver en Monday/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/se dejó de sincronizar/i)).not.toBeInTheDocument()
   })
 })
 

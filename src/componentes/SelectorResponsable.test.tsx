@@ -111,4 +111,15 @@ describe('SelectorResponsable', () => {
     render(<SelectorResponsable personas={PERSONAS} valorInicial={{ nombre: 'Fernando Ruiz', mondayId: null }} sugerencia={null} />)
     expect(screen.queryByRole('button', { name: /confirmar/i })).toBeNull()
   })
+
+  // Revisión final de la ronda 7, punto 7: este selector se pinta en páginas
+  // que se comparten con el cliente interno por enlace firmado de 30 días —
+  // el correo de cada persona no debe viajar al HTML, ni siquiera como un
+  // atributo "invisible" como `title`.
+  it('no expone el correo de nadie en el HTML (ni en title ni en ningún atributo)', () => {
+    const { container } = render(<SelectorResponsable personas={PERSONAS} />)
+    for (const p of PERSONAS) {
+      expect(container.innerHTML).not.toContain(p.correo)
+    }
+  })
 })

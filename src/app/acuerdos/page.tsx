@@ -67,7 +67,7 @@ export default async function PagAcuerdos() {
           <div>
             <h1 className={estilos.titulo}>Acuerdos</h1>
             <p className={estilos.subtitulo}>
-              Los de las diez salas, juntos: qué le debemos a quién esta semana. La estrella marca
+              Los de las nueve salas, juntos: qué le debemos a quién esta semana. La estrella marca
               los que se ven en el Home.
             </p>
           </div>
