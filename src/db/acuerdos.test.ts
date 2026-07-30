@@ -44,6 +44,23 @@ describe('crearAcuerdo y la bandeja', () => {
     expect(guardado?.bandeja).toBe('no_aplica')
   })
 
+  it('con responsableMondayId como cadena vacía, se guarda como null y no queda pendiente (candado compartido)', async () => {
+    // El candado del formulario (NuevoAcuerdoForm) no es el único llamador
+    // posible de crearAcuerdo — este test cubre la capa de escritura misma,
+    // para que a nadie que escriba el siguiente llamador (la minuta, por
+    // ejemplo) le toque acordarse de normalizar por su cuenta.
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Acuerdo con id vacío',
+      responsable: 'Alguien',
+      fechaCompromiso: null,
+      responsableMondayId: '',
+    })
+
+    const guardado = obtenerAcuerdoMemoria(id)
+    expect(guardado?.responsableMondayId).toBeNull()
+    expect(guardado?.bandeja).toBe('no_aplica')
+  })
+
   it('el alta ya no llama a ninguna sincronización con Monday: encola en la bandeja, no escribe sola', async () => {
     // Es el cambio central de la tarea 5, y la tarea 6 lo reforzó borrando
     // `sincronizarAlta` (se quedó sin llamadores) y quitándole a
@@ -131,5 +148,17 @@ describe('editarAcuerdo y la bandeja', () => {
     const guardado = obtenerAcuerdoMemoria(id)
     expect(guardado?.responsableMondayId).toBe('65476480')
     expect(guardado?.bandeja).toBe('pendiente')
+  })
+
+  it('editar con responsableMondayId como cadena vacía lo guarda como null (candado compartido)', async () => {
+    const id = await acuerdoPendiente()
+
+    await editarAcuerdo(id, { responsableMondayId: '' })
+
+    const guardado = obtenerAcuerdoMemoria(id)
+    expect(guardado?.responsableMondayId).toBeNull()
+    // '' normalizado a null SÍ es un cambio de responsable de verdad (de
+    // alguien de Mkt Corp a nadie), así que la bandeja debe reflejarlo.
+    expect(guardado?.bandeja).toBe('no_aplica')
   })
 })

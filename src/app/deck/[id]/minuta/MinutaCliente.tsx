@@ -5,11 +5,23 @@ import { useRouter } from 'next/navigation'
 import estilos from '../../deck.module.css'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { CorreoMinuta } from '@/componentes/CorreoMinuta'
+import { SelectorResponsable } from '@/componentes/SelectorResponsable'
+import { personaMasParecida, type PersonaMonday } from '@/monday/personas'
 import { generarMinutaAction, publicarMinutaAction, type DeQueReunion } from './acciones'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
+import type { AcuerdoConfirmado } from '@/db/minutas'
 
-interface FilaAcuerdo extends AcuerdoPropuesto {
+interface FilaAcuerdo extends AcuerdoConfirmado {
   incluir: boolean
+  /** `true` si `responsableMondayId` es la sugerencia de personaMasParecida(), no una elección confirmada. Solo para pintar el aviso — no viaja a publicarMinutaAction. */
+  sugerido: boolean
+  /**
+   * Identidad de la fila para el `key` de React — el índice se corre al
+   * quitar una fila (botón «Quitar»), y SelectorResponsable guarda estado
+   * propio (qué hay elegido) que no debe heredarlo la fila que ocupe después
+   * su misma posición.
+   */
+  claveUi: string
 }
 
 interface Props {
@@ -34,6 +46,8 @@ interface Props {
    * acuerdos.
    */
   transcripcionInicial?: string
+  /** La gente viva de Mkt Corp, para elegir como responsable — ver directorio() en src/db/personas.ts. */
+  personas: PersonaMonday[]
 }
 
 const SUGERENCIAS_PRIORIDAD = ['alta', 'media', 'baja']
@@ -65,11 +79,27 @@ function palabras(texto: string): number {
   return texto.trim().split(/\s+/).filter(Boolean).length
 }
 
-function aFilaEditable(a: AcuerdoPropuesto): FilaAcuerdo {
-  return { ...a, incluir: true }
+/**
+ * El acuerdo que propuso la IA, listo para revisarse en pantalla.
+ *
+ * `personaMasParecida` NUNCA decide el responsable por su cuenta — solo
+ * OFRECE, marcada como sugerencia (`sugerido: true`), la coincidencia más
+ * obvia de la lista viva para que alguien la confirme o la cambie. Sin
+ * coincidencia evidente, `responsableMondayId` queda en `null` y el nombre
+ * que trajo la IA se ve como texto libre de la UDN — nunca se fuerza.
+ */
+function aFilaEditable(a: AcuerdoPropuesto, personas: PersonaMonday[]): FilaAcuerdo {
+  const sugerencia = personaMasParecida(a.responsable, personas)
+  return {
+    ...a,
+    incluir: true,
+    responsableMondayId: sugerencia?.id ?? null,
+    sugerido: sugerencia !== null,
+    claveUi: crypto.randomUUID(),
+  }
 }
 
-export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
+export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }: Props) {
   const router = useRouter()
   const [transcripcion, setTranscripcion] = useState(transcripcionInicial ?? '')
   const [textoCorreo, setTextoCorreo] = useState<string | null>(null)
@@ -132,7 +162,7 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
         return
       }
       setTextoCorreo(r.textoCorreo)
-      setFilas(r.acuerdosPropuestos.map(aFilaEditable))
+      setFilas(r.acuerdosPropuestos.map((a) => aFilaEditable(a, personas)))
     })
   }
 
@@ -146,7 +176,7 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
     startPublicar(async () => {
       const confirmados = filas
         .filter((f) => f.incluir)
-        .map(({ incluir: _incluir, ...resto }) => resto)
+        .map(({ incluir: _incluir, sugerido: _sugerido, claveUi: _claveUi, ...resto }) => resto)
 
       const r = await publicarMinutaAction(de, transcripcion, textoCorreo, confirmados)
       if (!r.ok || !r.sesionId) {
@@ -237,7 +267,7 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
               <p className={estilos.pistaTextarea}>La transcripción no arrojó acuerdos accionables.</p>
             ) : (
               filas.map((f, i) => (
-                <div key={i} className={estilos.filaAcuerdoEditable}>
+                <div key={f.claveUi} className={estilos.filaAcuerdoEditable}>
                   <input
                     type="checkbox"
                     checked={f.incluir}
@@ -255,12 +285,10 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
                       disabled={!f.incluir}
                     />
                     <div className={estilos.filaAcuerdoCamposChicos}>
-                      <input
-                        type="text"
-                        className={estilos.inputTexto}
-                        value={f.responsable}
-                        onChange={(e) => actualizarFila(i, { responsable: e.target.value })}
-                        placeholder="Responsable"
+                      <SelectorResponsable
+                        personas={personas}
+                        valorInicial={{ nombre: f.responsable, mondayId: f.responsableMondayId ?? null, sugerido: f.sugerido }}
+                        onCambiar={(v) => actualizarFila(i, { responsable: v.responsable, responsableMondayId: v.responsableMondayId })}
                         disabled={!f.incluir}
                       />
                       <input
@@ -321,9 +349,12 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial }: Props) {
                 onClick={() => setFilas((f) => [...f, {
                   que: '',
                   responsable: 'por asignar',
+                  responsableMondayId: null,
                   prioridad: 'media',
                   fechaCompromiso: null,
                   incluir: true,
+                  sugerido: false,
+                  claveUi: crypto.randomUUID(),
                 }])}
               >
                 + Añadir un acuerdo

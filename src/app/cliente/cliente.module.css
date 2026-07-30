@@ -563,29 +563,6 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   color: var(--tx-2); background: none; border: none; cursor: pointer;
 }
 
-/* ---- selector de responsable ----
-   Dos entradas mutuamente excluyentes: la gente viva de Mkt Corp (select) y
-   la UDN (texto libre). Ocupa la fila completa dentro de .nuevoAcuerdoFila —
-   es más ancho que un campo simple porque son dos controles, no uno. */
-.responsable {
-  flex: 1 1 100%;
-  display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end;
-}
-.responsableGrupo { flex: 1 1 12rem; min-width: 0; border: none; padding: 0; margin: 0; }
-.responsableLeyenda {
-  font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;
-  color: var(--tx-3); padding: 0; margin: 0 0 0.3rem;
-}
-.responsableSelect {
-  width: 100%; font-family: inherit; font-size: 0.9rem; color: var(--tx);
-  padding: 0.55rem 0.7rem; background: var(--fondo);
-  border: 1px solid var(--borde-fuerte); border-radius: 0.5rem; cursor: pointer;
-}
-.responsableSelect:focus { outline: none; border-color: var(--marca); }
-.responsableAviso { font-size: 0.78rem; color: var(--tx-3); margin: 0; }
-.responsableLibre { flex: 1 1 12rem; min-width: 0; display: grid; gap: 0.3rem; }
-.responsableLibre input { width: 100%; }
-
 .botonIconoBorrar {
   font-family: inherit; font-size: 1rem; line-height: 1;
   width: 1.6rem; height: 1.6rem; padding: 0;

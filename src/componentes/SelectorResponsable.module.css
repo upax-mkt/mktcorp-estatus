@@ -1,0 +1,50 @@
+/* Selector de responsable.
+ *
+ * Se usa desde varias pantallas — la sala, la minuta directa, el modal
+ * "Generar una minuta" del Home, y el modo presentación— cada una con su
+ * propio module.css y sus propios alias locales (--tx, --superficie...) que
+ * NO siempre están definidos (el Home, por ejemplo, no los declara — ver la
+ * cabecera de minuta.module.css, que documenta el mismo problema y el mismo
+ * síntoma: un botón con texto blanco sobre blanco por faltar un alias).
+ *
+ * Por eso este módulo usa SOLO los tokens globales de sistema.css
+ * (--tinta, --papel, --linea-fuerte...), que sistema.css declara en :root y
+ * están disponibles en cualquier pantalla, sin depender de qué página
+ * termine envolviendo al componente.
+ */
+
+.responsable {
+  /* flex: para cuando el padre es un flex row (NuevoAcuerdoForm).
+     grid-column: para cuando el padre es un grid (la fila de MinutaCliente).
+     Cada navegador solo aplica la que corresponde al layout real del padre. */
+  flex: 1 1 100%;
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end;
+}
+.responsableGrupo { flex: 1 1 12rem; min-width: 0; border: none; padding: 0; margin: 0; }
+.responsableGrupo:disabled { opacity: 0.6; }
+.responsableLeyenda {
+  font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;
+  color: var(--tinta-3); padding: 0; margin: 0 0 0.3rem;
+}
+.responsableSelect {
+  width: 100%; font-family: inherit; font-size: 0.9rem; color: var(--tinta);
+  padding: 0.55rem 0.7rem; background: var(--papel);
+  border: 1px solid var(--linea-fuerte); border-radius: var(--r-2); cursor: pointer;
+}
+.responsableSelect:focus { outline: none; border-color: var(--tinta); }
+/* La sugerencia de personaMasParecida() se ve distinta a una elección
+   confirmada — el mismo tono de "atención" que usa el resto de la app para
+   lo que falta revisar (--ojo). Desaparece en cuanto se toca cualquiera de
+   los dos controles. */
+.responsableSelectSugerido { border-color: var(--ojo); background: var(--ojo-tenue); }
+.responsableSugerencia { font-size: 0.74rem; color: var(--ojo); margin: 0.35rem 0 0; }
+.responsableAviso { font-size: 0.78rem; color: var(--tinta-3); margin: 0; }
+.responsableLibre { flex: 1 1 12rem; min-width: 0; display: grid; gap: 0.3rem; }
+.responsableLibre input {
+  width: 100%; font-family: inherit; font-size: 0.9rem; color: var(--tinta);
+  padding: 0.55rem 0.7rem; background: var(--papel);
+  border: 1px solid var(--linea-fuerte); border-radius: var(--r-2);
+}
+.responsableLibre input:focus { outline: none; border-color: var(--tinta); }
+.responsableLibre input:disabled { opacity: 0.6; cursor: default; }

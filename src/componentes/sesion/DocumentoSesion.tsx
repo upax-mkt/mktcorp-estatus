@@ -1,6 +1,7 @@
 import type { DecisionSlide } from '@/decision/esquema'
 import type { Acuerdo } from '@/db/consultas'
 import type { Tema } from '@/temas/tipos'
+import type { PersonaMonday } from '@/monday/personas'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import { SeccionDocumento, anclaDeSeccion } from './SeccionDocumento'
 import { papelDe } from '@/secciones/catalogo'
@@ -29,6 +30,8 @@ interface Props {
   sesionId?: string
   /** Si quien mira es del equipo: solo el equipo levanta el acta. */
   equipo?: boolean
+  /** La gente viva de Mkt Corp, para el selector de responsable del modo presentación. */
+  personas: PersonaMonday[]
 }
 
 const ETIQUETA: Record<Acuerdo['estatus'], string> = {
@@ -37,7 +40,7 @@ const ETIQUETA: Record<Acuerdo['estatus'], string> = {
   vencido: 'vencido',
 }
 
-export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionId, equipo }: Props) {
+export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionId, equipo, personas }: Props) {
   // El índice se arma con las secciones que tienen entidad propia: la portada
   // es el encabezado del documento, el cierre es el final —no un destino al
   // que saltar— y el propio índice no se lista a sí mismo.
@@ -66,7 +69,7 @@ export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionI
 
   return (
     <ProveedorTema tema={tema} superficie="clara">
-      <ModoPresentar sesionId={sesionId} equipo={equipo}>
+      <ModoPresentar sesionId={sesionId} equipo={equipo} personas={personas}>
         <div className={estilos.documento}>
           <div className={estilos.contenido}>
             {encabezado}

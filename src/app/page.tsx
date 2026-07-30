@@ -13,6 +13,7 @@ import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { listarSesiones } from '@/db/sesiones'
+import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta, diaCivil } from '@/lib/fecha'
@@ -74,11 +75,14 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, riesgo, pulso, sesiones] = await Promise.all([
+  const [salasCrudas, riesgo, pulso, sesiones, personas] = await Promise.all([
     estadoDeSalas(),
     acuerdosEnRiesgo(),
     pulsoDelMes(),
     listarSesiones(),
+    // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
+    // MinutaCliente — directorio() ya aguanta Monday caído.
+    directorio(),
   ])
   const molde = await moldeDeMinuta(null)
   const salas = ordenarPorUrgencia(salasCrudas)
@@ -186,6 +190,7 @@ export default async function Hub() {
             salas={salasCrudas.map((x) => ({ slug: x.slug, nombre: x.nombre }))}
             molde={molde}
             guardarMoldeAction={guardarMoldeAction}
+            personas={personas}
           />
         </div>
 

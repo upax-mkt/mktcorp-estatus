@@ -6,6 +6,7 @@ import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
 import { exigirEquipo } from '@/auth/sesion'
+import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
 import { MinutaPublicada } from '@/componentes/MinutaPublicada'
@@ -58,6 +59,9 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   }
 
   const minutaGuardada = await obtenerMinuta(id)
+  // Para el selector de responsable de MinutaCliente — directorio() ya
+  // aguanta Monday caído devolviendo la copia local (o [], sin ninguna).
+  const personas = await directorio()
 
   // Publicar y corregir son cosas distintas: publicar decide qué acuerdos
   // nacen (y eso no se repite), corregir solo arregla el texto del correo.
@@ -109,7 +113,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
           />
         ) : (
           <>
-            <MinutaCliente de={{ sesionId: sesion.id }} />
+            <MinutaCliente de={{ sesionId: sesion.id }} personas={personas} />
             <MinutaExternaForm cargarAction={cargarExternaAction} />
           </>
         )}

@@ -13,8 +13,24 @@ import * as memoria from './store-memoria'
 import { crearAcuerdo } from './acuerdos'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
 
-/** Un acuerdo propuesto que el equipo confirmó (incluyó y, quizá, editó) antes de publicar. */
-export type AcuerdoConfirmado = AcuerdoPropuesto
+/**
+ * Un acuerdo propuesto que el equipo confirmó (incluyó y, quizá, editó) antes
+ * de publicar.
+ *
+ * Ya NO es un alias de `AcuerdoPropuesto`, a propósito: ese tipo es el
+ * contrato de salida de la IA (spec §9, `EsquemaAcuerdoPropuesto` en
+ * src/minuta/esquema.ts, `.strict()`) y la IA nunca decide un id de Monday —
+ * solo lee nombres de una transcripción. `responsableMondayId` lo añade una
+ * PERSONA al revisar la minuta (ver SelectorResponsable en MinutaCliente.tsx,
+ * eligiendo de la lista viva o confirmando la sugerencia de
+ * personaMasParecida), nunca el modelo. Si los dos tipos siguieran siendo el
+ * mismo, cualquier cambio futuro al esquema de la IA colaría sin querer un
+ * campo que la IA no debe poder rellenar.
+ */
+export interface AcuerdoConfirmado extends AcuerdoPropuesto {
+  /** El id de Monday del responsable, si una persona lo confirmó. `null`/ausente = responsable de la UDN. */
+  responsableMondayId?: string | null
+}
 
 export interface MinutaGuardada {
   id: string
@@ -88,6 +104,7 @@ export async function guardarMinuta(
     await crearAcuerdo(salaSlug!, {
       que: acuerdo.que,
       responsable: acuerdo.responsable,
+      responsableMondayId: acuerdo.responsableMondayId ?? null,
       squad: acuerdo.squad,
       prioridad: acuerdo.prioridad,
       fechaCompromiso: acuerdo.fechaCompromiso ? new Date(acuerdo.fechaCompromiso) : null,

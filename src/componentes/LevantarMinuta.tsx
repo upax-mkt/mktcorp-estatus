@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
 import type { DeQueReunion } from '@/app/deck/[id]/minuta/acciones'
+import type { PersonaMonday } from '@/monday/personas'
 import { fechaCompleta } from '@/lib/fecha'
 import estilos from './minuta.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
@@ -59,6 +60,8 @@ interface Props {
   salaFija?: string
   claseBoton?: string
   etiquetaBoton?: string
+  /** La gente viva de Mkt Corp, para el selector de responsable de MinutaCliente. */
+  personas: PersonaMonday[]
 }
 
 /** La reunión que se está minutando, con lo justo para enseñarla en pantalla. */
@@ -101,6 +104,7 @@ export function LevantarMinuta({
   salaFija,
   claseBoton,
   etiquetaBoton = 'Generar una minuta',
+  personas,
 }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
@@ -200,6 +204,7 @@ export function LevantarMinuta({
                     cerrar()
                     router.refresh()
                   }}
+                  personas={personas}
                 />
               </>
             ) : (

@@ -9,6 +9,7 @@ import { exigirEquipo } from '@/auth/sesion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
+import { directorio } from '@/db/personas'
 
 // Normalmente solo lee decisiones ya guardadas (rápido); se marca igual como
 // dinámica/60s porque llega aquí justo después del redirect de "Maquetar"
@@ -39,6 +40,9 @@ export default async function PagSesionMaquetada({
   // Una reunión sin sala no tiene acuerdos vivos que mostrar: los acuerdos
   // cuelgan de una sala, y esta no pertenece a ninguna.
   const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
+  // Para el selector de responsable si desde aquí se levanta una minuta en
+  // modo presentación — directorio() ya aguanta Monday caído.
+  const personas = await directorio()
 
   const secciones: SeccionSesion[] = sesion.items
     .filter((i) => i.resultado != null)
@@ -101,6 +105,7 @@ export default async function PagSesionMaquetada({
           acuerdos={sala?.acuerdos ?? []}
           sesionId={sesion.id}
           equipo
+          personas={personas}
         />
       )}
     </div>

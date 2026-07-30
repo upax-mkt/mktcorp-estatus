@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { personasDeMonday, hayQueRefrescar } from './personas'
+import { personasDeMonday, hayQueRefrescar, personaMasParecida } from './personas'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -51,5 +51,42 @@ describe('hayQueRefrescar', () => {
 
   it('con una copia de hace más de un día, sí', () => {
     expect(hayQueRefrescar(new Date('2026-07-28T09:00:00Z'), ahora)).toBe(true)
+  })
+})
+
+describe('personaMasParecida', () => {
+  const PERSONAS = [
+    { id: '65476486', nombre: 'Iris Múgica', correo: 'iris.mugica@jansan.mx' },
+    { id: '67757625', nombre: 'César Mejía Medina', correo: 'julio.mejiam@upax.com.mx' },
+    { id: '11', nombre: 'Ana García López', correo: 'ana.gl@upax.com.mx' },
+    { id: '12', nombre: 'Ana García Ruiz', correo: 'ana.gr@upax.com.mx' },
+  ]
+
+  it('nombre completo igual, sin acentos ni mayúsculas, es la persona', () => {
+    expect(personaMasParecida('cesar mejia medina', PERSONAS)?.id).toBe('67757625')
+  })
+
+  it('sin segundo nombre o apellido materno, cae a primer nombre + apellido', () => {
+    // La transcripción trae "César Medina" — sin el "Mejía" de en medio.
+    expect(personaMasParecida('César Medina', PERSONAS)?.id).toBe('67757625')
+  })
+
+  it('sin ninguna coincidencia razonable, no sugiere a nadie', () => {
+    expect(personaMasParecida('Fernando Ruiz', PERSONAS)).toBeNull()
+  })
+
+  it('nombre vacío, no sugiere a nadie', () => {
+    expect(personaMasParecida('', PERSONAS)).toBeNull()
+    expect(personaMasParecida('   ', PERSONAS)).toBeNull()
+  })
+
+  it('coincidencia ambigua (dos personas con el mismo primer nombre + apellido), no sugiere a nadie', () => {
+    // "Ana García" solo, sin segundo apellido, calza con las dos por igual —
+    // no es evidente cuál, así que no se sugiere ninguna.
+    expect(personaMasParecida('Ana García', PERSONAS)).toBeNull()
+  })
+
+  it('con el segundo apellido si lo trae la transcripción, deja de ser ambiguo', () => {
+    expect(personaMasParecida('Ana García Ruiz', PERSONAS)?.id).toBe('12')
   })
 })

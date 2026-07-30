@@ -505,6 +505,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 sesiones={pendientesDeMinuta}
                 salaFija={slug}
                 claseBoton={estilos.nuevaMinutaBoton}
+                personas={personas}
               />
             </div>
           )}

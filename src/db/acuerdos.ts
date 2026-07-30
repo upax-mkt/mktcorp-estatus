@@ -75,6 +75,32 @@ function isoDia(d: Date | null | undefined): string | null {
 }
 
 /**
+ * Cadena vacía nunca es un id de Monday: o es un id de verdad, o es `null`.
+ * Colada hasta la columna de personas de Monday, `''` se convierte en
+ * `Number('') === 0` — el id de un usuario que no existe, y el acuerdo se
+ * asignaría a quien no toca (el fallo que ya costó dos rondas de arreglo en
+ * la tarea 6). Esto vivía solo en el borde del formulario de alta; vive
+ * también aquí, en la capa de escritura, para que ningún llamador —el que ya
+ * existe, el que se escriba después— tenga que acordarse por su cuenta.
+ */
+function normalizarResponsableMondayId(id: string | null | undefined): string | null {
+  if (id == null) return null
+  const recortado = id.trim()
+  return recortado.length > 0 ? recortado : null
+}
+
+/**
+ * `cambios` con `responsableMondayId` ya normalizado, antes de usarse para
+ * calcular la bandeja o para escribir en la base. Si el campo NO viene
+ * (`undefined`), se deja tal cual — es la señal que `bandejaTrasEditar`
+ * necesita para saber que esta edición no toca el responsable.
+ */
+function cambiosNormalizados(cambios: CambiosAcuerdo): CambiosAcuerdo {
+  if (cambios.responsableMondayId === undefined) return cambios
+  return { ...cambios, responsableMondayId: normalizarResponsableMondayId(cambios.responsableMondayId) }
+}
+
+/**
  * Si la edición trae `responsableMondayId` (aunque sea `null`), recalcula la
  * bandeja con la misma regla del alta. `undefined` indica que la edición no
  * toca ese campo, así que la bandeja no se recalcula.
@@ -95,7 +121,7 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
   validarSala(salaSlug)
   const id = crypto.randomUUID()
   const ahora = new Date()
-  const responsableMondayId = datos.responsableMondayId ?? null
+  const responsableMondayId = normalizarResponsableMondayId(datos.responsableMondayId)
   const bandeja = estadoInicialDeBandeja(responsableMondayId)
 
   if (hayDB()) {
@@ -192,8 +218,9 @@ async function sincronizarDespuesDeEditar(acuerdoId: string): Promise<void> {
 }
 
 /** Edita los campos de un acuerdo (qué, responsable, squad, prioridad, fecha), registrando los cambios en su historia. */
-export async function editarAcuerdo(acuerdoId: string, cambios: CambiosAcuerdo): Promise<void> {
+export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcuerdo): Promise<void> {
   const ahora = new Date()
+  const cambios = cambiosNormalizados(cambiosCrudos)
 
   if (hayDB()) {
     const conexion = db()

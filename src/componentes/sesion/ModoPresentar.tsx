@@ -5,6 +5,7 @@ import { RelojReunion } from './RelojReunion'
 import { PunteroLaser } from './PunteroLaser'
 import { GrabarReunion } from './GrabarReunion'
 import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
+import type { PersonaMonday } from '@/monday/personas'
 import estilos from './presentar.module.css'
 
 /**
@@ -27,9 +28,11 @@ interface Props {
   sesionId?: string
   /** Solo el equipo minuta. Un director presenta y señala; no levanta el acta. */
   equipo?: boolean
+  /** La gente viva de Mkt Corp, para el selector de responsable — solo se usa si sesionId && equipo llegan a mostrar MinutaCliente. */
+  personas: PersonaMonday[]
 }
 
-export function ModoPresentar({ children, sesionId, equipo }: Props) {
+export function ModoPresentar({ children, sesionId, equipo, personas }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
   const [actual, setActual] = useState(0)
@@ -222,6 +225,7 @@ export function ModoPresentar({ children, sesionId, equipo }: Props) {
               de={{ sesionId }}
               transcripcionInicial={transcripcion}
               alPublicar={() => setTranscripcion(null)}
+              personas={personas}
             />
           </div>
         )}

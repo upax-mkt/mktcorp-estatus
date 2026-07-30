@@ -6,6 +6,7 @@ import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { esEquipo, puedeVerEstaSala } from '@/auth/sesion'
+import { directorio } from '@/db/personas'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,9 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
 
   const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
   const equipo = await esEquipo()
+  // Para el selector de responsable si desde aquí se levanta una minuta en
+  // modo presentación (solo equipo) — directorio() ya aguanta Monday caído.
+  const personas = await directorio()
 
   return (
     <div className={estilos.app}>
@@ -63,6 +67,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
         acuerdos={sala?.acuerdos ?? []}
         sesionId={sesion.id}
         equipo={equipo}
+        personas={personas}
       />
     </div>
   )
