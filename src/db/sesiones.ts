@@ -15,6 +15,7 @@ import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { esPermutacionValida } from './orden'
+import { salaEstaActiva } from './salas'
 import { obtenerTema, slugsDeSalas } from '@/temas'
 import type { EntradaCruda } from '@/motor/inventario'
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
@@ -302,6 +303,32 @@ export interface DatosDeSesion {
 export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }> {
   if (datos.salaSlug && !slugsDeSalas().includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
+  }
+  /**
+   * UNA SALA EN FREEZE NO ADMITE SESIONES NUEVAS (tarea 12, ronda 7) — ni
+   * redactadas ni solo agendadas: es justo lo que "no hay reuniones ni
+   * gestión hasta nuevo aviso" significa. "Nueva" es la palabra clave: una
+   * `presentada` que nace al publicar la minuta de una reunión que YA SE DIO
+   * (ver `publicarMinutaAction`, src/app/deck/[id]/minuta/acciones.ts) no es
+   * trabajo nuevo, es completar la historia — y Franco fue explícito con esa
+   * distinción: "consultar su historia sí; empezar trabajo nuevo no". Por
+   * eso el freeze deja pasar `presentada` y bloquea `agendada`/`borrador`
+   * (esta última, el valor por defecto cuando no se manda `estado`).
+   *
+   * Se comprueba AQUÍ, en el único punto por el que pasan los cuatro caminos
+   * de la UI que crean una sesión —la propia sala (`crearSesionAction`),
+   * `/deck/nueva`, la agenda (`agendarAction`) y publicar una minuta nueva—,
+   * no repetido en cada pantalla: si la protección dependiera de que cada
+   * una se acordara de preguntar, bastaría con que UNA se olvidara para que
+   * la pausa fuera decorativa. Esconder el botón en la sala (que también se
+   * hace, para que no invite a un clic condenado) no es lo que protege esto
+   * — lo que protege es esta línea.
+   */
+  const esTrabajoNuevo = (datos.estado ?? 'borrador') !== 'presentada'
+  if (datos.salaSlug && esTrabajoNuevo && !(await salaEstaActiva(datos.salaSlug))) {
+    throw new Error(
+      `${obtenerTema(datos.salaSlug).nombre} está en pausa: reactívala antes de preparar una sesión nueva.`,
+    )
   }
   const id = crypto.randomUUID()
   const ahora = new Date()

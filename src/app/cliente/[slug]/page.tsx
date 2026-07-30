@@ -6,7 +6,7 @@ import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
 import { obtenerTema, slugsDeSalas, colorDeTextoDeMarca } from '@/temas'
 import {
-  estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
+  estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
 import { sesionesMinutables, reunionesDeSala } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
@@ -29,9 +29,12 @@ import { LevantarMinuta } from '@/componentes/LevantarMinuta'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { PausaSala } from '@/componentes/PausaSala'
+import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
 import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
+import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
 import {
@@ -220,6 +223,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     redirect(`/deck/${nueva.id}`)
   }
 
+  // ---- El freeze de esta sala (tarea 12, ronda 7) ----
+  // Cierres finos sobre `pausarSalaAction`/`reactivarSalaAction` (ambas ya
+  // exigen equipo por su cuenta) para que `PausaSala` no tenga que conocer el
+  // slug. La comprobación real de "¿se puede preparar una sesión con la sala
+  // en pausa?" NO vive aquí, sino en `crearSesion` (src/db/sesiones.ts): es
+  // el único punto por el que pasan los tres caminos que crean una sesión, y
+  // repetirla en cada página sería justo el tipo de protección que se olvida
+  // en una de las tres.
+
+  async function pausarEstaSalaAction(): Promise<void> {
+    'use server'
+    await pausarSalaAction(slug)
+  }
+
+  async function reactivarEstaSalaAction(): Promise<void> {
+    'use server'
+    await reactivarSalaAction(slug)
+  }
+
   /**
    * Pone una clave nueva y la devuelve EN CLARO, una sola vez.
    *
@@ -398,6 +420,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       </div>
 
       <main className={estilos.main}>
+        {/* EL FREEZE (tarea 12): equipo ve el interruptor completo —pausar o
+            reactivar, con lo que cada uno implica—; el director de solo
+            lectura, si está en pausa, ve el mismo aviso sin el control, para
+            no ofrecerle un botón que su sesión no puede usar. */}
+        {equipo ? (
+          <PausaSala
+            nombreSala={s.nombre}
+            activa={s.activa}
+            pausadaDesde={s.pausadaDesde}
+            pausarAction={pausarEstaSalaAction}
+            reactivarAction={reactivarEstaSalaAction}
+          />
+        ) : (
+          !s.activa && (
+            <div className={estilos.avisoCongelado}>
+              <span>
+                <strong>{s.nombre} está en pausa</strong>
+                {s.pausadaDesde ? ` desde el ${fechaCompleta(s.pausadaDesde)}` : ''}: no hay reuniones ni
+                gestión hasta nuevo aviso. Los acuerdos se pueden seguir consultando y no vencen
+                mientras tanto.
+              </span>
+            </div>
+          )
+        )}
+
         {/* POR QUÉ ESTÁS AQUÍ, dicho en vez de dejarlo adivinar.
             Quien llega con un link de sala y no esperaba estar aquí —alguien
             de Mkt Corp que abrió el link para comprobar que servía— veía una
@@ -427,9 +474,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             <div className={estilos.acuerdos}>
               {s.acuerdos.map((a) => {
                 const f = textoFechaAcuerdo(a)
+                // Congelado (tarea 12): un abierto de una sala en pausa. Su
+                // estatus efectivo ya llega como 'abierto' —estatusEfectivo
+                // no lo pasa a vencido mientras la sala está apagada—, pero
+                // decir solo "abierto" sobre una fecha vieja no explicaría
+                // por qué no está en rojo. Se lo dice esta etiqueta aparte.
+                const congelado = estaCongelado(a, s)
+                const claseEstado = congelado ? estilos.congelado : estilos[a.estatus]
                 return (
                   <div key={a.id} className={estilos.acuerdo}>
-                    <span className={`${estilos.acuerdoEstado} ${estilos[a.estatus]}`} />
+                    <span className={`${estilos.acuerdoEstado} ${claseEstado}`} />
                     <div>
                       <div className={estilos.acuerdoQue}>{a.que}</div>
                       <div className={estilos.acuerdoMeta}>
@@ -440,7 +494,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                       </div>
                     </div>
                     <div className={estilos.acuerdoDcha}>
-                      <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
+                      <span className={`${estilos.acuerdoBadge} ${claseEstado}`}>
+                        {congelado ? 'congelado' : ETIQUETA_ESTADO[a.estatus]}
+                      </span>
+                      {/* La estrella: SOLO equipo, no `editaAcuerdos` — es
+                          Mkt Corp quien cura el Home, el director de la UDN
+                          no se auto-destaca (ver destacarAction). */}
+                      {equipo && (
+                        <Estrella acuerdoId={a.id} destacado={a.destacado ?? false} destacar={destacarAction} />
+                      )}
                       {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
                       {editaAcuerdos && (
                         <AcuerdoControles
@@ -500,7 +562,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
           {equipo && (
             <div className={estilos.reunionAcciones}>
-              <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />
+              {/* Con la sala en pausa no se puede preparar una sesión nueva
+                  sin reactivarla primero: consultar su historia sí, empezar
+                  trabajo nuevo no. Esto es solo el atajo —lo que de verdad
+                  lo impide es que `crearSesion` (src/db/sesiones.ts) rechaza
+                  la escritura del lado del servidor pase lo que pase aquí. */}
+              {s.activa && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
               <LevantarMinuta
                 sesiones={pendientesDeMinuta}
                 salaFija={slug}

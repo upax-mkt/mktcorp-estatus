@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { sesionesSinMinuta, salaMasDesatendida, estatusVigente, type EstadoSala } from './salas'
+import {
+  sesionesSinMinuta, salaMasDesatendida, estatusVigente, estatusEfectivo, estaCongelado,
+  ordenarPorProximaReunion, acuerdosVencidos, acuerdosAbiertos, type EstadoSala,
+} from './salas'
 
 /**
  * De qué sesiones falta minuta. Es lo que decide qué ofrece el botón
@@ -21,6 +24,8 @@ function sala(parcial: Partial<EstadoSala>): EstadoSala {
     presentaciones: [],
     minutas: [],
     cadencia: 'mensual',
+    activa: true,
+    pausadaDesde: null,
     ...parcial,
   }
 }
@@ -128,5 +133,137 @@ describe('estatusVigente', () => {
 
   it('lo cumplido no se desentierra aunque su fecha haya pasado', () => {
     expect(estatusVigente(acuerdo('cumplido', '2026-07-01'), HOY)).toBe('cumplido')
+  })
+})
+
+describe('ordenarPorProximaReunion', () => {
+  it('primero las que tienen fecha, de la más próxima a la más lejana', () => {
+    const orden = ordenarPorProximaReunion([
+      sala({ slug: 'zeus', nombre: 'Zeus', proximaSesion: '2026-08-20' }),
+      sala({ slug: 'neracode', nombre: 'NeraCode', proximaSesion: '2026-08-03' }),
+      sala({ slug: 'uix', nombre: 'UiX', proximaSesion: '2026-08-11' }),
+    ])
+    expect(orden.map((s) => s.slug)).toEqual(['neracode', 'uix', 'zeus'])
+  })
+
+  it('las que no tienen fecha van después, por nombre', () => {
+    const orden = ordenarPorProximaReunion([
+      sala({ slug: 'uix', nombre: 'UiX', proximaSesion: null }),
+      sala({ slug: 'neracode', nombre: 'NeraCode', proximaSesion: null }),
+      sala({ slug: 'zeus', nombre: 'Zeus', proximaSesion: '2026-08-20' }),
+    ])
+    expect(orden.map((s) => s.slug)).toEqual(['zeus', 'neracode', 'uix'])
+  })
+
+  it('las pausadas van al final, aunque tengan la fecha más próxima de todas', () => {
+    const orden = ordenarPorProximaReunion([
+      sala({ slug: 'zeus', nombre: 'Zeus', proximaSesion: '2026-08-01', activa: false }),
+      sala({ slug: 'neracode', nombre: 'NeraCode', proximaSesion: null }),
+      sala({ slug: 'uix', nombre: 'UiX', proximaSesion: '2026-08-11' }),
+    ])
+    expect(orden.map((s) => s.slug)).toEqual(['uix', 'neracode', 'zeus'])
+  })
+
+  it('entre dos pausadas, por nombre', () => {
+    const orden = ordenarPorProximaReunion([
+      sala({ slug: 'zeus', nombre: 'Zeus', activa: false }),
+      sala({ slug: 'neracode', nombre: 'NeraCode', activa: false }),
+    ])
+    expect(orden.map((s) => s.slug)).toEqual(['neracode', 'zeus'])
+  })
+})
+
+describe('acuerdos congelados', () => {
+  it('una sala en pausa no tiene acuerdos vencidos: están congelados', () => {
+    const enPausa = sala({
+      slug: 'zeus',
+      nombre: 'Zeus',
+      activa: false,
+      acuerdos: [
+        { id: 'x', que: 'algo', responsable: 'quien', fechaCompromiso: '2026-01-01', estatus: 'vencido' },
+      ],
+    })
+    expect(acuerdosVencidos(enPausa)).toBe(0)
+  })
+
+  it('tampoco cuenta abiertos: "no cuentan" es de los dos, no solo de los vencidos', () => {
+    const enPausa = sala({
+      slug: 'zeus',
+      nombre: 'Zeus',
+      activa: false,
+      acuerdos: [
+        { id: 'x', que: 'algo', responsable: 'quien', fechaCompromiso: null, estatus: 'abierto' },
+      ],
+    })
+    expect(acuerdosAbiertos(enPausa)).toBe(0)
+  })
+
+  it('una sala activa sí cuenta los suyos con normalidad', () => {
+    const activa = sala({
+      acuerdos: [
+        { id: 'x', que: 'algo', responsable: 'quien', fechaCompromiso: '2026-01-01', estatus: 'vencido' },
+        { id: 'y', que: 'otra cosa', responsable: 'quien', fechaCompromiso: null, estatus: 'abierto' },
+      ],
+    })
+    expect(acuerdosVencidos(activa)).toBe(1)
+    expect(acuerdosAbiertos(activa)).toBe(1)
+  })
+})
+
+describe('estaCongelado', () => {
+  const salaActiva = { activa: true }
+  const salaPausada = { activa: false }
+
+  it('un abierto en una sala pausada está congelado', () => {
+    expect(estaCongelado({ estatus: 'abierto' }, salaPausada)).toBe(true)
+  })
+
+  it('un abierto en una sala activa no está congelado', () => {
+    expect(estaCongelado({ estatus: 'abierto' }, salaActiva)).toBe(false)
+  })
+
+  it('uno ya cumplido no está "congelado" aunque su sala esté en pausa: no tiene reloj que parar', () => {
+    expect(estaCongelado({ estatus: 'cumplido' }, salaPausada)).toBe(false)
+  })
+})
+
+describe('estatusEfectivo — la contrapartida de congelar es reactivar', () => {
+  const HOY = '2026-07-29'
+  // Un acuerdo abierto cuya fecha quedó atrás: exactamente lo que congela una
+  // pausa y lo que una reactivación tiene que devolver a vencido.
+  const abiertoVencido = { estatus: 'abierto' as const, fechaCompromiso: '2026-01-01' }
+
+  it('con la sala activa, un abierto vencido se lee vencido (igual que estatusVigente)', () => {
+    expect(estatusEfectivo(abiertoVencido, true, HOY)).toBe('vencido')
+  })
+
+  it('con la sala en pausa, el mismo acuerdo se congela: sigue abierto', () => {
+    expect(estatusEfectivo(abiertoVencido, false, HOY)).toBe('abierto')
+  })
+
+  it('REACTIVAR le devuelve el vencimiento el mismo día — no lo deja en limbo permanente', () => {
+    // El acuerdo no cambia para nada entre una llamada y otra: lo único que
+    // se mueve es `salaActiva`, que es justo lo que hace `reactivarSalaAction`.
+    expect(estatusEfectivo(abiertoVencido, false, HOY)).toBe('abierto')
+    expect(estatusEfectivo(abiertoVencido, true, HOY)).toBe('vencido')
+  })
+
+  it('lo cumplido no resucita al reactivar: sigue cumplido, pausada o no', () => {
+    const cumplido = { estatus: 'cumplido' as const, fechaCompromiso: '2026-01-01' }
+    expect(estatusEfectivo(cumplido, false, HOY)).toBe('cumplido')
+    expect(estatusEfectivo(cumplido, true, HOY)).toBe('cumplido')
+  })
+})
+
+describe('salaMasDesatendida y pulsoDelMes no piden cuentas a una sala en pausa', () => {
+  it('una sala pausada y desatendida no sale como "la más desatendida"', () => {
+    const pausadaYVieja = sala({ nombre: 'Pausada', diasDesdeUltima: 200, activa: false })
+    expect(salaMasDesatendida([pausadaYVieja])).toBeNull()
+  })
+
+  it('entre una pausada (aunque muy vieja) y una activa tibia, gana la activa', () => {
+    const pausadaYVieja = sala({ nombre: 'Pausada', diasDesdeUltima: 400, activa: false })
+    const activaTibia = sala({ nombre: 'Activa', diasDesdeUltima: 25, activa: true })
+    expect(salaMasDesatendida([pausadaYVieja, activaTibia])?.nombre).toBe('Activa')
   })
 })

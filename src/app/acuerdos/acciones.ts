@@ -5,6 +5,7 @@ import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirEquipo } from '@/auth/sesion'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
+import { pausarSala, reactivarSala } from '@/db/salas'
 
 /**
  * Las acciones de la bandeja. Todas empiezan comprobando la sesión: esto
@@ -184,4 +185,36 @@ export async function destacarAction(id: string, destacado: boolean): Promise<vo
   revalidatePath('/acuerdos')
   revalidatePath('/')
   revalidatePath(`/cliente/${fila.salaSlug}`)
+}
+
+// ---- El freeze de salas (tarea 12, ronda 7) ----
+
+/**
+ * Pausa una sala — ver la cabecera de `pausarSala` (src/db/salas.ts) para el
+ * qué y el porqué. Aquí solo va EQUIPO, no `exigirEdicionDeAcuerdos`: decidir
+ * si una relación comercial sigue activa es una decisión de Mkt Corp sobre el
+ * cliente, distinta de mover el estatus de un compromiso puntual — que sí
+ * puede tocar el propio director de la UDN.
+ */
+export async function pausarSalaAction(slug: string): Promise<void> {
+  await exigirEquipo()
+  await pausarSala(slug)
+  // Las cuatro pantallas que un freeze cambia: la propia sala (el
+  // interruptor y el aviso), el Home (el bloque "En pausa" y los acuerdos que
+  // dejan de contar), el espacio de acuerdos (el bloque "Congelados") y la
+  // bandeja (sus pendientes dejan de ofrecerse — ver `entraALaBandeja`).
+  revalidatePath(`/cliente/${slug}`)
+  revalidatePath('/')
+  revalidatePath('/acuerdos')
+  revalidatePath('/acuerdos/bandeja')
+}
+
+/** Reactiva una sala — ver la cabecera de `reactivarSala` (src/db/salas.ts). */
+export async function reactivarSalaAction(slug: string): Promise<void> {
+  await exigirEquipo()
+  await reactivarSala(slug)
+  revalidatePath(`/cliente/${slug}`)
+  revalidatePath('/')
+  revalidatePath('/acuerdos')
+  revalidatePath('/acuerdos/bandeja')
 }

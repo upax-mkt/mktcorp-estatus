@@ -6,17 +6,18 @@ import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from './hub.module.css'
 import {
-  estadoDeSalas, ordenarPorUrgencia, temperatura, acuerdosAbiertos,
-  acuerdosVencidos, acuerdosEnRiesgo, pulsoDelMes, type EstatusAcuerdo,
+  estadoDeSalas, ordenarPorProximaReunion, temperatura, acuerdosAbiertos,
+  acuerdosVencidos, todosLosAcuerdos, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
 import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
+import { destacarAction } from '@/app/acuerdos/acciones'
 import { listarSesiones } from '@/db/sesiones'
 import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
-import { fechaLarga, textoDiasDesde, fechaBreve, diasHasta, diaCivil } from '@/lib/fecha'
+import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil } from '@/lib/fecha'
 import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
@@ -75,9 +76,12 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, riesgo, pulso, sesiones, personas] = await Promise.all([
+  const [salasCrudas, acuerdos, pulso, sesiones, personas] = await Promise.all([
     estadoDeSalas(),
-    acuerdosEnRiesgo(),
+    // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
+    // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
+    // la MISMA lista, no dos consultas que se puedan desincronizar entre sí.
+    todosLosAcuerdos(),
     pulsoDelMes(),
     listarSesiones(),
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
@@ -85,7 +89,19 @@ export default async function Hub() {
     directorio(),
   ])
   const molde = await moldeDeMinuta(null)
-  const salas = ordenarPorUrgencia(salasCrudas)
+  const salas = ordenarPorProximaReunion(salasCrudas)
+  // En pausa, aparte (tarea 12): `ordenarPorProximaReunion` ya las manda al
+  // final del mismo orden, pero la tarjeta de una sala congelada no tiene
+  // nada en común con la de una activa —ni próxima sesión, ni vencidos que
+  // contar— así que se separan en su propio bloque en vez de mezclarse en la
+  // misma rejilla con media tarjeta vacía.
+  const salasActivas = salas.filter((s) => s.activa)
+  const salasPausadas = salas.filter((s) => !s.activa)
+  const destacados = acuerdos.filter((a) => a.destacado)
+  // Nombre distinto de la constante `vencidos` que ya existe MÁS ABAJO, por
+  // sala, dentro del .map() de tarjetas — son dos cosas distintas (una lista
+  // completa vs. un conteo por sala) y compartir nombre solo confundiría.
+  const acuerdosVencidosParaHome = acuerdos.filter((a) => a.estatus === 'vencido')
 
   // Las minutas de todas las salas en una sola lista, la más reciente arriba.
   const minutas: MinutaEnHome[] = salasCrudas
@@ -178,8 +194,10 @@ export default async function Hub() {
         {/* Los módulos: lo que hay que atender y lo que viene. */}
         <div className={estilos.modulos}>
           <ModuloAcuerdos
-            acuerdos={riesgo}
-            abiertos={pulso.acuerdosAbiertos}
+            destacados={destacados}
+            vencidos={acuerdosVencidosParaHome}
+            total={acuerdos.length}
+            destacarAction={destacarAction}
             cambiarEstatusAction={cambiarEstatusAction}
             ponerFechaAction={ponerFechaAction}
           />
@@ -198,11 +216,11 @@ export default async function Hub() {
         <section>
           <div className={estilos.seccionCabecera}>
             <h2 className={estilos.seccionTitulo}>Los clientes</h2>
-            <span className="micro" data-sinpunto>ordenadas por atención pendiente</span>
+            <span className="micro" data-sinpunto>ordenadas por próxima reunión</span>
           </div>
 
           <div className={estilos.salas}>
-            {salas.map((s) => {
+            {salasActivas.map((s) => {
               const t = temperatura(s)
               const abiertos = acuerdosAbiertos(s)
               const vencidos = acuerdosVencidos(s)
@@ -272,6 +290,62 @@ export default async function Hub() {
             })}
           </div>
         </section>
+
+        {/* EN PAUSA (tarea 12): aparte de "Los clientes", no mezcladas en la
+            misma rejilla. Una sala en freeze no se borra —su historia se
+            sigue consultando igual, y por eso sigue siendo un link a su
+            sala— pero no tiene próxima sesión que anunciar ni vencidos que
+            contar, así que la tarjeta dice otra cosa: desde cuándo está en
+            pausa. */}
+        {salasPausadas.length > 0 && (
+          <section>
+            <div className={estilos.seccionCabecera}>
+              <h2 className={estilos.seccionTitulo}>En pausa</h2>
+              <span className="micro" data-sinpunto>freeze comercial — sin reuniones ni gestión hasta nuevo aviso</span>
+            </div>
+
+            <div className={estilos.salas}>
+              {salasPausadas.map((s) => (
+                <Link
+                  key={s.slug}
+                  href={`/cliente/${s.slug}`}
+                  className={`tarjeta ${estilos.sala} ${estilos.salaPausada}`}
+                  style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
+                >
+                  <span className={estilos.salaLogo}>
+                    <Image
+                      src={archivoDeLogo(s.slug)}
+                      alt={s.nombre}
+                      width={180}
+                      height={40}
+                      className={estilos.salaLogoImg}
+                      style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
+                    />
+                  </span>
+
+                  <div className={estilos.salaCuando}>
+                    <span className={estilos.salaDato}>
+                      <span className={estilos.salaDatoV}>{textoDiasDesde(s.diasDesdeUltima)}</span>
+                      <span className="micro" data-sinpunto>última</span>
+                    </span>
+                    <span className={estilos.salaDato}>
+                      <span className={estilos.salaDatoV}>
+                        {s.pausadaDesde ? fechaBreve(s.pausadaDesde) : '—'}
+                      </span>
+                      <span className="micro" data-sinpunto>en pausa desde</span>
+                    </span>
+                  </div>
+
+                  <span />
+
+                  <div className={estilos.salaChips}>
+                    <span className="pildora">en pausa</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   )
