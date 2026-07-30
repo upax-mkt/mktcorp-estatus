@@ -115,38 +115,50 @@ function proyectar(proyeccion?: Record<string, unknown>): Record<string, unknown
   return salida
 }
 
+// `dbMock` espía las llamadas a `db()` en sí, no solo lo que el doble
+// devuelve. Hace falta para un caso concreto (revisión a esta tarea): que la
+// fila no haya cambiado prueba que no hubo ESCRITURA, pero no que `db()` ni
+// se invocara — si alguien reordenara `destacarAction` y dejara `hayDB()`/
+// `db()` antes de `exigirEquipo()`, la guarda seguiría lanzando, la fila
+// seguiría intacta, y un test que solo mirara la fila seguiría en verde pese
+// a haberse perdido que la comprobación de sesión va PRIMERO.
+const dbMock = vi.fn(() => ({
+  select(proyeccion?: Record<string, unknown>) {
+    return {
+      from: () => ({
+        where: (cond: Condicion) => Promise.resolve(coincide(cond) ? [proyectar(proyeccion)] : []),
+      }),
+    }
+  },
+  update() {
+    return {
+      set: (parche: Partial<FilaFalsa>) => ({
+        where: (cond: Condicion) => {
+          // La comprobación y la escritura pasan en el mismo paso
+          // síncrono, sin ningún `await` entre medio — como el
+          // `UPDATE ... WHERE` de Postgres, que las resuelve las dos a la
+          // vez. Es lo que hace válido simular "dos pestañas" con dos
+          // llamadas seguidas: la primera que llega a este punto gana.
+          const afecta = coincide(cond)
+          if (afecta && estado.fila) estado.fila = { ...estado.fila, ...parche }
+          const promesa = Promise.resolve(undefined) as Promise<undefined> & {
+            returning: (proyeccion?: Record<string, unknown>) => Promise<unknown[]>
+          }
+          promesa.returning = (proyeccion?: Record<string, unknown>) =>
+            Promise.resolve(afecta ? [proyectar(proyeccion)] : [])
+          return promesa
+        },
+      }),
+    }
+  },
+}))
+
 vi.mock('@/db/cliente', () => ({
   hayDB: () => true,
-  db: () => ({
-    select(proyeccion?: Record<string, unknown>) {
-      return {
-        from: () => ({
-          where: (cond: Condicion) => Promise.resolve(coincide(cond) ? [proyectar(proyeccion)] : []),
-        }),
-      }
-    },
-    update() {
-      return {
-        set: (parche: Partial<FilaFalsa>) => ({
-          where: (cond: Condicion) => {
-            // La comprobación y la escritura pasan en el mismo paso
-            // síncrono, sin ningún `await` entre medio — como el
-            // `UPDATE ... WHERE` de Postgres, que las resuelve las dos a la
-            // vez. Es lo que hace válido simular "dos pestañas" con dos
-            // llamadas seguidas: la primera que llega a este punto gana.
-            const afecta = coincide(cond)
-            if (afecta && estado.fila) estado.fila = { ...estado.fila, ...parche }
-            const promesa = Promise.resolve(undefined) as Promise<undefined> & {
-              returning: (proyeccion?: Record<string, unknown>) => Promise<unknown[]>
-            }
-            promesa.returning = (proyeccion?: Record<string, unknown>) =>
-              Promise.resolve(afecta ? [proyectar(proyeccion)] : [])
-            return promesa
-          },
-        }),
-      }
-    },
-  }),
+  // `db()` real (src/db/cliente.ts) no toma argumentos nunca; sin spread —a
+  // diferencia de existeElGrupoMock y vecinos, que sí reenvían los suyos—
+  // porque no hay nada que reenviar.
+  db: () => dbMock(),
 }))
 
 const { subirAcuerdoAction, descartarAcuerdoAction, destacarAction } = await import('./acciones')
@@ -172,6 +184,11 @@ beforeEach(() => {
   existeElGrupoMock.mockReset().mockResolvedValue(true)
   crearElementoEnDeliveryMock.mockReset()
   crearSubelementoMock.mockReset()
+  // mockClear(), no mockReset(): hay que borrar el historial de llamadas de
+  // cada test sin tocar la implementación (`() => ({ select, update })`) que
+  // es la infraestructura permanente del doble — un mockReset() la dejaría
+  // devolviendo undefined para todos los tests que corran después.
+  dbMock.mockClear()
 })
 
 describe('subirAcuerdoAction — dos pestañas sobre el mismo acuerdo', () => {
@@ -267,6 +284,12 @@ describe('destacarAction', () => {
 
     // Nada se movió: la fila sigue exactamente como la dejó beforeEach.
     expect(estado.fila).toEqual(BASE)
+    // Y no es solo que no haya ESCRITURA: `db()` ni se llamó. Sin esto, una
+    // función que reordenara la guarda después de `hayDB()`/`db()` seguiría
+    // lanzando por otro motivo (p. ej. el `where` no encontraría nada) y
+    // este test seguiría en verde sin proteger que la sesión se comprueba
+    // ANTES que cualquier otra cosa.
+    expect(dbMock).not.toHaveBeenCalled()
   })
 
   it('marca un acuerdo como destacado', async () => {
