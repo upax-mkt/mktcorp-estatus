@@ -4,12 +4,23 @@ import type { CSSProperties } from 'react'
 import estilos from '../deck.module.css'
 import { slugsDeSalas, obtenerTema } from '@/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
+import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { exigirEquipo } from '@/auth/sesion'
 
 export const dynamic = 'force-dynamic'
 
-export default function PagNuevaSesion() {
+/**
+ * "Nueva sesión" es otro camino de preparar una sesión para una sala, además
+ * del que vive dentro de la propia sala (tarea 12): la escritura ya la
+ * rechaza igual —las dos pasan por `crearSesion`, src/db/sesiones.ts, que es
+ * donde vive la comprobación que cuenta—, pero sin esto alguien podía elegir
+ * una sala en pausa, llenar el formulario entero y enterarse recién al
+ * enviarlo. Se marcan aquí para que no llegue a ese punto.
+ */
+export default async function PagNuevaSesion() {
+  const pausadas = await slugsDeSalasPausadas()
+
   async function crear(formData: FormData) {
     'use server'
     await exigirEquipo()
@@ -76,15 +87,18 @@ export default function PagNuevaSesion() {
               </label>
               {slugsDeSalas().map((slug) => {
                 const tema = obtenerTema(slug)
+                const enPausa = pausadas.has(slug)
                 return (
                   <label
                     key={slug}
                     className={estilos.salaOpcion}
                     style={{ '--sala': tema.primario } as CSSProperties}
                   >
-                    <input type="radio" name="salaSlug" value={slug} required />
+                    <input type="radio" name="salaSlug" value={slug} required disabled={enPausa} />
                     <span className={estilos.salaOpcionPunto} />
-                    <span className={estilos.salaOpcionNombre}>{tema.nombre}</span>
+                    <span className={estilos.salaOpcionNombre}>
+                      {tema.nombre}{enPausa ? ' (en pausa)' : ''}
+                    </span>
                   </label>
                 )
               })}

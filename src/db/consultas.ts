@@ -7,8 +7,8 @@
  * shell exactamente igual.
  *
  * Los derivados puros (acuerdosAbiertos, acuerdosVencidos, temperatura,
- * ordenarPorUrgencia) no tocan la base de datos — operan sobre EstadoSala ya
- * resuelto, venga de donde venga — así que se re-exportan tal cual desde
+ * ordenarPorProximaReunion) no tocan la base de datos — operan sobre EstadoSala
+ * ya resuelto, venga de donde venga — así que se re-exportan tal cual desde
  * dominio/salas.ts en vez de duplicar su lógica.
  */
 import { desc, eq } from 'drizzle-orm'
@@ -43,7 +43,8 @@ export {
   acuerdosAbiertos,
   acuerdosVencidos,
   temperatura,
-  ordenarPorUrgencia,
+  ordenarPorProximaReunion,
+  estaCongelado,
 } from '@/dominio/salas'
 
 const MS_POR_DIA = 86_400_000
@@ -192,6 +193,11 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   // 'cancelado' no existe en el tipo EstatusAcuerdo del shell (solo
   // abierto/cumplido/vencido) — un acuerdo cancelado deja de mostrarse,
   // igual que si nunca hubiera existido para efectos de la sala.
+  // `salas.activa` puede faltar si la fila aún no existe (dev sin sembrar):
+  // por defecto, activa — mismo criterio que `cadencia: salaRow?.cadencia ??
+  // 'mensual'` un poco más abajo.
+  const activa = salaRow?.activa ?? true
+
   const acuerdos: Acuerdo[] = acuerdosRows
     .filter((a) => a.estatus !== 'cancelado')
     .map((a) => ({
@@ -201,11 +207,20 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
       squad: a.squad ?? undefined,
       fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
       estatus: a.estatus as fallback.EstatusAcuerdo,
+      destacado: a.destacado,
     }))
-    // `vencido` se deriva de la fecha, no se lee de la base: ver
-    // `estatusVigente`. Sin esto un compromiso de hace dos semanas seguía
-    // contando como abierto.
-    .map((a) => ({ ...a, estatus: fallback.estatusVigente(a, isoFecha(ahora)) }))
+    /**
+     * `vencido` se deriva de la fecha, no se lee de la base — ver
+     * `estatusEfectivo`. Sin esto un compromiso de hace dos semanas seguía
+     * contando como abierto.
+     *
+     * `estatusEfectivo` y no `estatusVigente` a secas (tarea 12): con la sala
+     * en pausa el acuerdo se congela tal cual está guardado —no se pregunta
+     * si ya pasó de fecha—, y es la MISMA función la que, en cuanto la sala
+     * se reactiva, vuelve a aplicar `estatusVigente` sobre ese acuerdo sin
+     * que nadie lo tenga que recalcular a mano.
+     */
+    .map((a) => ({ ...a, estatus: fallback.estatusEfectivo(a, activa, isoFecha(ahora)) }))
 
   return {
     slug,
@@ -223,6 +238,8 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     presentaciones,
     minutas,
     cadencia: salaRow?.cadencia ?? 'mensual',
+    activa,
+    pausadaDesde: salaRow?.pausadaDesde ? isoFecha(salaRow.pausadaDesde) : null,
   }
 }
 
@@ -235,6 +252,9 @@ async function estadoDeSalasDB(): Promise<EstadoSala[]> {
 function construirRiesgo(salas: EstadoSala[]): AcuerdoEnRiesgo[] {
   const out: AcuerdoEnRiesgo[] = []
   for (const s of salas) {
+    // Una sala en freeze no acumula riesgo, está congelada — misma regla que
+    // fallback.acuerdosEnRiesgo().
+    if (!s.activa) continue
     for (const a of s.acuerdos) {
       if (a.estatus === 'vencido' || (a.estatus === 'abierto' && a.fechaCompromiso == null)) {
         out.push({ ...a, salaSlug: s.slug, salaNombre: s.nombre, salaColor: s.color })
@@ -315,4 +335,130 @@ export async function acuerdosEnRiesgo(): Promise<AcuerdoEnRiesgo[]> {
 export async function pulsoDelMes(): Promise<PulsoDelMes> {
   if (!hayDB()) return construirPulso(await estadoDeSalasMemoria())
   return construirPulso(await estadoDeSalasDB())
+}
+
+// ---- El espacio de acuerdos: las diez salas juntas (tarea 11, ronda 7) ----
+
+/**
+ * Un acuerdo con el contexto de su sala, para `/acuerdos`: "qué le debemos a
+ * quién esta semana" sin entrar sala por sala.
+ *
+ * `mondayTipo` es opcional en el TIPO —no en el dato real, que `todosLosAcuerdos`
+ * siempre entrega— para que un consumidor que no lo necesita no tenga que
+ * inventarlo. Mismo criterio que `AcuerdoPendienteDeSubir.salaColor` en
+ * src/db/acuerdos.ts.
+ */
+export interface AcuerdoConSala extends Acuerdo {
+  salaSlug: string
+  salaNombre: string
+  salaColor: string
+  /** Una sala en pausa congela sus acuerdos — ver TablaAcuerdos y la nota de abajo. */
+  salaActiva: boolean
+  destacado: boolean
+  mondayUrl: string | null
+  mondayTipo?: string | null
+  /** 'no_aplica' | 'pendiente' | 'subido' | 'descartado' — ver src/monday/bandeja.ts. */
+  bandeja: string
+  /**
+   * Se sincronizó con Monday alguna vez y el elemento YA NO EXISTE allá
+   * (revisión final de la ronda 7, punto 6): el diseño pide un aviso en este
+   * espacio cuando eso pasa (§4 — "se marca... con un aviso en el espacio de
+   * acuerdos").
+   *
+   * Se deriva de `mondayId == null && mondaySincronizadoEn != null` — nunca
+   * se guarda como columna aparte. Un acuerdo que NUNCA se subió tiene los
+   * dos en null (`mondayDesvinculado` da falso); uno sincronizado que sigue
+   * vivo en Monday tiene los dos con valor. Solo el que se subió y luego
+   * `refrescarDesdeMonday` marcó como 'desapareció' queda con `mondayId =
+   * null` pero `mondaySincronizadoEn` con la fecha de cuando SÍ se sincronizó
+   * —esa combinación es la señal, y es la misma rama que limpia
+   * `mondayUrl`/`mondayTipo` (ver 'desapareció' en refrescarDesdeMonday,
+   * src/db/acuerdos.ts).
+   */
+  mondayDesvinculado: boolean
+}
+
+/**
+ * El nombre y color de marca de una sala, sin reventar si algún día hay una
+ * fila con un `salaSlug` que no está en `src/temas`. No debería pasar —la FK
+ * de `acuerdos.salaSlug` exige que la sala exista, y `crearAcuerdo` ya valida
+ * contra `slugsDeSalas()` al dar de alta— pero un texto de más en esta lista
+ * es más barato que la pantalla entera sin cargar. Mismo criterio defensivo
+ * que `temaDeSalaSeguro` en src/db/acuerdos.ts.
+ */
+function temaDeSalaSeguro(slug: string): { nombre: string; color: string } {
+  try {
+    const tema = obtenerTema(slug)
+    return { nombre: tema.nombre, color: tema.primario }
+  } catch {
+    return { nombre: slug, color: '#666666' }
+  }
+}
+
+/**
+ * TODOS los acuerdos de las diez salas, cada uno con su sala encima.
+ *
+ * Sin DB no hay nada que mostrar (mismo criterio que `acuerdosPendientesDeSubir`
+ * en src/db/acuerdos.ts): el store en memoria no modela `salas.activa` ni
+ * `acuerdos.destacado`, así que faltaría la mitad del dato.
+ *
+ * El estatus se deriva con `estatusEfectivo` (tarea 12): con la sala activa
+ * es `estatusVigente` tal cual; en pausa, el acuerdo se congela y se respeta
+ * el estatus guardado sin preguntar si ya pasó de fecha.
+ */
+export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
+  if (!hayDB()) return []
+
+  const hoy = isoFecha(new Date())
+  const filas = await db()
+    .select({
+      id: esquema.acuerdos.id,
+      que: esquema.acuerdos.que,
+      responsable: esquema.acuerdos.responsable,
+      squad: esquema.acuerdos.squad,
+      fechaCompromiso: esquema.acuerdos.fechaCompromiso,
+      estatus: esquema.acuerdos.estatus,
+      destacado: esquema.acuerdos.destacado,
+      mondayUrl: esquema.acuerdos.mondayUrl,
+      mondayTipo: esquema.acuerdos.mondayTipo,
+      mondayId: esquema.acuerdos.mondayId,
+      mondaySincronizadoEn: esquema.acuerdos.mondaySincronizadoEn,
+      bandeja: esquema.acuerdos.bandeja,
+      salaSlug: esquema.acuerdos.salaSlug,
+      salaActiva: esquema.salas.activa,
+    })
+    .from(esquema.acuerdos)
+    .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
+
+  return filas
+    // 'cancelado' deja de mostrarse, igual que en la vista de sala (ver el
+    // comentario de estadoDeSalaDB): un acuerdo cancelado es como si nunca
+    // hubiera existido.
+    .filter((f) => f.estatus !== 'cancelado')
+    .map((f) => {
+      const tema = temaDeSalaSeguro(f.salaSlug)
+      const fechaCompromiso = f.fechaCompromiso ? isoFecha(f.fechaCompromiso) : null
+      const estatusGuardado = f.estatus as fallback.EstatusAcuerdo
+      const estatus = fallback.estatusEfectivo({ estatus: estatusGuardado, fechaCompromiso }, f.salaActiva, hoy)
+      return {
+        id: f.id,
+        que: f.que,
+        responsable: f.responsable,
+        squad: f.squad ?? undefined,
+        fechaCompromiso,
+        estatus,
+        salaSlug: f.salaSlug,
+        salaNombre: tema.nombre,
+        salaColor: tema.color,
+        salaActiva: f.salaActiva,
+        destacado: f.destacado,
+        mondayUrl: f.mondayUrl,
+        mondayTipo: f.mondayTipo,
+        bandeja: f.bandeja,
+        mondayDesvinculado: f.mondayId == null && f.mondaySincronizadoEn != null,
+      }
+    })
+    // La fecha más próxima primero; sin fecha, al final — mismo criterio que
+    // acuerdosPendientesDeSubir: es lo que más urge mirar primero.
+    .sort((a, b) => (a.fechaCompromiso ?? '9999-99-99').localeCompare(b.fechaCompromiso ?? '9999-99-99'))
 }

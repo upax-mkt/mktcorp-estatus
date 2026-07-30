@@ -107,4 +107,22 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/admin')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/loquesea')).toBe(false)
   })
+
+  /**
+   * El espacio de acuerdos (tarea 11, ronda 7) y su bandeja son de equipo:
+   * cruzan las diez salas y la bandeja sube al tablero compartido de Monday,
+   * ninguna de las dos cosas es asunto de un solo director. Sin entrada
+   * explícita en la lista blanca, caen en el mismo "se niega por defecto" que
+   * el caso de arriba — este test lo deja dicho por su nombre, no solo por
+   * coincidencia con /admin.
+   */
+  it('un acceso de sala no entra al espacio de acuerdos ni a su bandeja', () => {
+    expect(puedeVerRuta(SALA_NC, '/acuerdos')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/acuerdos/bandeja')).toBe(false)
+  })
+
+  it('el equipo sí entra al espacio de acuerdos y a su bandeja', () => {
+    expect(puedeVerRuta(EQUIPO, '/acuerdos')).toBe(true)
+    expect(puedeVerRuta(EQUIPO, '/acuerdos/bandeja')).toBe(true)
+  })
 })

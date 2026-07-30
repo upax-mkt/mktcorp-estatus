@@ -23,6 +23,13 @@ export interface Acuerdo {
   squad?: string
   fechaCompromiso: string | null // ISO, o null = "por definir"
   estatus: EstatusAcuerdo
+  /**
+   * Si está destacado en el Home (tarea 11). Opcional porque solo la capa de
+   * DB lo sabe poblar: el store en memoria (sin DATABASE_URL) no modela
+   * `acuerdos.destacado`, igual que no modela `salas.activa` — ver la
+   * cabecera de `todosLosAcuerdos` en src/db/consultas.ts.
+   */
+  destacado?: boolean
 }
 
 export interface Presentacion {
@@ -75,6 +82,19 @@ export interface EstadoSala {
   minutas: Minuta[]
   /** Cadencia acordada; usada para juzgar si está desatendida. */
   cadencia: 'semanal' | 'mensual'
+  /**
+   * FREEZE COMERCIAL (tarea 12, ronda 7). `false` = no hay reuniones ni
+   * gestión hasta nuevo aviso.
+   *
+   * Una sala en pausa no se borra ni se esconde: su historia sigue entera y
+   * se consulta. Lo que se apaga es lo que la app le EXIGE — ver
+   * `acuerdosVencidos`, `acuerdosAbiertos`, `ordenarPorProximaReunion` y
+   * `estaCongelado` más abajo, y `crearSesion` en src/db/sesiones.ts (no se
+   * puede preparar una sesión nueva sin reactivarla primero).
+   */
+  activa: boolean
+  /** Desde cuándo está en pausa. ISO, o `null` si nunca se pausó (o ya se reactivó). */
+  pausadaDesde: string | null
 }
 
 /**
@@ -102,6 +122,10 @@ export function estadoDeSalas(): EstadoSala[] {
       presentaciones: [],
       minutas: [],
       cadencia: 'mensual',
+      // El store en memoria no modela `salas.activa`: sin base de datos no
+      // hay forma de pausar nada, así que toda sala se trata como activa.
+      activa: true,
+      pausadaDesde: null,
     }
   })
 }
@@ -113,10 +137,30 @@ export function estadoDeSala(slug: string): EstadoSala | undefined {
 // ---- Derivados para el hub ----
 
 export function acuerdosAbiertos(s: EstadoSala): number {
+  // Ver el comentario de acuerdosVencidos: misma razón, misma regla — una
+  // sala en freeze no cuenta nada, ni abiertos ni vencidos.
+  if (s.activa === false) return 0
   return s.acuerdos.filter((a) => a.estatus === 'abierto').length
 }
 export function acuerdosVencidos(s: EstadoSala): number {
+  // Una sala en freeze no acumula deuda: sus compromisos están congelados, no
+  // vencidos. Contarlos pondría en rojo el Home por trabajo que alguien decidió
+  // parar.
+  if (s.activa === false) return 0
   return s.acuerdos.filter((a) => a.estatus === 'vencido').length
+}
+
+/**
+ * Si a ESTE acuerdo, en el estado en que está, el freeze de su sala le
+ * cambia algo. Solo un abierto tiene un plazo que congelar —uno que, sin la
+ * pausa, seguiría corriendo hacia vencido—; uno ya cumplido no tiene reloj
+ * que parar, y verlo "congelado" no diría nada cierto sobre él.
+ */
+export function estaCongelado(
+  a: Pick<Acuerdo, 'estatus'>,
+  s: Pick<EstadoSala, 'activa'>,
+): boolean {
+  return s.activa === false && a.estatus === 'abierto'
 }
 
 /**
@@ -138,6 +182,30 @@ export function estatusVigente(
   if (a.estatus !== 'abierto') return a.estatus
   if (!a.fechaCompromiso) return 'abierto'
   return a.fechaCompromiso < hoy ? 'vencido' : 'abierto'
+}
+
+/**
+ * El estatus EFECTIVO de un acuerdo, respetando el freeze de su sala (tarea
+ * 12, ronda 7).
+ *
+ * Con la sala activa, es exactamente `estatusVigente`: el paso del tiempo se
+ * nota. En pausa, el acuerdo se congela tal cual está guardado —ni siquiera
+ * se pregunta si ya pasó de fecha—, que es lo que "freeze" significa.
+ *
+ * Es también la CONTRAPARTIDA exacta de pausar, sin necesidad de código
+ * aparte: al reactivar no hay nada que recalcular a mano. La siguiente vez
+ * que se lea con `salaActiva = true`, esta misma función vuelve a aplicar
+ * `estatusVigente` sobre el mismo acuerdo guardado, y uno que ya había
+ * pasado de fecha aparece vencido ese mismo día — no se queda en un limbo
+ * permanente ni hace falta "reactivar" cada acuerdo uno por uno.
+ */
+export function estatusEfectivo(
+  a: Pick<Acuerdo, 'estatus' | 'fechaCompromiso'>,
+  salaActiva: boolean,
+  hoy: string,
+): EstatusAcuerdo {
+  if (!salaActiva) return a.estatus
+  return estatusVigente(a, hoy)
 }
 
 /** Una sesión ya presentada de la que todavía se puede levantar minuta. */
@@ -237,17 +305,28 @@ export function temperatura(s: EstadoSala): Temperatura {
   return 'fria'
 }
 
-/** Orden del hub: primero lo que necesita atención (vencidos, luego frías, luego tibias). */
-export function ordenarPorUrgencia(salas: EstadoSala[]): EstadoSala[] {
-  const peso = (s: EstadoSala) => {
-    const t = temperatura(s)
-    return (
-      acuerdosVencidos(s) * 100 +
-      (t === 'fria' ? 40 : t === 'tibia' ? 20 : 0) +
-      (s.diasDesdeUltima ?? 0)
-    )
-  }
-  return [...salas].sort((a, b) => peso(b) - peso(a))
+/**
+ * EL ORDEN DE LAS SALAS, el mismo en todas las pantallas (Franco, 29-jul).
+ *
+ * 1. Con reunión agendada, de la más próxima a la más lejana.
+ * 2. Sin reunión agendada, por nombre.
+ * 3. En pausa, por nombre.
+ *
+ * Sustituye a `ordenarPorUrgencia`, que subía sola a la primera fila la sala
+ * más desatendida. Esa señal no se pierde —los vencidos siguen en el Home y la
+ * tarjeta conserva su temperatura— pero cambia de sitio: una sala olvidada
+ * hace tres meses es justo una que no tiene fecha, así que ahora cae al segundo
+ * bloque.
+ */
+export function ordenarPorProximaReunion(salas: EstadoSala[]): EstadoSala[] {
+  const bloque = (s: EstadoSala) => (s.activa === false ? 2 : s.proximaSesion ? 0 : 1)
+  return [...salas].sort((a, b) => {
+    const ba = bloque(a)
+    const bb = bloque(b)
+    if (ba !== bb) return ba - bb
+    if (ba === 0) return a.proximaSesion!.localeCompare(b.proximaSesion!)
+    return a.nombre.localeCompare(b.nombre, 'es')
+  })
 }
 
 export interface AcuerdoEnRiesgo extends Acuerdo {
@@ -260,6 +339,9 @@ export interface AcuerdoEnRiesgo extends Acuerdo {
 export function acuerdosEnRiesgo(): AcuerdoEnRiesgo[] {
   const out: AcuerdoEnRiesgo[] = []
   for (const s of estadoDeSalas()) {
+    // Misma regla que acuerdosVencidos/acuerdosAbiertos: una sala en freeze
+    // no acumula riesgo, está congelada.
+    if (s.activa === false) continue
     for (const a of s.acuerdos) {
       if (a.estatus === 'vencido' || (a.estatus === 'abierto' && a.fechaCompromiso == null)) {
         out.push({ ...a, salaSlug: s.slug, salaNombre: s.nombre, salaColor: s.color })
@@ -292,9 +374,13 @@ export interface PulsoDelMes {
  *
  * El criterio es la temperatura, que ya sabe la cadencia acordada de cada
  * sala: mensual y semanal no se desatienden al mismo ritmo.
+ *
+ * Una sala en freeze (tarea 12) tampoco entra: "desatendida" implica una
+ * reunión que se esperaba y no llegó, y de una sala en pausa no se espera
+ * ninguna. Contarla sería pedirle cuentas por algo que alguien decidió parar.
  */
 export function salaMasDesatendida(salas: EstadoSala[]): { nombre: string; dias: number | null } | null {
-  const candidatas = salas.filter((s) => temperatura(s) !== 'reciente')
+  const candidatas = salas.filter((s) => s.activa !== false && temperatura(s) !== 'reciente')
   if (candidatas.length === 0) return null
   const peor = [...candidatas].sort(
     (a, b) => (b.diasDesdeUltima ?? Infinity) - (a.diasDesdeUltima ?? Infinity),

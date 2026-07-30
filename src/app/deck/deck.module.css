@@ -173,6 +173,14 @@
 .salaOpcionPunto { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; background: var(--sala); }
 .salaOpcionNombre { font-size: 0.9rem; font-weight: 600; }
 
+/* En pausa (tarea 12): no se puede elegir sin reactivarla primero — la
+   escritura ya lo rechaza del lado del servidor (`crearSesion`), esto es
+   solo para no dejar a alguien llenar el formulario entero para enterarse
+   al final. Mismo lenguaje que `.opcion:has(input:disabled)` en
+   bandeja.module.css. */
+.salaOpcion:has(input:disabled) { cursor: not-allowed; opacity: 0.5; }
+.salaOpcion:has(input:disabled) .salaOpcionNombre { color: var(--tx-3); }
+
 .opcionesFila { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .opcionPill {
   position: relative; cursor: pointer; border-radius: var(--r-4);

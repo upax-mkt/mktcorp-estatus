@@ -1,0 +1,186 @@
+/* La bandeja de acuerdos (tarea 8, ronda 7): la página completa y las filas
+   de FilaBandeja comparten este módulo — mismo patrón que cliente.module.css,
+   que varios componentes de src/componentes importan directo. Los neutros,
+   radios, elevación y piezas comunes (.tarjeta, .pildora, .boton, .micro)
+   vienen de `sistema.css`; aquí solo vive lo propio de esta pantalla. */
+
+.app {
+  min-height: 100dvh;
+  background: var(--lienzo);
+  color: var(--tinta);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- barra ---- */
+.barra {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+}
+.volver {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+}
+.volver:hover { color: var(--tinta); }
+.barraTitulo { font-size: 0.88rem; font-weight: 600; margin-left: 0.25rem; }
+
+/* ---- contenedor ---- */
+.main {
+  max-width: 880px; margin: 0 auto;
+  padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+  display: grid; gap: 1.1rem;
+}
+
+.encabezado {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.titulo {
+  font-size: clamp(1.6rem, 4vw, 2.1rem); font-weight: 300;
+  letter-spacing: var(--track-display); margin: 0; line-height: 1.1;
+}
+.subtitulo { color: var(--tinta-3); font-size: 0.92rem; margin: 0.6rem 0 0; max-width: 40rem; line-height: 1.55; }
+
+/* La integración entera apagada: un solo aviso, centrado, sin lista debajo
+   que fingir que existe. */
+.avisoApagado {
+  margin: 3rem auto; max-width: 30rem; text-align: center;
+  font-size: 0.94rem; color: var(--tinta-2); line-height: 1.6;
+}
+
+/* Avisos de configuración — arriba de la lista, nunca dentro: hablan del
+   ESTADO de la integración, no de un acuerdo en particular. */
+.aviso { margin: 0; padding: 0.85rem 1.1rem; border-radius: var(--r-3); font-size: 0.86rem; line-height: 1.55; }
+.aviso[data-tono='ojo'] { background: var(--ojo-tenue); color: var(--tinta-2); }
+.aviso[data-tono='ojo'] code { color: var(--ojo); }
+.aviso[data-tono='mal'] { background: var(--mal-tenue); color: var(--tinta-2); }
+.aviso[data-tono='mal'] code { color: var(--mal); }
+/* El grupo destino confirmado (revisión final de la ronda 7): existir no es
+   ser el correcto, así que se enseña de cuál se trata — no es una alerta,
+   así que va en el tono positivo, no en 'ojo'/'mal'. */
+.aviso[data-tono='bien'] { background: var(--bien-tenue); color: var(--tinta-2); }
+.aviso[data-tono='bien'] strong { color: var(--bien); }
+.aviso code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 0.85em; font-weight: 600; }
+
+.tarjetaLista { padding: 0.3rem 1.4rem; }
+.vacio { font-size: 0.9rem; color: var(--tinta-3); margin: 0; padding: 1.7rem 0.6rem; line-height: 1.5; text-align: center; }
+
+/* ---- la lista ---- */
+.lista { list-style: none; margin: 0; padding: 0; display: grid; }
+
+.fila {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.15rem 0 1.15rem 1rem;
+  border-top: 1px solid var(--linea);
+  position: relative;
+}
+.lista li:first-child { border-top: none; }
+/* El filo de la sala: identifica de quién es el acuerdo sin gastar texto —
+   mismo lenguaje que ModuloAcuerdos. Neutro cuando no hay color de marca. */
+.fila::before {
+  content: ''; position: absolute; left: 0; top: 1.15rem; bottom: 1.15rem;
+  width: 3px; border-radius: var(--r-lleno); background: var(--marca, var(--tinta-4));
+}
+
+.cuerpo { min-width: 0; flex: 1 1 15rem; }
+.que { font-size: 0.95rem; line-height: 1.4; margin: 0; font-weight: 450; }
+.meta {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  margin-top: 0.35rem; font-size: 0.8rem; color: var(--tinta-3);
+}
+.metaSala { color: var(--marca-texto, var(--marca)); font-weight: 600; text-decoration: none; }
+.metaSala:hover { text-decoration: underline; }
+.punto { color: var(--tinta-4); }
+/* El acuerdo se desincronizó de Monday (revisión final de la ronda 7, punto
+   6): mismo tono de "hay que fijarse" que .truncado, no de error — el
+   acuerdo sigue existiendo aquí igual, es la ida y vuelta con Monday la que
+   se cortó. */
+.avisoDesvinculado { color: var(--ojo); }
+
+/* Editar ahí mismo, en la bandeja (revisión final de la ronda 7, punto 8):
+   el acuerdo, su responsable y su fecha, sin salir de la fila. */
+.editarBoton {
+  font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--marca-texto, var(--marca));
+  background: none; border: none; padding: 0; cursor: pointer; text-decoration: none;
+}
+.editarBoton:hover:not(:disabled) { text-decoration: underline; }
+.editarBoton:disabled { color: var(--tinta-4); cursor: not-allowed; }
+
+.edicion { display: grid; gap: 0.5rem; }
+.edicionQue {
+  width: 100%; font: inherit; font-size: 0.95rem; color: var(--tinta);
+  padding: 0.45rem 0.6rem; border-radius: var(--r-2); border: none; background: var(--papel-hundido);
+}
+.edicionFila { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.6rem; }
+.edicionFecha {
+  font: inherit; font-size: 0.82rem; color: var(--tinta);
+  padding: 0.4rem 0.6rem; border-radius: var(--r-2); border: none; background: var(--papel-hundido);
+}
+.edicionAcciones { display: flex; align-items: center; gap: 0.6rem; }
+
+/* ---- de dónde cuelga ---- */
+.destino { display: grid; gap: 0.4rem; flex: 1 1 15rem; max-width: 19rem; }
+.opcion {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.84rem; color: var(--tinta-2); cursor: pointer;
+}
+.opcion:has(input:disabled) { color: var(--tinta-4); cursor: not-allowed; }
+.opcion input { accent-color: var(--marca, var(--tinta)); cursor: inherit; }
+
+.subelementoDetalle { display: grid; gap: 0.3rem; margin-left: 1.55rem; }
+.select {
+  width: 100%; font: inherit; font-size: 0.82rem; color: var(--tinta);
+  padding: 0.4rem 0.6rem; border-radius: var(--r-2);
+  border: none; background: var(--papel-hundido);
+}
+.select:disabled { color: var(--tinta-4); cursor: not-allowed; }
+.truncado { margin: 0; font-size: 0.74rem; color: var(--ojo); line-height: 1.4; }
+
+/* ---- acciones ---- */
+.acciones { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex: none; }
+.error { margin: 0; max-width: 16rem; text-align: right; font-size: 0.78rem; color: var(--mal); line-height: 1.4; }
+
+.confirmar { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.confirmarTexto { font-size: 0.76rem; color: var(--tinta-3); }
+.botonDescartarConfirmar {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  padding: 0.5rem 0.9rem; border: none; border-radius: var(--r-lleno); cursor: pointer;
+  background: var(--mal); color: var(--papel);
+}
+.botonDescartarConfirmar:disabled { opacity: 0.45; cursor: not-allowed; }
+.botonTexto {
+  font: inherit; font-size: 0.82rem; color: var(--tinta-3);
+  background: none; border: none; cursor: pointer; padding: 0.3rem;
+}
+.botonTexto:hover { color: var(--tinta); }
+.botonTexto:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- el espacio de acuerdos (tarea 11): filtros, la fila con estatus +
+   estrella, y el bloque de congelados ---- */
+
+.filtros {
+  display: flex; flex-wrap: wrap; gap: 0.9rem;
+  margin: 0 0 0.2rem;
+}
+.filtro { display: grid; gap: 0.35rem; min-width: 11rem; }
+
+/* La derecha de una fila del espacio de acuerdos: estatus + link a Monday +
+   estrella, en vez de las acciones de subir/descartar de la bandeja. */
+.filaDcha { display: flex; align-items: center; gap: 0.7rem; flex: none; }
+.enlaceMonday {
+  font-size: 0.78rem; color: var(--tinta-3); text-decoration: none; white-space: nowrap;
+}
+.enlaceMonday:hover { color: var(--tinta); text-decoration: underline; }
+
+/* El bloque aparte de las salas en pausa: apagado, para que se lea de un
+   vistazo que es historia congelada y no algo que falta atender hoy. */
+.congelados { opacity: 0.72; }
+.congeladosTitulo {
+  font-size: 0.98rem; font-weight: 600; margin: 0 0 0.3rem; letter-spacing: var(--track-normal);
+}
+.congeladosNota { font-size: 0.8rem; color: var(--tinta-3); margin: 0 0 0.6rem; line-height: 1.5; }

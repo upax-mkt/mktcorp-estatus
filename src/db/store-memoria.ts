@@ -55,6 +55,10 @@ export interface FilaAcuerdoMemoria {
   estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
   /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
   sesionOrigenId: string | null
+  /** El id de usuario de Monday del responsable, si es alguien de Mkt Corp — ver src/monday/bandeja.ts. */
+  responsableMondayId: string | null
+  /** 'no_aplica' | 'pendiente' | 'subido' | 'descartado' — ver src/monday/bandeja.ts. */
+  bandeja: string
   historia: HistoriaAcuerdoMemoria[]
   createdAt: Date
   updatedAt: Date

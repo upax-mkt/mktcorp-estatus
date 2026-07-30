@@ -11,6 +11,7 @@ import {
   pgEnum,
   text,
   integer,
+  boolean,
   timestamp,
   jsonb,
 } from 'drizzle-orm/pg-core'
@@ -59,6 +60,14 @@ export const salas = pgTable('salas', {
    */
   claveHash: text('clave_hash'),
   claveCreadaEn: timestamp('clave_creada_en', { withTimezone: true }),
+  /**
+   * Una sala en freeze comercial: no hay reuniones ni gestión hasta nuevo
+   * aviso. No se borra ni se esconde — su historia sigue entera y se consulta.
+   * Lo que se apaga es lo que la app le EXIGE: próxima reunión, seguimiento,
+   * vencimientos.
+   */
+  activa: boolean('activa').notNull().default(true),
+  pausadaDesde: timestamp('pausada_desde', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -151,6 +160,30 @@ export const acuerdos = pgTable('acuerdos', {
    * duplicados del mismo compromiso.
    */
   mondayId: text('monday_id'),
+  /**
+   * El id de usuario de Monday del responsable, cuando es alguien de Mkt Corp.
+   *
+   * Es lo que distingue un acuerdo nuestro de uno de la UDN, y por tanto lo que
+   * decide si entra a la bandeja. Se guarda el id y no solo el nombre porque la
+   * columna de personas de Monday exige el id, y emparejar por nombre escrito a
+   * mano es exactamente el error que tiene el dashboard viejo: seis nombres
+   * suyos ya no existen y uno se asigna a la persona equivocada.
+   */
+  responsableMondayId: text('responsable_monday_id'),
+  /** Prioritario: es lo que se ve en el Home. */
+  destacado: boolean('destacado').notNull().default(false),
+  /** 'elemento' | 'subelemento' — de qué tablero es `mondayId`, y por tanto qué columnas leerle. */
+  mondayTipo: text('monday_tipo'),
+  mondayUrl: text('monday_url'),
+  mondaySincronizadoEn: timestamp('monday_sincronizado_en', { withTimezone: true }),
+  /**
+   * 'no_aplica' | 'pendiente' | 'subido' | 'descartado'.
+   *
+   * Nace en 'no_aplica' y pasa a 'pendiente' cuando el acuerdo tiene
+   * responsable de Mkt Corp. 'descartado' es definitivo: es lo que impide que
+   * la bandeja vuelva a ofrecer algo que alguien ya decidió que no sube.
+   */
+  bandeja: text('bandeja').notNull().default('no_aplica'),
   /**
    * Historia de cambios (v1 mínima, spec §4 "historia de cambios"): un jsonb
    * con un registro por movimiento de estatus o edición — `{ en, estatusAnterior? ,
@@ -276,4 +309,15 @@ export const plantillas = pgTable('plantillas', {
   contenido: jsonb('contenido').$type<unknown>().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ---- Directorio de personas de Monday ----
+// Copia local del directorio de la cuenta. Existe para que un selector pueda
+// abrirse sin esperar a la red: si Monday tarda, el formulario se queda
+// esperando y no se puede escribir un acuerdo. Se refresca por detrás.
+export const personasMonday = pgTable('personas_monday', {
+  mondayId: text('monday_id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  correo: text('correo').notNull(),
+  cargadoEn: timestamp('cargado_en', { withTimezone: true }).notNull().defaultNow(),
 })

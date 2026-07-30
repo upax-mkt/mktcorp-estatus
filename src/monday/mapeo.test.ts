@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   UDN_DE_SALA, SALA_DE_UDN, FASE_DE_ESTATUS,
-  estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo,
+  estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo, columnasDe, COLUMNA_ELEMENTO, COLUMNA_SUBELEMENTO, INDICE_UDN,
 } from './mapeo'
 import { slugsDeSalas } from '@/temas'
 
@@ -43,10 +43,23 @@ describe('estatus y fase', () => {
     expect(estatusDeFase('✅ Materiales listos')).toBe('cumplido')
   })
 
-  it('cancelado no es cumplido: va a Detenido', () => {
+  it('cancelado va a Detenido y VUELVE como cancelado — la simetría que exige la vuelta (tarea 9)', () => {
     // El compromiso se dejó sin efecto, no se cumplió. Mandarlo a Done sería
     // apuntarse un logro que no pasó.
     expect(FASE_DE_ESTATUS.cancelado).toContain('Detenido')
+
+    // Hasta la tarea 9, "Detenido → abierto" era inofensivo: esta función
+    // solo alimentaba texto informativo. Desde que `reconciliar` usa su
+    // resultado para ESCRIBIR de vuelta en nuestra base (ver
+    // refrescarDesdeMonday en src/db/acuerdos.ts), esa asimetría resucitaba
+    // como abierto a cualquier acuerdo cancelado en cuanto se sincronizaba:
+    // al cancelar aquí escribimos "🚫 Detenido" en Monday con un updated_at
+    // necesariamente posterior a nuestro updatedAt local (la escritura a
+    // Monday siempre pasa DESPUÉS de guardar aquí), así que el siguiente
+    // refresh daba SIEMPRE gana-monday. No hacía falta que nadie más tocara
+    // nada en Monday. Ver el ciclo completo en
+    // src/db/refrescar-desde-monday-cancelado.test.ts.
+    expect(estatusDeFase('🚫 Detenido')).toBe('cancelado')
   })
 
   it('vencido NO se escribe como tal', () => {
@@ -56,8 +69,7 @@ describe('estatus y fase', () => {
     expect(FASE_DE_ESTATUS.vencido).toBe(FASE_DE_ESTATUS.abierto)
   })
 
-  it('lo que está parado sigue contando como abierto, no como cumplido', () => {
-    expect(estatusDeFase('🚫 Detenido')).toBe('abierto')
+  it('las demás fases de trabajo en curso cuentan como abierto, no como cumplido ni cancelado', () => {
     expect(estatusDeFase('⏳Backlog')).toBe('abierto')
     expect(estatusDeFase('🚧 Sprint')).toBe('abierto')
     expect(estatusDeFase('👀 Review')).toBe('abierto')
@@ -108,5 +120,31 @@ describe('nombre en el tablero', () => {
   it('ida y vuelta conserva el texto', () => {
     const que = 'Entregar el plan de medios de agosto'
     expect(queSinPrefijo(nombreEnMonday('mexa-creativa', que))).toBe(que)
+  })
+})
+
+describe('columnas por destino', () => {
+  it('un elemento y un subelemento no comparten ni una sola columna de estado', () => {
+    expect(COLUMNA_ELEMENTO.udn).toBe('color_mm0ex2j0')
+    expect(COLUMNA_SUBELEMENTO.udn).toBe('color_mm15emh7')
+    expect(COLUMNA_ELEMENTO.fase).not.toBe(COLUMNA_SUBELEMENTO.fase)
+    expect(COLUMNA_ELEMENTO.deadline).not.toBe(COLUMNA_SUBELEMENTO.deadline)
+  })
+
+  it('la columna de personas sí se llama igual en los dos', () => {
+    expect(COLUMNA_ELEMENTO.responsable).toBe('person')
+    expect(COLUMNA_SUBELEMENTO.responsable).toBe('person')
+  })
+
+  it('columnasDe devuelve el juego que toca', () => {
+    expect(columnasDe('elemento')).toBe(COLUMNA_ELEMENTO)
+    expect(columnasDe('subelemento')).toBe(COLUMNA_SUBELEMENTO)
+  })
+
+  it('cada sala tiene el índice de su etiqueta de UdN, que es lo que acepta el filtro', () => {
+    expect(INDICE_UDN['mexa-creativa']).toBe(1)
+    expect(INDICE_UDN['research-land']).toBe(156)
+    expect(INDICE_UDN['marketing-united']).toBe(105)
+    expect(Object.keys(INDICE_UDN)).toHaveLength(Object.keys(UDN_DE_SALA).length)
   })
 })

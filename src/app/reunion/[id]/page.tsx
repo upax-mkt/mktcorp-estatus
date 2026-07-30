@@ -6,6 +6,7 @@ import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { esEquipo, puedeVerEstaSala } from '@/auth/sesion'
+import { directorio } from '@/db/personas'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,25 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
 
   const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
   const equipo = await esEquipo()
+  /**
+   * SOLO EQUIPO CARGA EL DIRECTORIO — no solo lo pinta condicionado
+   * (corrección de revisión: fuga de datos).
+   *
+   * A esta página también llega el rol `sala`: es donde aterriza "Ver
+   * presentación" desde su propia sala (`puedeVerEstaSala` arriba ya lo
+   * confirmó). `directorio()` trae el nombre Y EL CORREO de las 24 personas
+   * de Mkt Corp para el selector de responsable, que solo se ofrece a quien
+   * es equipo (ver `ModoPresentar` → `MinutaCliente`).
+   *
+   * No basta con pasarlo igual y dejar que el componente decida no
+   * mostrarlo: `personas` llega hasta `ModoPresentar`, que es `'use client'`,
+   * y React serializa TODAS las props de un Client Component en el payload
+   * que viaja al navegador — se rendericen o no. Condicionar el RENDER no
+   * evita que el dato VIAJE; hay que condicionar la CARGA. Mismo patrón que
+   * `/cliente/[slug]/page.tsx` (revisión final ronda 7, punto 7) — si vas a
+   * "simplificar" este ternario, no: es justo lo que evita la fuga.
+   */
+  const personas = equipo ? await directorio() : []
 
   return (
     <div className={estilos.app}>
@@ -63,6 +83,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
         acuerdos={sala?.acuerdos ?? []}
         sesionId={sesion.id}
         equipo={equipo}
+        personas={personas}
       />
     </div>
   )

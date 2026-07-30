@@ -129,6 +129,12 @@
 .acuerdoBadge.cumplido { background: oklch(0.6 0.12 155 / 0.12); color: var(--ok); }
 .acuerdoBadge.vencido { background: var(--alerta-suave); color: var(--alerta); }
 
+/* Congelado (tarea 12): la sala está en pausa, así que este acuerdo abierto
+   no vence aunque su fecha haya quedado atrás. Tono neutro a propósito — ni
+   el rojo de "vencido" ni el gris plano de "abierto": es un estado propio. */
+.acuerdoEstado.congelado { background: var(--tx-3); }
+.acuerdoBadge.congelado { background: var(--superficie-2); color: var(--tx-3); font-style: italic; }
+
 /* ---- acuerdos: columna derecha (badge + controles de equipo) ---- */
 .acuerdoDcha { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
 
@@ -659,6 +665,21 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   color: var(--marca-texto, var(--marca)); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
 .avisoEnlace:hover { text-decoration: underline; }
+
+/* El aviso de freeze para quien NO es equipo (el director, de solo lectura):
+   equipo ya lo lee dentro de PausaSala, que además es su interruptor. Tono
+   ámbar (--tibia) y no el de marca: una pausa es una decisión operativa, no
+   parte de la identidad de la sala. */
+.avisoCongelado {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  margin-bottom: 1.5rem; padding: 0.85rem 1.1rem;
+  border-radius: var(--r-3);
+  background: var(--tibia-suave);
+  border: 1px solid color-mix(in oklch, var(--tibia) 30%, transparent);
+  font-size: 0.88rem; color: var(--tx-2); line-height: 1.5;
+}
+.avisoCongelado strong { color: var(--tx); font-weight: 600; }
 
 /* ---- lo que se está preparando para este cliente ---- */
 .enPreparacion { display: grid; gap: 0.5rem; margin-bottom: 1.2rem; }

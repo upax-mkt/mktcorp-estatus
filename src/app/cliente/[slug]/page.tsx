@@ -6,12 +6,16 @@ import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
 import { obtenerTema, slugsDeSalas, colorDeTextoDeMarca } from '@/temas'
 import {
-  estadoDeSala, acuerdosAbiertos, acuerdosVencidos, type Acuerdo,
+  estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
 import { sesionesMinutables, reunionesDeSala } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
-import { moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import {
+  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
+} from '@/db/acuerdos'
+import { directorio } from '@/db/personas'
+import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
   listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, type CategoriaArchivo,
@@ -25,9 +29,12 @@ import { LevantarMinuta } from '@/componentes/LevantarMinuta'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { PausaSala } from '@/componentes/PausaSala'
+import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
 import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
+import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
 import {
@@ -46,6 +53,34 @@ export const dynamic = 'force-dynamic'
 
 export function generateStaticParams() {
   return slugsDeSalas().map((slug) => ({ slug }))
+}
+
+/**
+ * La vuelta antes de leer: si Monday movió el estatus o la fecha de un
+ * acuerdo, que se refleje en la sala. Nunca debe tumbar la página —regla
+ * central de src/monday/sincronizar.ts—, así que el fallo se ignora para
+ * efectos de la pantalla. Pero "ignora" no es "en silencio para siempre"
+ * (corrección de revisión): si la causa NO es Monday —un SELECT/UPDATE
+ * nuestro que falló, no el tablero cayéndose— nadie se enteraría nunca de
+ * que la sincronización dejó de funcionar. Se distingue de un `ErrorMonday`
+ * (el tablero, que se cae y no es asunto nuestro) para no ensuciar los logs
+ * con algo esperable y sin acción posible de este lado.
+ *
+ * `slug`: se pasa SIEMPRE desde aquí (revisión final de la ronda 7, punto 4)
+ * — esta página es de UNA sala, así que solo hace falta reconciliar los
+ * acuerdos de esa sala, no los de las nueve. Antes `refrescarDesdeMonday()`
+ * sin argumento traía y reconciliaba TODOS en cada carga de CUALQUIER sala.
+ */
+async function refrescarDesdeMondaySeguro(slug: string): Promise<void> {
+  try {
+    await refrescarDesdeMonday(slug)
+  } catch (error) {
+    if (error instanceof ErrorMonday) {
+      console.error(`[refrescarDesdeMonday] Monday no respondió: ${error.message}`)
+    } else {
+      console.error('[refrescarDesdeMonday] Falló algo de nuestro lado, no de Monday:', error)
+    }
+  }
 }
 
 function textoFechaAcuerdo(a: Acuerdo): { txt: string; clase: string } {
@@ -71,14 +106,41 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // dato, no en la puerta. Un director solo abre su sala.
   if (!(await puedeVerEstaSala(slug))) notFound()
 
+  // La sala se pinta igual con lo que ya hay en la base pase lo que pase
+  // aquí — ver el comentario de refrescarDesdeMondaySeguro más arriba.
+  await refrescarDesdeMondaySeguro(slug)
+
   const s = await estadoDeSala(slug)
   if (!s) notFound()
-  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres, todasLasSesiones] = await Promise.all([
+  // Se resuelve ANTES del Promise.all de abajo (y no dentro) porque decide
+  // si se pide `directorio()` — necesita el valor YA resuelto, no una
+  // promesa hermana que todavía no corrió.
+  const equipo = await esEquipo()
+  const [benchmark, archivosPresentaciones, archivosDeInteres, todasLasSesiones, personas] = await Promise.all([
     obtenerBenchmark(slug),
-    esEquipo(),
     listarArchivos(slug, 'presentacion'),
     listarArchivos(slug, 'interes'),
     listarSesiones(),
+    /**
+     * Para el selector de responsable de NuevoAcuerdoForm/LevantarMinuta —
+     * SOLO SI ES EQUIPO (corrección de la revisión final de la ronda 7,
+     * punto 7).
+     *
+     * Esta página se comparte con el cliente interno por un enlace firmado
+     * de 30 días (`generarTokenDeSala`, ver más abajo). Antes `directorio()`
+     * —los nombres Y CORREOS de las 24 personas de Mkt Corp— se pedía
+     * siempre, sin condicionar a quién mira, y viajaba entero al HTML/RSC de
+     * la página en cuanto algo lo renderizaba (`editaAcuerdos` es cierto
+     * para CUALQUIER director en su propia sala, así que esto no era un caso
+     * raro: era el camino normal de todo director que da de alta un
+     * acuerdo). Sin equipo, `personas` llega vacío: el grupo "Mkt Corp" del
+     * selector sale con su aviso de siempre ("no se pudo cargar…", el mismo
+     * que ya usa cuando Monday está caído) y el director sigue pudiendo
+     * escribir el responsable de su UDN en texto libre — lo que pierde es
+     * poder asignar directo a alguien de Mkt Corp, y eso Mkt Corp lo puede
+     * corregir después (ver FilaBandeja, ahora editable en sitio).
+     */
+    equipo ? directorio() : Promise.resolve([]),
   ])
   const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
   // Lo que está a medio armar para este cliente. No es una reunión todavía —no
@@ -125,6 +187,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function crearAcuerdoAction(datos: {
     que: string
     responsable: string
+    responsableMondayId: string | null
     squad?: string
     fechaCompromiso: string | null
   }) {
@@ -133,6 +196,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await crearAcuerdo(slug, {
       que: datos.que,
       responsable: datos.responsable,
+      responsableMondayId: datos.responsableMondayId,
       squad: datos.squad,
       fechaCompromiso: datos.fechaCompromiso ? new Date(datos.fechaCompromiso) : null,
     })
@@ -182,6 +246,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
     redirect(`/deck/${nueva.id}`)
+  }
+
+  // ---- El freeze de esta sala (tarea 12, ronda 7) ----
+  // Cierres finos sobre `pausarSalaAction`/`reactivarSalaAction` (ambas ya
+  // exigen equipo por su cuenta) para que `PausaSala` no tenga que conocer el
+  // slug. La comprobación real de "¿se puede preparar una sesión con la sala
+  // en pausa?" NO vive aquí, sino en `crearSesion` (src/db/sesiones.ts): es
+  // el único punto por el que pasan los tres caminos que crean una sesión, y
+  // repetirla en cada página sería justo el tipo de protección que se olvida
+  // en una de las tres.
+
+  async function pausarEstaSalaAction(): Promise<void> {
+    'use server'
+    await pausarSalaAction(slug)
+  }
+
+  async function reactivarEstaSalaAction(): Promise<void> {
+    'use server'
+    await reactivarSalaAction(slug)
   }
 
   /**
@@ -362,6 +445,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       </div>
 
       <main className={estilos.main}>
+        {/* EL FREEZE (tarea 12): equipo ve el interruptor completo —pausar o
+            reactivar, con lo que cada uno implica—; el director de solo
+            lectura, si está en pausa, ve el mismo aviso sin el control, para
+            no ofrecerle un botón que su sesión no puede usar. */}
+        {equipo ? (
+          <PausaSala
+            nombreSala={s.nombre}
+            activa={s.activa}
+            pausadaDesde={s.pausadaDesde}
+            pausarAction={pausarEstaSalaAction}
+            reactivarAction={reactivarEstaSalaAction}
+          />
+        ) : (
+          !s.activa && (
+            <div className={estilos.avisoCongelado}>
+              <span>
+                <strong>{s.nombre} está en pausa</strong>
+                {s.pausadaDesde ? ` desde el ${fechaCompleta(s.pausadaDesde)}` : ''}: no hay reuniones ni
+                gestión hasta nuevo aviso. Los acuerdos se pueden seguir consultando y no vencen
+                mientras tanto.
+              </span>
+            </div>
+          )
+        )}
+
         {/* POR QUÉ ESTÁS AQUÍ, dicho en vez de dejarlo adivinar.
             Quien llega con un link de sala y no esperaba estar aquí —alguien
             de Mkt Corp que abrió el link para comprobar que servía— veía una
@@ -391,9 +499,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             <div className={estilos.acuerdos}>
               {s.acuerdos.map((a) => {
                 const f = textoFechaAcuerdo(a)
+                // Congelado (tarea 12): un abierto de una sala en pausa. Su
+                // estatus efectivo ya llega como 'abierto' —estatusEfectivo
+                // no lo pasa a vencido mientras la sala está apagada—, pero
+                // decir solo "abierto" sobre una fecha vieja no explicaría
+                // por qué no está en rojo. Se lo dice esta etiqueta aparte.
+                const congelado = estaCongelado(a, s)
+                const claseEstado = congelado ? estilos.congelado : estilos[a.estatus]
                 return (
                   <div key={a.id} className={estilos.acuerdo}>
-                    <span className={`${estilos.acuerdoEstado} ${estilos[a.estatus]}`} />
+                    <span className={`${estilos.acuerdoEstado} ${claseEstado}`} />
                     <div>
                       <div className={estilos.acuerdoQue}>{a.que}</div>
                       <div className={estilos.acuerdoMeta}>
@@ -404,7 +519,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                       </div>
                     </div>
                     <div className={estilos.acuerdoDcha}>
-                      <span className={`${estilos.acuerdoBadge} ${estilos[a.estatus]}`}>{ETIQUETA_ESTADO[a.estatus]}</span>
+                      <span className={`${estilos.acuerdoBadge} ${claseEstado}`}>
+                        {congelado ? 'congelado' : ETIQUETA_ESTADO[a.estatus]}
+                      </span>
+                      {/* La estrella: SOLO equipo, no `editaAcuerdos` — es
+                          Mkt Corp quien cura el Home, el director de la UDN
+                          no se auto-destaca (ver destacarAction). */}
+                      {equipo && (
+                        <Estrella acuerdoId={a.id} destacado={a.destacado ?? false} destacar={destacarAction} />
+                      )}
                       {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
                       {editaAcuerdos && (
                         <AcuerdoControles
@@ -422,7 +545,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               })}
             </div>
           )}
-          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
+          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
         </section>
 
         {/* REUNIONES — la presentación y su minuta, juntas.
@@ -464,11 +587,17 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
           {equipo && (
             <div className={estilos.reunionAcciones}>
-              <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />
+              {/* Con la sala en pausa no se puede preparar una sesión nueva
+                  sin reactivarla primero: consultar su historia sí, empezar
+                  trabajo nuevo no. Esto es solo el atajo —lo que de verdad
+                  lo impide es que `crearSesion` (src/db/sesiones.ts) rechaza
+                  la escritura del lado del servidor pase lo que pase aquí. */}
+              {s.activa && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
               <LevantarMinuta
                 sesiones={pendientesDeMinuta}
                 salaFija={slug}
                 claseBoton={estilos.nuevaMinutaBoton}
+                personas={personas}
               />
             </div>
           )}

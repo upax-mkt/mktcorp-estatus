@@ -8,6 +8,7 @@ import {
 } from '@/componentes/LevantarMinuta'
 import { EditorMolde } from '@/componentes/EditorMolde'
 import type { MoldeMinuta } from '@/minuta/molde'
+import type { PersonaMonday } from '@/monday/personas'
 import estilos from '@/app/hub.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
 
@@ -49,10 +50,12 @@ interface Props {
   /** El molde con el que se arman: editable desde aquí. */
   molde: MoldeMinuta
   guardarMoldeAction: (molde: MoldeMinuta) => Promise<{ error?: string }>
+  /** La gente viva de Mkt Corp, para el selector de responsable de MinutaCliente. */
+  personas: PersonaMonday[]
 }
 
 export function ModuloMinutas({
-  minutas, pendientes, salas, molde, guardarMoldeAction,
+  minutas, pendientes, salas, molde, guardarMoldeAction, personas,
 }: Props) {
   const [abierta, setAbierta] = useState<MinutaEnHome | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -103,7 +106,7 @@ export function ModuloMinutas({
           salía si había alguna presentada sin minuta, y eso lo hacía parecer
           una herramienta de seguimiento en vez de lo que es. */}
       <div className={estilos.moduloPie}>
-        <LevantarMinuta sesiones={pendientes} salas={salas} claseBoton="boton" />
+        <LevantarMinuta sesiones={pendientes} salas={salas} claseBoton="boton" personas={personas} />
         <EditorMolde molde={molde} guardarAction={guardarMoldeAction} />
       </div>
 
