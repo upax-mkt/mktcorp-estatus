@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { exigirEquipo } from '@/auth/sesion'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import {
   elementosDeDelivery, existeElGrupo, grupoDeAcuerdos, mondayConectado, ErrorMonday,
@@ -39,8 +40,18 @@ async function refrescarDesdeMondaySeguro(): Promise<void> {
  * roto" que ya se arregló, o al revés. Mismo criterio que el resto de las
  * pantallas de equipo (deck, cliente/[slug]).
  *
- * Esta página no se enlaza todavía desde ningún sitio: quien llega aquí lo
- * hace por la URL a mano.
+ * Ya se enlaza desde `/acuerdos` (tarea 11), con su contador.
+ *
+ * SOLO EQUIPO — mueve el tablero de Delivery que mira el equipo entero, y
+ * mezcla acuerdos de las diez UDNs a la vez, que son clientes distintos entre
+ * sí. `puedeVerRuta` (src/auth/politica.ts) ya la niega por defecto a una
+ * sesión de sala —lista blanca estricta, sin excepción para esta ruta—, pero
+ * esa es la verificación OPTIMISTA del proxy (ver su cabecera). La que manda
+ * es `exigirEquipo()` abajo, pegada al dato: la regla del proyecto es que
+ * cada página la repita, y esta pantalla se quedó sin hacerlo desde la tarea
+ * 8 (corrección detectada al construir `/acuerdos` en la tarea 11 — sus
+ * acciones, `subirAcuerdoAction`/`descartarAcuerdoAction`, sí la exigían;
+ * solo faltaba en la página).
  */
 export const dynamic = 'force-dynamic'
 
@@ -74,6 +85,8 @@ async function grupoExisteSeguro(): Promise<boolean> {
 }
 
 export default async function PagBandeja() {
+  await exigirEquipo()
+
   const hayToken = mondayConectado()
 
   // SIN TOKEN la integración está apagada de raíz: no hay nada que leer ni

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as esquema from '@/db/esquema'
+import { exigirEquipo } from '@/auth/sesion'
 
 /**
  * CONCURRENCIA DE LA BANDEJA (revisión de Franco a la tarea 8).
@@ -47,6 +48,13 @@ vi.mock('@/auth/sesion', () => ({
   exigirEquipo: vi.fn().mockResolvedValue({ rol: 'equipo', sub: 'equipo-mkt-corp' }),
 }))
 
+// Handle tipado sobre el mock de arriba: por defecto resuelve como equipo
+// (todos los tests existentes de subir/descartar cuentan con eso), pero el
+// test de destacarAction que exige sesión necesita poder hacerla fallar UNA
+// vez sin tocar el resto — `mockRejectedValueOnce` se autoconsume, no hace
+// falta resetearlo en beforeEach.
+const exigirEquipoMock = vi.mocked(exigirEquipo)
+
 const existeElGrupoMock = vi.fn()
 const crearElementoEnDeliveryMock = vi.fn()
 const crearSubelementoMock = vi.fn()
@@ -70,6 +78,7 @@ interface FilaFalsa {
   mondayTipo: string | null
   mondayUrl: string | null
   mondaySincronizadoEn: Date | null
+  destacado: boolean
   updatedAt: Date
 }
 
@@ -140,7 +149,7 @@ vi.mock('@/db/cliente', () => ({
   }),
 }))
 
-const { subirAcuerdoAction, descartarAcuerdoAction } = await import('./acciones')
+const { subirAcuerdoAction, descartarAcuerdoAction, destacarAction } = await import('./acciones')
 
 const BASE: FilaFalsa = {
   id: 'a1',
@@ -154,6 +163,7 @@ const BASE: FilaFalsa = {
   mondayTipo: null,
   mondayUrl: null,
   mondaySincronizadoEn: null,
+  destacado: false,
   updatedAt: new Date('2026-07-01T00:00:00Z'),
 }
 
@@ -236,5 +246,59 @@ describe('descartarAcuerdoAction — no pisa un acuerdo que ya se subió', () =>
   it('un acuerdo de verdad pendiente sí se descarta (la guarda no rompe el camino normal)', async () => {
     await descartarAcuerdoAction('a1')
     expect(estado.fila?.bandeja).toBe('descartado')
+  })
+})
+
+/**
+ * destacarAction (tarea 11, ronda 7). A diferencia de subir/descartar, la
+ * cuerpo de esta acción nunca corría en los tests de `Estrella`/`TablaAcuerdos`
+ * —ahí `destacar` es siempre un `vi.fn()`—, así que el orden real
+ * `exigirEquipo()` → `hayDB()` → UPDATE → error si no existe →
+ * `revalidatePath` no tenía ningún test que lo ejecutara de verdad. Reusa el
+ * mismo doble de arriba, sin arnés nuevo.
+ */
+describe('destacarAction', () => {
+  it('exige sesión de equipo ANTES de tocar la base: si no la hay, no llega a escribir', async () => {
+    exigirEquipoMock.mockRejectedValueOnce(
+      new Error('Esta acción es solo para el equipo de Marketing Corporativo.'),
+    )
+
+    await expect(destacarAction('a1', true)).rejects.toThrow('solo para el equipo')
+
+    // Nada se movió: la fila sigue exactamente como la dejó beforeEach.
+    expect(estado.fila).toEqual(BASE)
+  })
+
+  it('marca un acuerdo como destacado', async () => {
+    await destacarAction('a1', true)
+    expect(estado.fila?.destacado).toBe(true)
+  })
+
+  it('lo puede volver a quitar', async () => {
+    estado.fila = { ...BASE, destacado: true }
+    await destacarAction('a1', false)
+    expect(estado.fila?.destacado).toBe(false)
+  })
+
+  it('no confunde "coincide por el id correcto" con "es la única fila que hay"', async () => {
+    // Fila señuelo: existe en el doble, pero con OTRO id. Si `coincide`
+    // solo comprobara "hay una fila" en vez de comparar el id de verdad,
+    // este UPDATE la encontraría igual y el test no distinguiría nada —
+    // es el punto ciego que el doble tiene anotado en su cabecera.
+    estado.fila = { ...BASE, id: 'senuelo', destacado: false }
+
+    await expect(destacarAction('a1', true)).rejects.toThrow('Acuerdo no encontrado: "a1"')
+    expect(estado.fila?.destacado).toBe(false) // el señuelo no se tocó
+
+    // Con la fila correcta en su lugar, la MISMA llamada sí actualiza —
+    // confirma que el rechazo de arriba fue por el id, no por otra cosa.
+    estado.fila = { ...BASE, id: 'a1', destacado: false }
+    await destacarAction('a1', true)
+    expect(estado.fila?.destacado).toBe(true)
+  })
+
+  it('acuerdo inexistente: error explícito', async () => {
+    estado.fila = null
+    await expect(destacarAction('no-existe', true)).rejects.toThrow('Acuerdo no encontrado: "no-existe"')
   })
 })
