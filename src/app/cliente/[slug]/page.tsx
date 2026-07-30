@@ -14,6 +14,7 @@ import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
 } from '@/db/acuerdos'
+import { directorio } from '@/db/personas'
 import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
@@ -103,12 +104,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()
-  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres, todasLasSesiones] = await Promise.all([
+  const [benchmark, equipo, archivosPresentaciones, archivosDeInteres, todasLasSesiones, personas] = await Promise.all([
     obtenerBenchmark(slug),
     esEquipo(),
     listarArchivos(slug, 'presentacion'),
     listarArchivos(slug, 'interes'),
     listarSesiones(),
+    // Para el selector de responsable de NuevoAcuerdoForm — directorio() ya
+    // aguanta Monday caído devolviendo la copia local (o [], sin ninguna).
+    directorio(),
   ])
   const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
   // Lo que está a medio armar para este cliente. No es una reunión todavía —no
@@ -155,6 +159,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function crearAcuerdoAction(datos: {
     que: string
     responsable: string
+    responsableMondayId: string | null
     squad?: string
     fechaCompromiso: string | null
   }) {
@@ -163,6 +168,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await crearAcuerdo(slug, {
       que: datos.que,
       responsable: datos.responsable,
+      responsableMondayId: datos.responsableMondayId,
       squad: datos.squad,
       fechaCompromiso: datos.fechaCompromiso ? new Date(datos.fechaCompromiso) : null,
     })
@@ -452,7 +458,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               })}
             </div>
           )}
-          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} />}
+          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
         </section>
 
         {/* REUNIONES — la presentación y su minuta, juntas.
