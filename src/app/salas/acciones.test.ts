@@ -28,7 +28,13 @@ vi.mock('@/auth/sesion', () => ({
   exigirEquipo: vi.fn().mockResolvedValue({ rol: 'equipo', sub: 'equipo-mkt-corp' }),
 }))
 
-interface FilaFalsa { slug: string; nombre: string; primario: string }
+interface FilaFalsa {
+  slug: string
+  nombre: string
+  primario: string
+  familiaDisplay?: string
+  familiaTexto?: string
+}
 const filas = new Map<string, FilaFalsa>()
 
 const insertMock = vi.fn()
@@ -96,7 +102,7 @@ beforeEach(() => {
 describe('crearSalaAction — un slug vacío no se guarda', () => {
   it('nombre de puro emoji/símbolos (el slug también sale vacío) se rechaza, sin insertar', async () => {
     const r = await crearSalaAction({
-      nombre: '🎉🎉🎉', slug: '🎉🎉🎉', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: '🎉🎉🎉', slug: '🎉🎉🎉', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toBeTruthy()
     expect(insertMock).not.toHaveBeenCalled()
@@ -104,7 +110,7 @@ describe('crearSalaAction — un slug vacío no se guarda', () => {
 
   it('un slug crudo mandado directo con solo símbolos (bypass del formulario, la Server Action es un endpoint) se rechaza igual', async () => {
     const r = await crearSalaAction({
-      nombre: 'Una Sala De Verdad', slug: '###???', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: 'Una Sala De Verdad', slug: '###???', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toBeTruthy()
     expect(insertMock).not.toHaveBeenCalled()
@@ -112,7 +118,7 @@ describe('crearSalaAction — un slug vacío no se guarda', () => {
 
   it('slug vacío explícito se rechaza', async () => {
     const r = await crearSalaAction({
-      nombre: 'Otra Sala', slug: '', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: 'Otra Sala', slug: '', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toBeTruthy()
     expect(insertMock).not.toHaveBeenCalled()
@@ -120,7 +126,7 @@ describe('crearSalaAction — un slug vacío no se guarda', () => {
 
   it('nombre vacío se rechaza aunque el slug mandado no lo esté', async () => {
     const r = await crearSalaAction({
-      nombre: '   ', slug: 'algo-valido', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: '   ', slug: 'algo-valido', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toBeTruthy()
     expect(insertMock).not.toHaveBeenCalled()
@@ -130,7 +136,7 @@ describe('crearSalaAction — un slug vacío no se guarda', () => {
 describe('crearSalaAction — un slug repetido se rechaza diciendo cuál es', () => {
   it('crear "zeus" de nuevo rechaza sin insertar', async () => {
     const r = await crearSalaAction({
-      nombre: 'Zeus Falso', slug: 'zeus', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: 'Zeus Falso', slug: 'zeus', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toContain('zeus')
     expect(insertMock).not.toHaveBeenCalled()
@@ -138,7 +144,7 @@ describe('crearSalaAction — un slug repetido se rechaza diciendo cuál es', ()
 
   it('rechaza también contra "grupo-upax" — la décima fila, fuera de las nueve "salas de verdad"', async () => {
     const r = await crearSalaAction({
-      nombre: 'Grupo Upax', slug: 'grupo-upax', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: 'Grupo Upax', slug: 'grupo-upax', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toContain('grupo-upax')
     expect(insertMock).not.toHaveBeenCalled()
@@ -146,7 +152,7 @@ describe('crearSalaAction — un slug repetido se rechaza diciendo cuál es', ()
 
   it('un nombre que normaliza al mismo slug que uno existente, aunque escrito distinto, también choca', async () => {
     const r = await crearSalaAction({
-      nombre: 'Zeus', slug: '  ZEUS  ', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: 'Zeus', slug: '  ZEUS  ', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toContain('zeus')
     expect(insertMock).not.toHaveBeenCalled()
@@ -157,7 +163,7 @@ describe('editarSalaAction — el identificador de una sala existente es inmutab
   it('mandar un slug distinto en los datos no lo cambia: el UPDATE nunca toca la columna slug', async () => {
     const r = await editarSalaAction('zeus', {
       nombre: 'Zeus Renombrado', slug: 'otro-completamente-distinto', primario: '#00ff00',
-      logoUrl: null, logoRelacionDeTinta: null,
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
 
     expect(r.error).toBeUndefined()
@@ -175,7 +181,7 @@ describe('editarSalaAction — el identificador de una sala existente es inmutab
 
   it('editar una sala que no existe da error explícito con su slug, sin crear nada', async () => {
     const r = await editarSalaAction('sala-fantasma', {
-      nombre: 'Fantasma', slug: 'lo-que-sea', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+      nombre: 'Fantasma', slug: 'lo-que-sea', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
     })
     expect(r.error).toContain('sala-fantasma')
     expect(filas.has('sala-fantasma')).toBe(false)
@@ -192,8 +198,80 @@ describe('editarSalaAction — el identificador de una sala existente es inmutab
     updateDebeLanzar = true
     await expect(
       editarSalaAction('zeus', {
-        nombre: 'Zeus', slug: 'zeus', primario: '#614aca', logoUrl: null, logoRelacionDeTinta: null,
+        nombre: 'Zeus', slug: 'zeus', primario: '#614aca', familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
       }),
     ).resolves.toEqual({ error: 'la conexión se cayó a mitad del UPDATE' })
+  })
+})
+
+// TIPOGRAFÍA (tarea 7): antes `crearSalaAction` clavaba 'outfit' para toda
+// sala nueva ("sin selector todavía") y `editarSalaAction` ni siquiera
+// tocaba la columna. Ahora las dos vienen del formulario y esta acción es
+// quien de verdad las valida y las guarda — es un endpoint, y confiar en
+// que el cliente mande algo razonable es exactamente el hueco que
+// `validarDatosComunes` cierra en el resto de campos (slug, color).
+describe('crearSalaAction — tipografía', () => {
+  it('una familia de títulos que no existe se rechaza, sin insertar', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'esto-no-es-una-fuente', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toContain('esto-no-es-una-fuente')
+    expect(insertMock).not.toHaveBeenCalled()
+  })
+
+  it('una familia de texto que no existe se rechaza, sin insertar', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'esto-tampoco', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toContain('esto-tampoco')
+    expect(insertMock).not.toHaveBeenCalled()
+  })
+
+  it('inserta la familia elegida de verdad, no una constante fija para todas', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'anton', familiaTexto: 'raleway', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toBeUndefined()
+    expect(insertMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ familiaDisplay: 'anton', familiaTexto: 'raleway' }),
+    )
+  })
+
+  it('acepta también los dos alias heredados de la Fase 1 (specialGothic, satoshi) — no solo las veinte del catálogo elegible', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'specialGothic', familiaTexto: 'satoshi', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toBeUndefined()
+    expect(insertMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ familiaDisplay: 'specialGothic', familiaTexto: 'satoshi' }),
+    )
+  })
+})
+
+describe('editarSalaAction — tipografía', () => {
+  it('el .set() SÍ incluye la tipografía ahora (antes esta acción no la tocaba en absoluto)', async () => {
+    const r = await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toBeUndefined()
+    expect(setCapturado.ultimo).toMatchObject({ familiaDisplay: 'oswald', familiaTexto: 'inter' })
+    expect(filas.get('zeus')!.familiaDisplay).toBe('oswald')
+    expect(filas.get('zeus')!.familiaTexto).toBe('inter')
+  })
+
+  it('una familia inventada rechaza la edición completa (también el resto de campos que sí eran válidos), sin actualizar', async () => {
+    const r = await editarSalaAction('zeus', {
+      nombre: 'Zeus Con Nombre Nuevo', slug: 'zeus', primario: '#00ff00',
+      familiaDisplay: 'inventada-total', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toContain('inventada-total')
+    expect(setCapturado.ultimo).toBeNull()
+    // El nombre NO cambió: el rechazo fue completo, no parcial.
+    expect(filas.get('zeus')!.nombre).toBe('Zeus')
   })
 })

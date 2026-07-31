@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { archivoDeLogo } from '@/temas/logos'
 import type { Tema } from '@/temas/tipos'
 import { derivarEscalaDatos } from '@/lib/escala-datos'
-import { familiaCss } from '@/temas/fuentes'
+import { familiaCss, clasesDeFuentes } from '@/temas/fuentes'
 import { ajustarColorParaContraste } from '@/lib/superficie-texto'
 
 interface Props {
@@ -52,7 +52,22 @@ export function ProveedorTema({ tema, superficie, children }: Props) {
   datos.forEach((color, i) => { variables[`--dato-${i + 1}`] = color })
 
   return (
-    <div data-testid="tema" data-sala={tema.slug} style={variables as CSSProperties}>
+    <div
+      data-testid="tema"
+      data-sala={tema.slug}
+      // CARGA SELECTIVA (tarea 7, ronda 8): las variables CSS de SOLO las dos
+      // familias de esta sala (una si título y texto comparten familia), no
+      // las veinte del catálogo. `--fuente-display`/`--fuente-texto` de
+      // arriba son referencias `var(--f-…)` — sin la clase que de verdad
+      // define esa variable en algún ancestro, apuntarían a nada. Antes esa
+      // clase la ponían las veinte (o las nueve, Fase 1) colgadas del
+      // `<body>` en el layout raíz; ahora la pone la propia sala, aquí, y
+      // solo la suya — es el único sitio de la app donde una tipografía de
+      // marca se pinta de verdad (ver `documento.module.css`,
+      // `piezas.module.css`, `grafico.module.css`).
+      className={clasesDeFuentes([tema.familiaDisplay, tema.familiaTexto])}
+      style={variables as CSSProperties}
+    >
       {children}
     </div>
   )

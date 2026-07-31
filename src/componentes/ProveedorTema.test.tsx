@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { ProveedorTema } from './ProveedorTema'
 import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 import { contraste } from '@/lib/color'
+import { clasesDeFuentes } from '@/temas/fuentes'
 
 describe('ProveedorTema', () => {
   it('inyecta el primario de la sala', () => {
@@ -42,6 +43,47 @@ describe('ProveedorTema', () => {
       </ProveedorTema>,
     )
     expect(screen.getByText('hola')).toBeInTheDocument()
+  })
+})
+
+// CARGA SELECTIVA (tarea 7, ronda 8): ProveedorTema es el único lugar de la
+// app donde una tipografía DE MARCA se pinta de verdad (ver el comentario de
+// cabecera de fuentes.ts) — así que es quien tiene que cargar sus variables
+// CSS, y solo las suyas, en vez de heredar las veinte (o las nueve de la
+// Fase 1) del `<body>` del layout raíz.
+describe('ProveedorTema — carga solo las familias de su propia sala (tarea 7)', () => {
+  it('el className son exactamente las clases de familiaDisplay/familiaTexto de esta sala', () => {
+    render(
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.zeus} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    const esperado = clasesDeFuentes([SEMILLA_DE_TEMAS.zeus.familiaDisplay, SEMILLA_DE_TEMAS.zeus.familiaTexto])
+    expect(screen.getByTestId('tema').className).toBe(esperado)
+  })
+
+  it('con título y texto en la misma familia (neracode: outfit/outfit), la clase no se repite', () => {
+    render(
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.neracode} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    const clases = screen.getByTestId('tema').className.split(' ').filter(Boolean)
+    expect(clases).toHaveLength(1)
+  })
+
+  it('una sala con un alias heredado (mexa-creativa: familiaDisplay "specialGothic") igual carga una clase de fuente, no se queda vacía', () => {
+    // Regresión: si `clasesDeFuentes` no resolviera el alias, esta sala
+    // perdería la clase de Archivo Expandido y su título caería al
+    // font-family heredado — ver el comentario de ALIAS en fuentes.ts.
+    render(
+      <ProveedorTema tema={SEMILLA_DE_TEMAS['mexa-creativa']} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    const clases = screen.getByTestId('tema').className.split(' ').filter(Boolean)
+    // familiaDisplay 'specialGothic' → alias de archivoExpanded; familiaTexto 'raleway': dos familias reales, dos clases.
+    expect(clases).toHaveLength(2)
   })
 })
 

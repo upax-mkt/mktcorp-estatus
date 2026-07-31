@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CLASES_DE_FUENTES } from "@/temas/fuentes";
+import { clasesDeFuentes } from "@/temas/fuentes";
 import "./globals.css";
 // El sistema visual compartido —neutros, radios, elevación, movimiento y las
 // piezas comunes— después del reset, para que sus tokens ganen. Se importa
@@ -19,7 +19,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={CLASES_DE_FUENTES}>{children}</body>
+      {/* SOLO OUTFIT (tarea 7, ronda 8) — antes las nueve/veinte familias del
+          catálogo colgaban aquí, así que se cargaban en TODA página aunque
+          casi ninguna las usara. Outfit es la única que de verdad hace falta
+          en cualquier pantalla: es el `font-family` fijo de cada módulo de
+          chrome (globals.css, hub, salas, cliente, agenda, entrar, deck,
+          minuta…), no la tipografía de marca de una sala. La de marca —la
+          que sí cambia por sala— la carga `ProveedorTema`, scoped a la suya
+          (dos familias, no veinte); el Home no necesita ninguna aparte: el
+          logotipo ES el nombre de cada tarjeta, no hay texto de marca que
+          pintar (ver src/app/page.tsx). Detalle completo en el reporte de
+          la tarea 7. */}
+      <body className={clasesDeFuentes(['outfit'])}>{children}</body>
     </html>
   );
 }

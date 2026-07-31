@@ -8,6 +8,7 @@ import { exigirEquipo } from '@/auth/sesion'
 import { derivarMarca, slugDesdeNombre } from '@/lib/marca'
 import { generarEnlaceDeAgenda, revocarEnlaceDeAgenda } from '@/db/enlace-agenda'
 import type { DatosSala } from '@/componentes/salas/FormularioSala'
+import { esFamiliaConocida } from '@/temas/fuentes'
 import { urlBase } from '@/lib/url-base'
 
 /**
@@ -26,7 +27,6 @@ import { urlBase } from '@/lib/url-base'
  * no estuviera ya separado por el propio archivo.
  */
 
-const FAMILIA_POR_DEFECTO = 'outfit'
 const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
 
 /**
@@ -36,8 +36,25 @@ const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
  * aquí: crear y editar la tratan distinto (crear la exige contra CUALQUIER
  * fila existente, editar ni la mira — el slug de quien edita es, por
  * definición, el de su propia fila).
+ *
+ * FAMILIADISPLAY/FAMILIATEXTO (tarea 7) se validan con `esFamiliaConocida`,
+ * NO contra `CATALOGO_DE_FUENTES` directamente: esa función es
+ * deliberadamente más permisiva —acepta también los dos alias heredados de
+ * la Fase 1 ('specialGothic', 'satoshi') que hoy siguen guardadas
+ * mexa-creativa y uix— para que esas dos salas se puedan seguir editando
+ * (el logo, el color) sin que un campo de tipografía que nadie tocó bloquee
+ * el guardado entero. `FormularioSala` ya nunca vuelve a MANDAR esos dos
+ * alias salvo que el propio `sala` que le pasó `page.tsx` los traiga sin
+ * tocar — es la Server Action, no la pantalla, quien de verdad decide qué
+ * se guarda: es un endpoint, y esta validación es la que importa.
  */
-function validarDatosComunes(datos: { nombre: string; slug: string; primario: string }): string | null {
+function validarDatosComunes(datos: {
+  nombre: string
+  slug: string
+  primario: string
+  familiaDisplay: string
+  familiaTexto: string
+}): string | null {
   if (datos.nombre.trim().length === 0) return 'Escribe un nombre para la sala.'
   // Mismo contrato que documenta `slugDesdeNombre` (src/lib/marca.ts): un
   // nombre sin ningún carácter alfanumérico da slug vacío, y ese vacío no se
@@ -47,6 +64,12 @@ function validarDatosComunes(datos: { nombre: string; slug: string; primario: st
   }
   if (!HEX_VALIDO.test(datos.primario)) {
     return `"${datos.primario}" no es un color hex válido (se espera algo como "#614ACA").`
+  }
+  if (!esFamiliaConocida(datos.familiaDisplay)) {
+    return `"${datos.familiaDisplay}" no es una familia tipográfica reconocida para títulos.`
+  }
+  if (!esFamiliaConocida(datos.familiaTexto)) {
+    return `"${datos.familiaTexto}" no es una familia tipográfica reconocida para texto.`
   }
   return null
 }
@@ -98,11 +121,11 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
       textoSobreClara: marca.textoSobreClara,
       textoSobreOscura: marca.textoSobreOscura,
       gradiente: marca.gradiente,
-      // Sin selector de tipografía todavía (tarea 7, "Veinte tipografías"):
-      // toda sala nueva nace con la misma familia por defecto y se puede
-      // cambiar cuando esa pantalla exista.
-      familiaDisplay: FAMILIA_POR_DEFECTO,
-      familiaTexto: FAMILIA_POR_DEFECTO,
+      // Tarea 7: la tipografía la elige quien crea la sala —`FormularioSala`
+      // ya la manda validada (`validarDatosComunes`, arriba) — no una
+      // constante fija para todas.
+      familiaDisplay: datos.familiaDisplay,
+      familiaTexto: datos.familiaTexto,
       logoUrl: datos.logoUrl,
       logoRelacionDeTinta: datos.logoRelacionDeTinta,
     })
@@ -153,6 +176,12 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         textoSobreClara: marca.textoSobreClara,
         textoSobreOscura: marca.textoSobreOscura,
         gradiente: marca.gradiente,
+        // Tarea 7: antes este UPDATE no tocaba la tipografía en absoluto —no
+        // había desde dónde elegirla— así que cualquier edición (el logo, el
+        // color) dejaba la fuente donde estuviera. Ahora sí viaja, validada
+        // arriba igual que el resto de campos.
+        familiaDisplay: datos.familiaDisplay,
+        familiaTexto: datos.familiaTexto,
         logoUrl: datos.logoUrl,
         logoRelacionDeTinta: datos.logoRelacionDeTinta,
         updatedAt: new Date(),

@@ -139,6 +139,8 @@ export default async function PagSalas({
                           slug,
                           nombre: tema.nombre,
                           primario: tema.primario,
+                          familiaDisplay: tema.familiaDisplay,
+                          familiaTexto: tema.familiaTexto,
                           logoUrl: logoDeLaEditada?.logoUrl ?? null,
                           logoRelacionDeTinta: logoDeLaEditada?.logoRelacionDeTinta ?? null,
                         }}

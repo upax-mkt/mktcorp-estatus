@@ -6,6 +6,7 @@ import { slugDesdeNombre } from '@/lib/marca'
 import { medirTinta } from '@/lib/tinta'
 import { rutaDeArchivo, pesoLegible, TAMANO_MAXIMO } from '@/lib/blob'
 import { VistaPreviaMarca } from './VistaPreviaMarca'
+import { SelectorTipografia } from './SelectorTipografia'
 import estilos from '@/app/salas/salas.module.css'
 
 /**
@@ -14,19 +15,26 @@ import estilos from '@/app/salas/salas.module.css'
  * pantalla, esa mudanza no habría cambiado nada para Franco, solo movido
  * dónde vive el problema.
  *
- * Pide nombre, identificador, logo y color; deriva todo lo demás con
- * `derivarMarca` (vía `VistaPreviaMarca`, que enseña el resultado antes de
- * guardar) y sube el logo a Vercel Blob igual que ya suben archivos las
- * salas desde la ronda 2 (ver `src/componentes/ArchivosSala.tsx` — mismo
- * patrón: el navegador escribe directo en Blob con un token de un solo uso,
- * y esta pantalla solo registra la URL al terminar).
+ * Pide nombre, identificador, logo, color y —desde la tarea 7— las dos
+ * tipografías; deriva todo lo demás con `derivarMarca` (vía
+ * `VistaPreviaMarca`, que enseña el resultado antes de guardar) y sube el
+ * logo a Vercel Blob igual que ya suben archivos las salas desde la ronda 2
+ * (ver `src/componentes/ArchivosSala.tsx` — mismo patrón: el navegador
+ * escribe directo en Blob con un token de un solo uso, y esta pantalla solo
+ * registra la URL al terminar).
  */
+
+/** La familia por defecto de una sala nueva — la misma que ya tenían las diez antes de que existiera este selector. */
+const FAMILIA_POR_DEFECTO = 'outfit'
 
 /** Lo que este formulario le manda a `guardar` — ya validado del lado del cliente. */
 export interface DatosSala {
   nombre: string
   slug: string
   primario: string
+  /** Clave de `CATALOGO_DE_FUENTES` (src/temas/fuentes.ts) — tarea 7. */
+  familiaDisplay: string
+  familiaTexto: string
   logoUrl: string | null
   logoRelacionDeTinta: number | null
 }
@@ -36,6 +44,13 @@ export interface SalaExistente {
   slug: string
   nombre: string
   primario: string
+  /**
+   * Opcionales por el mismo motivo que `logoUrl`/`logoRelacionDeTinta`: una
+   * sala real siempre las trae (ver `src/app/salas/page.tsx`), pero el
+   * formulario no debe asumirlo — si faltan, arranca en `FAMILIA_POR_DEFECTO`.
+   */
+  familiaDisplay?: string
+  familiaTexto?: string
   logoUrl?: string | null
   logoRelacionDeTinta?: number | null
 }
@@ -68,6 +83,8 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
   const [identificador, setIdentificador] = useState(sala?.slug ?? '')
   const [identificadorTocado, setIdentificadorTocado] = useState(editando)
   const [primario, setPrimario] = useState(sala?.primario ?? '')
+  const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
+  const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
   const [logoUrl, setLogoUrl] = useState<string | null>(sala?.logoUrl ?? null)
   const [logoRelacion, setLogoRelacion] = useState<number | null>(sala?.logoRelacionDeTinta ?? null)
   const [avisoLogo, setAvisoLogo] = useState<string | null>(null)
@@ -188,6 +205,8 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
           nombre: nombre.trim(),
           slug: editando ? (sala as SalaExistente).slug : identificadorFinal,
           primario,
+          familiaDisplay,
+          familiaTexto,
           logoUrl,
           logoRelacionDeTinta: logoRelacion,
         })
@@ -303,6 +322,20 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
           logoUrl={logoUrl}
           logoRelacionDeTinta={logoRelacion}
         />
+      </div>
+
+      {/* TIPOGRAFÍA (tarea 7) — a todo el ancho del formulario, aparte de las
+          dos columnas de arriba: veinte muestras legibles necesitan más
+          sitio del que le toca a la columna izquierda de campos. */}
+      <div className={estilos.formularioTipografia}>
+        <div className={estilos.formularioTipografiaCampo}>
+          <span className={estilos.etiqueta}>Tipografía de títulos</span>
+          <SelectorTipografia nombre="familiaDisplay" valor={familiaDisplay} alCambiar={setFamiliaDisplay} />
+        </div>
+        <div className={estilos.formularioTipografiaCampo}>
+          <span className={estilos.etiqueta}>Tipografía de texto</span>
+          <SelectorTipografia nombre="familiaTexto" valor={familiaTexto} alCambiar={setFamiliaTexto} />
+        </div>
       </div>
 
       {error && <p className={estilos.formularioError}>{error}</p>}

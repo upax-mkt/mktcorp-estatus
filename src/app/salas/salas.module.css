@@ -145,3 +145,53 @@
 .previaColorTexto { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
 .previaColorEtiqueta { font-size: 0.78rem; color: var(--tx-2); }
 .previaColorHex { font-size: 0.78rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+
+/* ---- tipografía (tarea 7): dos preguntas —títulos y texto—, cada una con
+   su SelectorTipografia. Va a todo el ancho del formulario, aparte de las
+   dos columnas de arriba: veinte muestras legibles necesitan más sitio del
+   que le toca a la columna izquierda. */
+.formularioTipografia { display: grid; gap: 1.5rem; margin-top: 0.3rem; }
+.formularioTipografiaCampo { display: grid; gap: 0.5rem; min-width: 0; }
+
+.selectorFuentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.6rem;
+  max-height: 23rem;
+  overflow-y: auto;
+  padding: 0.2rem;
+  border-radius: 0.6rem;
+  background: var(--hundido);
+}
+
+.opcionFuente {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--borde);
+  border-radius: 0.55rem;
+  background: var(--superficie);
+  cursor: pointer;
+  min-width: 0;
+}
+.opcionFuente:hover { border-color: var(--borde-fuerte); }
+.opcionFuente:has(input:focus-visible) { outline: 2px solid var(--acento); outline-offset: 2px; }
+.opcionFuente:has(input:checked) {
+  border-color: var(--acento);
+  background: color-mix(in oklch, var(--acento) 8%, var(--superficie));
+}
+
+/* El radio real, visible — mismo criterio que .radio en editor.module.css:
+   nunca se esconde detrás de un control a medida. */
+.opcionFuente input[type='radio'] { width: auto; margin: 0; accent-color: var(--acento); justify-self: start; }
+
+.opcionFuenteCabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.opcionFuenteNombre { font-size: 0.82rem; font-weight: 650; color: var(--tx); }
+.opcionFuenteRegistro { font-size: 0.68rem; color: var(--tx-3); white-space: nowrap; }
+
+/* Las muestras: CADA una pintada con `style={{ fontFamily: familiaCss(clave) }}`
+   desde SelectorTipografia — lo que hace este componente es distinto de un
+   <select>, ver su comentario de cabecera. Aquí solo se fija tamaño/línea. */
+.muestraTitulo { font-size: 1.3rem; font-weight: 700; line-height: 1.15; color: var(--tx); overflow-wrap: anywhere; }
+.muestraParrafo { font-size: 0.84rem; line-height: 1.42; color: var(--tx-2); overflow-wrap: anywhere; }
