@@ -50,12 +50,21 @@ const CONTRASTE_MINIMO_TEXTO = 4.5
  * SECUNDARIO Y ACENTO: split-complementario clásico. En vez de un
  * complementario puro (180°, el choque máximo entre dos colores) se usan los
  * dos matices a 180° ± 30° = 150° y 210°: un triángulo de tres tonos que se
- * distinguen entre sí sin "pelearse" visualmente. No es un número inventado
- * para esta tarea — es la construcción de rueda de color más citada para
- * sacar una paleta de tres colores de un solo tono de partida — y cae dentro
- * de lo que ya usan las marcas reales de UPAX: la distancia de matiz entre
- * primario y secundario va de ~85° (Zeus, morado→rosa) a ~177° (Promo
- * Espacio, naranja→teal) entre las nueve UDN; 150 queda cómodo en medio.
+ * distinguen entre sí sin "pelearse" visualmente. Es la construcción de rueda
+ * de color más citada para sacar una paleta de tres tonos de un solo color de
+ * partida: separa lo suficiente para no confundirse con el primario, sin
+ * llegar al choque máximo de un complementario puro.
+ *
+ * CORRECCIÓN (revisión, 30-jul): esta nota citaba antes un respaldo empírico
+ * que no resistió la comprobación ("la distancia entre primario y secundario
+ * va de ~85° a ~177° entre las nueve UDN reales; 150 queda cómodo en medio").
+ * Medido de verdad con `hexAHsl` sobre las nueve marcas (tabla completa en el
+ * reporte de esta tarea): el rango real es 13° (House of Films) a 172°
+ * (Promo Espacio), con mediana ~78°. 150° cae del lado ALTO de ese rango, no
+ * en medio — cuatro marcas están por debajo de 35° (primario y secundario
+ * casi análogos) y solo cuatro superan los 90°. La elección de 150°/210° no
+ * se apoya en ese dato: se apoya en la construcción de rueda de color del
+ * párrafo de arriba, que sigue siendo válida por sí sola.
  */
 const ROTACION_SECUNDARIO_GRADOS = 150
 const ROTACION_ACENTO_GRADOS = 210
@@ -78,6 +87,22 @@ const L_MINIMA_SECUNDARIO_ACENTO = 12
 const L_MAXIMA_SECUNDARIO_ACENTO = 88
 
 /**
+ * CORRECCIÓN (revisión, 30-jul): con un primario acromático extremo
+ * (`#000000` o `#FFFFFF`) los dos clamps de arriba chocaban contra el MISMO
+ * tope del rango —los dos caían en 12, o los dos en 88— y con saturación 0 el
+ * matiz no salva nada (girar 150° o 210° un gris sigue dando el mismo gris):
+ * secundario y acento salían literalmente idénticos. `separarSiChocan` (más
+ * abajo) repara esto DESPUÉS del clamp individual, solo cuando hace falta:
+ * si los dos valores quedan a menos de esta distancia, los reparte alrededor
+ * de su punto medio sin sacarlos de [12,88]. 16 es bastante menos que el
+ * ancho total del rango (76), así que la ventana de separación siempre cabe
+ * sin tener que tocar los dos topes a la vez. Se reutiliza el mismo número
+ * para la segunda parada del degradado, más abajo: es la misma pregunta
+ * ("¿esto se nota distinto?"), no dos reglas separadas.
+ */
+const SEPARACION_MINIMA_L = 16
+
+/**
  * SUPERFICIES: el primario "muy desaturado". La saturación se topa en 10 —o
  * menos, si el primario tiene menos: nunca se inventa más color del que el
  * primario ya tenía. Un primario gris (s=0, sin matiz definido — el caso
@@ -97,14 +122,58 @@ const L_SUPERFICIE_OSCURA = 12
  * GRADIENTE: primario → una variante más oscura de sí mismo (mismo matiz y
  * saturación, -25 de luminosidad), no una mezcla con el secundario — así lo
  * pide el brief, y así queda como un "duotono" de una sola marca en vez de
- * una transición a un color distinto. Sin piso propio: si el primario ya es
- * casi negro, `acotar` evita bajar de 0 y la segunda parada es, como mucho,
- * negro puro — que sigue siendo "una variante más oscura".
+ * una transición a un color distinto.
+ *
+ * La excepción, tratada donde se calcula la segunda parada (`derivarMarca`,
+ * más abajo): un primario ya pegado al negro no deja margen para oscurecer
+ * lo bastante —en el caso extremo, un primario `#000000` no tiene "más
+ * oscuro" posible, y las dos paradas salían IDÉNTICAS—, así que ahí, y solo
+ * ahí, se aclara en su lugar. Para cualquier primario con l ≥ 16 (la enorme
+ * mayoría de colores de marca reales) esto no aplica: el degradado es
+ * exactamente "primario → -25 de luminosidad", sin excepción.
  */
 const DELTA_L_GRADIENTE = 25
 
 function acotar(valor: number, minimo: number, maximo: number): number {
   return Math.max(minimo, Math.min(maximo, valor))
+}
+
+/**
+ * Si `lo` y `hi` (cada uno ya clampeado a [minimo,maximo] por su cuenta)
+ * quedaron a menos de `separacionMinima` de distancia, los reparte alrededor
+ * de su propio punto medio y desliza la ventana resultante hacia dentro del
+ * rango si se sale por algún lado — sin perder ancho de separación por
+ * deslizarse: `separacionMinima` se topa a `maximo - minimo` primero, así que
+ * la ventana siempre cabe entera en algún punto del rango. Si ya venían
+ * separados, no los toca.
+ *
+ * Asume `lo <= hi` a la entrada. Vale aquí porque el delta de secundario
+ * siempre es menor que el de acento (-8 contra +10) y `acotar` es una función
+ * no decreciente: no puede invertir el orden de dos valores que ya estaban
+ * ordenados.
+ */
+function separarSiChocan(
+  lo: number,
+  hi: number,
+  separacionMinima: number,
+  minimo: number,
+  maximo: number,
+): [number, number] {
+  const separacion = Math.min(separacionMinima, maximo - minimo)
+  if (hi - lo >= separacion) return [lo, hi]
+
+  const centro = (lo + hi) / 2
+  let loNuevo = centro - separacion / 2
+  let hiNuevo = centro + separacion / 2
+  if (loNuevo < minimo) {
+    hiNuevo += minimo - loNuevo
+    loNuevo = minimo
+  }
+  if (hiNuevo > maximo) {
+    loNuevo -= hiNuevo - maximo
+    hiNuevo = maximo
+  }
+  return [loNuevo, hiNuevo]
 }
 
 /**
@@ -139,6 +208,16 @@ function normalizarHex(hex: string): string {
  * de paso los guiones repetidos y los que vendrían de puntuación consecutiva
  * (espacios dobles, "/ "): una racha de caracteres no alfanuméricos —sea cual
  * sea su origen— se convierte en un único guion.
+ *
+ * CONTRATO (revisión, 30-jul): si `nombre` no tiene NINGÚN carácter
+ * alfanumérico latino sin acento —vacío, solo espacios, solo símbolos, solo
+ * guiones, solo emoji— esta función devuelve `''`. No lanza ni inventa un
+ * valor de relleno: es una transformación de texto, no un validador. Este
+ * slug termina como identificador de una sala (clave primaria, segmento de
+ * URL — ver la tarea 6, `FormularioSala`/`crearSalaAction`); quien lo
+ * consuma es responsable de rechazar `''` antes de guardarlo. Se documenta
+ * aquí a propósito para que esa responsabilidad no dependa de leer esta
+ * implementación.
  */
 export function slugDesdeNombre(nombre: string): string {
   return nombre
@@ -158,16 +237,21 @@ export function derivarMarca(nombre: string, primario: string): MarcaDerivada {
   const primarioNormalizado = normalizarHex(primario)
   const { h, s, l } = hexAHsl(primarioNormalizado)
 
-  const secundario = colorDerivado(
-    h + ROTACION_SECUNDARIO_GRADOS,
-    s,
-    acotar(l + DELTA_L_SECUNDARIO, L_MINIMA_SECUNDARIO_ACENTO, L_MAXIMA_SECUNDARIO_ACENTO),
+  const lSecundarioObjetivo = acotar(
+    l + DELTA_L_SECUNDARIO, L_MINIMA_SECUNDARIO_ACENTO, L_MAXIMA_SECUNDARIO_ACENTO,
   )
-  const acento = colorDerivado(
-    h + ROTACION_ACENTO_GRADOS,
-    s,
-    acotar(l + DELTA_L_ACENTO, L_MINIMA_SECUNDARIO_ACENTO, L_MAXIMA_SECUNDARIO_ACENTO),
+  const lAcentoObjetivo = acotar(
+    l + DELTA_L_ACENTO, L_MINIMA_SECUNDARIO_ACENTO, L_MAXIMA_SECUNDARIO_ACENTO,
   )
+  const [lSecundario, lAcento] = separarSiChocan(
+    lSecundarioObjetivo,
+    lAcentoObjetivo,
+    SEPARACION_MINIMA_L,
+    L_MINIMA_SECUNDARIO_ACENTO,
+    L_MAXIMA_SECUNDARIO_ACENTO,
+  )
+  const secundario = colorDerivado(h + ROTACION_SECUNDARIO_GRADOS, s, lSecundario)
+  const acento = colorDerivado(h + ROTACION_ACENTO_GRADOS, s, lAcento)
 
   const saturacionSuperficie = Math.min(SATURACION_MAXIMA_SUPERFICIE, s)
   const superficieClara = colorDerivado(h, saturacionSuperficie, L_SUPERFICIE_CLARA)
@@ -194,7 +278,19 @@ export function derivarMarca(nombre: string, primario: string): MarcaDerivada {
     CONTRASTE_MINIMO_TEXTO,
   ).toLowerCase()
 
-  const gradienteOscuro = colorDerivado(h, s, acotar(l - DELTA_L_GRADIENTE, 0, 100))
+  // Objetivo: -25 de luminosidad (más oscura). `lGradienteObjetivo` siempre
+  // es <= l (restar un delta positivo y clampear a [0,100] nunca puede subir
+  // el valor por encima de donde partió), así que "l - lGradienteObjetivo"
+  // sin valor absoluto ya es la distancia real. Si el primario está a menos
+  // de SEPARACION_MINIMA_L de negro puro, ese objetivo se clampea a 0 y
+  // queda MÁS CERCA de `l` de lo que hace falta para leerse como una
+  // segunda parada de verdad — el caso extremo, primario `#000000`, no tiene
+  // margen ninguno (0 de distancia: las dos paradas salían idénticas). Ahí
+  // no existe "más oscura que negro", así que se aclara en su lugar.
+  const lGradienteObjetivo = acotar(l - DELTA_L_GRADIENTE, 0, 100)
+  const lGradienteSegundaParada =
+    l - lGradienteObjetivo >= SEPARACION_MINIMA_L ? lGradienteObjetivo : l + SEPARACION_MINIMA_L
+  const gradienteSegundaParada = colorDerivado(h, s, lGradienteSegundaParada)
 
   return {
     nombre: nombre.trim(),
@@ -205,6 +301,6 @@ export function derivarMarca(nombre: string, primario: string): MarcaDerivada {
     superficieOscura,
     textoSobreClara,
     textoSobreOscura,
-    gradiente: [primarioNormalizado, gradienteOscuro],
+    gradiente: [primarioNormalizado, gradienteSegundaParada],
   }
 }
