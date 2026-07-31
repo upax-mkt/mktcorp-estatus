@@ -73,3 +73,43 @@ describe('slugDesdeNombre — contrato de cadena vacía (revisión, 30-jul)', ()
     }
   })
 })
+
+/**
+ * COLISIÓN SIMÉTRICA CON LA SUPERFICIE OSCURA (revisión de la tarea 6,
+ * 31-jul) — confirmada empíricamente, igual que la colisión con la
+ * superficie clara que ya documenta `VistaPreviaMarca.tsx`: con un primario
+ * casi negro, `derivarMarca` desatura y oscurece ese mismo matiz hasta la
+ * superficie oscura, y si el primario ya estaba pegado al negro, las dos
+ * salen literalmente el mismo hex.
+ *
+ * `#1f1f1f` (gris puro, L≈12, el mismo L que `L_SUPERFICIE_OSCURA`) es el
+ * caso exacto, análogo a `#f7f7f7` para la superficie clara.
+ *
+ * FIJADO AQUÍ COMO CONTRATO PROBADO, sin resolverlo todavía: a diferencia de
+ * la colisión clara, esta NO tiene una vista previa que avise —
+ * `VistaPreviaMarca` solo detecta `primario === superficieClara`— porque el
+ * brief de la tarea 6 describía explícitamente el caso claro, no el
+ * simétrico. Queda documentado para quien decida si vale la pena avisar
+ * también de este lado.
+ */
+describe('derivarMarca — colisión primario/superficieOscura con un primario casi negro', () => {
+  it('con #1f1f1f, primario y superficieOscura son el mismo hex', () => {
+    const m = derivarMarca('Sala Oscura', '#1f1f1f')
+    expect(m.primario).toBe(m.superficieOscura)
+  })
+
+  it('el texto sobre esa superficie sigue siendo legible: textoSobreOscura parte de blanco, no del primario, así que no hereda la colisión', () => {
+    const m = derivarMarca('Sala Oscura', '#1f1f1f')
+    expect(contraste(m.textoSobreOscura, m.superficieOscura)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('existen otros grises que también colisionan: no es un único punto aislado', () => {
+    const colisiones: string[] = []
+    for (let v = 0; v <= 255; v++) {
+      const hex = `#${v.toString(16).padStart(2, '0').repeat(3)}`
+      const m = derivarMarca('Sala de prueba', hex)
+      if (m.primario === m.superficieOscura) colisiones.push(hex)
+    }
+    expect(colisiones.length).toBeGreaterThan(0)
+  })
+})

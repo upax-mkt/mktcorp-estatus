@@ -29,7 +29,7 @@ import estilos from '@/app/salas/salas.module.css'
 interface Props {
   enlace: string | null
   generarAction: () => Promise<{ enlace?: string; error?: string }>
-  revocarAction: () => Promise<void>
+  revocarAction: () => Promise<{ error?: string }>
 }
 
 type AccionPendiente = 'generar' | 'revocar' | null
@@ -40,13 +40,27 @@ export function BloqueEnlaceAgenda({ enlace: enlaceInicial, generarAction, revoc
   const [confirmando, setConfirmando] = useState<AccionPendiente>(null)
   const [pendiente, empezar] = useTransition()
 
+  /**
+   * Las dos acciones se llaman SIEMPRE dentro de un try/catch (mismo criterio
+   * que `PausaSala.ejecutar`) — no basta con mirar `r.error`: `generarAction`/
+   * `revocarAction` empiezan con `exigirEquipo()`, y si la sesión ya venció
+   * mientras esta pestaña seguía abierta (la cookie de equipo dura 7 días),
+   * eso LANZA en vez de devolver `{error}`. Sin el catch, esa promesa
+   * rechazada no tenía dónde aterrizar y la pantalla reventaba sin decir por
+   * qué — exactamente lo que este bloque existe para evitar en el enlace
+   * mismo.
+   */
   function generar() {
     setError(null)
     setConfirmando(null)
     empezar(async () => {
-      const r = await generarAction()
-      if (r.error) setError(r.error)
-      else setEnlace(r.enlace ?? null)
+      try {
+        const r = await generarAction()
+        if (r.error) setError(r.error)
+        else setEnlace(r.enlace ?? null)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
     })
   }
 
@@ -54,8 +68,13 @@ export function BloqueEnlaceAgenda({ enlace: enlaceInicial, generarAction, revoc
     setError(null)
     setConfirmando(null)
     empezar(async () => {
-      await revocarAction()
-      setEnlace(null)
+      try {
+        const r = await revocarAction()
+        if (r.error) setError(r.error)
+        else setEnlace(null)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
     })
   }
 

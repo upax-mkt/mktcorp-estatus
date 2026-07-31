@@ -131,24 +131,37 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
 
   const marca = derivarMarca(datos.nombre, datos.primario)
 
-  const actualizada = await db()
-    .update(esquema.salas)
-    .set({
-      nombre: marca.nombre,
-      primario: marca.primario,
-      secundario: marca.secundario,
-      acento: marca.acento,
-      superficieClara: marca.superficieClara,
-      superficieOscura: marca.superficieOscura,
-      textoSobreClara: marca.textoSobreClara,
-      textoSobreOscura: marca.textoSobreOscura,
-      gradiente: marca.gradiente,
-      logoUrl: datos.logoUrl,
-      logoRelacionDeTinta: datos.logoRelacionDeTinta,
-      updatedAt: new Date(),
-    })
-    .where(eq(esquema.salas.slug, slug))
-    .returning({ slug: esquema.salas.slug })
+  // Envuelto en try/catch, igual que `crearSalaAction` con su INSERT — antes
+  // no lo estaba, y un fallo de escritura (conexión caída a mitad, una
+  // restricción que rechaza el UPDATE) se propagaba como promesa rechazada
+  // en vez de un `{error}` legible. La corrección real que hacía falta era
+  // del lado del cliente (ver `FormularioSala`, que ahora envuelve la
+  // llamada a `guardar()` entera), pero esto cierra el hueco simétrico: la
+  // acción no debe depender de que quien la llama la envuelva bien para dar
+  // un mensaje decente.
+  let actualizada: { slug: string }[]
+  try {
+    actualizada = await db()
+      .update(esquema.salas)
+      .set({
+        nombre: marca.nombre,
+        primario: marca.primario,
+        secundario: marca.secundario,
+        acento: marca.acento,
+        superficieClara: marca.superficieClara,
+        superficieOscura: marca.superficieOscura,
+        textoSobreClara: marca.textoSobreClara,
+        textoSobreOscura: marca.textoSobreOscura,
+        gradiente: marca.gradiente,
+        logoUrl: datos.logoUrl,
+        logoRelacionDeTinta: datos.logoRelacionDeTinta,
+        updatedAt: new Date(),
+      })
+      .where(eq(esquema.salas.slug, slug))
+      .returning({ slug: esquema.salas.slug })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo guardar la sala.' }
+  }
 
   if (actualizada.length === 0) return { error: `Sala desconocida: "${slug}"` }
 
@@ -176,8 +189,20 @@ export async function generarEnlaceAction(): Promise<{ enlace?: string; error?: 
   return { enlace: `${await urlBase()}/agenda/${token}` }
 }
 
-export async function revocarEnlaceAction(): Promise<void> {
+/**
+ * Devuelve `{error?}` en vez de `Promise<void>` — antes no lo hacía, y un
+ * fallo al borrar la fila (conexión caída, por ejemplo) se propagaba como
+ * promesa rechazada sin ningún canal para explicarlo. Mismo criterio que
+ * `generarEnlaceAction`, su hermana: la acción devuelve el problema, el
+ * componente lo enseña.
+ */
+export async function revocarEnlaceAction(): Promise<{ error?: string }> {
   await exigirEquipo()
-  await revocarEnlaceDeAgenda()
+  try {
+    await revocarEnlaceDeAgenda()
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo revocar el enlace.' }
+  }
   revalidatePath('/salas')
+  return {}
 }

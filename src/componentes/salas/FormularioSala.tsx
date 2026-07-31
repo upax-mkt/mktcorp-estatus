@@ -176,18 +176,29 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
     setError(null)
     setGuardado(false)
     empezar(async () => {
-      const r = await guardar({
-        nombre: nombre.trim(),
-        slug: editando ? (sala as SalaExistente).slug : identificadorFinal,
-        primario,
-        logoUrl,
-        logoRelacionDeTinta: logoRelacion,
-      })
-      if (r.error) {
-        setError(r.error)
-        return
+      // La llamada a `guardar` va DENTRO del try (mismo criterio que
+      // `PausaSala.ejecutar`): `crearSalaAction`/`editarSalaAction` empiezan
+      // con `exigirEquipo()`, y una sesión vencida con esta pestaña todavía
+      // abierta —la cookie de equipo dura 7 días— hace que ESO lance en vez
+      // de devolver `{error}`. Sin el catch, esa promesa rechazada no tenía
+      // dónde aterrizar: la pantalla reventaba sin decir "tu sesión venció,
+      // vuelve a entrar", que es justo lo que necesita leer quien lo pulsó.
+      try {
+        const r = await guardar({
+          nombre: nombre.trim(),
+          slug: editando ? (sala as SalaExistente).slug : identificadorFinal,
+          primario,
+          logoUrl,
+          logoRelacionDeTinta: logoRelacion,
+        })
+        if (r.error) {
+          setError(r.error)
+          return
+        }
+        setGuardado(true)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
       }
-      setGuardado(true)
     })
   }
 

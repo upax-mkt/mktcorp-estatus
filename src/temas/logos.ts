@@ -6,29 +6,61 @@
  * el apaisado ocupa 4,2 veces más superficie y se lee como si gritara al lado
  * de los otros. El ojo no compara alturas: compara MANCHA.
  *
- *     alto = 28 × (4 / proporción_de_tinta) ^ 0.25
+ *     alto = 28 × (0.34 / proporción_de_tinta) ^ 0.29
  *
- * DOS NÚMEROS Y POR QUÉ SON ESOS (no cambian con la tarea 6 — ver más abajo
- * qué sí cambió):
+ * **CORRECCIÓN (revisión, 31-jul): esta fórmula tuvo un error real de
+ * magnitud en su primera versión, encontrado por el revisor y verificado por
+ * mí midiendo los once lockups reales — ver la tabla comparativa completa en
+ * el reporte de la tarea 6.** La primera versión reutilizaba el `4` y el
+ * `0.25` de la fórmula VIEJA (calibrada para una razón de aspecto, que iba de
+ * 1,64 a 6,80) sustituyendo directamente la entrada por
+ * `proporcionDeTinta` (0 a 1) sin recalibrar nada — un `4` que una proporción
+ * acotada a 1 NUNCA PUEDE ALCANZAR. Medí los once logos reales de
+ * `public/logos/` con `sharp` (mismo algoritmo que `proporcionDeTinta`, sobre
+ * el buffer RGBA completo del archivo) y la fórmula vieja daba alturas de
+ * 1,49× a 2,19× más grandes que `ALTO_LOGO` — Zeus de 23,5 a 46,3, Ceci de
+ * 41,4 a 71,9 — exactamente el problema que esta normalización existe para
+ * evitar, ahora vivo en la vista previa en vez de en trabajo futuro.
+ *
+ * **`0.34` y `0.29` son la recalibración**, ajustada por regresión
+ * log-lineal contra los once pares (proporción de tinta real, alto de
+ * `ALTO_LOGO`) — no elegidos a mano. `0.34` es, aproximadamente, la mediana
+ * de proporción de tinta de los once lockups reales (0,092 a 0,535): un logo
+ * con esa densidad renderiza a los 28px de referencia. El exponente
+ * (0,29, redondeado de 0,2885) sigue siendo GENTIL —lejos de la igualación
+ * pura de área, que sería 0,5— por la misma razón que el original: frenar
+ * cuánto castiga o premia un extremo, no solo por casualidad numérica.
+ * Aplicada a los once reales, esta versión da alturas de 24,6 a 40,9px —
+ * dentro del rango real de `ALTO_LOGO` (23,5 a 41,4) — y respeta
+ * aproximadamente el orden (Ceci, la de menos tinta, sigue siendo la más
+ * alta; Zeus y UiX, las de más tinta, siguen entre las más bajas). No es un
+ * ajuste perfecto punto a punto —House of Films en particular queda más bajo
+ * de lo que su ALTO_LOGO sugiere, porque la métrica vieja medía SU FORMA
+ * (aspecto de la caja de tinta) y la nueva mide cuánto aire dejó quien
+ * exportó el archivo, que son cosas distintas— pero el criterio pedido era
+ * el rango y el orden aproximado, no una réplica exacta.
+ *
+ * DOS NÚMEROS QUE SÍ SE CONSERVAN DE LA VERSIÓN ORIGINAL:
  *
  * - **28 px de referencia**, no 40. Con 40 los logos dominaban la tarjeta
  *   por encima de los datos, que es lo que se viene a leer. Franco: "los logos
  *   en el home de las salas son enormes".
- * - **Exponente 0.25**, no 0,5. La igualación pura de área (0,5) pasa de frenada:
- *   deja House of Films casi al doble de alto que Research Land, y esa
- *   diferencia de altura se lee como otro tipo de desproporción. Con 0.25 las
- *   alturas quedan dentro de un margen estrecho y la mancha, pareja.
+ * - **Un exponente bien por debajo de 0.5** (igualación pura de área), que
+ *   pasa de frenada: dejaría un extremo casi al doble de alto que el otro, y
+ *   esa diferencia de altura se leería como otro tipo de desproporción.
  *
- * DE DÓNDE SALE LA PROPORCIÓN (tarea 6, ronda 8) — esto es lo que cambió:
- * hasta el 30-jul, un script fuera de la app medía la MANCHA REAL de cada
- * PNG —su caja de tinta y la densidad dentro— y el resultado se pegaba a mano
- * en la tabla `ALTO_LOGO` de abajo. Un logo subido desde `/salas` no puede
- * esperar a que alguien corra un script: se mide en el propio navegador, al
- * elegir el archivo, pintándolo en un `<canvas>` y contando qué fracción de
- * sus píxeles NO es transparente (ver `proporcionDeTinta`/`medirTinta` en
- * `src/lib/tinta.ts`). Ese número se guarda en `salas.logoRelacionDeTinta` y
- * `altoDesdeTinta`, más abajo, alimenta la MISMA fórmula con ese dato en vez
- * de con la tabla.
+ * DE DÓNDE SALE LA PROPORCIÓN (tarea 6, ronda 8): hasta el 30-jul, un script
+ * fuera de la app medía la MANCHA REAL de cada PNG —su caja de tinta y la
+ * densidad dentro— y el resultado se pegaba a mano en la tabla `ALTO_LOGO` de
+ * abajo. Un logo subido desde `/salas` no puede esperar a que alguien corra
+ * un script: se mide en el propio navegador, al elegir el archivo, pintándolo
+ * en un `<canvas>` y contando qué fracción de sus píxeles NO es transparente
+ * (ver `proporcionDeTinta`/`medirTinta` en `src/lib/tinta.ts`, y nótese que
+ * mide sobre el LIENZO COMPLETO, no sobre una caja recortada — por eso es una
+ * magnitud distinta a la razón de aspecto vieja, no solo una escala distinta
+ * de la misma cosa). Ese número se guarda en `salas.logoRelacionDeTinta` y
+ * `altoDesdeTinta`, más abajo, alimenta esta fórmula con ese dato en vez de
+ * con la tabla.
  *
  * Si el logo viene sin transparencia (un JPG, o un PNG exportado con fondo
  * blanco sólido), la medición da 1 — el lienzo entero "es tinta" — y la
@@ -81,16 +113,28 @@ export function archivoDeLogo(slug: string, variante: 'color' | 'blanco' = 'colo
 
 /** Altura de referencia cuando no hay nada mejor que usar: ni una medición, ni la tabla vieja. */
 const ALTO_POR_DEFECTO = 28
-/** El mismo "4" del comentario de cabecera: a esta proporción de tinta, la fórmula da exactamente ALTO_POR_DEFECTO. */
-const TINTA_DE_REFERENCIA = 4
-const EXPONENTE = 0.25
+/**
+ * A esta proporción de tinta, la fórmula da exactamente `ALTO_POR_DEFECTO`.
+ * Es, aproximadamente, la MEDIANA de proporción de tinta de los once lockups
+ * reales (0,335, ver la tabla de la cabecera) — no un número elegido a ojo:
+ * "el logo con la densidad típica de hoy renderiza a la altura de
+ * referencia" es lo que hace que 28px siga significando algo concreto.
+ */
+const TINTA_DE_REFERENCIA = 0.34
+/**
+ * Ajustado por regresión log-lineal contra los once pares reales (ver la
+ * cabecera del archivo) — no heredado sin más de la versión anterior, que
+ * calibraba una magnitud distinta (razón de aspecto, no proporción de
+ * tinta). Se mantiene bien por debajo de 0.5 (igualación pura de área) por la
+ * misma razón que la versión original: un exponente así de gentil evita que
+ * un extremo salga desproporcionadamente más alto o más bajo que el resto.
+ */
+const EXPONENTE = 0.29
 
 /**
  * El alto que le toca a un logo YA MEDIDO (`proporcionDeTinta`, 0 a 1).
  *
- * Misma fórmula que antes calculaba la tabla fija a mano —la referencia y el
- * exponente no cambian, ver el comentario de cabecera de este archivo—, ahora
- * aplicada al vuelo sobre un dato por sala en vez de una constante escrita a
+ * Aplicada al vuelo sobre un dato por sala en vez de una constante escrita a
  * mano. `null`/`undefined`/0 (todavía no se midió, o algo salió mal) caen a
  * `ALTO_POR_DEFECTO`: ni gigante ni diminuto mientras no hay una medición de
  * la que partir.
