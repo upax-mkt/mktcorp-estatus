@@ -7,16 +7,17 @@ import { obtenerTema, slugsDeSalas } from '@/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
 import type { DatosFormulario } from '@/componentes/agenda/FormularioSesion'
-import { fechaLarga } from '@/lib/fecha'
+import { fechaLarga, instanteEnCDMX } from '@/lib/fecha'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Día + hora del formulario → instante.
- *
- * Se ancla explícitamente al huso de CDMX y no a la zona del proceso: en
- * Vercel el servidor corre en UTC, así que "10:00" se guardaría como las
- * cuatro de la mañana en México.
+ * Día + hora del formulario → instante, anclado a CDMX (ver `instanteEnCDMX`,
+ * src/lib/fecha.ts) y no a la zona del proceso: en Vercel el servidor corre
+ * en UTC, así que "10:00" se guardaría como las cuatro de la mañana en
+ * México. El default de "10:00" cuando no se especifica hora es una regla de
+ * esta pantalla (una reunión sin hora se asume de mañana), no del helper
+ * genérico, así que se queda aquí.
  *
  * Vive FUERA del componente. Dentro, las Server Actions la capturaban en su
  * cierre y React intentaba serializarla al cliente: "Functions cannot be
@@ -24,7 +25,7 @@ export const dynamic = 'force-dynamic'
  * al usar la página.
  */
 function instanteDe(dia: string, hora: string): Date {
-  return new Date(`${dia}T${hora || '10:00'}:00-06:00`)
+  return instanteEnCDMX(dia, hora || '10:00')
 }
 
 /**

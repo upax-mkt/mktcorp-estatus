@@ -36,7 +36,7 @@ import { secretoConfigurado } from '@/auth/sesion'
 import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
+import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import {
   esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
@@ -236,8 +236,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         tipo: 'mensual',
         alcance: 'todos',
         // Las 10:00 de CDMX, no la medianoche UTC: sin huso explícito una
-        // reunión "del 19" se guarda como las 18:00 del 18 en México.
-        fecha: new Date(`${datos.dia}T10:00:00-06:00`),
+        // reunión "del 19" se guarda como las 18:00 del 18 en México. Ver
+        // `instanteEnCDMX`, src/lib/fecha.ts.
+        fecha: instanteEnCDMX(datos.dia, '10:00'),
         estado: 'agendada',
       })
     } catch (error) {

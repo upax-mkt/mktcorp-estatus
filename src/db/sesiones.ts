@@ -24,7 +24,7 @@ import {
   obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
 } from '@/secciones/plantillas'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
-import { diaCivil, horaBreve } from '@/lib/fecha'
+import { diaCivil, horaBreve, instanteEnCDMX } from '@/lib/fecha'
 
 export type { DefinicionItem } from '@/secciones/plantillas'
 
@@ -1041,16 +1041,9 @@ export interface ReunionPublica {
   hora: string
 }
 
-/**
- * El primer instante de un mes, anclado a CDMX.
- *
- * Mismo criterio que `instanteDe` en `src/app/agenda/page.tsx`: el desfase
- * -06:00 se escribe fijo porque México central dejó el horario de verano en
- * 2022, así que no hace falta traer una librería de zonas horarias para un
- * solo desfase que ya no cambia en el año.
- */
+/** El primer instante de un mes, anclado a CDMX (ver `instanteEnCDMX`, src/lib/fecha.ts). */
 function inicioDeMes(anio: number, mes: number): Date {
-  return new Date(`${anio}-${String(mes).padStart(2, '0')}-01T00:00:00-06:00`)
+  return instanteEnCDMX(`${anio}-${String(mes).padStart(2, '0')}-01`, '00:00')
 }
 
 /**
@@ -1106,18 +1099,45 @@ export async function sesionesPublicasDelMes(anio: number, mes: number): Promise
     )
     .orderBy(asc(esquema.sesiones.fecha))
 
-  return filas.map((fila) => {
-    // El INNER JOIN de arriba garantiza sala_slug no nulo: solo entra una
-    // fila cuando hace match con una fila de `salas`.
-    const slug = fila.salaSlug as string
-    const tema = obtenerTema(slug)
-    const iso = fila.fecha.toISOString()
-    return {
-      salaSlug: slug,
-      salaNombre: tema.nombre,
-      salaColor: tema.primario,
-      fecha: diaCivil(iso),
-      hora: horaBreve(iso),
-    }
-  })
+  /**
+   * UNA FILA DE `salas` PUEDE EXISTIR SIN TENER TEMA (corrección de revisión).
+   *
+   * `salas` y `src/temas` son dos registros separados que deberían moverse
+   * juntos y no siempre lo hacen: en producción hay una fila `grupo-upax`,
+   * ACTIVA, que ya no está en `TEMAS` — se sacó de ahí a propósito (ver el
+   * comentario junto a `TEMAS` en src/temas/index.ts: "GRUPO UPAX YA NO ES
+   * UNA SALA"), pero la fila de la base nunca se desactivó. El INNER JOIN de
+   * arriba filtra por `salas.activa`, no por "¿tiene tema?", así que una
+   * sesión no-borrador con `sala_slug = 'grupo-upax'` llegaría hasta aquí y
+   * `obtenerTema` reventaría — tumbando la agenda pública ENTERA de ese mes,
+   * la única pantalla que ve gente de fuera del equipo.
+   *
+   * La corrección es descartar la fila, no disfrazarla con una identidad
+   * prestada (el patrón `temaDeSalaSeguro` de acuerdos.ts/consultas.ts, que
+   * sí tiene sentido puertas adentro). Para esta pantalla en concreto una
+   * sala sin tema es, por definición, una sala que ya no es una UDN real —
+   * el mismo caso que una sesión SIN sala (ver el comentario de la función):
+   * no tiene lugar en un calendario que anuncia "cuándo le toca a [UDN]", y
+   * mostrarla con un nombre inventado sería peor que no mostrarla.
+   */
+  const slugsConTema = new Set(slugsDeSalas())
+
+  return filas
+    .filter((fila): fila is typeof fila & { salaSlug: string } => {
+      // El INNER JOIN de arriba ya garantiza sala_slug no nulo (solo entra
+      // una fila cuando hace match con una fila de `salas`); esta condición
+      // es la que de verdad filtra: que ese slug siga teniendo tema.
+      return fila.salaSlug !== null && slugsConTema.has(fila.salaSlug)
+    })
+    .map((fila) => {
+      const tema = obtenerTema(fila.salaSlug)
+      const iso = fila.fecha.toISOString()
+      return {
+        salaSlug: fila.salaSlug,
+        salaNombre: tema.nombre,
+        salaColor: tema.primario,
+        fecha: diaCivil(iso),
+        hora: horaBreve(iso),
+      }
+    })
 }

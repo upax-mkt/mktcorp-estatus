@@ -134,3 +134,25 @@ export function textoProxima(iso: string | null, referencia: Date): string {
   const dias = diasHasta(iso, referencia)
   return `próxima ${fechaBreve(iso)}${dias >= 0 ? ` · en ${dias} d` : ''}`
 }
+
+/**
+ * Un instante EXACTO en CDMX, a partir de un día civil (`YYYY-MM-DD`) y una
+ * hora del reloj (`HH:MM`).
+ *
+ * Distinto de `instanteDe` (arriba, privado): aquella ancla a mediodía UTC
+ * porque solo le importa "qué día civil es" y ese margen la deja lejos de
+ * cualquier frontera de día pase lo que pase con el huso. Esta función
+ * necesita el instante VERDADERO —para guardar cuándo empieza una reunión—
+ * así que sí asume el desfase real: `-06:00` fijo, porque México central dejó
+ * el horario de verano en 2022 y hoy ese desfase no cambia en el año. No hace
+ * falta traer una librería de zonas horarias para un solo desfase constante.
+ *
+ * Corrección de revisión (ronda 8, tarea 3): este mismo truco vivía copiado
+ * a mano en tres sitios — `src/app/cliente/[slug]/page.tsx`,
+ * `src/app/agenda/page.tsx` y `src/db/sesiones.ts` — cada uno con su propio
+ * literal `-06:00`. Si ese desfase alguna vez cambia, este es el único lugar
+ * que hay que arreglar.
+ */
+export function instanteEnCDMX(diaCivilTexto: string, horaMinuto: string): Date {
+  return new Date(`${diaCivilTexto}T${horaMinuto}:00-06:00`)
+}
