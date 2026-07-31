@@ -359,6 +359,23 @@ export const personasMonday = pgTable('personas_monday', {
   cargadoEn: timestamp('cargado_en', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// ---- Personas de la app ----
+// QUIÉN puede entrar y con qué permiso. La clave es el CORREO porque es lo
+// único estable que devuelve Slack: los nombres cambian y sus identificadores
+// son opacos.
+//
+// No confundir con `personas_monday`, que es el directorio de la CUENTA DE
+// MONDAY y sirve para asignar responsables de acuerdos. Una persona puede estar
+// en las dos, en una o en ninguna.
+export const personas = pgTable('personas', {
+  correo: text('correo').primaryKey(),
+  nombre: text('nombre').notNull(),
+  rol: text('rol').notNull(),
+  activa: boolean('activa').notNull().default(true),
+  creadaEn: timestamp('creada_en', { withTimezone: true }).notNull().defaultNow(),
+  ultimoAcceso: timestamp('ultimo_acceso', { withTimezone: true }),
+})
+
 // ---- Enlace público de la agenda ----
 // UNA sola fila (id = 1). El token no lleva nada dentro —a diferencia del
 // enlace de sala, que codifica qué sala y hasta cuándo y por eso va firmado—
