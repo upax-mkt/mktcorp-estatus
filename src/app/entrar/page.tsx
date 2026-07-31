@@ -4,12 +4,12 @@ import estilos from './entrar.module.css'
 import {
   abrirSesionEquipo,
   claveDeEquipoCorrecta,
+  claveDeEquipoSigueSirviendo,
   hayAuth,
   hayClaveDeEquipo,
 } from '@/auth/sesion'
 import { slackConfigurado } from '@/auth/slack'
 import { salaDeClave } from '@/db/claves'
-import { hayAlgunaPersona } from '@/db/directorio'
 import { abrirSesionSala, secretoConfigurado } from '@/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -57,18 +57,11 @@ export default async function Entrar({
       redirect(`/entrar?${parametros}`)
     }
 
-    /**
-     * EL PORTILLO DE EMERGENCIA, y no es un descuido.
-     *
-     * Si el directorio está vacío nadie puede entrar —ni quien tenía que
-     * darse de alta a sí mismo, en /personas— así que mientras no haya NI UNA
-     * persona, la clave de equipo sigue sirviendo y entra como admin: es la
-     * única forma de llegar a esa pantalla la primera vez. En cuanto hay una
-     * persona en el directorio, este camino deja de funcionar — a partir de
-     * ahí se entra con la cuenta de Slack, como cualquiera del directorio.
-     * No lo quites pensando que sobra: es el extintor.
-     */
-    if (await hayAlgunaPersona()) {
+    // EL PORTILLO DE EMERGENCIA — el porqué completo, y por qué no se toca,
+    // vive en `claveDeEquipoSigueSirviendo()` (src/auth/sesion.ts), que es
+    // además donde se prueba: esta función no puede probarse aquí (necesita
+    // cookies/un request de Next vivo), esa sí.
+    if (!(await claveDeEquipoSigueSirviendo())) {
       const parametros = new URLSearchParams({ error: 'clave-retirada' })
       if (aDonde !== '/') parametros.set('destino', aDonde)
       redirect(`/entrar?${parametros}`)

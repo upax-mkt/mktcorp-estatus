@@ -12,8 +12,10 @@
  *               `puedeEditarContenido` y `puedeLeer`, más abajo, son esos tres
  *               niveles. `src/auth/roles.ts` los reexporta junto con las
  *               funciones que lanzan (`exigirAdmin`/`exigirEditor`/
- *               `exigirLectura`), siguiendo el mismo patrón que `exigirEquipo`
- *               de src/auth/sesion.ts usa con `puedeEditar`.
+ *               `exigirLectura`), siguiendo el mismo patrón que
+ *               `exigirEdicionDeAcuerdos` de src/auth/sesion.ts ya usa con
+ *               `puedeEditarAcuerdos`: sesión actual → predicado de aquí →
+ *               lanza si no pasa.
  * - `sala`    — el director de una UDN, que entra por un link firmado. Ve SU
  *               sala y SU deck, en solo lectura. Nada más.
  *

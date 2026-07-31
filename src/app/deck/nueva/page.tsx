@@ -6,7 +6,7 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
-import { exigirEditor } from '@/auth/roles'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +19,9 @@ export const dynamic = 'force-dynamic'
  * enviarlo. Se marcan aquí para que no llegue a ese punto.
  */
 export default async function PagNuevaSesion() {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero.
+  await exigirLectura()
   const [pausadas, registro, salas] = await Promise.all([
     slugsDeSalasPausadas(),
     cargarTemas(),

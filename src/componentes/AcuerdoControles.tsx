@@ -20,9 +20,12 @@ interface Props {
  * existente de `sala/[slug]/page.tsx` — no se rediseña la vista de sala.
  *
  * Solo se pintan si quien mira es del equipo: la vista de sala los envuelve en
- * `{equipo && ...}`. Esconderlos es cosmética — lo que de verdad protege es el
- * `exigirEquipo()` al inicio de cada Server Action, porque una acción es un
- * endpoint y se puede llamar sin pasar por esta pantalla.
+ * `{equipo && ...}`. Esconderlos es cosmética — lo que de verdad protege es
+ * `exigirEdicionDeAcuerdos(slug)` al inicio de cada Server Action que recibe
+ * este componente (`cambiarEstatusAction`/`editarFechaAction`/
+ * `eliminarAction`, ver `src/app/cliente/[slug]/page.tsx`): admite al
+ * equipo (admin o editor) Y al director de esta UDN en su propia sala, y una
+ * acción es un endpoint que se puede llamar sin pasar por esta pantalla.
  */
 export function AcuerdoControles({
   acuerdoId,

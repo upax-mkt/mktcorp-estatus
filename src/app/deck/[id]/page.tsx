@@ -19,7 +19,7 @@ import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEditor } from '@/auth/roles'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
@@ -50,6 +50,10 @@ function etiquetaAlcance(alcance: string): string {
 }
 
 export default async function PagSesion({ params }: { params: Promise<{ id: string }> }) {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero,
+  // antes incluso de mirar si el id existe.
+  await exigirLectura()
   const { id } = await params
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()

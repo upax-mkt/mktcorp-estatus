@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import estilos from './deck.module.css'
 import { listarSesiones, eliminarSesion } from '@/db/sesiones'
 import { obtenerMinuta } from '@/db/minutas'
-import { exigirEditor } from '@/auth/roles'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
@@ -23,6 +23,11 @@ function etiquetaAlcance(alcance: string): string {
 }
 
 export default async function PagPreparar() {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9): las Server Actions de aquí abajo ya
+  // exigían editor por su cuenta, pero cargar la pantalla en sí no exigía
+  // nada — el patrón del repo es que cada página repita la comprobación.
+  await exigirLectura()
   const sesiones = await listarSesiones()
   // Lo que está por delante (agendado o a medio llenar) contra lo que ya pasó.
   // Una sesión 'agendada' pertenece aquí: es justo lo que hay que preparar.

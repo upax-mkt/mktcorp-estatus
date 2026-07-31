@@ -4,8 +4,9 @@
 // componente de cliente.
 import { cookies } from 'next/headers'
 import { firmar, verificar, type Sesion, type RolApp } from './firma'
-import { puedeEditar, puedeEditarAcuerdos, puedeVerSala } from './politica'
+import { puedeEditarAcuerdos, puedeVerSala } from './politica'
 import { COOKIE_SESION } from './nombres'
+import { hayAlgunaPersona } from '@/db/directorio'
 
 /**
  * La sesión viva: leer quién entró, abrirla y cerrarla. Es la capa de acceso
@@ -115,26 +116,45 @@ export async function generarTokenDeSala(sala: string, dias = DIAS_SALA): Promis
   return firmar({ rol: 'sala', sala, exp: Date.now() + dias * MS_POR_DIA }, secreto)
 }
 
+/**
+ * EL PORTILLO DE EMERGENCIA, y no es un descuido.
+ *
+ * Si el directorio está vacío nadie puede entrar —ni quien tenía que darse de
+ * alta a sí mismo, en /personas— así que mientras no haya NI UNA persona, la
+ * clave de equipo sigue sirviendo y quien la teclea entra como admin (ver
+ * `entrarConClave`, src/app/entrar/page.tsx). En cuanto hay una, deja de
+ * funcionar. No lo quites pensando que sobra: es el extintor.
+ *
+ * Separada de `entrarConClave` en su propia función exportada por una sola
+ * razón: para poder probarla sin necesitar cookies ni un request de Next
+ * vivo — solo lee `hayAlgunaPersona()` (una consulta), no escribe nada.
+ */
+export async function claveDeEquipoSigueSirviendo(): Promise<boolean> {
+  return !(await hayAlgunaPersona())
+}
+
 // ---- Guardas para páginas y Server Actions ----
 //
 // El proxy ya filtra la mayoría del tráfico, pero es un chequeo optimista: la
 // verificación que cuenta es esta, pegada al dato que se va a leer o escribir.
-
-/** Lanza si quien pide no es del equipo. Usar al inicio de toda acción que escribe. */
-export async function exigirEquipo(): Promise<Sesion> {
-  const sesion = await sesionActual()
-  if (!puedeEditar(sesion)) {
-    throw new Error('Esta acción es solo para el equipo de Marketing Corporativo.')
-  }
-  return sesion as Sesion
-}
+//
+// La única vía es la de src/auth/roles.ts (exigirAdmin/exigirEditor/
+// exigirLectura, y sus tres hermanas en boolean esAdmin/esEditor/esLector) —
+// ver la cabecera de ese archivo para el porqué. `exigirEdicionDeAcuerdos`,
+// aquí abajo, es la única excepción real: la excepción de acuerdos del
+// director de una UDN, que roles.ts no modela porque no es un nivel dentro
+// de equipo, es un permiso aparte sobre SU sala.
 
 /**
  * Lanza si quien pide no puede tocar los acuerdos de ESTA sala.
  *
- * La usan las acciones de acuerdos en vez de `exigirEquipo`: el director de
- * la UDN sí puede moverlos en la suya. Todo lo demás de la sala —archivos,
- * minutas, preparar— sigue exigiendo equipo.
+ * La usan las acciones de acuerdos en vez de `exigirEditor`/`exigirAdmin`: el
+ * director de la UDN sí puede moverlos en la suya, sin ser del equipo.
+ * `puedeEditarAcuerdos` (src/auth/politica.ts) resuelve el lado de equipo
+ * delegando en `puedeEditarContenido` (admin o editor, no viewer) y el lado
+ * de sala comparando el slug. Todo lo demás de la sala —archivos, minutas,
+ * preparar— sigue exigiendo `exigirEditor()`/`exigirAdmin()` como cualquier
+ * otra pantalla de equipo.
  */
 export async function exigirEdicionDeAcuerdos(slug: string): Promise<Sesion> {
   const sesion = await sesionActual()
@@ -152,9 +172,4 @@ export async function puedeEditarAcuerdosDe(slug: string): Promise<boolean> {
 /** true si quien pide puede ver esta sala. */
 export async function puedeVerEstaSala(slug: string): Promise<boolean> {
   return puedeVerSala(await sesionActual(), slug)
-}
-
-/** true si quien pide puede mover acuerdos y preparar sesiones. */
-export async function esEquipo(): Promise<boolean> {
-  return puedeEditar(await sesionActual())
 }

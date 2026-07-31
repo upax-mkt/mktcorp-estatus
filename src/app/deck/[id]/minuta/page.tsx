@@ -5,7 +5,7 @@ import estilos from '../../deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
-import { exigirEditor } from '@/auth/roles'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
@@ -18,6 +18,9 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 export default async function PagMinutaSesion({ params }: { params: Promise<{ id: string }> }) {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero.
+  await exigirLectura()
   const { id } = await params
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()

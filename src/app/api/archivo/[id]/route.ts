@@ -2,7 +2,8 @@ import { get } from '@vercel/blob'
 import { NextResponse } from 'next/server'
 import { obtenerArchivo } from '@/db/archivos'
 import { obtenerSesion } from '@/db/sesiones'
-import { puedeVerEstaSala, esEquipo } from '@/auth/sesion'
+import { puedeVerEstaSala } from '@/auth/sesion'
+import { esLector } from '@/auth/roles'
 
 /**
  * Quién puede ver este archivo.
@@ -17,7 +18,10 @@ async function puedeVerlo(archivo: { salaSlug: string | null; sesionId: string |
   if (archivo.sesionId) {
     const sesion = await obtenerSesion(archivo.sesionId)
     if (!sesion) return false
-    return sesion.salaSlug ? puedeVerEstaSala(sesion.salaSlug) : esEquipo()
+    // `esLector()`, no la vieja `esEquipo()`: leer un archivo es de solo
+    // lectura, así que cualquiera de los tres roles de equipo lo pasa —
+    // corrección post-revisión de la ronda 9.
+    return sesion.salaSlug ? puedeVerEstaSala(sesion.salaSlug) : esLector()
   }
   if (archivo.salaSlug) return puedeVerEstaSala(archivo.salaSlug)
   return false

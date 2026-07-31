@@ -7,13 +7,29 @@
  *
  * Los tres predicados puros (`puedeAdministrar`/`puedeEditarContenido`/
  * `puedeLeer`) viven en `src/auth/politica.ts`, junto al resto de "quién puede
- * ver y hacer qué" (`puedeEditar`, `puedeEditarAcuerdos`, `puedeVerSala`,
- * `puedeVerRuta`) — ahí es donde `puedeVerRuta` y `puedeEditarAcuerdos` ya los
- * necesitan para sí mismos, así que viven donde no crean un ciclo de imports
- * (politica.ts es puro: no toca cookies; este módulo sí, por `sesionActual()`).
- * Este archivo los reexporta para que quien los use no tenga que saber en qué
- * archivo se definieron, y añade las tres funciones que LANZAN, siguiendo el
- * mismo patrón que `exigirEquipo` en `src/auth/sesion.ts`.
+ * ver y hacer qué" (`puedeEditarAcuerdos`, `puedeVerSala`, `puedeVerRuta`) —
+ * ahí es donde `puedeVerRuta` y `puedeEditarAcuerdos` ya los necesitan para sí
+ * mismos, así que viven donde no crean un ciclo de imports (politica.ts es
+ * puro: no toca cookies; este módulo sí, por `sesionActual()`). Este archivo
+ * los reexporta para que quien los use no tenga que saber en qué archivo se
+ * definieron, y añade las funciones que LANZAN y las que devuelven `boolean`
+ * para condicionar una pantalla.
+ *
+ * ESTA ES LA ÚNICA VÍA DE AUTORIZACIÓN DE ESTE REPO, a propósito.
+ *
+ * Hasta la ronda 9 existía además `esEquipo()`/`exigirEquipo()`
+ * (`src/auth/sesion.ts`, ya retiradas), respaldadas por un `puedeEditar()`
+ * que solo miraba `sesion.rol === 'equipo'` y **nunca el `rolApp`** — una
+ * cuarta vía que no pasaba por ninguno de los tres predicados de aquí arriba.
+ * El resultado: 7 sitios seguían dejando pasar a CUALQUIER equipo —viewer
+ * incluido, y hasta una sesión sin `rolApp`— a acciones que debían ser de
+ * editor o de admin (publicar una minuta, generar el enlace de acceso de una
+ * sala, subir archivos a Blob). Se corrigió repartiendo esos 7 sitios igual
+ * que las 47 llamadas originales, y retirando la vía vieja del todo — no
+ * había forma de que un grep por nombre de función la seleccionara si nadie
+ * sabía que existía. Si hace falta un `boolean` para una pantalla, usar
+ * `esAdmin()`/`esEditor()`/`esLector()`, de aquí — nunca escribir un chequeo
+ * nuevo que mire `sesion.rol` a mano sin pasar por un predicado de arriba.
  */
 import { sesionActual } from './sesion'
 import { puedeAdministrar, puedeEditarContenido, puedeLeer } from './politica'
@@ -57,4 +73,28 @@ export async function exigirLectura(): Promise<Sesion> {
     throw new Error('Necesitas una cuenta de Marketing Corporativo para ver esto.')
   }
   return sesion as Sesion
+}
+
+// ---- Las mismas tres, en boolean — para condicionar una pantalla ----
+//
+// El equivalente de las tres de arriba pero sin lanzar: para decidir qué
+// pintar (mostrar un botón, cargar el directorio, generar un enlace), no
+// para proteger una escritura — eso lo siguen haciendo las que lanzan, en el
+// propio Server Action o Route Handler, pegadas al dato. Sustituyen a la
+// vieja `esEquipo()` (retirada, ver la cabecera de este archivo): cada una
+// mira el `rolApp` de verdad, así que una sesión sin rol no pasa ninguna.
+
+/** true si quien pide administra Marketing Corporativo (rolApp === 'admin'). */
+export async function esAdmin(): Promise<boolean> {
+  return puedeAdministrar(await sesionActual())
+}
+
+/** true si quien pide puede editar contenido (rolApp === 'admin' o 'editor'). */
+export async function esEditor(): Promise<boolean> {
+  return puedeEditarContenido(await sesionActual())
+}
+
+/** true si quien pide es del equipo con cualquiera de los tres roles de app. */
+export async function esLector(): Promise<boolean> {
+  return puedeLeer(await sesionActual())
 }

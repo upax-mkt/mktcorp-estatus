@@ -6,7 +6,7 @@ import { obtenerSesion, marcarPresentada } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEditor } from '@/auth/roles'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
@@ -32,6 +32,9 @@ export default async function PagSesionMaquetada({
   params: Promise<{ id: string }>
   searchParams: Promise<{ imprimir?: string }>
 }) {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero.
+  await exigirLectura()
   const { imprimir } = await searchParams
   const { id } = await params
   const sesion = await obtenerSesion(id)
@@ -99,7 +102,13 @@ export default async function PagSesionMaquetada({
           </p>
         </main>
       ) : (
-        // Esta ruta ya exige equipo para entrar: quien la ve puede minutar.
+        // Esta ruta ya exige equipo para entrar (`exigirLectura()`, arriba),
+        // así que `equipo` se pasa fijo en `true` — el componente no necesita
+        // volver a preguntar SI es equipo. Eso no significa "puede minutar":
+        // los tres roles llegan hasta aquí, pero solo admin/editor pueden de
+        // verdad generar o publicar el acta (`esEditor()` en
+        // src/app/deck/[id]/minuta/acciones.ts); un viewer ve el botón, la
+        // acción lo rechaza.
         <DocumentoSesion
           tema={tema}
           secciones={secciones}

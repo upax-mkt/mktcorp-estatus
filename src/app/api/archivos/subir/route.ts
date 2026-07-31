@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse, type NextRequest } from 'next/server'
-import { esEquipo } from '@/auth/sesion'
+import { esEditor } from '@/auth/roles'
 import { TIPOS_PERMITIDOS, TAMANO_MAXIMO } from '@/lib/blob'
 
 /**
@@ -28,9 +28,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // La autorización va AQUÍ y no en el formulario: esta ruta es un
         // endpoint, y quien conozca su nombre puede llamarla sin pasar por
         // ninguna pantalla. Un token emitido a la ligera convierte el store
-        // en un CDN gratis para cualquiera.
-        if (!(await esEquipo())) {
-          throw new Error('Solo el equipo de Marketing Corp puede subir archivos.')
+        // en un CDN gratis para cualquiera. `esEditor()` (admin o editor) y
+        // no la vieja `esEquipo()` — corrección post-revisión de la ronda 9:
+        // subir un archivo es una acción de edición, y un viewer no debe
+        // poder pedir autorización real de escritura contra Blob.
+        if (!(await esEditor())) {
+          throw new Error('Esta acción requiere permiso de edición en Marketing Corporativo.')
         }
         return {
           allowedContentTypes: TIPOS_PERMITIDOS,

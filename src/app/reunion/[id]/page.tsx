@@ -6,7 +6,8 @@ import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
-import { esEquipo, puedeVerEstaSala } from '@/auth/sesion'
+import { puedeVerEstaSala } from '@/auth/sesion'
+import { esLector } from '@/auth/roles'
 import { directorio } from '@/db/personas'
 
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,12 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()
   // Una reunión que no es de ninguna sala es interna de Marketing Corp: no
-  // hay director a quien enseñársela, así que la ve solo el equipo.
+  // hay director a quien enseñársela, así que la ve solo el equipo —
+  // cualquiera de los tres roles, es de solo lectura (`esLector()`, no la
+  // vieja `esEquipo()`: corrección post-revisión de la ronda 9).
   const permitido = sesion.salaSlug
     ? await puedeVerEstaSala(sesion.salaSlug)
-    : await esEquipo()
+    : await esLector()
   if (!permitido) notFound()
 
   const secciones: SeccionSesion[] = sesion.items
@@ -45,7 +48,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   if (secciones.length === 0) notFound()
 
   const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
-  const equipo = await esEquipo()
+  const equipo = await esLector()
   /**
    * SOLO EQUIPO CARGA EL DIRECTORIO — no solo lo pinta condicionado
    * (corrección de revisión: fuga de datos).
