@@ -20,7 +20,7 @@ import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil } from '@/lib/fecha'
 import { cerrarSesion } from '@/auth/sesion'
-import { exigirEditor } from '@/auth/roles'
+import { exigirEditor, esAdmin } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
@@ -78,7 +78,7 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, acuerdos, pulso, sesiones, personas] = await Promise.all([
+  const [salasCrudas, acuerdos, pulso, sesiones, personas, admin] = await Promise.all([
     estadoDeSalas(),
     // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
     // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
@@ -89,6 +89,11 @@ export default async function Hub() {
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
     // MinutaCliente — directorio() ya aguanta Monday caído.
     directorio(),
+    // Ronda 9, tarea 3: si quien mira el Home administra Marketing
+    // Corporativo, para enseñar el enlace a /personas en la barra — solo
+    // cosmética (esa pantalla vuelve a exigir admin ella sola), pero no tiene
+    // sentido ofrecer un enlace a quien va a rebotar en cuanto lo toque.
+    esAdmin(),
   ])
   const molde = await moldeDeMinuta(null)
   const salas = ordenarPorProximaReunion(salasCrudas)
@@ -165,6 +170,7 @@ export default async function Hub() {
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
           <Link href="/salas" className={estilos.barraLink}>Salas</Link>
+          {admin && <Link href="/personas" className={estilos.barraLink}>Personas</Link>}
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
             <button type="submit" className={estilos.barraSalir}>Salir</button>
