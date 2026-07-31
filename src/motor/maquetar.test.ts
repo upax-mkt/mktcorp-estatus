@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { maquetarItem, maquetarSesion } from './maquetar'
-import { obtenerTema } from '@/temas'
+import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 import * as normalizarMod from './normalizar'
 
 const crudo = { titulo: 'Performance', cifras: [{ valor: '9.2', rotulo: 'Posición', delta: '-0.3' }] }
@@ -17,7 +17,7 @@ describe('maquetarItem', () => {
     const parse = vi.fn()
       .mockResolvedValueOnce({ parsed_output: invalida })
       .mockResolvedValueOnce({ parsed_output: valida })
-    const r = await maquetarItem(crudo, obtenerTema('neracode'), { messages: { parse } })
+    const r = await maquetarItem(crudo, SEMILLA_DE_TEMAS.neracode, { messages: { parse } })
     expect(r.degradado).toBe(false)
     expect(r.decision.layout).toBe('kpis-fila-dos-columnas')
     expect(parse).toHaveBeenCalledTimes(2)
@@ -25,14 +25,14 @@ describe('maquetarItem', () => {
 
   it('degrada al layout seguro si ambos intentos fallan la validación', async () => {
     const parse = vi.fn().mockResolvedValue({ parsed_output: invalida })
-    const r = await maquetarItem(crudo, obtenerTema('neracode'), { messages: { parse } })
+    const r = await maquetarItem(crudo, SEMILLA_DE_TEMAS.neracode, { messages: { parse } })
     expect(r.degradado).toBe(true)
     expect(r.motivo).toMatch(/columnas viene vacía/i)
   })
 
   it('degrada sin propagar si decidir() lanza en ambos intentos', async () => {
     const parse = vi.fn().mockResolvedValue({ parsed_output: null, stop_reason: 'refusal' })
-    const r = await maquetarItem(crudo, obtenerTema('neracode'), { messages: { parse } })
+    const r = await maquetarItem(crudo, SEMILLA_DE_TEMAS.neracode, { messages: { parse } })
     expect(parse).toHaveBeenCalledTimes(2)
     expect(r.degradado).toBe(true)
     expect(r.motivo).toMatch(/el modelo no produjo una decisión válida/i)
@@ -43,7 +43,7 @@ describe('maquetarItem', () => {
     const parse = vi.fn()
       .mockResolvedValueOnce({ parsed_output: null, stop_reason: 'refusal' })
       .mockResolvedValueOnce({ parsed_output: valida })
-    const r = await maquetarItem(crudo, obtenerTema('neracode'), { messages: { parse } })
+    const r = await maquetarItem(crudo, SEMILLA_DE_TEMAS.neracode, { messages: { parse } })
     expect(parse).toHaveBeenCalledTimes(2)
     expect(r.degradado).toBe(false)
     expect(r.decision.layout).toBe('kpis-fila-dos-columnas')

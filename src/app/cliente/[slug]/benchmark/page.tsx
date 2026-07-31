@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { CSSProperties } from 'react'
 import estilos from '../../cliente.module.css'
-import { obtenerTema, colorDeTextoDeMarca } from '@/temas'
+import { colorDeTextoDeMarca } from '@/temas'
+import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { obtenerBenchmark } from '@/db/benchmark'
 import { resumirBenchmark, type NivelBenchmark } from '@/dominio/benchmark'
 import { puedeVerEstaSala } from '@/auth/sesion'
@@ -30,12 +31,12 @@ const ETIQUETA_NIVEL: Record<NivelBenchmark, string> = {
 
 export default async function PagBenchmarkSala({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  let tema
-  try {
-    tema = obtenerTema(slug)
-  } catch {
-    notFound()
-  }
+  // Misma guarda que /cliente/[slug]: contra las nueve salas reales, no
+  // contra las diez filas de `salas` (grupo-upax tiene tema pero no es una
+  // sala navegable). Ver slugsDeSalas(), src/db/temas.ts.
+  const [slugsReales, registro] = await Promise.all([slugsDeSalas(), cargarTemas()])
+  if (!slugsReales.includes(slug)) notFound()
+  const tema = registro[slug]
   // La misma comprobación que la sala: pegada al dato, no en la puerta.
   if (!(await puedeVerEstaSala(slug))) notFound()
 

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { CSSProperties } from 'react'
 import estilos from '../deck.module.css'
-import { slugsDeSalas, obtenerTema } from '@/temas'
+import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
@@ -19,7 +19,11 @@ export const dynamic = 'force-dynamic'
  * enviarlo. Se marcan aquí para que no llegue a ese punto.
  */
 export default async function PagNuevaSesion() {
-  const pausadas = await slugsDeSalasPausadas()
+  const [pausadas, registro, salas] = await Promise.all([
+    slugsDeSalasPausadas(),
+    cargarTemas(),
+    slugsDeSalas(),
+  ])
 
   async function crear(formData: FormData) {
     'use server'
@@ -32,9 +36,9 @@ export default async function PagNuevaSesion() {
     const alcanceTema = String(formData.get('alcanceTema') ?? '').trim()
 
     // "ninguna" es una opción de verdad: un comité o un arranque de campaña no
-    // pertenecen a ninguna de las diez salas.
+    // pertenecen a ninguna de las nueve salas.
     const salaSlug = salaCruda === 'ninguna' ? null : salaCruda
-    if (salaSlug && !slugsDeSalas().includes(salaSlug)) {
+    if (salaSlug && !(await slugsDeSalas()).includes(salaSlug)) {
       throw new Error(`Elige una sala válida (recibido: "${salaSlug}")`)
     }
     if (!PLANTILLAS.some((p) => p.id === plantilla)) {
@@ -85,8 +89,8 @@ export default async function PagNuevaSesion() {
                 <span className={estilos.salaOpcionPunto} />
                 <span className={estilos.salaOpcionNombre}>Ninguna</span>
               </label>
-              {slugsDeSalas().map((slug) => {
-                const tema = obtenerTema(slug)
+              {salas.map((slug) => {
+                const tema = registro[slug]
                 const enPausa = pausadas.has(slug)
                 return (
                   <label

@@ -10,13 +10,14 @@
  * edite); `resultado` es lo que resolvió el motor de maquetación — nulo
  * hasta que se maqueta la sesión.
  */
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lt, ne } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { esPermutacionValida } from './orden'
 import { salaEstaActiva } from './salas'
-import { obtenerTema, slugsDeSalas } from '@/temas'
+import { cargarTemas, slugsDeSalas } from './temas'
+import type { Tema } from '@/temas'
 import type { EntradaCruda } from '@/motor/inventario'
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
@@ -24,6 +25,7 @@ import {
   obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
 } from '@/secciones/plantillas'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
+import { diaCivil, horaBreve, instanteEnCDMX } from '@/lib/fecha'
 
 export type { DefinicionItem } from '@/secciones/plantillas'
 
@@ -138,10 +140,21 @@ function leerEstructura(bruta: unknown): EstructuraSesion {
  */
 const MARKETING_CORP = { nombre: 'Marketing Corp', primario: '#E34714' }
 
-function identidadDe(salaSlug: string | null): { nombre: string; color: string } {
+/**
+ * Con qué nombre y color se etiqueta una sesión, dado el registro de temas
+ * YA CARGADO (una vez por petición, ver `listarSesiones`/`obtenerSesion` más
+ * abajo) — función pura, no vuelve a consultar la base por su cuenta.
+ *
+ * Sin `salaSlug` no hay tema que buscar: es Marketing Corp, siempre, aunque
+ * el registro traiga a Grupo UPAX (que es OTRA identidad — la del holding,
+ * no la de quien organiza una reunión interna).
+ */
+function identidadDe(salaSlug: string | null, registro: Record<string, Tema>): { nombre: string; color: string } {
   if (!salaSlug) return { nombre: MARKETING_CORP.nombre, color: MARKETING_CORP.primario }
-  const tema = obtenerTema(salaSlug)
-  return { nombre: tema.nombre, color: tema.primario }
+  const tema = registro[salaSlug]
+  // Defensivo: no debería pasar (ver cargarTemas), pero un slug crudo es más
+  // barato que reventar la sesión entera.
+  return tema ? { nombre: tema.nombre, color: tema.primario } : { nombre: salaSlug, color: '#666666' }
 }
 
 function tituloPorDefecto(tipo: TipoSesion, fecha: Date): string {
@@ -185,8 +198,8 @@ interface FilaItemComun {
   decisionMaquetacion: unknown
 }
 
-function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]): SesionCompleta {
-  const identidad = identidadDe(fila.salaSlug)
+function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[], registro: Record<string, Tema>): SesionCompleta {
+  const identidad = identidadDe(fila.salaSlug, registro)
   const fijos = tiposFijosDe(fila.plantilla)
   const estructura = leerEstructura(fila.estructura)
   // Por `tipo`, no por índice: el `orden` de un item cambia al reordenar,
@@ -242,9 +255,10 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
 function resumenDeFila(
   fila: FilaSesionComun,
   contenidos: ContenidoItemCrudo[],
-  tieneMinuta = false,
+  tieneMinuta: boolean,
+  registro: Record<string, Tema>,
 ): SesionResumen {
-  const identidad = identidadDe(fila.salaSlug)
+  const identidad = identidadDe(fila.salaSlug, registro)
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
@@ -301,7 +315,7 @@ export interface DatosDeSesion {
 }
 
 export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }> {
-  if (datos.salaSlug && !slugsDeSalas().includes(datos.salaSlug)) {
+  if (datos.salaSlug && !(await slugsDeSalas()).includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   /**
@@ -326,8 +340,9 @@ export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }>
    */
   const esTrabajoNuevo = (datos.estado ?? 'borrador') !== 'presentada'
   if (datos.salaSlug && esTrabajoNuevo && !(await salaEstaActiva(datos.salaSlug))) {
+    const registro = await cargarTemas()
     throw new Error(
-      `${obtenerTema(datos.salaSlug).nombre} está en pausa: reactívala antes de preparar una sesión nueva.`,
+      `${identidadDe(datos.salaSlug, registro).nombre} está en pausa: reactívala antes de preparar una sesión nueva.`,
     )
   }
   const id = crypto.randomUUID()
@@ -403,6 +418,12 @@ export async function crearSesionConEstructura(datos: DatosDeSesion): Promise<{ 
 }
 
 export async function listarSesiones(): Promise<SesionResumen[]> {
+  // Una sola carga del registro para toda la lista: `cargarTemas()` está en
+  // `cache()`, así que aunque se llamara una vez por fila sería la misma
+  // consulta memoizada — pero pedirla aquí, una vez, deja explícito que
+  // ninguna fila puede traer un tema distinto al de las demás.
+  const registro = await cargarTemas()
+
   if (!hayDB()) {
     return memoria.listarSesionesMemoria().map((fila) => {
       const itemsRows = memoria.obtenerItemsDeSesionMemoria(fila.id)
@@ -410,6 +431,7 @@ export async function listarSesiones(): Promise<SesionResumen[]> {
         fila,
         itemsRows.map((i) => i.contenidoCrudo as ContenidoItemCrudo),
         memoria.obtenerMinutaDeSesionMemoria(fila.id) != null,
+        registro,
       )
     })
   }
@@ -432,16 +454,19 @@ export async function listarSesiones(): Promise<SesionResumen[]> {
       fila,
       itemsRows.map((i) => i.contenidoCrudo as ContenidoItemCrudo),
       conMinuta.has(fila.id),
+      registro,
     ))
   }
   return resultado
 }
 
 export async function obtenerSesion(id: string): Promise<SesionCompleta | null> {
+  const registro = await cargarTemas()
+
   if (!hayDB()) {
     const fila = memoria.obtenerSesionMemoria(id)
     if (!fila) return null
-    return sesionCompletaDeFilas(fila, memoria.obtenerItemsDeSesionMemoria(id))
+    return sesionCompletaDeFilas(fila, memoria.obtenerItemsDeSesionMemoria(id), registro)
   }
 
   const conexion = db()
@@ -452,7 +477,7 @@ export async function obtenerSesion(id: string): Promise<SesionCompleta | null> 
     .from(esquema.items)
     .where(eq(esquema.items.sesionId, id))
     .orderBy(asc(esquema.items.orden))
-  return sesionCompletaDeFilas(fila, itemsRows)
+  return sesionCompletaDeFilas(fila, itemsRows, registro)
 }
 
 /** Persiste lo que el equipo escribió para un item. Nunca toca `decisionMaquetacion`. */
@@ -1022,4 +1047,127 @@ export async function eliminarSesion(sesionId: string): Promise<void> {
   }
   memoria.eliminarMinutaDeSesionMemoria(sesionId)
   memoria.eliminarSesionMemoria(sesionId)
+}
+
+// ---- Agenda pública ----
+// La única pantalla de esta app que se ve sin sesión (ronda 8, tarea 3): un
+// director, o cualquiera con el enlace, mirando cuándo son las reuniones. Es
+// una hoja, no una puerta — nada de acuerdos, participantes ni enlaces hacia
+// el resto de la app.
+
+export interface ReunionPublica {
+  salaSlug: string
+  salaNombre: string
+  salaColor: string
+  /** ISO, día civil de México. */
+  fecha: string
+  /** 'HH:MM' en hora de México. */
+  hora: string
+}
+
+/** El primer instante de un mes, anclado a CDMX (ver `instanteEnCDMX`, src/lib/fecha.ts). */
+function inicioDeMes(anio: number, mes: number): Date {
+  return instanteEnCDMX(`${anio}-${String(mes).padStart(2, '0')}-01`, '00:00')
+}
+
+/**
+ * Las reuniones de un mes, para la agenda que se comparte fuera.
+ *
+ * Deja fuera dos cosas a propósito: las salas EN PAUSA —no tienen reuniones que
+ * anunciar— y las sesiones en BORRADOR, que son trabajo en curso y no una fecha
+ * comprometida con nadie. Anunciar una fecha que todavía se está armando es
+ * peor que no anunciarla.
+ *
+ * El INNER JOIN con `salas` también deja fuera, como consecuencia necesaria y
+ * no solo casual, las reuniones SIN sala (un comité, un arranque de campaña):
+ * son internas de Marketing Corp, no de ninguna UDN, y no tienen lugar en un
+ * calendario que anuncia "cuándo le toca a [sala]".
+ *
+ * Devuelve lo mínimo que la agenda enseña. Ni id de sesión, ni estructura, ni
+ * participantes, ni acuerdos: lo que no viaja no se puede filtrar por error.
+ *
+ * `mes` es 1-12 —como se dice un mes en voz alta—, no 0-11 como `Date`: es la
+ * misma convención que usa `CalendarioPublico` (src/componentes/agenda), que
+ * recibe este valor tal cual desde la página.
+ */
+export async function sesionesPublicasDelMes(anio: number, mes: number): Promise<ReunionPublica[]> {
+  /**
+   * Sin DB no hay `salas.activa` que consultar — mismo motivo que
+   * `acuerdosPendientesDeSubir` (src/db/acuerdos.ts): el store en memoria no
+   * modela esa columna, y fingir que todas las salas están activas sería
+   * mentir. Devolver la lista vacía es lo único honesto.
+   *
+   * En la práctica esta rama no se alcanza desde la página: sin DB,
+   * `tokenValido` siempre da falso (src/db/enlace-agenda.ts) y la página
+   * responde 404 antes de llegar aquí.
+   */
+  if (!hayDB()) return []
+
+  const inicio = inicioDeMes(anio, mes)
+  const finExclusivo = mes === 12 ? inicioDeMes(anio + 1, 1) : inicioDeMes(anio, mes + 1)
+
+  // `salaNombre`/`salaColor` salen del MISMO join que ya trae `salas` para el
+  // filtro de `activa` — no hace falta una segunda consulta a `cargarTemas()`
+  // para esto: la fila ya está aquí. Antes de la ronda 8 (tarea 5) el nombre
+  // y el color vivían en código y esta consulta solo traía el slug; ahora
+  // que son columnas de la misma tabla, pedirlas de una vez es más simple Y
+  // más barato que resolverlas aparte.
+  const filas = await db()
+    .select({
+      salaSlug: esquema.sesiones.salaSlug,
+      fecha: esquema.sesiones.fecha,
+      salaNombre: esquema.salas.nombre,
+      salaColor: esquema.salas.primario,
+    })
+    .from(esquema.sesiones)
+    .innerJoin(esquema.salas, eq(esquema.sesiones.salaSlug, esquema.salas.slug))
+    .where(
+      and(
+        eq(esquema.salas.activa, true),
+        ne(esquema.sesiones.estado, 'borrador'),
+        gte(esquema.sesiones.fecha, inicio),
+        lt(esquema.sesiones.fecha, finExclusivo),
+      ),
+    )
+    .orderBy(asc(esquema.sesiones.fecha))
+
+  /**
+   * GRUPO UPAX NO ES UNA UDN: NO SE ANUNCIA AQUÍ (corrección de revisión,
+   * ronda 8 tarea 3 — se mantiene en la mudanza de la tarea 5).
+   *
+   * Hasta el 30-jul esta exclusión era un efecto secundario: `grupo-upax` es
+   * una fila ACTIVA de `salas` que no tenía tema en el `TEMAS` de código, así
+   * que se descartaba por no encontrar con qué pintarla. Desde que la marca
+   * vive en la propia fila (tarea 5) esa fila SÍ tiene tema —el suyo, ver
+   * `src/temas/grupo-upax.ts`— y ya no hay hueco que la excluya solo.
+   *
+   * La exclusión se mantiene, ahora explícita, y contra `slugsDeSalas()` —la
+   * MISMA lista que ya decide qué es "una sala" para validar sesiones,
+   * acuerdos, archivos y claves nuevas (ver src/db/temas.ts)— en vez de un
+   * slug clavado a mano aparte: una sola fuente de qué son las nueve UDNs, no
+   * dos que se puedan desincronizar. Grupo UPAX es el holding, no una UDN, y
+   * esta pantalla anuncia "cuándo le toca a [UDN]" a gente de fuera del
+   * equipo. Sacarla de la lista sin que nadie lo decidiera de nuevo habría
+   * sido un cambio de producto disfrazado de mudanza de datos — hoy no hay
+   * ninguna sesión con `sala_slug = 'grupo-upax'` en producción (comprobado
+   * leyendo la base, ver el reporte de la tarea 5), así que esto es
+   * preventivo: si alguna vez la hay, sigue sin aparecer aquí, igual que hoy.
+   * Si esa fila debe seguir existiendo o no es una decisión de Franco que
+   * sigue pendiente (ver progress.md, tarea 3) y no se toca en esta pantalla.
+   */
+  const slugsReales = await slugsDeSalas()
+  return filas
+    .filter((fila): fila is typeof fila & { salaSlug: string } =>
+      fila.salaSlug !== null && slugsReales.includes(fila.salaSlug),
+    )
+    .map((fila) => {
+      const iso = fila.fecha.toISOString()
+      return {
+        salaSlug: fila.salaSlug,
+        salaNombre: fila.salaNombre,
+        salaColor: fila.salaColor,
+        fecha: diaCivil(iso),
+        hora: horaBreve(iso),
+      }
+    })
 }

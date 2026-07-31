@@ -2,15 +2,18 @@
  * Esquema Drizzle sobre Postgres (Neon). Modela lo descrito en
  * docs/superpowers/specs/2026-07-23-mktcorp-estatus-design.md §4.
  *
- * Nombre/color de cada sala NO se duplican aquí: son fijos y viven en
- * `src/temas` (una fuente, el tema visual). Esta tabla guarda únicamente lo
- * mutable de la sala (hoy: su cadencia acordada).
+ * Nombre y marca de cada sala SÍ se guardan aquí desde la ronda 8 (tarea 5):
+ * hasta el 30-jul vivían en código, un archivo por sala bajo `src/temas`, y
+ * esta tabla solo llevaba lo mutable (cadencia, freeze, clave). Ahora la
+ * marca también es dato editable — ver `src/db/temas.ts` para cómo se lee y
+ * `src/temas/semilla.ts` para lo que había en código antes de la mudanza.
  */
 import {
   pgTable,
   pgEnum,
   text,
   integer,
+  real,
   boolean,
   timestamp,
   jsonb,
@@ -43,8 +46,8 @@ export const estatusAcuerdoEnum = pgEnum('estatus_acuerdo', [
 
 // ---- Sala ----
 // Las 10 entidades receptoras son fijas: no se crean ni se borran desde la
-// app (viven como semillas, ver src/db/semilla.ts). slug es la misma clave
-// que usa src/temas.
+// app (viven como semillas, ver src/temas/semilla.ts). slug es la misma
+// clave que usaba src/temas y que sigue usando para el registro de temas.
 export const salas = pgTable('salas', {
   slug: text('slug').primaryKey(),
   cadencia: cadenciaEnum('cadencia').notNull().default('mensual'),
@@ -68,6 +71,40 @@ export const salas = pgTable('salas', {
    */
   activa: boolean('activa').notNull().default(true),
   pausadaDesde: timestamp('pausada_desde', { withTimezone: true }),
+  /**
+   * LA MARCA DE LA SALA (ronda 8, tarea 5): los mismos doce campos que antes
+   * vivían en un archivo de `src/temas` por sala (tipo `Tema`, ver
+   * `src/temas/tipos.ts`) — nombre, los siete colores, el degradado y las dos
+   * familias tipográficas — más el logo, que no formaba parte de `Tema`.
+   *
+   * NACIERON ANULABLES a propósito (migración 0013): la tabla ya tenía diez
+   * filas cuando se añadieron estas columnas, así que exigirlas `NOT NULL`
+   * desde el primer momento habría hecho fallar la migración contra esas
+   * filas existentes. Se poblaron con `scripts/poblar-marcas.ts` a partir de
+   * `src/temas/semilla.ts` y SOLO ENTONCES la migración 0014 las marcó
+   * obligatorias — salvo `logoUrl` y `logoRelacionDeTinta`, que sí pueden
+   * faltar: no formaban parte de `Tema`, y ninguna sala tiene su logo medido
+   * todavía (eso es tarea 6, "La pantalla de salas").
+   */
+  nombre: text('nombre').notNull(),
+  primario: text('primario').notNull(),
+  secundario: text('secundario').notNull(),
+  acento: text('acento').notNull(),
+  /** Fondo claro de los slides de contenido. */
+  superficieClara: text('superficie_clara').notNull(),
+  /** Fondo oscuro de portadas y divisores. */
+  superficieOscura: text('superficie_oscura').notNull(),
+  textoSobreClara: text('texto_sobre_clara').notNull(),
+  textoSobreOscura: text('texto_sobre_oscura').notNull(),
+  /** Paradas del gradiente de portada, en orden. */
+  gradiente: jsonb('gradiente').$type<string[]>().notNull(),
+  /** Clave de familia tipográfica, resuelta en src/temas/fuentes.ts */
+  familiaDisplay: text('familia_display').notNull(),
+  familiaTexto: text('familia_texto').notNull(),
+  /** Ruta del logotipo (Vercel Blob o /public). Nula hasta que la tarea 6 suba uno. */
+  logoUrl: text('logo_url'),
+  /** Proporción de tinta del PNG/SVG (tarea 6): con qué se deriva su altura relativa. Nula hasta medirlo. */
+  logoRelacionDeTinta: real('logo_relacion_de_tinta'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -320,4 +357,21 @@ export const personasMonday = pgTable('personas_monday', {
   nombre: text('nombre').notNull(),
   correo: text('correo').notNull(),
   cargadoEn: timestamp('cargado_en', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ---- Enlace público de la agenda ----
+// UNA sola fila (id = 1). El token no lleva nada dentro —a diferencia del
+// enlace de sala, que codifica qué sala y hasta cuándo y por eso va firmado—
+// así que no hace falta criptografía: es una contraseña larga que se compara
+// contra esta tabla.
+//
+// La clave primaria es `id` (constante 1) para garantizar una sola fila.
+// Generar usa INSERT ... ON CONFLICT (id) DO UPDATE, una sentencia atómica
+// que imposibilita race conditions: nunca hay dos filas, nunca hay estado
+// indeterminado. Revocar borra por id. Sin transacciones porque neon-http
+// no las soporta, pero una sola sentencia es atómica en Postgres.
+export const enlaceAgenda = pgTable('enlace_agenda', {
+  id: integer('id').primaryKey(),
+  token: text('token').notNull(),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 })

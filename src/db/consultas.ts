@@ -3,8 +3,9 @@
  *
  * Reimplementa las funciones de src/dominio/salas.ts, ahora async: si
  * hayDB() consultan Postgres vía Drizzle; si no, delegan al fallback de
- * datos de ejemplo — así producción sin DATABASE_URL sigue mostrando el
- * shell exactamente igual.
+ * src/dominio/salas.ts, que devuelve vacío (ver el comentario junto a la API
+ * pública, más abajo, para por qué desde la ronda 8 ya no hay "datos de
+ * ejemplo" que mostrar sin base).
  *
  * Los derivados puros (acuerdosAbiertos, acuerdosVencidos, temperatura,
  * ordenarPorProximaReunion) no tocan la base de datos — operan sobre EstadoSala
@@ -14,8 +15,8 @@
 import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
-import * as memoria from './store-memoria'
-import { obtenerTema, slugsDeSalas } from '@/temas'
+import { cargarTemas, slugsDeSalas } from './temas'
+import type { Tema } from '@/temas'
 import * as fallback from '@/dominio/salas'
 import { esLlenado, type ContenidoItemCrudo } from './sesiones'
 import type {
@@ -108,8 +109,10 @@ function estaEnPreparacion(estado: FilaSesion['estado']): boolean {
 }
 
 async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
-  if (!slugsDeSalas().includes(slug)) return undefined
-  const tema = obtenerTema(slug)
+  if (!(await slugsDeSalas()).includes(slug)) return undefined
+  const registro = await cargarTemas()
+  const tema = registro[slug]
+  if (!tema) return undefined // defensivo: no debería pasar, ver cargarTemas()
   const conexion = db()
   const ahora = new Date()
 
@@ -240,11 +243,17 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     cadencia: salaRow?.cadencia ?? 'mensual',
     activa,
     pausadaDesde: salaRow?.pausadaDesde ? isoFecha(salaRow.pausadaDesde) : null,
+    // Revisión final de la rama, punto 3: de la fila cruda, no de `tema`
+    // (`Tema`/`cargarTemas()` no la traen a propósito — el logo nunca formó
+    // parte de ese tipo, ver esquema.ts). `archivoDeLogo` cae al archivo
+    // estático cuando esto es `null`.
+    logoUrl: salaRow?.logoUrl ?? null,
   }
 }
 
 async function estadoDeSalasDB(): Promise<EstadoSala[]> {
-  const resueltos = await Promise.all(slugsDeSalas().map((slug) => estadoDeSalaDB(slug)))
+  const slugs = await slugsDeSalas()
+  const resueltos = await Promise.all(slugs.map((slug) => estadoDeSalaDB(slug)))
   return resueltos.filter((s): s is EstadoSala => s != null)
 }
 
@@ -278,62 +287,39 @@ function construirPulso(salas: EstadoSala[]): PulsoDelMes {
   }
 }
 
-// ---- Modo sin DB: todo sale del store en memoria ----
-//
-// El store arranca VACÍO y solo tiene lo que se haya creado en la app durante
-// esta ejecución del proceso. Antes se sembraba con acuerdos de ejemplo para
-// que la vista de sala tuviera algo sobre lo que operar en dev; eso significaba
-// que la app enseñaba contenido que nadie había escrito. Una sala sin actividad
-// se ve vacía, que es la verdad.
-
-function acuerdoDeFilaMemoria(a: memoria.FilaAcuerdoMemoria): Acuerdo {
-  return {
-    id: a.id,
-    que: a.que,
-    responsable: a.responsable,
-    squad: a.squad,
-    fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
-    estatus: a.estatus as fallback.EstatusAcuerdo,
-  }
-}
-
-/** Acuerdos vivos de una sala en modo memoria. 'cancelado' deja de mostrarse, igual que con DB. */
-function acuerdosVivosMemoria(salaSlug: string): Acuerdo[] {
-  return memoria
-    .listarAcuerdosDeSalaMemoria(salaSlug)
-    .filter((a) => a.estatus !== 'cancelado')
-    .map(acuerdoDeFilaMemoria)
-}
-
-async function estadoDeSalasMemoria(): Promise<EstadoSala[]> {
-  return fallback.estadoDeSalas().map((s) => ({ ...s, acuerdos: acuerdosVivosMemoria(s.slug) }))
-}
-
-async function estadoDeSalaMemoria(slug: string): Promise<EstadoSala | undefined> {
-  const base = fallback.estadoDeSala(slug)
-  if (!base) return base
-  return { ...base, acuerdos: acuerdosVivosMemoria(slug) }
-}
-
 // ---- API pública — misma firma que dominio/salas.ts, ahora async ----
+//
+// Sin DB delegan a `fallback.estadoDeSalas()` (src/dominio/salas.ts), que
+// desde la ronda 8 (tarea 5) siempre devuelve `[]`: el store en memoria
+// arranca vacío y solo tiene lo que se haya creado en la app durante esta
+// ejecución del proceso, pero ya no hay de dónde sacar NI SIQUIERA el nombre
+// o el color de una sala sin base —eso también es dato editable ahora, no
+// configuración de código— así que no hay una lista de salas honesta que
+// ofrecer. Hasta la tarea 5 este módulo sí armaba un `EstadoSala` por sala
+// (usando `src/temas` para nombre/color) y le colgaba los acuerdos que
+// hubiera en memoria; con `fallback.estadoDeSalas()` siempre vacío, esas
+// cuatro funciones intermedias (`estadoDeSalasMemoria`, `estadoDeSalaMemoria`
+// y sus dos ayudantes) solo podían devolver resultados vacíos también —
+// código inalcanzable en la práctica, se quitaron en la revisión de esta
+// tarea.
 
 export async function estadoDeSalas(): Promise<EstadoSala[]> {
-  if (!hayDB()) return estadoDeSalasMemoria()
+  if (!hayDB()) return fallback.estadoDeSalas()
   return estadoDeSalasDB()
 }
 
 export async function estadoDeSala(slug: string): Promise<EstadoSala | undefined> {
-  if (!hayDB()) return estadoDeSalaMemoria(slug)
+  if (!hayDB()) return fallback.estadoDeSalas().find((s) => s.slug === slug)
   return estadoDeSalaDB(slug)
 }
 
 export async function acuerdosEnRiesgo(): Promise<AcuerdoEnRiesgo[]> {
-  if (!hayDB()) return construirRiesgo(await estadoDeSalasMemoria())
+  if (!hayDB()) return construirRiesgo(fallback.estadoDeSalas())
   return construirRiesgo(await estadoDeSalasDB())
 }
 
 export async function pulsoDelMes(): Promise<PulsoDelMes> {
-  if (!hayDB()) return construirPulso(await estadoDeSalasMemoria())
+  if (!hayDB()) return construirPulso(fallback.estadoDeSalas())
   return construirPulso(await estadoDeSalasDB())
 }
 
@@ -380,19 +366,30 @@ export interface AcuerdoConSala extends Acuerdo {
 
 /**
  * El nombre y color de marca de una sala, sin reventar si algún día hay una
- * fila con un `salaSlug` que no está en `src/temas`. No debería pasar —la FK
- * de `acuerdos.salaSlug` exige que la sala exista, y `crearAcuerdo` ya valida
- * contra `slugsDeSalas()` al dar de alta— pero un texto de más en esta lista
- * es más barato que la pantalla entera sin cargar. Mismo criterio defensivo
- * que `temaDeSalaSeguro` en src/db/acuerdos.ts.
+ * fila con un `salaSlug` que no tiene tema en el registro. No debería pasar
+ * —la FK de `acuerdos.salaSlug` exige que la sala exista, `crearAcuerdo` ya
+ * valida contra `slugsDeSalas()` al dar de alta, y desde la ronda 8 las
+ * columnas de marca son `NOT NULL`— pero un texto de más en esta lista es
+ * más barato que la pantalla entera sin cargar.
+ *
+ * MISMO CRITERIO DEFENSIVO que `temaDeSalaSeguro` en src/db/acuerdos.ts,
+ * pero YA NO SON DOS COPIAS IGUALES (corrección de esta revisión: lo decía
+ * el comentario anterior, documentado así en el reporte de la tarea 5, y
+ * divergieron sin que nadie lo actualizara). Difieren en el color de
+ * respaldo, y no por descuido: `AcuerdoConSala.salaColor` —el tipo que
+ * consume ESTA función, para `/acuerdos`— es un `string` obligatorio, así
+ * que aquí hace falta devolver un color de verdad (`'#666666'`) cuando no
+ * hay tema. `AcuerdoPendienteDeSubir.salaColor` —el que consume la copia de
+ * `acuerdos.ts`, para la bandeja— es opcional a propósito ("opcional porque
+ * no todo consumidor lo necesita", dice su propio comentario), así que esa
+ * copia devuelve `undefined`. Dos contratos de tipo distintos piden dos
+ * respaldos distintos: la duplicación se queda, pero ya no es "la misma
+ * función copiada dos veces" — es la misma IDEA con un detalle que cada
+ * lado resuelve según lo que su propio tipo exige.
  */
-function temaDeSalaSeguro(slug: string): { nombre: string; color: string } {
-  try {
-    const tema = obtenerTema(slug)
-    return { nombre: tema.nombre, color: tema.primario }
-  } catch {
-    return { nombre: slug, color: '#666666' }
-  }
+function temaDeSalaSeguro(slug: string, registro: Record<string, Tema>): { nombre: string; color: string } {
+  const tema = registro[slug]
+  return tema ? { nombre: tema.nombre, color: tema.primario } : { nombre: slug, color: '#666666' }
 }
 
 /**
@@ -410,6 +407,7 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
   if (!hayDB()) return []
 
   const hoy = isoFecha(new Date())
+  const registro = await cargarTemas()
   const filas = await db()
     .select({
       id: esquema.acuerdos.id,
@@ -436,7 +434,7 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
     // hubiera existido.
     .filter((f) => f.estatus !== 'cancelado')
     .map((f) => {
-      const tema = temaDeSalaSeguro(f.salaSlug)
+      const tema = temaDeSalaSeguro(f.salaSlug, registro)
       const fechaCompromiso = f.fechaCompromiso ? isoFecha(f.fechaCompromiso) : null
       const estatusGuardado = f.estatus as fallback.EstatusAcuerdo
       const estatus = fallback.estatusEfectivo({ estatus: estatusGuardado, fechaCompromiso }, f.salaActiva, hoy)

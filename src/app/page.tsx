@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from './hub.module.css'
+import { hayDB } from '@/db/cliente'
 import {
   estadoDeSalas, ordenarPorProximaReunion, temperatura, acuerdosAbiertos,
   acuerdosVencidos, todosLosAcuerdos, pulsoDelMes, type EstatusAcuerdo,
@@ -162,6 +163,7 @@ export default async function Hub() {
           <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
+          <Link href="/salas" className={estilos.barraLink}>Salas</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
             <button type="submit" className={estilos.barraSalir}>Salir</button>
@@ -170,6 +172,23 @@ export default async function Hub() {
       </header>
 
       <main className={estilos.main}>
+        {/* SIN DATABASE_URL (revisión final de la rama, punto 5): antes esta
+            pantalla se quedaba con cero salas y el pulso en cero, sin decir
+            por qué — indistinguible de "todo al día". `estadoDeSalas()` (ver
+            src/db/consultas.ts) cae a `[]` a propósito cuando no hay base —
+            no hay una lista de salas honesta que inventar sin ella— pero eso
+            no puede quedarse en silencio: es justo la rejilla vacía sin
+            explicación que esta revisión vino a evitar. Coherente con el
+            aviso de `/salas` (mismo problema, tono más suave porque ahí SÍ
+            hay algo que mostrar: la semilla). */}
+        {!hayDB() && (
+          <div className={estilos.avisoSinBase} role="alert">
+            <strong>Sin base de datos configurada</strong> — falta <code>DATABASE_URL</code> en este
+            entorno. Nada de lo que se ve abajo —salas, acuerdos, sesiones, minutas— es real: es una
+            pantalla vacía, no un estado de &quot;todo al día&quot;.
+          </div>
+        )}
+
         {/* El pulso: cuatro cifras grandes y sus rótulos diminutos. */}
         <section className={estilos.pulso}>
           <div>
@@ -244,7 +263,10 @@ export default async function Hub() {
                       nueve tienen el suyo — Ceci, su firma. */}
                   <span className={estilos.salaLogo}>
                     <Image
-                      src={archivoDeLogo(s.slug)}
+                      // logoUrl de la fila, y solo si es null cae al archivo
+                      // estático (revisión final de la rama, punto 3) — ver
+                      // `archivoDeLogo`, src/temas/logos.ts.
+                      src={archivoDeLogo(s.slug, 'color', s.logoUrl)}
                       alt={s.nombre}
                       width={180}
                       height={40}
@@ -321,7 +343,7 @@ export default async function Hub() {
                 >
                   <span className={estilos.salaLogo}>
                     <Image
-                      src={archivoDeLogo(s.slug)}
+                      src={archivoDeLogo(s.slug, 'color', s.logoUrl)}
                       alt={s.nombre}
                       width={180}
                       height={40}

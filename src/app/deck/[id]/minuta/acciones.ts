@@ -10,7 +10,7 @@
 import { revalidatePath } from 'next/cache'
 import { esEquipo } from '@/auth/sesion'
 import { obtenerSesion, crearSesion } from '@/db/sesiones'
-import { obtenerTema } from '@/temas'
+import { cargarTemas } from '@/db/temas'
 import { generarMinuta } from '@/minuta/generar'
 import { moldeDeMinuta } from '@/db/plantillas'
 import { guardarMinuta, type AcuerdoConfirmado } from '@/db/minutas'
@@ -31,12 +31,9 @@ export interface EstadoGeneracion {
 const SOLO_EQUIPO = 'Esta acción es solo para el equipo de Marketing Corporativo.'
 
 /** El nombre del cliente, para dárselo al modelo como contexto. */
-function identidadDeSala(slug: string): string {
-  try {
-    return obtenerTema(slug).nombre
-  } catch {
-    return 'Marketing Corp'
-  }
+async function identidadDeSala(slug: string): Promise<string> {
+  const registro = await cargarTemas()
+  return registro[slug]?.nombre ?? 'Marketing Corp'
 }
 
 /**
@@ -68,7 +65,7 @@ async function contextoDe(de: DeQueReunion) {
   return {
     id: undefined,
     salaSlug: slug,
-    salaNombre: slug ? identidadDeSala(slug) : 'Marketing Corp',
+    salaNombre: slug ? await identidadDeSala(slug) : 'Marketing Corp',
     tipo: 'mensual' as const,
     alcance: 'todos',
     fecha: de.nueva.fecha,

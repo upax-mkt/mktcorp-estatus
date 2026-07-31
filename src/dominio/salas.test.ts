@@ -16,6 +16,7 @@ function sala(parcial: Partial<EstadoSala>): EstadoSala {
     slug: 'mexa-creativa',
     nombre: 'Mexa Creativa',
     color: '#ff0080',
+    logoUrl: null,
     diasDesdeUltima: 3,
     ultimaSesion: '2026-06-30',
     proximaSesion: null,

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
-import { slugsDeSalas } from '@/temas'
+import { slugsDeSalas } from './temas'
 
 /**
  * LA CLAVE DE UNA SALA.
@@ -87,7 +87,7 @@ export async function estadoDeClave(salaSlug: string, secreto: string): Promise<
  * leerla. Si se pierde, se regenera.
  */
 export async function regenerarClave(salaSlug: string, secreto: string): Promise<string> {
-  if (!slugsDeSalas().includes(salaSlug)) throw new Error(`Sala desconocida: "${salaSlug}"`)
+  if (!(await slugsDeSalas()).includes(salaSlug)) throw new Error(`Sala desconocida: "${salaSlug}"`)
   if (!hayDB()) throw new Error('Sin base de datos no se pueden guardar claves de sala.')
 
   const clave = generarClave()

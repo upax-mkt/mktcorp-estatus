@@ -21,7 +21,7 @@ vi.mock('./salas', () => ({
   salaEstaActiva: (...args: unknown[]) => salaEstaActivaMock(...args),
 }))
 
-const { crearSesion } = await import('./sesiones')
+const { crearSesion, sesionesPublicasDelMes } = await import('./sesiones')
 const { reiniciarStoreMemoria } = await import('./store-memoria')
 
 beforeEach(() => {
@@ -83,5 +83,24 @@ describe('crearSesion — freeze de salas', () => {
     })
     expect(id).toBeTruthy()
     expect(salaEstaActivaMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * SIN DB, `sesionesPublicasDelMes` NO PUEDE FINGIR (ronda 8, tarea 3).
+ *
+ * Igual que `acuerdosPendientesDeSubir` (src/db/acuerdos.ts): el store en
+ * memoria no modela la columna `salas.activa`, así que no hay forma honesta
+ * de decidir qué sala está en pausa sin una DB real. Devolver `[]` es lo
+ * único que no miente. En la práctica esta rama no se alcanza desde la
+ * página pública: sin DB, `tokenValido` siempre da falso (ver
+ * src/db/enlace-agenda.test.ts) y la página responde 404 antes de llegar
+ * aquí — pero la función debe seguir siendo segura si algo la llamara
+ * directamente.
+ */
+describe('sesionesPublicasDelMes — sin DB no hay nada que anunciar', () => {
+  it('devuelve la lista vacía, no una mentira sobre qué salas están activas', async () => {
+    const reuniones = await sesionesPublicasDelMes(2026, 8)
+    expect(reuniones).toEqual([])
   })
 })

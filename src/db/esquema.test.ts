@@ -25,3 +25,22 @@ describe('esquema de la ronda 7', () => {
     expect(columnas.correo.notNull).toBe(true)
   })
 })
+
+describe('esquema de la ronda 8 (tarea 5: la marca de la sala vive en la base)', () => {
+  it('los doce campos de Tema son obligatorios: se poblaron antes de exigirlos (migraciones 0013 → 0014)', () => {
+    const columnas = getTableColumns(esquema.salas)
+    for (const campo of [
+      'nombre', 'primario', 'secundario', 'acento',
+      'superficieClara', 'superficieOscura', 'textoSobreClara', 'textoSobreOscura',
+      'gradiente', 'familiaDisplay', 'familiaTexto',
+    ] as const) {
+      expect(columnas[campo].notNull, campo).toBe(true)
+    }
+  })
+
+  it('el logo puede faltar: ninguna sala lo tiene medido todavía (tarea 6)', () => {
+    const columnas = getTableColumns(esquema.salas)
+    expect(columnas.logoUrl.notNull).toBe(false)
+    expect(columnas.logoRelacionDeTinta.notNull).toBe(false)
+  })
+})

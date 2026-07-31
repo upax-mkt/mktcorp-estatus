@@ -32,6 +32,13 @@ interface Props {
   equipo?: boolean
   /** La gente viva de Mkt Corp, para el selector de responsable del modo presentación. */
   personas: PersonaMonday[]
+  /**
+   * El logo de la sala subido desde `/salas` (revisión final de la rama,
+   * punto 3) — se pasa a `ProveedorTema` para la portada. `undefined`/`null`
+   * (una reunión sin sala, o una de las nueve reales que aún no ha subido el
+   * suyo) cae al archivo estático de siempre.
+   */
+  logoUrl?: string | null
 }
 
 const ETIQUETA: Record<Acuerdo['estatus'], string> = {
@@ -40,7 +47,7 @@ const ETIQUETA: Record<Acuerdo['estatus'], string> = {
   vencido: 'vencido',
 }
 
-export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionId, equipo, personas }: Props) {
+export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionId, equipo, personas, logoUrl }: Props) {
   // El índice se arma con las secciones que tienen entidad propia: la portada
   // es el encabezado del documento, el cierre es el final —no un destino al
   // que saltar— y el propio índice no se lista a sí mismo.
@@ -68,7 +75,7 @@ export function DocumentoSesion({ tema, secciones, acuerdos, encabezado, sesionI
     )
 
   return (
-    <ProveedorTema tema={tema} superficie="clara">
+    <ProveedorTema tema={tema} superficie="clara" logoUrl={logoUrl}>
       <ModoPresentar sesionId={sesionId} equipo={equipo} personas={personas}>
         <div className={estilos.documento}>
           <div className={estilos.contenido}>

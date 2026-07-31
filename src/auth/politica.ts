@@ -30,7 +30,19 @@ function segmentos(ruta: string): string[] {
 }
 
 export function esRutaPublica(ruta: string): boolean {
-  return RUTAS_PUBLICAS.includes(ruta)
+  if (RUTAS_PUBLICAS.includes(ruta)) return true
+  // LA AGENDA COMPARTIDA, y solo ella.
+  //
+  // Exactamente dos segmentos: `/agenda/<token>` se abre, `/agenda` NO —esa es
+  // la pantalla donde el equipo agenda las sesiones— y `/agenda/<token>/loquesea`
+  // tampoco. Es la única ruta de esta app que responde sin sesión, así que la
+  // condición es por forma exacta y no por prefijo: un `startsWith('/agenda')`
+  // abriría la pantalla interna.
+  //
+  // Aquí NO se valida el token: la política decide por la forma de la ruta y la
+  // página comprueba el token antes de leer un solo dato.
+  const partes = segmentos(ruta)
+  return partes.length === 2 && partes[0] === 'agenda'
 }
 
 /** Solo Mkt Corp escribe: mover estatus, editar fechas, maquetar, minutar. */

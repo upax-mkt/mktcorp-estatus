@@ -14,6 +14,7 @@ import { validarDecision, aLayoutSeguro } from './validar'
 import { sanearDecision, completarKpisFaltantes } from './sanear'
 import { aDecision, type BorradorSeccion } from '@/secciones/borrador'
 import { temaDeSala } from '@/temas'
+import { cargarTemas } from '@/db/temas'
 
 export interface ResultadoMaquetacion {
   decision: DecisionSlide
@@ -150,7 +151,7 @@ export async function maquetarSesion(
   slugSala: string | null,
   cliente?: ClienteDecision,
 ): Promise<ResultadoMaquetacion[]> {
-  const tema = temaDeSala(slugSala)
+  const tema = temaDeSala(slugSala, await cargarTemas())
   // El cliente se crea PEREZOSAMENTE: una sesión armada entera a mano no debe
   // exigir ANTHROPIC_API_KEY para presentarse. La IA es un atajo opcional, no
   // un requisito de arranque.

@@ -4,6 +4,7 @@ import estilos from '@/app/deck/deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
+import { cargarTemas } from '@/db/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { esEquipo, puedeVerEstaSala } from '@/auth/sesion'
 import { directorio } from '@/db/personas'
@@ -78,12 +79,15 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
       </header>
 
       <DocumentoSesion
-        tema={temaDeSala(sesion.salaSlug)}
+        tema={temaDeSala(sesion.salaSlug, await cargarTemas())}
         secciones={secciones}
         acuerdos={sala?.acuerdos ?? []}
         sesionId={sesion.id}
         equipo={equipo}
         personas={personas}
+        // Revisión final de la rama, punto 3: mismo motivo que en
+        // /deck/[id]/documento — `sala` ya trae el logo real de la fila.
+        logoUrl={sala?.logoUrl ?? null}
       />
     </div>
   )

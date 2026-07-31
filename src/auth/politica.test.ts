@@ -126,3 +126,48 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(EQUIPO, '/acuerdos/bandeja')).toBe(true)
   })
 })
+
+describe('la agenda pública, y solo ella', () => {
+  it('deja pasar /agenda/<token> sin sesión', () => {
+    expect(esRutaPublica('/agenda/abc123')).toBe(true)
+    expect(puedeVerRuta(null, '/agenda/abc123')).toBe(true)
+  })
+
+  it('NO deja pasar /agenda a secas: es la pantalla interna del equipo', () => {
+    expect(esRutaPublica('/agenda')).toBe(false)
+    expect(puedeVerRuta(null, '/agenda')).toBe(false)
+  })
+
+  it('NO deja pasar nada por debajo de la agenda pública', () => {
+    expect(esRutaPublica('/agenda/abc123/editar')).toBe(false)
+    expect(puedeVerRuta(null, '/agenda/abc123/editar')).toBe(false)
+  })
+
+  /**
+   * Revisión final de la rama, punto 2: los 22 tests de este archivo pasaban
+   * igual si la comparación se aflojara a `partes[0].startsWith('agenda')` o
+   * a `ruta.includes('agenda')` — ninguno de los casos de arriba distingue
+   * "empieza como agenda" o "contiene agenda en algún segmento" de "ES,
+   * exactamente, /agenda/<token>". Estos dos son la red: con un `startsWith`
+   * el primero se abriría (el primer segmento de '/agendas/x' empieza como
+   * 'agenda'), y con un `includes` el segundo también (la palabra 'agenda'
+   * aparece, aunque como segundo segmento de una ruta de equipo).
+   */
+  it('no se deja engañar por rutas que solo se PARECEN a la agenda pública', () => {
+    expect(esRutaPublica('/agendas/x')).toBe(false)
+    expect(esRutaPublica('/salas/agenda')).toBe(false)
+  })
+
+  it('el resto de la app sigue cerrado sin sesión', () => {
+    for (const ruta of ['/', '/acuerdos', '/acuerdos/bandeja', '/cliente/neracode', '/deck', '/deck/nueva', '/salas']) {
+      expect(puedeVerRuta(null, ruta)).toBe(false)
+    }
+  })
+
+  it('el rol sala tampoco gana acceso a nada nuevo', () => {
+    const dir = { rol: 'sala' as const, sala: 'neracode', exp: 9e12 }
+    expect(puedeVerRuta(dir, '/agenda')).toBe(false)
+    expect(puedeVerRuta(dir, '/salas')).toBe(false)
+    expect(puedeVerRuta(dir, '/cliente/zeus')).toBe(false)
+  })
+})

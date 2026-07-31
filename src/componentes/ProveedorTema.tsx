@@ -2,16 +2,25 @@ import type { CSSProperties, ReactNode } from 'react'
 import { archivoDeLogo } from '@/temas/logos'
 import type { Tema } from '@/temas/tipos'
 import { derivarEscalaDatos } from '@/lib/escala-datos'
-import { familiaCss } from '@/temas/fuentes'
+import { familiaCss, clasesDeFuentes } from '@/temas/fuentes'
 import { ajustarColorParaContraste } from '@/lib/superficie-texto'
 
 interface Props {
   tema: Tema
   superficie: 'clara' | 'oscura'
   children: ReactNode
+  /**
+   * El logo subido desde `/salas` (revisión final de la rama, punto 3) — NO
+   * viene dentro de `tema`: `Tema`/`cargarTemas()` no traen `logoUrl` a
+   * propósito (nunca formó parte de ese tipo, ver el comentario de
+   * `esquema.salas` en src/db/esquema.ts), así que quien monta este proveedor
+   * lo pasa aparte si lo tiene. `undefined`/`null` —el caso de hoy para las
+   * nueve salas reales— cae al archivo estático de siempre.
+   */
+  logoUrl?: string | null
 }
 
-export function ProveedorTema({ tema, superficie, children }: Props) {
+export function ProveedorTema({ tema, superficie, children, logoUrl }: Props) {
   const fondo = superficie === 'clara' ? tema.superficieClara : tema.superficieOscura
   const texto = superficie === 'clara' ? tema.textoSobreClara : tema.textoSobreOscura
   const datos = derivarEscalaDatos(tema.primario, fondo)
@@ -45,14 +54,29 @@ export function ProveedorTema({ tema, superficie, children }: Props) {
      * CSS —el `::before` de la portada— y hacerlo llegar hasta ahí como prop
      * obligaría a atravesar cuatro componentes que no tienen nada que ver.
      */
-    '--logo-blanco': `url("${archivoDeLogo(tema.slug, 'blanco')}")`,
+    '--logo-blanco': `url("${archivoDeLogo(tema.slug, 'blanco', logoUrl)}")`,
     '--fuente-display': familiaCss(tema.familiaDisplay),
     '--fuente-texto': familiaCss(tema.familiaTexto),
   }
   datos.forEach((color, i) => { variables[`--dato-${i + 1}`] = color })
 
   return (
-    <div data-testid="tema" data-sala={tema.slug} style={variables as CSSProperties}>
+    <div
+      data-testid="tema"
+      data-sala={tema.slug}
+      // CARGA SELECTIVA (tarea 7, ronda 8): las variables CSS de SOLO las dos
+      // familias de esta sala (una si título y texto comparten familia), no
+      // las veinte del catálogo. `--fuente-display`/`--fuente-texto` de
+      // arriba son referencias `var(--f-…)` — sin la clase que de verdad
+      // define esa variable en algún ancestro, apuntarían a nada. Antes esa
+      // clase la ponían las veinte (o las nueve, Fase 1) colgadas del
+      // `<body>` en el layout raíz; ahora la pone la propia sala, aquí, y
+      // solo la suya — es el único sitio de la app donde una tipografía de
+      // marca se pinta de verdad (ver `documento.module.css`,
+      // `piezas.module.css`, `grafico.module.css`).
+      className={clasesDeFuentes([tema.familiaDisplay, tema.familiaTexto])}
+      style={variables as CSSProperties}
+    >
       {children}
     </div>
   )

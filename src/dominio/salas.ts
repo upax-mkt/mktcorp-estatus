@@ -2,17 +2,18 @@
  * EL ESTADO DE LA RELACIÓN CON CADA SALA: tipos y lógica derivada.
  *
  * Aquí NO hay datos. Ni uno. Todo lo que la app enseña —acuerdos, sesiones,
- * minutas— sale de lo que el equipo creó en la propia app y vive en su base de
- * datos; si algo se borra ahí, desaparece de la app. Este módulo solo define
- * QUÉ es el estado de una sala y cómo se calculan sus derivados (temperatura,
- * urgencia, pulso del mes).
+ * minutas, y desde la ronda 8 también el nombre y la marca de cada sala— sale
+ * de lo que el equipo creó o editó en la propia app y vive en su base de
+ * datos; si algo se borra o cambia ahí, cambia en la app. Este módulo solo
+ * define QUÉ es el estado de una sala y cómo se calculan sus derivados
+ * (temperatura, urgencia, pulso del mes).
  *
- * Las diez salas sí son configuración: las 8 UDNs de Grupo UPAX + Ceci + el
- * corporativo. Son la estructura de la organización, no contenido, y viven en
- * `src/temas/`. Una sala sin actividad devuelve un estado VACÍO, que es la
- * verdad —nadie ha preparado nada todavía— y no un ejemplo inventado.
+ * Hasta el 30-jul las diez salas SÍ eran configuración de código
+ * (`src/temas/`) y `estadoDeSalas()` podía enumerarlas sin tocar la base: era
+ * el respaldo para cuando no hay DATABASE_URL. Desde que la marca se edita
+ * desde la app, esa lista dejó de ser algo que este módulo —puro, sin
+ * `async`— pueda ofrecer por su cuenta: ver `estadoDeSalas()` más abajo.
  */
-import { slugsDeSalas, obtenerTema } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido'
 
@@ -60,6 +61,14 @@ export interface EstadoSala {
   slug: string
   nombre: string
   color: string
+  /**
+   * El logo subido desde `/salas` (tarea 6), o `null` si la sala todavía usa
+   * el archivo estático de `/public/logos` (revisión final de la rama, punto
+   * 3). Ver `archivoDeLogo`, src/temas/logos.ts — es el dato que le falta
+   * para no pintar una imagen rota en la tarjeta del hub y en la portada de
+   * la sala cuando se trata de una sala creada desde la app.
+   */
+  logoUrl: string | null
   /** Días desde la última sesión. Alto = desatendida. `null` = nunca. */
   diasDesdeUltima: number | null
   ultimaSesion: string | null // ISO
@@ -98,40 +107,24 @@ export interface EstadoSala {
 }
 
 /**
- * El estado de las diez salas, VACÍO.
+ * El estado de las salas sin base de datos: VACÍO. Siempre.
  *
- * Es el camino de respaldo para cuando no hay base de datos configurada (dev
- * sin `DATABASE_URL`). Devuelve las salas que existen —eso es configuración—
- * pero sin una sola sesión, acuerdo ni minuta: sin base no hay nada guardado
- * que enseñar, y decir lo contrario sería inventarlo.
+ * Hasta el 30-jul este era el camino de respaldo para dev sin `DATABASE_URL`:
+ * como el nombre y el color de cada sala vivían en código (`src/temas`), se
+ * podían enumerar sin tocar Postgres. Desde que esa marca es dato editable
+ * (ronda 8, tarea 5), este módulo —puro, sin `async`— ya no tiene de dónde
+ * sacarla: `cargarTemas()` (`src/db/temas.ts`) es quien la lee, y solo puede
+ * hacerlo con `await`.
  *
- * Con base de datos, `src/db/consultas.ts` no llama a esto: consulta Postgres.
+ * `[]` es la verdad honesta que le queda a este camino: sin base no hay ni
+ * sesión, ni acuerdo, ni minuta que enseñar —eso ya era cierto antes— y ahora
+ * tampoco hay una lista de salas que ofrecer sin inventarla. `src/db/consultas.ts`,
+ * quien de verdad decide qué se pinta, no depende de esto: con DATABASE_URL
+ * consulta Postgres directamente, y sin ella cae a su propio store en
+ * memoria (`src/db/store-memoria.ts`), no a esta función.
  */
 export function estadoDeSalas(): EstadoSala[] {
-  return slugsDeSalas().map((slug) => {
-    const tema = obtenerTema(slug)
-    return {
-      slug,
-      nombre: tema.nombre,
-      color: tema.primario,
-      diasDesdeUltima: null,
-      ultimaSesion: null,
-      proximaSesion: null,
-      enPreparacion: false,
-      acuerdos: [],
-      presentaciones: [],
-      minutas: [],
-      cadencia: 'mensual',
-      // El store en memoria no modela `salas.activa`: sin base de datos no
-      // hay forma de pausar nada, así que toda sala se trata como activa.
-      activa: true,
-      pausadaDesde: null,
-    }
-  })
-}
-
-export function estadoDeSala(slug: string): EstadoSala | undefined {
-  return estadoDeSalas().find((s) => s.slug === slug)
+  return []
 }
 
 // ---- Derivados para el hub ----
@@ -329,29 +322,27 @@ export function ordenarPorProximaReunion(salas: EstadoSala[]): EstadoSala[] {
   })
 }
 
+/**
+ * El TIPO se queda: lo usa `AcuerdoConSala` de `src/db/consultas.ts`, cuya
+ * `acuerdosEnRiesgo()` (async, la que de verdad se llama) tiene su propia
+ * implementación contra Postgres. La función pura de este módulo que
+ * calculaba lo mismo sobre `estadoDeSalas()` se quitó en la revisión de la
+ * tarea 5: desde que esa función siempre devuelve `[]`, esta otra solo podía
+ * devolver `[]` también — código inalcanzable disfrazado de lógica.
+ */
 export interface AcuerdoEnRiesgo extends Acuerdo {
   salaSlug: string
   salaNombre: string
   salaColor: string
 }
 
-/** Todos los acuerdos vencidos o sin fecha, cruzando las 10 salas. */
-export function acuerdosEnRiesgo(): AcuerdoEnRiesgo[] {
-  const out: AcuerdoEnRiesgo[] = []
-  for (const s of estadoDeSalas()) {
-    // Misma regla que acuerdosVencidos/acuerdosAbiertos: una sala en freeze
-    // no acumula riesgo, está congelada.
-    if (s.activa === false) continue
-    for (const a of s.acuerdos) {
-      if (a.estatus === 'vencido' || (a.estatus === 'abierto' && a.fechaCompromiso == null)) {
-        out.push({ ...a, salaSlug: s.slug, salaNombre: s.nombre, salaColor: s.color })
-      }
-    }
-  }
-  // vencidos primero
-  return out.sort((a, b) => (a.estatus === 'vencido' ? 0 : 1) - (b.estatus === 'vencido' ? 0 : 1))
-}
-
+/**
+ * El TIPO se queda: lo usa `pulsoDelMes()` de `src/db/consultas.ts` (async,
+ * la que de verdad se llama, con su propia implementación contra Postgres).
+ * La función pura de este módulo se quitó en la revisión de la tarea 5 por
+ * el mismo motivo que `acuerdosEnRiesgo()`: dependía de `estadoDeSalas()`,
+ * que siempre devuelve `[]`, así que solo podía devolver un pulso vacío.
+ */
 export interface PulsoDelMes {
   salas: number
   sesionesUltimos30: number
@@ -386,20 +377,6 @@ export function salaMasDesatendida(salas: EstadoSala[]): { nombre: string; dias:
     (a, b) => (b.diasDesdeUltima ?? Infinity) - (a.diasDesdeUltima ?? Infinity),
   )[0]
   return { nombre: peor.nombre, dias: peor.diasDesdeUltima }
-}
-
-export function pulsoDelMes(): PulsoDelMes {
-  const salas = estadoDeSalas()
-  const sesionesUltimos30 = salas.filter((s) => s.diasDesdeUltima != null && s.diasDesdeUltima <= 30).length
-  const abiertos = salas.reduce((n, s) => n + acuerdosAbiertos(s), 0)
-  const vencidos = salas.reduce((n, s) => n + acuerdosVencidos(s), 0)
-  return {
-    salas: salas.length,
-    sesionesUltimos30,
-    acuerdosAbiertos: abiertos,
-    acuerdosVencidos: vencidos,
-    salaMasDesatendida: salaMasDesatendida(salas),
-  }
 }
 
 /**

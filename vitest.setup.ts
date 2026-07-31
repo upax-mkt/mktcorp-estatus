@@ -22,5 +22,17 @@ vi.mock('next/font/google', () => {
     Bungee: fuente,
     Hanken_Grotesk: fuente,
     Archivo: fuente,
+    // Las once nuevas del catálogo de tipografías (tarea 7, ronda 8).
+    Inter: fuente,
+    Manrope: fuente,
+    DM_Sans: fuente,
+    Space_Grotesk: fuente,
+    Sora: fuente,
+    Plus_Jakarta_Sans: fuente,
+    Playfair_Display: fuente,
+    Fraunces: fuente,
+    Bebas_Neue: fuente,
+    Oswald: fuente,
+    Barlow_Condensed: fuente,
   }
 })

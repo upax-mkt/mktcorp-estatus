@@ -17,7 +17,7 @@ import { and, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
-import { slugsDeSalas } from '@/temas'
+import { slugsDeSalas } from './temas'
 
 export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen'
 
@@ -123,7 +123,7 @@ export async function registrarArchivo(datos: {
   tamanoBytes?: number | null
   subidoPor?: string | null
 }): Promise<{ id: string }> {
-  if (datos.salaSlug && !slugsDeSalas().includes(datos.salaSlug)) {
+  if (datos.salaSlug && !(await slugsDeSalas()).includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   // Un archivo tiene que colgar de algo: de una sala o de una sesión. Sin

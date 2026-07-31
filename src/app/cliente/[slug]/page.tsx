@@ -4,7 +4,8 @@ import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
-import { obtenerTema, slugsDeSalas, colorDeTextoDeMarca } from '@/temas'
+import { colorDeTextoDeMarca } from '@/temas'
+import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
@@ -36,7 +37,7 @@ import { secretoConfigurado } from '@/auth/sesion'
 import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
+import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import {
   esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
@@ -51,8 +52,8 @@ import { urlBase } from '@/lib/url-base'
 // deploy nuevo sin haber pasado por una acción).
 export const dynamic = 'force-dynamic'
 
-export function generateStaticParams() {
-  return slugsDeSalas().map((slug) => ({ slug }))
+export async function generateStaticParams() {
+  return (await slugsDeSalas()).map((slug) => ({ slug }))
 }
 
 /**
@@ -96,12 +97,13 @@ const ETIQUETA_ESTADO: Record<Acuerdo['estatus'], string> = {
 
 export default async function VistaSala({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  let tema
-  try {
-    tema = obtenerTema(slug)
-  } catch {
-    notFound()
-  }
+  // Guarda contra las nueve salas reales, no contra las diez filas de
+  // `salas`: `grupo-upax` tiene tema (cargarTemas() lo trae) pero no es una
+  // sala navegable desde aquí, igual que no lo era cuando `TEMAS` la excluía
+  // en código — ver slugsDeSalas(), src/db/temas.ts.
+  const [slugsReales, registro] = await Promise.all([slugsDeSalas(), cargarTemas()])
+  if (!slugsReales.includes(slug)) notFound()
+  const tema = registro[slug]
   // El proxy ya filtró, pero esta es la comprobación que cuenta: pegada al
   // dato, no en la puerta. Un director solo abre su sala.
   if (!(await puedeVerEstaSala(slug))) notFound()
@@ -236,8 +238,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         tipo: 'mensual',
         alcance: 'todos',
         // Las 10:00 de CDMX, no la medianoche UTC: sin huso explícito una
-        // reunión "del 19" se guarda como las 18:00 del 18 en México.
-        fecha: new Date(`${datos.dia}T10:00:00-06:00`),
+        // reunión "del 19" se guarda como las 18:00 del 18 en México. Ver
+        // `instanteEnCDMX`, src/lib/fecha.ts.
+        fecha: instanteEnCDMX(datos.dia, '10:00'),
         estado: 'agendada',
       })
     } catch (error) {
@@ -409,7 +412,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         <div className={estilos.heroInner}>
           <div className={estilos.heroKicker}>Cliente · Marketing Corp</div>
           <Image
-            src={archivoDeLogo(slug, 'blanco')}
+            // logoUrl de la fila, y solo si es null cae al archivo estático
+            // (revisión final de la rama, punto 3) — `s` ya trae la columna
+            // real (ver EstadoSala.logoUrl, src/dominio/salas.ts).
+            src={archivoDeLogo(slug, 'blanco', s.logoUrl)}
             alt={s.nombre}
             width={340}
             height={80}
