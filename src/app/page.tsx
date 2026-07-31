@@ -162,6 +162,7 @@ export default async function Hub() {
           <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
+          <Link href="/salas" className={estilos.barraLink}>Salas</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
             <button type="submit" className={estilos.barraSalir}>Salir</button>

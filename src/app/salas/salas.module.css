@@ -1,0 +1,147 @@
+/* Salas — mismos neutros OKLCH y misma barra que el hub, la agenda y el
+   deck (src/app/sistema.css es la única fuente; ver la cabecera de
+   agenda.module.css para el porqué de este alias). Es una pantalla de
+   configuración: sin color de marca propio, así que --acento cae a la tinta. */
+
+.app {
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --acento: var(--tinta);
+
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.barra {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
+}
+.volver { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.volver:hover { color: var(--tinta); }
+.barraTitulo { font-weight: 650; font-size: 0.95rem; }
+
+.main { max-width: 64rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.encabezado { margin-bottom: 1.75rem; }
+.titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
+.subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 62ch; }
+
+.seccion { margin-top: 2.25rem; }
+.seccionCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+.seccionTitulo { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+
+/* ---- el enlace de agenda ---- */
+.enlaceAgenda { padding: 1.25rem 1.4rem; display: grid; gap: 1rem; }
+.enlaceTexto { display: grid; gap: 0.3rem; }
+.enlaceTitulo { font-size: 0.95rem; font-weight: 700; }
+.enlaceNota { font-size: 0.85rem; color: var(--tx-2); margin: 0; max-width: 62ch; }
+.enlaceAcciones { display: grid; gap: 0.6rem; }
+.enlaceFila { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.enlaceCodigo {
+  font-size: 0.82rem; padding: 0.45rem 0.65rem; border-radius: 0.5rem;
+  background: var(--hundido); color: var(--tx); overflow-wrap: anywhere;
+}
+.confirmarFila { display: inline-flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.enlacePista { font-size: 0.8rem; color: var(--tx-2); }
+
+/* ---- la lista de salas ---- */
+.listaSalas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.filaSala {
+  border-radius: var(--r-4); background: var(--superficie);
+  box-shadow: var(--e-1);
+  overflow: hidden;
+}
+.filaResumen {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.85rem 1.1rem;
+}
+.filaColor { width: 1.1rem; height: 1.1rem; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px color-mix(in oklch, black 12%, transparent); }
+.filaNombre { font-size: 0.95rem; font-weight: 650; margin-right: auto; }
+.filaAcciones { display: inline-flex; align-items: center; gap: 0.5rem; }
+.filaFormulario { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--borde); padding-top: 1.1rem; }
+
+/* ---- el formulario de una sala ---- */
+.formulario { display: grid; gap: 1rem; }
+.formularioCampos { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+@media (max-width: 46rem) { .formularioCampos { grid-template-columns: minmax(0, 1fr); } }
+.formularioCamposIzq { display: grid; gap: 0.9rem; min-width: 0; }
+.campo { display: grid; gap: 0.3rem; min-width: 0; }
+.etiqueta { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); font-weight: 700; }
+.entrada {
+  font: inherit; font-size: 0.88rem; color: var(--tx); width: 100%; min-width: 0;
+  padding: 0.45rem 0.6rem; border: 1px solid var(--borde-fuerte); border-radius: 0.45rem;
+  background: var(--superficie);
+}
+.entrada:focus { outline: none; border-color: var(--acento); }
+.entrada:disabled { color: var(--tx-3); background: var(--hundido); cursor: not-allowed; }
+.colorFila { display: flex; align-items: center; gap: 0.5rem; }
+.entradaColor {
+  width: 2.6rem; height: 2.4rem; padding: 0.2rem; flex: none;
+  border: 1px solid var(--borde-fuerte); border-radius: 0.45rem; background: var(--superficie); cursor: pointer;
+}
+.pista { font-size: 0.78rem; color: var(--tx-3); margin: 0; }
+/* Aviso que NO bloquea guardar (el logo sin transparencia: se guarda igual y
+   se puede corregir después) — fondo con tinte para que el texto sobre
+   `--ojo` cumpla contraste; a pelo sobre el papel blanco no llegaba. Mismo
+   par de tokens que ya valida `.pildora[data-tono='ojo']` en sistema.css. */
+.avisoTexto {
+  font-size: 0.8rem; font-weight: 600; margin: 0;
+  padding: 0.4rem 0.6rem; border-radius: 0.4rem;
+  background: var(--ojo-tenue); color: var(--ojo);
+}
+/* Lo que SÍ bloquea guardar (slug vacío, slug repetido, color inválido) —
+   mismo tono que un error de servidor: son la misma clase de problema, solo
+   que uno se detecta antes de enviar. */
+.formularioError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
+.formularioOk { font-size: 0.85rem; color: var(--ok); margin: 0; }
+.formularioAcciones { display: flex; align-items: center; gap: 0.75rem; }
+
+/* ---- vista previa de la marca ---- */
+.previa { padding: 0; overflow: hidden; display: grid; }
+.previaVacia { padding: 1.5rem; color: var(--tx-3); font-size: 0.85rem; margin: 0; text-align: center; }
+
+.previaPortada {
+  padding: 1.5rem 1.25rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.6rem;
+  min-height: 6.5rem; justify-content: center;
+}
+.previaLogo { width: auto; display: block; object-fit: contain; }
+.previaPortadaTitulo { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+
+.previaContenido { padding: 1.1rem 1.25rem; display: grid; gap: 0.6rem; }
+.previaContenidoTitulo { font-size: 0.78rem; font-weight: 600; opacity: 0.8; }
+.previaMuestra {
+  display: inline-flex; align-self: flex-start;
+  padding: 0.3rem 0.7rem; border-radius: var(--r-lleno);
+  border: 2px solid; font-size: 0.8rem; font-weight: 700;
+}
+.previaAviso {
+  font-size: 0.8rem; margin: 0; padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem; background: var(--mal-tenue); color: var(--mal);
+}
+
+.previaPaleta { list-style: none; margin: 0; padding: 0.9rem 1.25rem 1.1rem; display: grid; gap: 0.55rem; background: var(--superficie); }
+.previaColor { display: flex; align-items: center; gap: 0.6rem; }
+.previaColorMuestra { width: 1.6rem; height: 1.6rem; border-radius: 0.4rem; flex: none; box-shadow: inset 0 0 0 1px color-mix(in oklch, black 12%, transparent); }
+.previaColorTexto { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.previaColorEtiqueta { font-size: 0.78rem; color: var(--tx-2); }
+.previaColorHex { font-size: 0.78rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
