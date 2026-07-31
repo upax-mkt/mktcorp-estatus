@@ -323,12 +323,18 @@ export const personasMonday = pgTable('personas_monday', {
 })
 
 // ---- Enlace público de la agenda ----
-// UNA sola fila. El token no lleva nada dentro —a diferencia del enlace de
-// sala, que codifica qué sala y hasta cuándo y por eso va firmado— así que no
-// hace falta criptografía: es una contraseña larga que se compara contra esta
-// tabla. Revocar es reemplazar la fila, y eso invalida el enlace viejo en el
-// acto, que con una firma sería más difícil de garantizar.
+// UNA sola fila (id = 1). El token no lleva nada dentro —a diferencia del
+// enlace de sala, que codifica qué sala y hasta cuándo y por eso va firmado—
+// así que no hace falta criptografía: es una contraseña larga que se compara
+// contra esta tabla.
+//
+// La clave primaria es `id` (constante 1) para garantizar una sola fila.
+// Generar usa INSERT ... ON CONFLICT (id) DO UPDATE, una sentencia atómica
+// que imposibilita race conditions: nunca hay dos filas, nunca hay estado
+// indeterminado. Revocar borra por id. Sin transacciones porque neon-http
+// no las soporta, pero una sola sentencia es atómica en Postgres.
 export const enlaceAgenda = pgTable('enlace_agenda', {
-  token: text('token').primaryKey(),
+  id: integer('id').primaryKey(),
+  token: text('token').notNull(),
   creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
 })

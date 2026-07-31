@@ -1,5 +1,5 @@
 {
-  "id": "32587cc3-db23-492c-af42-1d24752c2ed8",
+  "id": "15a8295a-4642-482a-9901-c7c719284b2d",
   "prevId": "fdf8189b-e053-417d-b480-e7a746f03e06",
   "version": "7",
   "dialect": "postgresql",
@@ -356,10 +356,16 @@
       "name": "enlace_agenda",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
         "token": {
           "name": "token",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "creado_en": {
