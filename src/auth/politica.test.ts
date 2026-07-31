@@ -126,3 +126,33 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(EQUIPO, '/acuerdos/bandeja')).toBe(true)
   })
 })
+
+describe('la agenda pública, y solo ella', () => {
+  it('deja pasar /agenda/<token> sin sesión', () => {
+    expect(esRutaPublica('/agenda/abc123')).toBe(true)
+    expect(puedeVerRuta(null, '/agenda/abc123')).toBe(true)
+  })
+
+  it('NO deja pasar /agenda a secas: es la pantalla interna del equipo', () => {
+    expect(esRutaPublica('/agenda')).toBe(false)
+    expect(puedeVerRuta(null, '/agenda')).toBe(false)
+  })
+
+  it('NO deja pasar nada por debajo de la agenda pública', () => {
+    expect(esRutaPublica('/agenda/abc123/editar')).toBe(false)
+    expect(puedeVerRuta(null, '/agenda/abc123/editar')).toBe(false)
+  })
+
+  it('el resto de la app sigue cerrado sin sesión', () => {
+    for (const ruta of ['/', '/acuerdos', '/acuerdos/bandeja', '/cliente/neracode', '/deck', '/deck/nueva', '/salas']) {
+      expect(puedeVerRuta(null, ruta)).toBe(false)
+    }
+  })
+
+  it('el rol sala tampoco gana acceso a nada nuevo', () => {
+    const dir = { rol: 'sala' as const, sala: 'neracode', exp: 9e12 }
+    expect(puedeVerRuta(dir, '/agenda')).toBe(false)
+    expect(puedeVerRuta(dir, '/salas')).toBe(false)
+    expect(puedeVerRuta(dir, '/cliente/zeus')).toBe(false)
+  })
+})
