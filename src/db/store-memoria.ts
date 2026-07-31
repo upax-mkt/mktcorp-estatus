@@ -190,10 +190,6 @@ export function obtenerAcuerdoMemoria(id: string): FilaAcuerdoMemoria | undefine
   return acuerdos.get(id)
 }
 
-export function listarAcuerdosDeSalaMemoria(salaSlug: string): FilaAcuerdoMemoria[] {
-  return Array.from(acuerdos.values()).filter((a) => a.salaSlug === salaSlug)
-}
-
 export function actualizarAcuerdoMemoria(
   id: string,
   cambios: Partial<Omit<FilaAcuerdoMemoria, 'id' | 'salaSlug' | 'createdAt'>>,

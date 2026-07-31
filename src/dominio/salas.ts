@@ -119,10 +119,6 @@ export function estadoDeSalas(): EstadoSala[] {
   return []
 }
 
-export function estadoDeSala(slug: string): EstadoSala | undefined {
-  return estadoDeSalas().find((s) => s.slug === slug)
-}
-
 // ---- Derivados para el hub ----
 
 export function acuerdosAbiertos(s: EstadoSala): number {
@@ -318,29 +314,27 @@ export function ordenarPorProximaReunion(salas: EstadoSala[]): EstadoSala[] {
   })
 }
 
+/**
+ * El TIPO se queda: lo usa `AcuerdoConSala` de `src/db/consultas.ts`, cuya
+ * `acuerdosEnRiesgo()` (async, la que de verdad se llama) tiene su propia
+ * implementación contra Postgres. La función pura de este módulo que
+ * calculaba lo mismo sobre `estadoDeSalas()` se quitó en la revisión de la
+ * tarea 5: desde que esa función siempre devuelve `[]`, esta otra solo podía
+ * devolver `[]` también — código inalcanzable disfrazado de lógica.
+ */
 export interface AcuerdoEnRiesgo extends Acuerdo {
   salaSlug: string
   salaNombre: string
   salaColor: string
 }
 
-/** Todos los acuerdos vencidos o sin fecha, cruzando las 10 salas. */
-export function acuerdosEnRiesgo(): AcuerdoEnRiesgo[] {
-  const out: AcuerdoEnRiesgo[] = []
-  for (const s of estadoDeSalas()) {
-    // Misma regla que acuerdosVencidos/acuerdosAbiertos: una sala en freeze
-    // no acumula riesgo, está congelada.
-    if (s.activa === false) continue
-    for (const a of s.acuerdos) {
-      if (a.estatus === 'vencido' || (a.estatus === 'abierto' && a.fechaCompromiso == null)) {
-        out.push({ ...a, salaSlug: s.slug, salaNombre: s.nombre, salaColor: s.color })
-      }
-    }
-  }
-  // vencidos primero
-  return out.sort((a, b) => (a.estatus === 'vencido' ? 0 : 1) - (b.estatus === 'vencido' ? 0 : 1))
-}
-
+/**
+ * El TIPO se queda: lo usa `pulsoDelMes()` de `src/db/consultas.ts` (async,
+ * la que de verdad se llama, con su propia implementación contra Postgres).
+ * La función pura de este módulo se quitó en la revisión de la tarea 5 por
+ * el mismo motivo que `acuerdosEnRiesgo()`: dependía de `estadoDeSalas()`,
+ * que siempre devuelve `[]`, así que solo podía devolver un pulso vacío.
+ */
 export interface PulsoDelMes {
   salas: number
   sesionesUltimos30: number
@@ -375,20 +369,6 @@ export function salaMasDesatendida(salas: EstadoSala[]): { nombre: string; dias:
     (a, b) => (b.diasDesdeUltima ?? Infinity) - (a.diasDesdeUltima ?? Infinity),
   )[0]
   return { nombre: peor.nombre, dias: peor.diasDesdeUltima }
-}
-
-export function pulsoDelMes(): PulsoDelMes {
-  const salas = estadoDeSalas()
-  const sesionesUltimos30 = salas.filter((s) => s.diasDesdeUltima != null && s.diasDesdeUltima <= 30).length
-  const abiertos = salas.reduce((n, s) => n + acuerdosAbiertos(s), 0)
-  const vencidos = salas.reduce((n, s) => n + acuerdosVencidos(s), 0)
-  return {
-    salas: salas.length,
-    sesionesUltimos30,
-    acuerdosAbiertos: abiertos,
-    acuerdosVencidos: vencidos,
-    salaMasDesatendida: salaMasDesatendida(salas),
-  }
 }
 
 /**

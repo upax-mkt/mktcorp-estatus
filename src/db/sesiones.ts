@@ -18,7 +18,6 @@ import { esPermutacionValida } from './orden'
 import { salaEstaActiva } from './salas'
 import { cargarTemas, slugsDeSalas } from './temas'
 import type { Tema } from '@/temas'
-import { grupoUpax } from '@/temas/grupo-upax'
 import type { EntradaCruda } from '@/motor/inventario'
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
@@ -1142,20 +1141,24 @@ export async function sesionesPublicasDelMes(anio: number, mes: number): Promise
    * vive en la propia fila (tarea 5) esa fila SÍ tiene tema —el suyo, ver
    * `src/temas/grupo-upax.ts`— y ya no hay hueco que la excluya solo.
    *
-   * La exclusión se mantiene, ahora explícita: Grupo UPAX es el holding, no
-   * una UDN, y esta pantalla anuncia "cuándo le toca a [UDN]" a gente de
-   * fuera del equipo. Sacarla de la lista sin que nadie lo decidiera de
-   * nuevo habría sido un cambio de producto disfrazado de mudanza de datos —
-   * hoy no hay ninguna sesión con `sala_slug = 'grupo-upax'` en producción
-   * (comprobado leyendo la base, ver el reporte de la tarea 5), así que esto
-   * es preventivo: si alguna vez la hay, sigue sin aparecer aquí, igual que
-   * hoy. Si esa fila debe seguir existiendo o no es una decisión de Franco
-   * que sigue pendiente (ver progress.md, tarea 3) y no se toca en esta
-   * pantalla.
+   * La exclusión se mantiene, ahora explícita, y contra `slugsDeSalas()` —la
+   * MISMA lista que ya decide qué es "una sala" para validar sesiones,
+   * acuerdos, archivos y claves nuevas (ver src/db/temas.ts)— en vez de un
+   * slug clavado a mano aparte: una sola fuente de qué son las nueve UDNs, no
+   * dos que se puedan desincronizar. Grupo UPAX es el holding, no una UDN, y
+   * esta pantalla anuncia "cuándo le toca a [UDN]" a gente de fuera del
+   * equipo. Sacarla de la lista sin que nadie lo decidiera de nuevo habría
+   * sido un cambio de producto disfrazado de mudanza de datos — hoy no hay
+   * ninguna sesión con `sala_slug = 'grupo-upax'` en producción (comprobado
+   * leyendo la base, ver el reporte de la tarea 5), así que esto es
+   * preventivo: si alguna vez la hay, sigue sin aparecer aquí, igual que hoy.
+   * Si esa fila debe seguir existiendo o no es una decisión de Franco que
+   * sigue pendiente (ver progress.md, tarea 3) y no se toca en esta pantalla.
    */
+  const slugsReales = await slugsDeSalas()
   return filas
     .filter((fila): fila is typeof fila & { salaSlug: string } =>
-      fila.salaSlug !== null && fila.salaSlug !== grupoUpax.slug,
+      fila.salaSlug !== null && slugsReales.includes(fila.salaSlug),
     )
     .map((fila) => {
       const iso = fila.fecha.toISOString()

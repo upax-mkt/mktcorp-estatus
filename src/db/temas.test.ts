@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 
 describe('la semilla de temas', () => {
@@ -97,14 +97,109 @@ describe('cargarTemas — con base de datos', () => {
     })
   })
 
-  it('descarta una fila con la marca incompleta en vez de construir un Tema roto', async () => {
+  it('descarta una fila con un campo nulo en vez de construir un Tema roto', async () => {
     // No debería pasar —las columnas son NOT NULL desde la migración 0014—
-    // pero Drizzle sigue tipándolas como posiblemente nulas, y este es
-    // justo el caso que ese `if` defensivo existe para cubrir.
+    // pero Drizzle no impide que este código reciba `null` si algo cambiara
+    // del otro lado; `EsquemaTema.safeParse` es quien de verdad lo atrapa.
     conDB = true
     filasSalas = [{ ...FILA_ZEUS, slug: 'rota', primario: null }]
     const registro = await cargarTemas()
     expect(registro.rota).toBeUndefined()
+  })
+
+  it('descarta una fila con un campo de FORMA inválida, no solo nula (revisión de la tarea 5)', async () => {
+    // `NOT NULL` en la base solo exige que haya ALGÚN texto — no que sea un
+    // hex de seis dígitos. Antes de esta validación, una fila así habría
+    // construido un Tema que pinta `background: rojo` en CSS.
+    conDB = true
+    filasSalas = [{ ...FILA_ZEUS, slug: 'rota-color', primario: 'rojo' }]
+    const registro = await cargarTemas()
+    expect(registro['rota-color']).toBeUndefined()
+  })
+
+  it('descarta una fila con el degradado de una sola parada', async () => {
+    // Un degradado de una parada no degrada nada: es un color suelto con
+    // otro nombre. `NOT NULL` no lo habría pillado —el jsonb no es nulo,
+    // solo tiene un elemento— pero `EsquemaTema` sí.
+    conDB = true
+    filasSalas = [{ ...FILA_ZEUS, slug: 'rota-degradado', gradiente: ['#614ACA'] }]
+    const registro = await cargarTemas()
+    expect(registro['rota-degradado']).toBeUndefined()
+  })
+
+  it('una fila válida junto a una rota: la rota se omite, la válida se pinta igual', async () => {
+    conDB = true
+    filasSalas = [FILA_ZEUS, { ...FILA_ZEUS, slug: 'rota', acento: 'no-es-un-hex' }]
+    const registro = await cargarTemas()
+    expect(registro.zeus).toBeDefined()
+    expect(registro.rota).toBeUndefined()
+  })
+})
+
+describe('cargarTemas — el orden (revisión de la tarea 5)', () => {
+  it('devuelve las filas en el orden de la semilla, sin importar el orden en que las dio la base', async () => {
+    // Postgres no promete ningún orden sin ORDER BY. Aquí las filas llegan
+    // deliberadamente EN REVERSO al orden de la semilla, para probar que el
+    // registro no hereda el orden crudo de la consulta.
+    conDB = true
+    const enOrdenInvertido = Object.values(SEMILLA_DE_TEMAS).slice().reverse()
+    filasSalas = enOrdenInvertido
+
+    const registro = await cargarTemas()
+
+    expect(Object.keys(registro)).toEqual(Object.keys(SEMILLA_DE_TEMAS))
+  })
+
+  it('un slug que no está en la semilla va al final, no se pierde', async () => {
+    conDB = true
+    filasSalas = [{ ...FILA_ZEUS, slug: 'una-sala-nueva' }, FILA_ZEUS]
+
+    const registro = await cargarTemas()
+
+    expect(Object.keys(registro)).toEqual(['zeus', 'una-sala-nueva'])
+  })
+})
+
+describe('slugsDeSalas — el orden es el mismo que devuelve cargarTemas', () => {
+  it('respeta el orden de la semilla, no el de la base — de aquí sale salas[0] en FormularioSesion', async () => {
+    conDB = true
+    filasSalas = [
+      { ...FILA_ZEUS, slug: 'ceci', nombre: 'Ceci' },
+      FILA_ZEUS, // zeus
+      { ...FILA_ZEUS, slug: 'neracode', nombre: 'NeraCode' },
+    ]
+
+    // Orden de la semilla: neracode antes que zeus, zeus antes que ceci —
+    // ver src/temas/semilla.ts. Si slugsDeSalas() heredara el orden crudo de
+    // `filasSalas` (ceci, zeus, neracode), este test lo detectaría.
+    expect(await slugsDeSalas()).toEqual(['neracode', 'zeus', 'ceci'])
+  })
+})
+
+describe('cargarTemas — sin base de datos en un entorno de producción, grita (revisión de la tarea 5)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('avisa con console.error: un preview sin DATABASE_URL no debe mostrar la marca vieja en silencio', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    const espia = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await cargarTemas()
+
+    expect(espia).toHaveBeenCalledTimes(1)
+    expect(espia.mock.calls[0][0]).toMatch(/DATABASE_URL/)
+    espia.mockRestore()
+  })
+
+  it('en desarrollo (el caso normal de vitest) no avisa: es un respaldo esperado, no una emergencia', async () => {
+    vi.stubEnv('NODE_ENV', 'test')
+    const espia = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await cargarTemas()
+
+    expect(espia).not.toHaveBeenCalled()
+    espia.mockRestore()
   })
 })
 

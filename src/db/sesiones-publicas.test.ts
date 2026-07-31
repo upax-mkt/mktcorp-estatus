@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { vi } from 'vitest'
+import * as esquema from './esquema'
+import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 
 /**
  * `sesionesPublicasDelMes` — LA RAMA CON DB (ronda 8, tarea 3, corrección de
- * revisión; fixtures actualizadas en la tarea 5 cuando `salaNombre`/
- * `salaColor` pasaron a salir del mismo JOIN en vez de resolverse aparte).
+ * revisión; fixtures actualizadas en la tarea 5 dos veces: primero cuando
+ * `salaNombre`/`salaColor` pasaron a salir del mismo JOIN, y de nuevo en la
+ * revisión cuando la exclusión de `grupo-upax` pasó a apoyarse en
+ * `slugsDeSalas()` en vez de un slug clavado a mano — lo que añade una
+ * SEGUNDA consulta a la base, `cargarTemas()`, que el doble de abajo también
+ * tiene que servir).
  *
  * `src/db/sesiones.test.ts` ya cubre la rama sin DB (devuelve `[]`). Este
  * archivo vive aparte porque necesita `hayDB() === true` con un `db()`
@@ -14,9 +20,12 @@ import { vi } from 'vitest'
  *
  * El doble de `db()` de abajo NO evalúa el WHERE de verdad: para lo que este
  * archivo prueba no hace falta (el SQL en sí — el JOIN, `salas.activa`, el
- * rango de fechas — no cambió con esta corrección). Lo único que hace falta
- * es controlar qué FILAS devuelve la consulta, para probar qué pasa
- * DESPUÉS: el filtro y el mapeo de esas filas a `ReunionPublica`.
+ * rango de fechas — no cambió con esta corrección). Distingue las DOS
+ * consultas que hoy hace `sesionesPublicasDelMes` por la TABLA de la que
+ * parte el `.from(...)`: si es `esquema.salas` (la que dispara `cargarTemas`
+ * vía `slugsDeSalas`), la resuelve directo con `filasSalas`; cualquier otra
+ * (la de `sesiones` con su JOIN) sigue la cadena completa hasta `orderBy` y
+ * resuelve con `filasSesiones`.
  *
  * EL CASO REAL QUE MOTIVA ESTE ARCHIVO (tarea 3): la tabla `salas` tiene una
  * fila `grupo-upax`, ACTIVA, que dejó de ser una sala el 24-jul. Hasta la
@@ -28,21 +37,37 @@ import { vi } from 'vitest'
  * DESDE LA TAREA 5, `grupo-upax` SÍ tiene tema (vive en la misma fila, con
  * las demás columnas de marca) — el hueco que la excluía por accidente ya no
  * existe. La exclusión se mantiene igual de estricta pero ahora es explícita
- * por slug, no un efecto secundario de que falte un dato: Grupo UPAX es el
- * holding, no una UDN, y esta pantalla anuncia "cuándo le toca a [UDN]".
+ * y contra `slugsDeSalas()` (una sola fuente de qué son las nueve UDNs), no
+ * un efecto secundario de que falte un dato ni un slug clavado a mano aparte.
  */
 
-let filas: { salaSlug: string | null; fecha: Date; salaNombre: string | null; salaColor: string | null }[] = []
+let filasSesiones: { salaSlug: string | null; fecha: Date; salaNombre: string | null; salaColor: string | null }[] = []
 
-/** Doble mínimo: ignora los argumentos de cada eslabón y devuelve `filas` tal cual al final de la cadena. */
+// El universo de salas para slugsDeSalas(): las diez de la semilla, tal
+// cual — válidas para EsquemaTema, así que cargarTemas() no descarta
+// ninguna. No varía entre tests: lo que cada test prueba es el filtro de
+// SESIONES, no el registro de salas (eso ya lo cubre src/db/temas.test.ts).
+const filasSalas = Object.values(SEMILLA_DE_TEMAS)
+
+/**
+ * Doble de `db()` que distingue las dos consultas por la tabla de la que
+ * parte `.from()`. Ignora el resto de los argumentos (columnas pedidas,
+ * condición del WHERE): no hace falta para lo que este archivo prueba.
+ */
 function dobleDB() {
-  const encadenable = {
-    from: () => encadenable,
-    innerJoin: () => encadenable,
-    where: () => encadenable,
-    orderBy: () => Promise.resolve(filas),
+  return {
+    select: () => ({
+      from: (tabla: unknown) => {
+        if (tabla === esquema.salas) return Promise.resolve(filasSalas)
+        const encadenable = {
+          innerJoin: () => encadenable,
+          where: () => encadenable,
+          orderBy: () => Promise.resolve(filasSesiones),
+        }
+        return encadenable
+      },
+    }),
   }
-  return { select: () => encadenable }
 }
 
 vi.mock('./cliente', () => ({ hayDB: () => true, db: () => dobleDB() }))
@@ -51,7 +76,7 @@ const { sesionesPublicasDelMes } = await import('./sesiones')
 
 describe('sesionesPublicasDelMes — grupo-upax nunca sale, aunque tenga tema válido', () => {
   it('se descarta por ser el holding, no por faltarle marca', async () => {
-    filas = [
+    filasSesiones = [
       { salaSlug: 'grupo-upax', fecha: new Date('2026-08-05T16:00:00.000Z'), salaNombre: 'Grupo UPAX', salaColor: '#E34714' },
       { salaSlug: 'neracode', fecha: new Date('2026-08-10T16:00:00.000Z'), salaNombre: 'NeraCode', salaColor: '#3E31CC' },
     ]
@@ -63,13 +88,13 @@ describe('sesionesPublicasDelMes — grupo-upax nunca sale, aunque tenga tema v�
   })
 
   it('si TODAS las filas del mes son de grupo-upax, devuelve la lista vacía, no un error', async () => {
-    filas = [{ salaSlug: 'grupo-upax', fecha: new Date('2026-08-05T16:00:00.000Z'), salaNombre: 'Grupo UPAX', salaColor: '#E34714' }]
+    filasSesiones = [{ salaSlug: 'grupo-upax', fecha: new Date('2026-08-05T16:00:00.000Z'), salaNombre: 'Grupo UPAX', salaColor: '#E34714' }]
 
     await expect(sesionesPublicasDelMes(2026, 8)).resolves.toEqual([])
   })
 
   it('una UDN real sigue resolviendo su nombre y color, tal cual los trae la fila', async () => {
-    filas = [{ salaSlug: 'neracode', fecha: new Date('2026-08-05T16:00:00.000Z'), salaNombre: 'NeraCode', salaColor: '#3E31CC' }]
+    filasSesiones = [{ salaSlug: 'neracode', fecha: new Date('2026-08-05T16:00:00.000Z'), salaNombre: 'NeraCode', salaColor: '#3E31CC' }]
 
     const [reunion] = await sesionesPublicasDelMes(2026, 8)
 

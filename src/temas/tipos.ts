@@ -1,19 +1,44 @@
-export interface Tema {
-  slug: string
-  nombre: string
+import { z } from 'zod'
+
+/**
+ * LA FORMA DE UN TEMA, con las mismas reglas que antes solo se comprobaban en
+ * tests contra `SEMILLA_DE_TEMAS` —una constante que nadie puede romper— y no
+ * contra lo que de verdad se pinta (revisión de la tarea 5, ronda 8).
+ *
+ * Desde que la marca se edita desde la app (tarea 6), `cargarTemas()`
+ * (`src/db/temas.ts`) arma un `Tema` por cada fila de `salas`, y una fila
+ * puede llegar con basura sin que Postgres se queje: `NOT NULL` exige que
+ * `primario` tenga ALGÚN texto, no que sea un hex de seis dígitos, y no dice
+ * nada sobre que `gradiente` tenga al menos dos paradas. Sin esta validación,
+ * el día que alguien guarde `primario: "rojo"` o un degradado de una sola
+ * parada desde la pantalla de la tarea 6, la app pintaría CSS inválido en
+ * silencio: el resto del suite seguiría en verde porque ninguna otra prueba
+ * ejercita ese camino.
+ *
+ * `cargarTemas()` valida cada fila contra este esquema con `safeParse` y
+ * descarta la que no pase — mismo criterio que ya usaba con "¿falta algún
+ * campo?", ahora con "¿tiene la FORMA correcta?".
+ */
+const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'debe ser un color hex de seis dígitos, p. ej. "#614ACA"')
+
+export const EsquemaTema = z.object({
+  slug: z.string().min(1),
+  nombre: z.string().min(1),
   /** Color de marca dominante. */
-  primario: string
-  secundario: string
-  acento: string
+  primario: hex,
+  secundario: hex,
+  acento: hex,
   /** Fondo claro de los slides de contenido. */
-  superficieClara: string
+  superficieClara: hex,
   /** Fondo oscuro de portadas y divisores. */
-  superficieOscura: string
-  textoSobreClara: string
-  textoSobreOscura: string
-  /** Paradas del gradiente de portada, en orden. */
-  gradiente: string[]
+  superficieOscura: hex,
+  textoSobreClara: hex,
+  textoSobreOscura: hex,
+  /** Paradas del gradiente de portada, en orden. Al menos dos: un degradado de una sola parada no degrada nada. */
+  gradiente: z.array(hex).min(2),
   /** Clave de familia tipográfica, resuelta en src/temas/fuentes.ts */
-  familiaDisplay: string
-  familiaTexto: string
-}
+  familiaDisplay: z.string().min(1),
+  familiaTexto: z.string().min(1),
+})
+
+export type Tema = z.infer<typeof EsquemaTema>
