@@ -46,6 +46,29 @@
 .titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
 .subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 62ch; }
 
+/* ---- aviso: sin DATABASE_URL (revisión final de la rama, punto 5) ----
+   Mismo mensaje central que `.avisoSinBase` de hub.module.css —coherentes
+   entre sí, misma clase, incluso— con un tono más suave (--ojo, el mismo par
+   que ya usa `.avisoTexto` más abajo): aquí SÍ hay algo que enseñar, la
+   semilla, solo que no se puede editar de verdad. */
+.avisoSinBase {
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--r-3);
+  background: var(--ojo-tenue);
+  border: 1px solid color-mix(in oklch, var(--ojo) 30%, transparent);
+  color: var(--tx-2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin-bottom: 1.5rem;
+}
+.avisoSinBase strong { color: var(--ojo); font-weight: 700; }
+.avisoSinBase code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--hundido);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+}
+
 .seccion { margin-top: 2.25rem; }
 .seccionCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
 .seccionTitulo { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }

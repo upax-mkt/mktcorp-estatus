@@ -107,6 +107,10 @@ export default async function PagSesionMaquetada({
           sesionId={sesion.id}
           equipo
           personas={personas}
+          // Revisión final de la rama, punto 3: `sala` (estadoDeSala, arriba)
+          // ya trae el logo real de la fila — sin esto, la portada de una
+          // sesión de una sala nueva pintaba una imagen rota.
+          logoUrl={sala?.logoUrl ?? null}
         />
       )}
     </div>

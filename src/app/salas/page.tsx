@@ -10,7 +10,7 @@ import { exigirEquipo } from '@/auth/sesion'
 import { urlBase } from '@/lib/url-base'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { BloqueEnlaceAgenda } from '@/componentes/salas/BloqueEnlaceAgenda'
-import { crearSalaAction, editarSalaAction, generarEnlaceAction, revocarEnlaceAction } from './acciones'
+import { crearSalaAction, editarSalaAction, recalcularPaletaAction, generarEnlaceAction, revocarEnlaceAction } from './acciones'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,12 +74,35 @@ export default async function PagSalas({
       </header>
 
       <main className={estilos.main}>
+        {/* SIN DATABASE_URL (revisión final de la rama, punto 5): sin esta
+            variable, `cargarTemas()` (src/db/temas.ts) cae a la SEMILLA —las
+            nueve salas tal como estaban en código hasta el 30-jul, con pinta
+            de lista normal y editable— mientras que el Home, en el MISMO
+            despliegue, cae a cero salas sin explicación (`estadoDeSalas()`
+            no tiene de dónde inventar una lista sin base). Las dos
+            decisiones son defensables por separado; juntas, una pantalla
+            dice "todo bien" y la otra "no hay nada" del mismo problema. Este
+            aviso hace explícito lo que ya es cierto: nada de aquí abajo se
+            puede guardar (`crearSalaAction`/`editarSalaAction` devuelven
+            este mismo motivo si se intenta), y lo que se ve es código, no la
+            base. */}
+        {!hayDB() && (
+          <div className={estilos.avisoSinBase} role="alert">
+            <strong>Sin base de datos configurada</strong> — falta <code>DATABASE_URL</code> en este
+            entorno. Lo que ves abajo es el brandbook tal como está en el código (la semilla), no
+            necesariamente el vigente: si alguien ya editó una marca desde esta pantalla en
+            producción, aquí no se refleja. Y nada se puede guardar todavía — Crear y Guardar
+            cambios van a fallar con este mismo aviso.
+          </div>
+        )}
+
         <div className={estilos.encabezado}>
           <h1 className={estilos.titulo}>Salas</h1>
           <p className={estilos.subtitulo}>
             Las nueve unidades de negocio, con su marca y su logo. Crear una sala pide nombre, logo y
             color; todo lo demás —secundario, acento, superficies, textos legibles y el degradado— se
-            deriva del color y se puede afinar a mano.
+            deriva del color, no se afina campo por campo. Si el primario de una sala ya creada
+            cambia, esa paleta se puede recalcular entera desde su formulario de edición.
           </p>
         </div>
 
@@ -134,6 +157,7 @@ export default async function PagSalas({
                     <div className={estilos.filaFormulario}>
                       <FormularioSala
                         guardar={editarSalaAction.bind(null, slug)}
+                        recalcularPaleta={recalcularPaletaAction.bind(null, slug)}
                         slugsUsados={slugs.filter((s) => s !== slug)}
                         sala={{
                           slug,

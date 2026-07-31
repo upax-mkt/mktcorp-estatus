@@ -9,9 +9,18 @@ interface Props {
   tema: Tema
   superficie: 'clara' | 'oscura'
   children: ReactNode
+  /**
+   * El logo subido desde `/salas` (revisión final de la rama, punto 3) — NO
+   * viene dentro de `tema`: `Tema`/`cargarTemas()` no traen `logoUrl` a
+   * propósito (nunca formó parte de ese tipo, ver el comentario de
+   * `esquema.salas` en src/db/esquema.ts), así que quien monta este proveedor
+   * lo pasa aparte si lo tiene. `undefined`/`null` —el caso de hoy para las
+   * nueve salas reales— cae al archivo estático de siempre.
+   */
+  logoUrl?: string | null
 }
 
-export function ProveedorTema({ tema, superficie, children }: Props) {
+export function ProveedorTema({ tema, superficie, children, logoUrl }: Props) {
   const fondo = superficie === 'clara' ? tema.superficieClara : tema.superficieOscura
   const texto = superficie === 'clara' ? tema.textoSobreClara : tema.textoSobreOscura
   const datos = derivarEscalaDatos(tema.primario, fondo)
@@ -45,7 +54,7 @@ export function ProveedorTema({ tema, superficie, children }: Props) {
      * CSS —el `::before` de la portada— y hacerlo llegar hasta ahí como prop
      * obligaría a atravesar cuatro componentes que no tienen nada que ver.
      */
-    '--logo-blanco': `url("${archivoDeLogo(tema.slug, 'blanco')}")`,
+    '--logo-blanco': `url("${archivoDeLogo(tema.slug, 'blanco', logoUrl)}")`,
     '--fuente-display': familiaCss(tema.familiaDisplay),
     '--fuente-texto': familiaCss(tema.familiaTexto),
   }

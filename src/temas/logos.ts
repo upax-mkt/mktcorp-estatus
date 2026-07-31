@@ -107,7 +107,30 @@ export const ALTO_LOGO: Record<string, number> = {
  */
 export const LOGO_DE: Record<string, string> = {}
 
-export function archivoDeLogo(slug: string, variante: 'color' | 'blanco' = 'color'): string {
+/**
+ * DE DÓNDE SALE EL LOGOTIPO QUE SE PINTA (revisión final de la rama, punto
+ * 3). Antes de esta corrección, los tres sitios reales que pintan un
+ * logotipo —la tarjeta del hub (`src/app/page.tsx`), la portada de la sala
+ * (`src/app/cliente/[slug]/page.tsx`) y la portada del deck
+ * (`ProveedorTema.tsx`, vía `DocumentoSesion`)— llamaban esta función solo
+ * con el slug. Eso es correcto para las nueve salas reales, cuyo logo vive en
+ * `/public/logos` a mano, pero una sala CREADA DESDE `/salas` (tarea 6) sube
+ * su logo a Vercel Blob y lo guarda en `salas.logoUrl` — nunca llega a
+ * existir un `/logos/<slug>-color.png` para ella. El logo se pedía, se
+ * medía, se subía… y solo se veía dentro de la vista previa del propio
+ * formulario: en cualquier otra pantalla, una imagen rota.
+ *
+ * Si `logoUrl` viene (no es `null`/`undefined`/`''`), se usa TAL CUAL, sin
+ * importar qué `variante` se pidió: una sala subida desde `/salas` tiene UN
+ * solo archivo (ver `FormularioSala`, un único campo de logotipo) — no hay
+ * una versión "blanca" aparte que elegir todavía. Solo cuando `logoUrl` es
+ * nulo —las nueve salas reales, que no han vuelto a subir el suyo desde la
+ * pantalla nueva (confirmado contra la base real: las diez filas de `salas`
+ * tienen `logoUrl = null`)— se cae al archivo estático de siempre, que sí
+ * trae las dos variantes preparadas a mano.
+ */
+export function archivoDeLogo(slug: string, variante: 'color' | 'blanco' = 'color', logoUrl?: string | null): string {
+  if (logoUrl) return logoUrl
   return `/logos/${LOGO_DE[slug] ?? slug}-${variante}.png`
 }
 
@@ -143,9 +166,31 @@ const EXPONENTE = 0.29
  * a ver" con el número que acaba de salir de `medirTinta`, antes incluso de
  * que la sala exista.
  */
+/**
+ * LÍMITES DE SEGURIDAD sobre el resultado (revisión final de la rama, punto
+ * 4): `logoRelacionDeTinta` no llegaba acotada a esta función, y con un
+ * valor minúsculo —un logo casi enteramente transparente, o un único píxel
+ * con tinta en un lienzo grande— el cociente `TINTA_DE_REFERENCIA /
+ * relacionDeTinta` se dispara, y con él la potencia: la fórmula devolvía
+ * MILES de píxeles de alto, un logo que se comería la tarjeta, la portada o
+ * el hub entero.
+ *
+ * La mitad y el doble de `ALTO_POR_DEFECTO` ya es más margen que el que
+ * separa a los once lockups reales medidos (23,5 a 41,4px, un rango de
+ * ~1,76× — ver la cabecera del archivo): un resultado fuera de [14, 56] no
+ * es la señal de un logo legítimo inusualmente grande o pequeño, es la señal
+ * de una medición rota. Se acota el RESULTADO y no `relacionDeTinta` en la
+ * entrada a propósito: protege por igual un valor minúsculo (el caso medido)
+ * y uno absurdamente alto (no debería pasar —`proporcionDeTinta` está
+ * acotada a [0,1]— pero esta función no controla quién la llama).
+ */
+const ALTO_MINIMO = ALTO_POR_DEFECTO / 2
+const ALTO_MAXIMO = ALTO_POR_DEFECTO * 2
+
 export function altoDesdeTinta(relacionDeTinta: number | null | undefined): number {
   if (!relacionDeTinta || relacionDeTinta <= 0) return ALTO_POR_DEFECTO
-  return ALTO_POR_DEFECTO * (TINTA_DE_REFERENCIA / relacionDeTinta) ** EXPONENTE
+  const alto = ALTO_POR_DEFECTO * (TINTA_DE_REFERENCIA / relacionDeTinta) ** EXPONENTE
+  return Math.min(ALTO_MAXIMO, Math.max(ALTO_MINIMO, alto))
 }
 
 /**

@@ -83,9 +83,17 @@ export function BloqueEnlaceAgenda({ enlace: enlaceInicial, generarAction, revoc
       <div className={estilos.enlaceTexto}>
         <div className={estilos.enlaceTitulo}>Enlace público de la agenda</div>
         <p className={estilos.enlaceNota}>
-          Quien lo tenga ve el mes con sus reuniones —sala, día y hora, con el logo y el color de cada
-          marca— sin entrar a la app y sin clave. Nada de acuerdos, minutas, participantes ni contenido
-          de ninguna reunión.
+          {/* Revisión final de la rama, punto 6: decía "el logo y el color de
+              cada marca" — CalendarioPublico (src/componentes/agenda/CalendarioPublico.tsx)
+              solo pinta el color (`--sala`, en el punto de cada día y en el
+              filo de cada fila de la lista); no hay ningún <img> ahí.
+              Añadir el logo queda para otra ronda: no es un ajuste de texto,
+              es una fila más en `sesionesPublicasDelMes` (src/db/sesiones.ts,
+              que hoy solo trae sala/fecha/hora/color) y una etiqueta nueva en
+              el componente. */}
+          Quien lo tenga ve el mes con sus reuniones —sala, día y hora, con el color de cada marca—
+          sin entrar a la app y sin clave. Nada de acuerdos, minutas, participantes ni contenido de
+          ninguna reunión.
         </p>
         {error && <p className={estilos.formularioError}>{error}</p>}
       </div>

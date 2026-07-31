@@ -85,6 +85,9 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
         sesionId={sesion.id}
         equipo={equipo}
         personas={personas}
+        // Revisión final de la rama, punto 3: mismo motivo que en
+        // /deck/[id]/documento — `sala` ya trae el logo real de la fila.
+        logoUrl={sala?.logoUrl ?? null}
       />
     </div>
   )

@@ -61,6 +61,14 @@ export interface EstadoSala {
   slug: string
   nombre: string
   color: string
+  /**
+   * El logo subido desde `/salas` (tarea 6), o `null` si la sala todavía usa
+   * el archivo estático de `/public/logos` (revisión final de la rama, punto
+   * 3). Ver `archivoDeLogo`, src/temas/logos.ts — es el dato que le falta
+   * para no pintar una imagen rota en la tarjeta del hub y en la portada de
+   * la sala cuando se trata de una sala creada desde la app.
+   */
+  logoUrl: string | null
   /** Días desde la última sesión. Alto = desatendida. `null` = nunca. */
   diasDesdeUltima: number | null
   ultimaSesion: string | null // ISO

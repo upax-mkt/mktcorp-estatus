@@ -25,9 +25,33 @@ import { urlBase } from '@/lib/url-base'
  * `esquema.acuerdos`. Una Server Action ya es la capa de escritura de esta
  * pantalla; una capa intermedia de una función no habría separado nada que
  * no estuviera ya separado por el propio archivo.
+ *
+ * `derivarMarca` SOLO se usa al CREAR (revisión final de la rama, punto 1).
+ * `editarSalaAction` guarda únicamente lo que el formulario edita de verdad
+ * y deja los ocho campos derivados (secundario, acento, las dos superficies,
+ * los dos textos y el degradado) tal como estaban — antes los recalculaba en
+ * CADA guardado, así que abrir el formulario para cambiar la tipografía y
+ * pulsar "Guardar cambios" sobrescribía en silencio la paleta certificada de
+ * la sala con la que produce la fórmula genérica, casi nunca la misma (medido
+ * contra las diez filas reales: los ocho campos derivados de las diez
+ * divergen de lo que `derivarMarca` produciría hoy). Ver `recalcularPaletaAction`,
+ * más abajo, para el camino explícito cuando SÍ hace falta recalcular.
  */
 
 const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
+
+/**
+ * Tope de longitud de `nombre` (revisión final de la rama, punto 4): no
+ * tenía ninguno, y este texto se pinta sin recortar en tres sitios que no
+ * perdonan un párrafo — la tarjeta del hub (una sola línea con elipsis, pero
+ * el layout entero se corre), el encabezado de la sala (`heroNombreOculto`
+ * aparte, el h1 real) y la agenda pública, que además la ve gente de fuera
+ * del equipo. 60 es generoso frente a las diez marcas reales (16 caracteres
+ * la más larga, "Marketing United") y del mismo orden que otros textos
+ * cortos ya acotados en este código (`titulo` de un bloque de minuta,
+ * `.max(80)` en src/minuta/molde.ts).
+ */
+const LONGITUD_MAXIMA_NOMBRE = 60
 
 /**
  * Validación compartida por crear y editar, sobre un slug YA NORMALIZADO
@@ -56,6 +80,9 @@ function validarDatosComunes(datos: {
   familiaTexto: string
 }): string | null {
   if (datos.nombre.trim().length === 0) return 'Escribe un nombre para la sala.'
+  if (datos.nombre.trim().length > LONGITUD_MAXIMA_NOMBRE) {
+    return `El nombre no puede pasar de ${LONGITUD_MAXIMA_NOMBRE} caracteres (tiene ${datos.nombre.trim().length}): se pinta en la tarjeta del hub, en la sala y en la agenda pública.`
+  }
   // Mismo contrato que documenta `slugDesdeNombre` (src/lib/marca.ts): un
   // nombre sin ningún carácter alfanumérico da slug vacío, y ese vacío no se
   // guarda — es la clave primaria de la fila.
@@ -144,6 +171,21 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
  * que se está editando (ver `src/app/salas/page.tsx`) — así que aquí no hay
  * nada que comparar contra la lista de slugs usados: por definición, este
  * slug ya es el de esta fila.
+ *
+ * SOLO ESCRIBE LO QUE EL FORMULARIO EDITA DE VERDAD (revisión final de la
+ * rama, punto 1): `nombre`, `primario`, `familiaDisplay`, `familiaTexto`,
+ * `logoUrl`, `logoRelacionDeTinta`. Los ocho campos derivados —secundario,
+ * acento, las dos superficies, los dos textos legibles y el degradado— NO
+ * entran en este `.set()`: `FormularioSala` no expone ningún campo para
+ * ellos, así que no hay forma de que quien edita los revise antes de
+ * guardar, y sobrescribirlos con lo que produce `derivarMarca` tiraba en
+ * silencio la paleta certificada de la sala en el primer "Guardar cambios"
+ * — el mismo clic que hace falta para cambiar solo la tipografía.
+ *
+ * Esto deja abierto, a propósito, un caso: si `primario` cambia aquí, la
+ * paleta derivada que se queda en la fila sigue calculada del color VIEJO.
+ * No se resuelve solo — es justo lo que `recalcularPaletaAction`, más abajo,
+ * existe para hacer de forma explícita y separada del guardado normal.
  */
 export async function editarSalaAction(slug: string, datos: DatosSala): Promise<{ error?: string }> {
   await exigirEquipo()
@@ -151,8 +193,6 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
   const problema = validarDatosComunes({ ...datos, slug })
   if (problema) return { error: problema }
   if (!hayDB()) return { error: 'Sin base de datos no se pueden editar salas.' }
-
-  const marca = derivarMarca(datos.nombre, datos.primario)
 
   // Envuelto en try/catch, igual que `crearSalaAction` con su INSERT — antes
   // no lo estaba, y un fallo de escritura (conexión caída a mitad, una
@@ -167,15 +207,13 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
     actualizada = await db()
       .update(esquema.salas)
       .set({
-        nombre: marca.nombre,
-        primario: marca.primario,
-        secundario: marca.secundario,
-        acento: marca.acento,
-        superficieClara: marca.superficieClara,
-        superficieOscura: marca.superficieOscura,
-        textoSobreClara: marca.textoSobreClara,
-        textoSobreOscura: marca.textoSobreOscura,
-        gradiente: marca.gradiente,
+        // `.trim()` aquí y no antes de validar: `validarDatosComunes` ya
+        // exige que el nombre SIN espacios no esté vacío, así que lo único
+        // que falta es no guardar los espacios sueltos que sobrevivieron a
+        // esa comprobación (mismo criterio que `derivarMarca.nombre`, del
+        // que `crearSalaAction` sigue dependiendo).
+        nombre: datos.nombre.trim(),
+        primario: datos.primario,
         // Tarea 7: antes este UPDATE no tocaba la tipografía en absoluto —no
         // había desde dónde elegirla— así que cualquier edición (el logo, el
         // color) dejaba la fuente donde estuviera. Ahora sí viaja, validada
@@ -190,6 +228,70 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
       .returning({ slug: esquema.salas.slug })
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'No se pudo guardar la sala.' }
+  }
+
+  if (actualizada.length === 0) return { error: `Sala desconocida: "${slug}"` }
+
+  revalidatePath('/salas')
+  revalidatePath('/')
+  revalidatePath(`/cliente/${slug}`)
+  return {}
+}
+
+/**
+ * RECALCULA LA PALETA DE UNA SALA EXISTENTE desde un color primario — el
+ * camino explícito para el caso que `editarSalaAction` deja abierto a
+ * propósito (revisión final de la rama, punto 1): cambiar el primario en un
+ * guardado normal no toca los ocho campos derivados, así que se quedan
+ * calculados del color anterior hasta que alguien pida, a propósito, que se
+ * recalculen.
+ *
+ * Escribe `primario` JUNTO con los ocho derivados —en el mismo `.set()`—
+ * para que los dos queden sincronizados en un solo commit sin importar si
+ * `editarSalaAction` ya guardó ese primario o si esta acción recibe uno que
+ * el formulario todavía no había guardado. Es la ÚNICA acción de este
+ * archivo que vuelve a llamar `derivarMarca` fuera de crear una sala, y
+ * nunca toca `nombre`, tipografía ni logo — recalcular la paleta no es
+ * cambiar ninguna de esas tres cosas.
+ *
+ * `FormularioSala` la ofrece como un botón APARTE de "Guardar cambios", con
+ * su propia confirmación ("esto reemplaza lo que hay, no se puede
+ * deshacer"): mezclarla con el guardado normal habría sido volver a poner en
+ * un solo clic la trampa que este punto de la revisión vino a quitar.
+ */
+export async function recalcularPaletaAction(slug: string, primario: string): Promise<{ error?: string }> {
+  await exigirEquipo()
+
+  if (!HEX_VALIDO.test(primario)) {
+    return { error: `"${primario}" no es un color hex válido (se espera algo como "#614ACA").` }
+  }
+  if (!hayDB()) return { error: 'Sin base de datos no se puede recalcular la paleta.' }
+
+  // `derivarMarca` exige un `nombre` pero no lo usa para ningún cálculo de
+  // color (lo devuelve tal cual, recortado) — aquí se le pasa `slug` como
+  // valor de relleno porque esta acción JAMÁS toca la columna `nombre` de la
+  // fila: `marca.nombre` ni se lee del resultado, abajo.
+  const marca = derivarMarca(slug, primario)
+
+  let actualizada: { slug: string }[]
+  try {
+    actualizada = await db()
+      .update(esquema.salas)
+      .set({
+        primario: marca.primario,
+        secundario: marca.secundario,
+        acento: marca.acento,
+        superficieClara: marca.superficieClara,
+        superficieOscura: marca.superficieOscura,
+        textoSobreClara: marca.textoSobreClara,
+        textoSobreOscura: marca.textoSobreOscura,
+        gradiente: marca.gradiente,
+        updatedAt: new Date(),
+      })
+      .where(eq(esquema.salas.slug, slug))
+      .returning({ slug: esquema.salas.slug })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo recalcular la paleta.' }
   }
 
   if (actualizada.length === 0) return { error: `Sala desconocida: "${slug}"` }

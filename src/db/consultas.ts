@@ -243,6 +243,11 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     cadencia: salaRow?.cadencia ?? 'mensual',
     activa,
     pausadaDesde: salaRow?.pausadaDesde ? isoFecha(salaRow.pausadaDesde) : null,
+    // Revisión final de la rama, punto 3: de la fila cruda, no de `tema`
+    // (`Tema`/`cargarTemas()` no la traen a propósito — el logo nunca formó
+    // parte de ese tipo, ver esquema.ts). `archivoDeLogo` cae al archivo
+    // estático cuando esto es `null`.
+    logoUrl: salaRow?.logoUrl ?? null,
   }
 }
 
@@ -365,10 +370,22 @@ export interface AcuerdoConSala extends Acuerdo {
  * —la FK de `acuerdos.salaSlug` exige que la sala exista, `crearAcuerdo` ya
  * valida contra `slugsDeSalas()` al dar de alta, y desde la ronda 8 las
  * columnas de marca son `NOT NULL`— pero un texto de más en esta lista es
- * más barato que la pantalla entera sin cargar. Mismo criterio defensivo que
- * `temaDeSalaSeguro` en src/db/acuerdos.ts (dos copias iguales a propósito:
- * documentado en el reporte de la tarea 5, no vale la pena el acoplamiento
- * de compartir una función de dos líneas entre dos módulos).
+ * más barato que la pantalla entera sin cargar.
+ *
+ * MISMO CRITERIO DEFENSIVO que `temaDeSalaSeguro` en src/db/acuerdos.ts,
+ * pero YA NO SON DOS COPIAS IGUALES (corrección de esta revisión: lo decía
+ * el comentario anterior, documentado así en el reporte de la tarea 5, y
+ * divergieron sin que nadie lo actualizara). Difieren en el color de
+ * respaldo, y no por descuido: `AcuerdoConSala.salaColor` —el tipo que
+ * consume ESTA función, para `/acuerdos`— es un `string` obligatorio, así
+ * que aquí hace falta devolver un color de verdad (`'#666666'`) cuando no
+ * hay tema. `AcuerdoPendienteDeSubir.salaColor` —el que consume la copia de
+ * `acuerdos.ts`, para la bandeja— es opcional a propósito ("opcional porque
+ * no todo consumidor lo necesita", dice su propio comentario), así que esa
+ * copia devuelve `undefined`. Dos contratos de tipo distintos piden dos
+ * respaldos distintos: la duplicación se queda, pero ya no es "la misma
+ * función copiada dos veces" — es la misma IDEA con un detalle que cada
+ * lado resuelve según lo que su propio tipo exige.
  */
 function temaDeSalaSeguro(slug: string, registro: Record<string, Tema>): { nombre: string; color: string } {
   const tema = registro[slug]

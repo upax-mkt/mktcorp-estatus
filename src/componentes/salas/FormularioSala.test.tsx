@@ -73,3 +73,63 @@ describe('FormularioSala — tipografía (tarea 7)', () => {
     expect(radioOutfitDisplay.checked).toBe(true)
   })
 })
+
+// RECALCULAR PALETA (revisión final de la rama, punto 1): "Guardar cambios"
+// ya no deriva nada — este botón aparte es la única vía para que
+// secundario/acento/superficies/textos/degradado dejen de estar calculados
+// de un color viejo. Sin estos tests, un `guardar` que "silenciosamente"
+// volviera a derivar (o un botón que llamara sin confirmar) pasaría el resto
+// del archivo sin que nada lo note.
+describe('FormularioSala — recalcular paleta (revisión final de la rama, punto 1)', () => {
+  it('no aparece al crear: no hay una paleta previa que pueda quedar desincronizada', () => {
+    render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} recalcularPaleta={vi.fn()} />)
+    expect(screen.queryByText(/recalcular paleta/i)).not.toBeInTheDocument()
+  })
+
+  it('al editar, sin la prop recalcularPaleta, tampoco aparece', () => {
+    render(
+      <FormularioSala guardar={vi.fn()} slugsUsados={['zeus']} sala={{ slug: 'zeus', nombre: 'Zeus', primario: '#614ACA' }} />,
+    )
+    expect(screen.queryByText(/recalcular paleta/i)).not.toBeInTheDocument()
+  })
+
+  it('al editar CON recalcularPaleta, pide confirmar antes de llamarla, y le manda el color actual del formulario', async () => {
+    const recalcularPaleta = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSala
+        guardar={vi.fn()}
+        slugsUsados={['zeus']}
+        sala={{ slug: 'zeus', nombre: 'Zeus', primario: '#614ACA' }}
+        recalcularPaleta={recalcularPaleta}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /recalcular paleta desde este color/i }))
+    // Un clic no basta: hace falta confirmar, mismo patrón que revocar el
+    // enlace de agenda o regenerar una clave de sala.
+    expect(recalcularPaleta).not.toHaveBeenCalled()
+    expect(screen.getByText(/no se puede deshacer/i)).toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: /sí, recalcular/i }))
+    expect(recalcularPaleta).toHaveBeenCalledExactlyOnceWith('#614ACA')
+    expect(await screen.findByText(/paleta recalculada/i)).toBeInTheDocument()
+  })
+
+  it('cancelar la confirmación no llama a recalcularPaleta', async () => {
+    const recalcularPaleta = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSala
+        guardar={vi.fn()}
+        slugsUsados={['zeus']}
+        sala={{ slug: 'zeus', nombre: 'Zeus', primario: '#614ACA' }}
+        recalcularPaleta={recalcularPaleta}
+      />,
+    )
+    await usuario.click(screen.getByRole('button', { name: /recalcular paleta desde este color/i }))
+    await usuario.click(screen.getByRole('button', { name: /^cancelar$/i }))
+    expect(recalcularPaleta).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /recalcular paleta desde este color/i })).toBeInTheDocument()
+  })
+})

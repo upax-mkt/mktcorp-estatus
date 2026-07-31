@@ -45,6 +45,28 @@
   display: grid; gap: clamp(2rem, 4vw, 3rem);
 }
 
+/* ---- aviso: sin DATABASE_URL (revisión final de la rama, punto 5) ----
+   Mismo tono que un error de servidor (--mal): es exactamente eso, una app
+   sin su base. Coherente con `.avisoSinBase` de salas.module.css — misma
+   clase, mismo mensaje central, tono más suave allá porque esa pantalla sí
+   tiene algo que enseñar (la semilla). */
+.avisoSinBase {
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--r-3);
+  background: var(--mal-tenue);
+  border: 1px solid color-mix(in oklch, var(--mal) 30%, transparent);
+  color: var(--tinta-2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.avisoSinBase strong { color: var(--mal); font-weight: 700; }
+.avisoSinBase code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--papel-hundido);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+}
+
 /* ---- pulso ---- */
 .pulso {
   display: flex; align-items: flex-end; justify-content: space-between;

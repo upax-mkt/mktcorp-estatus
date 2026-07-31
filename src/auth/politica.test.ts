@@ -143,6 +143,21 @@ describe('la agenda pública, y solo ella', () => {
     expect(puedeVerRuta(null, '/agenda/abc123/editar')).toBe(false)
   })
 
+  /**
+   * Revisión final de la rama, punto 2: los 22 tests de este archivo pasaban
+   * igual si la comparación se aflojara a `partes[0].startsWith('agenda')` o
+   * a `ruta.includes('agenda')` — ninguno de los casos de arriba distingue
+   * "empieza como agenda" o "contiene agenda en algún segmento" de "ES,
+   * exactamente, /agenda/<token>". Estos dos son la red: con un `startsWith`
+   * el primero se abriría (el primer segmento de '/agendas/x' empieza como
+   * 'agenda'), y con un `includes` el segundo también (la palabra 'agenda'
+   * aparece, aunque como segundo segmento de una ruta de equipo).
+   */
+  it('no se deja engañar por rutas que solo se PARECEN a la agenda pública', () => {
+    expect(esRutaPublica('/agendas/x')).toBe(false)
+    expect(esRutaPublica('/salas/agenda')).toBe(false)
+  })
+
   it('el resto de la app sigue cerrado sin sesión', () => {
     for (const ruta of ['/', '/acuerdos', '/acuerdos/bandeja', '/cliente/neracode', '/deck', '/deck/nueva', '/salas']) {
       expect(puedeVerRuta(null, ruta)).toBe(false)

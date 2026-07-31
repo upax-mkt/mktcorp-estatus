@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { altoDesdeTinta, altoDeLogo, ALTO_LOGO } from './logos'
+import { altoDesdeTinta, altoDeLogo, archivoDeLogo, ALTO_LOGO } from './logos'
 
 /**
  * `altoDesdeTinta`/`altoDeLogo` no tenían NINGÚN test hasta esta revisión —
@@ -84,6 +84,36 @@ describe('altoDesdeTinta', () => {
   })
 })
 
+// REVISIÓN FINAL DE LA RAMA, PUNTO 4: `logoRelacionDeTinta` llegaba sin
+// acotar — con un valor minúsculo la fórmula devolvía miles de píxeles de
+// alto. Estos tests fijan el límite de seguridad que la protege.
+describe('altoDesdeTinta — límites de seguridad (revisión final de la rama, punto 4)', () => {
+  it('un logoRelacionDeTinta minúsculo YA NO dispara la fórmula a los miles de píxeles', () => {
+    expect(altoDesdeTinta(0.000001)).toBeLessThanOrEqual(56)
+    expect(altoDesdeTinta(1e-9)).toBeLessThanOrEqual(56)
+    expect(altoDesdeTinta(Number.MIN_VALUE)).toBeLessThanOrEqual(56)
+  })
+
+  it('un logoRelacionDeTinta absurdamente alto (no debería pasar: proporcionDeTinta está acotada a [0,1]) no da un logo diminuto sin fondo: se topa en el mínimo', () => {
+    expect(altoDesdeTinta(50)).toBeGreaterThanOrEqual(14)
+    expect(altoDesdeTinta(1000)).toBeGreaterThanOrEqual(14)
+  })
+
+  it('el resultado queda dentro de [14, 56] para cualquier proporción positiva, del extremo más chico al más grande', () => {
+    for (const x of [1e-9, 0.0001, 0.001, 0.01, 0.1, 0.34, 0.5, 0.8, 1, 10, 1000]) {
+      const alto = altoDesdeTinta(x)
+      expect(alto, `x=${x}`).toBeGreaterThanOrEqual(14)
+      expect(alto, `x=${x}`).toBeLessThanOrEqual(56)
+    }
+  })
+
+  it('dentro del rango normal (el de los once logos reales) el límite no toca nada: sigue dando el mismo resultado de siempre', () => {
+    // Mismo valor de Zeus que ya prueba la describe() de arriba — el clamp no
+    // debe cambiar ni un decimal de un caso que ya estaba dentro de [14, 56].
+    expect(altoDesdeTinta(0.5347467166979362)).toBeCloseTo(24.554096624740332, 9)
+  })
+})
+
 describe('altoDeLogo', () => {
   it('con una relación de tinta medida, usa la fórmula nueva — igual que altoDesdeTinta', () => {
     expect(altoDeLogo('cualquier-slug', 0.3)).toBe(altoDesdeTinta(0.3))
@@ -97,5 +127,37 @@ describe('altoDeLogo', () => {
 
   it('un slug sin tabla y sin medición cae al alto de referencia (28), no revienta', () => {
     expect(altoDeLogo('sala-que-no-existe-todavia')).toBe(28)
+  })
+})
+
+// REVISIÓN FINAL DE LA RAMA, PUNTO 3: antes de esta corrección, una sala
+// creada desde `/salas` con su logo ya subido a Blob se pintaba como una
+// imagen rota en la tarjeta del hub, en la portada de la sala y en la
+// portada del deck — los tres pedían `/logos/<slug>-color.png` sin importar
+// lo que trajera la fila. Esta es la fórmula completa: usa `logoUrl` si
+// viene, y solo cae al archivo estático cuando es nulo.
+describe('archivoDeLogo', () => {
+  it('sin logoUrl (null, undefined, o sin pasarlo) cae al archivo estático de siempre — las nueve salas reales hoy', () => {
+    expect(archivoDeLogo('zeus')).toBe('/logos/zeus-color.png')
+    expect(archivoDeLogo('zeus', 'blanco')).toBe('/logos/zeus-blanco.png')
+    expect(archivoDeLogo('zeus', 'color', null)).toBe('/logos/zeus-color.png')
+    expect(archivoDeLogo('zeus', 'blanco', undefined)).toBe('/logos/zeus-blanco.png')
+  })
+
+  it('con logoUrl, lo usa TAL CUAL sin importar la variante pedida: una sala subida desde /salas es un solo archivo, no hay versión blanca aparte', () => {
+    const url = 'https://blob.vercel-storage.com/salas/una-sala-nueva/logo/abc-mi-logo.png'
+    expect(archivoDeLogo('una-sala-nueva', 'color', url)).toBe(url)
+    expect(archivoDeLogo('una-sala-nueva', 'blanco', url)).toBe(url)
+  })
+
+  it('un logoUrl vacío ("") se trata igual que null: no hay nada real que pintar ahí', () => {
+    expect(archivoDeLogo('zeus', 'color', '')).toBe('/logos/zeus-color.png')
+  })
+
+  it('sigue respetando LOGO_DE (el préstamo de logotipo) cuando cae al archivo estático', () => {
+    // Hoy LOGO_DE está vacío (Ceci ya tiene el suyo, ver la cabecera del
+    // archivo), pero el mecanismo se conserva: si algún día una sala presta
+    // el logo de otra, `logoUrl` nulo sigue resolviendo por ese mapa.
+    expect(archivoDeLogo('grupo-upax', 'color', null)).toBe('/logos/grupo-upax-color.png')
   })
 })

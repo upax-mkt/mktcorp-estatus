@@ -138,6 +138,32 @@ describe.each(Object.values(SEMILLA_DE_TEMAS))(
   },
 )
 
+// REVISIÓN FINAL DE LA RAMA, PUNTO 3: `archivoDeLogo` ahora acepta el
+// `logoUrl` de la fila y cae al archivo estático solo si es nulo — esto
+// prueba que `ProveedorTema` lo pasa de verdad, no solo que la función pura
+// lo haga (ya cubierto en src/temas/logos.test.ts).
+describe('ProveedorTema — logoUrl (revisión final de la rama, punto 3)', () => {
+  it('sin logoUrl, --logo-blanco sigue apuntando al archivo estático de siempre', () => {
+    render(
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.zeus} superficie="clara">
+        <i />
+      </ProveedorTema>,
+    )
+    const estilo = screen.getByTestId('tema').style
+    expect(estilo.getPropertyValue('--logo-blanco')).toBe('url("/logos/zeus-blanco.png")')
+  })
+
+  it('con logoUrl (una sala creada desde /salas), --logo-blanco usa ESE archivo en vez del estático', () => {
+    render(
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.zeus} superficie="clara" logoUrl="https://blob.vercel-storage.com/x.png">
+        <i />
+      </ProveedorTema>,
+    )
+    const estilo = screen.getByTestId('tema').style
+    expect(estilo.getPropertyValue('--logo-blanco')).toBe('url("https://blob.vercel-storage.com/x.png")')
+  })
+})
+
 describe('--primario-sobre-superficie', () => {
   it('no toca el primario cuando ya cumple 4.5:1 contra la superficie', () => {
     // NeraCode: #3E31CC contra superficieClara #FFFFFF da 8.35:1, ya cumple.

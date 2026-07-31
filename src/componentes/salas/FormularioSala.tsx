@@ -65,11 +65,25 @@ interface Props {
   slugsUsados: string[]
   /** Si viene, el formulario edita esta sala: el identificador queda fijo. */
   sala?: SalaExistente
+  /**
+   * RECALCULAR LA PALETA DESDE EL COLOR ACTUAL (revisión final de la rama,
+   * punto 1) — solo tiene sentido al EDITAR: una sala nueva no tiene paleta
+   * previa que pueda quedar desincronizada. `guardar` (arriba) ya NO deriva
+   * los ocho campos de marca al editar —a propósito, ver `editarSalaAction`—
+   * así que si alguien cambia el primario de una sala existente, esta es la
+   * única vía para que secundario/acento/superficies/textos/degradado dejen
+   * de estar calculados del color viejo. Ausente en el formulario de "Crear
+   * sala" (ver `src/app/salas/page.tsx`): ahí no hay nada que recalcular
+   * todavía.
+   */
+  recalcularPaleta?: (primario: string) => Promise<{ error?: string }>
 }
 
 const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
+/** Mismo tope que valida `validarDatosComunes` en acciones.ts (revisión final de la rama, punto 4) — aquí solo evita que se escriba de más, la validación que de verdad manda es la del servidor. */
+const LONGITUD_MAXIMA_NOMBRE = 60
 
-export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
+export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }: Props) {
   const editando = Boolean(sala)
 
   const [nombre, setNombre] = useState(sala?.nombre ?? '')
@@ -92,6 +106,14 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [guardado, setGuardado] = useState(false)
   const [pendiente, empezar] = useTransition()
+
+  // RECALCULAR PALETA (revisión final de la rama, punto 1): estado propio,
+  // separado del guardado normal de arriba — son dos acciones distintas que
+  // comparten formulario, no una sola con dos botones.
+  const [confirmandoRecalculo, setConfirmandoRecalculo] = useState(false)
+  const [errorRecalculo, setErrorRecalculo] = useState<string | null>(null)
+  const [paletaRecalculada, setPaletaRecalculada] = useState(false)
+  const [recalculando, empezarRecalculo] = useTransition()
 
   function alCambiarNombre(valor: string) {
     setNombre(valor)
@@ -221,6 +243,29 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
     })
   }
 
+  /**
+   * Envía el primario QUE HAY AHORA MISMO en el formulario, se haya guardado
+   * ya con "Guardar cambios" o no: un solo clic basta para dejar el color y
+   * su paleta sincronizados, sin obligar a guardar primero. Mismo criterio
+   * de try/catch que `alEnviar`: `recalcularPaletaAction` empieza con
+   * `exigirEquipo()`, que lanza en vez de devolver `{error}` si la sesión ya
+   * venció.
+   */
+  function recalcular() {
+    if (!recalcularPaleta) return
+    setErrorRecalculo(null)
+    setConfirmandoRecalculo(false)
+    empezarRecalculo(async () => {
+      try {
+        const r = await recalcularPaleta(primario)
+        if (r.error) setErrorRecalculo(r.error)
+        else setPaletaRecalculada(true)
+      } catch (e) {
+        setErrorRecalculo(e instanceof Error ? e.message : String(e))
+      }
+    })
+  }
+
   return (
     <form className={estilos.formulario} onSubmit={alEnviar}>
       <div className={estilos.formularioCampos}>
@@ -234,6 +279,7 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
               onChange={(e) => alCambiarNombre(e.target.value)}
               placeholder="Research Land"
               autoFocus={!editando}
+              maxLength={LONGITUD_MAXIMA_NOMBRE}
               required
             />
           </label>
@@ -296,6 +342,53 @@ export function FormularioSala({ guardar, slugsUsados, sala }: Props) {
               legibles y el degradado— se deriva de aquí.
             </p>
           </div>
+
+          {/* RECALCULAR PALETA (revisión final de la rama, punto 1): solo al
+              editar, y solo cuando `recalcularPaleta` viene (no lo manda el
+              formulario de "Crear sala" — ver su comentario en la interfaz de
+              Props). "Guardar cambios" ya NO toca secundario/acento/
+              superficies/textos/degradado; este es el único botón que sí lo
+              hace, a propósito y avisando antes de reemplazarlos. */}
+          {editando && recalcularPaleta && (
+            <div className={estilos.campo}>
+              {confirmandoRecalculo ? (
+                <span className={estilos.confirmarFila}>
+                  <span className={estilos.enlacePista}>
+                    Esto reemplaza secundario, acento, superficies, textos legibles y degradado —los
+                    de ahora mismo, calculados de un color distinto— por los que le tocan a{' '}
+                    <code>{primario}</code>. No se puede deshacer.
+                  </span>
+                  <button type="button" className="boton" disabled={recalculando} onClick={recalcular}>
+                    {recalculando ? 'Recalculando…' : 'Sí, recalcular'}
+                  </button>
+                  <button
+                    type="button"
+                    className="boton"
+                    data-tono="fantasma"
+                    onClick={() => setConfirmandoRecalculo(false)}
+                  >
+                    Cancelar
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="boton"
+                  data-tono="suave"
+                  disabled={!primarioValido || recalculando}
+                  onClick={() => setConfirmandoRecalculo(true)}
+                >
+                  Recalcular paleta desde este color
+                </button>
+              )}
+              <p className={estilos.pista}>
+                Si cambiaste el color primario, el resto de la paleta se queda calculado del anterior
+                hasta que la recalcules aquí — a propósito: guardar cambios no la toca sola.
+              </p>
+              {errorRecalculo && <p className={estilos.formularioError}>{errorRecalculo}</p>}
+              {paletaRecalculada && <p className={estilos.formularioOk}>Paleta recalculada.</p>}
+            </div>
+          )}
 
           <div className={estilos.campo}>
             <span className={estilos.etiqueta}>Logotipo</span>

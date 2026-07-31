@@ -412,7 +412,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         <div className={estilos.heroInner}>
           <div className={estilos.heroKicker}>Cliente · Marketing Corp</div>
           <Image
-            src={archivoDeLogo(slug, 'blanco')}
+            // logoUrl de la fila, y solo si es null cae al archivo estático
+            // (revisión final de la rama, punto 3) — `s` ya trae la columna
+            // real (ver EstadoSala.logoUrl, src/dominio/salas.ts).
+            src={archivoDeLogo(slug, 'blanco', s.logoUrl)}
             alt={s.nombre}
             width={340}
             height={80}
