@@ -64,11 +64,6 @@ export function esRutaPublica(ruta: string): boolean {
   return partes.length === 2 && partes[0] === 'agenda'
 }
 
-/** Solo Mkt Corp escribe: mover estatus, editar fechas, maquetar, minutar. */
-export function puedeEditar(sesion: Sesion | null): boolean {
-  return sesion?.rol === 'equipo'
-}
-
 /**
  * QUIÉN PUEDE QUÉ, dentro del equipo (ronda 9, tarea 2).
  *

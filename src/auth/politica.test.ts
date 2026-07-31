@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { puedeVerSala, puedeEditar, puedeVerRuta, esRutaPublica } from './politica'
+import { puedeVerSala, puedeVerRuta, esRutaPublica } from './politica'
 import type { Sesion } from './firma'
 
 const EQUIPO: Sesion = { rol: 'equipo', sub: 'franco@upax.com.mx', exp: Date.now() + 1000 }
@@ -12,14 +12,6 @@ const SALA_NC: Sesion = { rol: 'sala', sala: 'neracode', exp: Date.now() + 1000 
 const ADMIN: Sesion = { rol: 'equipo', rolApp: 'admin', exp: Date.now() + 1000 }
 const EDITOR: Sesion = { rol: 'equipo', rolApp: 'editor', exp: Date.now() + 1000 }
 const VIEWER: Sesion = { rol: 'equipo', rolApp: 'viewer', exp: Date.now() + 1000 }
-
-describe('puedeEditar', () => {
-  it('solo el equipo Mkt Corp mueve acuerdos', () => {
-    expect(puedeEditar(EQUIPO)).toBe(true)
-    expect(puedeEditar(SALA_NC)).toBe(false)
-    expect(puedeEditar(null)).toBe(false)
-  })
-})
 
 describe('puedeVerSala', () => {
   it('el equipo ve cualquier sala', () => {

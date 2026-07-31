@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { puedeEditarAcuerdos, puedeEditar } from './politica'
+import { puedeEditarAcuerdos, puedeEditarContenido } from './politica'
 import type { Sesion } from './firma'
 
 /**
@@ -51,11 +51,14 @@ describe('puedeEditarAcuerdos', () => {
     expect(puedeEditarAcuerdos(DIR_NERACODE, 'neracode-falsa')).toBe(false)
   })
 
-  it('la excepción NO amplía lo demás: el director sigue sin poder escribir', () => {
-    // `puedeEditar` es lo que guarda preparar sesiones, subir archivos y
-    // minutar. Si esto se volviera true, la excepción de los acuerdos se
-    // habría convertido en acceso de escritura general.
-    expect(puedeEditar(DIR_NERACODE)).toBe(false)
-    expect(puedeEditar(EQUIPO)).toBe(true)
+  it('la excepción NO amplía lo demás: el director sigue sin poder editar contenido en general', () => {
+    // `puedeEditarContenido` es lo que guarda preparar sesiones, subir
+    // archivos y minutar (`puedeEditar`, más laxo y sin mirar `rolApp`, se
+    // retiró en la corrección post-revisión de la ronda 9 — ver
+    // src/auth/roles.ts). Si esto se volviera true para el director, la
+    // excepción de los acuerdos se habría convertido en acceso de escritura
+    // general.
+    expect(puedeEditarContenido(DIR_NERACODE)).toBe(false)
+    expect(puedeEditarContenido(EQUIPO)).toBe(true)
   })
 })

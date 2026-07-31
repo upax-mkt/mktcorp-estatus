@@ -18,18 +18,21 @@
  * ESTA ES LA ÚNICA VÍA DE AUTORIZACIÓN DE ESTE REPO, a propósito.
  *
  * Hasta la ronda 9 existía además `esEquipo()`/`exigirEquipo()`
- * (`src/auth/sesion.ts`, ya retiradas), respaldadas por un `puedeEditar()`
- * que solo miraba `sesion.rol === 'equipo'` y **nunca el `rolApp`** — una
- * cuarta vía que no pasaba por ninguno de los tres predicados de aquí arriba.
- * El resultado: 7 sitios seguían dejando pasar a CUALQUIER equipo —viewer
- * incluido, y hasta una sesión sin `rolApp`— a acciones que debían ser de
- * editor o de admin (publicar una minuta, generar el enlace de acceso de una
- * sala, subir archivos a Blob). Se corrigió repartiendo esos 7 sitios igual
- * que las 47 llamadas originales, y retirando la vía vieja del todo — no
- * había forma de que un grep por nombre de función la seleccionara si nadie
- * sabía que existía. Si hace falta un `boolean` para una pantalla, usar
- * `esAdmin()`/`esEditor()`/`esLector()`, de aquí — nunca escribir un chequeo
- * nuevo que mire `sesion.rol` a mano sin pasar por un predicado de arriba.
+ * (`src/auth/sesion.ts`) y el `puedeEditar()` que las respaldaba
+ * (`src/auth/politica.ts`) — las tres RETIRADAS. `puedeEditar()` solo miraba
+ * `sesion.rol === 'equipo'` y **nunca el `rolApp`** — una cuarta vía que no
+ * pasaba por ninguno de los tres predicados de aquí arriba. El resultado: 7
+ * sitios seguían dejando pasar a CUALQUIER equipo —viewer incluido, y hasta
+ * una sesión sin `rolApp`— a acciones que debían ser de editor o de admin
+ * (publicar una minuta, generar el enlace de acceso de una sala, subir
+ * archivos a Blob). Se corrigió repartiendo esos 7 sitios igual que las 47
+ * llamadas originales, y retirando las tres del todo — dejar `puedeEditar()`
+ * viva, aunque sin llamadores, invitaba a que alguien la usara creyendo que
+ * comprobaba el rol cuando nunca lo miró; no había forma de que un grep por
+ * nombre de función la seleccionara si nadie sabía que existía. Si hace
+ * falta un `boolean` para una pantalla, usar `esAdmin()`/`esEditor()`/
+ * `esLector()`, de aquí — nunca escribir un chequeo nuevo que mire
+ * `sesion.rol` a mano sin pasar por un predicado de arriba.
  */
 import { sesionActual } from './sesion'
 import { puedeAdministrar, puedeEditarContenido, puedeLeer } from './politica'
