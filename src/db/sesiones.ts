@@ -10,7 +10,7 @@
  * edite); `resultado` es lo que resolvió el motor de maquetación — nulo
  * hasta que se maqueta la sesión.
  */
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lt, ne } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -24,6 +24,7 @@ import {
   obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
 } from '@/secciones/plantillas'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
+import { diaCivil, horaBreve } from '@/lib/fecha'
 
 export type { DefinicionItem } from '@/secciones/plantillas'
 
@@ -1022,4 +1023,101 @@ export async function eliminarSesion(sesionId: string): Promise<void> {
   }
   memoria.eliminarMinutaDeSesionMemoria(sesionId)
   memoria.eliminarSesionMemoria(sesionId)
+}
+
+// ---- Agenda pública ----
+// La única pantalla de esta app que se ve sin sesión (ronda 8, tarea 3): un
+// director, o cualquiera con el enlace, mirando cuándo son las reuniones. Es
+// una hoja, no una puerta — nada de acuerdos, participantes ni enlaces hacia
+// el resto de la app.
+
+export interface ReunionPublica {
+  salaSlug: string
+  salaNombre: string
+  salaColor: string
+  /** ISO, día civil de México. */
+  fecha: string
+  /** 'HH:MM' en hora de México. */
+  hora: string
+}
+
+/**
+ * El primer instante de un mes, anclado a CDMX.
+ *
+ * Mismo criterio que `instanteDe` en `src/app/agenda/page.tsx`: el desfase
+ * -06:00 se escribe fijo porque México central dejó el horario de verano en
+ * 2022, así que no hace falta traer una librería de zonas horarias para un
+ * solo desfase que ya no cambia en el año.
+ */
+function inicioDeMes(anio: number, mes: number): Date {
+  return new Date(`${anio}-${String(mes).padStart(2, '0')}-01T00:00:00-06:00`)
+}
+
+/**
+ * Las reuniones de un mes, para la agenda que se comparte fuera.
+ *
+ * Deja fuera dos cosas a propósito: las salas EN PAUSA —no tienen reuniones que
+ * anunciar— y las sesiones en BORRADOR, que son trabajo en curso y no una fecha
+ * comprometida con nadie. Anunciar una fecha que todavía se está armando es
+ * peor que no anunciarla.
+ *
+ * El INNER JOIN con `salas` también deja fuera, como consecuencia necesaria y
+ * no solo casual, las reuniones SIN sala (un comité, un arranque de campaña):
+ * son internas de Marketing Corp, no de ninguna UDN, y no tienen lugar en un
+ * calendario que anuncia "cuándo le toca a [sala]".
+ *
+ * Devuelve lo mínimo que la agenda enseña. Ni id de sesión, ni estructura, ni
+ * participantes, ni acuerdos: lo que no viaja no se puede filtrar por error.
+ *
+ * `mes` es 1-12 —como se dice un mes en voz alta—, no 0-11 como `Date`: es la
+ * misma convención que usa `CalendarioPublico` (src/componentes/agenda), que
+ * recibe este valor tal cual desde la página.
+ */
+export async function sesionesPublicasDelMes(anio: number, mes: number): Promise<ReunionPublica[]> {
+  /**
+   * Sin DB no hay `salas.activa` que consultar — mismo motivo que
+   * `acuerdosPendientesDeSubir` (src/db/acuerdos.ts): el store en memoria no
+   * modela esa columna, y fingir que todas las salas están activas sería
+   * mentir. Devolver la lista vacía es lo único honesto.
+   *
+   * En la práctica esta rama no se alcanza desde la página: sin DB,
+   * `tokenValido` siempre da falso (src/db/enlace-agenda.ts) y la página
+   * responde 404 antes de llegar aquí.
+   */
+  if (!hayDB()) return []
+
+  const inicio = inicioDeMes(anio, mes)
+  const finExclusivo = mes === 12 ? inicioDeMes(anio + 1, 1) : inicioDeMes(anio, mes + 1)
+
+  const filas = await db()
+    .select({
+      salaSlug: esquema.sesiones.salaSlug,
+      fecha: esquema.sesiones.fecha,
+    })
+    .from(esquema.sesiones)
+    .innerJoin(esquema.salas, eq(esquema.sesiones.salaSlug, esquema.salas.slug))
+    .where(
+      and(
+        eq(esquema.salas.activa, true),
+        ne(esquema.sesiones.estado, 'borrador'),
+        gte(esquema.sesiones.fecha, inicio),
+        lt(esquema.sesiones.fecha, finExclusivo),
+      ),
+    )
+    .orderBy(asc(esquema.sesiones.fecha))
+
+  return filas.map((fila) => {
+    // El INNER JOIN de arriba garantiza sala_slug no nulo: solo entra una
+    // fila cuando hace match con una fila de `salas`.
+    const slug = fila.salaSlug as string
+    const tema = obtenerTema(slug)
+    const iso = fila.fecha.toISOString()
+    return {
+      salaSlug: slug,
+      salaNombre: tema.nombre,
+      salaColor: tema.primario,
+      fecha: diaCivil(iso),
+      hora: horaBreve(iso),
+    }
+  })
 }

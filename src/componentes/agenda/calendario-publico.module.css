@@ -1,0 +1,105 @@
+/* La agenda pública (ronda 8, tarea 3): la única pantalla de esta app que se ve
+   sin sesión. Los mismos neutros OKLCH y piezas de `sistema.css` que el resto
+   del shell, para que no se lea como una pantalla aparte — pero sin barra de
+   navegación ni un solo enlace hacia el resto de la app: es una hoja, no una
+   puerta. */
+
+.pagina {
+  min-height: 100dvh;
+  background: var(--lienzo);
+  color: var(--tinta);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 3.5rem) clamp(1rem, 4vw, 2rem) 5rem;
+}
+
+.encabezado { margin-bottom: 1.75rem; }
+.titulo {
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: var(--track-titulo);
+  margin: 0 0 0.4rem;
+}
+.subtitulo { color: var(--tinta-2); font-size: 0.92rem; margin: 0; max-width: 42ch; }
+
+/* ---- el calendario ---- */
+.calendario { overflow: hidden; }
+
+.barra {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--linea);
+}
+.mes { font-size: 1.05rem; font-weight: 650; letter-spacing: var(--track-normal); margin: 0; }
+.navBoton {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.1rem; height: 2.1rem; line-height: 1;
+  border-radius: var(--r-lleno);
+  background: var(--papel-hundido); color: var(--tinta-2);
+  transition: color 140ms ease, background 140ms ease;
+}
+.navBoton:hover { color: var(--tinta); background: color-mix(in oklch, var(--tinta) 10%, var(--papel-hundido)); }
+
+.rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cabeceraDia {
+  padding: 0.5rem 0.3rem; text-align: center;
+  font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tinta-3); font-weight: 700;
+  border-bottom: 1px solid var(--linea);
+}
+
+.celda {
+  min-height: 3.6rem; padding: 0.35rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  border-right: 1px solid var(--linea); border-bottom: 1px solid var(--linea);
+}
+.celda:nth-child(7n) { border-right: none; }
+.celda[data-fuera='true'] { background: var(--papel-2); }
+.celda[data-fuera='true'] .numeroDia { color: var(--tinta-4); opacity: 0.6; }
+
+.numeroDia { font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--tinta-2); font-weight: 600; }
+.celda[data-hoy='true'] .numeroDia {
+  color: var(--papel); background: var(--tinta);
+  min-width: 1.35rem; text-align: center; border-radius: var(--r-lleno); padding: 0.05rem 0.32rem;
+}
+
+/* Un punto por reunión — nada de texto dentro de la rejilla: con nueve marcas
+   posibles el nombre no cabe sin desbordar la celda, y el detalle ya vive en
+   la lista de abajo. */
+.puntos { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.2rem; max-width: 100%; }
+.punto {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: var(--sala);
+  flex: none;
+}
+
+/* ---- la lista ---- */
+.listaTitulo {
+  padding: 1rem 1.1rem 0;
+  font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tinta-3); font-weight: 700;
+}
+
+.vacio { padding: 1rem 1.1rem 1.2rem; color: var(--tinta-3); font-size: 0.9rem; margin: 0; }
+
+.lista { list-style: none; margin: 0; padding: 0.6rem 1.1rem 1.2rem; display: grid; gap: 0.6rem; }
+.item {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.7rem 0.8rem; border-radius: var(--r-3);
+  background: var(--papel-2);
+}
+.itemColor { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--sala); flex: none; align-self: center; }
+.itemSala { font-size: 0.88rem; font-weight: 650; color: var(--sala); }
+.itemFecha { font-size: 0.85rem; color: var(--tinta-2); }
+.itemHora { font-size: 0.85rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+
+@media (max-width: 30rem) {
+  .celda { min-height: 2.9rem; }
+  .item { font-size: 0.85rem; }
+  .itemHora { margin-left: 0; }
+}
