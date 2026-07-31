@@ -321,3 +321,14 @@ export const personasMonday = pgTable('personas_monday', {
   correo: text('correo').notNull(),
   cargadoEn: timestamp('cargado_en', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ---- Enlace público de la agenda ----
+// UNA sola fila. El token no lleva nada dentro —a diferencia del enlace de
+// sala, que codifica qué sala y hasta cuándo y por eso va firmado— así que no
+// hace falta criptografía: es una contraseña larga que se compara contra esta
+// tabla. Revocar es reemplazar la fila, y eso invalida el enlace viejo en el
+// acto, que con una firma sería más difícil de garantizar.
+export const enlaceAgenda = pgTable('enlace_agenda', {
+  token: text('token').primaryKey(),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+})
