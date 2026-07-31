@@ -3,7 +3,7 @@ import { connection } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import estilos from './agenda.module.css'
 import { crearSesionConEstructura, editarSesion, listarSesiones } from '@/db/sesiones'
-import { obtenerTema, slugsDeSalas } from '@/temas'
+import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
 import type { DatosFormulario } from '@/componentes/agenda/FormularioSesion'
@@ -47,10 +47,14 @@ export default async function PagAgenda() {
   await connection()
   const hoy = new Date()
 
-  const sesiones = await listarSesiones()
+  const [sesiones, slugsReales, registro] = await Promise.all([
+    listarSesiones(),
+    slugsDeSalas(),
+    cargarTemas(),
+  ])
 
-  const salas = slugsDeSalas().map((slug) => {
-    const tema = obtenerTema(slug)
+  const salas = slugsReales.map((slug) => {
+    const tema = registro[slug]
     return { slug, nombre: tema.nombre, color: tema.primario }
   })
 

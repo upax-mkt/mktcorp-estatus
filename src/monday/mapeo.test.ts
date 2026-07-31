@@ -3,7 +3,7 @@ import {
   UDN_DE_SALA, SALA_DE_UDN, FASE_DE_ESTATUS,
   estatusDeFase, fechaDeColumna, nombreEnMonday, queSinPrefijo, columnasDe, COLUMNA_ELEMENTO, COLUMNA_SUBELEMENTO, INDICE_UDN,
 } from './mapeo'
-import { slugsDeSalas } from '@/temas'
+import { slugsDeSalas } from '@/db/temas'
 
 /**
  * El mapeo con el tablero de Monday.
@@ -15,8 +15,8 @@ import { slugsDeSalas } from '@/temas'
  */
 
 describe('salas y etiquetas de UdN', () => {
-  it('las diez salas tienen etiqueta', () => {
-    for (const slug of slugsDeSalas()) {
+  it('las nueve salas tienen etiqueta', async () => {
+    for (const slug of await slugsDeSalas()) {
       expect(UDN_DE_SALA[slug], `falta la etiqueta de "${slug}"`).toBeTruthy()
     }
   })

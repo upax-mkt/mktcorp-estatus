@@ -4,6 +4,7 @@ import estilos from '@/app/deck/deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
+import { cargarTemas } from '@/db/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { esEquipo, puedeVerEstaSala } from '@/auth/sesion'
 import { directorio } from '@/db/personas'
@@ -78,7 +79,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
       </header>
 
       <DocumentoSesion
-        tema={temaDeSala(sesion.salaSlug)}
+        tema={temaDeSala(sesion.salaSlug, await cargarTemas())}
         secciones={secciones}
         acuerdos={sala?.acuerdos ?? []}
         sesionId={sesion.id}

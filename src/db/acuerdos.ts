@@ -20,7 +20,8 @@ import { sincronizarCambio, reconciliar } from '@/monday/sincronizar'
 import { estadoInicialDeBandeja, entraALaBandeja, type EstadoBandeja } from '@/monday/bandeja'
 import { leerAcuerdosDeMonday, mondayConectado } from '@/monday/cliente'
 import type { DestinoMonday } from '@/monday/mapeo'
-import { slugsDeSalas, obtenerTema } from '@/temas'
+import { slugsDeSalas, cargarTemas } from './temas'
+import type { Tema } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
 
@@ -64,8 +65,8 @@ function historiaConEntrada(historiaPrevia: unknown, entrada: EntradaHistoria): 
   return [...previa, entrada]
 }
 
-function validarSala(salaSlug: string): void {
-  if (!slugsDeSalas().includes(salaSlug)) {
+async function validarSala(salaSlug: string): Promise<void> {
+  if (!(await slugsDeSalas()).includes(salaSlug)) {
     throw new Error(`Sala desconocida: "${salaSlug}"`)
   }
 }
@@ -118,7 +119,7 @@ function bandejaTrasEditar(bandejaActual: string, cambios: CambiosAcuerdo): Esta
 
 /** Da de alta un acuerdo nuevo, siempre en estatus `abierto`. */
 export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promise<{ id: string }> {
-  validarSala(salaSlug)
+  await validarSala(salaSlug)
   const id = crypto.randomUUID()
   const ahora = new Date()
   const responsableMondayId = normalizarResponsableMondayId(datos.responsableMondayId)
@@ -288,19 +289,15 @@ export async function eliminarAcuerdo(acuerdoId: string): Promise<void> {
 
 /**
  * El nombre y color de marca de una sala, sin reventar si algún día hay una
- * fila con un `salaSlug` que no está en `src/temas`. No debería pasar —la FK
- * de `acuerdos.salaSlug` exige que la sala exista, y el registro de temas es
- * lo que decide qué salas existen— pero un texto de más en la bandeja es más
- * barato que una bandeja que no carga. Mismo patrón defensivo que
+ * fila con un `salaSlug` que no tiene tema en el registro. No debería pasar
+ * —la FK de `acuerdos.salaSlug` exige que la sala exista, y desde la ronda 8
+ * las columnas de marca son `NOT NULL`— pero un texto de más en la bandeja
+ * es más barato que una bandeja que no carga. Mismo patrón defensivo que
  * `identidadDeSala` en src/app/deck/[id]/minuta/acciones.ts.
  */
-function temaDeSalaSeguro(slug: string): { nombre: string; color?: string } {
-  try {
-    const tema = obtenerTema(slug)
-    return { nombre: tema.nombre, color: tema.primario }
-  } catch {
-    return { nombre: slug, color: undefined }
-  }
+function temaDeSalaSeguro(slug: string, registro: Record<string, Tema>): { nombre: string; color?: string } {
+  const tema = registro[slug]
+  return tema ? { nombre: tema.nombre, color: tema.primario } : { nombre: slug, color: undefined }
 }
 
 export interface AcuerdoPendienteDeSubir {
@@ -342,6 +339,7 @@ export interface AcuerdoPendienteDeSubir {
 export async function acuerdosPendientesDeSubir(): Promise<AcuerdoPendienteDeSubir[]> {
   if (!hayDB()) return []
 
+  const registro = await cargarTemas()
   const filas = await db()
     .select({
       id: esquema.acuerdos.id,
@@ -366,7 +364,7 @@ export async function acuerdosPendientesDeSubir(): Promise<AcuerdoPendienteDeSub
       }),
     )
     .map((f) => {
-      const tema = temaDeSalaSeguro(f.salaSlug)
+      const tema = temaDeSalaSeguro(f.salaSlug, registro)
       return {
         id: f.id,
         que: f.que,

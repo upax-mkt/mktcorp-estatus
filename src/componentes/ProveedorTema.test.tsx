@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ProveedorTema } from './ProveedorTema'
-import { obtenerTema, TEMAS } from '@/temas'
+import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 import { contraste } from '@/lib/color'
 
 describe('ProveedorTema', () => {
   it('inyecta el primario de la sala', () => {
     render(
-      <ProveedorTema tema={obtenerTema('zeus')} superficie="clara">
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.zeus} superficie="clara">
         <span>contenido</span>
       </ProveedorTema>,
     )
@@ -17,18 +17,18 @@ describe('ProveedorTema', () => {
 
   it('usa la superficie clara u oscura según se pida', () => {
     const { rerender } = render(
-      <ProveedorTema tema={obtenerTema('neracode')} superficie="clara"><i /></ProveedorTema>,
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.neracode} superficie="clara"><i /></ProveedorTema>,
     )
     expect(screen.getByTestId('tema').style.getPropertyValue('--superficie')).toBe('#FFFFFF')
 
     rerender(
-      <ProveedorTema tema={obtenerTema('neracode')} superficie="oscura"><i /></ProveedorTema>,
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.neracode} superficie="oscura"><i /></ProveedorTema>,
     )
     expect(screen.getByTestId('tema').style.getPropertyValue('--superficie')).toBe('#07184F')
   })
 
   it('expone seis variables de datos', () => {
-    render(<ProveedorTema tema={obtenerTema('uix')} superficie="clara"><i /></ProveedorTema>)
+    render(<ProveedorTema tema={SEMILLA_DE_TEMAS.uix} superficie="clara"><i /></ProveedorTema>)
     const estilo = screen.getByTestId('tema').style
     for (let i = 1; i <= 6; i++) {
       expect(estilo.getPropertyValue(`--dato-${i}`)).toMatch(/^#[0-9A-F]{6}$/)
@@ -37,7 +37,7 @@ describe('ProveedorTema', () => {
 
   it('renderiza a sus hijos', () => {
     render(
-      <ProveedorTema tema={obtenerTema('ceci')} superficie="clara">
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.ceci} superficie="clara">
         <span>hola</span>
       </ProveedorTema>,
     )
@@ -52,7 +52,7 @@ describe('ProveedorTema', () => {
 // alguien "ajuste" --gradiente para hacerle sitio a texto. Para las 10 salas,
 // --gradiente debe reproducir cada parada de tema.gradiente sin alterar
 // ningún dígito.
-describe.each(Object.values(TEMAS))(
+describe.each(Object.values(SEMILLA_DE_TEMAS))(
   '$nombre: --gradiente reproduce el degradado de marca EXACTO, sin ajustar',
   (tema) => {
     it('cada parada de --gradiente coincide con tema.gradiente', () => {
@@ -77,7 +77,7 @@ describe.each(Object.values(TEMAS))(
 // que nada validara ese par: Promo Espacio caía a 2.97:1 y otras cinco marcas
 // quedaban por debajo de 4.5:1 sobre superficieClara. Este test es lo que
 // impide que ese defecto vuelva.
-describe.each(Object.values(TEMAS))(
+describe.each(Object.values(SEMILLA_DE_TEMAS))(
   '$nombre: --primario-sobre-superficie contrasta ≥4.5:1 contra --superficie',
   (tema) => {
     it.each(['clara', 'oscura'] as const)('sobre superficie %s', (superficie) => {
@@ -100,7 +100,7 @@ describe('--primario-sobre-superficie', () => {
   it('no toca el primario cuando ya cumple 4.5:1 contra la superficie', () => {
     // NeraCode: #3E31CC contra superficieClara #FFFFFF da 8.35:1, ya cumple.
     render(
-      <ProveedorTema tema={obtenerTema('neracode')} superficie="clara">
+      <ProveedorTema tema={SEMILLA_DE_TEMAS.neracode} superficie="clara">
         <i />
       </ProveedorTema>,
     )
@@ -112,7 +112,7 @@ describe('--primario-sobre-superficie', () => {
     // Promo Espacio: #F94700 sólo da 2.97:1 contra su superficieClara, pero
     // --primario debe seguir publicando el color de marca puro sin tocar.
     render(
-      <ProveedorTema tema={obtenerTema('promo-espacio')} superficie="clara">
+      <ProveedorTema tema={SEMILLA_DE_TEMAS['promo-espacio']} superficie="clara">
         <i />
       </ProveedorTema>,
     )

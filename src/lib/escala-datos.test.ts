@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { distanciaPerceptual, distanciaVisionNormal } from './distancia-color'
-import { TEMAS } from '@/temas'
+import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 import { derivarEscalaDatos, PISOS_DE_SEPARACION } from './escala-datos'
 import { contraste, hexAHsl } from './color'
 
@@ -67,7 +67,7 @@ describe('ninguna sala puede desplegar una paleta ilegible', () => {
     ['oscura', '#141414'],
   ]
 
-  for (const [slug, tema] of Object.entries(TEMAS)) {
+  for (const [slug, tema] of Object.entries(SEMILLA_DE_TEMAS)) {
     for (const [nombreSuperficie, superficie] of SUPERFICIES) {
       it(`${slug} sobre superficie ${nombreSuperficie}: seis series separables`, () => {
         const escala = derivarEscalaDatos(tema.primario, superficie, 6)

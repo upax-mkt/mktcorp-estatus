@@ -5,6 +5,7 @@ import estilos from '../../deck.module.css'
 import { obtenerSesion, marcarPresentada } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
+import { cargarTemas } from '@/db/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
@@ -36,7 +37,7 @@ export default async function PagSesionMaquetada({
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()
 
-  const tema = temaDeSala(sesion.salaSlug)
+  const tema = temaDeSala(sesion.salaSlug, await cargarTemas())
   // Una reunión sin sala no tiene acuerdos vivos que mostrar: los acuerdos
   // cuelgan de una sala, y esta no pertenece a ninguna.
   const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined

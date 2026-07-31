@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EditorSeccion } from './EditorSeccion'
-import { obtenerTema } from '@/temas'
+import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 
 /**
  * Lo que se puede DESHACER en el editor.
@@ -13,7 +13,7 @@ import { obtenerTema } from '@/temas'
  * todos se acuerden es garantizar que el siguiente no lo haga.
  */
 
-const TEMA = obtenerTema('zeus')
+const TEMA = SEMILLA_DE_TEMAS.zeus
 
 function editor(borrador: Parameters<typeof EditorSeccion>[0]['borrador']) {
   return render(

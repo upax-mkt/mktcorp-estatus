@@ -1,32 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { TEMAS, obtenerTema, slugsDeSalas, temaDeSala, colorDeTextoDeMarca } from './index'
+import { temaDeSala, colorDeTextoDeMarca } from './index'
+import { SEMILLA_DE_TEMAS } from './semilla'
+import { grupoUpax } from './grupo-upax'
 import { contraste } from '@/lib/color'
 import { derivarEscalaDatos } from '@/lib/escala-datos'
 
-describe('registro de temas', () => {
-  it('tiene exactamente las 9 salas: las 8 UDNs y Ceci', () => {
-    // Grupo UPAX salió del registro: era la misma habitación que Ceci contada
-    // dos veces —mismo logotipo, mismo interlocutor— y en el Home aparecían
-    // como dos tarjetas idénticas. Su TEMA sigue existiendo, porque de ahí
-    // saca Ceci su identidad; lo que ya no existe es la sala.
-    expect(slugsDeSalas().sort()).toEqual([
-      'ceci', 'house-of-films', 'marketing-united', 'mexa-creativa',
-      'neracode', 'promo-espacio', 'research-land', 'uix', 'zeus',
-    ])
-  })
+// Las pruebas de "cuántas salas hay" y "un slug desconocido revienta" viven
+// ahora en src/db/temas.test.ts, junto a `cargarTemas`/`slugsDeSalas` — que
+// son quienes de verdad conocen el universo de salas (la tabla `salas`).
+// Este archivo prueba lo que se quedó aquí: los AYUDANTES puros que no
+// dependen de dónde salió el registro.
 
-  it('obtenerTema devuelve el tema pedido', () => {
-    // El principal del brandbook 2026 (Pantone 275c). El #FF004F que había
-    // aquí es uno de sus dos acentos: estaban intercambiados.
-    expect(obtenerTema('zeus').primario).toBe('#614ACA')
-  })
-
-  it('obtenerTema lanza si la sala no existe', () => {
-    expect(() => obtenerTema('mkt-corp')).toThrow(/mkt-corp/)
-  })
-})
-
-describe.each(Object.values(TEMAS))('tema $nombre', (tema) => {
+describe.each(Object.values(SEMILLA_DE_TEMAS))('tema $nombre', (tema) => {
   it('tiene todos los hex en formato válido', () => {
     const hexes = [
       tema.primario, tema.secundario, tema.acento,
@@ -58,19 +43,31 @@ describe.each(Object.values(TEMAS))('tema $nombre', (tema) => {
   })
 })
 
-describe('la identidad de lo que no es de ninguna sala', () => {
+describe('temaDeSala — la identidad de lo que no es de ninguna sala', () => {
   it('una reunión sin sala se viste con la del grupo, no con undefined', () => {
     // Grupo UPAX dejó de ser una sala, y el por defecto apuntaba al registro:
     // sin esto, un comité o un arranque se quedaban sin tema, sin colores y
     // sin escala de datos, y el documento reventaba al pintarse.
-    const t = temaDeSala(null)
+    const t = temaDeSala(null, SEMILLA_DE_TEMAS)
     expect(t).toBeDefined()
     expect(t.primario).toMatch(/^#/)
-    expect(temaDeSala(undefined).slug).toBe(t.slug)
+    expect(t.slug).toBe(grupoUpax.slug)
+    expect(temaDeSala(undefined, SEMILLA_DE_TEMAS).slug).toBe(t.slug)
   })
 
   it('con sala, la suya', () => {
-    expect(temaDeSala('zeus').slug).toBe('zeus')
+    expect(temaDeSala('zeus', SEMILLA_DE_TEMAS).slug).toBe('zeus')
+  })
+
+  it('un slug que no está en el registro no revienta: cae al tema del grupo', () => {
+    // No debería pasar en producción —una sala real siempre tiene su fila—,
+    // pero un tema prestado es más barato que la página sin pintarse.
+    expect(temaDeSala('mkt-corp-inventado', SEMILLA_DE_TEMAS).slug).toBe(grupoUpax.slug)
+  })
+
+  it('con un registro vacío (defensa extrema) sigue devolviendo el tema del grupo, sin romper', () => {
+    expect(temaDeSala(null, {}).slug).toBe(grupoUpax.slug)
+    expect(temaDeSala('zeus', {}).slug).toBe(grupoUpax.slug)
   })
 })
 
@@ -89,7 +86,7 @@ describe('el color de marca en TEXTO', () => {
    * note.
    */
   it('todas las marcas alcanzan 4,5:1 sobre blanco como texto', () => {
-    for (const [slug, tema] of Object.entries(TEMAS)) {
+    for (const [slug, tema] of Object.entries(SEMILLA_DE_TEMAS)) {
       const c = contraste(colorDeTextoDeMarca(tema.primario), '#ffffff')
       expect(c, `${slug} se lee a ${c.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
     }

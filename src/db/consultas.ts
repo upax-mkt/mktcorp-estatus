@@ -15,7 +15,8 @@ import { desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
-import { obtenerTema, slugsDeSalas } from '@/temas'
+import { cargarTemas, slugsDeSalas } from './temas'
+import type { Tema } from '@/temas'
 import * as fallback from '@/dominio/salas'
 import { esLlenado, type ContenidoItemCrudo } from './sesiones'
 import type {
@@ -108,8 +109,10 @@ function estaEnPreparacion(estado: FilaSesion['estado']): boolean {
 }
 
 async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
-  if (!slugsDeSalas().includes(slug)) return undefined
-  const tema = obtenerTema(slug)
+  if (!(await slugsDeSalas()).includes(slug)) return undefined
+  const registro = await cargarTemas()
+  const tema = registro[slug]
+  if (!tema) return undefined // defensivo: no debería pasar, ver cargarTemas()
   const conexion = db()
   const ahora = new Date()
 
@@ -244,7 +247,8 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
 }
 
 async function estadoDeSalasDB(): Promise<EstadoSala[]> {
-  const resueltos = await Promise.all(slugsDeSalas().map((slug) => estadoDeSalaDB(slug)))
+  const slugs = await slugsDeSalas()
+  const resueltos = await Promise.all(slugs.map((slug) => estadoDeSalaDB(slug)))
   return resueltos.filter((s): s is EstadoSala => s != null)
 }
 
@@ -380,19 +384,18 @@ export interface AcuerdoConSala extends Acuerdo {
 
 /**
  * El nombre y color de marca de una sala, sin reventar si algún día hay una
- * fila con un `salaSlug` que no está en `src/temas`. No debería pasar —la FK
- * de `acuerdos.salaSlug` exige que la sala exista, y `crearAcuerdo` ya valida
- * contra `slugsDeSalas()` al dar de alta— pero un texto de más en esta lista
- * es más barato que la pantalla entera sin cargar. Mismo criterio defensivo
- * que `temaDeSalaSeguro` en src/db/acuerdos.ts.
+ * fila con un `salaSlug` que no tiene tema en el registro. No debería pasar
+ * —la FK de `acuerdos.salaSlug` exige que la sala exista, `crearAcuerdo` ya
+ * valida contra `slugsDeSalas()` al dar de alta, y desde la ronda 8 las
+ * columnas de marca son `NOT NULL`— pero un texto de más en esta lista es
+ * más barato que la pantalla entera sin cargar. Mismo criterio defensivo que
+ * `temaDeSalaSeguro` en src/db/acuerdos.ts (dos copias iguales a propósito:
+ * documentado en el reporte de la tarea 5, no vale la pena el acoplamiento
+ * de compartir una función de dos líneas entre dos módulos).
  */
-function temaDeSalaSeguro(slug: string): { nombre: string; color: string } {
-  try {
-    const tema = obtenerTema(slug)
-    return { nombre: tema.nombre, color: tema.primario }
-  } catch {
-    return { nombre: slug, color: '#666666' }
-  }
+function temaDeSalaSeguro(slug: string, registro: Record<string, Tema>): { nombre: string; color: string } {
+  const tema = registro[slug]
+  return tema ? { nombre: tema.nombre, color: tema.primario } : { nombre: slug, color: '#666666' }
 }
 
 /**
@@ -410,6 +413,7 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
   if (!hayDB()) return []
 
   const hoy = isoFecha(new Date())
+  const registro = await cargarTemas()
   const filas = await db()
     .select({
       id: esquema.acuerdos.id,
@@ -436,7 +440,7 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
     // hubiera existido.
     .filter((f) => f.estatus !== 'cancelado')
     .map((f) => {
-      const tema = temaDeSalaSeguro(f.salaSlug)
+      const tema = temaDeSalaSeguro(f.salaSlug, registro)
       const fechaCompromiso = f.fechaCompromiso ? isoFecha(f.fechaCompromiso) : null
       const estatusGuardado = f.estatus as fallback.EstatusAcuerdo
       const estatus = fallback.estatusEfectivo({ estatus: estatusGuardado, fechaCompromiso }, f.salaActiva, hoy)

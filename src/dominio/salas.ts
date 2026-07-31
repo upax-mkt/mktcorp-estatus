@@ -2,17 +2,18 @@
  * EL ESTADO DE LA RELACIÓN CON CADA SALA: tipos y lógica derivada.
  *
  * Aquí NO hay datos. Ni uno. Todo lo que la app enseña —acuerdos, sesiones,
- * minutas— sale de lo que el equipo creó en la propia app y vive en su base de
- * datos; si algo se borra ahí, desaparece de la app. Este módulo solo define
- * QUÉ es el estado de una sala y cómo se calculan sus derivados (temperatura,
- * urgencia, pulso del mes).
+ * minutas, y desde la ronda 8 también el nombre y la marca de cada sala— sale
+ * de lo que el equipo creó o editó en la propia app y vive en su base de
+ * datos; si algo se borra o cambia ahí, cambia en la app. Este módulo solo
+ * define QUÉ es el estado de una sala y cómo se calculan sus derivados
+ * (temperatura, urgencia, pulso del mes).
  *
- * Las diez salas sí son configuración: las 8 UDNs de Grupo UPAX + Ceci + el
- * corporativo. Son la estructura de la organización, no contenido, y viven en
- * `src/temas/`. Una sala sin actividad devuelve un estado VACÍO, que es la
- * verdad —nadie ha preparado nada todavía— y no un ejemplo inventado.
+ * Hasta el 30-jul las diez salas SÍ eran configuración de código
+ * (`src/temas/`) y `estadoDeSalas()` podía enumerarlas sin tocar la base: era
+ * el respaldo para cuando no hay DATABASE_URL. Desde que la marca se edita
+ * desde la app, esa lista dejó de ser algo que este módulo —puro, sin
+ * `async`— pueda ofrecer por su cuenta: ver `estadoDeSalas()` más abajo.
  */
-import { slugsDeSalas, obtenerTema } from '@/temas'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido'
 
@@ -98,36 +99,24 @@ export interface EstadoSala {
 }
 
 /**
- * El estado de las diez salas, VACÍO.
+ * El estado de las salas sin base de datos: VACÍO. Siempre.
  *
- * Es el camino de respaldo para cuando no hay base de datos configurada (dev
- * sin `DATABASE_URL`). Devuelve las salas que existen —eso es configuración—
- * pero sin una sola sesión, acuerdo ni minuta: sin base no hay nada guardado
- * que enseñar, y decir lo contrario sería inventarlo.
+ * Hasta el 30-jul este era el camino de respaldo para dev sin `DATABASE_URL`:
+ * como el nombre y el color de cada sala vivían en código (`src/temas`), se
+ * podían enumerar sin tocar Postgres. Desde que esa marca es dato editable
+ * (ronda 8, tarea 5), este módulo —puro, sin `async`— ya no tiene de dónde
+ * sacarla: `cargarTemas()` (`src/db/temas.ts`) es quien la lee, y solo puede
+ * hacerlo con `await`.
  *
- * Con base de datos, `src/db/consultas.ts` no llama a esto: consulta Postgres.
+ * `[]` es la verdad honesta que le queda a este camino: sin base no hay ni
+ * sesión, ni acuerdo, ni minuta que enseñar —eso ya era cierto antes— y ahora
+ * tampoco hay una lista de salas que ofrecer sin inventarla. `src/db/consultas.ts`,
+ * quien de verdad decide qué se pinta, no depende de esto: con DATABASE_URL
+ * consulta Postgres directamente, y sin ella cae a su propio store en
+ * memoria (`src/db/store-memoria.ts`), no a esta función.
  */
 export function estadoDeSalas(): EstadoSala[] {
-  return slugsDeSalas().map((slug) => {
-    const tema = obtenerTema(slug)
-    return {
-      slug,
-      nombre: tema.nombre,
-      color: tema.primario,
-      diasDesdeUltima: null,
-      ultimaSesion: null,
-      proximaSesion: null,
-      enPreparacion: false,
-      acuerdos: [],
-      presentaciones: [],
-      minutas: [],
-      cadencia: 'mensual',
-      // El store en memoria no modela `salas.activa`: sin base de datos no
-      // hay forma de pausar nada, así que toda sala se trata como activa.
-      activa: true,
-      pausadaDesde: null,
-    }
-  })
+  return []
 }
 
 export function estadoDeSala(slug: string): EstadoSala | undefined {

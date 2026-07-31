@@ -4,7 +4,8 @@ import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
-import { obtenerTema, slugsDeSalas, colorDeTextoDeMarca } from '@/temas'
+import { colorDeTextoDeMarca } from '@/temas'
+import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
@@ -51,8 +52,8 @@ import { urlBase } from '@/lib/url-base'
 // deploy nuevo sin haber pasado por una acción).
 export const dynamic = 'force-dynamic'
 
-export function generateStaticParams() {
-  return slugsDeSalas().map((slug) => ({ slug }))
+export async function generateStaticParams() {
+  return (await slugsDeSalas()).map((slug) => ({ slug }))
 }
 
 /**
@@ -96,12 +97,13 @@ const ETIQUETA_ESTADO: Record<Acuerdo['estatus'], string> = {
 
 export default async function VistaSala({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  let tema
-  try {
-    tema = obtenerTema(slug)
-  } catch {
-    notFound()
-  }
+  // Guarda contra las nueve salas reales, no contra las diez filas de
+  // `salas`: `grupo-upax` tiene tema (cargarTemas() lo trae) pero no es una
+  // sala navegable desde aquí, igual que no lo era cuando `TEMAS` la excluía
+  // en código — ver slugsDeSalas(), src/db/temas.ts.
+  const [slugsReales, registro] = await Promise.all([slugsDeSalas(), cargarTemas()])
+  if (!slugsReales.includes(slug)) notFound()
+  const tema = registro[slug]
   // El proxy ya filtró, pero esta es la comprobación que cuenta: pegada al
   // dato, no en la puerta. Un director solo abre su sala.
   if (!(await puedeVerEstaSala(slug))) notFound()

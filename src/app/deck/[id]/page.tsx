@@ -18,6 +18,7 @@ import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
+import { cargarTemas } from '@/db/temas'
 import { exigirEquipo } from '@/auth/sesion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
@@ -105,7 +106,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
       const { crearClientePorDefecto } = await import('@/motor/decidir')
       const resultado = await maquetarItem(
         { titulo: item.titulo, texto },
-        temaDeSala(sesionActual!.salaSlug),
+        temaDeSala(sesionActual!.salaSlug, await cargarTemas()),
         crearClientePorDefecto(),
       )
       // `razon` es la explicación que da el modelo de su decisión. En cuanto
@@ -205,7 +206,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // El tema de la sala baja hasta cada editor: la vista previa tiene que
   // pintarse con los colores con los que se va a presentar, no con los del
   // cascarón de preparación.
-  const tema = temaDeSala(sesion.salaSlug)
+  const tema = temaDeSala(sesion.salaSlug, await cargarTemas())
   // Si alguna sección se va a resolver con el asistente. Solo entonces
   // maquetar tarda de verdad: una sesión armada a mano no llama a ningún
   // modelo, y anunciar "~25 s" para algo instantáneo enseña a desconfiar del

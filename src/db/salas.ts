@@ -13,10 +13,10 @@
 import { and, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
-import { slugsDeSalas } from '@/temas'
+import { slugsDeSalas } from './temas'
 
-function validarSala(slug: string): void {
-  if (!slugsDeSalas().includes(slug)) {
+async function validarSala(slug: string): Promise<void> {
+  if (!(await slugsDeSalas()).includes(slug)) {
     throw new Error(`Sala desconocida: "${slug}"`)
   }
 }
@@ -69,7 +69,7 @@ export async function slugsDeSalasPausadas(): Promise<Set<string>> {
  * la fecha de freeze original con la de hoy.
  */
 export async function pausarSala(slug: string): Promise<void> {
-  validarSala(slug)
+  await validarSala(slug)
   if (!hayDB()) return
   await db()
     .update(esquema.salas)
@@ -86,7 +86,7 @@ export async function pausarSala(slug: string): Promise<void> {
  * poner `activa = true` (ver su test en src/dominio/salas.test.ts).
  */
 export async function reactivarSala(slug: string): Promise<void> {
-  validarSala(slug)
+  await validarSala(slug)
   if (!hayDB()) return
   await db()
     .update(esquema.salas)
