@@ -39,9 +39,10 @@ import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acu
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import {
-  esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
+  esEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
+import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
 
@@ -223,10 +224,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    */
   async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
     'use server'
-    // EQUIPO, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
+    // EDITOR, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
     // editar un acuerdo. El director de la UDN mueve sus compromisos; no
     // arma la sesión en la que se los van a presentar.
-    await exigirEquipo()
+    await exigirEditor()
     if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
       return { error: 'Plantilla desconocida.' }
     }
@@ -278,7 +279,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    */
   async function regenerarClaveAction(): Promise<{ clave?: string; error?: string }> {
     'use server'
-    await exigirEquipo()
+    // ADMIN, no editor: generar/revocar la clave decide QUIÉN puede entrar a
+    // esta sala desde fuera del equipo — el mismo nivel que el enlace de
+    // agenda (`generarEnlaceAction`/`revocarEnlaceAction`, src/app/salas/acciones.ts).
+    await exigirAdmin()
     const s = secretoConfigurado()
     if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
     try {
@@ -292,7 +296,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function quitarClaveAction() {
     'use server'
-    await exigirEquipo()
+    // Misma exigencia que regenerarClaveAction: es la otra mitad del acceso
+    // externo de esta sala.
+    await exigirAdmin()
     await quitarClave(slug)
     revalidatePath(`/cliente/${slug}`)
   }
@@ -309,7 +315,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     tamanoBytes: number | null
   }): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       await registrarArchivo({
         salaSlug: slug,
@@ -334,7 +340,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function editarArchivoAction(id: string, cambios: { titulo: string; fecha: string | null }) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await editarArchivo(id, {
       titulo: cambios.titulo,
       fecha: cambios.fecha ? new Date(cambios.fecha) : null,
@@ -344,7 +350,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function eliminarArchivoAction(id: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     // Franco: "si algo se elimina también se elimina del almacenamiento".
     // Primero la fila, luego el binario: al revés, un fallo al borrar el
     // archivo dejaría una fila que apunta a la nada.

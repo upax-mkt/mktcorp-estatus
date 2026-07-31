@@ -25,8 +25,11 @@ vi.mock('drizzle-orm', async (importarOriginal) => {
 })
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
-vi.mock('@/auth/sesion', () => ({
-  exigirEquipo: vi.fn().mockResolvedValue({ rol: 'equipo', sub: 'equipo-mkt-corp' }),
+// Ronda 9, tarea 2: las acciones de esta pantalla ahora exigen `exigirAdmin()`
+// (crear/editar salas y marcas, y el enlace de agenda, son de administrador),
+// importado de `@/auth/roles` y no de `@/auth/sesion`.
+vi.mock('@/auth/roles', () => ({
+  exigirAdmin: vi.fn().mockResolvedValue({ rol: 'equipo', rolApp: 'admin', sub: 'equipo-mkt-corp' }),
 }))
 
 interface FilaFalsa {

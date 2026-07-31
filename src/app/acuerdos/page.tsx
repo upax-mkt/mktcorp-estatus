@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirLectura } from '@/auth/roles'
 import { todosLosAcuerdos } from '@/db/consultas'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import { ErrorMonday } from '@/monday/cliente'
@@ -41,12 +41,15 @@ async function refrescarDesdeMondaySeguro(): Promise<void> {
  * `puedeVerRuta` en src/auth/politica.ts es lista blanca estricta y `/acuerdos`
  * no está en ninguna de sus excepciones—, pero esa es la verificación
  * OPTIMISTA (ver la cabecera de src/proxy.ts); la que manda es esta,
- * `exigirEquipo()`, pegada al dato. El director de una UDN sigue viendo solo
- * SU sala, como en el resto de la app, y la bandeja que cuelga de aquí es de
- * equipo por la misma razón: no sube nada a Monday por su cuenta.
+ * `exigirLectura()`, pegada al dato. Esta página SOLO MUESTRA — destacar
+ * (la estrella) y las acciones de la bandeja se protegen aparte, cada una con
+ * su propia exigencia (ver `./acciones.ts`) — así que los tres roles de
+ * equipo pueden abrirla. El director de una UDN sigue viendo solo SU sala,
+ * como en el resto de la app, y la bandeja que cuelga de aquí es de equipo
+ * por la misma razón: no sube nada a Monday por su cuenta.
  */
 export default async function PagAcuerdos() {
-  await exigirEquipo()
+  await exigirLectura()
 
   await refrescarDesdeMondaySeguro()
 

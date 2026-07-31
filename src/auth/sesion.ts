@@ -3,7 +3,7 @@
 // `next/headers`, que ya revienta el build si alguien lo arrastra a un
 // componente de cliente.
 import { cookies } from 'next/headers'
-import { firmar, verificar, type Sesion } from './firma'
+import { firmar, verificar, type Sesion, type RolApp } from './firma'
 import { puedeEditar, puedeEditarAcuerdos, puedeVerSala } from './politica'
 import { COOKIE_SESION } from './nombres'
 
@@ -82,9 +82,17 @@ async function guardarCookie(sesion: Sesion): Promise<void> {
   })
 }
 
-/** Abre sesión de Marketing Corporativo (acceso completo). */
-export async function abrirSesionEquipo(sub: string): Promise<void> {
-  await guardarCookie({ rol: 'equipo', sub, exp: Date.now() + DIAS_EQUIPO * MS_POR_DIA })
+/**
+ * Abre sesión de Marketing Corporativo. `rolApp` es opcional solo por
+ * compatibilidad de firma — en la práctica todo llamador de esta ronda en
+ * adelante lo manda: el retorno de Slack con el rol que trae el directorio
+ * (`src/db/directorio.ts`), y el portillo de emergencia de `/entrar` con
+ * `'admin'` a mano. Sin `rolApp`, la sesión entra igual (sigue siendo
+ * `rol: 'equipo'`) pero no pasa ninguna de las tres exigencias de
+ * `src/auth/roles.ts`: falla cerrado, no accede completo por accidente.
+ */
+export async function abrirSesionEquipo(sub: string, rolApp?: RolApp): Promise<void> {
+  await guardarCookie({ rol: 'equipo', sub, rolApp, exp: Date.now() + DIAS_EQUIPO * MS_POR_DIA })
 }
 
 /** Abre sesión de solo lectura para una sala concreta. */

@@ -6,7 +6,7 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +27,7 @@ export default async function PagNuevaSesion() {
 
   async function crear(formData: FormData) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
 
     const salaCruda = String(formData.get('salaSlug') ?? '')
     const plantilla = String(formData.get('plantilla') ?? PLANTILLA_POR_DEFECTO)

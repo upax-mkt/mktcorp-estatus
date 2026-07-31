@@ -6,7 +6,7 @@ import { obtenerSesion, marcarPresentada } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
@@ -57,7 +57,7 @@ export default async function PagSesionMaquetada({
   // la sala del director ni puede tener minuta. Ver `marcarPresentada`.
   async function marcarPresentadaAction() {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await marcarPresentada(id)
     revalidatePath(`/deck/${id}/documento`)
     if (sesion!.salaSlug) revalidatePath(`/cliente/${sesion!.salaSlug}`)

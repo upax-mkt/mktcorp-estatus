@@ -19,7 +19,8 @@ import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil } from '@/lib/fecha'
-import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
+import { cerrarSesion } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
@@ -45,21 +46,21 @@ export default async function Hub() {
 
   async function cambiarEstatusAction(id: string, estatus: EstatusAcuerdo) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await moverEstatus(id, estatus)
     revalidatePath('/')
   }
 
   async function ponerFechaAction(id: string, fecha: string | null) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await editarAcuerdo(id, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath('/')
   }
 
   async function guardarMoldeAction(nuevo: MoldeMinuta): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     // Se revalida en el servidor aunque el editor ya lo compruebe: ocultar un
     // botón no protege una acción.
     const faltas = loQueFaltaAlMolde(nuevo)

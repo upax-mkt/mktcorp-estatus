@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import estilos from './agenda.module.css'
 import { crearSesionConEstructura, editarSesion, listarSesiones } from '@/db/sesiones'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
 import type { DatosFormulario } from '@/componentes/agenda/FormularioSesion'
 import { fechaLarga, instanteEnCDMX } from '@/lib/fecha'
@@ -41,7 +41,9 @@ function instanteDe(dia: string, hora: string): Date {
  * campos y no rehacerlos.
  */
 export default async function PagAgenda() {
-  await exigirEquipo()
+  // Esta página SOLO MUESTRA el mes y el formulario; agendar/editar son
+  // Server Actions aparte (abajo), cada una con su propia exigencia.
+  await exigirLectura()
   // Sin esto Next la prerenderiza y el calendario se queda anclado al día del
   // build: "hoy" sería la fecha del despliegue para siempre.
   await connection()
@@ -76,7 +78,7 @@ export default async function PagAgenda() {
 
   async function agendarAction(datos: DatosFormulario): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       await crearSesionConEstructura({
         salaSlug: datos.salaSlug,
@@ -100,7 +102,7 @@ export default async function PagAgenda() {
 
   async function editarAction(id: string, datos: DatosFormulario): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       await editarSesion(id, {
         fecha: instanteDe(datos.dia, datos.hora),

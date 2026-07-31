@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirLectura } from '@/auth/roles'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import { directorio } from '@/db/personas'
 import {
@@ -48,11 +48,13 @@ async function refrescarDesdeMondaySeguro(): Promise<void> {
  * sí. `puedeVerRuta` (src/auth/politica.ts) ya la niega por defecto a una
  * sesión de sala —lista blanca estricta, sin excepción para esta ruta—, pero
  * esa es la verificación OPTIMISTA del proxy (ver su cabecera). La que manda
- * es `exigirEquipo()` abajo, pegada al dato: la regla del proyecto es que
+ * es `exigirLectura()` abajo, pegada al dato: la regla del proyecto es que
  * cada página la repita, y esta pantalla se quedó sin hacerlo desde la tarea
  * 8 (corrección detectada al construir `/acuerdos` en la tarea 11 — sus
  * acciones, `subirAcuerdoAction`/`descartarAcuerdoAction`, sí la exigían;
- * solo faltaba en la página).
+ * solo faltaba en la página). Esta pantalla SOLO MUESTRA: subir, descartar y
+ * editar en sitio son acciones aparte (`./acciones.ts`), cada una con su
+ * propia exigencia — `exigirLectura()` basta para poder abrirla.
  */
 export const dynamic = 'force-dynamic'
 
@@ -86,7 +88,7 @@ async function grupoExisteSeguro(): Promise<{ existe: boolean; titulo: string | 
 }
 
 export default async function PagBandeja() {
-  await exigirEquipo()
+  await exigirLectura()
 
   const hayToken = mondayConectado()
 
@@ -119,7 +121,7 @@ export default async function PagBandeja() {
     acuerdosPendientesDeSubir(),
     grupoExisteSeguro(),
     // Para corregir el responsable ahí mismo (punto 8) — esta pantalla es
-    // SOLO EQUIPO (exigirEquipo() arriba, sin excepción de sala), así que a
+    // SOLO EQUIPO (exigirLectura() arriba, sin excepción de sala), así que a
     // diferencia de /cliente/[slug] (punto 7) no hace falta condicionar esta
     // carga: nunca se comparte por un enlace firmado con un cliente interno.
     directorio(),

@@ -5,7 +5,7 @@ import estilos from '../../deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
@@ -67,21 +67,21 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   // nacen (y eso no se repite), corregir solo arregla el texto del correo.
   async function editarAction(texto: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await editarTextoMinuta(id, texto)
     revalidatePath(`/deck/${id}/minuta`)
   }
 
   async function eliminarAction() {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await eliminarMinuta(id)
     revalidatePath(`/deck/${id}/minuta`)
   }
 
   async function cargarExternaAction(texto: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await cargarMinutaExterna(id, texto)
     revalidatePath(`/deck/${id}/minuta`)
   }

@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import estilos from './deck.module.css'
 import { listarSesiones, eliminarSesion } from '@/db/sesiones'
 import { obtenerMinuta } from '@/db/minutas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 import { fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
@@ -54,7 +54,7 @@ export default async function PagPreparar() {
 
   async function eliminarAction(id: string): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       await eliminarSesion(id)
       revalidatePath('/deck')

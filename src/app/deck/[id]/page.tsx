@@ -19,7 +19,7 @@ import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
@@ -55,33 +55,34 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   if (!sesion) notFound()
 
   // ---- Server actions ----
-  // Cada una exige equipo por su cuenta: una Server Action es un endpoint, y
+  // Cada una exige editor por su cuenta (`exigirEditor()`: admin o editor,
+  // no viewer — ronda 9, tarea 2): una Server Action es un endpoint, y
   // ocultar el botón en la pantalla no protege nada.
 
   async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await guardarSeccion(id, itemId, seccion)
     revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await anadirSeccion(id, layout, nombre)
     revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await anadirSeccion(id, layout, nombre, padre)
     revalidatePath(`/deck/${id}`)
   }
 
   async function eliminarSeccionAction(itemId: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await eliminarSeccion(id, itemId)
     revalidatePath(`/deck/${id}`)
   }
@@ -95,7 +96,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
    */
   async function proponerAction(itemId: string, texto: string): Promise<BorradorSeccion | { error: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     const sesionActual = await obtenerSesion(id)
     const item = sesionActual?.items.find((i) => i.id === itemId)
     if (!item) return { error: 'Esta sección ya no existe.' }
@@ -131,7 +132,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     tamanoBytes: number | null
   }): Promise<{ url?: string; error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       const { id: archivoId } = await registrarArchivo({
         salaSlug: null,
@@ -155,14 +156,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function subirItem(formData: FormData) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
     revalidatePath(`/deck/${id}`)
   }
 
   async function bajarItem(formData: FormData) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
     revalidatePath(`/deck/${id}`)
   }
@@ -170,14 +171,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
   async function reordenar(idsEnOrden: string[]) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await reordenarItems(id, idsEnOrden)
     revalidatePath(`/deck/${id}`)
   }
 
   async function maquetar() {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     const sesionActual = await obtenerSesion(id)
     if (!sesionActual) throw new Error('Sesión no encontrada')
 
@@ -191,7 +192,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function borrarSesionAction() {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await eliminarSesion(id)
     revalidatePath('/deck')
     revalidatePath('/')

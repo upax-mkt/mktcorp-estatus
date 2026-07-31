@@ -9,6 +9,7 @@ import {
 } from '@/auth/sesion'
 import { slackConfigurado } from '@/auth/slack'
 import { salaDeClave } from '@/db/claves'
+import { hayAlgunaPersona } from '@/db/directorio'
 import { abrirSesionSala, secretoConfigurado } from '@/auth/sesion'
 
 export const dynamic = 'force-dynamic'
@@ -56,7 +57,24 @@ export default async function Entrar({
       redirect(`/entrar?${parametros}`)
     }
 
-    await abrirSesionEquipo('equipo-mkt-corp')
+    /**
+     * EL PORTILLO DE EMERGENCIA, y no es un descuido.
+     *
+     * Si el directorio está vacío nadie puede entrar —ni quien tenía que
+     * darse de alta a sí mismo, en /personas— así que mientras no haya NI UNA
+     * persona, la clave de equipo sigue sirviendo y entra como admin: es la
+     * única forma de llegar a esa pantalla la primera vez. En cuanto hay una
+     * persona en el directorio, este camino deja de funcionar — a partir de
+     * ahí se entra con la cuenta de Slack, como cualquiera del directorio.
+     * No lo quites pensando que sobra: es el extintor.
+     */
+    if (await hayAlgunaPersona()) {
+      const parametros = new URLSearchParams({ error: 'clave-retirada' })
+      if (aDonde !== '/') parametros.set('destino', aDonde)
+      redirect(`/entrar?${parametros}`)
+    }
+
+    await abrirSesionEquipo('equipo-mkt-corp', 'admin')
     // Solo rutas internas: un destino como "https://otro-sitio" sería un
     // redirect abierto de manual.
     redirect(aDonde.startsWith('/') ? aDonde : '/')
@@ -95,9 +113,27 @@ export default async function Entrar({
             {error === 'clave' && (
               <div className={estilos.error}>Esa clave no es la del equipo. Vuelve a intentarlo.</div>
             )}
+            {error === 'clave-retirada' && (
+              <div className={estilos.error}>
+                El acceso con la clave del equipo ya se retiró: ahora cada quien entra con su cuenta
+                de Slack. Si todavía no puedes entrar, pide que te den de alta en el directorio.
+              </div>
+            )}
             {error === 'slack' && (
               <div className={estilos.error}>
                 Slack no autorizó la entrada. Puede ser una cuenta fuera del workspace de UPAX.
+              </div>
+            )}
+            {error === 'sin-acceso' && (
+              <div className={estilos.error}>
+                Tu cuenta de Slack es válida, pero no estás en el directorio de Marketing
+                Corporativo. Pide acceso a Marketing Corp.
+              </div>
+            )}
+            {error === 'inactivo' && (
+              <div className={estilos.error}>
+                Tu cuenta está desactivada en el directorio de Marketing Corporativo. Pide a un
+                administrador que te reactive.
               </div>
             )}
 

@@ -14,12 +14,29 @@
 
 export type RolSesion = 'equipo' | 'sala'
 
+/** Rol de app dentro de una sesión de equipo — ver quién puede qué en src/auth/roles.ts. */
+export type RolApp = 'admin' | 'editor' | 'viewer'
+
 export interface Sesion {
   rol: RolSesion
   /** Slug de la sala. Obligatorio si rol === 'sala'; ausente si rol === 'equipo'. */
   sala?: string
   /** Quién es (correo de Slack o etiqueta). Informativo. */
   sub?: string
+  /**
+   * El rol de app de una sesión de equipo (ronda 9, tarea 2): admin, editor o
+   * viewer. Va DENTRO de la carga firmada, igual que el resto de este objeto,
+   * así que nadie puede cambiárselo desde el navegador — solo se escribe aquí,
+   * al abrir sesión, con el rol que trae el directorio (`src/db/directorio.ts`)
+   * en ese momento.
+   *
+   * Ausente en una sesión de sala (no le corresponde). También ausente en una
+   * sesión de equipo firmada ANTES de esta ronda: a propósito no hereda ningún
+   * permiso — ver `src/auth/roles.ts`, que falla cerrado ante un `rolApp`
+   * ausente o desconocido — así que su dueño simplemente vuelve a entrar y
+   * recibe el suyo.
+   */
+  rolApp?: RolApp
   /** Vencimiento, en milisegundos epoch. */
   exp: number
 }
@@ -58,12 +75,24 @@ async function clave(secreto: string): Promise<CryptoKey> {
   )
 }
 
+/** true si `valor` es uno de los tres roles de app y ninguno más. */
+function esRolAppValido(valor: unknown): valor is RolApp {
+  return valor === 'admin' || valor === 'editor' || valor === 'viewer'
+}
+
 /** true si el objeto tiene la forma de una sesión válida. */
 function esSesion(valor: unknown): valor is Sesion {
   if (typeof valor !== 'object' || valor === null) return false
   const s = valor as Record<string, unknown>
   if (typeof s.exp !== 'number' || !Number.isFinite(s.exp)) return false
-  if (s.rol === 'equipo') return s.sala === undefined || typeof s.sala === 'string'
+  if (s.rol === 'equipo') {
+    if (!(s.sala === undefined || typeof s.sala === 'string')) return false
+    // Un `rolApp` presente pero inventado no es una sesión válida: se rechaza
+    // aquí, en el borde de la deserialización, no solo en los predicados de
+    // src/auth/roles.ts — así un token corrupto o de un formato futuro no
+    // sobrevive ni como sesión "sin rol".
+    return s.rolApp === undefined || esRolAppValido(s.rolApp)
+  }
   // Un acceso de sala sin sala no significa nada: sería un pase en blanco.
   if (s.rol === 'sala') return typeof s.sala === 'string' && s.sala.length > 0
   return false

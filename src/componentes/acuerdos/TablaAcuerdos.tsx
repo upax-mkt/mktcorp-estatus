@@ -34,8 +34,8 @@ const SIN_FILTRO = ''
  *
  * Los filtros (sala, responsable, estatus) son de CLIENTE, sobre la lista que
  * ya llegó autorizada desde el servidor — la única puerta que importa es
- * quién puede cargar `/acuerdos` (`exigirEquipo()` en la página), no qué fila
- * queda visible después de elegir un filtro.
+ * quién puede cargar `/acuerdos` (`exigirLectura()` en la página), no qué
+ * fila queda visible después de elegir un filtro.
  */
 export function TablaAcuerdos({ acuerdos, destacar }: Props) {
   const [sala, setSala] = useState(SIN_FILTRO)

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as esquema from '@/db/esquema'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor } from '@/auth/roles'
 
 /**
  * CONCURRENCIA DE LA BANDEJA (revisión de Franco a la tarea 8).
@@ -44,8 +44,14 @@ vi.mock('drizzle-orm', async (importarOriginal) => {
 })
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
-vi.mock('@/auth/sesion', () => ({
-  exigirEquipo: vi.fn().mockResolvedValue({ rol: 'equipo', sub: 'equipo-mkt-corp' }),
+// Ronda 9, tarea 2: las cuatro acciones que prueba este archivo (subir,
+// descartar, destacar, editar en bandeja) exigen `exigirEditor()` —admin o
+// editor, no viewer— importado de `@/auth/roles`, no `exigirEquipo()` de
+// `@/auth/sesion`. `pausarSalaAction`/`reactivarSalaAction` (que sí exigen
+// `exigirAdmin()`) no las prueba este archivo, así que no hace falta mockearla
+// aquí.
+vi.mock('@/auth/roles', () => ({
+  exigirEditor: vi.fn().mockResolvedValue({ rol: 'equipo', rolApp: 'editor', sub: 'equipo-mkt-corp' }),
 }))
 
 // Handle tipado sobre el mock de arriba: por defecto resuelve como equipo
@@ -53,7 +59,7 @@ vi.mock('@/auth/sesion', () => ({
 // test de destacarAction que exige sesión necesita poder hacerla fallar UNA
 // vez sin tocar el resto — `mockRejectedValueOnce` se autoconsume, no hace
 // falta resetearlo en beforeEach.
-const exigirEquipoMock = vi.mocked(exigirEquipo)
+const exigirEditorMock = vi.mocked(exigirEditor)
 
 const existeElGrupoMock = vi.fn()
 const crearElementoEnDeliveryMock = vi.fn()
@@ -146,7 +152,7 @@ function proyectar(proyeccion?: Record<string, unknown>): Record<string, unknown
 // devuelve. Hace falta para un caso concreto (revisión a esta tarea): que la
 // fila no haya cambiado prueba que no hubo ESCRITURA, pero no que `db()` ni
 // se invocara — si alguien reordenara `destacarAction` y dejara `hayDB()`/
-// `db()` antes de `exigirEquipo()`, la guarda seguiría lanzando, la fila
+// `db()` antes de `exigirEditor()`, la guarda seguiría lanzando, la fila
 // seguiría intacta, y un test que solo mirara la fila seguiría en verde pese
 // a haberse perdido que la comprobación de sesión va PRIMERO.
 const dbMock = vi.fn(() => ({
@@ -349,17 +355,17 @@ describe('descartarAcuerdoAction — no pisa un acuerdo que ya se subió', () =>
  * destacarAction (tarea 11, ronda 7). A diferencia de subir/descartar, la
  * cuerpo de esta acción nunca corría en los tests de `Estrella`/`TablaAcuerdos`
  * —ahí `destacar` es siempre un `vi.fn()`—, así que el orden real
- * `exigirEquipo()` → `hayDB()` → UPDATE → error si no existe →
+ * `exigirEditor()` → `hayDB()` → UPDATE → error si no existe →
  * `revalidatePath` no tenía ningún test que lo ejecutara de verdad. Reusa el
  * mismo doble de arriba, sin arnés nuevo.
  */
 describe('destacarAction', () => {
   it('exige sesión de equipo ANTES de tocar la base: si no la hay, no llega a escribir', async () => {
-    exigirEquipoMock.mockRejectedValueOnce(
-      new Error('Esta acción es solo para el equipo de Marketing Corporativo.'),
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
     )
 
-    await expect(destacarAction('a1', true)).rejects.toThrow('solo para el equipo')
+    await expect(destacarAction('a1', true)).rejects.toThrow('permiso de edición')
 
     // Nada se movió: la fila sigue exactamente como la dejó beforeEach.
     expect(estado.fila).toEqual(BASE)
@@ -419,11 +425,11 @@ describe('editarEnBandejaAction', () => {
   }
 
   it('exige sesión de equipo ANTES de llamar a editarAcuerdo', async () => {
-    exigirEquipoMock.mockRejectedValueOnce(
-      new Error('Esta acción es solo para el equipo de Marketing Corporativo.'),
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
     )
 
-    await expect(editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)).rejects.toThrow('solo para el equipo')
+    await expect(editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)).rejects.toThrow('permiso de edición')
 
     expect(editarAcuerdoMock).not.toHaveBeenCalled()
   })

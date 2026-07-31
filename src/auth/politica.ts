@@ -5,7 +5,15 @@
  * Dos roles, según el spec §4 ("solo el equipo Mkt Corp mueve el estatus"):
  *
  * - `equipo`  — Marketing Corporativo. Ve las 10 salas, prepara sesiones,
- *               maqueta, minuta y mueve acuerdos.
+ *               maqueta, minuta y mueve acuerdos. Desde la ronda 9 cada
+ *               sesión de equipo lleva además un `rolApp` (admin/editor/
+ *               viewer — ver `Sesion.rolApp` en src/auth/firma.ts) que decide
+ *               QUÉ puede hacer dentro de ese universo: `puedeAdministrar`,
+ *               `puedeEditarContenido` y `puedeLeer`, más abajo, son esos tres
+ *               niveles. `src/auth/roles.ts` los reexporta junto con las
+ *               funciones que lanzan (`exigirAdmin`/`exigirEditor`/
+ *               `exigirLectura`), siguiendo el mismo patrón que `exigirEquipo`
+ *               de src/auth/sesion.ts usa con `puedeEditar`.
  * - `sala`    — el director de una UDN, que entra por un link firmado. Ve SU
  *               sala y SU deck, en solo lectura. Nada más.
  *
@@ -20,6 +28,15 @@ const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/re
 
 /** Rutas de solo-equipo, por prefijo de primer segmento. */
 const SECCIONES_DE_EQUIPO = ['deck']
+
+/**
+ * Rutas de equipo que además exigen ser ADMIN (ronda 9, tarea 2, paso 7).
+ * Crear/editar salas y marcas, y dar de alta o cambiar el rol de una persona,
+ * son decisiones de quien administra Mkt Corp, no de cualquiera con cuenta.
+ * `/personas` entra aquí desde ya aunque la pantalla la construya la tarea 3:
+ * la política no tiene que esperar a que exista la ruta para protegerla.
+ */
+const SECCIONES_SOLO_ADMIN = ['salas', 'personas']
 
 /** Páginas que cuelgan de una sala y su director sí puede ver. */
 const HIJAS_DE_SALA = ['benchmark']
@@ -51,10 +68,46 @@ export function puedeEditar(sesion: Sesion | null): boolean {
 }
 
 /**
+ * QUIÉN PUEDE QUÉ, dentro del equipo (ronda 9, tarea 2).
+ *
+ * Tres niveles sobre una sesión de `rol: 'equipo'`, del `rolApp` que trae
+ * firmado (ver src/auth/firma.ts): admin puede todo, editor prepara/maqueta/
+ * minuta/mueve acuerdos pero no toca salas/marcas/personas, viewer solo mira.
+ *
+ * Un `rolApp` ausente o desconocido no pasa NINGUNO de los tres: falla
+ * cerrado. Es lo que hace que una sesión de equipo emitida antes de esta
+ * ronda —sin `rolApp`— no herede permisos por accidente; su dueño vuelve a
+ * entrar (por Slack, o por el portillo de emergencia mientras el directorio
+ * siga vacío — ver `src/app/api/auth/slack/retorno/route.ts` y
+ * `src/app/entrar/page.tsx`) y recibe el suyo.
+ *
+ * Una sesión de sala (el director de una UDN) no gana nada de esto: no tiene
+ * `rolApp` y los tres devuelven `false` sin mirar más — su única puerta de
+ * escritura es la excepción de `puedeEditarAcuerdos`, más abajo.
+ */
+export function puedeAdministrar(sesion: Sesion | null): boolean {
+  if (!sesion || sesion.rol !== 'equipo') return false
+  return sesion.rolApp === 'admin'
+}
+
+/** Admin o editor: los dos preparan, maquetan, minutan, publican, mueven acuerdos y suben a Monday. */
+export function puedeEditarContenido(sesion: Sesion | null): boolean {
+  if (!sesion || sesion.rol !== 'equipo') return false
+  return sesion.rolApp === 'admin' || sesion.rolApp === 'editor'
+}
+
+/** Los tres roles de equipo pasan esta: al menos pueden ver páginas de solo lectura. */
+export function puedeLeer(sesion: Sesion | null): boolean {
+  if (!sesion || sesion.rol !== 'equipo') return false
+  return sesion.rolApp === 'admin' || sesion.rolApp === 'editor' || sesion.rolApp === 'viewer'
+}
+
+/**
  * Quién puede tocar los ACUERDOS de una sala.
  *
- * Marketing Corp, en todas. Y el director de una UDN, en la suya y solo en la
- * suya (Franco, 28-jul: "solo pueden editar los acuerdos y pendientes").
+ * Marketing Corp —admin o editor, ver `puedeEditarContenido`; un viewer NO—,
+ * en todas. Y el director de una UDN, en la suya y solo en la suya (Franco,
+ * 28-jul: "solo pueden editar los acuerdos y pendientes").
  *
  * Es la única excepción a "solo Mkt Corp escribe", y tiene sentido: un
  * acuerdo es un compromiso de la UDN. Que su dueño no pueda marcarlo como
@@ -66,7 +119,7 @@ export function puedeEditar(sesion: Sesion | null): boolean {
  */
 export function puedeEditarAcuerdos(sesion: Sesion | null, slug: string): boolean {
   if (!sesion) return false
-  if (sesion.rol === 'equipo') return true
+  if (sesion.rol === 'equipo') return puedeEditarContenido(sesion)
   return sesion.rol === 'sala' && sesion.sala === slug
 }
 
@@ -86,7 +139,16 @@ export function puedeVerSala(sesion: Sesion | null, slug: string): boolean {
 export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
   if (esRutaPublica(ruta)) return true
   if (!sesion) return false
-  if (sesion.rol === 'equipo') return true
+  if (sesion.rol === 'equipo') {
+    // /salas y /personas exigen admin incluso a este nivel optimista (ronda
+    // 9, tarea 2, paso 7): un editor o un viewer no deberían ni poder abrir
+    // la pantalla, aunque cada acción de ahí adentro ya se protegería igual
+    // con `exigirAdmin()` — mismo principio de "el proxy también filtra lo
+    // evidente" que el resto de esta función.
+    const [primerSegmento] = segmentos(ruta)
+    if (SECCIONES_SOLO_ADMIN.includes(primerSegmento)) return puedeAdministrar(sesion)
+    return true
+  }
 
   // A partir de aquí: rol 'sala'. Lista blanca estricta.
   const partes = segmentos(ruta)

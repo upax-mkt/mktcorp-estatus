@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirAdmin } from '@/auth/roles'
 import { derivarMarca, slugDesdeNombre } from '@/lib/marca'
 import { generarEnlaceDeAgenda, revocarEnlaceDeAgenda } from '@/db/enlace-agenda'
 import type { DatosSala } from '@/componentes/salas/FormularioSala'
@@ -15,9 +15,11 @@ import { urlBase } from '@/lib/url-base'
  * LAS ACCIONES DE `/salas`: crear y editar salas, y generar/revocar el
  * enlace público de la agenda (tarea 1, expuesto por fin desde una pantalla).
  *
- * Todas empiezan con `exigirEquipo()`, primera línea, sin excepción — esconder
+ * Todas empiezan con `exigirAdmin()`, primera línea, sin excepción — esconder
  * el botón de Crear o el de Editar en la pantalla no protege nada: son Server
  * Actions, y quien conozca su nombre las puede llamar sin pasar por ella.
+ * Crear/editar salas y marcas y generar/revocar el enlace de agenda son
+ * decisiones de administrador (ronda 9, tarea 2), no de cualquiera del equipo.
  *
  * Las escrituras se hacen aquí, directo con Drizzle, en vez de delegar a
  * `src/db/salas.ts` (que hoy solo sabe de freeze comercial — pausar y
@@ -113,7 +115,7 @@ function validarDatosComunes(datos: {
  * `eliminarSalaAction`. Para dejar de atender una está la pausa (ronda 7).
  */
 export async function crearSalaAction(datos: DatosSala): Promise<{ error?: string }> {
-  await exigirEquipo()
+  await exigirAdmin()
 
   // El slug SE VUELVE A DERIVAR aquí con la misma `slugDesdeNombre` que ya
   // usa `FormularioSala` — nunca se guarda el texto crudo que mandó el
@@ -188,7 +190,7 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
  * existe para hacer de forma explícita y separada del guardado normal.
  */
 export async function editarSalaAction(slug: string, datos: DatosSala): Promise<{ error?: string }> {
-  await exigirEquipo()
+  await exigirAdmin()
 
   const problema = validarDatosComunes({ ...datos, slug })
   if (problema) return { error: problema }
@@ -260,7 +262,7 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
  * un solo clic la trampa que este punto de la revisión vino a quitar.
  */
 export async function recalcularPaletaAction(slug: string, primario: string): Promise<{ error?: string }> {
-  await exigirEquipo()
+  await exigirAdmin()
 
   if (!HEX_VALIDO.test(primario)) {
     return { error: `"${primario}" no es un color hex válido (se espera algo como "#614ACA").` }
@@ -309,7 +311,7 @@ export async function recalcularPaletaAction(slug: string, primario: string): Pr
  * pantalla desde la que llamarse.
  */
 export async function generarEnlaceAction(): Promise<{ enlace?: string; error?: string }> {
-  await exigirEquipo()
+  await exigirAdmin()
   let token: string
   try {
     token = await generarEnlaceDeAgenda()
@@ -328,7 +330,7 @@ export async function generarEnlaceAction(): Promise<{ enlace?: string; error?: 
  * componente lo enseña.
  */
 export async function revocarEnlaceAction(): Promise<{ error?: string }> {
-  await exigirEquipo()
+  await exigirAdmin()
   try {
     await revocarEnlaceDeAgenda()
   } catch (error) {
