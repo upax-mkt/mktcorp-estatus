@@ -233,15 +233,84 @@ UiX                2026-08-20  agendada   no_dada_en: null
 10 filas, las mismas 10 de antes de la migración — solo lectura y la
 `ALTER TABLE` aditiva, ninguna fila creada, editada ni borrada.
 
+## Revisión: dos cosas que cerrar
+
+### Crítico — "Por confirmar" no respetaba el freeze de una sala pausada
+
+La revisión encontró un hueco real: `sesionesPorConfirmar` ni siquiera recibía
+si la sala de una sesión estaba activa, así que era incapaz de excluirla —
+mientras que dos líneas más abajo, en la misma pantalla de sala, el botón de
+"+ Nueva sesión" sí respeta el freeze (`{s.activa && <NuevaSesionSala ... />}`).
+Ni el Home ni la sala filtraban antes de llamarla, y `marcarPresentada`/
+`marcarNoDada` tampoco comprobaban el freeze del lado del servidor, a
+diferencia de `crearSesion`. Dejó de ser teórico: Franco pausó Zeus mientras
+tanto (confirmado leyendo la base: `activa: false`, `pausadaDesde: 2026-08-03`).
+
+Cerrado en los tres niveles que pidió la revisión:
+
+1. **La función lo sabe** — `sesionesPorConfirmar` (`src/dominio/salas.ts`)
+   gana un campo opcional por sesión, `salaActiva?: boolean`, y filtra
+   `salaActiva !== false` (no `=== true`: una sesión sin sala no tiene freeze
+   que respetar). Mismo criterio que `crearSesion`: confirmar o negar una
+   reunión es la "gestión" que el freeze comercial congela.
+2. **Las dos pantallas filtran** — `src/app/page.tsx` cruza `sesiones` contra
+   `salasCrudas` (un `Map<slug, activa>`, porque el Home junta nueve salas a
+   la vez); `src/app/cliente/[slug]/page.tsx` pasa `salaActiva: s.activa` de
+   la propia sala (todas sus sesiones son de la misma). Con la sala pausada,
+   `porConfirmar` sale vacío y la sección deja de renderizarse sola —no hizo
+   falta un `{s.activa && ...}` aparte, es consecuencia del filtro de arriba.
+3. **Las dos acciones de servidor lo comprueban** — `marcarPresentada` y
+   `marcarNoDada` (`src/db/sesiones.ts`) llaman a `salaEstaActiva(slug)`
+   —fresco, no un `EstadoSala` ya resuelto, mismo motivo que `crearSesion`—
+   antes de escribir, y rechazan con el nombre de marca
+   («Zeus está en pausa: reactívala antes de confirmar/marcar esta reunión»).
+   `desmarcarNoDada` se queda SIN esta guarda a propósito: deshacer una marca
+   es la vuelta a la normalidad, no gestión nueva, mismo criterio que
+   "Reactivar" en `PausaSala` no pide confirmación.
+
+Tests: 5 en `src/dominio/reuniones.test.ts` (`sesionesPorConfirmar` con
+`salaActiva` en sus tres valores, más de una sala a la vez, y que una
+marcada "no se dio" en sala pausada tampoco aparece ni para deshacerla) y 8
+en `src/db/sesiones.test.ts` (mismo mock de `salaEstaActiva` que ya usaba el
+describe de `crearSesion` — sin él no hay forma honesta de simular una sala
+pausada en el store en memoria).
+
+**Comprobado contra la base real** (solo lectura): Zeus está `activa: false`
+desde hoy y no tiene sesiones (`sesiones: []`), así que hoy mismo no cambia
+`porConfirmar` en la práctica — pero corrí `sesionesPorConfirmar` con el
+`salaActiva` ya conectado contra los datos reales de las nueve salas y el
+resultado no varió (sigue devolviendo solo la sesión de NeraCode, que está
+activa): el filtro nuevo no le quita nada a una sala que no debía perder nada.
+
+### Menor — `sesionesMinutables` comparaba por UTC, no por día civil
+
+En `src/dominio/salas.ts:306` (antes de esta corrección):
+`s.fecha.slice(0, 10) <= hoyCivil` lee el día en UTC. Una reunión entre las
+18:00 y medianoche en CDMX cae entre las 00:00 y las 06:00 UTC del día
+SIGUIENTE, así que quedaba fuera de "pendiente de minuta" hasta pasada la
+medianoche UTC — el mismo bug de fechas corridas que motivó `src/lib/fecha.ts`
+en primer lugar, colado en esta función porque no lo usaba. Cambiado a
+`diaCivil(s.fecha) <= hoyCivil`. Preexistente (no rompía el invariante de esta
+ronda), pero toqué esta función en este cambio y arreglarla fue una línea.
+
+Dos tests nuevos en `src/dominio/reuniones.test.ts`: una reunión de las 23:00
+CDMX (05:00 UTC del día siguiente) ahora SÍ se ofrece como pendiente de
+minuta; una que de verdad es del día siguiente en CDMX (10:00 CDMX = 16:00
+UTC del día siguiente) sigue sin ofrecerse — confirma que la corrección no
+volvió la comparación permisiva de más, solo correcta.
+
 ## Verificación
 
-- `npm test` — **1263/1263** (1210 antes + 53 nuevos), 100 archivos.
-  - `src/dominio/reuniones.test.ts`: `fueDada` (9), `sesionesPorConfirmar` (7),
-    `sesionesMinutables` respeta `noDadaEn` (1).
+- `npm test` — **1278/1278** (1210 antes + 68 nuevos), 100 archivos.
+  - `src/dominio/reuniones.test.ts`: `fueDada` (9), `sesionesPorConfirmar` (12,
+    incluidas 5 de freeze), `sesionesMinutables` respeta `noDadaEn` (1) y ya no
+    se corre de día en UTC (2).
   - `src/db/consultas.test.ts` (nuevo): `construirPulso` completo (15),
     incluido un test que reproduce el escenario real de Franco.
   - `src/db/ciclo-sesion.test.ts`: `marcarNoDada`/`desmarcarNoDada`, y que
     `marcarPresentada`/`guardarMinuta`/re-maquetar limpian `noDadaEn` (9).
+  - `src/db/sesiones.test.ts`: freeze de sala en `marcarPresentada`/
+    `marcarNoDada` (8, nuevos — mismo mock que ya usaba `crearSesion`).
   - `src/componentes/ReunionesPorConfirmar.test.tsx` (nuevo): las dos
     preguntas, un solo `modo` por fila, ids correctos por fila, errores a
     pantalla (12).
@@ -249,6 +318,8 @@ UiX                2026-08-20  agendada   no_dada_en: null
 - `npm run lint` — limpio.
 - `npm run build` — limpio. `generateStaticParams` de `/cliente/[slug]` leyó
   contra la base local (que es la de producción); solo lecturas.
+- Ninguna fila de la base fue creada, editada ni borrada en toda la ronda,
+  incluida esta revisión — solo lecturas de verificación.
 
 ## Lo que queda abierto, honestamente
 

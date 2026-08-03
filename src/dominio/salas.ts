@@ -303,7 +303,17 @@ export function sesionesMinutables(
      * abajo, para "¿ya pasó de verdad?".
      */
     .filter((s) => !s.noDadaEn)
-    .filter((s) => s.fecha.slice(0, 10) <= hoyCivil)
+    /**
+     * CORRECCIÓN (revisión de la ronda "contador y presentadas"): comparaba
+     * `s.fecha.slice(0, 10)` —el día en UTC— contra `hoyCivil` —el día en
+     * CDMX—. Una reunión de esta noche entre las 18:00 y medianoche en México
+     * cae entre las 00:00 y las 06:00 UTC del día SIGUIENTE, así que
+     * `slice(0, 10)` la leía un día por delante y la excluía de "pendiente de
+     * minuta" hasta pasada la medianoche UTC — el mismo bug de fechas
+     * corridas que motivó `src/lib/fecha.ts` en primer lugar, colado aquí
+     * porque esta función no lo usaba. `diaCivil` es la fuente única.
+     */
+    .filter((s) => diaCivil(s.fecha) <= hoyCivil)
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .map((s) => ({
       id: s.id,
@@ -381,6 +391,17 @@ export interface SesionPorConfirmar {
  * que preguntar. `borrador`/`agendada` con el día pasado tampoco: nunca
  * llegaron a "tener contenido", así que `fueDada` nunca los iba a contar —no
  * hay nada que confirmar sobre algo que la deducción ya ignora.
+ *
+ * UNA SALA EN PAUSA NO OFRECE NADA AQUÍ (revisión post-implementación,
+ * 2026-08-03 — Franco pausó Zeus mientras tanto y dejó de ser teórico):
+ * confirmar o negar una reunión es justo la "gestión" que el freeze comercial
+ * dice congelar (mismo criterio que `crearSesion`, que bloquea `agendada`/
+ * `borrador` nuevos para una sala en pausa). Se comprueba AQUÍ, en la función
+ * que arman las dos pantallas que ofrecen esto —el Home y la sala—, no
+ * repetido en cada una: si la protección dependiera de que cada pantalla se
+ * acordara de filtrar, bastaría con que UNA se olvidara. `salaActiva !==
+ * false` (no `=== true`): una sesión sin sala no tiene freeze que respetar,
+ * y debe seguir ofreciéndose.
  */
 export function sesionesPorConfirmar(
   sesiones: Array<{
@@ -392,10 +413,13 @@ export function sesionesPorConfirmar(
     salaColor?: string
     estado: string
     noDadaEn?: string | null
+    /** Si la sala de esta sesión sigue activa. Ausente/`true` = sin freeze que respetar. */
+    salaActiva?: boolean
   }>,
   hoyCivil: string,
 ): SesionPorConfirmar[] {
   return sesiones
+    .filter((s) => s.salaActiva !== false)
     .filter((s) => s.estado === 'lista' && diaCivil(s.fecha) < hoyCivil)
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .map((s) => ({

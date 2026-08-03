@@ -468,7 +468,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // POR CONFIRMAR (punto 2/3): `lista`, con el día ya pasado — el mismo
   // conjunto que `fueDada` ya cuenta como dada en el contador y en
   // "Reuniones" arriba, pero que nadie ha confirmado ni negado todavía.
-  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(sesionesDeLaSala, hoyCivil)
+  //
+  // `salaActiva: s.activa` en las tres (revisión: confirmar/negar es
+  // "gestión", y una sala en pausa no la admite — mismo criterio que
+  // `crearSesion`). Aquí basta CON EL `activa` DE ESTA SALA para todas: a
+  // diferencia del Home, `sesionesDeLaSala` es siempre de la MISMA sala.
+  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(
+    sesionesDeLaSala.map((x) => ({ ...x, salaActiva: s.activa })),
+    hoyCivil,
+  )
 
   return (
     <div className={estilos.app} style={estiloMarca}>

@@ -192,7 +192,17 @@ export default async function Hub() {
   // el mismo conjunto sobre el que actúa `fueDada` para darlas por ocurridas
   // sola, sin que nadie marque nada. Aquí se ofrecen las dos respuestas: que
   // sí se dio (de un clic, hoy enterrado en el editor) o que no (nueva).
-  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(sesiones, hoyCivil)
+  //
+  // Con el `activa` de CADA sesión (revisión: una sala en pausa no admite
+  // "gestión", y confirmar/negar lo es — mismo criterio que `crearSesion`).
+  // El Home cruza NUEVE salas a la vez, así que hace falta resolverlo por
+  // sesión, no un único `{sala.activa && ...}` como en la vista de sala
+  // (donde todas las sesiones son de la MISMA sala).
+  const activaPorSala = new Map(salasCrudas.map((sl) => [sl.slug, sl.activa] as const))
+  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(
+    sesiones.map((s) => ({ ...s, salaActiva: s.salaSlug ? activaPorSala.get(s.salaSlug) : undefined })),
+    hoyCivil,
+  )
 
   const paraCalendario = sesiones.map((s) => ({
     id: s.id,

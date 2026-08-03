@@ -120,6 +120,23 @@ describe('qué se puede minutar', () => {
     const cancelada = { ...sesion('a', 'lista'), noDadaEn: '2026-07-25T10:00:00Z' }
     expect(sesionesMinutables([cancelada], new Set(), HOY)).toHaveLength(0)
   })
+
+  it('una reunión de esta noche en CDMX sigue "de hoy" aunque ya sea mañana en UTC (bug de zona horaria)', () => {
+    // HOY = '2026-07-28'. 23:00 del 28-jul en CDMX (UTC-6) es 05:00 UTC del
+    // 29-jul — comparar contra `s.fecha.slice(0, 10)` leía "2026-07-29", un
+    // día por delante de HOY, y la excluía como si aún no hubiera pasado.
+    const estaNoche = sesion('a', 'lista', '2026-07-29T05:00:00.000Z')
+    expect(sesionesMinutables([estaNoche], new Set(), HOY)).toHaveLength(1)
+  })
+
+  it('en cambio, una reunión que de verdad es de mañana en CDMX no se ofrece', () => {
+    // Mismo instante "al día siguiente en UTC" que el caso de arriba, pero
+    // ahora también al día siguiente en CDMX de verdad: 10:00 del 29-jul en
+    // CDMX es 16:00 UTC del 29-jul. Confirma que la corrección no volvió la
+    // comparación permisiva de más, solo correcta.
+    const mañana = sesion('a', 'lista', '2026-07-29T16:00:00.000Z')
+    expect(sesionesMinutables([mañana], new Set(), HOY)).toHaveLength(0)
+  })
 })
 
 /**
@@ -233,5 +250,46 @@ describe('sesionesPorConfirmar', () => {
       HOY,
     )
     expect(r.map((x) => x.id)).toEqual(['nueva', 'vieja'])
+  })
+
+  /**
+   * UNA SALA EN PAUSA NO OFRECE NADA (revisión, 2026-08-03): confirmar o
+   * negar es la "gestión" que el freeze comercial congela — Franco pausó
+   * Zeus y esto dejó de ser un caso hipotético.
+   */
+  describe('respeta el freeze de la sala', () => {
+    it('salaActiva: false — no aparece, aunque sea lista con el día pasado', () => {
+      const r = sesionesPorConfirmar([{ ...sesion('a', 'lista'), salaActiva: false }], HOY)
+      expect(r).toHaveLength(0)
+    })
+
+    it('salaActiva: true — aparece con normalidad', () => {
+      const r = sesionesPorConfirmar([{ ...sesion('a', 'lista'), salaActiva: true }], HOY)
+      expect(r).toHaveLength(1)
+    })
+
+    it('salaActiva ausente (sin sala, o el llamador no lo sabe): se trata como activa', () => {
+      const r = sesionesPorConfirmar([sesion('a', 'lista')], HOY)
+      expect(r).toHaveLength(1)
+    })
+
+    it('una marcada "no se dio" en una sala pausada tampoco aparece: ni para deshacerla mientras dure la pausa', () => {
+      const r = sesionesPorConfirmar(
+        [{ ...sesion('a', 'lista', '2026-07-20T12:00:00Z', '2026-07-25T10:00:00Z'), salaActiva: false }],
+        HOY,
+      )
+      expect(r).toHaveLength(0)
+    })
+
+    it('con varias salas, solo se excluye la pausada — las demás siguen ofreciéndose', () => {
+      const r = sesionesPorConfirmar(
+        [
+          { ...sesion('activa', 'lista'), salaActiva: true },
+          { ...sesion('pausada', 'lista'), salaActiva: false },
+        ],
+        HOY,
+      )
+      expect(r.map((x) => x.id)).toEqual(['activa'])
+    })
   })
 })

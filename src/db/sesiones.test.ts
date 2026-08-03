@@ -21,9 +21,12 @@ vi.mock('./salas', () => ({
   salaEstaActiva: (...args: unknown[]) => salaEstaActivaMock(...args),
 }))
 
-const { crearSesion, sesionesPublicasDelMes, anadirSeccion, obtenerSesion } = await import('./sesiones')
-const { reiniciarStoreMemoria, actualizarContenidoItemMemoria, actualizarDecisionItemMemoria } =
-  await import('./store-memoria')
+const {
+  crearSesion, sesionesPublicasDelMes, anadirSeccion, obtenerSesion, marcarPresentada, marcarNoDada,
+} = await import('./sesiones')
+const {
+  reiniciarStoreMemoria, actualizarContenidoItemMemoria, actualizarDecisionItemMemoria, actualizarEstadoSesionMemoria,
+} = await import('./store-memoria')
 
 beforeEach(() => {
   reiniciarStoreMemoria()
@@ -84,6 +87,77 @@ describe('crearSesion — freeze de salas', () => {
     })
     expect(id).toBeTruthy()
     expect(salaEstaActivaMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * EL MISMO FREEZE, EN `marcarPresentada` / `marcarNoDada` (revisión
+ * post-implementación, 2026-08-03).
+ *
+ * Confirmar o negar si una reunión se dio es gestión, y una sala en pausa no
+ * admite gestión — mismo criterio que `crearSesion`, arriba. Franco pausó
+ * Zeus mientras tanto: sin esta guarda, un editor podía confirmar o negar una
+ * reunión `lista` con el día vencido de una sala en freeze, justo lo que el
+ * freeze dice que no se puede hacer.
+ */
+describe('marcarPresentada / marcarNoDada — freeze de salas', () => {
+  /** Una sesión `lista` (maquetada), sin pasar por el maquetado real: alcanza con el atajo de memoria. */
+  async function sesionLista(salaSlug: string | null) {
+    const { id } = await crearSesion({ salaSlug, tipo: 'mensual', alcance: 'todos' })
+    actualizarEstadoSesionMemoria(id, 'lista')
+    return id
+  }
+
+  it('marcarPresentada rechaza una sesión de una sala en pausa', async () => {
+    const id = await sesionLista('zeus')
+    salaEstaActivaMock.mockResolvedValue(false)
+    await expect(marcarPresentada(id)).rejects.toThrow(/^Zeus está en pausa/)
+  })
+
+  it('marcarPresentada: con la sala activa, confirma con normalidad', async () => {
+    const id = await sesionLista('zeus')
+    salaEstaActivaMock.mockResolvedValue(true)
+    await marcarPresentada(id)
+    expect((await obtenerSesion(id))!.estado).toBe('presentada')
+  })
+
+  it('marcarPresentada: una reunión sin sala no pregunta por ningún freeze', async () => {
+    const id = await sesionLista(null)
+    await marcarPresentada(id)
+    expect(salaEstaActivaMock).not.toHaveBeenCalled()
+    expect((await obtenerSesion(id))!.estado).toBe('presentada')
+  })
+
+  it('marcarNoDada rechaza una sesión de una sala en pausa', async () => {
+    const id = await sesionLista('zeus')
+    salaEstaActivaMock.mockResolvedValue(false)
+    await expect(marcarNoDada(id)).rejects.toThrow(/^Zeus está en pausa/)
+  })
+
+  it('marcarNoDada: con la sala activa, marca con normalidad', async () => {
+    const id = await sesionLista('zeus')
+    salaEstaActivaMock.mockResolvedValue(true)
+    await marcarNoDada(id)
+    expect((await obtenerSesion(id))!.noDadaEn).not.toBeNull()
+  })
+
+  it('marcarNoDada: una reunión sin sala no pregunta por ningún freeze', async () => {
+    const id = await sesionLista(null)
+    await marcarNoDada(id)
+    expect(salaEstaActivaMock).not.toHaveBeenCalled()
+    expect((await obtenerSesion(id))!.noDadaEn).not.toBeNull()
+  })
+
+  it('el mensaje de marcarPresentada usa el NOMBRE de marca, no el slug', async () => {
+    const id = await sesionLista('zeus')
+    salaEstaActivaMock.mockResolvedValue(false)
+    await expect(marcarPresentada(id)).rejects.toThrow(/reactívala antes de confirmar esta reunión/)
+  })
+
+  it('el mensaje de marcarNoDada es el suyo propio, no el de marcarPresentada', async () => {
+    const id = await sesionLista('zeus')
+    salaEstaActivaMock.mockResolvedValue(false)
+    await expect(marcarNoDada(id)).rejects.toThrow(/reactívala antes de marcar esta reunión/)
   })
 })
 

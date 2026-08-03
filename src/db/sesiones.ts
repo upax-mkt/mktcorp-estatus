@@ -1198,6 +1198,17 @@ export async function marcarPresentada(sesionId: string): Promise<void> {
   if (sesion.estado === 'borrador') {
     throw new Error('Una sesión en borrador no se ha presentado: primero hay que maquetarla.')
   }
+  /**
+   * FREEZE DE LA SALA (revisión post-implementación, 2026-08-03): confirmar
+   * que una reunión se dio es gestión, y una sala en pausa no admite gestión
+   * — mismo criterio y mismo guardián (`salaEstaActiva`, fresco, no un
+   * `EstadoSala` ya resuelto) que usa `crearSesion` para bloquear trabajo
+   * nuevo. Sin sala (`salaSlug` nulo, una reunión de comité) no hay freeze
+   * que preguntar.
+   */
+  if (sesion.salaSlug && !(await salaEstaActiva(sesion.salaSlug))) {
+    throw new Error(`${sesion.salaNombre} está en pausa: reactívala antes de confirmar esta reunión.`)
+  }
 
   if (hayDB()) {
     await db()
@@ -1229,6 +1240,10 @@ export async function marcarNoDada(sesionId: string): Promise<void> {
   if (!sesion) throw new Error(`Sesión no encontrada: "${sesionId}"`)
   if (sesion.estado === 'presentada' || sesion.estado === 'minutada') {
     throw new Error('Esta sesión ya se marcó como presentada: no se puede decir que no se dio.')
+  }
+  // Mismo freeze que `marcarPresentada`: negar también es gestión.
+  if (sesion.salaSlug && !(await salaEstaActiva(sesion.salaSlug))) {
+    throw new Error(`${sesion.salaNombre} está en pausa: reactívala antes de marcar esta reunión.`)
   }
   const ahora = new Date()
   if (hayDB()) {
