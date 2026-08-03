@@ -32,6 +32,8 @@ import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
 import { registrarArchivo } from '@/db/archivos'
 import { del } from '@vercel/blob'
+import { registrarEdicion, participantesDe } from '@/db/participacion'
+import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 
 // Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
 // el asistente de IA, que sí llama al modelo.
@@ -65,29 +67,33 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await guardarSeccion(id, itemId, seccion)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await anadirSeccion(id, layout, nombre)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await anadirSeccion(id, layout, nombre, padre)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function eliminarSeccionAction(itemId: string) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await eliminarSeccion(id, itemId)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
@@ -160,29 +166,32 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   async function subirItem(formData: FormData) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function bajarItem(formData: FormData) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
   async function reordenar(idsEnOrden: string[]) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await reordenarItems(id, idsEnOrden)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function maquetar() {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     const sesionActual = await obtenerSesion(id)
     if (!sesionActual) throw new Error('Sesión no encontrada')
 
@@ -191,6 +200,9 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
     const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
     await guardarDecisiones(id, resultados)
+    // Antes del redirect: `redirect()` de Next corta la función lanzando, así
+    // que nada después de esta línea se ejecutaría.
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     redirect(`/deck/${id}/documento`)
   }
 
@@ -238,6 +250,12 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
       .filter((h) => h.padre === base.tipo)
       .map((h) => ({ id: h.id, titulo: h.titulo, llenado: h.llenado, esSub: true })),
   ])
+
+  // Quién preparó esta sesión y quién la presentó (ronda 9, tarea 4). Esta
+  // página es de equipo (`exigirLectura()`, arriba) — nunca la ve un director
+  // de sala, así que enseñar correos y nombres de Mkt Corp aquí no repite la
+  // fuga de datos que ya se corrigió en /reunion/[id].
+  const participantes = await participantesDe(id)
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -287,6 +305,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </div>
+
+          <ParticipantesSesion participantes={participantes} />
         </div>
 
         <div className={estilos.editorConIndice}>

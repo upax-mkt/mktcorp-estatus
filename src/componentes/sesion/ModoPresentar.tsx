@@ -30,9 +30,22 @@ interface Props {
   equipo?: boolean
   /** La gente viva de Mkt Corp, para el selector de responsable — solo se usa si sesionId && equipo llegan a mostrar MinutaCliente. */
   personas: PersonaMonday[]
+  /**
+   * Deja constancia de que alguien abrió el modo presentación (ronda 9,
+   * tarea 4 — «quiénes están en vivo interactuando»). Opcional por el mismo
+   * motivo que `sesionId`: sin sesión no hay nada que registrar.
+   *
+   * Se llama SIN esperar su resultado y tragándose cualquier error: es una
+   * bitácora, y un director en vivo delante de un cliente no puede quedarse
+   * sin pantalla completa porque la bitácora tropezó. Quien no es de Mkt Corp
+   * (el director de una UDN, que también presenta desde su sala) no tiene
+   * correo que registrar — la Server Action que se pase aquí decide eso, no
+   * este componente.
+   */
+  registrarPresentacionAction?: (sesionId: string) => Promise<void>
 }
 
-export function ModoPresentar({ children, sesionId, equipo, personas }: Props) {
+export function ModoPresentar({ children, sesionId, equipo, personas, registrarPresentacionAction }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
   const [actual, setActual] = useState(0)
@@ -81,6 +94,12 @@ export function ModoPresentar({ children, sesionId, equipo, personas }: Props) {
     // alguien lleva con el documento abierto.
     setArrancadoEn(Date.now())
     irA(0)
+
+    // Sin esperar y tragándose el error: ver el comentario de la prop. Entrar
+    // en vivo no puede depender de que esta bitácora responda.
+    if (sesionId && registrarPresentacionAction) {
+      registrarPresentacionAction(sesionId).catch(() => {})
+    }
   }
 
   async function salir() {

@@ -9,11 +9,13 @@
  */
 import { revalidatePath } from 'next/cache'
 import { esEditor } from '@/auth/roles'
+import { sesionActual } from '@/auth/sesion'
 import { obtenerSesion, crearSesion } from '@/db/sesiones'
 import { cargarTemas } from '@/db/temas'
 import { generarMinuta } from '@/minuta/generar'
 import { moldeDeMinuta } from '@/db/plantillas'
 import { guardarMinuta, type AcuerdoConfirmado } from '@/db/minutas'
+import { registrarEdicion } from '@/db/participacion'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
 
 export interface EstadoGeneracion {
@@ -160,6 +162,13 @@ export async function publicarMinutaAction(
     }
 
     await guardarMinuta(sesionId, transcripcion, textoFinal, acuerdosConfirmados)
+
+    // `esEditor()` ya confirmó arriba que hay sesión de equipo; se vuelve a
+    // pedir aquí (no se reutiliza ese booleano) porque es la única forma de
+    // llegar al correo de quién publica sin cambiar la guarda de permiso ya
+    // probada en acciones.test.ts.
+    const quien = await sesionActual()
+    if (quien?.sub) await registrarEdicion(sesionId, quien.sub)
 
     revalidatePath(`/deck/${sesionId}`)
     revalidatePath(`/deck/${sesionId}/minuta`)

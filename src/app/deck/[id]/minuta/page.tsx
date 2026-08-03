@@ -6,6 +6,7 @@ import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
@@ -68,10 +69,14 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
 
   // Publicar y corregir son cosas distintas: publicar decide qué acuerdos
   // nacen (y eso no se repite), corregir solo arregla el texto del correo.
+  // Las dos escriben la minuta de la sesión, así que las dos registran a
+  // quien lo hizo (ronda 9, tarea 4) — `eliminarAction`, más abajo, no: borra
+  // el acta entera, no la prepara.
   async function editarAction(texto: string) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await editarTextoMinuta(id, texto)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/minuta`)
   }
 
@@ -84,8 +89,9 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
 
   async function cargarExternaAction(texto: string) {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await cargarMinutaExterna(id, texto)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/minuta`)
   }
 

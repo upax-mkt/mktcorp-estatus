@@ -1042,6 +1042,12 @@ export async function eliminarSesion(sesionId: string): Promise<void> {
       .where(eq(esquema.acuerdos.sesionOrigenId, sesionId))
     await conexion.delete(esquema.minutas).where(eq(esquema.minutas.sesionId, sesionId))
     await conexion.delete(esquema.items).where(eq(esquema.items.sesionId, sesionId))
+    // Igual que minutas/items (ronda 9, tarea 4): quien preparó esta sesión
+    // deja una fila en `participacion` en cuanto guarda su primera sección, así
+    // que borrar sin esto revienta contra la misma clave foránea en cuanto
+    // alguien haya tocado la sesión — no solo en el caso raro de una recién
+    // creada y abandonada.
+    await conexion.delete(esquema.participacion).where(eq(esquema.participacion.sesionId, sesionId))
     await conexion.delete(esquema.sesiones).where(eq(esquema.sesiones.id, sesionId))
     return
   }

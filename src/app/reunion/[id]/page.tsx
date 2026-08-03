@@ -7,7 +7,8 @@ import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { puedeVerEstaSala } from '@/auth/sesion'
-import { esLector } from '@/auth/roles'
+import { esLector, exigirLectura } from '@/auth/roles'
+import { registrarPresentacion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 
 export const dynamic = 'force-dynamic'
@@ -69,6 +70,25 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
    */
   const personas = equipo ? await directorio() : []
 
+  /**
+   * Deja constancia de quién abrió el modo presentación (ronda 9, tarea 4).
+   * Es EL destino de "Ver presentación" desde la sala, así que a esta acción
+   * llega tanto el equipo como el director de la UDN (`permitido`, arriba, ya
+   * lo confirmó) — por eso el try/catch: `exigirLectura()` solo pasa al
+   * equipo, y para un director no hay correo que registrar. Tampoco puede
+   * tumbar el modo presentación si algo falla (mismo criterio que documenta
+   * `ModoPresentar.tsx`).
+   */
+  async function registrarPresentacionAction(sesionId: string): Promise<void> {
+    'use server'
+    try {
+      const quien = await exigirLectura()
+      if (quien.sub) await registrarPresentacion(sesionId, quien.sub)
+    } catch {
+      // Sesión de sala u otro rechazo: nada que registrar.
+    }
+  }
+
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
@@ -91,6 +111,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
         // Revisión final de la rama, punto 3: mismo motivo que en
         // /deck/[id]/documento — `sala` ya trae el logo real de la fila.
         logoUrl={sala?.logoUrl ?? null}
+        registrarPresentacionAction={registrarPresentacionAction}
       />
     </div>
   )

@@ -19,6 +19,11 @@ vi.mock('@/auth/roles', () => ({
   esEditor: (...args: unknown[]) => esEditorMock(...args),
 }))
 
+const sesionActualMock = vi.fn()
+vi.mock('@/auth/sesion', () => ({
+  sesionActual: (...args: unknown[]) => sesionActualMock(...args),
+}))
+
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 const obtenerSesionMock = vi.fn()
@@ -52,6 +57,11 @@ vi.mock('@/db/minutas', () => ({
   guardarMinuta: (...args: unknown[]) => guardarMinutaMock(...args),
 }))
 
+const registrarEdicionMock = vi.fn()
+vi.mock('@/db/participacion', () => ({
+  registrarEdicion: (...args: unknown[]) => registrarEdicionMock(...args),
+}))
+
 const { generarMinutaAction, publicarMinutaAction } = await import('./acciones')
 
 const SESION_FALSA = {
@@ -69,6 +79,12 @@ beforeEach(() => {
   moldeDeMinutaMock.mockResolvedValue(null)
   generarMinutaMock.mockResolvedValue({ textoCorreo: 'Correo generado', acuerdosPropuestos: [] })
   guardarMinutaMock.mockResolvedValue(undefined)
+  sesionActualMock.mockResolvedValue({
+    rol: 'equipo',
+    sub: 'iris@upax.com.mx',
+    rolApp: 'editor',
+    exp: Date.now() + 1000,
+  })
 })
 
 describe('generarMinutaAction', () => {
@@ -115,9 +131,10 @@ describe('publicarMinutaAction', () => {
     // rechazo sería de mentira.
     expect(crearSesionMock).not.toHaveBeenCalled()
     expect(guardarMinutaMock).not.toHaveBeenCalled()
+    expect(registrarEdicionMock).not.toHaveBeenCalled()
   })
 
-  it('con editor: publica de verdad — crea la sesión y guarda la minuta', async () => {
+  it('con editor: publica de verdad — crea la sesión, guarda la minuta y registra a quien publicó (ronda 9, tarea 4)', async () => {
     esEditorMock.mockResolvedValue(true)
     crearSesionMock.mockResolvedValue({ id: 'ses-nueva' })
 
@@ -130,5 +147,22 @@ describe('publicarMinutaAction', () => {
 
     expect(resultado).toEqual({ ok: true, sesionId: 'ses-nueva' })
     expect(guardarMinutaMock).toHaveBeenCalledWith('ses-nueva', 'transcripción', 'texto final del correo', [])
+    expect(registrarEdicionMock).toHaveBeenCalledWith('ses-nueva', 'iris@upax.com.mx')
+  })
+
+  it('sin correo en la sesión (caso raro): publica igual y no registra participación', async () => {
+    esEditorMock.mockResolvedValue(true)
+    crearSesionMock.mockResolvedValue({ id: 'ses-nueva' })
+    sesionActualMock.mockResolvedValue(null)
+
+    const resultado = await publicarMinutaAction(
+      { nueva: { titulo: 'Reunión de prueba', fecha: '2026-08-01T16:00:00.000Z', salaSlug: 'neracode' } },
+      'transcripción',
+      'texto final del correo',
+      [],
+    )
+
+    expect(resultado).toEqual({ ok: true, sesionId: 'ses-nueva' })
+    expect(registrarEdicionMock).not.toHaveBeenCalled()
   })
 })

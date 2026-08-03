@@ -17,6 +17,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 
 // ---- Enums ----
@@ -375,6 +376,28 @@ export const personas = pgTable('personas', {
   creadaEn: timestamp('creada_en', { withTimezone: true }).notNull().defaultNow(),
   ultimoAcceso: timestamp('ultimo_acceso', { withTimezone: true }),
 })
+
+// ---- Participación (ronda 9, tarea 4) ----
+// Quién preparó cada sesión y quién la presentó. Ver src/db/participacion.ts
+// para las tres funciones que la escriben y la leen, y por qué la escritura
+// es SIEMPRE una sola sentencia con ON CONFLICT: sin ella, sumar una edición
+// exigiría leer la fila, sumar en memoria y volver a escribir — el patrón
+// leer-y-escribir que ya causó un fallo distinto en cada una de las tres
+// rondas anteriores (misma lección que `enlaceAgenda`, más abajo, y que
+// `generarEnlaceDeAgenda` en src/db/enlace-agenda.ts).
+//
+// Clave compuesta (sesión, correo): UNA fila por persona y sesión, no una
+// fila por toque — lo que se cuenta es CUÁNTAS veces tocó esta sesión esa
+// persona, no cada toque por separado.
+export const participacion = pgTable('participacion', {
+  sesionId: text('sesion_id').notNull().references(() => sesiones.id),
+  correo: text('correo').notNull(),
+  primeraEdicion: timestamp('primera_edicion', { withTimezone: true }).notNull().defaultNow(),
+  ultimaEdicion: timestamp('ultima_edicion', { withTimezone: true }).notNull().defaultNow(),
+  ediciones: integer('ediciones').notNull().default(0),
+  /** true en cuanto abrió el modo presentación de esta sesión — ver `registrarPresentacion`. */
+  presento: boolean('presento').notNull().default(false),
+}, (t) => [primaryKey({ columns: [t.sesionId, t.correo] })])
 
 // ---- Enlace público de la agenda ----
 // UNA sola fila (id = 1). El token no lleva nada dentro —a diferencia del

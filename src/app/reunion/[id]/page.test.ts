@@ -37,13 +37,25 @@ vi.mock('@/auth/sesion', () => ({
 }))
 
 const esLectorMock = vi.fn()
+// `exigirLectura` no la ejercita ningún test de aquí (vive dentro de
+// `registrarPresentacionAction`, que estos tests no invocan — llaman a la
+// página directo, sin montar el árbol de React ni hacer clic en "Presentar")
+// pero se incluye en el doble para que la página siga important-eable si
+// algún día un test SÍ la ejercita: sin esto, `undefined()` reventaría.
 vi.mock('@/auth/roles', () => ({
   esLector: () => esLectorMock(),
+  exigirLectura: vi.fn(),
 }))
 
 const directorioMock = vi.fn()
 vi.mock('@/db/personas', () => ({
   directorio: () => directorioMock(),
+}))
+
+// Mismo motivo que `exigirLectura` arriba: `registrarPresentacion` solo la
+// usa `registrarPresentacionAction`, que ningún test de aquí invoca.
+vi.mock('@/db/participacion', () => ({
+  registrarPresentacion: vi.fn(),
 }))
 
 const { default: PagSesionPublicada } = await import('./page')

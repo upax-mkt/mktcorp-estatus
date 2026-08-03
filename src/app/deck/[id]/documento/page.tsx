@@ -7,6 +7,7 @@ import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { registrarPresentacion } from '@/db/participacion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
@@ -67,6 +68,29 @@ export default async function PagSesionMaquetada({
     revalidatePath('/')
   }
 
+  /**
+   * Deja constancia de quién abrió el modo presentación (ronda 9, tarea 4 —
+   * "quiénes están en vivo interactuando"). `exigirLectura()`, no
+   * `exigirEditor()`: los tres roles de equipo pueden presentar, no solo
+   * quien edita.
+   *
+   * Este mismo `DocumentoSesion` también lo pinta `/reunion/[id]/page.tsx`,
+   * a donde SÍ llega el director de una sala — por eso el try/catch: para él
+   * `exigirLectura()` rechaza (no es de equipo) y no hay correo que
+   * registrar, y de todos modos esto no puede tumbar el modo presentación si
+   * algo falla (mismo criterio que documenta `ModoPresentar.tsx`).
+   */
+  async function registrarPresentacionAction(sesionId: string): Promise<void> {
+    'use server'
+    try {
+      const quien = await exigirLectura()
+      if (quien.sub) await registrarPresentacion(sesionId, quien.sub)
+    } catch {
+      // Sesión de sala (el director presentando en su propia sala) u otro
+      // rechazo: nada que registrar.
+    }
+  }
+
   const yaSePresento = sesion.estado === 'presentada' || sesion.estado === 'minutada'
 
   return (
@@ -120,6 +144,7 @@ export default async function PagSesionMaquetada({
           // ya trae el logo real de la fila — sin esto, la portada de una
           // sesión de una sala nueva pintaba una imagen rota.
           logoUrl={sala?.logoUrl ?? null}
+          registrarPresentacionAction={registrarPresentacionAction}
         />
       )}
     </div>
