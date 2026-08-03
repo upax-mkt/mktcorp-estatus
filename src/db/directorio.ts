@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 
@@ -21,6 +21,16 @@ import * as esquema from './esquema'
  * valor vacío (`null`/`[]`/`false`); las escrituras que un admin pide a
  * propósito lanzan. Mismo criterio que los otros módulos de acceso,
  * `src/db/claves.ts` y `src/db/enlace-agenda.ts`.
+ *
+ * `cambiarRol`/`activarPersona` YA NO VIVEN AQUÍ (retiradas en la revisión
+ * del coordinador a la ronda 9, tarea 3, por código huérfano): escribían con
+ * un `UPDATE` simple, sin forma de inyectarle la condición atómica que la
+ * guarda "al menos un admin activo" necesita en su propio `WHERE`.
+ * `cambiarRolAction`/`activarPersonaAction` (`src/app/personas/acciones.ts`)
+ * escriben directo con Drizzle en su lugar — mismo criterio que ya usan
+ * `salas/acciones.ts` y `acuerdos/acciones.ts` para sus propias escrituras
+ * con condición. Se dejó esta nota para que el siguiente grep de
+ * `cambiarRol(` sepa dónde mirar de verdad.
  */
 
 export type RolPersona = 'admin' | 'editor' | 'viewer'
@@ -61,8 +71,10 @@ export function esRolValido(valor: string): valor is RolPersona {
 
 /**
  * `rol` es texto libre en la base (sin enum — ver `esquema.personas`), así
- * que el cast confía en que la fila solo entró por `altaPersona`/`cambiarRol`
- * (las dos validan con `esRolValido`) o por la migración inicial ('admin').
+ * que el cast confía en que la fila solo entró por `altaPersona` (valida con
+ * `esRolValido`) o por un `UPDATE` que ya validó lo mismo antes de escribir
+ * (`cambiarRolAction`, `src/app/personas/acciones.ts`), o por la migración
+ * inicial ('admin').
  */
 function aPersona(fila: typeof esquema.personas.$inferSelect): Persona {
   return { correo: fila.correo, nombre: fila.nombre, rol: fila.rol as RolPersona, activa: fila.activa }
@@ -87,16 +99,30 @@ export async function listarPersonas(): Promise<Persona[]> {
 }
 
 /**
- * Si el directorio tiene al menos una persona.
+ * Si el directorio tiene al menos un admin activo.
  *
- * La usa el login (tarea 2) para distinguir "la tabla está vacía" (algo salió
- * mal con la migración: nadie puede entrar, ni el admin) de "este correo no
- * está" (acceso negado normal, la persona simplemente no tiene cuenta) — son
- * dos problemas distintos y conviene poder diagnosticar cuál es cuál.
+ * La usa el portillo de emergencia (`claveDeEquipoSigueSirviendo()`,
+ * `src/auth/sesion.ts`) para decidir si la clave de equipo sigue sirviendo.
+ * Antes esa decisión miraba `hayAlgunaPersona()` —"¿hay alguna fila?"—, pero
+ * eso dejaba un fallo real sin salida (revisión del coordinador a la ronda 9,
+ * tarea 3): un directorio con gente pero sin NINGÚN admin activo —posible
+ * pese a las guardas de `src/app/personas/acciones.ts`, por un límite
+ * estructural del driver de Neon (sin transacciones, no se puede cerrar del
+ * todo la carrera entre dos peticiones que degradan a los dos últimos admins
+ * a la vez)— se quedaba sin ninguna puerta: ni esta pantalla, ni la clave de
+ * equipo, devolvían el acceso; solo SQL a mano. La pregunta correcta no es
+ * "¿está vacío?", es "¿queda alguien que pueda dar acceso?" — y por eso
+ * `hayAlgunaPersona` se retiró: se quedó sin ningún llamador real.
  */
-export async function hayAlgunaPersona(): Promise<boolean> {
+export async function hayAlgunAdminActivo(): Promise<boolean> {
   if (!hayDB()) return false
-  const fila = (await db().select({ correo: esquema.personas.correo }).from(esquema.personas).limit(1))[0]
+  const fila = (
+    await db()
+      .select({ correo: esquema.personas.correo })
+      .from(esquema.personas)
+      .where(and(eq(esquema.personas.rol, 'admin'), eq(esquema.personas.activa, true)))
+      .limit(1)
+  )[0]
   return Boolean(fila)
 }
 
@@ -112,33 +138,6 @@ export async function altaPersona(datos: NuevaPersona): Promise<void> {
   if (!correo) throw new Error(`Correo inválido: "${datos.correo}"`)
   if (!esRolValido(datos.rol)) throw new Error(`Rol inválido: "${datos.rol}"`)
   await db().insert(esquema.personas).values({ correo, nombre: datos.nombre, rol: datos.rol })
-}
-
-/** Cambia el rol de una persona ya dada de alta. Lanza si el correo no existe en el directorio. */
-export async function cambiarRol(correo: string, rol: RolPersona): Promise<void> {
-  if (!hayDB()) throw new Error('Sin base de datos no se puede cambiar el rol.')
-  const normalizado = normalizarCorreo(correo)
-  if (!normalizado) throw new Error(`Correo inválido: "${correo}"`)
-  if (!esRolValido(rol)) throw new Error(`Rol inválido: "${rol}"`)
-  const actualizadas = await db()
-    .update(esquema.personas)
-    .set({ rol })
-    .where(eq(esquema.personas.correo, normalizado))
-    .returning({ correo: esquema.personas.correo })
-  if (actualizadas.length === 0) throw new Error(`Persona no encontrada: "${normalizado}"`)
-}
-
-/** Activa o desactiva el acceso de una persona, sin borrar su fila. Lanza si el correo no existe. */
-export async function activarPersona(correo: string, activa: boolean): Promise<void> {
-  if (!hayDB()) throw new Error('Sin base de datos no se puede activar/desactivar personas.')
-  const normalizado = normalizarCorreo(correo)
-  if (!normalizado) throw new Error(`Correo inválido: "${correo}"`)
-  const actualizadas = await db()
-    .update(esquema.personas)
-    .set({ activa })
-    .where(eq(esquema.personas.correo, normalizado))
-    .returning({ correo: esquema.personas.correo })
-  if (actualizadas.length === 0) throw new Error(`Persona no encontrada: "${normalizado}"`)
 }
 
 /**

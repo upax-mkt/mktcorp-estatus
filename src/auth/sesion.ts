@@ -6,7 +6,7 @@ import { cookies } from 'next/headers'
 import { firmar, verificar, type Sesion, type RolApp } from './firma'
 import { puedeEditarAcuerdos, puedeVerSala } from './politica'
 import { COOKIE_SESION } from './nombres'
-import { hayAlgunaPersona } from '@/db/directorio'
+import { hayAlgunAdminActivo } from '@/db/directorio'
 
 /**
  * La sesión viva: leer quién entró, abrirla y cerrarla. Es la capa de acceso
@@ -119,18 +119,31 @@ export async function generarTokenDeSala(sala: string, dias = DIAS_SALA): Promis
 /**
  * EL PORTILLO DE EMERGENCIA, y no es un descuido.
  *
- * Si el directorio está vacío nadie puede entrar —ni quien tenía que darse de
- * alta a sí mismo, en /personas— así que mientras no haya NI UNA persona, la
- * clave de equipo sigue sirviendo y quien la teclea entra como admin (ver
- * `entrarConClave`, src/app/entrar/page.tsx). En cuanto hay una, deja de
- * funcionar. No lo quites pensando que sobra: es el extintor.
+ * NO se abre "cuando no hay nadie" — se abre cuando NO QUEDA NADIE QUE PUEDA
+ * DAR ACCESO: mientras el directorio no tenga ningún admin activo, la clave
+ * de equipo sigue sirviendo y quien la teclea entra como admin (ver
+ * `entrarConClave`, src/app/entrar/page.tsx). En cuanto hay al menos un admin
+ * activo, deja de funcionar. No lo quites pensando que sobra: es el
+ * extintor.
+ *
+ * Antes esto solo miraba si el directorio tenía ALGUNA fila (revisión del
+ * coordinador a la ronda 9, tarea 3): cubría el primer día —directorio
+ * vacío— pero no el incendio real que las propias guardas de
+ * `src/app/personas/acciones.ts` dejan abierto a propósito (guarda 2: dos
+ * peticiones simultáneas degradando cada una a un admin distinto, los dos
+ * últimos, pueden ganar las dos — límite estructural del driver de Neon, que
+ * no soporta transacciones ni bloquear filas). Con la condición vieja, ese
+ * fallo era irrecuperable: el directorio ya no estaba vacío, así que ni
+ * `/personas` ni la clave de equipo devolvían el acceso — solo SQL a mano.
+ * Con `hayAlgunAdminActivo()`, el peor caso pasa a ser "entra con la clave de
+ * equipo y te vuelves a poner admin".
  *
  * Separada de `entrarConClave` en su propia función exportada por una sola
  * razón: para poder probarla sin necesitar cookies ni un request de Next
- * vivo — solo lee `hayAlgunaPersona()` (una consulta), no escribe nada.
+ * vivo — solo lee `hayAlgunAdminActivo()` (una consulta), no escribe nada.
  */
 export async function claveDeEquipoSigueSirviendo(): Promise<boolean> {
-  return !(await hayAlgunaPersona())
+  return !(await hayAlgunAdminActivo())
 }
 
 // ---- Guardas para páginas y Server Actions ----

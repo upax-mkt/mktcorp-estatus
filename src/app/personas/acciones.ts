@@ -43,25 +43,33 @@ import {
  *    EN `cambiarRolAction`/`activarPersonaAction` esto va DENTRO del propio
  *    `WHERE` del `UPDATE` — revisión del coordinador: la primera versión la
  *    comprobaba con una lectura aparte (`listarPersonas()`) y ESCRIBÍA
- *    después, en dos viajes a la base. Dos peticiones casi simultáneas sobre
- *    los dos últimos admins pasaban las dos la comprobación antes de que
- *    ninguna escribiera, y el directorio se quedaba con cero admins — y de
- *    ahí no hay vuelta: el portillo de emergencia solo mira si el directorio
- *    tiene ALGUNA fila, no si le queda algún admin (ver
- *    `src/auth/sesion.ts:claveDeEquipoSigueSirviendo`), así que con gente
- *    dentro y sin admin, ni esta pantalla ni la clave de equipo devuelven el
- *    acceso: solo SQL a mano.
+ *    después, en dos viajes a la base, con una ventana de carrera real sobre
+ *    los dos últimos admins. Neon (driver HTTP) no soporta transacciones, así
+ *    que se cierra como `subirAcuerdoAction` reclama su fila
+ *    (`src/app/acuerdos/acciones.ts`, `WHERE bandeja = 'pendiente'`) y como se
+ *    resolvió el token de la agenda en la ronda 8: UNA SOLA sentencia
+ *    condicional. `existeOtroAdminActivo`, más abajo, es una subconsulta
+ *    `EXISTS` que entra en el propio `WHERE` del `UPDATE` — Postgres la
+ *    evalúa y escribe en el mismo paso PARA LA FILA QUE SE ESCRIBE, así que
+ *    dos peticiones sobre la MISMA fila (el caso común: doble clic, dos
+ *    pestañas) ya no pueden colarse las dos.
  *
- *    Neon (driver HTTP) no soporta transacciones, así que se cierra como
- *    `subirAcuerdoAction` reclama su fila (`src/app/acuerdos/acciones.ts`,
- *    `WHERE bandeja = 'pendiente'`) y como se resolvió el token de la agenda
- *    en la ronda 8: UNA SOLA sentencia condicional. `existeOtroAdminActivo`,
- *    más abajo, es una subconsulta `EXISTS` que entra en el propio `WHERE`
- *    del `UPDATE` — Postgres la evalúa y escribe en el mismo paso, así que no
- *    hay ventana entre "comprobar" y "escribir" en la que otra petición se
- *    pueda colar. Si el `UPDATE` afecta 0 filas, se distingue "el correo no
- *    existe" de "la guarda lo rechazó" con una lectura POSTERIOR
- *    (`buscarPersona`) que ya no decide nada — solo elige el mensaje.
+ *    LO QUE SIGUE ABIERTO, a propósito, y por qué ya no es grave (segunda
+ *    revisión del coordinador): dos peticiones sobre DOS FILAS DISTINTAS —los
+ *    dos últimos admins, cada uno degradando al otro— todavía pueden, en
+ *    teoría, ganar las dos: cada `EXISTS` lee la fila ajena sin bloquearla, y
+ *    sin transacciones no hay forma de cerrar eso del todo con este driver.
+ *    Es un límite estructural, no un descuido — no se persigue más. Lo que sí
+ *    se cerró es que ese fallo deje de ser IRRECUPERABLE:
+ *    `claveDeEquipoSigueSirviendo()` (`src/auth/sesion.ts`) ya NO mira si el
+ *    directorio tiene alguna fila, mira si le queda algún ADMIN ACTIVO — así
+ *    que si esta carrera patológica alguna vez deja el directorio con gente
+ *    pero sin ningún admin, la clave de equipo vuelve a servir sola, sin
+ *    tocar SQL.
+ *
+ *    Si el `UPDATE` afecta 0 filas, se distingue "el correo no existe" de "la
+ *    guarda lo rechazó" con una lectura POSTERIOR (`buscarPersona`) que ya no
+ *    decide nada — solo elige el mensaje.
  *
  *    EN `altaPersonaAction`, en cambio, se queda con la lectura aparte
  *    (`hayAdminActivoOSeraAdmin`, más abajo) — a propósito, no es un

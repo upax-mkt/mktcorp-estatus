@@ -51,18 +51,19 @@ export async function GET(request: Request) {
 
   // EL PORTILLO DE EMERGENCIA, y no es un descuido.
   //
-  // Si el directorio está vacío nadie puede entrar —ni quien tenía que darse de
-  // alta a sí mismo—, así que mientras no haya NI UNA persona, la clave de equipo
-  // sigue sirviendo y entra como admin. En cuanto hay una, deja de funcionar.
-  // No lo quites pensando que sobra: es el extintor.
+  // Mientras el directorio no tenga NINGÚN ADMIN ACTIVO —vacío del todo, o con
+  // gente pero sin nadie que administre—, la clave de equipo sigue sirviendo y
+  // entra como admin. En cuanto hay al menos uno, deja de funcionar. No lo
+  // quites pensando que sobra: es el extintor.
   //
   // Por eso el camino de abajo puede rechazar sin miedo un correo que no está
   // en el directorio: ese extintor vive en `entrarConClave`
   // (src/app/entrar/page.tsx), no aquí — esta ruta solo sabe hablar con Slack,
-  // y un correo sin fila en `personas` simplemente no tiene permiso, vacío el
-  // directorio o no. Mezclar aquí un "si está vacío, deja pasar a cualquier
-  // correo del workspace" sería un portillo más ancho que el que se decidió:
-  // la clave de equipo la conoce un grupo acotado; el dominio de Slack, no.
+  // y un correo sin fila en `personas` simplemente no tiene permiso, haya o no
+  // algún admin activo. Mezclar aquí un "si no queda admin, deja pasar a
+  // cualquier correo del workspace" sería un portillo más ancho que el que se
+  // decidió: la clave de equipo la conoce un grupo acotado; el dominio de
+  // Slack, no.
 
   const persona = await buscarPersona(identidad.email)
   if (!persona) redirect('/entrar?error=sin-acceso')
