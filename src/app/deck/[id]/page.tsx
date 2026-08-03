@@ -13,6 +13,8 @@ import {
   anadirSeccion,
   eliminarSeccion,
   guardarItemContenido,
+  anadirAcuerdoRetomado,
+  itemDeAcuerdosPendientes,
 } from '@/db/sesiones'
 import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
@@ -28,6 +30,7 @@ import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
 import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
 import { VistaEditor } from '@/componentes/editor/VistaEditor'
 import { AcuerdosArrastrables } from '@/componentes/editor/AcuerdosArrastrables'
+import { ZonaSoltarAcuerdo } from '@/componentes/editor/ZonaSoltarAcuerdo'
 import { estadoDeSeccion, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
@@ -203,17 +206,29 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   }
 
   /**
-   * Retoma un acuerdo abierto de la sala en esta sesión (ver AcuerdosArrastrables).
+   * Retoma un acuerdo abierto de la sala en esta sesión — por arrastre
+   * (ZonaSoltarAcuerdo) o por el botón «Añadir» (AcuerdosArrastrables): las
+   * dos vías llegan aquí igual.
    *
-   * NO crea un acuerdo nuevo: `retomarAcuerdo` (src/db/acuerdos.ts) deja
-   * constancia en la historia del MISMO acuerdo, que sigue colgando de la
-   * sala. `revalidatePath` es lo que lo saca de la columna de arrastrables
-   * en el siguiente render, porque `acuerdosArrastrablesDe` deja de
-   * ofrecerlo — no hace falta borrarlo de ningún lado a mano.
+   * NO crea un acuerdo nuevo. Dos escrituras, ninguna copia su contenido:
+   *
+   * 1. `anadirAcuerdoRetomado` (src/db/sesiones.ts) lo REFERENCIA en la
+   *    sección de Acuerdos y Pendientes de esta sesión — solo el id. Es lo
+   *    que hace que se VEA: el editor y "Maquetar" resuelven esa referencia
+   *    contra la tabla `acuerdos` en cada lectura, así que si alguien lo
+   *    cierra desde la sala, se cierra el mismo — no queda un gemelo vivo.
+   * 2. `retomarAcuerdo` (src/db/acuerdos.ts) deja constancia en la HISTORIA
+   *    del propio acuerdo de que esta sesión lo retomó — auditoría, no lo
+   *    que decide si se ofrece o se ve (eso ya lo hizo el punto 1).
+   *
+   * `revalidatePath` es lo que lo saca de la columna de arrastrables en el
+   * siguiente render, porque `acuerdosArrastrablesDe` deja de ofrecer lo que
+   * ya está referenciado — no hace falta borrarlo de ningún lado a mano.
    */
   async function retomarAcuerdoAction(acuerdoId: string) {
     'use server'
     const quien = await exigirEditor()
+    await anadirAcuerdoRetomado(id, acuerdoId)
     await retomarAcuerdo(acuerdoId, id)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
@@ -292,6 +307,10 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // reunión sin sala (comité, arranque de campaña) no tiene de dónde
   // sugerirlos.
   const acuerdosArrastrables = sesion.salaSlug ? await acuerdosArrastrablesDe(sesion.salaSlug, id) : []
+  // En qué sección "aterriza" un acuerdo retomado: la de Acuerdos y
+  // Pendientes, si esta sesión tiene una (ver `itemDeAcuerdosPendientes`).
+  // Es la ÚNICA tarjeta que recibe la zona de destino del arrastre.
+  const itemAcuerdos = itemDeAcuerdosPendientes(sesion)
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -367,6 +386,10 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
             // repetirlo dos centímetros más arriba es ruido.
             titulo: b.titulo,
             borrador: b.contenido.seccion ?? { layout: 'portada' },
+            // Para que "Ver y ordenar" enseñe EXACTAMENTE lo que va a
+            // generar "Maquetar" — acuerdos retomados incluidos, resueltos
+            // al momento (ronda 9, tarea 6).
+            acuerdosRetomados: b.acuerdosRetomados,
           }))}
           formularios={
           <>
@@ -391,6 +414,11 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                   tema={tema}
                   sesionId={id}
                   subirImagenAction={subirImagenAction}
+                  zonaDeAcuerdos={
+                    base.id === itemAcuerdos?.id ? (
+                      <ZonaSoltarAcuerdo acuerdos={base.acuerdosRetomados} alSoltar={retomarAcuerdoAction} />
+                    ) : undefined
+                  }
                 />
 
                 <div className={estilos.subsecciones}>
@@ -409,6 +437,16 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       tema={tema}
                       sesionId={id}
                       subirImagenAction={subirImagenAction}
+                      // Caso raro pero posible: una "Pendientes con semáforo"
+                      // añadida a mano como SUBSECCIÓN de otro bloque, en una
+                      // sesión sin la fija 'acuerdos-pendientes'
+                      // (`itemDeAcuerdosPendientes` no distingue base de
+                      // subsección al buscarla — ver src/db/sesiones.ts).
+                      zonaDeAcuerdos={
+                        hija.id === itemAcuerdos?.id ? (
+                          <ZonaSoltarAcuerdo acuerdos={hija.acuerdosRetomados} alSoltar={retomarAcuerdoAction} />
+                        ) : undefined
+                      }
                     />
                   ))}
                   {/* SOLO UN DIVISOR ABRE UN BLOQUE. Una sección que ya lleva

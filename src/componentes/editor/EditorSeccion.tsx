@@ -16,6 +16,7 @@ import { SelectorTipo } from './SelectorTipo'
 import { CampoImagen } from './CampoImagen'
 import { soloCamposDelTipo, NOMBRE_DE_CAMPO } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
+import type { Acuerdo } from '@/dominio/salas'
 import estilos from './editor.module.css'
 
 /**
@@ -47,6 +48,8 @@ interface Props {
   /** De qué sesión es. Lo necesita la subida de imágenes. */
   sesionId?: string
   subirImagenAction?: SubirImagen
+  /** Acuerdos retomados de la sala en este item, ya resueltos (ronda 9, tarea 6). */
+  acuerdosRetomados?: Acuerdo[]
 }
 
 /** Registra una imagen ya subida a Blob y devuelve la URL con la que se sirve. */
@@ -159,7 +162,7 @@ const ESPERA_AUTOGUARDADO = 1200
 
 export function EditorSeccion({
   borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction, tema,
-  sesionId, subirImagenAction,
+  sesionId, subirImagenAction, acuerdosRetomados,
 }: Props) {
   const idBase = useId()
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
@@ -365,7 +368,12 @@ export function EditorSeccion({
       </div>
       </div>
 
-      <VistaPrevia borrador={borrador} tituloDeRespaldo={tituloDeRespaldo} tema={tema} />
+      <VistaPrevia
+        borrador={borrador}
+        tituloDeRespaldo={tituloDeRespaldo}
+        tema={tema}
+        acuerdosRetomados={acuerdosRetomados}
+      />
     </div>
   )
 }

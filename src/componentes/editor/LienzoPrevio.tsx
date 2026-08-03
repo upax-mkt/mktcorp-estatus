@@ -7,6 +7,7 @@ import { estadoDeSeccion, type BorradorSeccion } from '@/secciones/borrador'
 import { SeccionDocumento } from '@/componentes/sesion/SeccionDocumento'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import type { Tema } from '@/temas/tipos'
+import type { Acuerdo } from '@/dominio/salas'
 import estilos from './lienzo.module.css'
 import documento from '@/componentes/sesion/documento.module.css'
 
@@ -39,6 +40,8 @@ export interface SeccionEnLienzo {
   borrador: BorradorSeccion
   /** Las subsecciones se muestran dentro de su bloque y no se arrastran aquí. */
   esSub?: boolean
+  /** Acuerdos retomados de la sala en este item, ya resueltos (ronda 9, tarea 6). */
+  acuerdosRetomados?: Acuerdo[]
 }
 
 interface Props {
@@ -90,7 +93,7 @@ function Tarjeta({
   zoom: number
   alAbrir: (id: string) => void
 }) {
-  const maquetado = maquetarBorrador(seccion.borrador, seccion.titulo)
+  const maquetado = maquetarBorrador(seccion.borrador, seccion.titulo, seccion.acuerdosRetomados)
   const estado = estadoDeSeccion(seccion.borrador, seccion.titulo)
 
   return (

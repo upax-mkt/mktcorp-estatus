@@ -6,7 +6,7 @@
  * sin dejar que un ítem duro tumbe los que ya se maquetaron.
  */
 import type { Tema } from '@/temas/tipos'
-import { LAYOUTS, type DecisionSlide } from '@/decision/esquema'
+import { LAYOUTS, LIMITES, TextoPlano, type DecisionSlide } from '@/decision/esquema'
 import type { EntradaCruda, Inventario } from './inventario'
 import { normalizar } from './normalizar'
 import { decidir, crearClientePorDefecto, type ClienteDecision } from './decidir'
@@ -15,6 +15,7 @@ import { sanearDecision, completarKpisFaltantes } from './sanear'
 import { aDecision, type BorradorSeccion } from '@/secciones/borrador'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
+import type { Acuerdo } from '@/dominio/salas'
 
 export interface ResultadoMaquetacion {
   decision: DecisionSlide
@@ -165,7 +166,7 @@ export async function maquetarSesion(
       // segundo de espera, ni la posibilidad de que un modelo reinterprete lo
       // que alguien ya decidió.
       if (item.seccion) {
-        resultados.push(maquetarBorrador(item.seccion, item.titulo))
+        resultados.push(maquetarBorrador(item.seccion, item.titulo, item.acuerdosRetomados))
         continue
       }
       resultados.push(await maquetarItem(item, tema, clienteDeIa()))
@@ -185,11 +186,103 @@ export async function maquetarSesion(
  * degrada con el motivo a la vista ("Falta el título"), porque quien la
  * escribió tiene que poder ver QUÉ le falta en el documento, no descubrir que
  * su sección desapareció.
+ *
+ * `acuerdosRetomados` (ronda 9, tarea 6) — ya resueltos por
+ * `resolverAcuerdosRetomados`, src/db/sesiones.ts — se mezcla en el BORRADOR,
+ * ANTES de `aDecision`, no en la decisión ya validada: `pendientes-semaforo`
+ * EXIGE una tabla (`tipoDeSeccion(...).exige`, ver src/secciones/catalogo.ts)
+ * para no degradarse, así que una sesión donde alguien SOLO arrastró
+ * acuerdos —sin teclear nada— tiene un borrador sin `tablas` propias; fusionar
+ * después de `aDecision` nunca llegaba a correr, porque esa sección ya había
+ * degradado antes. Fusionar antes hace que el acuerdo retomado, por sí solo,
+ * baste para que la sección deje de estar "vacía" — que es exactamente el
+ * caso que Franco describió. Es lo mismo que usa `LienzoPrevio`/`VistaPrevia`
+ * para que el editor enseñe EXACTAMENTE lo que "Maquetar" va a producir.
  */
-export function maquetarBorrador(borrador: BorradorSeccion, tituloItem: string): ResultadoMaquetacion {
-  const resultado = aDecision(borrador, tituloItem)
+export function maquetarBorrador(
+  borrador: BorradorSeccion,
+  tituloItem: string,
+  acuerdosRetomados?: Acuerdo[],
+): ResultadoMaquetacion {
+  const conAcuerdos = conAcuerdosRetomados(borrador, acuerdosRetomados)
+  const resultado = aDecision(conAcuerdos, tituloItem)
   if (resultado.ok) {
     return { decision: resultado.decision, degradado: false }
   }
-  return degradarSinDecision(borrador.titulo || tituloItem, borrador.layout, resultado.motivo)
+  return degradarSinDecision(conAcuerdos.titulo || tituloItem, conAcuerdos.layout, resultado.motivo)
+}
+
+/** El semáforo de una fila de pendientes, según el estatus REAL del acuerdo ahora mismo. */
+const SEMAFORO_DE: Record<Acuerdo['estatus'], 'listo' | 'en-proceso' | 'no-realizado'> = {
+  cumplido: 'listo',
+  abierto: 'en-proceso',
+  vencido: 'no-realizado',
+}
+
+const ETIQUETA_DE_ESTATUS: Record<Acuerdo['estatus'], string> = {
+  abierto: 'Abierto',
+  vencido: 'Vencido',
+  cumplido: 'Cumplido',
+}
+
+/** Encabezados de la tabla de pendientes — el mismo ejemplo que ya usa el propio esquema (§ Tabla.columnas). */
+const COLUMNAS_PENDIENTES = ['Responsable', 'Tarea', 'Estatus']
+
+/**
+ * Texto de acuerdo, listo para una celda del documento (`TextoPlano`, ver
+ * decision/esquema.ts). `que`/`responsable` los escribe el equipo en la
+ * pantalla de acuerdos, un formulario que NUNCA pasó por ese validador —así
+ * que un acuerdo con una comilla invertida suelta o un "**" no debe tirar el
+ * slide entero. Se limpia el carácter conflictivo en vez de descartar la
+ * fila: perder el énfasis accidental es preferible a perder el acuerdo del
+ * documento.
+ */
+function comoCeldaSegura(texto: string): string {
+  if (TextoPlano.safeParse(texto).success) return texto
+  const limpio = texto.replace(/[`*_#<>]|style\s*=/gi, '').trim()
+  return limpio.length > 0 ? limpio : 'Sin descripción'
+}
+
+function filaDeAcuerdo(acuerdo: Acuerdo): { celdas: string[]; estado: 'listo' | 'en-proceso' | 'no-realizado' } {
+  return {
+    celdas: [comoCeldaSegura(acuerdo.responsable), comoCeldaSegura(acuerdo.que), ETIQUETA_DE_ESTATUS[acuerdo.estatus]],
+    estado: SEMAFORO_DE[acuerdo.estatus],
+  }
+}
+
+/**
+ * Añade una fila por cada acuerdo retomado a la primera tabla (ronda 9, tarea
+ * 6). Genérica sobre `T` porque se usa en DOS momentos con dos tipos que
+ * comparten la misma forma de `tablas`: sobre el BORRADOR, antes de validar
+ * (ver el comentario de `maquetarBorrador` sobre por qué tiene que ser
+ * antes), y sigue sirviendo si algún día hace falta aplicarla también sobre
+ * una `DecisionSlide` ya resuelta.
+ *
+ * RESUELTO EN EL MOMENTO, no copiado: si el acuerdo se cierra desde la sala,
+ * la próxima vez que esto corra —abrir el editor, volver a maquetar— la fila
+ * sale "Cumplido", porque `acuerdo.estatus` se leyó ahora.
+ *
+ * Se añade a la tabla existente SOLO si sus columnas calzan con las tres de
+ * pendientes (Responsable/Tarea/Estatus): una tabla escrita a mano con otra
+ * forma no se toca, para no desalinear celdas que no le pertenecen — en ese
+ * caso se antepone una tabla propia. Respeta `LIMITES.tablas`: si ya hay tres
+ * tablas, la de acuerdos entra igual (es la razón por la que se está
+ * maquetando) y se suelta la última de las que había.
+ */
+function conAcuerdosRetomados<T extends { tablas?: DecisionSlide['tablas'] }>(
+  objeto: T,
+  acuerdos: Acuerdo[] | undefined,
+): T {
+  if (!acuerdos || acuerdos.length === 0) return objeto
+
+  const filasNuevas = acuerdos.map(filaDeAcuerdo)
+  const tablasActuales = objeto.tablas ?? []
+  const [primera, ...resto] = tablasActuales
+
+  if (primera && primera.columnas.length === COLUMNAS_PENDIENTES.length) {
+    return { ...objeto, tablas: [{ ...primera, filas: [...primera.filas, ...filasNuevas] }, ...resto] }
+  }
+
+  const tablaPropia = { columnas: COLUMNAS_PENDIENTES, filas: filasNuevas }
+  return { ...objeto, tablas: [tablaPropia, ...tablasActuales].slice(0, LIMITES.tablas) }
 }

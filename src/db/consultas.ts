@@ -18,7 +18,7 @@ import * as esquema from './esquema'
 import { cargarTemas, slugsDeSalas } from './temas'
 import type { Tema } from '@/temas'
 import * as fallback from '@/dominio/salas'
-import { esLlenado, type ContenidoItemCrudo } from './sesiones'
+import { esLlenado, obtenerSesion, type ContenidoItemCrudo } from './sesiones'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
@@ -326,22 +326,6 @@ export async function pulsoDelMes(): Promise<PulsoDelMes> {
 // ---- Arrastrar acuerdos abiertos a la sesión (ronda 9, tarea 6) ----
 
 /**
- * Si `historia` (el jsonb de un acuerdo, ver `esquema.acuerdos.historia`) ya
- * trae una entrada de `retomarAcuerdo` (src/db/acuerdos.ts) para ESTA
- * sesión. Defensiva ante cualquier forma que no reconozca: un jsonb es
- * `unknown`, y una entrada rara es más barata de ignorar que de reventar
- * por ella.
- */
-function yaRetomadoEnSesion(historia: unknown, sesionId: string): boolean {
-  if (!Array.isArray(historia)) return false
-  return historia.some((entrada) => {
-    const cambios = (entrada as { cambios?: unknown } | null)?.cambios
-    if (!cambios || typeof cambios !== 'object') return false
-    return (cambios as Record<string, unknown>).retomadoEnSesion === sesionId
-  })
-}
-
-/**
  * Los acuerdos que se pueden arrastrar a `sesionId`: los ABIERTOS de
  * `salaSlug` —abierto o vencido, con el mismo `estatusEfectivo` que usa toda
  * la app, freeze de la sala incluido— que esta sesión TODAVÍA no retomó.
@@ -353,32 +337,40 @@ function yaRetomadoEnSesion(historia: unknown, sesionId: string): boolean {
  * `AcuerdosArrastrables` (src/componentes/editor), no esta función — aquí no
  * se promete un orden.
  *
- * "Ya retomado" se lee de la propia historia del acuerdo, no de una fila de
- * sesión: `retomarAcuerdo` no crea nada nuevo que buscar aquí, así que se le
- * pregunta al acuerdo si ya dejó constancia de que ESTA sesión lo retomó —
- * ver la cabecera de `retomarAcuerdo`.
+ * "Ya retomado" se lee de LA PROPIA SESIÓN, no de una marca aparte
+ * (revisión: la primera versión leía la `historia` del acuerdo, que solo
+ * decía "se tocó" sin que nada cambiara en pantalla). `obtenerSesion` ya
+ * resuelve `acuerdoIdsRetomados` de cada item contra la tabla `acuerdos`
+ * (ver `resolverAcuerdosRetomados`, src/db/sesiones.ts) — es la MISMA
+ * resolución que usa el editor y "Maquetar", así que preguntarle a ella es
+ * preguntar exactamente lo que decide si el acuerdo YA aparece en esta
+ * sesión.
  *
  * Sin DB no hay nada que ofrecer, mismo criterio que `todosLosAcuerdos`.
  */
 export async function acuerdosArrastrablesDe(salaSlug: string, sesionId: string): Promise<Acuerdo[]> {
   if (!hayDB()) return []
 
+  const [sesion, filas] = await Promise.all([
+    obtenerSesion(sesionId),
+    db()
+      .select({
+        id: esquema.acuerdos.id,
+        que: esquema.acuerdos.que,
+        responsable: esquema.acuerdos.responsable,
+        squad: esquema.acuerdos.squad,
+        fechaCompromiso: esquema.acuerdos.fechaCompromiso,
+        estatus: esquema.acuerdos.estatus,
+        destacado: esquema.acuerdos.destacado,
+        salaActiva: esquema.salas.activa,
+      })
+      .from(esquema.acuerdos)
+      .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
+      .where(eq(esquema.acuerdos.salaSlug, salaSlug)),
+  ])
+
+  const yaRetomados = new Set((sesion?.items ?? []).flatMap((i) => i.acuerdosRetomados.map((a) => a.id)))
   const hoy = isoFecha(new Date())
-  const filas = await db()
-    .select({
-      id: esquema.acuerdos.id,
-      que: esquema.acuerdos.que,
-      responsable: esquema.acuerdos.responsable,
-      squad: esquema.acuerdos.squad,
-      fechaCompromiso: esquema.acuerdos.fechaCompromiso,
-      estatus: esquema.acuerdos.estatus,
-      destacado: esquema.acuerdos.destacado,
-      historia: esquema.acuerdos.historia,
-      salaActiva: esquema.salas.activa,
-    })
-    .from(esquema.acuerdos)
-    .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
-    .where(eq(esquema.acuerdos.salaSlug, salaSlug))
 
   return filas
     .map((f) => {
@@ -396,12 +388,10 @@ export async function acuerdosArrastrablesDe(salaSlug: string, sesionId: string)
         fechaCompromiso,
         estatus,
         destacado: f.destacado,
-        historia: f.historia,
       }
     })
     .filter((a) => a.estatus === 'abierto' || a.estatus === 'vencido')
-    .filter((a) => !yaRetomadoEnSesion(a.historia, sesionId))
-    .map(({ historia: _historia, ...acuerdo }) => acuerdo)
+    .filter((a) => !yaRetomados.has(a.id))
 }
 
 // ---- El espacio de acuerdos: las diez salas juntas (tarea 11, ronda 7) ----

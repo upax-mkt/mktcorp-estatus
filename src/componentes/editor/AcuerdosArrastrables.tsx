@@ -24,19 +24,23 @@ interface Props {
   /** Los acuerdos ABIERTOS de la sala que todavía no se han retomado en esta sesión. */
   acuerdos: AcuerdoArrastrable[]
   /**
-   * Retoma un acuerdo en esta sesión — por arrastre o por el botón «Añadir»,
-   * las dos vías llaman a lo mismo.
+   * Retoma un acuerdo en esta sesión. Solo lo llama el botón «Añadir» de
+   * aquí — el arrastre lo dispara `ZonaSoltarAcuerdo` (en la tarjeta de
+   * Acuerdos y Pendientes), no esta lista: esta lista es la FUENTE
+   * (`draggable`, pone el id en `dataTransfer`), no el destino. Las dos vías
+   * llaman a la misma acción del servidor, así que el resultado es idéntico
+   * venga de donde venga.
    *
    * NO DUPLICA EL ACUERDO, y eso va contra la letra de lo que pidió Franco
    * ("poder arrastrarlos a la nueva presentación"). Copiar su contenido a un
    * acuerdo aparte daría dos compromisos donde hay uno: el original seguiría
    * colgando de la sala sin que cerrar el nuevo lo cerrara a él, y viceversa.
    * El acuerdo es el MISMO — sigue siendo de la sala — y lo único que esta
-   * llamada registra es que ESTA sesión lo retoma (ver `retomarAcuerdo`,
-   * src/db/acuerdos.ts, y `acuerdosArrastrablesDe`, src/db/consultas.ts, que
-   * es quien deja de ofrecerlo una vez retomado). Si algún día parece que
-   * "falta la copia", es este comentario el que hay que releer, no el código
-   * el que hay que "arreglar".
+   * llamada registra es una REFERENCIA: que ESTA sesión lo retoma (ver
+   * `anadirAcuerdoRetomado`, src/db/sesiones.ts, que la sección de Acuerdos y
+   * Pendientes resuelve en cada lectura, nunca copia). Si algún día parece
+   * que "falta la copia", es este comentario el que hay que releer, no el
+   * código el que hay que "arreglar".
    */
   alArrastrar: (acuerdoId: string) => void | Promise<void>
 }
@@ -86,22 +90,20 @@ export function AcuerdosArrastrables({ acuerdos, alArrastrar }: Props) {
                 className={estilos.fila}
                 draggable
                 data-pendiente={enCurso === acuerdo.id ? 'true' : undefined}
+                /**
+                 * Solo pone el id en el portapapeles del arrastre. Quien
+                 * DECIDE si el gesto contó es `ZonaSoltarAcuerdo` —la sección
+                 * de Acuerdos y Pendientes—, en su `onDrop`: sin un destino
+                 * real que acepte el `drop`, el navegador trata soltar en
+                 * cualquier otro sitio como cancelado y aquí no pasa nada.
+                 * Antes esta tarjeta llamaba a `alArrastrar` en su propio
+                 * `onDragEnd`, sin comprobar destino — así que arrastrar y
+                 * arrepentirse a media pantalla igual lo retomaba. Ya no.
+                 */
                 onDragStart={(evento) => {
                   evento.dataTransfer.setData('text/plain', acuerdo.id)
                   evento.dataTransfer.effectAllowed = 'copy'
                 }}
-                /**
-                 * El arrastre nativo (HTML5, no dnd-kit) no tiene ningún otro
-                 * elemento en esta pantalla que registre un `drop`, así que
-                 * `dataTransfer.dropEffect` nunca reportaría un destino
-                 * válido aunque el gesto fuera exactamente el que se pidió.
-                 * Soltar la tarjeta —en cualquier parte, tras haberla
-                 * levantado— se lee como la misma intención que pulsar
-                 * «Añadir»: el botón es la vía que SIEMPRE funciona (la
-                 * accesible, la que no depende del ratón); esto es el atajo
-                 * para quien ya la levantó.
-                 */
-                onDragEnd={() => retomar(acuerdo.id)}
               >
                 <div className={estilos.encabezado}>
                   <span className={estilos.asa} aria-hidden="true">⠿</span>

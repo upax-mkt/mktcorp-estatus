@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { maquetarItem, maquetarSesion } from './maquetar'
+import { maquetarItem, maquetarSesion, maquetarBorrador } from './maquetar'
 import { SEMILLA_DE_TEMAS } from '@/temas/semilla'
 import * as normalizarMod from './normalizar'
+import type { Acuerdo } from '@/dominio/salas'
 
 const crudo = { titulo: 'Performance', cifras: [{ valor: '9.2', rotulo: 'Posición', delta: '-0.3' }] }
 const valida = { layout: 'kpis-fila-dos-columnas', titulo: 'Performance',
@@ -142,5 +143,101 @@ describe('una sección compuesta a mano no pasa por la IA', () => {
     )
     expect(resultados[0].degradado).toBe(true)
     expect(resultados[0].motivo).toContain('al menos una cifra')
+  })
+})
+
+describe('maquetarBorrador — acuerdos retomados de la sala (ronda 9, tarea 6)', () => {
+  const acuerdo = (id: string, que: string, estatus: Acuerdo['estatus'] = 'abierto'): Acuerdo =>
+    ({ id, que, responsable: 'Iris', fechaCompromiso: null, estatus })
+
+  it('sin acuerdos retomados, el resultado es exactamente el de siempre', () => {
+    const r = maquetarBorrador({ layout: 'portada', titulo: 'x' }, 'x')
+    expect(r.decision.tablas).toBeUndefined()
+  })
+
+  it('crea la tabla de pendientes cuando la sección todavía no trae ninguna', () => {
+    const r = maquetarBorrador(
+      { layout: 'pendientes-semaforo', titulo: 'Acuerdos y Pendientes' },
+      'Acuerdos y Pendientes',
+      [acuerdo('1', 'Mandar propuesta')],
+    )
+    expect(r.degradado).toBe(false)
+    expect(r.decision.tablas).toHaveLength(1)
+    expect(r.decision.tablas![0].columnas).toEqual(['Responsable', 'Tarea', 'Estatus'])
+    expect(r.decision.tablas![0].filas[0].celdas).toEqual(['Iris', 'Mandar propuesta', 'Abierto'])
+    expect(r.decision.tablas![0].filas[0].estado).toBe('en-proceso')
+  })
+
+  it('se AÑADE a la tabla escrita a mano cuando sus columnas calzan con Responsable/Tarea/Estatus', () => {
+    const r = maquetarBorrador(
+      {
+        layout: 'pendientes-semaforo',
+        titulo: 'Acuerdos y Pendientes',
+        tablas: [{
+          columnas: ['Responsable', 'Tarea', 'Estatus'],
+          filas: [{ celdas: ['Ileana', 'Cerrar el brief', 'Abierto'] }],
+        }],
+      },
+      'Acuerdos y Pendientes',
+      [acuerdo('1', 'Mandar propuesta', 'vencido')],
+    )
+    expect(r.decision.tablas).toHaveLength(1)
+    expect(r.decision.tablas![0].filas).toHaveLength(2)
+    expect(r.decision.tablas![0].filas[0].celdas).toEqual(['Ileana', 'Cerrar el brief', 'Abierto']) // intacta
+    expect(r.decision.tablas![0].filas[1].celdas).toEqual(['Iris', 'Mandar propuesta', 'Vencido'])
+    expect(r.decision.tablas![0].filas[1].estado).toBe('no-realizado')
+  })
+
+  it('con una tabla escrita a mano de OTRA forma (menos columnas), no la toca: antepone una tabla propia', () => {
+    // Misma tabla de dos columnas que usa el test de "una sección compuesta a
+    // mano no pasa por la IA" más arriba: es una forma real, no inventada.
+    const r = maquetarBorrador(
+      {
+        layout: 'pendientes-semaforo',
+        titulo: 'Pendientes de la sesión pasada',
+        tablas: [{ columnas: ['Responsable', 'Tarea'], filas: [{ celdas: ['Ileana', 'Cerrar el brief'] }] }],
+      },
+      'Acuerdos y Pendientes',
+      [acuerdo('1', 'Mandar propuesta')],
+    )
+    expect(r.decision.tablas).toHaveLength(2)
+    expect(r.decision.tablas![0].columnas).toEqual(['Responsable', 'Tarea', 'Estatus'])
+    expect(r.decision.tablas![1]).toEqual({ columnas: ['Responsable', 'Tarea'], filas: [{ celdas: ['Ileana', 'Cerrar el brief'] }] })
+  })
+
+  it('el estatus se lee AHORA, no de cuando se retomó: cumplido sale "listo", vencido "no-realizado"', () => {
+    const r = maquetarBorrador(
+      { layout: 'pendientes-semaforo', titulo: 'x' },
+      'x',
+      [acuerdo('1', 'a', 'cumplido'), acuerdo('2', 'b', 'vencido'), acuerdo('3', 'c', 'abierto')],
+    )
+    expect(r.decision.tablas![0].filas.map((f) => f.estado)).toEqual(['listo', 'no-realizado', 'en-proceso'])
+    expect(r.decision.tablas![0].filas.map((f) => f.celdas[2])).toEqual(['Cumplido', 'Vencido', 'Abierto'])
+  })
+
+  it('un "que" con sintaxis que el esquema del documento rechazaría se limpia, no tira el slide entero', () => {
+    // `que`/`responsable` los escribe el equipo en la pantalla de acuerdos,
+    // que nunca pasó por TextoPlano — un acuerdo real con una comilla
+    // invertida no puede tumbar la generación del documento.
+    const r = maquetarBorrador(
+      { layout: 'pendientes-semaforo', titulo: 'x' },
+      'x',
+      [acuerdo('1', 'Revisar `código` **urgente**')],
+    )
+    expect(r.degradado).toBe(false)
+    expect(r.decision.tablas![0].filas[0].celdas[1]).not.toMatch(/[`*]/)
+  })
+
+  it('maquetarSesion se los pasa al item hecho a mano: llegan hasta el resultado final', async () => {
+    const resultados = await maquetarSesion(
+      [{
+        titulo: 'Acuerdos y Pendientes',
+        seccion: { layout: 'pendientes-semaforo', titulo: 'Acuerdos y Pendientes' },
+        acuerdosRetomados: [acuerdo('1', 'Mandar propuesta')],
+      }],
+      'neracode',
+    )
+    expect(resultados[0].decision.tablas?.[0].filas).toHaveLength(1)
+    expect(resultados[0].decision.tablas?.[0].filas[0].celdas).toEqual(['Iris', 'Mandar propuesta', 'Abierto'])
   })
 })

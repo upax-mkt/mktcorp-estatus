@@ -3,6 +3,7 @@
  * a partir del contenido crudo que el equipo pega o carga.
  */
 import type { BorradorSeccion } from '@/secciones/borrador'
+import type { Acuerdo } from '@/dominio/salas'
 
 /** Lo que el equipo pega/carga, sin procesar. */
 export interface EntradaCruda {
@@ -20,6 +21,13 @@ export interface EntradaCruda {
    * pegar texto y pedir una propuesta.
    */
   seccion?: BorradorSeccion
+  /**
+   * Acuerdos abiertos de la sala retomados en este item, ya resueltos contra
+   * `acuerdos` (ronda 9, tarea 6) — ver `resolverAcuerdosRetomados` en
+   * src/db/sesiones.ts. `maquetarBorrador` los añade a la tabla del slide;
+   * no participan del camino asistido por IA.
+   */
+  acuerdosRetomados?: Acuerdo[]
 }
 
 /**

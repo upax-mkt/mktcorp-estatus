@@ -1,0 +1,32 @@
+/* La zona de destino del arrastre, dentro de la tarjeta de Acuerdos y
+   Pendientes (ronda 9, tarea 6). Discreta en reposo, se ilumina con el color
+   de la sala mientras algo se arrastra por encima. */
+
+.zona {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border: 1.5px dashed var(--borde-fuerte);
+  border-radius: var(--r-3);
+  background: var(--superficie-2);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.zona[data-sobrevolando='true'] {
+  border-color: var(--sala, var(--acento));
+  background: color-mix(in oklch, var(--sala, var(--acento)) 10%, var(--superficie-2));
+}
+
+.icono {
+  color: var(--tx-3);
+  font-size: 1rem;
+  flex: none;
+}
+
+.texto {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--tx-2);
+}

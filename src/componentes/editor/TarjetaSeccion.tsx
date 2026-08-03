@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ItemSesion } from '@/db/sesiones'
 import type { BorradorSeccion } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
@@ -31,6 +32,16 @@ interface Props {
   tema: Tema
   sesionId: string
   subirImagenAction: SubirImagen
+  /**
+   * La zona donde soltar un acuerdo arrastrado desde `AcuerdosArrastrables`
+   * (ronda 9, tarea 6). Ausente en cualquier tarjeta que no sea la sección de
+   * Acuerdos y Pendientes de la sesión — ver `itemDeAcuerdosPendientes`,
+   * src/db/sesiones.ts. Se pinta ANTES de `SeccionPlegable`, a propósito: una
+   * sección recién creada empieza plegada, y una zona de destino que solo
+   * existiera dentro de un acordeón cerrado no se podría alcanzar sin abrirlo
+   * primero.
+   */
+  zonaDeAcuerdos?: ReactNode
 }
 
 /** Qué hay dentro, sin abrir. Una sección intacta no es un error: está por empezar. */
@@ -42,7 +53,7 @@ function resumen(llenado: boolean, faltas: string[]): string {
 export function TarjetaSeccion({
   item, primera, ultima, subirAction, bajarAction,
   guardarSeccionAction, proponerAction, eliminarSeccionAction, esSub, tema,
-  sesionId, subirImagenAction,
+  sesionId, subirImagenAction, zonaDeAcuerdos,
 }: Props) {
   const borrador: BorradorSeccion = item.contenido.seccion ?? { layout: 'kpis-fila-dos-columnas' }
   const tipo = tipoDeSeccion(borrador.layout)
@@ -93,6 +104,8 @@ export function TarjetaSeccion({
         </div>
       </div>
 
+      {zonaDeAcuerdos}
+
       {/* Plegada por defecto: con catorce secciones abiertas la página medía
           veinte mil píxeles. Se abre sola la EMPEZADA y a medias — donde hay
           trabajo pendiente— pero NO la intacta: en una sesión nueva todas
@@ -112,6 +125,7 @@ export function TarjetaSeccion({
           guardarAction={guardarSeccionAction.bind(null, item.id)}
           textoCrudo={item.contenido.texto}
           proponerAction={proponerAction.bind(null, item.id)}
+          acuerdosRetomados={item.acuerdosRetomados}
         />
       </SeccionPlegable>
     </div>

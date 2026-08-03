@@ -6,6 +6,7 @@ import { SeccionDocumento } from '@/componentes/sesion/SeccionDocumento'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import type { BorradorSeccion } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
+import type { Acuerdo } from '@/dominio/salas'
 import estilos from './editor.module.css'
 import documento from '@/componentes/sesion/documento.module.css'
 
@@ -32,11 +33,13 @@ interface Props {
   borrador: BorradorSeccion
   tituloDeRespaldo?: string
   tema: Tema
+  /** Acuerdos retomados de la sala en este item, ya resueltos (ronda 9, tarea 6). */
+  acuerdosRetomados?: Acuerdo[]
 }
 
-export function VistaPrevia({ borrador, tituloDeRespaldo, tema }: Props) {
+export function VistaPrevia({ borrador, tituloDeRespaldo, tema, acuerdosRetomados }: Props) {
   const [abierta, setAbierta] = useState(true)
-  const resultado = maquetarBorrador(borrador, tituloDeRespaldo ?? 'Sección')
+  const resultado = maquetarBorrador(borrador, tituloDeRespaldo ?? 'Sección', acuerdosRetomados)
 
   return (
     <aside className={estilos.previa} data-abierta={abierta ? 'true' : undefined}>

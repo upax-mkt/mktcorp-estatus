@@ -10,7 +10,7 @@
  * edite); `resultado` es lo que resolvió el motor de maquetación — nulo
  * hasta que se maqueta la sesión.
  */
-import { and, asc, desc, eq, gte, lt, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, lt, ne } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -21,6 +21,7 @@ import type { Tema } from '@/temas'
 import type { EntradaCruda } from '@/motor/inventario'
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
+import { estatusEfectivo, type Acuerdo, type EstatusAcuerdo } from '@/dominio/salas'
 import {
   obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
 } from '@/secciones/plantillas'
@@ -55,6 +56,17 @@ export interface ContenidoItemCrudo {
   /** Rutas o URLs de imágenes que acompañan al item. */
   imagenes?: string[]
   nota?: string
+  /**
+   * IDs de acuerdos ABIERTOS de la sala retomados en este item (ronda 9,
+   * tarea 6). Es una REFERENCIA, no una copia: aquí solo vive el id. Quien
+   * quiera el texto, el responsable o el estatus lo lee resuelto en
+   * `ItemSesion.acuerdosRetomados` (ver `resolverAcuerdosRetomados` más
+   * abajo) — nunca de este arreglo. Guardar el texto aquí habría sido
+   * exactamente la duplicación que la tarea 6 evita: un acuerdo cerrado
+   * desde la sala tiene que verse cerrado aquí también, sin que nadie
+   * vuelva a tocar esta sección.
+   */
+  acuerdoIdsRetomados?: string[]
 }
 
 export interface ItemSesion {
@@ -71,6 +83,13 @@ export interface ItemSesion {
   esBase: boolean
   /** Lo que resolvió el motor (etapa 2) para este item. Nulo hasta maquetar. */
   resultado: ResultadoMaquetacion | null
+  /**
+   * Los acuerdos de `contenido.acuerdoIdsRetomados`, YA RESUELTOS contra la
+   * tabla `acuerdos` — con su `que`, `responsable` y estatus EFECTIVO de
+   * AHORA, no de cuando se retomaron (ronda 9, tarea 6). Vacío sin DB, sin
+   * ids que resolver, o si algún id ya no existe (el acuerdo se borró).
+   */
+  acuerdosRetomados: Acuerdo[]
 }
 
 export interface SesionResumen {
@@ -173,7 +192,13 @@ export function esLlenado(c: ContenidoItemCrudo | undefined | null): boolean {
       (c.texto && c.texto.trim().length > 0) ||
       (c.cifras && c.cifras.length > 0) ||
       (c.tablas && c.tablas.length > 0) ||
-      (c.imagenes && c.imagenes.length > 0),
+      (c.imagenes && c.imagenes.length > 0) ||
+      // Arrastrar acuerdos y no escribir nada más sigue siendo trabajo real
+      // (ronda 9, tarea 6): sin esto, una sesión con tres acuerdos retomados
+      // y ni una palabra tecleada se contaba como "0 secciones llenas" y
+      // `entradasCrudasDeSesion` la dejaba fuera de "Maquetar" — el acuerdo
+      // desaparecía del documento sin que nadie lo borrara.
+      (c.acuerdoIdsRetomados && c.acuerdoIdsRetomados.length > 0),
   )
 }
 
@@ -198,7 +223,13 @@ interface FilaItemComun {
   decisionMaquetacion: unknown
 }
 
-function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[], registro: Record<string, Tema>): SesionCompleta {
+function sesionCompletaDeFilas(
+  fila: FilaSesionComun,
+  itemsRows: FilaItemComun[],
+  registro: Record<string, Tema>,
+  /** Resuelve `contenido.acuerdoIdsRetomados` → `Acuerdo`. Vacío sin DB (ver `obtenerSesion`). */
+  acuerdosPorId: Map<string, Acuerdo>,
+): SesionCompleta {
   const identidad = identidadDe(fila.salaSlug, registro)
   const fijos = tiposFijosDe(fila.plantilla)
   const estructura = leerEstructura(fila.estructura)
@@ -212,6 +243,13 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
     .map((row) => {
       const def = defsPorTipo.get(row.tipo) ?? { tipo: row.tipo, titulo: row.tipo, pregunta: '' }
       const contenido = (row.contenidoCrudo ?? {}) as ContenidoItemCrudo
+      // Un id sin fila en el mapa (el acuerdo se borró desde entonces) se
+      // descarta en silencio: más barato que reventar la sesión por una
+      // referencia huérfana. Ver el comentario de `acuerdosRetomados` en
+      // `ItemSesion`.
+      const acuerdosRetomados = (contenido.acuerdoIdsRetomados ?? [])
+        .map((idAcuerdo) => acuerdosPorId.get(idAcuerdo))
+        .filter((a): a is Acuerdo => a != null)
       return {
         id: row.id,
         orden: row.orden,
@@ -226,6 +264,7 @@ function sesionCompletaDeFilas(fila: FilaSesionComun, itemsRows: FilaItemComun[]
         padre: def.padre,
         esBase: fijos.has(row.tipo),
         resultado: (row.decisionMaquetacion as ResultadoMaquetacion | null) ?? null,
+        acuerdosRetomados,
       }
     })
 
@@ -466,7 +505,9 @@ export async function obtenerSesion(id: string): Promise<SesionCompleta | null> 
   if (!hayDB()) {
     const fila = memoria.obtenerSesionMemoria(id)
     if (!fila) return null
-    return sesionCompletaDeFilas(fila, memoria.obtenerItemsDeSesionMemoria(id), registro)
+    // Sin DB no hay tabla `acuerdos` que consultar: mapa vacío, mismo
+    // criterio que el resto de la app ("sin DB no hay acuerdos que mostrar").
+    return sesionCompletaDeFilas(fila, memoria.obtenerItemsDeSesionMemoria(id), registro, new Map())
   }
 
   const conexion = db()
@@ -477,7 +518,102 @@ export async function obtenerSesion(id: string): Promise<SesionCompleta | null> 
     .from(esquema.items)
     .where(eq(esquema.items.sesionId, id))
     .orderBy(asc(esquema.items.orden))
-  return sesionCompletaDeFilas(fila, itemsRows, registro)
+
+  // Todo id de acuerdo referenciado por CUALQUIER item de la sesión, de una
+  // sola vez: con catorce secciones eso son catorce ids como mucho, no catorce
+  // consultas.
+  const idsAcuerdos = [
+    ...new Set(
+      itemsRows.flatMap((r) => ((r.contenidoCrudo ?? {}) as ContenidoItemCrudo).acuerdoIdsRetomados ?? []),
+    ),
+  ]
+  const acuerdosPorId = await resolverAcuerdosRetomados(idsAcuerdos, fila.salaSlug)
+
+  return sesionCompletaDeFilas(fila, itemsRows, registro, acuerdosPorId)
+}
+
+/**
+ * Los acuerdos de `ids`, con su estatus EFECTIVO (freeze de sala incluido) —
+ * resueltos AHORA, no guardados de cuando se retomaron. Es lo que garantiza
+ * que "si alguien lo cierra desde la sala, se cierra el mismo" en el
+ * editor y en el documento: no hay una copia de su estatus en ningún sitio,
+ * solo el id, y esto vuelve a preguntarle a `acuerdos` cada vez.
+ *
+ * Todos los ids retomados en una sesión son de SU sala —`acuerdosArrastrablesDe`
+ * (src/db/consultas.ts) solo ofrece los de `sesion.salaSlug`, que además no se
+ * puede editar después de crear la sesión (`editarSesion` no toca `salaSlug`)—
+ * así que una sola sala basta para resolver el freeze de todos.
+ */
+async function resolverAcuerdosRetomados(ids: string[], salaSlug: string | null): Promise<Map<string, Acuerdo>> {
+  const mapa = new Map<string, Acuerdo>()
+  if (ids.length === 0 || !salaSlug || !hayDB()) return mapa
+
+  const hoy = new Date().toISOString().slice(0, 10)
+  const filas = await db()
+    .select({
+      id: esquema.acuerdos.id,
+      que: esquema.acuerdos.que,
+      responsable: esquema.acuerdos.responsable,
+      squad: esquema.acuerdos.squad,
+      fechaCompromiso: esquema.acuerdos.fechaCompromiso,
+      estatus: esquema.acuerdos.estatus,
+      destacado: esquema.acuerdos.destacado,
+      salaActiva: esquema.salas.activa,
+    })
+    .from(esquema.acuerdos)
+    .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
+    .where(inArray(esquema.acuerdos.id, ids))
+
+  for (const f of filas) {
+    const fechaCompromiso = f.fechaCompromiso ? f.fechaCompromiso.toISOString().slice(0, 10) : null
+    mapa.set(f.id, {
+      id: f.id,
+      que: f.que,
+      responsable: f.responsable,
+      squad: f.squad ?? undefined,
+      fechaCompromiso,
+      estatus: estatusEfectivo({ estatus: f.estatus as EstatusAcuerdo, fechaCompromiso }, f.salaActiva, hoy),
+      destacado: f.destacado,
+    })
+  }
+  return mapa
+}
+
+/**
+ * En qué item de la sesión aterriza un acuerdo retomado (ronda 9, tarea 6):
+ * el de tipo `'acuerdos-pendientes'` —la sección fija del estatus de UDN, ver
+ * `ESTATUS_UDN` en src/secciones/plantillas.ts— si existe; si no, la primera
+ * sección que ya sea `pendientes-semaforo` (otra plantilla, como "seguimiento"
+ * o "arranque", también trae una). Si ninguna existe, no hay dónde ofrecerlo
+ * — `anadirAcuerdoRetomado` lo dice con un error claro en vez de inventar una
+ * sección que nadie pidió.
+ */
+export function itemDeAcuerdosPendientes(sesion: SesionCompleta): ItemSesion | undefined {
+  return (
+    sesion.items.find((i) => i.tipo === 'acuerdos-pendientes') ??
+    sesion.items.find((i) => i.contenido.seccion?.layout === 'pendientes-semaforo')
+  )
+}
+
+/**
+ * Retoma `acuerdoId` en `sesionId`: lo REFERENCIA en la sección de Acuerdos y
+ * Pendientes de la sesión (ronda 9, tarea 6), sin copiar su contenido — se
+ * guarda el id, no el texto (ver el comentario de `ContenidoItemCrudo.acuerdoIdsRetomados`).
+ * `obtenerSesion` es quien lo resuelve contra `acuerdos` en cada lectura, así
+ * que esto nunca queda desactualizado.
+ *
+ * Idempotente: retomarlo dos veces no lo duplica en la lista.
+ */
+export async function anadirAcuerdoRetomado(sesionId: string, acuerdoId: string): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+  const item = itemDeAcuerdosPendientes(sesion)
+  if (!item) {
+    throw new Error('Esta sesión no tiene una sección de Acuerdos y Pendientes a la que retomar el acuerdo.')
+  }
+  const actuales = item.contenido.acuerdoIdsRetomados ?? []
+  if (actuales.includes(acuerdoId)) return // ya estaba: nada que hacer.
+  await guardarItemContenido(sesionId, item.id, { ...item.contenido, acuerdoIdsRetomados: [...actuales, acuerdoId] })
 }
 
 /** Persiste lo que el equipo escribió para un item. Nunca toca `decisionMaquetacion`. */
@@ -817,6 +953,10 @@ export function entradasCrudasDeSesion(sesion: SesionCompleta): EntradaCruda[] {
       tablas: i.contenido.tablas,
       imagenes: i.contenido.imagenes,
       nota: i.contenido.nota,
+      // Ya resueltos (ver `resolverAcuerdosRetomados`): es lo que hace que
+      // "Maquetar" los meta al documento sin que nadie los haya copiado a
+      // mano en la tabla de pendientes.
+      acuerdosRetomados: i.acuerdosRetomados,
     }))
 }
 
