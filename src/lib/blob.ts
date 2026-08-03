@@ -69,6 +69,21 @@ export function rutaDeArchivo(salaSlug: string, categoria: string, nombre: strin
   return `salas/${salaSlug}/${categoria}/${crypto.randomUUID()}-${limpio}`
 }
 
+/**
+ * La inversa de `rutaDeArchivo`: qué categoría DECLARA una ruta, leyendo su
+ * segundo tramo (`salas/{sala}/{categoria}/{resto}`). Segmento exacto, no
+ * una búsqueda de subcadena — un nombre de archivo o de sala no debe poder
+ * colarse en la comparación.
+ *
+ * La usa `/api/archivos/subir` para decidir QUÉ política (tipos y tope de
+ * tamaño) ofrecer — ver el comentario ahí sobre qué garantiza eso y qué no:
+ * esto lee lo que el cliente DECLARA pedir, no un hecho que el servidor haya
+ * verificado contra el archivo real.
+ */
+export function categoriaDeclarada(pathname: string): string | undefined {
+  return pathname.split('/')[2]
+}
+
 /** "2.4 MB". Para escribirlo al lado del archivo en la lista. */
 export function pesoLegible(bytes: number | null): string | null {
   if (bytes == null || bytes <= 0) return null

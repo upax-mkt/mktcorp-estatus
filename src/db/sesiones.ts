@@ -20,7 +20,7 @@ import { cargarTemas, slugsDeSalas } from './temas'
 import type { Tema } from '@/temas'
 import type { EntradaCruda } from '@/motor/inventario'
 import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
-import type { DecisionSlide } from '@/decision/esquema'
+import { normalizarImagen, type DecisionSlide } from '@/decision/esquema'
 import { estatusEfectivo, type Acuerdo, type EstatusAcuerdo } from '@/dominio/salas'
 import {
   obtenerPlantilla, tiposFijosDe, PLANTILLA_POR_DEFECTO, type DefinicionItem,
@@ -223,6 +223,27 @@ interface FilaItemComun {
   decisionMaquetacion: unknown
 }
 
+/**
+ * `contenidoCrudo`/`decisionMaquetacion` son `jsonb` sin validar al leer —
+ * `unknown` casteado a ciegas, arriba y abajo. Una fila guardada ANTES de
+ * la ronda 9 (tarea 7) sigue trayendo `imagen` como una URL suelta, no como
+ * el objeto que el código de hoy espera. Se normaliza AQUÍ, en el único
+ * lugar por el que pasa TODO lo que sale de la base o de la memoria (ver los
+ * dos llamadores de `sesionCompletaDeFilas`), para que ni el editor
+ * (`contenido.seccion.imagen`) ni el documento (`resultado.decision.imagen`)
+ * tengan que saber que la forma vieja existió. Ver `normalizarImagen` en
+ * `src/decision/esquema.ts` para el porqué y el caso real que lo disparó.
+ */
+function contenidoConImagenNormalizada(contenido: ContenidoItemCrudo): ContenidoItemCrudo {
+  if (!contenido.seccion) return contenido
+  return { ...contenido, seccion: { ...contenido.seccion, imagen: normalizarImagen(contenido.seccion.imagen) } }
+}
+
+function resultadoConImagenNormalizada(resultado: ResultadoMaquetacion | null): ResultadoMaquetacion | null {
+  if (!resultado?.decision) return resultado
+  return { ...resultado, decision: { ...resultado.decision, imagen: normalizarImagen(resultado.decision.imagen) } }
+}
+
 function sesionCompletaDeFilas(
   fila: FilaSesionComun,
   itemsRows: FilaItemComun[],
@@ -242,7 +263,7 @@ function sesionCompletaDeFilas(
     .sort((a, b) => a.orden - b.orden)
     .map((row) => {
       const def = defsPorTipo.get(row.tipo) ?? { tipo: row.tipo, titulo: row.tipo, pregunta: '' }
-      const contenido = (row.contenidoCrudo ?? {}) as ContenidoItemCrudo
+      const contenido = contenidoConImagenNormalizada((row.contenidoCrudo ?? {}) as ContenidoItemCrudo)
       // Un id sin fila en el mapa (el acuerdo se borró desde entonces) se
       // descarta en silencio: más barato que reventar la sesión por una
       // referencia huérfana. Ver el comentario de `acuerdosRetomados` en
@@ -263,7 +284,7 @@ function sesionCompletaDeFilas(
         llenado: esLlenado(contenido),
         padre: def.padre,
         esBase: fijos.has(row.tipo),
-        resultado: (row.decisionMaquetacion as ResultadoMaquetacion | null) ?? null,
+        resultado: resultadoConImagenNormalizada((row.decisionMaquetacion as ResultadoMaquetacion | null) ?? null),
         acuerdosRetomados,
       }
     })

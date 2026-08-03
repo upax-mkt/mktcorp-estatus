@@ -144,6 +144,36 @@ const Imagen = z.object({
 export type ImagenSeccion = z.infer<typeof Imagen>
 
 /**
+ * NORMALIZA LA FORMA VIEJA DE `imagen` — antes de la ronda 9, tarea 7, era
+ * una URL suelta (`string`), no un objeto. `contenidoCrudo`/
+ * `decisionMaquetacion` son `jsonb` sin validar al leer (`unknown`, casteado
+ * a ciegas — ver `src/db/sesiones.ts`), así que una fila guardada ANTES de
+ * este cambio sigue trayendo esa forma vieja hoy: en producción, la sesión
+ * de NeraCode «La pieza que mejor funcionó» es exactamente ese caso.
+ *
+ * Sin esto, dos formas de romperse: `decision.imagen.url` sobre un string da
+ * `undefined` (la imagen sale rota, en silencio), y `{ ...imagen,
+ * anchoPorcentaje }` sobre un string lo descompone en un objeto de
+ * caracteres sueltos (`{0:'/',1:'l',...}`) — el tirador de `CampoImagen`
+ * destruye la URL en cuanto alguien lo toca, y el autoguardado la persiste
+ * así, sin aviso, porque no valida forma.
+ *
+ * SE APLICA AL LEER, no es un backfill de la base: la fila sigue con la
+ * forma vieja hasta que alguien vuelve a guardar esa sección — y entonces se
+ * guarda ya en la forma nueva, porque para entonces el valor en memoria ya
+ * está normalizado. Cubre cualquier fila vieja que no se haya encontrado,
+ * no solo la de NeraCode.
+ */
+export function normalizarImagen(valor: unknown): ImagenSeccion | undefined {
+  if (valor == null) return undefined
+  if (typeof valor === 'string') {
+    const limpio = valor.trim()
+    return limpio.length > 0 ? { url: limpio } : undefined
+  }
+  return valor as ImagenSeccion
+}
+
+/**
  * El vídeo de una sección: se SUBE desde el editor (`CampoVideo`), nunca lo
  * genera la IA — el inventario de una sesión no trae piezas de vídeo (ver
  * `src/motor/inventario.ts`), así que solo lo lleva una sección compuesta a

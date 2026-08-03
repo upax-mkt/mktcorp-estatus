@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { parsearDecision, esDecisionValida, EsquemaDecision } from './esquema'
+import { parsearDecision, esDecisionValida, EsquemaDecision, normalizarImagen } from './esquema'
 
 const VALIDA = {
   layout: 'kpis-fila-dos-columnas',
@@ -250,6 +250,53 @@ describe('esDecisionValida', () => {
   it('devuelve true o false sin lanzar', () => {
     expect(esDecisionValida(VALIDA)).toBe(true)
     expect(esDecisionValida({ layout: 'portada' })).toBe(false)
+  })
+})
+
+/**
+ * `normalizarImagen` — LA FORMA VIEJA (revisión post-entrega, tarea 7).
+ *
+ * Antes de este cambio, `imagen` era una URL suelta (`string`). El caso
+ * real: la sesión de NeraCode "cd2e793b-4d3b-47b4-b30c-f8e20c581992" —
+ * "La pieza que mejor funcionó" — sigue en producción con esa forma vieja,
+ * en las dos columnas jsonb (`contenido_crudo` Y `decision_maquetacion`,
+ * confirmado leyendo la base). Nada valida esas columnas al leer, así que
+ * sin esto: `decision.imagen.url` da `undefined` (imagen rota, en
+ * silencio) y `{ ...imagen, anchoPorcentaje }` sobre el string lo
+ * descompone en un objeto de caracteres sueltos, destruyendo la URL en
+ * cuanto alguien toca el tirador de `CampoImagen`.
+ */
+describe('normalizarImagen — la forma vieja (string) de datos guardados antes de este cambio', () => {
+  it('la URL vieja, literal, se convierte en el objeto de hoy', () => {
+    // El valor real de la fila de NeraCode, tal cual está en la base.
+    expect(normalizarImagen('/logos/neracode-color.png')).toEqual({ url: '/logos/neracode-color.png' })
+  })
+
+  it('recorta espacios de sobra, igual que el resto del contrato', () => {
+    expect(normalizarImagen('  /logos/x.png  ')).toEqual({ url: '/logos/x.png' })
+  })
+
+  it('un string vacío o solo de espacios no es una imagen', () => {
+    expect(normalizarImagen('')).toBeUndefined()
+    expect(normalizarImagen('   ')).toBeUndefined()
+  })
+
+  it('sin imagen, sigue sin imagen', () => {
+    expect(normalizarImagen(undefined)).toBeUndefined()
+    expect(normalizarImagen(null)).toBeUndefined()
+  })
+
+  it('la forma nueva (ya un objeto) pasa intacta — no la reescribe ni le quita ancho/alineación', () => {
+    const yaNormalizada = { url: '/x.png', anchoPorcentaje: 60, alineacion: 'derecha' as const }
+    expect(normalizarImagen(yaNormalizada)).toEqual(yaNormalizada)
+  })
+
+  it('el objeto que devuelve tiene URL real: el spread del tirador ya no la descompone', () => {
+    // Es la regresión exacta que rompía en producción:
+    // `{ ...'/logos/x.png', anchoPorcentaje: 60 }` da `{0:'/',1:'l',...}`.
+    const normalizada = normalizarImagen('/logos/neracode-color.png')
+    const conAncho = { ...normalizada, anchoPorcentaje: 60 }
+    expect(conAncho).toEqual({ url: '/logos/neracode-color.png', anchoPorcentaje: 60 })
   })
 })
 

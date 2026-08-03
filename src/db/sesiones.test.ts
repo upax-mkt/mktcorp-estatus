@@ -21,8 +21,9 @@ vi.mock('./salas', () => ({
   salaEstaActiva: (...args: unknown[]) => salaEstaActivaMock(...args),
 }))
 
-const { crearSesion, sesionesPublicasDelMes } = await import('./sesiones')
-const { reiniciarStoreMemoria } = await import('./store-memoria')
+const { crearSesion, sesionesPublicasDelMes, anadirSeccion, obtenerSesion } = await import('./sesiones')
+const { reiniciarStoreMemoria, actualizarContenidoItemMemoria, actualizarDecisionItemMemoria } =
+  await import('./store-memoria')
 
 beforeEach(() => {
   reiniciarStoreMemoria()
@@ -102,5 +103,72 @@ describe('sesionesPublicasDelMes — sin DB no hay nada que anunciar', () => {
   it('devuelve la lista vacía, no una mentira sobre qué salas están activas', async () => {
     const reuniones = await sesionesPublicasDelMes(2026, 8)
     expect(reuniones).toEqual([])
+  })
+})
+
+/**
+ * `imagen` VIVÍA COMO UNA URL SUELTA antes de la ronda 9, tarea 7 — no como
+ * el objeto `{ url, anchoPorcentaje?, alineacion? }` de hoy.
+ * `contenidoCrudo`/`decisionMaquetacion` son `jsonb` sin validar al leer, así
+ * que una fila guardada con la forma vieja sigue en la base con esa forma:
+ * en producción, la sesión de NeraCode "cd2e793b-…" — item "La pieza que
+ * mejor funcionó" — es exactamente este caso.
+ *
+ * Se inyecta la forma vieja EN CRUDO, saltándose el tipo (`unknown` en
+ * `actualizarContenidoItemMemoria`/`actualizarDecisionItemMemoria`, igual
+ * que la fila real en Postgres no pasa por ningún `.parse()` al guardarse):
+ * es la única forma honesta de simular datos que ya existían antes de que
+ * el tipo cambiara, no algo que el código de hoy pudiera producir.
+ */
+describe('imagen con la forma vieja (string) sigue en la base — se normaliza al leer', () => {
+  async function sesionConImagenVieja() {
+    const { id: sesionId } = await crearSesion({ salaSlug: null, tipo: 'mensual', alcance: 'todos' })
+    const { itemId } = await anadirSeccion(sesionId, 'imagen-a-sangre', 'La pieza que mejor funcionó')
+    actualizarContenidoItemMemoria(itemId, {
+      seccion: { layout: 'imagen-a-sangre', titulo: 'La pieza que mejor funcionó', imagen: '/logos/neracode-color.png' },
+    })
+    // `decisionMaquetacion` guarda un `ResultadoMaquetacion` —
+    // `{ decision: {...}, degradado, motivo? }`—, no la `DecisionSlide`
+    // suelta: así la escribe `guardarDecisiones` (src/db/sesiones.ts) y así
+    // está la fila real en producción, confirmado leyendo
+    // `decision_maquetacion->'decision'->>'imagen'`.
+    actualizarDecisionItemMemoria(itemId, {
+      degradado: false,
+      decision: {
+        layout: 'imagen-a-sangre',
+        titulo: 'La pieza que mejor funcionó',
+        razon: 'Sección compuesta por el equipo de Marketing Corporativo.',
+        imagen: '/logos/neracode-color.png',
+      },
+    })
+    return sesionId
+  }
+
+  it('el borrador del editor (contenido.seccion.imagen) llega como objeto, no como string', async () => {
+    const sesionId = await sesionConImagenVieja()
+    const sesion = await obtenerSesion(sesionId)
+    const item = sesion!.items.find((i) => i.titulo === 'La pieza que mejor funcionó')!
+    expect(item.contenido.seccion?.imagen).toEqual({ url: '/logos/neracode-color.png' })
+  })
+
+  it('la decisión ya maquetada (resultado.decision.imagen) llega como objeto, no como string', async () => {
+    // El caso que rompía en silencio: `decision.imagen.url` sobre un string
+    // da `undefined`, y `SeccionDocumento` no tiene ninguna marca de
+    // degradado para avisarlo — la imagen sale rota sin que nadie lo note.
+    const sesionId = await sesionConImagenVieja()
+    const sesion = await obtenerSesion(sesionId)
+    const item = sesion!.items.find((i) => i.titulo === 'La pieza que mejor funcionó')!
+    expect(item.resultado?.decision.imagen).toEqual({ url: '/logos/neracode-color.png' })
+  })
+
+  it('el objeto normalizado tiene `url` de verdad: el tirador ya no lo puede descomponer en caracteres', async () => {
+    // Antes del fix, `{ ...'/logos/x.png', anchoPorcentaje: 60 }` producía
+    // `{ 0: '/', 1: 'l', ..., anchoPorcentaje: 60 }` — la URL desaparecía.
+    // Con el objeto ya normalizado, el mismo spread solo toca `anchoPorcentaje`.
+    const sesionId = await sesionConImagenVieja()
+    const sesion = await obtenerSesion(sesionId)
+    const item = sesion!.items.find((i) => i.titulo === 'La pieza que mejor funcionó')!
+    const conAncho = { ...item.contenido.seccion!.imagen, anchoPorcentaje: 60 }
+    expect(conAncho).toEqual({ url: '/logos/neracode-color.png', anchoPorcentaje: 60 })
   })
 })
