@@ -169,7 +169,14 @@ export default async function Hub() {
           <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
-          <Link href="/salas" className={estilos.barraLink}>Salas</Link>
+          {/* /salas y /personas son las dos únicas secciones solo-admin
+              (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
+              mismo gate aquí (revisión del coordinador a la tarea 3): las dos
+              pantallas ya exigen `exigirAdmin()` por dentro, así que esto no
+              es la protección real, pero un editor o viewer que hace clic y
+              rebota al login sin explicación es una interfaz que promete algo
+              que no puede cumplir. */}
+          {admin && <Link href="/salas" className={estilos.barraLink}>Salas</Link>}
           {admin && <Link href="/personas" className={estilos.barraLink}>Personas</Link>}
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
