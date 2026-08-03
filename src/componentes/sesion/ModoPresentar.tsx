@@ -55,6 +55,24 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
   /** Lo grabado, esperando a que alguien lo revise y lo convierta en minuta. */
   const [transcripcion, setTranscripcion] = useState<string | null>(null)
   const dialogoMinuta = useRef<HTMLDialogElement>(null)
+  /** Ver `salir()`: si «Salir» va a cortar una grabación viva, pide confirmar primero. */
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
+  /**
+   * Copia en ref de `confirmarSalida`, para que `salir()` la lea al día pase
+   * lo que pase con qué cierre exacto la esté ejecutando — ver el comentario
+   * grande en `salir()`.
+   */
+  const confirmarSalidaRef = useRef(false)
+  useEffect(() => {
+    confirmarSalidaRef.current = confirmarSalida
+  }, [confirmarSalida])
+  /**
+   * La última copia de lo grabado, según llega (prop `alAcumular` de
+   * `GrabarReunion`) — independiente de `transcripcion`, que solo se llena
+   * al TERMINAR. Sirve únicamente para que `salir()` sepa si hay algo que
+   * una salida cortaría a medio camino; no se muestra en pantalla.
+   */
+  const grabacionEnCurso = useRef('')
 
   useEffect(() => {
     const n = dialogoMinuta.current
@@ -103,6 +121,35 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
   }
 
   async function salir() {
+    /*
+     * SEGUNDA RED, no la principal — diagnóstico 2026-07-31 y comentario
+     * grande en `GrabarReunion.tsx` (la limpieza al desmontar).
+     *
+     * Esto solo evita CORTAR una grabación viva sin querer con el botón
+     * «Salir» o con el Esc que captura el efecto de más abajo. NO cubre el
+     * Esc NATIVO del navegador saliendo de pantalla completa: ese sale de
+     * pantalla completa él solo, sin pasar por esta función, y no se puede
+     * interceptar — por eso la garantía real de que nada se pierde vive en
+     * `GrabarReunion`, no aquí.
+     *
+     * Dos pasos (pedir, y solo salir si ya se pidió) y no un `confirm()` del
+     * navegador: mismo criterio que `PausaSala`/`EliminarSeccion` en esta
+     * misma base.
+     *
+     * Se lee `confirmarSalidaRef.current` y NO el `confirmarSalida` de
+     * arriba: el efecto del teclado (más abajo) tiene `[presentando, actual]`
+     * como dependencias A PROPÓSITO —no se resuscribe en cada tecla de
+     * sección—, así que su `alTeclado` puede seguir referenciando un `salir`
+     * de un render viejo. Leyendo el ref en vez del estado capturado, da
+     * igual qué cierre de `salir` se ejecute: el SEGUNDO Esc (el que
+     * confirma) siempre ve el valor actual.
+     */
+    if (grabacionEnCurso.current.trim() && !confirmarSalidaRef.current) {
+      setConfirmarSalida(true)
+      return
+    }
+    setConfirmarSalida(false)
+
     if (document.fullscreenElement) {
       try {
         await document.exitFullscreen()
@@ -114,6 +161,20 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
     // El láser se apaga solo: un punto rojo persiguiendo al lector en una
     // página que se lee con scroll es un estorbo, no una herramienta.
     setLaser(false)
+  }
+
+  /** `alTerminar` de `GrabarReunion`: además de abrir la revisión, esta
+   * sesión ya se entregó — apaga la señal de "hay grabación viva". */
+  function alTerminarGrabacion(texto: string) {
+    grabacionEnCurso.current = ''
+    setConfirmarSalida(false)
+    setTranscripcion(texto)
+  }
+
+  /** `alAcumular` de `GrabarReunion`: la copia fuera del componente, según
+   * llega — ver el comentario en `GrabarReunion.tsx`. */
+  function alAcumularGrabacion(texto: string) {
+    grabacionEnCurso.current = texto
   }
 
   function irA(indice: number) {
@@ -208,11 +269,25 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
             </button>
 
             {/* Grabar solo si hay sesión y quien presenta puede minutar. */}
-            {sesionId && equipo && <GrabarReunion alTerminar={setTranscripcion} />}
+            {sesionId && equipo && (
+              <GrabarReunion alTerminar={alTerminarGrabacion} alAcumular={alAcumularGrabacion} />
+            )}
 
-            <button type="button" onClick={salir} className={estilos.salir}>
-              Salir
-            </button>
+            {confirmarSalida ? (
+              <span className={estilos.confirmarSalida}>
+                <span className={estilos.confirmarSalidaTexto}>Hay una grabación en curso.</span>
+                <button type="button" onClick={salir} className={estilos.confirmarSalidaSi}>
+                  Sí, salir
+                </button>
+                <button type="button" onClick={() => setConfirmarSalida(false)}>
+                  No
+                </button>
+              </span>
+            ) : (
+              <button type="button" onClick={salir} className={estilos.salir}>
+                Salir
+              </button>
+            )}
           </nav>
         )}
       </div>

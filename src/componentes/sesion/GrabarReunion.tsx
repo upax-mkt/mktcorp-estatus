@@ -53,18 +53,38 @@ function constructorDeReconocimiento(): ConstructorReconocimiento | null {
 interface Props {
   /** Se llama al parar, con lo transcrito. Vacío si no se oyó nada. */
   alTerminar: (transcripcion: string) => void
+  /**
+   * Se llama con TODO lo acumulado hasta el momento, cada vez que llega un
+   * tramo nuevo confirmado (`onresult` con `isFinal`) — no solo con lo nuevo.
+   *
+   * Opcional, y pensado para que exista una copia fuera de este componente
+   * mientras graba, no solo al terminar: diagnóstico 2026-07-31, la
+   * transcripción es lo único de una reunión que no se puede recuperar, así
+   * que cuantos más sitios tengan una copia de lo ya dicho, menos depende
+   * todo de que un solo camino (este componente, este `useRef`) llegue
+   * entero hasta el final. `ModoPresentar` la usa para saber si hay
+   * grabación viva antes de dejar salir de la presentación.
+   */
+  alAcumular?: (texto: string) => void
 }
 
 /** Nunca cambia: no hay a qué suscribirse. */
 const SIN_SUSCRIPCION = () => () => {}
 
-export function GrabarReunion({ alTerminar }: Props) {
+export function GrabarReunion({ alTerminar, alAcumular }: Props) {
   const [estado, setEstado] = useState<'listo' | 'grabando'>('listo')
   const [error, setError] = useState<string | null>(null)
   const [parcial, setParcial] = useState('')
   const [palabras, setPalabras] = useState(0)
   const reconocimiento = useRef<Reconocimiento | null>(null)
   const texto = useRef<string[]>([])
+
+  /** Lo acumulado hasta ahora, como una sola cadena. Un solo sitio que hace
+   * `texto.current.join(' ').trim()` para que la limpieza de desmontaje, el
+   * arranque y `onresult` cuenten siempre la misma historia. */
+  function textoAcumulado(): string {
+    return texto.current.join(' ').trim()
+  }
 
   /**
    * ¿Este navegador transcribe?
@@ -83,14 +103,46 @@ export function GrabarReunion({ alTerminar }: Props) {
     () => true,
   )
 
-  // Se para al desmontar pase lo que pase: un reconocimiento vivo sigue
-  // escuchando el micrófono después de cerrar la presentación.
+  // `alTerminar` se usa dentro de la limpieza de un efecto que se monta UNA
+  // sola vez (dependencias `[]`, a propósito: no hay que reiniciar el
+  // reconocimiento en cada render). Ese cierre queda fijo con el `alTerminar`
+  // del primer render; el ref lo mantiene al día sin tener que meterlo en el
+  // arreglo de dependencias y sin reiniciar el efecto en cada cambio de prop.
+  // La escritura va DENTRO de un efecto y no en el cuerpo del componente:
+  // React (y el lint de react-hooks/refs) no deja tocar un ref durante el
+  // render, solo en manejadores o efectos.
+  const alTerminarRef = useRef(alTerminar)
+  useEffect(() => {
+    alTerminarRef.current = alTerminar
+  }, [alTerminar])
+
+  // Se para al desmontar pase lo que pase, Y ENTREGA LO ACUMULADO si había
+  // una grabación viva — antes de este fix solo apagaba el micrófono.
+  //
+  // Diagnóstico 2026-07-31: la transcripción es lo único de una reunión que
+  // no se puede recuperar, y hasta este fix el ÚNICO camino que la entregaba
+  // era el clic en «Parar y minutar» (ver `parar()` más abajo). Salir de la
+  // presentación a medio grabar —el botón «Salir», el Esc que captura
+  // `ModoPresentar`, o el Esc NATIVO del navegador saliendo de pantalla
+  // completa, que esta app no puede interceptar— desmonta este componente
+  // sin pasar por ahí, y eso perdía la reunión completa en silencio.
+  //
+  // `reconocimiento.current !== null` es la señal de "hubo una sesión viva
+  // que no pasó por `parar()`": se comprueba eso y no si hay texto, porque
+  // una grabación que arrancó y todavía no capturó nada merece el mismo
+  // trato que un «Parar y minutar» con la sala en silencio — que ya entrega
+  // una cadena vacía sin distinguir el caso (ver el tercer test: sin haber
+  // llegado a grabar nunca, `reconocimiento.current` sigue en `null` y no se
+  // entrega nada).
   useEffect(() => {
     return () => {
-      try {
-        reconocimiento.current?.stop()
-      } catch {
-        /* ya estaba parado */
+      if (reconocimiento.current) {
+        try {
+          reconocimiento.current.stop()
+        } catch {
+          /* ya estaba parado */
+        }
+        alTerminarRef.current(textoAcumulado())
       }
     }
   }, [])
@@ -142,8 +194,19 @@ export function GrabarReunion({ alTerminar }: Props) {
       return
     }
 
-    texto.current = []
-    setPalabras(0)
+    // OJO: `texto.current` NO se limpia aquí a propósito.
+    //
+    // Ruta 2 del diagnóstico 2026-07-31: un error de reconocimiento a media
+    // reunión (`network`, `audio-capture`) devuelve el botón a «Grabar» sin
+    // haber entregado nada (ver `onerror`). Si al pulsar «Grabar» de nuevo
+    // esto borrara `texto.current`, el gesto con el que alguien intenta
+    // SEGUIR grabando sería el mismo que borra lo ya dicho. Quien sí limpia
+    // es `parar()`: ahí la reunión ya se entregó de verdad, y la siguiente
+    // vez que se pulse «Grabar» es una sesión distinta que debe empezar en
+    // blanco. `setPalabras` sí se recalcula, por si esto es un reinicio y ya
+    // había algo acumulado — mostrar "0 palabras" habiendo ya una reunión
+    // grabada sería mentir en pantalla.
+    setPalabras(textoAcumulado().split(/\s+/).filter(Boolean).length)
 
     const r = new Constructor()
     r.lang = 'es-MX'
@@ -160,7 +223,14 @@ export function GrabarReunion({ alTerminar }: Props) {
         else enCurso += trozo
       }
       setParcial(enCurso)
-      setPalabras(texto.current.join(' ').split(/\s+/).filter(Boolean).length)
+      const acumulado = textoAcumulado()
+      setPalabras(acumulado.split(/\s+/).filter(Boolean).length)
+      // Copia fuera del componente, según llega: si algo impide que la
+      // limpieza de desmontaje entregue lo acumulado como se espera, quien
+      // pasó `alAcumular` (hoy, `ModoPresentar`) ya tiene lo último que se
+      // dijo. Diagnóstico 2026-07-31: la transcripción es lo único de una
+      // reunión que no se puede recuperar.
+      alAcumular?.(acumulado)
     }
 
     r.onerror = (e) => {
@@ -173,6 +243,12 @@ export function GrabarReunion({ alTerminar }: Props) {
           : `El reconocimiento se detuvo (${e.error}).`,
       )
       setEstado('listo')
+      // NO se toca `texto.current`: ruta 2 del diagnóstico 2026-07-31. Antes
+      // de este fix el botón volvía a decir «Grabar» sin haber entregado
+      // nada, y lo acumulado quedaba huérfano — sin un «Parar y minutar» que
+      // lo entregara y sin sobrevivir a un reinicio, que lo borraba (ver el
+      // comentario en `arrancar()`). Aquí no hay nada que arreglar en el
+      // sentido de "limpiar": el arreglo es, precisamente, NO limpiar.
     }
 
     // Chrome corta solo cada cierto tiempo. Se reanuda mientras siga grabando:
@@ -206,7 +282,12 @@ export function GrabarReunion({ alTerminar }: Props) {
     }
     setEstado('listo')
     setParcial('')
-    alTerminar(texto.current.join(' ').trim())
+    const acumulado = textoAcumulado()
+    // Esta sesión ya se entregó de verdad: limpiar aquí, y no en `arrancar()`,
+    // es lo que deja que un reinicio TRAS UN ERROR seguir acumulando (arriba)
+    // sin que una reunión nueva arranque heredando el texto de la anterior.
+    texto.current = []
+    alTerminar(acumulado)
   }
 
   if (!soportado) {
