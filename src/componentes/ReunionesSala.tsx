@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { Reunion } from '@/dominio/salas'
+import type { Participante } from '@/db/participacion'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
+import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
 import estilos from '@/app/cliente/cliente.module.css'
 
@@ -29,9 +31,17 @@ interface Props {
   reuniones: Reunion[]
   /** El equipo puede corregir la minuta; el director solo la lee. */
   equipo: boolean
+  /**
+   * Quién preparó y quién presentó cada reunión, por `sesionId` — SOLO llega
+   * poblado cuando quien mira es equipo (ver el comentario junto a donde se
+   * arma, en `src/app/cliente/[slug]/page.tsx`). Con un director de UDN
+   * mirando, este objeto llega vacío: no hay nombres que ocultar al pintar
+   * porque no hay nombres que hayan viajado hasta aquí.
+   */
+  participacionPorSesion?: Record<string, Participante[]>
 }
 
-export function ReunionesSala({ reuniones, equipo }: Props) {
+export function ReunionesSala({ reuniones, equipo, participacionPorSesion = {} }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -55,6 +65,16 @@ export function ReunionesSala({ reuniones, equipo }: Props) {
 
   const [ultima, ...anteriores] = reuniones
   const minutaDe = (r: Reunion) => r.minuta
+  /**
+   * Quién tocó ESTA reunión, o `undefined` si no hay nada que decir.
+   *
+   * Defensa doble a propósito, no redundancia inútil: el mapa ya llega vacío
+   * para un director (page.tsx no lo pide), pero este componente tampoco lo
+   * pintaría aunque llegara poblado — `equipo` se comprueba también aquí.
+   */
+  const participantesDeReunion = (r: Reunion): Participante[] | undefined =>
+    equipo && r.sesionId ? participacionPorSesion[r.sesionId] : undefined
+  const participantesUltima = participantesDeReunion(ultima)
 
   return (
     <>
@@ -67,19 +87,28 @@ export function ReunionesSala({ reuniones, equipo }: Props) {
           </div>
         </div>
         <Caras reunion={ultima} onLeerMinuta={() => setAbierta(ultima)} />
+        {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
       </div>
 
       {anteriores.length > 0 && (
         <div className={estilos.reuniones}>
-          {anteriores.map((r) => (
-            <div key={r.sesionId ?? r.fecha} className={estilos.reunionFila}>
-              <div className={estilos.reunionFilaTexto}>
-                <span className={estilos.presFilaTitulo}>{r.titulo}</span>
-                <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
+          {anteriores.map((r) => {
+            const participantes = participantesDeReunion(r)
+            return (
+              <div key={r.sesionId ?? r.fecha} className={estilos.reunionFila}>
+                <div className={estilos.reunionFilaTexto}>
+                  <span className={estilos.presFilaTitulo}>{r.titulo}</span>
+                  <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
+                </div>
+                <Caras reunion={r} onLeerMinuta={() => setAbierta(r)} compacta />
+                {participantes && (
+                  <div className={estilos.reunionFilaParticipacion}>
+                    <ParticipantesSesion participantes={participantes} />
+                  </div>
+                )}
               </div>
-              <Caras reunion={r} onLeerMinuta={() => setAbierta(r)} compacta />
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

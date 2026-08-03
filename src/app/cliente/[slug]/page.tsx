@@ -16,6 +16,7 @@ import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
 } from '@/db/acuerdos'
 import { directorio } from '@/db/personas'
+import { participantesDe, type Participante } from '@/db/participacion'
 import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
@@ -388,6 +389,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // Una reunión = la presentación y su minuta, unidas por la sesión de la que
   // salieron. Ver `reunionesDeSala`.
   const reuniones = reunionesDeSala(s.presentaciones, s.minutas)
+  /**
+   * QUIÉN PREPARÓ Y QUIÉN PRESENTÓ CADA REUNIÓN, junto a cada una en la sala
+   * (ronda 10) — SOLO EQUIPO, con el mismo `equipo` de arriba (`esLector()`).
+   *
+   * Mismo razonamiento que `directorio()` unas líneas más arriba, y mismo
+   * agujero que ya se cerró en `/reunion/[id]`: la guarda no puede estar
+   * solo en lo que se PINTA —`ReunionesSala` es `'use client'`, y lo que
+   * un Server Component le pasa de prop se serializa en el payload aunque el
+   * propio componente decida no mostrarlo— sino en lo que se PIDE. Sin
+   * equipo, `participantesDe` NI SIQUIERA SE LLAMA: los nombres de Mkt Corp
+   * no llegan a existir en este cierre, así que no hay nada que viajar al
+   * navegador del director.
+   */
+  const idsDeSesion = reuniones.map((r) => r.sesionId).filter((x): x is string => Boolean(x))
+  const participacionPorSesion: Record<string, Participante[]> = {}
+  if (equipo) {
+    const listas = await Promise.all(idsDeSesion.map((id) => participantesDe(id)))
+    idsDeSesion.forEach((id, i) => { participacionPorSesion[id] = listas[i] })
+  }
   // Toda sesión de ESTA sala cuyo día ya llegó y siga sin minuta, sea
   // borrador o no. Ver `sesionesMinutables`.
   const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x)))
@@ -613,7 +633,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             </div>
           )}
 
-          <ReunionesSala reuniones={reuniones} equipo={equipo} />
+          <ReunionesSala reuniones={reuniones} equipo={equipo} participacionPorSesion={participacionPorSesion} />
 
           {equipo && (
             <div className={estilos.reunionAcciones}>
