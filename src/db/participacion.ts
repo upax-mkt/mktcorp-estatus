@@ -72,19 +72,32 @@ export function resumirParticipacion(participantes: Participante[]): ResumenPart
  * mismo correo) suma uno y mueve `ultimaEdicion` — nunca lee antes de
  * escribir.
  *
- * Silenciosa sin base de datos: es una bitácora, no puede tumbar la acción
- * real (guardar la sección, maquetar…) que la dispara.
+ * NUNCA PROPAGA (revisión de la ronda 9, tarea 4 — hallazgo del revisor).
+ * `publicarMinutaAction` (`src/app/deck/[id]/minuta/acciones.ts`) llama a
+ * esta función DESPUÉS de crear la sesión y guardar la minuta, dentro de su
+ * propio try/catch. Si esta escritura fallara (un hipo transitorio de red
+ * contra Neon) y el error se dejara subir, ese try/catch lo atraparía y
+ * devolvería «no se pudo publicar» — con el acta YA publicada de verdad. Un
+ * reintento del usuario, con el mismo `{ nueva: ... }`, volvería a crear la
+ * sesión y su minuta: la misma «reunión fantasma» que el comentario de esa
+ * función documenta como corregida en otra ronda. Esto es bitácora, no el
+ * dato que importa: nunca puede tumbar a quien la llama, en ninguno de los
+ * doce sitios que la usan. `console.error` es el único rastro que queda.
  */
 export async function registrarEdicion(sesionId: string, correo: string): Promise<void> {
   if (!hayDB()) return
   const ahora = new Date()
-  await db()
-    .insert(esquema.participacion)
-    .values({ sesionId, correo, primeraEdicion: ahora, ultimaEdicion: ahora, ediciones: 1, presento: false })
-    .onConflictDoUpdate({
-      target: [esquema.participacion.sesionId, esquema.participacion.correo],
-      set: { ultimaEdicion: ahora, ediciones: sql`${esquema.participacion.ediciones} + 1` },
-    })
+  try {
+    await db()
+      .insert(esquema.participacion)
+      .values({ sesionId, correo, primeraEdicion: ahora, ultimaEdicion: ahora, ediciones: 1, presento: false })
+      .onConflictDoUpdate({
+        target: [esquema.participacion.sesionId, esquema.participacion.correo],
+        set: { ultimaEdicion: ahora, ediciones: sql`${esquema.participacion.ediciones} + 1` },
+      })
+  } catch (error) {
+    console.error(`[registrarEdicion] no se pudo registrar la edición de "${correo}" en "${sesionId}":`, error)
+  }
 }
 
 /**

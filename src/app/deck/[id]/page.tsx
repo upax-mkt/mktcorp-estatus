@@ -103,15 +103,25 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
    * Devuelve la propuesta SIN guardarla. Cae en el formulario del navegador y
    * ahí se corrige; nadie presenta algo que no revisó. Guarda el texto crudo
    * para que reabrir el asistente no obligue a volver a pegarlo.
+   *
+   * `guardarItemContenido`, más abajo, SÍ escribe la sesión ya —el texto
+   * crudo, y de paso saca a la sesión de "agendada" (ver
+   * `empezarAPrepararse`, src/db/sesiones.ts)— aunque la propuesta que arma
+   * el modelo nunca llegue a guardarse como sección. Si alguien pega un
+   * texto, ve la propuesta y se va sin confirmar, la sesión queda con
+   * contenido y estado cambiados y nadie registrado: por eso se registra
+   * aquí también (revisión de la ronda 9, tarea 4), no solo en
+   * `guardarSeccionAction` cuando se confirma.
    */
   async function proponerAction(itemId: string, texto: string): Promise<BorradorSeccion | { error: string }> {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     const sesionActual = await obtenerSesion(id)
     const item = sesionActual?.items.find((i) => i.id === itemId)
     if (!item) return { error: 'Esta sección ya no existe.' }
 
     await guardarItemContenido(id, itemId, { ...item.contenido, texto })
+    if (quien.sub) await registrarEdicion(id, quien.sub)
 
     try {
       const { crearClientePorDefecto } = await import('@/motor/decidir')
