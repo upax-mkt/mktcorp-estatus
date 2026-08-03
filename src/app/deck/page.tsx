@@ -4,7 +4,8 @@ import estilos from './deck.module.css'
 import { listarSesiones, eliminarSesion } from '@/db/sesiones'
 import { obtenerMinuta } from '@/db/minutas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
-import { fechaBreveConAnio } from '@/lib/fecha'
+import { fechaBreveConAnio, diaCivil } from '@/lib/fecha'
+import { fueDada } from '@/dominio/salas'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
 
@@ -29,10 +30,15 @@ export default async function PagPreparar() {
   // nada — el patrón del repo es que cada página repita la comprobación.
   await exigirLectura()
   const sesiones = await listarSesiones()
+  const hoyCivil = diaCivil(new Date().toISOString())
   // Lo que está por delante (agendado o a medio llenar) contra lo que ya pasó.
   // Una sesión 'agendada' pertenece aquí: es justo lo que hay que preparar.
+  // `&& !fueDada(...)` (punto 3): una `lista` cuyo día ya pasó dejó de ser
+  // trabajo en curso —la deducción automática la da por ocurrida, ver
+  // `fueDada` en src/dominio/salas.ts— así que ya no pertenece aquí, sino a
+  // «Se dieron, falta su minuta», más abajo.
   const enPreparacion = sesiones.filter(
-    (s) => s.estado === 'agendada' || s.estado === 'borrador' || s.estado === 'lista',
+    (s) => (s.estado === 'agendada' || s.estado === 'borrador' || s.estado === 'lista') && !fueDada(s, hoyCivil),
   )
   /**
    * QUÉ ES CADA LISTA, que antes no se sabía.
@@ -44,11 +50,17 @@ export default async function PagPreparar() {
    *
    * Ahora son dos, y la diferencia es accionable: las CERRADAS ya no piden
    * nada; las que están a medias piden exactamente una cosa, su minuta.
+   *
+   * `fueDada`, no `estado === 'presentada' || 'minutada'` a secas (punto 3,
+   * ronda "contador y presentadas"): una `lista` con el día ya pasado y sin
+   * marcar como "no se dio" TAMBIÉN se dio, aunque nadie haya pulsado el
+   * botón — y si le falta minuta, es justo esta lista la que tiene que
+   * pedirla. Es la MISMA función que usa el pulso del mes y "la sala"; que
+   * las tres respondan lo mismo es lo que evita, por ejemplo, que una
+   * reunión aparezca "ya se dio" en el Home y siga en "En preparación" aquí.
    */
   const cerradas = sesiones.filter((s) => s.tieneMinuta)
-  const faltaMinuta = sesiones.filter(
-    (s) => !s.tieneMinuta && (s.estado === 'presentada' || s.estado === 'minutada'),
-  )
+  const faltaMinuta = sesiones.filter((s) => !s.tieneMinuta && fueDada(s, hoyCivil))
 
   // El texto de cada minuta, para poder descargarla desde la lista sin entrar.
   const textos = new Map(

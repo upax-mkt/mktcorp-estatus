@@ -1,0 +1,74 @@
+/*
+ * Hoja PROPIA sobre los tokens compartidos de `sistema.css` (--tinta, --papel,
+ * --mal…), no sobre los alias de una página (--tx, --acento) — este
+ * componente vive en el Home Y en la sala, y esos alias solo los declara el
+ * `.app` de ALGUNAS páginas (ver el comentario de ReunionesPorConfirmar.tsx y
+ * el mismo razonamiento, ya aplicado una vez, en minuta.module.css).
+ */
+
+.lista { display: grid; gap: 0.5rem; }
+
+.fila {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.9rem; flex-wrap: wrap;
+  padding: 0.8rem 1rem; border-radius: var(--r-3);
+  background: var(--papel-hundido);
+}
+
+.filaTexto {
+  display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap;
+  min-width: 0; text-decoration: none; color: inherit;
+}
+.filaTexto:hover .filaTitulo { text-decoration: underline; }
+
+.filaSala {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--marca-texto, var(--tinta-3));
+}
+.filaTitulo { font-weight: 550; color: var(--tinta); }
+.filaFecha { font-size: 0.8rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.filaAcciones { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: none; }
+
+/* ---- "ya se dio" ---- */
+.botonAfirmar {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  border: none; border-radius: var(--r-lleno); cursor: pointer;
+  padding: 0.4rem 0.85rem; background: var(--papel); color: var(--tinta); box-shadow: var(--e-0);
+}
+.botonAfirmar:hover { box-shadow: var(--e-1); }
+.botonAfirmarConfirmar {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  border: none; border-radius: var(--r-lleno); cursor: pointer;
+  padding: 0.4rem 0.85rem; background: var(--bien); color: var(--papel);
+}
+.botonAfirmarConfirmar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- "no se dio" / deshacer ---- */
+.botonNegarConfirmar {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  border: none; border-radius: var(--r-lleno); cursor: pointer;
+  padding: 0.4rem 0.85rem; background: var(--mal); color: var(--papel);
+}
+.botonNegarConfirmar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.marcada { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.deshacer {
+  font: inherit; font-size: 0.8rem; font-weight: 600;
+  border: none; background: none; color: var(--tinta-2); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px; padding: 0.2rem;
+}
+.deshacer:hover { color: var(--tinta); }
+.deshacer:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- comunes ---- */
+.confirmar { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.confirmarTexto { font-size: 0.78rem; color: var(--tinta-3); }
+.botonTexto {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  border: none; background: none; color: var(--tinta-3); cursor: pointer;
+  padding: 0.4rem 0.5rem;
+}
+.botonTexto:hover { color: var(--tinta); }
+.botonTexto:disabled { opacity: 0.5; cursor: not-allowed; }
+.aviso { font-size: 0.78rem; color: var(--mal); }

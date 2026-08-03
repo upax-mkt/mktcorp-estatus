@@ -19,6 +19,8 @@ export interface FilaSesionMemoria {
   tipo: 'semanal' | 'mensual'
   alcance: string
   estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
+  /** Ver la columna homónima en src/db/esquema.ts y `fueDada` en src/dominio/salas.ts. */
+  noDadaEn: Date | null
   estructura: unknown
   participantes: string[]
   lugar: string | null
@@ -131,6 +133,19 @@ export function actualizarEstadoSesionMemoria(
   const fila = sesiones.get(sesionId)
   if (!fila) return
   fila.estado = estado
+  // Cualquier transición de estado es trabajo activo sobre la sesión, y eso
+  // pesa más que una marca "no se dio" puesta antes de ese trabajo — mismo
+  // razonamiento que en el camino de Postgres (marcarPresentada,
+  // guardarMinuta, y el re-maquetado en src/db/sesiones.ts).
+  fila.noDadaEn = null
+  fila.updatedAt = new Date()
+}
+
+/** Espejo en memoria de `marcarNoDada`/`desmarcarNoDada` (ver src/db/sesiones.ts). */
+export function actualizarNoDadaSesionMemoria(sesionId: string, valor: Date | null): void {
+  const fila = sesiones.get(sesionId)
+  if (!fila) return
+  fila.noDadaEn = valor
   fila.updatedAt = new Date()
 }
 

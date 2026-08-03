@@ -1,0 +1,1 @@
+ALTER TABLE "sesiones" ADD COLUMN "no_dada_en" timestamp with time zone;

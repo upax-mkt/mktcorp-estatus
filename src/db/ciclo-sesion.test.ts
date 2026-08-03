@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   crearSesion, crearSesionConEstructura, obtenerSesion, marcarPresentada, guardarSeccion,
-  entradasCrudasDeSesion, guardarDecisiones, editarSesion,
+  entradasCrudasDeSesion, guardarDecisiones, editarSesion, marcarNoDada, desmarcarNoDada,
 } from './sesiones'
 import { guardarMinuta } from './minutas'
 import { reiniciarStoreMemoria } from './store-memoria'
@@ -80,6 +80,87 @@ describe('marcar una sesión como presentada', () => {
 
   it('una sesión que no existe se dice, no se ignora en silencio', async () => {
     await expect(marcarPresentada('no-existe')).rejects.toThrow(/no encontrada/i)
+  })
+})
+
+/**
+ * "No se dio" — el freno de mano de la deducción automática de `fueDada`
+ * (src/dominio/salas.ts). Sin esto, una `lista` con el día ya pasado se
+ * cuenta sola como dada; con esto, alguien puede decir que ESTA en concreto
+ * se canceló o se pospuso, y esa marca manda sobre la deducción.
+ */
+describe('marcar una sesión como "no dada", y deshacerlo', () => {
+  it('una sesión lista se puede marcar como no dada', async () => {
+    const id = await sesionMaquetada()
+    expect((await obtenerSesion(id))!.noDadaEn).toBeNull()
+
+    await marcarNoDada(id)
+    expect((await obtenerSesion(id))!.noDadaEn).not.toBeNull()
+    // El estado no cambia: sigue siendo la misma sesión lista de siempre,
+    // solo que ahora con una marca encima.
+    expect((await obtenerSesion(id))!.estado).toBe('lista')
+  })
+
+  it('se deshace: la sesión vuelve a la deducción automática de siempre', async () => {
+    const id = await sesionMaquetada()
+    await marcarNoDada(id)
+    await desmarcarNoDada(id)
+    expect((await obtenerSesion(id))!.noDadaEn).toBeNull()
+  })
+
+  it('deshacerlo sin haberlo marcado antes no revienta (no-op honesto)', async () => {
+    const id = await sesionMaquetada()
+    await expect(desmarcarNoDada(id)).resolves.toBeUndefined()
+    expect((await obtenerSesion(id))!.noDadaEn).toBeNull()
+  })
+
+  it('una sesión ya presentada no se puede decir que no se dio: es un hecho confirmado', async () => {
+    const id = await sesionMaquetada()
+    await marcarPresentada(id)
+    await expect(marcarNoDada(id)).rejects.toThrow(/ya se marcó como presentada/i)
+  })
+
+  it('una sesión minutada tampoco', async () => {
+    const id = await sesionMaquetada()
+    await guardarMinuta(id, 'transcripción', 'texto', [])
+    await expect(marcarNoDada(id)).rejects.toThrow(/ya se marcó como presentada/i)
+  })
+
+  it('una sesión que no existe se dice, no se ignora en silencio', async () => {
+    await expect(marcarNoDada('no-existe')).rejects.toThrow(/no encontrada/i)
+  })
+
+  it('marcarPresentada limpia una "no dada" vieja: las dos cosas a la vez serían una contradicción', async () => {
+    const id = await sesionMaquetada()
+    await marcarNoDada(id)
+    expect((await obtenerSesion(id))!.noDadaEn).not.toBeNull()
+
+    await marcarPresentada(id)
+    expect((await obtenerSesion(id))!.estado).toBe('presentada')
+    expect((await obtenerSesion(id))!.noDadaEn).toBeNull()
+  })
+
+  it('guardarMinuta también la limpia, por si se minuta una sesión marcada así', async () => {
+    const id = await sesionMaquetada()
+    await marcarNoDada(id)
+    await guardarMinuta(id, 'transcripción', 'texto', [])
+    expect((await obtenerSesion(id))!.noDadaEn).toBeNull()
+  })
+
+  it('volver a maquetar limpia una "no dada" vieja: es trabajo activo sobre la sesión', async () => {
+    const id = await sesionMaquetada()
+    await marcarNoDada(id)
+
+    const conContenido = (await obtenerSesion(id))!
+    const entradas = entradasCrudasDeSesion(conContenido)
+    await guardarDecisiones(
+      id,
+      entradas.map(() => ({
+        decision: { layout: 'portada' as const, titulo: 'Estatus de junio (revisado)', razon: 'prueba' },
+        degradado: false,
+      })),
+    )
+    expect((await obtenerSesion(id))!.noDadaEn).toBeNull()
   })
 })
 

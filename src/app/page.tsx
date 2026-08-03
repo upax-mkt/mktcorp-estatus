@@ -10,11 +10,12 @@ import {
   estadoDeSalas, ordenarPorProximaReunion, temperatura, acuerdosAbiertos,
   acuerdosVencidos, todosLosAcuerdos, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
-import { sesionesMinutables, type SesionMinutable } from '@/dominio/salas'
+import { sesionesMinutables, sesionesPorConfirmar, type SesionMinutable, type SesionPorConfirmar } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { destacarAction } from '@/app/acuerdos/acciones'
-import { listarSesiones } from '@/db/sesiones'
+import { listarSesiones, marcarPresentada, marcarNoDada, desmarcarNoDada } from '@/db/sesiones'
+import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
@@ -24,6 +25,7 @@ import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
+import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { colorDeTextoDeMarca } from '@/temas'
 
 /**
@@ -82,6 +84,45 @@ export default async function Hub() {
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo guardar el molde.' }
     }
+  }
+
+  /**
+   * PUNTO 2 del encargo: el botón de marcar presentada existía pero estaba
+   * enterrado —solo se llegaba entrando al editor y abriendo el documento—,
+   * así que de siete reuniones dadas solo una se marcó. Vive aquí, junto al
+   * "por confirmar" que arma más abajo (`sesionesPorConfirmar`).
+   *
+   * PUNTO 3: junto al "sí" vive el "no" —la sesión se canceló o se pospuso—,
+   * porque las dos son la misma pregunta y las dos tienen que poder
+   * responderse (y deshacerse) desde donde se ve la reunión.
+   *
+   * Las tres escriben una sesión: exigen editor primero y quedan enganchadas
+   * a `registrarEdicion` (`src/db/participacion.ts`), que NUNCA propaga un
+   * fallo suyo — mismo patrón que `marcarPresentadaAction` en
+   * src/app/deck/[id]/documento/page.tsx, de donde sale esta misma acción.
+   */
+  async function marcarPresentadaAction(sesionId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await marcarPresentada(sesionId)
+    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    revalidatePath('/')
+  }
+
+  async function marcarNoDadaAction(sesionId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await marcarNoDada(sesionId)
+    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    revalidatePath('/')
+  }
+
+  async function desmarcarNoDadaAction(sesionId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await desmarcarNoDada(sesionId)
+    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    revalidatePath('/')
   }
 
   // Sin esto Next lo prerenderiza y la app queda congelada en la fecha del build.
@@ -144,7 +185,14 @@ export default async function Hub() {
   const conMinuta = new Set(
     salasCrudas.flatMap((s) => s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x))),
   )
-  const sinMinuta: SesionMinutable[] = sesionesMinutables(sesiones, conMinuta, diaCivil(hoy.toISOString()))
+  const hoyCivil = diaCivil(hoy.toISOString())
+  const sinMinuta: SesionMinutable[] = sesionesMinutables(sesiones, conMinuta, hoyCivil)
+
+  // REUNIONES POR CONFIRMAR (punto 2/3): `lista`, con el día civil ya pasado —
+  // el mismo conjunto sobre el que actúa `fueDada` para darlas por ocurridas
+  // sola, sin que nadie marque nada. Aquí se ofrecen las dos respuestas: que
+  // sí se dio (de un clic, hoy enterrado en el editor) o que no (nueva).
+  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(sesiones, hoyCivil)
 
   const paraCalendario = sesiones.map((s) => ({
     id: s.id,
@@ -213,7 +261,15 @@ export default async function Hub() {
           </div>
         )}
 
-        {/* El pulso: cuatro cifras grandes y sus rótulos diminutos. */}
+        {/* El pulso: cinco cifras grandes y sus rótulos diminutos.
+            Antes eran cuatro y una de ellas —"con sesión este mes"— contaba
+            otra cosa de la que decía: SALAS (no reuniones) cuya última sesión
+            presentada/minutada cayera en los últimos 30 días corridos, no en
+            el mes natural. Franco: "en el contador dice solo una sesión en el
+            mes siendo que están agendadas todas". Ahora son dos cifras
+            honestas sobre la MISMA pregunta — cuántas reuniones hay este mes,
+            y cuántas de esas ya se dieron — en vez de una que mezclaba las
+            dos. Ver `construirPulso`, src/db/consultas.ts. */}
         <section className={estilos.pulso}>
           <div>
             <h1 className={estilos.saludo}>Meeting Hub</h1>
@@ -225,8 +281,12 @@ export default async function Hub() {
               <span className="micro">clientes</span>
             </div>
             <div className={estilos.pulsoItem}>
-              <span className="cifra">{pulso.sesionesUltimos30}</span>
-              <span className="micro">con sesión este mes</span>
+              <span className="cifra">{pulso.reunionesEsteMes}</span>
+              <span className="micro">reuniones este mes</span>
+            </div>
+            <div className={estilos.pulsoItem}>
+              <span className="cifra">{pulso.reunionesDadas}</span>
+              <span className="micro">ya se dieron</span>
             </div>
             <div className={estilos.pulsoItem}>
               <span className="cifra">{pulso.acuerdosAbiertos}</span>
@@ -240,6 +300,29 @@ export default async function Hub() {
             </div>
           </div>
         </section>
+
+        {/* POR CONFIRMAR (punto 2/3): las reuniones que la deducción
+            automática de `fueDada` ya está contando como dadas —o casi—, sin
+            que nadie lo haya dicho todavía. Cierra el ciclo que el pulso, un
+            poco más arriba, deja abierto: aquí se responde. */}
+        {porConfirmar.length > 0 && (
+          <section>
+            <div className={estilos.seccionCabecera}>
+              <h2 className={estilos.seccionTitulo}>Por confirmar</h2>
+              <span className="micro" data-sinpunto>
+                {porConfirmar.length === 1
+                  ? 'una reunión ya pasó su día sin marcar'
+                  : `${porConfirmar.length} reuniones ya pasaron su día sin marcar`}
+              </span>
+            </div>
+            <ReunionesPorConfirmar
+              sesiones={porConfirmar}
+              marcarPresentadaAction={marcarPresentadaAction}
+              marcarNoDadaAction={marcarNoDadaAction}
+              desmarcarNoDadaAction={desmarcarNoDadaAction}
+            />
+          </section>
+        )}
 
         {/* Los módulos: lo que hay que atender y lo que viene. */}
         <div className={estilos.modulos}>

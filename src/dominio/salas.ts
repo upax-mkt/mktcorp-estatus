@@ -8,12 +8,21 @@
  * define QUÉ es el estado de una sala y cómo se calculan sus derivados
  * (temperatura, urgencia, pulso del mes).
  *
+ * Única excepción a "sin datos": `fueDada` importa `diaCivil` de
+ * `src/lib/fecha.ts`. No es una excepción real — `lib/fecha.ts` tampoco toca
+ * la base ni depende de nada externo, es la misma clase de función pura que
+ * vive aquí — pero SÍ es la fuente única para "a qué día civil pertenece un
+ * instante" (ver la cabecera de ese archivo: esta app ya tuvo un bug de
+ * fechas corridas un día por no anclarlas ahí), así que se importa en vez de
+ * repetir el cálculo a mano.
+ *
  * Hasta el 30-jul las diez salas SÍ eran configuración de código
  * (`src/temas/`) y `estadoDeSalas()` podía enumerarlas sin tocar la base: era
  * el respaldo para cuando no hay DATABASE_URL. Desde que la marca se edita
  * desde la app, esa lista dejó de ser algo que este módulo —puro, sin
  * `async`— pueda ofrecer por su cuenta: ver `estadoDeSalas()` más abajo.
  */
+import { diaCivil } from '@/lib/fecha'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido'
 
@@ -55,6 +64,19 @@ export interface Minuta {
    * entrar ahí, así que su lista de minutas no llevaba a ninguna parte.
    */
   texto?: string
+}
+
+/**
+ * Una sesión de la sala, cruda: lo mínimo que necesita `fueDada` (arriba) para
+ * decidir si ya ocurrió. A diferencia de `presentaciones` —que solo trae las
+ * que YA se sabía que sucedieron— esta trae TODAS: es lo que le hace falta al
+ * pulso del mes para contar reuniones (no salas) del mes en curso sea cual
+ * sea su estado, y para saber cuáles de esas ya se dieron.
+ */
+export interface SesionDeSala {
+  fecha: string // ISO
+  estado: string
+  noDadaEn: string | null
 }
 
 export interface EstadoSala {
@@ -104,6 +126,8 @@ export interface EstadoSala {
   activa: boolean
   /** Desde cuándo está en pausa. ISO, o `null` si nunca se pausó (o ya se reactivó). */
   pausadaDesde: string | null
+  /** TODAS las sesiones de la sala, cualquier estado — ver `SesionDeSala`. */
+  sesiones: SesionDeSala[]
 }
 
 /**
@@ -248,6 +272,8 @@ export function sesionesMinutables(
     salaNombre?: string
     salaColor?: string
     estado: string
+    /** Ver `fueDada`, más abajo. Ausente = nunca se marcó así. */
+    noDadaEn?: string | null
   }>,
   /** Ids de sesión que YA tienen minuta. */
   conMinuta: Set<string>,
@@ -270,6 +296,13 @@ export function sesionesMinutables(
      * presentada.
      */
     .filter((s) => s.estado !== 'borrador' && s.estado !== 'agendada')
+    /**
+     * TAMPOCO UNA MARCADA "NO SE DIO" (ronda "contador y presentadas",
+     * 2026-08-03): se canceló o se pospuso — no hay nada que transcribir de
+     * una reunión que no ocurrió. Mismo criterio que aplica `fueDada`, aquí
+     * abajo, para "¿ya pasó de verdad?".
+     */
+    .filter((s) => !s.noDadaEn)
     .filter((s) => s.fecha.slice(0, 10) <= hoyCivil)
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .map((s) => ({
@@ -278,6 +311,101 @@ export function sesionesMinutables(
       fecha: s.fecha,
       salaNombre: s.salaNombre,
       salaColor: s.salaColor,
+    }))
+}
+
+/**
+ * SI UNA SESIÓN YA OCURRIÓ, sin que nadie tenga que decirlo.
+ *
+ * Franco: «en el contador dice solo una sesión en el mes siendo que están
+ * agendadas todas y registradas en la app». La raíz: el contador (y "la
+ * sala", y el listado de minutas pendientes) solo daban por ocurrida una
+ * sesión con `estado === 'presentada'`, y llegar ahí exige que alguien entre
+ * al editor, abra el documento y pulse un botón — un paso administrativo que
+ * nueve de cada diez reuniones nunca cruzan. Que una reunión cuente dependa
+ * de ese clic es justo lo que produce el síntoma.
+ *
+ * `fueDada` decide sola cuando puede, y dos cosas la pueden desmentir en los
+ * dos sentidos:
+ *
+ * - Lo EXPLÍCITO manda siempre que existe: `presentada`/`minutada` es un
+ *   hecho que alguien confirmó, así que gana sin mirar fecha ni nada más.
+ * - `noDadaEn` (columna nueva y aditiva en `sesiones`, ver src/db/esquema.ts
+ *   para por qué es un campo y no un estado nuevo) es lo contrario: alguien
+ *   dijo explícitamente que ESTA sesión en concreto NO se dio —se canceló, se
+ *   pospuso— y eso manda sobre la deducción automática de aquí abajo. Nunca
+ *   sobre lo explícito: si ya está `presentada`, `noDadaEn` ni se consulta.
+ *
+ * A falta de las dos, se deduce: `lista` (maquetada — mismo umbral de
+ * "tiene contenido" que ya usa `sesionesMinutables`, arriba, no uno inventado
+ * aparte) Y su día CIVIL ya pasó, estrictamente antes de hoy. "Estrictamente"
+ * es a propósito: una reunión de hoy a las 9:00 no está "pasada" a las 10:00
+ * del mismo día — se compara por día, no por instante (`diaCivil`, no la hora
+ * del reloj), así que hoy nunca es "ya pasado" pase lo que pase con el reloj.
+ * `borrador`/`agendada` nunca cuentan aquí: son justo las dos que
+ * `sesionesMinutables` también excluye por no ser "una junta que se dio".
+ */
+export function fueDada(
+  sesion: { estado: string; fecha: string; noDadaEn?: string | null },
+  hoyCivil: string,
+): boolean {
+  if (sesion.estado === 'presentada' || sesion.estado === 'minutada') return true
+  if (sesion.noDadaEn) return false
+  if (sesion.estado !== 'lista') return false
+  return diaCivil(sesion.fecha) < hoyCivil
+}
+
+/** Una sesión `lista` cuyo día ya pasó: la deducción de `fueDada` actuó (o actuaría) sobre ella. */
+export interface SesionPorConfirmar {
+  id: string
+  titulo: string
+  fecha: string // ISO
+  salaSlug?: string | null
+  /** Solo hace falta cuando la lista cruza salas (el Home) — mismo criterio que SesionMinutable. */
+  salaNombre?: string
+  salaColor?: string
+  /** `null` = pendiente de decir algo; con fecha, ya se marcó "no se dio". */
+  noDadaEn: string | null
+}
+
+/**
+ * QUÉ REUNIONES NECESITAN UNA PALABRA HUMANA: `lista`, con el día civil ya
+ * pasado — exactamente el conjunto sobre el que actúa la deducción automática
+ * de `fueDada`.
+ *
+ * Se ofrecen las DOS caras, no solo las que faltan por confirmar: una sesión
+ * ya marcada `noDadaEn` sigue en la lista (con esa marca puesta) para que se
+ * pueda deshacer — si solo se ofrecieran las pendientes, marcar "no se dio"
+ * la haría desaparecer de aquí y con ella la única puerta para arrepentirse.
+ * `presentada`/`minutada` no aparecen: ya son un hecho confirmado, no algo
+ * que preguntar. `borrador`/`agendada` con el día pasado tampoco: nunca
+ * llegaron a "tener contenido", así que `fueDada` nunca los iba a contar —no
+ * hay nada que confirmar sobre algo que la deducción ya ignora.
+ */
+export function sesionesPorConfirmar(
+  sesiones: Array<{
+    id: string
+    titulo: string
+    fecha: string
+    salaSlug?: string | null
+    salaNombre?: string
+    salaColor?: string
+    estado: string
+    noDadaEn?: string | null
+  }>,
+  hoyCivil: string,
+): SesionPorConfirmar[] {
+  return sesiones
+    .filter((s) => s.estado === 'lista' && diaCivil(s.fecha) < hoyCivil)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .map((s) => ({
+      id: s.id,
+      titulo: s.titulo,
+      fecha: s.fecha,
+      salaSlug: s.salaSlug,
+      salaNombre: s.salaNombre,
+      salaColor: s.salaColor,
+      noDadaEn: s.noDadaEn ?? null,
     }))
 }
 
@@ -345,7 +473,14 @@ export interface AcuerdoEnRiesgo extends Acuerdo {
  */
 export interface PulsoDelMes {
   salas: number
-  sesionesUltimos30: number
+  /**
+   * Reuniones —no salas— con fecha en el mes natural en curso (hora CDMX),
+   * de salas activas, en cualquier estado. Ver `construirPulso`,
+   * src/db/consultas.ts.
+   */
+  reunionesEsteMes: number
+  /** De esas mismas, cuántas ya se dieron según `fueDada` — ver más abajo. */
+  reunionesDadas: number
   acuerdosAbiertos: number
   acuerdosVencidos: number
   /** `dias: null` = nunca ha tenido sesión, que es lo más desatendido que hay. */

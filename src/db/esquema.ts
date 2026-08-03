@@ -138,6 +138,38 @@ export const sesiones = pgTable('sesiones', {
   /** 'todos los squads' / squads específicos / tema puntual — texto libre, ver §4/§6. */
   alcance: text('alcance').notNull().default('todos'),
   estado: estadoSesionEnum('estado').notNull().default('borrador'),
+  /**
+   * ALGUIEN DIJO EXPLÍCITAMENTE QUE ESTA REUNIÓN NO SE DIO (se canceló, se
+   * pospuso). `null` = nadie lo ha dicho; con fecha, el momento en que se
+   * marcó así.
+   *
+   * Por qué un campo aparte y no un estado nuevo en `estadoSesionEnum`: desde
+   * la ronda "contador y presentadas" (2026-08-03) una sesión `lista` cuyo
+   * día civil ya pasó se considera dada SIN que nadie pulse nada (ver
+   * `fueDada`, src/dominio/salas.ts) — es la deducción automática que
+   * reemplaza el papeleo de "marcar como presentada". Ese "no se dio" tiene
+   * que poder DESHACER esa deducción para un caso concreto, y un estado
+   * nuevo lo habría hecho mal en dos frentes: (1) habría que enseñarle el
+   * valor nuevo a cada uno de los sitios que hoy hacen `switch`/comparan
+   * contra los cinco estados fijos (mapas de etiqueta en deck, agenda,
+   * calendario; los filtros de "en preparación"; el propio tipo
+   * `EstadoSesion`) para no dejar una sexta rama sin manejar en ninguno; y
+   * (2) perdería la fecha original de la reunión y su progreso de
+   * preparación, que hoy siguen vivos en `estado`/`fecha`/`estructura` — con
+   * un campo aparte, "no se dio" es una ETIQUETA sobre la sesión, no un
+   * reemplazo de lo que ya se sabía de ella.
+   *
+   * Por qué timestamp y no boolean: mismo patrón que `pausadaDesde` o
+   * `claveCreadaEn` en `salas` — nace en `null`, se pone en el momento, y de
+   * paso queda un rastro de CUÁNDO se marcó sin una columna extra.
+   *
+   * Manda sobre la deducción automática (si tiene fecha, `fueDada` da falso
+   * pase lo que pase con el día o el contenido) pero nunca sobre lo
+   * explícito: `marcarPresentada` la limpia a `null` al pasar a `presentada`
+   * — las dos cosas a la vez ("se dio" y "se marcó que no se dio") serían una
+   * contradicción que nadie pidió poder guardar.
+   */
+  noDadaEn: timestamp('no_dada_en', { withTimezone: true }),
   /** Copia congelada de la estructura (agenda de items) al momento de crear la sesión. */
   estructura: jsonb('estructura').$type<unknown>().notNull(),
   /**

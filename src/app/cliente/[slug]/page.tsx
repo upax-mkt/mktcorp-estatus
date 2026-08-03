@@ -9,14 +9,16 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
-import { sesionesMinutables, reunionesDeSala } from '@/dominio/salas'
+import {
+  sesionesMinutables, reunionesDeSala, sesionesPorConfirmar, fueDada, type SesionPorConfirmar,
+} from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
 } from '@/db/acuerdos'
 import { directorio } from '@/db/personas'
-import { participantesDe, type Participante } from '@/db/participacion'
+import { participantesDe, registrarEdicion, type Participante } from '@/db/participacion'
 import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
@@ -27,6 +29,7 @@ import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { ReunionesSala } from '@/componentes/ReunionesSala'
+import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { LevantarMinuta } from '@/componentes/LevantarMinuta'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
@@ -35,7 +38,9 @@ import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
-import { crearSesionConEstructura, listarSesiones } from '@/db/sesiones'
+import {
+  crearSesionConEstructura, listarSesiones, marcarPresentada, marcarNoDada, desmarcarNoDada,
+} from '@/db/sesiones'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
@@ -151,10 +156,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     equipo ? directorio() : Promise.resolve([]),
   ])
   const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
+  // Fuente única de "qué día es hoy" (src/lib/fecha.ts) — la reutilizan
+  // `enPreparacion` (aquí abajo), `pendientesDeMinuta` y `porConfirmar`, más
+  // adelante: las tres necesitan la MISMA respuesta a "¿ya pasó el día?".
+  const hoyCivil = diaCivil(new Date().toISOString())
   // Lo que está a medio armar para este cliente. No es una reunión todavía —no
   // se ha dado— así que no entra en la lista de reuniones: es trabajo abierto.
+  // `&& !fueDada(...)`: una `lista` cuyo día ya pasó dejó de ser trabajo en
+  // curso —la deducción automática la da por ocurrida (ver `fueDada`,
+  // src/dominio/salas.ts)— así que tampoco debería seguir invitando a
+  // "Seguir editando" como si la reunión no hubiera pasado todavía.
   const enPreparacion = sesionesDeLaSala.filter(
-    (x) => x.estado === 'agendada' || x.estado === 'borrador' || x.estado === 'lista',
+    (x) => (x.estado === 'agendada' || x.estado === 'borrador' || x.estado === 'lista') && !fueDada(x, hoyCivil),
   )
   async function salirDeLaSala() {
     'use server'
@@ -269,6 +282,42 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
     redirect(`/deck/${nueva.id}`)
+  }
+
+  // ---- Confirmar si una reunión se dio o no (punto 2/3) ----
+  //
+  // El botón de marcar presentada existía (`MarcarPresentada`) pero estaba
+  // enterrado —solo se llegaba entrando al editor y abriendo el documento—,
+  // así que de siete reuniones dadas solo una se marcó. Vive aquí, junto a
+  // "por confirmar" (`sesionesPorConfirmar`, más abajo). Las tres escriben
+  // una sesión: exigen editor primero y quedan enganchadas a
+  // `registrarEdicion`, que nunca propaga un fallo suyo.
+
+  async function marcarPresentadaAction(sesionId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await marcarPresentada(sesionId)
+    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/')
+  }
+
+  async function marcarNoDadaAction(sesionId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await marcarNoDada(sesionId)
+    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/')
+  }
+
+  async function desmarcarNoDadaAction(sesionId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await desmarcarNoDada(sesionId)
+    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/')
   }
 
   // ---- El freeze de esta sala (tarea 12, ronda 7) ----
@@ -414,8 +463,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const pendientesDeMinuta = sesionesMinutables(
     sesionesDeLaSala.map((x) => ({ ...x, salaSlug: slug })),
     conMinuta,
-    diaCivil(new Date().toISOString()),
+    hoyCivil,
   )
+  // POR CONFIRMAR (punto 2/3): `lista`, con el día ya pasado — el mismo
+  // conjunto que `fueDada` ya cuenta como dada en el contador y en
+  // "Reuniones" arriba, pero que nadie ha confirmado ni negado todavía.
+  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(sesionesDeLaSala, hoyCivil)
 
   return (
     <div className={estilos.app} style={estiloMarca}>
@@ -634,6 +687,23 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           )}
 
           <ReunionesSala reuniones={reuniones} equipo={equipo} participacionPorSesion={participacionPorSesion} />
+
+          {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya
+              pasado que la deducción automática de `fueDada` ya cuenta como
+              dadas —o casi— en el contador y arriba, en "Reuniones", pero que
+              nadie ha confirmado ni negado todavía. Solo equipo: las dos
+              acciones exigen editor. */}
+          {equipo && porConfirmar.length > 0 && (
+            <div className={estilos.subseccion}>
+              <h3 className={estilos.subseccionTitulo}>Por confirmar</h3>
+              <ReunionesPorConfirmar
+                sesiones={porConfirmar}
+                marcarPresentadaAction={marcarPresentadaAction}
+                marcarNoDadaAction={marcarNoDadaAction}
+                desmarcarNoDadaAction={desmarcarNoDadaAction}
+              />
+            </div>
+          )}
 
           {equipo && (
             <div className={estilos.reunionAcciones}>

@@ -43,6 +43,7 @@ const SALA_BASE: EstadoSala = {
   cadencia: 'mensual',
   activa: true,
   pausadaDesde: null,
+  sesiones: [],
 }
 
 // Una sala con dos reuniones reales —presentación con `sesionId`, sin

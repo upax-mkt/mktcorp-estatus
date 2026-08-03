@@ -91,7 +91,11 @@ export async function guardarMinuta(
     })
     await conexion
       .update(esquema.sesiones)
-      .set({ estado: 'minutada', updatedAt: ahora })
+      // noDadaEn: null — guardar una minuta es la confirmación más fuerte
+      // posible de que la reunión SÍ ocurrió; limpia cualquier "no se dio"
+      // que hubiera quedado de antes (ver el comentario de la columna en
+      // src/db/esquema.ts).
+      .set({ estado: 'minutada', noDadaEn: null, updatedAt: ahora })
       .where(eq(esquema.sesiones.id, sesionId))
   } else {
     memoria.insertarMinutaMemoria({ id, sesionId, transcripcion, textoFinal, enviadaA: null, createdAt: ahora })

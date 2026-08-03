@@ -19,6 +19,7 @@ import { cargarTemas, slugsDeSalas } from './temas'
 import type { Tema } from '@/temas'
 import * as fallback from '@/dominio/salas'
 import { esLlenado, obtenerSesion, type ContenidoItemCrudo } from './sesiones'
+import { diaCivil } from '@/lib/fecha'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
@@ -26,6 +27,7 @@ import type {
   Minuta,
   Presentacion,
   PulsoDelMes,
+  SesionDeSala,
 } from '@/dominio/salas'
 
 export type {
@@ -80,6 +82,7 @@ interface FilaSesion {
   tipo: 'semanal' | 'mensual'
   estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
   estructura: unknown
+  noDadaEn: Date | null
 }
 
 /**
@@ -125,6 +128,7 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
         tipo: esquema.sesiones.tipo,
         estado: esquema.sesiones.estado,
         estructura: esquema.sesiones.estructura,
+        noDadaEn: esquema.sesiones.noDadaEn,
       })
       .from(esquema.sesiones)
       .where(eq(esquema.sesiones.salaSlug, slug))
@@ -158,12 +162,27 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   ])
 
   const sesiones = sesionesRows as FilaSesion[]
+  const hoyCivil = diaCivil(ahora.toISOString())
+  // `fueDada` (src/dominio/salas.ts) es la ÚNICA verdad de "¿esta sesión ya
+  // ocurrió?" desde la ronda "contador y presentadas" (2026-08-03): antes esta
+  // línea comparaba `estado === 'presentada' || 'minutada'` a mano, que es
+  // justo la comparación que dejaba fuera a una `lista` cuyo día ya pasó y
+  // nadie marcó — la raíz del síntoma que reportó Franco. Un helper y no la
+  // comparación repetida: es la MISMA pregunta que responde el pulso del mes
+  // (`construirPulso`, más abajo) y `sesionesMinutables`, y las tres tienen
+  // que estar de acuerdo o vuelve a haber dos verdades distintas sobre si una
+  // reunión sucedió.
+  const dada = (s: FilaSesion) =>
+    fallback.fueDada({ estado: s.estado, fecha: s.fecha.toISOString(), noDadaEn: s.noDadaEn?.toISOString() ?? null }, hoyCivil)
 
-  const yaSucedidas = sesiones.filter((s) => s.estado === 'presentada' || s.estado === 'minutada')
+  const yaSucedidas = sesiones.filter(dada)
   const futuras = sesiones
     .filter((s) => s.fecha.getTime() > ahora.getTime())
     .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
-  const enPreparacionRows = sesiones.filter((s) => estaEnPreparacion(s.estado))
+  // Ya no "borrador o lista" a secas: una `lista` cuyo día ya pasó dejó de ser
+  // trabajo en curso —`fueDada` la cuenta como ocurrida—, así que tampoco
+  // debería seguir ofreciéndose como "en preparación" en el hub.
+  const enPreparacionRows = sesiones.filter((s) => estaEnPreparacion(s.estado) && !dada(s))
   // La que se está preparando: la más próxima, no la primera que devuelva la
   // base. Con dos abiertas a la vez, la que importa es la que toca antes.
   const enPreparacion = [...enPreparacionRows].sort(
@@ -248,6 +267,15 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     // parte de ese tipo, ver esquema.ts). `archivoDeLogo` cae al archivo
     // estático cuando esto es `null`.
     logoUrl: salaRow?.logoUrl ?? null,
+    // TODAS las sesiones, cualquier estado — lo que necesita `construirPulso`
+    // para contar REUNIONES del mes en curso (no salas) y saber cuáles ya se
+    // dieron. Distinto de `presentaciones`, arriba, que solo trae las que
+    // `fueDada` ya dio por ocurridas.
+    sesiones: sesiones.map((s): SesionDeSala => ({
+      fecha: s.fecha.toISOString(),
+      estado: s.estado,
+      noDadaEn: s.noDadaEn ? s.noDadaEn.toISOString() : null,
+    })),
   }
 }
 
@@ -273,14 +301,57 @@ function construirRiesgo(salas: EstadoSala[]): AcuerdoEnRiesgo[] {
   return out.sort((a, b) => (a.estatus === 'vencido' ? 0 : 1) - (b.estatus === 'vencido' ? 0 : 1))
 }
 
-/** Misma lógica que fallback.pulsoDelMes(), sobre EstadoSala ya resuelto. */
-function construirPulso(salas: EstadoSala[]): PulsoDelMes {
-  const sesionesUltimos30 = salas.filter((s) => s.diasDesdeUltima != null && s.diasDesdeUltima <= 30).length
+/**
+ * EL PULSO DEL MES: dos cifras honestas donde antes había una que mezclaba
+ * dos preguntas.
+ *
+ * Franco: «en el contador dice solo una sesión en el mes siendo que están
+ * agendadas todas y registradas en la app». El campo que esto reemplaza,
+ * `sesionesUltimos30`, no contaba lo que la etiqueta del hub prometía
+ * ("con sesión este mes"): contaba SALAS —no reuniones— cuya ÚLTIMA sesión
+ * `presentada`/`minutada` cayera en los últimos 30 días CORRIDOS desde hoy,
+ * no en el mes natural. Con nueve salas sin ninguna sesión marcada como
+ * presentada y una sola con una `minutada` reciente, el hub decía "1" aunque
+ * hubiera ocho reuniones agendadas para este mes — el síntoma exacto.
+ *
+ * Ahora son dos preguntas, cada una con su cifra, sobre el MISMO mes:
+ *
+ * - `reunionesEsteMes`: cuántas REUNIONES —no salas: una sala con dos
+ *   sesiones este mes cuenta dos— tienen su fecha en el mes NATURAL en
+ *   curso, hora CDMX (`diaCivil`, la fuente única de "a qué día/mes
+ *   pertenece un instante" — ver src/lib/fecha.ts), en cualquier estado. Las
+ *   de una sala en pausa no cuentan: `activa === false` es justo "no hay
+ *   reuniones ni gestión hasta nuevo aviso" (mismo criterio que
+ *   `acuerdosAbiertos`/`acuerdosVencidos`, un poco más arriba).
+ * - `reunionesDadas`: de esas mismas, cuántas ya se dieron según `fueDada`
+ *   (src/dominio/salas.ts) — explícitas (`presentada`/`minutada`) o
+ *   deducidas (`lista` con el día civil ya pasado, sin marcar "no se dio").
+ *   Es la MISMA función que usa `estadoDeSalaDB` para decidir sus
+ *   `presentaciones`: si aquí y allá respondieran distinto, el pulso y "la
+ *   sala" dirían dos cosas diferentes sobre si una reunión ocurrió.
+ */
+// Exportada — a diferencia de construirRiesgo, sin test directo — porque es
+// la función exacta detrás del síntoma que reportó Franco: se prueba sola,
+// sin pasar por Postgres, con el mismo criterio que el resto de "derivados
+// puros" de este archivo (ver la cabecera). Ver src/db/consultas.test.ts.
+export function construirPulso(salas: EstadoSala[], hoyCivil: string): PulsoDelMes {
+  const mesActual = hoyCivil.slice(0, 7) // 'YYYY-MM'
+  let reunionesEsteMes = 0
+  let reunionesDadas = 0
+  for (const sala of salas) {
+    if (!sala.activa) continue
+    for (const sesion of sala.sesiones) {
+      if (diaCivil(sesion.fecha).slice(0, 7) !== mesActual) continue
+      reunionesEsteMes++
+      if (fallback.fueDada(sesion, hoyCivil)) reunionesDadas++
+    }
+  }
   const abiertos = salas.reduce((n, s) => n + fallback.acuerdosAbiertos(s), 0)
   const vencidos = salas.reduce((n, s) => n + fallback.acuerdosVencidos(s), 0)
   return {
     salas: salas.length,
-    sesionesUltimos30,
+    reunionesEsteMes,
+    reunionesDadas,
     acuerdosAbiertos: abiertos,
     acuerdosVencidos: vencidos,
     salaMasDesatendida: fallback.salaMasDesatendida(salas),
@@ -319,8 +390,9 @@ export async function acuerdosEnRiesgo(): Promise<AcuerdoEnRiesgo[]> {
 }
 
 export async function pulsoDelMes(): Promise<PulsoDelMes> {
-  if (!hayDB()) return construirPulso(fallback.estadoDeSalas())
-  return construirPulso(await estadoDeSalasDB())
+  const hoyCivil = diaCivil(new Date().toISOString())
+  if (!hayDB()) return construirPulso(fallback.estadoDeSalas(), hoyCivil)
+  return construirPulso(await estadoDeSalasDB(), hoyCivil)
 }
 
 // ---- Arrastrar acuerdos abiertos a la sesión (ronda 9, tarea 6) ----

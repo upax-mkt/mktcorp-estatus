@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  reunionesDeSala, reunionesSinMinuta, sesionesMinutables,
+  reunionesDeSala, reunionesSinMinuta, sesionesMinutables, fueDada, sesionesPorConfirmar,
   type Presentacion, type Minuta,
 } from './salas'
 
@@ -114,5 +114,124 @@ describe('qué se puede minutar', () => {
   it('la que aún no ha llegado, tampoco: no hay nada que transcribir', () => {
     const futura = sesion('a', 'lista', '2026-08-15T12:00:00Z')
     expect(sesionesMinutables([futura], new Set(), HOY)).toHaveLength(0)
+  })
+
+  it('una marcada como "no se dio" no se ofrece: no hay nada que transcribir de una reunión que no ocurrió', () => {
+    const cancelada = { ...sesion('a', 'lista'), noDadaEn: '2026-07-25T10:00:00Z' }
+    expect(sesionesMinutables([cancelada], new Set(), HOY)).toHaveLength(0)
+  })
+})
+
+/**
+ * SI UNA REUNIÓN YA OCURRIÓ, sin que nadie tenga que decirlo — la raíz del
+ * síntoma "el contador dice una cosa distinta a lo agendado" (Franco,
+ * 3-ago-2026): antes de esto, contar y "la sala" solo daban por ocurrida una
+ * sesión con `estado === 'presentada' || 'minutada'`, y marcar presentada es
+ * papeleo — exactamente el mismo motivo por el que `sesionesMinutables` (arriba)
+ * dejó de exigirlo. `fueDada` es la MISMA idea aplicada a "¿ya pasó?" en vez de
+ * "¿se puede minutar?": por eso el requisito de contenido reutiliza la misma
+ * frontera (`lista` = maquetada) en vez de inventar un umbral nuevo — así una
+ * sesión `fueDada` siempre cae también dentro de `sesionesMinutables` mientras
+ * no tenga minuta, nunca al revés.
+ */
+describe('fueDada', () => {
+  const HOY = '2026-07-28'
+  const sesion = (estado: string, fecha = '2026-07-20T12:00:00Z', noDadaEn: string | null = null) =>
+    ({ estado, fecha, noDadaEn })
+
+  it('presentada: sí, sin importar la fecha', () => {
+    expect(fueDada(sesion('presentada', '2026-08-15T12:00:00Z'), HOY)).toBe(true)
+  })
+
+  it('minutada: sí, sin importar la fecha', () => {
+    expect(fueDada(sesion('minutada', '2026-08-15T12:00:00Z'), HOY)).toBe(true)
+  })
+
+  it('lista con el día civil ya pasado: sí — es la deducción nueva', () => {
+    expect(fueDada(sesion('lista', '2026-07-20T12:00:00Z'), HOY)).toBe(true)
+  })
+
+  it('lista de HOY MISMO: no — un día no "ya pasó" aunque sea tarde en el reloj', () => {
+    // El caso exacto que pide el punto 3: una reunión de hoy a las 9:00 no
+    // está "pasada" a las 10:00 del mismo día porque se compara por día
+    // civil, no por instante.
+    expect(fueDada(sesion('lista', '2026-07-28T22:00:00Z'), HOY)).toBe(false)
+  })
+
+  it('lista en el futuro: no', () => {
+    expect(fueDada(sesion('lista', '2026-08-15T12:00:00Z'), HOY)).toBe(false)
+  })
+
+  it('borrador con el día muy pasado: no — no tiene contenido, es preparación a medias', () => {
+    expect(fueDada(sesion('borrador', '2026-06-01T12:00:00Z'), HOY)).toBe(false)
+  })
+
+  it('agendada con el día muy pasado: no — ni siquiera empezó', () => {
+    expect(fueDada(sesion('agendada', '2026-06-01T12:00:00Z'), HOY)).toBe(false)
+  })
+
+  it('lista con el día pasado pero marcada "no se dio": no — el override manda sobre la deducción', () => {
+    expect(fueDada(sesion('lista', '2026-07-20T12:00:00Z', '2026-07-25T10:00:00Z'), HOY)).toBe(false)
+  })
+
+  it('presentada manda incluso si por error quedara un noDadaEn colgado', () => {
+    // No debería pasar — marcarPresentada limpia noDadaEn al confirmar — pero
+    // lo explícito y positivo ("se dio") nunca se apaga por un campo que solo
+    // existe para frenar la deducción AUTOMÁTICA.
+    expect(fueDada(sesion('presentada', '2026-07-20T12:00:00Z', '2026-07-25T10:00:00Z'), HOY)).toBe(true)
+  })
+})
+
+describe('sesionesPorConfirmar', () => {
+  const HOY = '2026-07-28'
+  const sesion = (
+    id: string,
+    estado: string,
+    fecha = '2026-07-20T12:00:00Z',
+    noDadaEn: string | null = null,
+  ) => ({ id, titulo: `Sesión ${id}`, fecha, salaSlug: 'zeus', estado, noDadaEn })
+
+  it('una lista con el día pasado y sin decidir: aparece, pendiente', () => {
+    const r = sesionesPorConfirmar([sesion('a', 'lista')], HOY)
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ id: 'a', noDadaEn: null })
+  })
+
+  it('una lista con el día pasado y ya marcada "no se dio": sigue apareciendo, para poder deshacerlo', () => {
+    const r = sesionesPorConfirmar([sesion('a', 'lista', '2026-07-20T12:00:00Z', '2026-07-25T10:00:00Z')], HOY)
+    expect(r).toHaveLength(1)
+    expect(r[0].noDadaEn).toBe('2026-07-25T10:00:00Z')
+  })
+
+  it('una lista de hoy mismo: no aparece, su día no ha pasado', () => {
+    expect(sesionesPorConfirmar([sesion('a', 'lista', '2026-07-28T22:00:00Z')], HOY)).toHaveLength(0)
+  })
+
+  it('una lista futura: no aparece', () => {
+    expect(sesionesPorConfirmar([sesion('a', 'lista', '2026-08-15T12:00:00Z')], HOY)).toHaveLength(0)
+  })
+
+  it('una presentada o minutada: no aparece — ya está resuelta explícitamente', () => {
+    const r = sesionesPorConfirmar(
+      [sesion('a', 'presentada'), sesion('b', 'minutada')],
+      HOY,
+    )
+    expect(r).toHaveLength(0)
+  })
+
+  it('un borrador o una agendada con el día pasado: no aparece — nunca fue "dada", nada que confirmar', () => {
+    const r = sesionesPorConfirmar(
+      [sesion('a', 'borrador'), sesion('b', 'agendada')],
+      HOY,
+    )
+    expect(r).toHaveLength(0)
+  })
+
+  it('ordena de la más reciente a la más antigua', () => {
+    const r = sesionesPorConfirmar(
+      [sesion('vieja', 'lista', '2026-06-01T12:00:00Z'), sesion('nueva', 'lista', '2026-07-10T12:00:00Z')],
+      HOY,
+    )
+    expect(r.map((x) => x.id)).toEqual(['nueva', 'vieja'])
   })
 })

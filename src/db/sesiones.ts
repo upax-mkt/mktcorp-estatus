@@ -104,6 +104,13 @@ export interface SesionResumen {
   tipo: TipoSesion
   alcance: string
   estado: EstadoSesion
+  /**
+   * `null` = nadie ha dicho que esta sesión no se dio. Con fecha, alguien lo
+   * dijo explícitamente (se canceló, se pospuso) y eso manda sobre la
+   * deducción automática de `fueDada` — ver src/dominio/salas.ts y el
+   * comentario de la columna en src/db/esquema.ts.
+   */
+  noDadaEn: string | null // ISO, o null
   fecha: string // ISO
   /** Cómo se llama la sesión. Vive en la estructura congelada; es editable. */
   titulo: string
@@ -210,6 +217,7 @@ interface FilaSesionComun {
   tipo: TipoSesion
   alcance: string
   estado: EstadoSesion
+  noDadaEn?: Date | null
   estructura: unknown
   participantes?: string[] | null
   lugar?: string | null
@@ -298,6 +306,7 @@ function sesionCompletaDeFilas(
     tipo: fila.tipo,
     alcance: fila.alcance,
     estado: fila.estado,
+    noDadaEn: fila.noDadaEn ? fila.noDadaEn.toISOString() : null,
     fecha: fila.fecha.toISOString(),
     titulo: estructura.titulo || tituloPorDefecto(fila.tipo, fila.fecha),
     participantes: fila.participantes ?? [],
@@ -328,6 +337,7 @@ function resumenDeFila(
     tipo: fila.tipo,
     alcance: fila.alcance,
     estado: fila.estado,
+    noDadaEn: fila.noDadaEn ? fila.noDadaEn.toISOString() : null,
     fecha: fila.fecha.toISOString(),
     titulo: leerEstructura(fila.estructura).titulo || tituloPorDefecto(fila.tipo, fila.fecha),
     participantes: fila.participantes ?? [],
@@ -420,6 +430,9 @@ export async function crearSesion(datos: DatosDeSesion): Promise<{ id: string }>
     tipo: datos.tipo,
     alcance: datos.alcance,
     estado: datos.estado ?? ('borrador' as const),
+    // Una sesión nace sin nadie habiendo dicho que no se dio — ver la
+    // columna en src/db/esquema.ts y `fueDada` en src/dominio/salas.ts.
+    noDadaEn: null,
     estructura,
     participantes: datos.participantes ?? [],
     lugar: datos.lugar ?? null,
@@ -1011,7 +1024,11 @@ export async function guardarDecisiones(
     )
     await conexion
       .update(esquema.sesiones)
-      .set({ estado: 'lista', updatedAt: new Date() })
+      // `noDadaEn: null` (re-maquetar limpia una posible marca "no se dio"
+      // vieja — ver el comentario de la columna en src/db/esquema.ts):
+      // volver a maquetar es trabajo activo sobre la sesión, y eso pesa más
+      // que una marca puesta antes de este re-trabajo.
+      .set({ estado: 'lista', noDadaEn: null, updatedAt: new Date() })
       .where(eq(esquema.sesiones.id, sesionId))
   } else {
     llenados.forEach((item, i) => memoria.actualizarDecisionItemMemoria(item.id, resultados[i]))
@@ -1185,11 +1202,60 @@ export async function marcarPresentada(sesionId: string): Promise<void> {
   if (hayDB()) {
     await db()
       .update(esquema.sesiones)
-      .set({ estado: 'presentada', updatedAt: new Date() })
+      // noDadaEn: null — si alguien la había marcado "no se dio" y ahora
+      // resulta que sí, lo explícito nuevo gana y la contradicción no se
+      // guarda (ver el comentario de la columna en src/db/esquema.ts).
+      .set({ estado: 'presentada', noDadaEn: null, updatedAt: new Date() })
       .where(eq(esquema.sesiones.id, sesionId))
     return
   }
   memoria.actualizarEstadoSesionMemoria(sesionId, 'presentada')
+}
+
+/**
+ * "Esta reunión no se dio." Se canceló, se pospuso — el freno de mano de la
+ * deducción automática de `fueDada` (src/dominio/salas.ts): sin esto, una
+ * sesión `lista` cuyo día ya pasó se cuenta sola como dada en el contador, en
+ * la sala y en la lista de minutas pendientes, y no había forma de decir que
+ * esta en concreto no ocurrió.
+ *
+ * No tiene sentido decir "no se dio" de algo que YA se confirmó que sí se
+ * dio: retractar un hecho confirmado (`presentada`/`minutada`) es una función
+ * distinta que nadie pidió, no esta — de ahí el mismo guardián que usa
+ * `marcarPresentada` en sentido contrario.
+ */
+export async function marcarNoDada(sesionId: string): Promise<void> {
+  const sesion = await obtenerSesion(sesionId)
+  if (!sesion) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+  if (sesion.estado === 'presentada' || sesion.estado === 'minutada') {
+    throw new Error('Esta sesión ya se marcó como presentada: no se puede decir que no se dio.')
+  }
+  const ahora = new Date()
+  if (hayDB()) {
+    await db()
+      .update(esquema.sesiones)
+      .set({ noDadaEn: ahora, updatedAt: ahora })
+      .where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+  memoria.actualizarNoDadaSesionMemoria(sesionId, ahora)
+}
+
+/**
+ * Deshace `marcarNoDada`: la sesión vuelve a quedar sujeta a la deducción
+ * automática de siempre (`lista` + día civil pasado = dada). Sin guardián de
+ * estado — limpiar la marca es seguro sin importar en qué estado esté hoy la
+ * sesión, y ya idempotente si nunca se había puesto.
+ */
+export async function desmarcarNoDada(sesionId: string): Promise<void> {
+  if (hayDB()) {
+    await db()
+      .update(esquema.sesiones)
+      .set({ noDadaEn: null, updatedAt: new Date() })
+      .where(eq(esquema.sesiones.id, sesionId))
+    return
+  }
+  memoria.actualizarNoDadaSesionMemoria(sesionId, null)
 }
 
 export async function eliminarSesion(sesionId: string): Promise<void> {

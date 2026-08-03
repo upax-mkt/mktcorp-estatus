@@ -27,6 +27,7 @@ function sala(parcial: Partial<EstadoSala>): EstadoSala {
     cadencia: 'mensual',
     activa: true,
     pausadaDesde: null,
+    sesiones: [],
     ...parcial,
   }
 }
