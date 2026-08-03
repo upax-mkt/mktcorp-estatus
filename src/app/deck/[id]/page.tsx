@@ -27,12 +27,15 @@ import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
 import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
 import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
 import { VistaEditor } from '@/componentes/editor/VistaEditor'
+import { AcuerdosArrastrables } from '@/componentes/editor/AcuerdosArrastrables'
 import { estadoDeSeccion, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
 import { registrarArchivo } from '@/db/archivos'
 import { del } from '@vercel/blob'
 import { registrarEdicion, participantesDe } from '@/db/participacion'
+import { acuerdosArrastrablesDe } from '@/db/consultas'
+import { retomarAcuerdo } from '@/db/acuerdos'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 
 // Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
@@ -199,6 +202,23 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     revalidatePath(`/deck/${id}`)
   }
 
+  /**
+   * Retoma un acuerdo abierto de la sala en esta sesión (ver AcuerdosArrastrables).
+   *
+   * NO crea un acuerdo nuevo: `retomarAcuerdo` (src/db/acuerdos.ts) deja
+   * constancia en la historia del MISMO acuerdo, que sigue colgando de la
+   * sala. `revalidatePath` es lo que lo saca de la columna de arrastrables
+   * en el siguiente render, porque `acuerdosArrastrablesDe` deja de
+   * ofrecerlo — no hace falta borrarlo de ningún lado a mano.
+   */
+  async function retomarAcuerdoAction(acuerdoId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await retomarAcuerdo(acuerdoId, id)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
+    revalidatePath(`/deck/${id}`)
+  }
+
   async function maquetar() {
     'use server'
     const quien = await exigirEditor()
@@ -267,6 +287,12 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // fuga de datos que ya se corrigió en /reunion/[id].
   const participantes = await participantesDe(id)
 
+  // Los acuerdos abiertos de la sala que se pueden arrastrar a esta sesión
+  // (ronda 9, tarea 6). Los acuerdos cuelgan de la SALA, no de la sesión: una
+  // reunión sin sala (comité, arranque de campaña) no tiene de dónde
+  // sugerirlos.
+  const acuerdosArrastrables = sesion.salaSlug ? await acuerdosArrastrablesDe(sesion.salaSlug, id) : []
+
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
       <header className={estilos.barra}>
@@ -318,6 +344,16 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
           <ParticipantesSesion participantes={participantes} />
         </div>
+
+        {/* Los acuerdos abiertos de la sala, listos para retomarse en esta
+            sesión (ronda 9, tarea 6). Antes de la lista de secciones: es lo
+            primero que hay que revisar al abrir una sesión nueva de la sala,
+            igual que Franco lo pidió — "si quiero agregar Acuerdos y
+            Pendientes me debería sugerir...". Solo si la sesión es de una
+            sala: una reunión sin sala no tiene de dónde sugerirlos. */}
+        {sesion.salaSlug && (
+          <AcuerdosArrastrables acuerdos={acuerdosArrastrables} alArrastrar={retomarAcuerdoAction} />
+        )}
 
         <div className={estilos.editorConIndice}>
         <div className={estilos.columnaSecciones}>

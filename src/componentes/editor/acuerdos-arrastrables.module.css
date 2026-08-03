@@ -1,0 +1,137 @@
+/* La columna de acuerdos abiertos que se pueden retomar en la sesión nueva
+   (ronda 9, tarea 6). Mismo criterio que lista-ordenable.module.css: el asa
+   es un gesto para quien arrastra con el ratón, y el botón de abajo hace
+   exactamente lo mismo — es la vía que no depende de saber arrastrar. */
+
+.panel {
+  background: var(--superficie);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 2rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.titulo {
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tx-2);
+  margin: 0;
+}
+
+.pista {
+  font-size: 0.8rem;
+  color: var(--tx-3);
+  margin: 0;
+}
+
+.vacio {
+  font-size: 0.85rem;
+  color: var(--tx-3);
+  margin: 0;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.2rem;
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+}
+
+.fila {
+  flex: none;
+  width: 16rem;
+  display: grid;
+  gap: 0.45rem;
+  background: var(--superficie-2);
+  border-radius: var(--r-3);
+  padding: 0.75rem 0.85rem;
+  cursor: grab;
+  transition: opacity 140ms ease;
+}
+
+.fila:active {
+  cursor: grabbing;
+}
+
+/* La fila cuya acción está en curso —por arrastre o por el botón— se
+   atenúa: mismo gesto que `.arrastrando` en lista-ordenable.module.css. */
+.fila[data-pendiente='true'] {
+  opacity: 0.5;
+}
+
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.asa {
+  color: var(--tx-4);
+  font-size: 0.95rem;
+  line-height: 1.3;
+  user-select: none;
+  flex: none;
+}
+
+.que {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--tx);
+  min-width: 0;
+  /* La tarjeta es angosta a propósito, para que quepan varias: "que" puede
+     ser una frase larga y se corta a dos líneas. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--tx-3);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.punto {
+  color: var(--tx-4);
+}
+
+.vencido {
+  color: var(--alerta);
+  font-weight: 650;
+}
+
+.botonAnadir {
+  justify-self: start;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--r-lleno);
+  border: 1px solid var(--borde-fuerte);
+  background: var(--superficie);
+  color: var(--tx-2);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.botonAnadir:hover {
+  background: var(--tx);
+  color: var(--superficie);
+}
+
+.botonAnadir:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

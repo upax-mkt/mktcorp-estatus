@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { crearAcuerdo, editarAcuerdo, moverEstatus } from './acuerdos'
+import { crearAcuerdo, editarAcuerdo, moverEstatus, retomarAcuerdo } from './acuerdos'
 import { obtenerAcuerdoMemoria, actualizarAcuerdoMemoria, reiniciarStoreMemoria } from './store-memoria'
 import * as sincronizarMod from '@/monday/sincronizar'
 import * as clienteDB from './cliente'
@@ -84,6 +84,43 @@ describe('crearAcuerdo y la bandeja', () => {
 
     expect(espia).not.toHaveBeenCalled()
     espia.mockRestore()
+  })
+})
+
+describe('retomarAcuerdo', () => {
+  it('registra en la historia que la sesión lo retomó, sin tocar el estatus', async () => {
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar propuesta de staffing',
+      responsable: 'Directora de Marketing UDN',
+      fechaCompromiso: null,
+    })
+
+    await retomarAcuerdo(id, 'sesion-1')
+
+    const guardado = obtenerAcuerdoMemoria(id)
+    expect(guardado?.estatus).toBe('abierto')
+    expect(guardado?.historia).toContainEqual(expect.objectContaining({ cambios: { retomadoEnSesion: 'sesion-1' } }))
+  })
+
+  it('no duplica el acuerdo: sigue siendo la misma fila, con el mismo id, aunque lo retomen dos sesiones', async () => {
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar logo en alta resolución',
+      responsable: 'Directora de Marketing UDN',
+      fechaCompromiso: null,
+    })
+
+    await retomarAcuerdo(id, 'sesion-1')
+    await retomarAcuerdo(id, 'sesion-2')
+
+    // Dos sesiones retomaron el MISMO acuerdo: una fila, dos entradas en su
+    // historia — nunca un segundo acuerdo con el mismo "que".
+    const guardado = obtenerAcuerdoMemoria(id)
+    expect(guardado?.id).toBe(id)
+    expect(guardado?.historia).toHaveLength(2)
+  })
+
+  it('un acuerdo que no existe revienta con un mensaje claro, no en silencio', async () => {
+    await expect(retomarAcuerdo('no-existe', 'sesion-1')).rejects.toThrow('Acuerdo no encontrado')
   })
 })
 
@@ -267,5 +304,16 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
     // simple edición de fecha volvería a forzar la columna de Fase en
     // Monday — justo el bug que esta ronda corrigió.
     expect(espia).toHaveBeenCalledWith('a1', expect.objectContaining({ estatus: 'cumplido' }), 'cumplido')
+  })
+
+  it('retomarAcuerdo NO llama a Monday: retomar no es un cambio que le importe al tablero', async () => {
+    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
+
+    await retomarAcuerdo('a1', 'sesion-1')
+
+    expect(espia).not.toHaveBeenCalled()
+    // Y tampoco cambia el estatus guardado: solo la historia.
+    expect(fila.estatus).toBe('abierto')
+    expect(fila.historia).toContainEqual(expect.objectContaining({ cambios: { retomadoEnSesion: 'sesion-1' } }))
   })
 })

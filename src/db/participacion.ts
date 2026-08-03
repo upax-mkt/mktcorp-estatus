@@ -82,7 +82,9 @@ export function resumirParticipacion(participantes: Participante[]): ResumenPart
  * sesión y su minuta: la misma «reunión fantasma» que el comentario de esa
  * función documenta como corregida en otra ronda. Esto es bitácora, no el
  * dato que importa: nunca puede tumbar a quien la llama, en ninguno de los
- * doce sitios que la usan. `console.error` es el único rastro que queda.
+ * trece sitios que la usan (doce hasta la tarea 4; `retomarAcuerdoAction`,
+ * en el propio `src/app/deck/[id]/page.tsx`, se sumó en la tarea 6).
+ * `console.error` es el único rastro que queda.
  */
 export async function registrarEdicion(sesionId: string, correo: string): Promise<void> {
   if (!hayDB()) return
