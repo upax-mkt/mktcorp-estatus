@@ -20,7 +20,7 @@ import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil } from '@/lib/fecha'
 import { cerrarSesion } from '@/auth/sesion'
-import { exigirEditor, esAdmin } from '@/auth/roles'
+import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
@@ -38,6 +38,16 @@ import { colorDeTextoDeMarca } from '@/temas'
  * abrirla: qué se me está venciendo, qué viene, y cómo está cada relación.
  */
 export default async function Hub() {
+  // El Home era la ÚNICA pantalla de equipo sin guarda de página (revisión
+  // final de la rama, punto 1) — todas las demás (`/deck`, `/deck/[id]`,
+  // `/salas`, `/personas`...) ya exigen sesión aquí mismo, pegado al render,
+  // y no solo en el proxy (chequeo optimista, ver `src/auth/politica.ts`).
+  // Sin esto, una sesión que el proxy dejara pasar por error se encontraba
+  // con el Home entero pintado y solo tropezaba en el primer `exigir*()` de
+  // una Server Action real — que lanza, y hasta `src/app/error.tsx` (mismo
+  // punto de esta revisión) eso era la pantalla genérica de Next.
+  await exigirLectura()
+
   async function salir() {
     'use server'
     await cerrarSesion()

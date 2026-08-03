@@ -34,6 +34,15 @@
   margin: 0;
 }
 
+/* El error que antes solo quedaba en la consola (revisión final de la rama,
+   punto 5): mismo tono de alerta que el resto de la app (personas.module.css
+   .filaError, entrar.module.css .error). */
+.error {
+  font-size: 0.82rem;
+  color: var(--alerta, var(--mal));
+  margin: 0;
+}
+
 .lista {
   list-style: none;
   margin: 0;

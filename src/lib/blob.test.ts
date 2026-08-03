@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rutaDeArchivo, pesoLegible, extensionDe, TIPOS_PERMITIDOS, categoriaDeclarada } from './blob'
+import { rutaDeArchivo, pesoLegible, extensionDe, TIPOS_PERMITIDOS, categoriaDeclarada, tipoSeguroParaServir } from './blob'
 
 describe('rutaDeArchivo', () => {
   it('cuelga de la sala y la categoría, para poder leer el store a ojo', () => {
@@ -98,5 +98,43 @@ describe('tipos permitidos', () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     expect(TIPOS_PERMITIDOS).toContain('image/png')
+  })
+})
+
+/**
+ * REVISIÓN FINAL DE LA RAMA, PUNTO 4: `/api/archivo/[id]` servía
+ * `archivo.tipoContenido` —dato del cliente— tal cual, con
+ * `Content-Disposition: inline` y sin validar contra ninguna lista. Un SVG
+ * con script servido así se ejecuta en el origen de la app en cuanto alguien
+ * abre el enlace (`ArchivosSala.tsx` los enlaza con un `<a target="_blank">`
+ * real) — y quien los abre son los directores de las UDN.
+ */
+describe('tipoSeguroParaServir', () => {
+  it('un tipo conocido y permitido se sirve tal cual', () => {
+    expect(tipoSeguroParaServir('application/pdf')).toBe('application/pdf')
+    expect(tipoSeguroParaServir('image/png')).toBe('image/png')
+    expect(tipoSeguroParaServir('video/mp4')).toBe('video/mp4')
+  })
+
+  it('image/svg+xml NUNCA se sirve como tal, aunque esté en la lista de subida — es la excepción', () => {
+    expect(TIPOS_PERMITIDOS).toContain('image/svg+xml') // sí se admite SUBIR
+    expect(tipoSeguroParaServir('image/svg+xml')).toBe('application/octet-stream') // pero no SERVIR así
+  })
+
+  it('un tipo ejecutable o desconocido se degrada a descarga genérica, no se confía en el cliente', () => {
+    expect(tipoSeguroParaServir('text/html')).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('application/javascript')).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('lo-que-sea')).toBe('application/octet-stream')
+  })
+
+  it('sin tipo declarado, descarga genérica — nunca se inventa uno', () => {
+    expect(tipoSeguroParaServir(null)).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir(undefined)).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('')).toBe('application/octet-stream')
+  })
+
+  it('no se deja engañar por parámetros pegados al tipo ni por mayúsculas', () => {
+    expect(tipoSeguroParaServir('IMAGE/SVG+XML')).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('application/pdf; charset=binary')).toBe('application/pdf')
   })
 })

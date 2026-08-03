@@ -144,7 +144,19 @@ export function puedeVerRuta(sesion: Sesion | null, ruta: string): boolean {
     // evidente" que el resto de esta función.
     const [primerSegmento] = segmentos(ruta)
     if (SECCIONES_SOLO_ADMIN.includes(primerSegmento)) return puedeAdministrar(sesion)
-    return true
+    // `puedeLeer(sesion)`, NO `true` (revisión final de la rama, punto 1).
+    // Todo el equipo compartió una cookie de 7 días SIN `rolApp` hasta esta
+    // ronda: con un `true` a ciegas aquí, esa sesión pasaba el filtro
+    // optimista de CUALQUIER ruta de equipo salvo /salas y /personas —
+    // incluido el Home, que no tenía guarda de página (ver `src/app/page.tsx`
+    // y `src/app/error.tsx`) — y solo tropezaba en el primer `exigir*()` real
+    // de la página, que LANZA. Sin un límite de error en toda la app, eso era
+    // la pantalla genérica de Next con un código ilegible en vez de un
+    // `/entrar` limpio. `puedeLeer` exige un `rolApp` válido (admin/editor/
+    // viewer, `src/auth/politica.ts`) — la misma condición que ya protege
+    // /salas y /personas, aplicada aquí también: una sesión de equipo sin rol
+    // de app falla cerrado en TODA la app, no en dos rutas.
+    return puedeLeer(sesion)
   }
 
   // A partir de aquí: rol 'sala'. Lista blanca estricta.

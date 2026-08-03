@@ -132,23 +132,3 @@ export function recortarStream(
     },
   })
 }
-
-/** Junta un `ReadableStream` entero en un solo `Uint8Array` — solo para tests. */
-export async function agotarStream(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
-  const lector = stream.getReader()
-  const trozos: Uint8Array[] = []
-  let total = 0
-  for (;;) {
-    const { done, value } = await lector.read()
-    if (done) break
-    trozos.push(value)
-    total += value.length
-  }
-  const resultado = new Uint8Array(total)
-  let offset = 0
-  for (const trozo of trozos) {
-    resultado.set(trozo, offset)
-    offset += trozo.length
-  }
-  return resultado
-}

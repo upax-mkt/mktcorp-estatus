@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 
@@ -99,7 +99,7 @@ export async function listarPersonas(): Promise<Persona[]> {
 }
 
 /**
- * Si el directorio tiene al menos un admin activo.
+ * Si el directorio tiene al menos un admin QUE PUEDA ENTRAR DE VERDAD.
  *
  * La usa el portillo de emergencia (`claveDeEquipoSigueSirviendo()`,
  * `src/auth/sesion.ts`) para decidir si la clave de equipo sigue sirviendo.
@@ -113,6 +113,27 @@ export async function listarPersonas(): Promise<Persona[]> {
  * equipo, devolvían el acceso; solo SQL a mano. La pregunta correcta no es
  * "¿está vacío?", es "¿queda alguien que pueda dar acceso?" — y por eso
  * `hayAlgunaPersona` se retiró: se quedó sin ningún llamador real.
+ *
+ * SEGUNDO FALLO DEL MISMO TIPO (revisión final de la rama, punto 2):
+ * "¿existe un admin activo EN LA TABLA?" segue siendo la pregunta
+ * equivocada. Si el correo de la fila no coincide con el que devuelve Slack
+ * —un alias, una letra distinta, un correo dado de alta a mano con una
+ * errata— esa persona NUNCA logra entrar (`src/app/api/auth/slack/retorno/
+ * route.ts` busca la fila por el correo exacto que trae Slack), y como la
+ * fila EXISTE y es admin activa, este portillo tampoco se abre: nadie entra,
+ * en ningún lado, y solo queda SQL a mano — el mismo callejón sin salida que
+ * motivó el fix anterior, con una puerta distinta.
+ *
+ * `ultimoAcceso IS NOT NULL` es la diferencia entre "existe un admin" y "hay
+ * un admin que ha logrado entrar alguna vez": esa columna SOLO se escribe
+ * desde `registrarAcceso()`, más abajo, y `registrarAcceso()` SOLO se llama
+ * tras una autenticación real contra Slack que ya resolvió esa fila (nunca al
+ * dar de alta a alguien — `altaPersona` no la toca). Mientras NINGÚN admin
+ * de la tabla haya entrado ni una vez de verdad, la clave de equipo sigue
+ * sirviendo — que es exactamente el estado en el que un correo mal cargado
+ * necesita el portillo para poder corregirse a sí mismo. En cuanto UN admin
+ * entra una sola vez (con la clave, o porque otro correo sí coincidía), el
+ * portillo se cierra otra vez, igual que antes.
  */
 export async function hayAlgunAdminActivo(): Promise<boolean> {
   if (!hayDB()) return false
@@ -120,7 +141,13 @@ export async function hayAlgunAdminActivo(): Promise<boolean> {
     await db()
       .select({ correo: esquema.personas.correo })
       .from(esquema.personas)
-      .where(and(eq(esquema.personas.rol, 'admin'), eq(esquema.personas.activa, true)))
+      .where(
+        and(
+          eq(esquema.personas.rol, 'admin'),
+          eq(esquema.personas.activa, true),
+          isNotNull(esquema.personas.ultimoAcceso),
+        ),
+      )
       .limit(1)
   )[0]
   return Boolean(fila)

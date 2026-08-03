@@ -70,7 +70,6 @@
 .seccion { margin-top: 2.25rem; }
 .seccionCabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
 .seccionTitulo { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
-.seccionNota { font-size: 0.85rem; color: var(--tx-2); margin: 0.3rem 0 0; max-width: 62ch; }
 
 /* ---- el directorio ---- */
 .listaPersonas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }

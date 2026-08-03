@@ -1,5 +1,31 @@
 import { describe, it, expect } from 'vitest'
-import { interpretarRango, recortarStream, agotarStream } from './rango'
+import { interpretarRango, recortarStream } from './rango'
+
+/**
+ * Junta un `ReadableStream` entero en un solo `Uint8Array` — SOLO para este
+ * archivo. Vivía exportada desde `rango.ts` sin que ningún código de
+ * producción la llamara nunca —únicamente estos tests— así que se retiró de
+ * ahí (revisión final de la rama, menores) y se movió aquí, que es su único
+ * consumidor real.
+ */
+async function agotarStream(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  const lector = stream.getReader()
+  const trozos: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await lector.read()
+    if (done) break
+    trozos.push(value)
+    total += value.length
+  }
+  const resultado = new Uint8Array(total)
+  let offset = 0
+  for (const trozo of trozos) {
+    resultado.set(trozo, offset)
+    offset += trozo.length
+  }
+  return resultado
+}
 
 /** Un ReadableStream fabricado a partir de trozos ya partidos — para controlar exactamente dónde caen los bordes. */
 function streamDeTrozos(trozos: number[][]): ReadableStream<Uint8Array> {

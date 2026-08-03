@@ -5,6 +5,7 @@ import { obtenerSesion } from '@/db/sesiones'
 import { puedeVerEstaSala } from '@/auth/sesion'
 import { esLector } from '@/auth/roles'
 import { interpretarRango, recortarStream } from '@/lib/rango'
+import { tipoSeguroParaServir } from '@/lib/blob'
 
 /**
  * Quién puede ver este archivo.
@@ -66,7 +67,13 @@ export async function GET(
 
   const tamanoTotal = resultado.blob.size
   const cabecerasComunes = {
-    'Content-Type': archivo.tipoContenido ?? resultado.blob.contentType,
+    // NUNCA el dato crudo del cliente (revisión final de la rama, punto 4):
+    // `archivo.tipoContenido` es lo que declaró el NAVEGADOR al subir, sin
+    // verificar contra el binario real. `tipoSeguroParaServir` (src/lib/blob.ts)
+    // solo deja pasar los tipos que esta app conoce de verdad —y NUNCA
+    // `image/svg+xml`, que aquí se serviría `inline` y con script— y degrada
+    // cualquier otra cosa a una descarga genérica.
+    'Content-Type': tipoSeguroParaServir(archivo.tipoContenido ?? resultado.blob.contentType),
     // `inline` para que un PDF o una imagen se abran en el navegador en vez
     // de bajarse a Descargas; el nombre es el ORIGINAL, no la ruta interna
     // con su uuid delante.
@@ -77,6 +84,12 @@ export async function GET(
     // navegador "puedes pedirme un trozo" antes incluso de necesitar uno —
     // sin esto, un reproductor de vídeo ni se molesta en intentarlo.
     'Accept-Ranges': 'bytes',
+    // SIN ESTO (revisión final de la rama, punto 4) el navegador puede
+    // ignorar el `Content-Type` de arriba y "adivinar" uno distinto por el
+    // contenido (MIME-sniffing) — la segunda mitad de la misma protección:
+    // no basta con declarar bien el tipo si el navegador se siente libre de
+    // no creerlo.
+    'X-Content-Type-Options': 'nosniff',
   }
 
   const rango = interpretarRango(request.headers.get('range'), tamanoTotal)

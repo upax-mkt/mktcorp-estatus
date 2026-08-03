@@ -405,7 +405,16 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
             Pendientes me debería sugerir...". Solo si la sesión es de una
             sala: una reunión sin sala no tiene de dónde sugerirlos. */}
         {sesion.salaSlug && (
-          <AcuerdosArrastrables acuerdos={acuerdosArrastrables} alArrastrar={retomarAcuerdoAction} />
+          <AcuerdosArrastrables
+            acuerdos={acuerdosArrastrables}
+            alArrastrar={retomarAcuerdoAction}
+            // Revisión final de la rama, punto 5: `itemAcuerdos` (arriba) es
+            // `undefined` en las plantillas sin sección de Acuerdos y
+            // Pendientes («en blanco», «comité») — sin este dato, el panel
+            // ofrecía arrastre y el botón «Añadir» aunque la acción SIEMPRE
+            // fuera a lanzar (`anadirAcuerdoRetomado` exige esa sección).
+            hayDestino={itemAcuerdos !== undefined}
+          />
         )}
 
         <div className={estilos.editorConIndice}>

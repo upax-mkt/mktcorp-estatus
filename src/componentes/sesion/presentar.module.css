@@ -322,5 +322,53 @@
 }
 .cabeceraMinuta button:hover { background: var(--papel-hundido); color: var(--tinta); }
 
+.cabeceraMinutaAcciones { display: flex; align-items: center; gap: 0.4rem; flex: none; }
+
+/*
+ * DESCARTAR ES OTRO GESTO, no la ✕ (revisión final de la rama, punto 3).
+ * Un texto que hay que LEER, no un ícono al lado del que cierra — y en
+ * `:hover` se pone del color de alerta del sistema: es la única acción de
+ * este diálogo que borra algo sin vuelta atrás. `!important` porque
+ * `.cabeceraMinuta button`, arriba, ya pone su propio color y su propio
+ * `:hover` — mismo criterio que `.salir`/`.confirmarSalidaSi` en este mismo
+ * archivo para pisar la regla genérica de `.controles button`.
+ */
+.descartarTranscripcion {
+  font-size: 0.78rem !important;
+}
+.descartarTranscripcion:hover {
+  color: oklch(1 0 0) !important;
+  background: var(--mal) !important;
+}
+
+/*
+ * EL AVISO DE QUE QUEDA ALGO SIN REVISAR (revisión final de la rama, punto
+ * 3): aparece si el diálogo se cerró (✕ o Esc nativo) sin publicar la minuta
+ * ni pulsar «Descartar». Abajo a la IZQUIERDA a propósito: `.boton`
+ * («Presentar») ya vive en la esquina derecha, y las dos pueden coexistir —
+ * se sale de presentar con una transcripción pendiente y el botón de entrar
+ * vuelve a aparecer al lado de este aviso, no encima.
+ */
+.reabrirTranscripcion {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  z-index: 20;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--linea-fuerte);
+  cursor: pointer;
+  color: var(--tinta);
+  background: var(--papel);
+  box-shadow: 0 2px 10px oklch(0 0 0 / 0.18);
+  transition: filter 0.15s ease;
+}
+.reabrirTranscripcion:hover {
+  filter: brightness(0.97);
+}
+
 /* El flotante de «Presentar» no existe en papel. */
-@media print { .boton { display: none !important; } }
+@media print { .boton, .reabrirTranscripcion { display: none !important; } }

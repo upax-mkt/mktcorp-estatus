@@ -7,7 +7,7 @@ import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
-import { registrarPresentacion } from '@/db/participacion'
+import { registrarPresentacion, registrarEdicion } from '@/db/participacion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
@@ -61,8 +61,14 @@ export default async function PagSesionMaquetada({
   // la sala del director ni puede tener minuta. Ver `marcarPresentada`.
   async function marcarPresentadaAction() {
     'use server'
-    await exigirEditor()
+    const quien = await exigirEditor()
     await marcarPresentada(id)
+    // Enganchada al registro de participación (revisión final de la rama,
+    // menores): escribe el estado de la sesión igual que «Maquetar»
+    // (`maquetar()`, src/app/deck/[id]/page.tsx), que sí registra — antes
+    // esta era la única acción que cambiaba `sesion.estado` sin dejar
+    // constancia de quién lo hizo.
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/documento`)
     if (sesion!.salaSlug) revalidatePath(`/cliente/${sesion!.salaSlug}`)
     revalidatePath('/')

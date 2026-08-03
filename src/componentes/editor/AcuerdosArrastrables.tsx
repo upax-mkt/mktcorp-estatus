@@ -24,6 +24,22 @@ interface Props {
   /** Los acuerdos ABIERTOS de la sala que todavía no se han retomado en esta sesión. */
   acuerdos: AcuerdoArrastrable[]
   /**
+   * Si esta sesión tiene una sección de Acuerdos y Pendientes donde
+   * aterrizar un acuerdo retomado (`itemDeAcuerdosPendientes`,
+   * src/db/sesiones.ts) — revisión final de la rama, punto 5.
+   *
+   * Las plantillas «en blanco» y «comité» (`src/secciones/plantillas.ts`) no
+   * traen esa sección, y sin este dato el panel se pintaba igual, arrastre y
+   * botón «Añadir» incluidos: al soltar o pulsar, `anadirAcuerdoRetomado`
+   * (src/db/sesiones.ts) LANZA —"Esta sesión no tiene una sección de
+   * Acuerdos y Pendientes..."— y como `retomar()`, más abajo, solo hacía
+   * `console.error`, quien pulsaba el botón no veía nada: ni el acuerdo se
+   * movía ni había ningún aviso. `false` cambia lo que se pinta: un vacío
+   * que lo explica, en vez de una lista que promete algo que no puede
+   * cumplir.
+   */
+  hayDestino: boolean
+  /**
    * Retoma un acuerdo en esta sesión. Solo lo llama el botón «Añadir» de
    * aquí — el arrastre lo dispara `ZonaSoltarAcuerdo` (en la tarjeta de
    * Acuerdos y Pendientes), no esta lista: esta lista es la FUENTE
@@ -53,21 +69,28 @@ function ordenados(acuerdos: AcuerdoArrastrable[]): AcuerdoArrastrable[] {
   return [...acuerdos].sort((a, b) => (a.estatus === 'vencido' ? 0 : 1) - (b.estatus === 'vencido' ? 0 : 1))
 }
 
-export function AcuerdosArrastrables({ acuerdos, alArrastrar }: Props) {
+export function AcuerdosArrastrables({ acuerdos, alArrastrar, hayDestino }: Props) {
   const [enCurso, setEnCurso] = useState<string | null>(null)
+  // Revisión final de la rama, punto 5: antes el único rastro de un fallo al
+  // retomar era `console.error` — el botón «Añadir» se quedaba tal cual, sin
+  // decir nada, y quien lo pulsó no tenía forma de saber que no pasó nada.
+  const [error, setError] = useState<string | null>(null)
   const [, empezarTransicion] = useTransition()
 
   function retomar(acuerdoId: string) {
     setEnCurso(acuerdoId)
+    setError(null)
     empezarTransicion(async () => {
       try {
         await alArrastrar(acuerdoId)
-      } catch (error) {
-        // No hay nada más que hacer aquí: si `alArrastrar` no revalida la
-        // lista (falló antes de llegar), el acuerdo simplemente se sigue
-        // ofreciendo y se puede reintentar. Que quede rastro en la consola
-        // es mejor que tragarse el error en silencio.
-        console.error(`[AcuerdosArrastrables] no se pudo retomar "${acuerdoId}":`, error)
+      } catch (error_) {
+        // El rastro en consola se conserva (útil para depurar), pero ya no es
+        // el ÚNICO: el mensaje real de `anadirAcuerdoRetomado` (o el que sea)
+        // llega también a la pantalla — si no revalidó la lista es porque
+        // falló antes de llegar, así que el acuerdo se sigue ofreciendo y se
+        // puede reintentar.
+        console.error(`[AcuerdosArrastrables] no se pudo retomar "${acuerdoId}":`, error_)
+        setError(error_ instanceof Error ? error_.message : 'No se pudo añadir el acuerdo.')
       } finally {
         setEnCurso(null)
       }
@@ -78,11 +101,26 @@ export function AcuerdosArrastrables({ acuerdos, alArrastrar }: Props) {
     <aside className={estilos.panel} aria-label="Acuerdos abiertos de la sala">
       <p className={estilos.titulo}>Acuerdos abiertos de la sala</p>
 
-      {acuerdos.length === 0 ? (
+      {!hayDestino ? (
+        // NO SE PINTA EL PANEL ARRASTRABLE (revisión final de la rama, punto
+        // 5): esta plantilla no tiene dónde aterrizar un acuerdo retomado —
+        // ofrecer arrastre y botón «Añadir» aquí sería prometer algo que
+        // `anadirAcuerdoRetomado` siempre va a rechazar. Un vacío que lo
+        // explica, en vez de una lista muda que falla en silencio.
+        <p className={estilos.vacio}>
+          Esta reunión no tiene una sección de Acuerdos y Pendientes, así que los acuerdos abiertos
+          de la sala no se pueden retomar aquí.
+        </p>
+      ) : acuerdos.length === 0 ? (
         <p className={estilos.vacio}>No hay acuerdos abiertos que retomar.</p>
       ) : (
         <>
           <p className={estilos.pista}>Arrástralos a la sesión, o añádelos con el botón.</p>
+          {error && (
+            <p className={estilos.error} role="alert">
+              {error}
+            </p>
+          )}
           <ul className={estilos.lista}>
             {ordenados(acuerdos).map((acuerdo) => (
               <li

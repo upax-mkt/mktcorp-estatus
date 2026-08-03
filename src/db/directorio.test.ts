@@ -6,11 +6,13 @@ import * as esquema from './esquema'
  *
  * `hayAlgunAdminActivo` SÍ toca `db()` — es el dato del que depende el
  * portillo de emergencia (`claveDeEquipoSigueSirviendo()`, src/auth/sesion.ts;
- * revisión del coordinador a la ronda 9, tarea 3), así que se prueba contra
+ * revisión del coordinador a la ronda 9, tarea 3; segundo fallo del mismo
+ * tipo en la revisión final de la rama, punto 2), así que se prueba contra
  * un doble en memoria, mismo patrón que `src/app/personas/acciones.test.ts`:
- * `eq`/`and` de drizzle-orm se sustituyen por objetos planos inspeccionables,
- * y `esquema.personas.rol`/`.activa` que ve el doble de abajo son las MISMAS
- * referencias de columna que usa `directorio.ts`.
+ * `eq`/`and`/`isNotNull` de drizzle-orm se sustituyen por objetos planos
+ * inspeccionables, y `esquema.personas.rol`/`.activa`/`.ultimoAcceso` que ve
+ * el doble de abajo son las MISMAS referencias de columna que usa
+ * `directorio.ts`.
  */
 
 vi.mock('drizzle-orm', async (importarOriginal) => {
@@ -19,6 +21,7 @@ vi.mock('drizzle-orm', async (importarOriginal) => {
     ...real,
     eq: (columna: unknown, valor: unknown) => ({ tipo: 'eq' as const, columna, valor }),
     and: (...condiciones: unknown[]) => ({ tipo: 'and' as const, condiciones }),
+    isNotNull: (columna: unknown) => ({ tipo: 'isNotNull' as const, columna }),
   }
 })
 
@@ -27,9 +30,14 @@ interface FilaFalsa {
   nombre: string
   rol: string
   activa: boolean
+  /** `null` = esta fila existe pero nadie ha entrado con ella todavía. */
+  ultimoAcceso: Date | null
 }
 
-type Cond = { tipo: 'eq'; columna: unknown; valor: unknown } | { tipo: 'and'; condiciones: Cond[] }
+type Cond =
+  | { tipo: 'eq'; columna: unknown; valor: unknown }
+  | { tipo: 'and'; condiciones: Cond[] }
+  | { tipo: 'isNotNull'; columna: unknown }
 
 const filasDePrueba: FilaFalsa[] = []
 
@@ -42,6 +50,9 @@ function claveDeColumna(columna: unknown): string {
 function coincide(cond: Cond, fila: FilaFalsa): boolean {
   if (cond.tipo === 'eq') {
     return (fila as unknown as Record<string, unknown>)[claveDeColumna(cond.columna)] === cond.valor
+  }
+  if (cond.tipo === 'isNotNull') {
+    return (fila as unknown as Record<string, unknown>)[claveDeColumna(cond.columna)] != null
   }
   return cond.condiciones.every((c) => coincide(c, fila))
 }
@@ -92,17 +103,34 @@ describe('hayAlgunAdminActivo', () => {
     return expect(hayAlgunAdminActivo()).resolves.toBe(false)
   })
 
-  it('hay gente, pero ningún admin activo (un editor y un admin YA desactivado): false — el caso que motivó este cambio', () => {
+  it('hay gente, pero ningún admin activo (un editor y un admin YA desactivado): false — el caso que motivó el fix original', () => {
     filasDePrueba.length = 0
-    filasDePrueba.push({ correo: 'a@upax.com.mx', nombre: 'A', rol: 'editor', activa: true })
-    filasDePrueba.push({ correo: 'b@upax.com.mx', nombre: 'B', rol: 'admin', activa: false })
+    filasDePrueba.push({ correo: 'a@upax.com.mx', nombre: 'A', rol: 'editor', activa: true, ultimoAcceso: new Date('2026-01-01') })
+    filasDePrueba.push({ correo: 'b@upax.com.mx', nombre: 'B', rol: 'admin', activa: false, ultimoAcceso: new Date('2026-01-01') })
     return expect(hayAlgunAdminActivo()).resolves.toBe(false)
   })
 
-  it('al menos un admin activo: true', () => {
+  /**
+   * Revisión final de la rama, punto 2 — las DOS ramas de `ultimoAcceso`, que
+   * son la diferencia entre "existe un admin" (esta fila) y "hay un admin
+   * que ha logrado entrar" (la de abajo). Una fila admin+activa con
+   * `ultimoAcceso: null` es EXACTAMENTE el caso que dejaba a alguien sin
+   * ninguna puerta: su correo en la tabla no coincide con el que devuelve
+   * Slack —un alias, una letra— así que nunca ha entrado de verdad, y antes
+   * de este fix esa fila ya bastaba para que el portillo se diera por
+   * satisfecho y se cerrara solo, sin que nadie hubiera entrado nunca.
+   */
+  it('rama 1 — un admin activo EN LA TABLA que todavía no ha entrado nunca (ultimoAcceso null): false, el portillo sigue sirviendo', () => {
     filasDePrueba.length = 0
-    filasDePrueba.push({ correo: 'a@upax.com.mx', nombre: 'A', rol: 'editor', activa: true })
-    filasDePrueba.push({ correo: 'b@upax.com.mx', nombre: 'B', rol: 'admin', activa: true })
+    filasDePrueba.push({ correo: 'nueva@upax.com.mx', nombre: 'Nueva', rol: 'admin', activa: true, ultimoAcceso: null })
+    return expect(hayAlgunAdminActivo()).resolves.toBe(false)
+  })
+
+  /** Rama 2 — el mismo admin, pero YA entró una vez de verdad: true, el portillo se cierra. */
+  it('rama 2 — al menos un admin activo que YA entró alguna vez (ultimoAcceso no nulo): true', () => {
+    filasDePrueba.length = 0
+    filasDePrueba.push({ correo: 'a@upax.com.mx', nombre: 'A', rol: 'editor', activa: true, ultimoAcceso: new Date('2026-01-01') })
+    filasDePrueba.push({ correo: 'b@upax.com.mx', nombre: 'B', rol: 'admin', activa: true, ultimoAcceso: new Date('2026-01-01') })
     return expect(hayAlgunAdminActivo()).resolves.toBe(true)
   })
 })
