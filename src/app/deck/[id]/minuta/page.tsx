@@ -5,7 +5,8 @@ import estilos from '../../deck.module.css'
 import { obtenerSesion } from '@/db/sesiones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
@@ -18,6 +19,9 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 export default async function PagMinutaSesion({ params }: { params: Promise<{ id: string }> }) {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero.
+  await exigirLectura()
   const { id } = await params
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()
@@ -65,24 +69,29 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
 
   // Publicar y corregir son cosas distintas: publicar decide qué acuerdos
   // nacen (y eso no se repite), corregir solo arregla el texto del correo.
+  // Las dos escriben la minuta de la sesión, así que las dos registran a
+  // quien lo hizo (ronda 9, tarea 4) — `eliminarAction`, más abajo, no: borra
+  // el acta entera, no la prepara.
   async function editarAction(texto: string) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await editarTextoMinuta(id, texto)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/minuta`)
   }
 
   async function eliminarAction() {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await eliminarMinuta(id)
     revalidatePath(`/deck/${id}/minuta`)
   }
 
   async function cargarExternaAction(texto: string) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await cargarMinutaExterna(id, texto)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/minuta`)
   }
 

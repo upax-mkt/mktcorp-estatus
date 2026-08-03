@@ -11,11 +11,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  * director — ver el comentario junto a `directorio()` en `page.tsx`.
  *
  * Este test fija la regla al nivel de la página: `directorio()` —el import,
- * espiado— solo se llama cuando `esEquipo()` resuelve `true`. Mismo criterio
+ * espiado— solo se llama cuando `esLector()` resuelve `true`. Mismo criterio
  * que ya usa `acciones.test.ts` para las Server Actions: una página de App
  * Router es, igual que ellas, una función async con dependencias
  * sustituibles por dobles — no hace falta renderizar a DOM para comprobar
  * esto, solo invocar la función y mirar qué se llamó (y con qué).
+ *
+ * `esLector()`, no la vieja `esEquipo()` (retirada, corrección post-revisión
+ * de la ronda 9): ahora vive en `@/auth/roles`, no en `@/auth/sesion`.
  */
 
 const obtenerSesionMock = vi.fn()
@@ -28,16 +31,31 @@ vi.mock('@/db/consultas', () => ({
   estadoDeSala: (...args: unknown[]) => estadoDeSalaMock(...args),
 }))
 
-const esEquipoMock = vi.fn()
 const puedeVerEstaSalaMock = vi.fn()
 vi.mock('@/auth/sesion', () => ({
-  esEquipo: () => esEquipoMock(),
   puedeVerEstaSala: (...args: unknown[]) => puedeVerEstaSalaMock(...args),
+}))
+
+const esLectorMock = vi.fn()
+// `exigirLectura` no la ejercita ningún test de aquí (vive dentro de
+// `registrarPresentacionAction`, que estos tests no invocan — llaman a la
+// página directo, sin montar el árbol de React ni hacer clic en "Presentar")
+// pero se incluye en el doble para que la página siga important-eable si
+// algún día un test SÍ la ejercita: sin esto, `undefined()` reventaría.
+vi.mock('@/auth/roles', () => ({
+  esLector: () => esLectorMock(),
+  exigirLectura: vi.fn(),
 }))
 
 const directorioMock = vi.fn()
 vi.mock('@/db/personas', () => ({
   directorio: () => directorioMock(),
+}))
+
+// Mismo motivo que `exigirLectura` arriba: `registrarPresentacion` solo la
+// usa `registrarPresentacionAction`, que ningún test de aquí invoca.
+vi.mock('@/db/participacion', () => ({
+  registrarPresentacion: vi.fn(),
 }))
 
 const { default: PagSesionPublicada } = await import('./page')
@@ -65,13 +83,13 @@ beforeEach(() => {
   obtenerSesionMock.mockReset().mockResolvedValue(SESION_BASE)
   estadoDeSalaMock.mockReset().mockResolvedValue({ acuerdos: [] })
   puedeVerEstaSalaMock.mockReset().mockResolvedValue(true)
-  esEquipoMock.mockReset()
+  esLectorMock.mockReset()
   directorioMock.mockReset().mockResolvedValue([{ id: '1', nombre: 'Franco Cruzat', correo: 'franco@upax.com.mx' }])
 })
 
 describe('PagSesionPublicada (/reunion/[id]) — el directorio se CARGA condicionado', () => {
   it('un acceso de sala (el director, vía "Ver presentación" de su sala) no dispara directorio(): el dato ni se pide', async () => {
-    esEquipoMock.mockResolvedValue(false)
+    esLectorMock.mockResolvedValue(false)
 
     await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
 
@@ -82,7 +100,7 @@ describe('PagSesionPublicada (/reunion/[id]) — el directorio se CARGA condicio
   })
 
   it('el equipo sí dispara directorio(): lo necesita el selector de responsable del modo presentación', async () => {
-    esEquipoMock.mockResolvedValue(true)
+    esLectorMock.mockResolvedValue(true)
 
     await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
 

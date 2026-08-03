@@ -18,7 +18,7 @@ import * as esquema from './esquema'
 import { cargarTemas, slugsDeSalas } from './temas'
 import type { Tema } from '@/temas'
 import * as fallback from '@/dominio/salas'
-import { esLlenado, type ContenidoItemCrudo } from './sesiones'
+import { esLlenado, obtenerSesion, type ContenidoItemCrudo } from './sesiones'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
@@ -321,6 +321,77 @@ export async function acuerdosEnRiesgo(): Promise<AcuerdoEnRiesgo[]> {
 export async function pulsoDelMes(): Promise<PulsoDelMes> {
   if (!hayDB()) return construirPulso(fallback.estadoDeSalas())
   return construirPulso(await estadoDeSalasDB())
+}
+
+// ---- Arrastrar acuerdos abiertos a la sesión (ronda 9, tarea 6) ----
+
+/**
+ * Los acuerdos que se pueden arrastrar a `sesionId`: los ABIERTOS de
+ * `salaSlug` —abierto o vencido, con el mismo `estatusEfectivo` que usa toda
+ * la app, freeze de la sala incluido— que esta sesión TODAVÍA no retomó.
+ *
+ * "Abiertos de la sala" y no "de la última reunión" (Franco pidió lo
+ * segundo, literalmente): un compromiso de hace dos meses que sigue sin
+ * cerrarse es justo el que hay que retomar, y limitar la oferta a la sesión
+ * anterior dejaría fuera lo más urgente. Los vencidos primero los ordena
+ * `AcuerdosArrastrables` (src/componentes/editor), no esta función — aquí no
+ * se promete un orden.
+ *
+ * "Ya retomado" se lee de LA PROPIA SESIÓN, no de una marca aparte
+ * (revisión: la primera versión leía la `historia` del acuerdo, que solo
+ * decía "se tocó" sin que nada cambiara en pantalla). `obtenerSesion` ya
+ * resuelve `acuerdoIdsRetomados` de cada item contra la tabla `acuerdos`
+ * (ver `resolverAcuerdosRetomados`, src/db/sesiones.ts) — es la MISMA
+ * resolución que usa el editor y "Maquetar", así que preguntarle a ella es
+ * preguntar exactamente lo que decide si el acuerdo YA aparece en esta
+ * sesión.
+ *
+ * Sin DB no hay nada que ofrecer, mismo criterio que `todosLosAcuerdos`.
+ */
+export async function acuerdosArrastrablesDe(salaSlug: string, sesionId: string): Promise<Acuerdo[]> {
+  if (!hayDB()) return []
+
+  const [sesion, filas] = await Promise.all([
+    obtenerSesion(sesionId),
+    db()
+      .select({
+        id: esquema.acuerdos.id,
+        que: esquema.acuerdos.que,
+        responsable: esquema.acuerdos.responsable,
+        squad: esquema.acuerdos.squad,
+        fechaCompromiso: esquema.acuerdos.fechaCompromiso,
+        estatus: esquema.acuerdos.estatus,
+        destacado: esquema.acuerdos.destacado,
+        salaActiva: esquema.salas.activa,
+      })
+      .from(esquema.acuerdos)
+      .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
+      .where(eq(esquema.acuerdos.salaSlug, salaSlug)),
+  ])
+
+  const yaRetomados = new Set((sesion?.items ?? []).flatMap((i) => i.acuerdosRetomados.map((a) => a.id)))
+  const hoy = isoFecha(new Date())
+
+  return filas
+    .map((f) => {
+      const fechaCompromiso = f.fechaCompromiso ? isoFecha(f.fechaCompromiso) : null
+      const estatus = fallback.estatusEfectivo(
+        { estatus: f.estatus as fallback.EstatusAcuerdo, fechaCompromiso },
+        f.salaActiva,
+        hoy,
+      )
+      return {
+        id: f.id,
+        que: f.que,
+        responsable: f.responsable,
+        squad: f.squad ?? undefined,
+        fechaCompromiso,
+        estatus,
+        destacado: f.destacado,
+      }
+    })
+    .filter((a) => a.estatus === 'abierto' || a.estatus === 'vencido')
+    .filter((a) => !yaRetomados.has(a.id))
 }
 
 // ---- El espacio de acuerdos: las diez salas juntas (tarea 11, ronda 7) ----

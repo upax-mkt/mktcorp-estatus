@@ -64,6 +64,30 @@ describe('firmar / verificar', () => {
     expect(await verificar(token, SECRETO, AHORA)).toBeNull()
   })
 
+  it('conserva el rolApp de un acceso de equipo (ronda 9, tarea 2)', async () => {
+    const token = await firmar(
+      { rol: 'equipo', sub: 'franco', rolApp: 'editor', exp: EN_UNA_HORA.getTime() },
+      SECRETO,
+    )
+    const dentro = await verificar(token, SECRETO, AHORA)
+    expect(dentro?.rolApp).toBe('editor')
+  })
+
+  it('un acceso de equipo sin rolApp sigue siendo válido: es la sesión previa a esta ronda', async () => {
+    const token = await firmar({ rol: 'equipo', sub: 'franco', exp: EN_UNA_HORA.getTime() }, SECRETO)
+    const dentro = await verificar(token, SECRETO, AHORA)
+    expect(dentro?.rol).toBe('equipo')
+    expect(dentro?.rolApp).toBeUndefined()
+  })
+
+  it('rechaza un rolApp inventado: falla cerrado ya al deserializar', async () => {
+    const token = await firmar(
+      { rol: 'equipo', rolApp: 'superadmin', exp: EN_UNA_HORA.getTime() } as never,
+      SECRETO,
+    )
+    expect(await verificar(token, SECRETO, AHORA)).toBeNull()
+  })
+
   it('produce firmas distintas para contenidos distintos', async () => {
     const a = await firmar({ rol: 'sala', sala: 'neracode', exp: EN_UNA_HORA.getTime() }, SECRETO)
     const b = await firmar({ rol: 'sala', sala: 'zeus', exp: EN_UNA_HORA.getTime() }, SECRETO)

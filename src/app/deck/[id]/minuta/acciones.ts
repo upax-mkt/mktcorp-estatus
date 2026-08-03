@@ -8,12 +8,14 @@
  * Component.
  */
 import { revalidatePath } from 'next/cache'
-import { esEquipo } from '@/auth/sesion'
+import { esEditor } from '@/auth/roles'
+import { sesionActual } from '@/auth/sesion'
 import { obtenerSesion, crearSesion } from '@/db/sesiones'
 import { cargarTemas } from '@/db/temas'
 import { generarMinuta } from '@/minuta/generar'
 import { moldeDeMinuta } from '@/db/plantillas'
 import { guardarMinuta, type AcuerdoConfirmado } from '@/db/minutas'
+import { registrarEdicion } from '@/db/participacion'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
 
 export interface EstadoGeneracion {
@@ -24,11 +26,19 @@ export interface EstadoGeneracion {
 }
 
 /**
- * Minutar es trabajo de Mkt Corp. Estas dos acciones devuelven su error en el
- * resultado en vez de lanzar (MinutaCliente lo pinta), así que el rechazo por
- * permisos sigue el mismo camino.
+ * Minutar es trabajo de edición de Mkt Corp (admin o editor, no viewer).
+ * Estas dos acciones devuelven su error en el resultado en vez de lanzar
+ * (MinutaCliente lo pinta), así que el rechazo por permisos sigue el mismo
+ * camino.
+ *
+ * `esEditor()`, no la vieja `esEquipo()` (agujero crítico corregido tras
+ * revisión de la ronda 9): con `esEquipo()` cualquier viewer podía generar Y
+ * PUBLICAR una minuta de verdad — `publicarMinutaAction` crea la sesión si
+ * hace falta y persiste el acta con sus acuerdos confirmados, compromisos
+ * reales para gente real en cualquiera de las nueve salas. Ninguna pantalla
+ * exige nada antes de esta: la comprobación que cuenta es esta.
  */
-const SOLO_EQUIPO = 'Esta acción es solo para el equipo de Marketing Corporativo.'
+const SOLO_EDITOR = 'Esta acción requiere permiso de edición en Marketing Corporativo.'
 
 /** El nombre del cliente, para dárselo al modelo como contexto. */
 async function identidadDeSala(slug: string): Promise<string> {
@@ -74,7 +84,7 @@ async function contextoDe(de: DeQueReunion) {
 
 export async function generarMinutaAction(de: DeQueReunion, transcripcion: string): Promise<EstadoGeneracion> {
   try {
-    if (!(await esEquipo())) return { ok: false, error: SOLO_EQUIPO }
+    if (!(await esEditor())) return { ok: false, error: SOLO_EDITOR }
     const sesion = await contextoDe(de)
     if (!sesion) return { ok: false, error: 'Sesión no encontrada.' }
 
@@ -128,7 +138,7 @@ export async function publicarMinutaAction(
   acuerdosConfirmados: AcuerdoConfirmado[],
 ): Promise<EstadoPublicacion> {
   try {
-    if (!(await esEquipo())) return { ok: false, error: SOLO_EQUIPO }
+    if (!(await esEditor())) return { ok: false, error: SOLO_EDITOR }
 
     let sesionId: string
     let salaSlug: string | null
@@ -152,6 +162,13 @@ export async function publicarMinutaAction(
     }
 
     await guardarMinuta(sesionId, transcripcion, textoFinal, acuerdosConfirmados)
+
+    // `esEditor()` ya confirmó arriba que hay sesión de equipo; se vuelve a
+    // pedir aquí (no se reutiliza ese booleano) porque es la única forma de
+    // llegar al correo de quién publica sin cambiar la guarda de permiso ya
+    // probada en acciones.test.ts.
+    const quien = await sesionActual()
+    if (quien?.sub) await registrarEdicion(sesionId, quien.sub)
 
     revalidatePath(`/deck/${sesionId}`)
     revalidatePath(`/deck/${sesionId}/minuta`)

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."categoria_archivo" ADD VALUE 'video';

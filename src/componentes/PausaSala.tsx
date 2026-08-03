@@ -19,8 +19,10 @@ import estilos from '@/app/cliente/cliente.module.css'
  * una acción destructiva.
  *
  * Solo EQUIPO la ve — la página la envuelve en `{equipo && ...}` — pero la
- * comprobación que cuenta es `exigirEquipo()` dentro de `pausarSalaAction` /
- * `reactivarSalaAction`: esconder este componente es cosmética.
+ * comprobación que cuenta es `exigirAdmin()` dentro de `pausarSalaAction` /
+ * `reactivarSalaAction` (ronda 9, tarea 2: congelar una sala es una decisión
+ * de administrador, no de cualquier editor): esconder este componente es
+ * cosmética.
  */
 
 interface Props {

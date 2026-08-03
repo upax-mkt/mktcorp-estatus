@@ -6,7 +6,7 @@ import { slugsDeSalasPausadas } from '@/db/salas'
 import { tokenDeAgenda } from '@/db/enlace-agenda'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirAdmin } from '@/auth/roles'
 import { urlBase } from '@/lib/url-base'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { BloqueEnlaceAgenda } from '@/componentes/salas/BloqueEnlaceAgenda'
@@ -33,7 +33,7 @@ export default async function PagSalas({
 }: {
   searchParams: Promise<{ editar?: string; nueva?: string }>
 }) {
-  await exigirEquipo()
+  await exigirAdmin()
 
   const { editar, nueva } = await searchParams
 

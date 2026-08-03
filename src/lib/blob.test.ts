@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rutaDeArchivo, pesoLegible, extensionDe, TIPOS_PERMITIDOS } from './blob'
+import { rutaDeArchivo, pesoLegible, extensionDe, TIPOS_PERMITIDOS, categoriaDeclarada, tipoSeguroParaServir } from './blob'
 
 describe('rutaDeArchivo', () => {
   it('cuelga de la sala y la categoría, para poder leer el store a ojo', () => {
@@ -27,6 +27,33 @@ describe('rutaDeArchivo', () => {
     const largo = `${'a'.repeat(500)}.pdf`
     const ruta = rutaDeArchivo('zeus', 'interes', largo)
     expect(ruta.length).toBeLessThan(160)
+  })
+})
+
+describe('categoriaDeclarada — la inversa de rutaDeArchivo', () => {
+  it('lee la categoría del segundo tramo', () => {
+    expect(categoriaDeclarada('salas/sesion-abc/video/uuid-clip.mp4')).toBe('video')
+    expect(categoriaDeclarada('salas/mexa-creativa/presentacion/uuid-deck.pdf')).toBe('presentacion')
+  })
+
+  it('lo que arma rutaDeArchivo, categoriaDeclarada lo recupera exacto', () => {
+    for (const categoria of ['imagen', 'video', 'presentacion', 'interes']) {
+      const ruta = rutaDeArchivo('sesion-abc', categoria, 'archivo.mp4')
+      expect(categoriaDeclarada(ruta)).toBe(categoria)
+    }
+  })
+
+  it('un nombre de archivo con la palabra "video" en otro tramo no cuenta como categoría', () => {
+    // Es la razón de leer el TRAMO exacto y no buscar la subcadena en toda
+    // la ruta: un archivo de la categoría "interes" con "video" en su
+    // propio nombre no debe recibir la política de vídeo.
+    const ruta = rutaDeArchivo('sesion-abc', 'interes', 'mi-video-de-la-boda.pdf')
+    expect(categoriaDeclarada(ruta)).toBe('interes')
+  })
+
+  it('una ruta sin forma reconocible no revienta: da undefined', () => {
+    expect(categoriaDeclarada('')).toBeUndefined()
+    expect(categoriaDeclarada('algo-suelto')).toBeUndefined()
   })
 })
 
@@ -71,5 +98,43 @@ describe('tipos permitidos', () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     expect(TIPOS_PERMITIDOS).toContain('image/png')
+  })
+})
+
+/**
+ * REVISIÓN FINAL DE LA RAMA, PUNTO 4: `/api/archivo/[id]` servía
+ * `archivo.tipoContenido` —dato del cliente— tal cual, con
+ * `Content-Disposition: inline` y sin validar contra ninguna lista. Un SVG
+ * con script servido así se ejecuta en el origen de la app en cuanto alguien
+ * abre el enlace (`ArchivosSala.tsx` los enlaza con un `<a target="_blank">`
+ * real) — y quien los abre son los directores de las UDN.
+ */
+describe('tipoSeguroParaServir', () => {
+  it('un tipo conocido y permitido se sirve tal cual', () => {
+    expect(tipoSeguroParaServir('application/pdf')).toBe('application/pdf')
+    expect(tipoSeguroParaServir('image/png')).toBe('image/png')
+    expect(tipoSeguroParaServir('video/mp4')).toBe('video/mp4')
+  })
+
+  it('image/svg+xml NUNCA se sirve como tal, aunque esté en la lista de subida — es la excepción', () => {
+    expect(TIPOS_PERMITIDOS).toContain('image/svg+xml') // sí se admite SUBIR
+    expect(tipoSeguroParaServir('image/svg+xml')).toBe('application/octet-stream') // pero no SERVIR así
+  })
+
+  it('un tipo ejecutable o desconocido se degrada a descarga genérica, no se confía en el cliente', () => {
+    expect(tipoSeguroParaServir('text/html')).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('application/javascript')).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('lo-que-sea')).toBe('application/octet-stream')
+  })
+
+  it('sin tipo declarado, descarga genérica — nunca se inventa uno', () => {
+    expect(tipoSeguroParaServir(null)).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir(undefined)).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('')).toBe('application/octet-stream')
+  })
+
+  it('no se deja engañar por parámetros pegados al tipo ni por mayúsculas', () => {
+    expect(tipoSeguroParaServir('IMAGE/SVG+XML')).toBe('application/octet-stream')
+    expect(tipoSeguroParaServir('application/pdf; charset=binary')).toBe('application/pdf')
   })
 })

@@ -113,6 +113,7 @@ export const NOMBRE_DE_CAMPO: Record<CampoSeccion, string> = {
   cifrasDesglosadas: 'las cifras con desglose',
   bloques: 'al menos un bloque',
   imagen: 'la imagen',
+  video: 'el vídeo',
   notaPie: 'la nota al pie',
 }
 

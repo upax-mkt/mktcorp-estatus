@@ -53,18 +53,53 @@ function constructorDeReconocimiento(): ConstructorReconocimiento | null {
 interface Props {
   /** Se llama al parar, con lo transcrito. Vacío si no se oyó nada. */
   alTerminar: (transcripcion: string) => void
+  /**
+   * Se llama con TODO lo acumulado hasta el momento, cada vez que llega un
+   * tramo nuevo confirmado (`onresult` con `isFinal`) — no solo con lo nuevo.
+   *
+   * Opcional, y pensado para que exista una copia fuera de este componente
+   * mientras graba, no solo al terminar: diagnóstico 2026-07-31, la
+   * transcripción es lo único de una reunión que no se puede recuperar, así
+   * que cuantos más sitios tengan una copia de lo ya dicho, menos depende
+   * todo de que un solo camino (este componente, este `useRef`) llegue
+   * entero hasta el final. `ModoPresentar` la usa para saber si hay
+   * grabación viva antes de dejar salir de la presentación.
+   */
+  alAcumular?: (texto: string) => void
 }
 
 /** Nunca cambia: no hay a qué suscribirse. */
 const SIN_SUSCRIPCION = () => () => {}
 
-export function GrabarReunion({ alTerminar }: Props) {
+/**
+ * Cuántos reenganches seguidos de `onend` se aceptan SIN que llegara ningún
+ * resultado real entre medias, antes de rendirse (revisión final de la rama,
+ * punto 3b). Ver el comentario grande en `onend`, más abajo: es el freno de
+ * un fallo permanente que si no giraría para siempre con el botón ya
+ * diciendo «Grabar».
+ */
+const TOPE_REINTENTOS = 3
+
+export function GrabarReunion({ alTerminar, alAcumular }: Props) {
   const [estado, setEstado] = useState<'listo' | 'grabando'>('listo')
   const [error, setError] = useState<string | null>(null)
   const [parcial, setParcial] = useState('')
   const [palabras, setPalabras] = useState(0)
   const reconocimiento = useRef<Reconocimiento | null>(null)
   const texto = useRef<string[]>([])
+  /**
+   * El freno del bucle sin fin (revisión final de la rama, punto 3b) — ver
+   * `onend` y `onerror`, más abajo. Se resetea en cada `arrancar()` manual y
+   * cada vez que `onresult` prueba que el reconocedor sigue vivo de verdad.
+   */
+  const intentosSeguidos = useRef(0)
+
+  /** Lo acumulado hasta ahora, como una sola cadena. Un solo sitio que hace
+   * `texto.current.join(' ').trim()` para que la limpieza de desmontaje, el
+   * arranque y `onresult` cuenten siempre la misma historia. */
+  function textoAcumulado(): string {
+    return texto.current.join(' ').trim()
+  }
 
   /**
    * ¿Este navegador transcribe?
@@ -83,14 +118,46 @@ export function GrabarReunion({ alTerminar }: Props) {
     () => true,
   )
 
-  // Se para al desmontar pase lo que pase: un reconocimiento vivo sigue
-  // escuchando el micrófono después de cerrar la presentación.
+  // `alTerminar` se usa dentro de la limpieza de un efecto que se monta UNA
+  // sola vez (dependencias `[]`, a propósito: no hay que reiniciar el
+  // reconocimiento en cada render). Ese cierre queda fijo con el `alTerminar`
+  // del primer render; el ref lo mantiene al día sin tener que meterlo en el
+  // arreglo de dependencias y sin reiniciar el efecto en cada cambio de prop.
+  // La escritura va DENTRO de un efecto y no en el cuerpo del componente:
+  // React (y el lint de react-hooks/refs) no deja tocar un ref durante el
+  // render, solo en manejadores o efectos.
+  const alTerminarRef = useRef(alTerminar)
+  useEffect(() => {
+    alTerminarRef.current = alTerminar
+  }, [alTerminar])
+
+  // Se para al desmontar pase lo que pase, Y ENTREGA LO ACUMULADO si había
+  // una grabación viva — antes de este fix solo apagaba el micrófono.
+  //
+  // Diagnóstico 2026-07-31: la transcripción es lo único de una reunión que
+  // no se puede recuperar, y hasta este fix el ÚNICO camino que la entregaba
+  // era el clic en «Parar y minutar» (ver `parar()` más abajo). Salir de la
+  // presentación a medio grabar —el botón «Salir», el Esc que captura
+  // `ModoPresentar`, o el Esc NATIVO del navegador saliendo de pantalla
+  // completa, que esta app no puede interceptar— desmonta este componente
+  // sin pasar por ahí, y eso perdía la reunión completa en silencio.
+  //
+  // `reconocimiento.current !== null` es la señal de "hubo una sesión viva
+  // que no pasó por `parar()`": se comprueba eso y no si hay texto, porque
+  // una grabación que arrancó y todavía no capturó nada merece el mismo
+  // trato que un «Parar y minutar» con la sala en silencio — que ya entrega
+  // una cadena vacía sin distinguir el caso (ver el tercer test: sin haber
+  // llegado a grabar nunca, `reconocimiento.current` sigue en `null` y no se
+  // entrega nada).
   useEffect(() => {
     return () => {
-      try {
-        reconocimiento.current?.stop()
-      } catch {
-        /* ya estaba parado */
+      if (reconocimiento.current) {
+        try {
+          reconocimiento.current.stop()
+        } catch {
+          /* ya estaba parado */
+        }
+        alTerminarRef.current(textoAcumulado())
       }
     }
   }, [])
@@ -142,8 +209,23 @@ export function GrabarReunion({ alTerminar }: Props) {
       return
     }
 
-    texto.current = []
-    setPalabras(0)
+    // OJO: `texto.current` NO se limpia aquí a propósito.
+    //
+    // Ruta 2 del diagnóstico 2026-07-31: un error de reconocimiento a media
+    // reunión (`network`, `audio-capture`) devuelve el botón a «Grabar» sin
+    // haber entregado nada (ver `onerror`). Si al pulsar «Grabar» de nuevo
+    // esto borrara `texto.current`, el gesto con el que alguien intenta
+    // SEGUIR grabando sería el mismo que borra lo ya dicho. Quien sí limpia
+    // es `parar()`: ahí la reunión ya se entregó de verdad, y la siguiente
+    // vez que se pulse «Grabar» es una sesión distinta que debe empezar en
+    // blanco. `setPalabras` sí se recalcula, por si esto es un reinicio y ya
+    // había algo acumulado — mostrar "0 palabras" habiendo ya una reunión
+    // grabada sería mentir en pantalla.
+    setPalabras(textoAcumulado().split(/\s+/).filter(Boolean).length)
+
+    // Intento manual nuevo: el freno del bucle sin fin arranca en cero, sin
+    // heredar fallos de una grabación anterior que ya nada tiene que ver.
+    intentosSeguidos.current = 0
 
     const r = new Constructor()
     r.lang = 'es-MX'
@@ -153,6 +235,12 @@ export function GrabarReunion({ alTerminar }: Props) {
     r.interimResults = true
 
     r.onresult = (e) => {
+      // Hay progreso real: se resetea el freno del bucle sin fin (`onend`,
+      // más abajo). Un fallo permanente nunca llega hasta aquí — es
+      // precisamente lo que lo distingue de un corte periódico normal de
+      // Chrome, que sí sigue produciendo resultados entre reenganche y
+      // reenganche.
+      intentosSeguidos.current = 0
       let enCurso = ''
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const trozo = e.results[i][0].transcript
@@ -160,12 +248,20 @@ export function GrabarReunion({ alTerminar }: Props) {
         else enCurso += trozo
       }
       setParcial(enCurso)
-      setPalabras(texto.current.join(' ').split(/\s+/).filter(Boolean).length)
+      const acumulado = textoAcumulado()
+      setPalabras(acumulado.split(/\s+/).filter(Boolean).length)
+      // Copia fuera del componente, según llega: si algo impide que la
+      // limpieza de desmontaje entregue lo acumulado como se espera, quien
+      // pasó `alAcumular` (hoy, `ModoPresentar`) ya tiene lo último que se
+      // dijo. Diagnóstico 2026-07-31: la transcripción es lo único de una
+      // reunión que no se puede recuperar.
+      alAcumular?.(acumulado)
     }
 
     r.onerror = (e) => {
       // `no-speech` y `aborted` son ruido normal en una reunión con silencios:
-      // avisar de ellos enseñaría a ignorar los avisos.
+      // avisar de ellos enseñaría a ignorar los avisos. Tampoco cuentan para
+      // el freno del bucle sin fin: no son la señal de un fallo permanente.
       if (e.error === 'no-speech' || e.error === 'aborted') return
       setError(
         e.error === 'not-allowed'
@@ -173,17 +269,57 @@ export function GrabarReunion({ alTerminar }: Props) {
           : `El reconocimiento se detuvo (${e.error}).`,
       )
       setEstado('listo')
+      // NO se toca `texto.current`: ruta 2 del diagnóstico 2026-07-31. Antes
+      // de este fix el botón volvía a decir «Grabar» sin haber entregado
+      // nada, y lo acumulado quedaba huérfano — sin un «Parar y minutar» que
+      // lo entregara y sin sobrevivir a un reinicio, que lo borraba (ver el
+      // comentario en `arrancar()`). Aquí no hay nada que arreglar en el
+      // sentido de "limpiar": el arreglo es, precisamente, NO limpiar.
+      //
+      // QUE EL ERROR CORTE DE VERDAD (revisión final de la rama, punto 3b):
+      // todo error fatal termina en un `onend` (el navegador cierra la
+      // sesión de reconocimiento detrás), y ese `onend` reenganchaba el
+      // MISMO reconocedor sin que nada se lo impidiera — el botón ya decía
+      // «Grabar» pero el micrófono seguía escuchando, y si el usuario pulsaba
+      // «Grabar» de nuevo, el reconocedor huérfano (resucitado por `onend`) y
+      // el nuevo escribían los dos en `texto.current`: cada frase salía
+      // duplicada. Forzar el contador al tope —en vez de anular
+      // `reconocimiento.current`, como hace `parar()`— hace que el `onend`
+      // que sigue se rinda sin reenganchar, sin desactivar la segunda red del
+      // efecto de desmontaje: `reconocimiento.current` sigue apuntando a `r`,
+      // así que si nadie vuelve a tocar nada, salir de la página todavía
+      // entrega lo acumulado.
+      intentosSeguidos.current = TOPE_REINTENTOS
     }
 
     // Chrome corta solo cada cierto tiempo. Se reanuda mientras siga grabando:
     // sin esto, una reunión de una hora produce cinco minutos de acta.
     r.onend = () => {
-      if (reconocimiento.current === r) {
-        try {
-          r.start()
-        } catch {
-          /* ya arrancó */
-        }
+      if (reconocimiento.current !== r) return // `parar()` ya cortó esta referencia: no reenganchar.
+
+      intentosSeguidos.current += 1
+      if (intentosSeguidos.current > TOPE_REINTENTOS) {
+        // EL FRENO DEL BUCLE SIN FIN (revisión final de la rama, punto 3b).
+        // Un fallo permanente —mic desconectado, permiso revocado a medio
+        // camino— puede hacer que CADA reinicio vuelva a terminar al
+        // instante: sin este tope, `onend` se reengancha para siempre con el
+        // botón ya diciendo «Grabar», que es justo el bug que reportó Franco.
+        // `onerror` (arriba) fuerza el contador al tope de un solo golpe, así
+        // que un solo error fatal basta para rendirse en el siguiente
+        // `onend`; esta rama, aparte, cubre el caso más raro de un `onend`
+        // que se repite sin pasar nunca por `onerror`. No se toca
+        // `texto.current` ni `reconocimiento.current`: lo acumulado sigue
+        // disponible para un «Grabar» manual o para la segunda red del
+        // efecto de desmontaje.
+        setEstado('listo')
+        setError((actual) => actual ?? 'El reconocimiento se detuvo varias veces seguidas. Pulsa «Grabar» para intentarlo de nuevo.')
+        return
+      }
+
+      try {
+        r.start()
+      } catch {
+        /* ya arrancó */
       }
     }
 
@@ -206,7 +342,12 @@ export function GrabarReunion({ alTerminar }: Props) {
     }
     setEstado('listo')
     setParcial('')
-    alTerminar(texto.current.join(' ').trim())
+    const acumulado = textoAcumulado()
+    // Esta sesión ya se entregó de verdad: limpiar aquí, y no en `arrancar()`,
+    // es lo que deja que un reinicio TRAS UN ERROR seguir acumulando (arriba)
+    // sin que una reunión nueva arranque heredando el texto de la anterior.
+    texto.current = []
+    alTerminar(acumulado)
   }
 
   if (!soportado) {

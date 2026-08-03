@@ -1,17 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { puedeVerSala, puedeEditar, puedeVerRuta, esRutaPublica } from './politica'
+import { puedeVerSala, puedeVerRuta, esRutaPublica } from './politica'
 import type { Sesion } from './firma'
 
 const EQUIPO: Sesion = { rol: 'equipo', sub: 'franco@upax.com.mx', exp: Date.now() + 1000 }
 const SALA_NC: Sesion = { rol: 'sala', sala: 'neracode', exp: Date.now() + 1000 }
 
-describe('puedeEditar', () => {
-  it('solo el equipo Mkt Corp mueve acuerdos', () => {
-    expect(puedeEditar(EQUIPO)).toBe(true)
-    expect(puedeEditar(SALA_NC)).toBe(false)
-    expect(puedeEditar(null)).toBe(false)
-  })
-})
+// Los tres niveles de la ronda 9 (tarea 2). Antes de la revisión final de la
+// rama (punto 1) el resto del archivo seguía usando el `EQUIPO` de arriba
+// (sin `rolApp`) para las rutas que no son /salas ni /personas, porque a ESAS
+// les bastaba con `rol: 'equipo'` sin importar el nivel — ya no: `puedeVerRuta`
+// exige `puedeLeer(sesion)` (un `rolApp` válido) para CUALQUIER ruta de
+// equipo, así que de aquí para abajo `EQUIPO` solo se usa donde el punto es,
+// precisamente, que una sesión sin rol no entra a ningún lado.
+const ADMIN: Sesion = { rol: 'equipo', rolApp: 'admin', exp: Date.now() + 1000 }
+const EDITOR: Sesion = { rol: 'equipo', rolApp: 'editor', exp: Date.now() + 1000 }
+const VIEWER: Sesion = { rol: 'equipo', rolApp: 'viewer', exp: Date.now() + 1000 }
 
 describe('puedeVerSala', () => {
   it('el equipo ve cualquier sala', () => {
@@ -55,9 +58,27 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(null, '/deck/abc')).toBe(false)
   })
 
-  it('el equipo entra a todo', () => {
+  it('el equipo con un rolApp válido entra a todo', () => {
     for (const ruta of ['/', '/cliente/zeus', '/deck', '/deck/abc/minuta']) {
-      expect(puedeVerRuta(EQUIPO, ruta)).toBe(true)
+      expect(puedeVerRuta(ADMIN, ruta)).toBe(true)
+      expect(puedeVerRuta(EDITOR, ruta)).toBe(true)
+      expect(puedeVerRuta(VIEWER, ruta)).toBe(true)
+    }
+  })
+
+  /**
+   * Revisión final de la rama, punto 1 — el hallazgo que motivó el fix de
+   * `puedeVerRuta`: todo el equipo tenía una cookie de 7 días SIN `rolApp`
+   * (sesiones abiertas antes de la ronda 9). Antes de este fix, esa sesión
+   * pasaba el filtro optimista de CUALQUIER ruta salvo /salas y /personas —
+   * incluido el Home, que no tiene guarda de página propia — y solo tropezaba
+   * en el primer `exigir*()` real, que lanza. Sin `error.tsx`, eso era la
+   * pantalla genérica de Next. Ahora falla cerrado aquí mismo, igual que ya
+   * fallaba en /salas y /personas: el proxy manda derecho a /entrar.
+   */
+  it('una sesión de equipo SIN rolApp no entra a ninguna ruta de equipo, ni siquiera las que no son de admin', () => {
+    for (const ruta of ['/', '/cliente/zeus', '/deck', '/deck/abc/minuta', '/acuerdos', '/acuerdos/bandeja']) {
+      expect(puedeVerRuta(EQUIPO, ruta)).toBe(false)
     }
   })
 
@@ -121,9 +142,49 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/acuerdos/bandeja')).toBe(false)
   })
 
-  it('el equipo sí entra al espacio de acuerdos y a su bandeja', () => {
-    expect(puedeVerRuta(EQUIPO, '/acuerdos')).toBe(true)
-    expect(puedeVerRuta(EQUIPO, '/acuerdos/bandeja')).toBe(true)
+  it('el equipo con rolApp sí entra al espacio de acuerdos y a su bandeja', () => {
+    expect(puedeVerRuta(EDITOR, '/acuerdos')).toBe(true)
+    expect(puedeVerRuta(EDITOR, '/acuerdos/bandeja')).toBe(true)
+  })
+})
+
+/**
+ * Ronda 9, tarea 2, paso 7: /salas y /personas pasan a ser de admin, incluso
+ * a este nivel optimista. `/personas` se prueba ya, aunque la pantalla la
+ * construya la tarea 3 — la política no tiene por qué esperar a que exista
+ * la ruta para protegerla.
+ */
+describe('puedeVerRuta: /salas y /personas son de admin', () => {
+  it('el admin entra a /salas y /personas', () => {
+    expect(puedeVerRuta(ADMIN, '/salas')).toBe(true)
+    expect(puedeVerRuta(ADMIN, '/personas')).toBe(true)
+  })
+
+  it('un editor NO entra a /salas ni a /personas', () => {
+    expect(puedeVerRuta(EDITOR, '/salas')).toBe(false)
+    expect(puedeVerRuta(EDITOR, '/personas')).toBe(false)
+  })
+
+  it('un viewer NO entra a /salas ni a /personas', () => {
+    expect(puedeVerRuta(VIEWER, '/salas')).toBe(false)
+    expect(puedeVerRuta(VIEWER, '/personas')).toBe(false)
+  })
+
+  it('una sesión de equipo sin rolApp tampoco: falla cerrado', () => {
+    expect(puedeVerRuta(EQUIPO, '/salas')).toBe(false)
+    expect(puedeVerRuta(EQUIPO, '/personas')).toBe(false)
+  })
+
+  it('un acceso de sala tampoco, como con cualquier otra ruta de equipo', () => {
+    expect(puedeVerRuta(SALA_NC, '/salas')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/personas')).toBe(false)
+  })
+
+  it('el resto de la app no cambió: editor y viewer siguen entrando a todo lo demás', () => {
+    for (const ruta of ['/', '/cliente/zeus', '/deck', '/deck/abc/minuta', '/acuerdos', '/acuerdos/bandeja']) {
+      expect(puedeVerRuta(EDITOR, ruta)).toBe(true)
+      expect(puedeVerRuta(VIEWER, ruta)).toBe(true)
+    }
   })
 })
 

@@ -88,7 +88,7 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
       data-destacada={papel === 'hito' ? 'true' : undefined}
       aria-label={decision.titulo}
       data-con-fondo={agendaConFondo ? 'true' : undefined}
-      style={agendaConFondo ? ({ '--fondo-agenda': `url(${JSON.stringify(decision.imagen)})` } as CSSProperties) : undefined}
+      style={agendaConFondo ? ({ '--fondo-agenda': `url(${JSON.stringify(decision.imagen?.url)})` } as CSSProperties) : undefined}
     >
       {degradado && (
         <p className={estilos.avisoRevision}>
@@ -201,10 +201,37 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
       )}
 
       {/* La ruta la aporta el equipo y puede apuntar fuera del proyecto, así
-          que no pasa por next/image (exigiría declarar cada dominio). */}
+          que no pasa por next/image (exigiría declarar cada dominio). El
+          ancho y la alineación son del editor manual (`CampoImagen`): sin
+          ellos, 100% / centro — no se recorta ni se edita la imagen, eso es
+          otro producto. */}
       {decision.imagen && !agendaConFondo && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={decision.imagen} alt={decision.titulo} className={estilos.imagen} />
+        <img
+          src={decision.imagen.url}
+          alt={decision.titulo}
+          className={estilos.imagen}
+          data-alineacion={decision.imagen.alineacion ?? 'centro'}
+          style={{ '--imagen-ancho': `${decision.imagen.anchoPorcentaje ?? 100}%` } as CSSProperties}
+        />
+      )}
+
+      {/* El vídeo se sube entero desde el editor (`CampoVideo`) — nunca lo
+          propone la IA. `controls` es lo único que hace falta para que
+          reproduzca aquí y en pantalla completa: `ModoPresentar` no dibuja
+          este documento de nuevo, solo proyecta el MISMO DOM a pantalla
+          completa, así que el vídeo sigue siendo el mismo elemento. */}
+      {decision.video && (
+        <figure className={estilos.video}>
+          <video
+            src={decision.video.url}
+            controls
+            preload="metadata"
+            aria-label={decision.video.titulo}
+            className={estilos.videoReproductor}
+          />
+          <figcaption className={estilos.videoTitulo}>{decision.video.titulo}</figcaption>
+        </figure>
       )}
 
       {/* La salvedad de medición va al final y en cuerpo menor: es contexto

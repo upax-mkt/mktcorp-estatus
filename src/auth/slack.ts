@@ -38,22 +38,17 @@ export function equipoExigido(): string | undefined {
   return process.env.SLACK_TEAM_ID || undefined
 }
 
-/**
- * Dominio de correo al que se restringe la entrada. Por defecto el
- * corporativo: un invitado externo del workspace no debe entrar a ver los
- * acuerdos internos de las 10 salas.
- */
-export function dominioExigido(): string | undefined {
-  return process.env.SLACK_DOMINIO_CORREO || 'upax.com.mx'
-}
-
-/** true si el correo pertenece exactamente al dominio permitido. */
-export function esCorreoPermitido(correo: string, dominio: string | undefined): boolean {
-  if (!dominio) return true
-  const partes = correo.trim().toLowerCase().split('@')
-  if (partes.length !== 2) return false
-  return partes[1] === dominio.trim().toLowerCase()
-}
+// `dominioExigido()` / `esCorreoPermitido()` vivían aquí: un filtro por
+// dominio de correo para la vuelta de Slack. Se retiraron (ronda 9) al poblar
+// el directorio con el equipo real — el porqué completo, con los números, está
+// en el comentario de cabecera de `src/app/api/auth/slack/retorno/route.ts`,
+// que es donde se llamaban. Resumen: el equipo reparte en cuatro dominios de
+// correo porque cada quien lo contrata una entidad distinta del mismo grupo,
+// así que el dominio nunca dijo quién era del equipo (mismo hecho que ya
+// asume el directorio de Monday — ver `src/monday/personas.ts`). Si hace
+// falta un filtro por dominio en otro sitio el día de mañana, esto no es el
+// lugar: la puerta de acceso de esta app es el directorio (`@/db/directorio`),
+// no el correo.
 
 /**
  * true si quien entra pertenece al espacio de Slack configurado.

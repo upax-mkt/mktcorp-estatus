@@ -43,7 +43,7 @@ export function BloqueEnlaceAgenda({ enlace: enlaceInicial, generarAction, revoc
   /**
    * Las dos acciones se llaman SIEMPRE dentro de un try/catch (mismo criterio
    * que `PausaSala.ejecutar`) — no basta con mirar `r.error`: `generarAction`/
-   * `revocarAction` empiezan con `exigirEquipo()`, y si la sesión ya venció
+   * `revocarAction` empiezan con `exigirAdmin()`, y si la sesión ya venció
    * mientras esta pestaña seguía abierta (la cookie de equipo dura 7 días),
    * eso LANZA en vez de devolver `{error}`. Sin el catch, esa promesa
    * rechazada no tenía dónde aterrizar y la pantalla reventaba sin decir por

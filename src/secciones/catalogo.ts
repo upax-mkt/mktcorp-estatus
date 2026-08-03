@@ -38,6 +38,7 @@ export type CampoSeccion =
   | 'cifrasDesglosadas'
   | 'bloques'
   | 'imagen'
+  | 'video'
   | 'notaPie'
 
 export interface TipoDeSeccion {
@@ -145,6 +146,14 @@ export const CATALOGO: TipoDeSeccion[] = [
     paraQue: 'Una imagen que ocupa la sección entera, con el título encima. Para un testigo o una foto.',
     campos: ['subtitulo', 'imagen'],
     exige: 'imagen',
+  },
+  {
+    layout: 'video',
+    papel: 'contenido',
+    nombre: 'Vídeo',
+    paraQue: 'Un vídeo que se reproduce en el documento y a pantalla completa. Para un testimonio, una demo o un caso grabado.',
+    campos: ['subtitulo', 'video'],
+    exige: 'video',
   },
   {
     layout: 'cierre',

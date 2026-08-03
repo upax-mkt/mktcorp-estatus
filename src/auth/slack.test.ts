@@ -1,34 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { esCorreoPermitido, esEquipoPermitido, leerIdToken, urlDeAutorizacion } from './slack'
+import { esEquipoPermitido, leerIdToken, urlDeAutorizacion } from './slack'
 
-describe('esCorreoPermitido', () => {
-  it('acepta el dominio corporativo', () => {
-    expect(esCorreoPermitido('franco.cruzat@upax.com.mx', 'upax.com.mx')).toBe(true)
-  })
-
-  it('no distingue mayúsculas ni espacios sobrantes', () => {
-    expect(esCorreoPermitido('  Franco.Cruzat@UPAX.com.MX ', 'upax.com.mx')).toBe(true)
-  })
-
-  it('rechaza otros dominios', () => {
-    expect(esCorreoPermitido('alguien@gmail.com', 'upax.com.mx')).toBe(false)
-  })
-
-  it('no se deja engañar por un dominio que solo termina igual', () => {
-    expect(esCorreoPermitido('atacante@noesupax.com.mx', 'upax.com.mx')).toBe(false)
-    expect(esCorreoPermitido('atacante@upax.com.mx.evil.com', 'upax.com.mx')).toBe(false)
-  })
-
-  it('rechaza correos vacíos o mal formados', () => {
-    expect(esCorreoPermitido('', 'upax.com.mx')).toBe(false)
-    expect(esCorreoPermitido('sin-arroba', 'upax.com.mx')).toBe(false)
-    expect(esCorreoPermitido('doble@@upax.com.mx', 'upax.com.mx')).toBe(false)
-  })
-
-  it('acepta cualquier dominio si no se restringió ninguno', () => {
-    expect(esCorreoPermitido('alguien@gmail.com', undefined)).toBe(true)
-  })
-})
+// No hay `describe('esCorreoPermitido', ...)` aquí a propósito: la función (y
+// `dominioExigido()`) se retiraron en la ronda 9 — ver el comentario que
+// quedó en su lugar en `./slack.ts` y el de cabecera de
+// `src/app/api/auth/slack/retorno/route.ts` para el porqué. El test que fija
+// el comportamiento nuevo —un correo de otro dominio, con fila en el
+// directorio y activa, entra— vive en
+// `src/app/api/auth/slack/retorno/route.test.ts`, junto al resto de puertas
+// de esa ruta.
 
 describe('esEquipoPermitido', () => {
   it('exige el workspace configurado', () => {

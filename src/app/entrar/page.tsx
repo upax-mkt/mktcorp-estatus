@@ -4,6 +4,7 @@ import estilos from './entrar.module.css'
 import {
   abrirSesionEquipo,
   claveDeEquipoCorrecta,
+  claveDeEquipoSigueSirviendo,
   hayAuth,
   hayClaveDeEquipo,
 } from '@/auth/sesion'
@@ -56,7 +57,17 @@ export default async function Entrar({
       redirect(`/entrar?${parametros}`)
     }
 
-    await abrirSesionEquipo('equipo-mkt-corp')
+    // EL PORTILLO DE EMERGENCIA — el porqué completo, y por qué no se toca,
+    // vive en `claveDeEquipoSigueSirviendo()` (src/auth/sesion.ts), que es
+    // además donde se prueba: esta función no puede probarse aquí (necesita
+    // cookies/un request de Next vivo), esa sí.
+    if (!(await claveDeEquipoSigueSirviendo())) {
+      const parametros = new URLSearchParams({ error: 'clave-retirada' })
+      if (aDonde !== '/') parametros.set('destino', aDonde)
+      redirect(`/entrar?${parametros}`)
+    }
+
+    await abrirSesionEquipo('equipo-mkt-corp', 'admin')
     // Solo rutas internas: un destino como "https://otro-sitio" sería un
     // redirect abierto de manual.
     redirect(aDonde.startsWith('/') ? aDonde : '/')
@@ -95,9 +106,27 @@ export default async function Entrar({
             {error === 'clave' && (
               <div className={estilos.error}>Esa clave no es la del equipo. Vuelve a intentarlo.</div>
             )}
+            {error === 'clave-retirada' && (
+              <div className={estilos.error}>
+                El acceso con la clave del equipo ya se retiró: ahora cada quien entra con su cuenta
+                de Slack. Si todavía no puedes entrar, pide que te den de alta en el directorio.
+              </div>
+            )}
             {error === 'slack' && (
               <div className={estilos.error}>
                 Slack no autorizó la entrada. Puede ser una cuenta fuera del workspace de UPAX.
+              </div>
+            )}
+            {error === 'sin-acceso' && (
+              <div className={estilos.error}>
+                Tu cuenta de Slack es válida, pero no estás en el directorio de Marketing
+                Corporativo. Pide acceso a Marketing Corp.
+              </div>
+            )}
+            {error === 'inactivo' && (
+              <div className={estilos.error}>
+                Tu cuenta está desactivada en el directorio de Marketing Corporativo. Pide a un
+                administrador que te reactive.
               </div>
             )}
 

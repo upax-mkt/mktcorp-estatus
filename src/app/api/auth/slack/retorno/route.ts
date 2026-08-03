@@ -3,20 +3,37 @@ import { cookies } from 'next/headers'
 import { abrirSesionEquipo, secretoConfigurado } from '@/auth/sesion'
 import { verificar } from '@/auth/firma'
 import {
-  dominioExigido,
   equipoExigido,
-  esCorreoPermitido,
   esEquipoPermitido,
   identidadDesdeCodigo,
   slackConfigurado,
 } from '@/auth/slack'
 import { COOKIE_ESTADO_SLACK, urlDeRetornoSlack } from '@/auth/slack-rutas'
+import { buscarPersona, registrarAcceso } from '@/db/directorio'
 
 /**
- * Vuelta de Slack. Cuatro puertas antes de abrir sesión: el `state` coincide
- * con la cookie y sigue vigente, Slack canjea el código, el workspace es el de
- * UPAX y el correo es del dominio corporativo. Cualquier fallo devuelve a
- * /entrar con un aviso, nunca deja entrar "por si acaso".
+ * Vuelta de Slack. Tres puertas antes de mirar el directorio: el `state`
+ * coincide con la cookie y sigue vigente, Slack canjea el código y el
+ * workspace es el de UPAX (`esEquipoPermitido` contra `SLACK_TEAM_ID` — NO
+ * TOCAR esa comprobación). Cualquier fallo devuelve a /entrar con un aviso,
+ * nunca deja entrar "por si acaso".
+ *
+ * UNA CUARTA, desde la ronda 9: estar dado de alta en el directorio y activo.
+ * Pasar las tres primeras prueba que quien llegó es de UPAX; no dice CON QUÉ
+ * PERMISO — eso solo lo sabe el directorio (tarea 1, src/db/directorio.ts), y
+ * es lo que decide esta ruta a partir de aquí.
+ *
+ * SIN FILTRO POR DOMINIO DE CORREO, a propósito. Lo hubo —`esCorreoPermitido`
+ * contra `dominioExigido()`, ambas vivían en `@/auth/slack`— y se retiró aquí
+ * al poblar el directorio con el equipo real: reparte en cuatro dominios de
+ * correo (`@upax.com.mx`, `@elektra.com.mx`, `@jansan.mx`, `@onuriscp.com`)
+ * porque cada quien lo contrata una entidad distinta del mismo grupo, algo
+ * que no pueden cambiar. El dominio nunca dijo quién era del equipo —mismo
+ * hecho que ya asume el directorio de Monday, ver `src/monday/personas.ts`—
+ * y filtrar por él dejaba fuera a más de la mitad. Si en el futuro parece que
+ * falta una capa aquí: no falta. La capa es la de abajo, el directorio
+ * (`buscarPersona` + `persona.activa`), y a diferencia del dominio sí
+ * distingue quién tiene permiso de verdad, sin importar quién lo contrató.
  */
 export async function GET(request: Request) {
   const secreto = secretoConfigurado()
@@ -41,8 +58,28 @@ export async function GET(request: Request) {
   if (!esEquipoPermitido(identidad.equipo, equipoExigido(), identidad.organizacion)) {
     redirect('/entrar?error=slack')
   }
-  if (!esCorreoPermitido(identidad.email, dominioExigido())) redirect('/entrar?error=slack')
 
-  await abrirSesionEquipo(identidad.email)
+  // EL PORTILLO DE EMERGENCIA, y no es un descuido.
+  //
+  // Mientras el directorio no tenga NINGÚN ADMIN ACTIVO —vacío del todo, o con
+  // gente pero sin nadie que administre—, la clave de equipo sigue sirviendo y
+  // entra como admin. En cuanto hay al menos uno, deja de funcionar. No lo
+  // quites pensando que sobra: es el extintor.
+  //
+  // Por eso el camino de abajo puede rechazar sin miedo un correo que no está
+  // en el directorio: ese extintor vive en `entrarConClave`
+  // (src/app/entrar/page.tsx), no aquí — esta ruta solo sabe hablar con Slack,
+  // y un correo sin fila en `personas` simplemente no tiene permiso, haya o no
+  // algún admin activo. Mezclar aquí un "si no queda admin, deja pasar a
+  // cualquier correo del workspace" sería un portillo más ancho que el que se
+  // decidió: la clave de equipo la conoce un grupo acotado; el dominio de
+  // Slack, no.
+
+  const persona = await buscarPersona(identidad.email)
+  if (!persona) redirect('/entrar?error=sin-acceso')
+  if (!persona.activa) redirect('/entrar?error=inactivo')
+
+  await abrirSesionEquipo(identidad.email, persona.rol)
+  await registrarAcceso(identidad.email)
   redirect('/')
 }

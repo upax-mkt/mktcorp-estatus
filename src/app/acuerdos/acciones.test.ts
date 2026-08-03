@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as esquema from '@/db/esquema'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirAdmin, exigirEditor } from '@/auth/roles'
 
 /**
  * CONCURRENCIA DE LA BANDEJA (revisión de Franco a la tarea 8).
@@ -44,8 +44,16 @@ vi.mock('drizzle-orm', async (importarOriginal) => {
 })
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
-vi.mock('@/auth/sesion', () => ({
-  exigirEquipo: vi.fn().mockResolvedValue({ rol: 'equipo', sub: 'equipo-mkt-corp' }),
+// Ronda 9, tarea 2: las cuatro acciones "de bandeja/estrella" que prueba este
+// archivo (subir, descartar, destacar, editar en bandeja) exigen
+// `exigirEditor()` —admin o editor, no viewer—; `pausarSalaAction`/
+// `reactivarSalaAction` (más abajo, describe aparte) exigen `exigirAdmin()`
+// —congelar una sala es una decisión de administrador, no de cualquier
+// editor—. Las dos, de `@/auth/roles`, no de la vieja `exigirEquipo()` de
+// `@/auth/sesion` (retirada).
+vi.mock('@/auth/roles', () => ({
+  exigirEditor: vi.fn().mockResolvedValue({ rol: 'equipo', rolApp: 'editor', sub: 'equipo-mkt-corp' }),
+  exigirAdmin: vi.fn().mockResolvedValue({ rol: 'equipo', rolApp: 'admin', sub: 'equipo-mkt-corp' }),
 }))
 
 // Handle tipado sobre el mock de arriba: por defecto resuelve como equipo
@@ -53,7 +61,8 @@ vi.mock('@/auth/sesion', () => ({
 // test de destacarAction que exige sesión necesita poder hacerla fallar UNA
 // vez sin tocar el resto — `mockRejectedValueOnce` se autoconsume, no hace
 // falta resetearlo en beforeEach.
-const exigirEquipoMock = vi.mocked(exigirEquipo)
+const exigirEditorMock = vi.mocked(exigirEditor)
+const exigirAdminMock = vi.mocked(exigirAdmin)
 
 const existeElGrupoMock = vi.fn()
 const crearElementoEnDeliveryMock = vi.fn()
@@ -64,16 +73,20 @@ vi.mock('@/monday/cliente', () => ({
   crearSubelemento: (...args: unknown[]) => crearSubelementoMock(...args),
 }))
 
-// El freeze de salas (revisión final de la ronda 7, punto 2): se mockea
-// aparte, igual que @/monday/cliente arriba — subirAcuerdoAction importa las
-// tres, y pausarSala/reactivarSala no las ejercita ningún test de este
-// archivo, pero sin darles un valor el import quedaría `undefined` y
-// reventaría si algo las llegara a invocar.
+// El freeze de salas (revisión final de la ronda 7, punto 2; y ronda 9,
+// tarea 2, para las dos con nombre): se mockea aparte, igual que
+// @/monday/cliente arriba — subirAcuerdoAction importa las tres.
+// `pausarSalaMock`/`reactivarSalaMock` con nombre (a diferencia de antes,
+// cuando ningún test de este archivo las ejercitaba) porque el describe de
+// más abajo sí las prueba: hace falta poder comprobar que NO se llamaron
+// cuando `exigirAdmin()` rechaza.
 const salaEstaActivaMock = vi.fn()
+const pausarSalaMock = vi.fn()
+const reactivarSalaMock = vi.fn()
 vi.mock('@/db/salas', () => ({
   salaEstaActiva: (...args: unknown[]) => salaEstaActivaMock(...args),
-  pausarSala: vi.fn(),
-  reactivarSala: vi.fn(),
+  pausarSala: (...args: unknown[]) => pausarSalaMock(...args),
+  reactivarSala: (...args: unknown[]) => reactivarSalaMock(...args),
 }))
 
 /**
@@ -146,7 +159,7 @@ function proyectar(proyeccion?: Record<string, unknown>): Record<string, unknown
 // devuelve. Hace falta para un caso concreto (revisión a esta tarea): que la
 // fila no haya cambiado prueba que no hubo ESCRITURA, pero no que `db()` ni
 // se invocara — si alguien reordenara `destacarAction` y dejara `hayDB()`/
-// `db()` antes de `exigirEquipo()`, la guarda seguiría lanzando, la fila
+// `db()` antes de `exigirEditor()`, la guarda seguiría lanzando, la fila
 // seguiría intacta, y un test que solo mirara la fila seguiría en verde pese
 // a haberse perdido que la comprobación de sesión va PRIMERO.
 const dbMock = vi.fn(() => ({
@@ -188,7 +201,10 @@ vi.mock('@/db/cliente', () => ({
   db: () => dbMock(),
 }))
 
-const { subirAcuerdoAction, descartarAcuerdoAction, destacarAction, editarEnBandejaAction } = await import('./acciones')
+const {
+  subirAcuerdoAction, descartarAcuerdoAction, destacarAction, editarEnBandejaAction,
+  pausarSalaAction, reactivarSalaAction,
+} = await import('./acciones')
 
 const BASE: FilaFalsa = {
   id: 'a1',
@@ -349,17 +365,17 @@ describe('descartarAcuerdoAction — no pisa un acuerdo que ya se subió', () =>
  * destacarAction (tarea 11, ronda 7). A diferencia de subir/descartar, la
  * cuerpo de esta acción nunca corría en los tests de `Estrella`/`TablaAcuerdos`
  * —ahí `destacar` es siempre un `vi.fn()`—, así que el orden real
- * `exigirEquipo()` → `hayDB()` → UPDATE → error si no existe →
+ * `exigirEditor()` → `hayDB()` → UPDATE → error si no existe →
  * `revalidatePath` no tenía ningún test que lo ejecutara de verdad. Reusa el
  * mismo doble de arriba, sin arnés nuevo.
  */
 describe('destacarAction', () => {
   it('exige sesión de equipo ANTES de tocar la base: si no la hay, no llega a escribir', async () => {
-    exigirEquipoMock.mockRejectedValueOnce(
-      new Error('Esta acción es solo para el equipo de Marketing Corporativo.'),
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
     )
 
-    await expect(destacarAction('a1', true)).rejects.toThrow('solo para el equipo')
+    await expect(destacarAction('a1', true)).rejects.toThrow('permiso de edición')
 
     // Nada se movió: la fila sigue exactamente como la dejó beforeEach.
     expect(estado.fila).toEqual(BASE)
@@ -419,11 +435,11 @@ describe('editarEnBandejaAction', () => {
   }
 
   it('exige sesión de equipo ANTES de llamar a editarAcuerdo', async () => {
-    exigirEquipoMock.mockRejectedValueOnce(
-      new Error('Esta acción es solo para el equipo de Marketing Corporativo.'),
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
     )
 
-    await expect(editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)).rejects.toThrow('solo para el equipo')
+    await expect(editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)).rejects.toThrow('permiso de edición')
 
     expect(editarAcuerdoMock).not.toHaveBeenCalled()
   })
@@ -479,5 +495,46 @@ describe('editarEnBandejaAction', () => {
     await editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)
 
     expect(editarAcuerdoMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * `pausarSalaAction`/`reactivarSalaAction` exigen ADMIN, no editor (ronda 9,
+ * tarea 2): congelar o reactivar una relación comercial es una decisión de
+ * quien administra Mkt Corp, el mismo nivel que crear/editar la sala —no una
+ * tarea de contenido del día a día. Sin test hasta la corrección post-revisión
+ * de la ronda 9 (una de las dos piezas de más riesgo que quedaron sin cubrir).
+ */
+describe('pausarSalaAction / reactivarSalaAction exigen admin', () => {
+  it('pausarSalaAction: sin admin, rechaza y no llega a pausarSala', async () => {
+    exigirAdminMock.mockRejectedValueOnce(
+      new Error('Esta acción es solo para administradores de Marketing Corporativo.'),
+    )
+
+    await expect(pausarSalaAction('mexa-creativa')).rejects.toThrow('solo para administradores')
+
+    expect(pausarSalaMock).not.toHaveBeenCalled()
+  })
+
+  it('pausarSalaAction: con admin, sí pausa la sala pedida', async () => {
+    await pausarSalaAction('mexa-creativa')
+
+    expect(pausarSalaMock).toHaveBeenCalledWith('mexa-creativa')
+  })
+
+  it('reactivarSalaAction: sin admin, rechaza y no llega a reactivarSala', async () => {
+    exigirAdminMock.mockRejectedValueOnce(
+      new Error('Esta acción es solo para administradores de Marketing Corporativo.'),
+    )
+
+    await expect(reactivarSalaAction('mexa-creativa')).rejects.toThrow('solo para administradores')
+
+    expect(reactivarSalaMock).not.toHaveBeenCalled()
+  })
+
+  it('reactivarSalaAction: con admin, sí reactiva la sala pedida', async () => {
+    await reactivarSalaAction('mexa-creativa')
+
+    expect(reactivarSalaMock).toHaveBeenCalledWith('mexa-creativa')
   })
 })

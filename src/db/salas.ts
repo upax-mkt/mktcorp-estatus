@@ -30,9 +30,9 @@ async function validarSala(slug: string): Promise<void> {
  * pestaña mientras esta sigue abierta, un cierre que confiara en el estado de
  * cuando se pintó la página seguiría viendo la sala activa. Esconder el botón
  * de "preparar sesión nueva" no alcanza — ocultar un botón no protege una
- * acción, es la regla que repite todo este repo (ver `exigirEquipo` en
- * src/auth/sesion.ts y sus llamadores) — así que se vuelve a preguntar aquí,
- * fresco, justo antes de escribir.
+ * acción, es la regla que repite todo este repo (ver `exigirAdmin`/
+ * `exigirEditor`/`exigirLectura` en src/auth/roles.ts y sus llamadores) —
+ * así que se vuelve a preguntar aquí, fresco, justo antes de escribir.
  *
  * Sin DB no hay freeze que consultar: el store en memoria no modela
  * `salas.activa` (mismo motivo que en `todosLosAcuerdos`, consultas.ts), así

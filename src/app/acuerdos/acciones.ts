@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
 import { pausarSala, reactivarSala, salaEstaActiva } from '@/db/salas'
 import { editarAcuerdo } from '@/db/acuerdos'
@@ -17,7 +17,7 @@ export async function subirAcuerdoAction(
   id: string,
   destino: { tipo: 'elemento' } | { tipo: 'subelemento'; padreId: string },
 ): Promise<void> {
-  await exigirEquipo()
+  await exigirEditor()
   if (!hayDB()) throw new Error('Sin base de datos no hay nada que subir.')
 
   // El grupo se comprueba ANTES de escribir. Es la lección del dashboard viejo:
@@ -166,7 +166,7 @@ export async function subirAcuerdoAction(
 }
 
 export async function descartarAcuerdoAction(id: string): Promise<void> {
-  await exigirEquipo()
+  await exigirEditor()
   if (!hayDB()) return
   // Descartar es definitivo: no borra el acuerdo, lo saca de la bandeja para
   // siempre. Si volviera a ofrecerse al editarlo, la bandeja sería una lista
@@ -205,7 +205,7 @@ export async function descartarAcuerdoAction(id: string): Promise<void> {
  * de la UDN, el acuerdo SALE de la bandeja solo, que es lo correcto) y ya
  * deja rastro en la historia. Lo único nuevo aquí es la guarda de sesión: es
  * la primera acción de escritura de la bandeja que no es ni "subir" ni
- * "descartar", así que empieza igual que las otras dos — `exigirEquipo()`
+ * "descartar", así que empieza igual que las otras dos — `exigirEditor()`
  * antes de tocar nada.
  */
 export async function editarEnBandejaAction(
@@ -213,7 +213,7 @@ export async function editarEnBandejaAction(
   salaSlug: string,
   cambios: { que: string; responsable: string; responsableMondayId: string | null; fechaCompromiso: string | null },
 ): Promise<void> {
-  await exigirEquipo()
+  await exigirEditor()
 
   /**
    * LA CONDICIÓN QUE LE FALTABA (corrección de revisión): esta edición solo
@@ -265,14 +265,14 @@ export async function editarEnBandejaAction(
  * así que el mismo botón sirve en el espacio de acuerdos, el Home y la sala
  * (tarea 12) sin que ninguna pantalla reimplemente la regla por su cuenta.
  *
- * `exigirEquipo()` y no `exigirEdicionDeAcuerdos(slug)`: destacar decide qué
+ * `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`: destacar decide qué
  * se ve en una vitrina COMPARTIDA por las diez salas, no el estatus de un
  * compromiso dentro de la sala de su propio dueño. Es Mkt Corp quien cura esa
  * vitrina — el director de la UDN sigue pudiendo mover el estatus y la fecha
  * de los suyos, pero no auto-destacarse en el Home de todos.
  */
 export async function destacarAction(id: string, destacado: boolean): Promise<void> {
-  await exigirEquipo()
+  await exigirEditor()
   // Sin DB no hay nada que persistir — mismo criterio que todosLosAcuerdos()
   // en src/db/consultas.ts, que en ese caso ya devuelve la lista vacía.
   if (!hayDB()) return
@@ -297,13 +297,19 @@ export async function destacarAction(id: string, destacado: boolean): Promise<vo
 
 /**
  * Pausa una sala — ver la cabecera de `pausarSala` (src/db/salas.ts) para el
- * qué y el porqué. Aquí solo va EQUIPO, no `exigirEdicionDeAcuerdos`: decidir
- * si una relación comercial sigue activa es una decisión de Mkt Corp sobre el
+ * qué y el porqué. Aquí no va `exigirEdicionDeAcuerdos`: decidir si una
+ * relación comercial sigue activa es una decisión de Mkt Corp sobre el
  * cliente, distinta de mover el estatus de un compromiso puntual — que sí
  * puede tocar el propio director de la UDN.
+ *
+ * `exigirAdmin()` y no `exigirEditor()` (ronda 9, tarea 2 — no está en la
+ * tabla del brief tal cual, así que queda dicho aquí): congelar o reactivar
+ * una sala cambia su fila en `salas` igual que crearla o editarla, y es una
+ * decisión sobre la relación comercial con el cliente, no una tarea de
+ * contenido del día a día — el mismo nivel que crear/editar salas y marcas.
  */
 export async function pausarSalaAction(slug: string): Promise<void> {
-  await exigirEquipo()
+  await exigirAdmin()
   await pausarSala(slug)
   // Las cuatro pantallas que un freeze cambia: la propia sala (el
   // interruptor y el aviso), el Home (el bloque "En pausa" y los acuerdos que
@@ -317,7 +323,7 @@ export async function pausarSalaAction(slug: string): Promise<void> {
 
 /** Reactiva una sala — ver la cabecera de `reactivarSala` (src/db/salas.ts). */
 export async function reactivarSalaAction(slug: string): Promise<void> {
-  await exigirEquipo()
+  await exigirAdmin()
   await reactivarSala(slug)
   revalidatePath(`/cliente/${slug}`)
   revalidatePath('/')

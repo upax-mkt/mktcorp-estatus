@@ -213,6 +213,11 @@
 .heroMeta { display: flex; gap: 0.9rem; margin-top: 0.6rem; font-size: 0.85rem; color: var(--tx-2); flex-wrap: wrap; }
 .heroMeta .sep { color: var(--borde-fuerte); }
 
+/* ---- quién preparó y quién presentó (ronda 9, tarea 4) ---- */
+.participacion { margin-top: 0.75rem; }
+.participacionLinea { font-size: 0.85rem; color: var(--tx-2); margin: 0; }
+.participacionAviso { font-size: 0.74rem; color: var(--tx-4); margin: 0.2rem 0 0; }
+
 /* ---- cuestionario: tarjetas ---- */
 /* El contenedor de las tarjetas lo aporta ahora ListaOrdenable (que también
    añade el asa de arrastre); esta clase quedó sin uso al adoptarlo. */

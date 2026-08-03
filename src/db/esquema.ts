@@ -17,6 +17,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 
 // ---- Enums ----
@@ -266,7 +267,9 @@ export const minutas = pgTable('minutas', {
 // 'imagen' es la que se inserta DENTRO de una presentación. No cuelga de una
 // sala sino de la sesión: quien puede ver el documento puede ver su imagen, y
 // una reunión sin sala también lleva imágenes.
-export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen'])
+// 'video' (ronda 9, tarea 7) es lo mismo que 'imagen' pero para el vídeo de
+// una sección: tampoco cuelga de una sala, cuelga de la sesión.
+export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen', 'video'])
 
 export const archivos = pgTable('archivos', {
   id: text('id').primaryKey(),
@@ -358,6 +361,45 @@ export const personasMonday = pgTable('personas_monday', {
   correo: text('correo').notNull(),
   cargadoEn: timestamp('cargado_en', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ---- Personas de la app ----
+// QUIÉN puede entrar y con qué permiso. La clave es el CORREO porque es lo
+// único estable que devuelve Slack: los nombres cambian y sus identificadores
+// son opacos.
+//
+// No confundir con `personas_monday`, que es el directorio de la CUENTA DE
+// MONDAY y sirve para asignar responsables de acuerdos. Una persona puede estar
+// en las dos, en una o en ninguna.
+export const personas = pgTable('personas', {
+  correo: text('correo').primaryKey(),
+  nombre: text('nombre').notNull(),
+  rol: text('rol').notNull(),
+  activa: boolean('activa').notNull().default(true),
+  creadaEn: timestamp('creada_en', { withTimezone: true }).notNull().defaultNow(),
+  ultimoAcceso: timestamp('ultimo_acceso', { withTimezone: true }),
+})
+
+// ---- Participación (ronda 9, tarea 4) ----
+// Quién preparó cada sesión y quién la presentó. Ver src/db/participacion.ts
+// para las tres funciones que la escriben y la leen, y por qué la escritura
+// es SIEMPRE una sola sentencia con ON CONFLICT: sin ella, sumar una edición
+// exigiría leer la fila, sumar en memoria y volver a escribir — el patrón
+// leer-y-escribir que ya causó un fallo distinto en cada una de las tres
+// rondas anteriores (misma lección que `enlaceAgenda`, más abajo, y que
+// `generarEnlaceDeAgenda` en src/db/enlace-agenda.ts).
+//
+// Clave compuesta (sesión, correo): UNA fila por persona y sesión, no una
+// fila por toque — lo que se cuenta es CUÁNTAS veces tocó esta sesión esa
+// persona, no cada toque por separado.
+export const participacion = pgTable('participacion', {
+  sesionId: text('sesion_id').notNull().references(() => sesiones.id),
+  correo: text('correo').notNull(),
+  primeraEdicion: timestamp('primera_edicion', { withTimezone: true }).notNull().defaultNow(),
+  ultimaEdicion: timestamp('ultima_edicion', { withTimezone: true }).notNull().defaultNow(),
+  ediciones: integer('ediciones').notNull().default(0),
+  /** true en cuanto abrió el modo presentación de esta sesión — ver `registrarPresentacion`. */
+  presento: boolean('presento').notNull().default(false),
+}, (t) => [primaryKey({ columns: [t.sesionId, t.correo] })])
 
 // ---- Enlace público de la agenda ----
 // UNA sola fila (id = 1). El token no lleva nada dentro —a diferencia del

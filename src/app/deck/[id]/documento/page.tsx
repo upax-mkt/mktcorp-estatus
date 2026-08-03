@@ -6,7 +6,8 @@ import { obtenerSesion, marcarPresentada } from '@/db/sesiones'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { registrarPresentacion, registrarEdicion } from '@/db/participacion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
@@ -32,6 +33,9 @@ export default async function PagSesionMaquetada({
   params: Promise<{ id: string }>
   searchParams: Promise<{ imprimir?: string }>
 }) {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero.
+  await exigirLectura()
   const { imprimir } = await searchParams
   const { id } = await params
   const sesion = await obtenerSesion(id)
@@ -57,11 +61,40 @@ export default async function PagSesionMaquetada({
   // la sala del director ni puede tener minuta. Ver `marcarPresentada`.
   async function marcarPresentadaAction() {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await marcarPresentada(id)
+    // Enganchada al registro de participación (revisión final de la rama,
+    // menores): escribe el estado de la sesión igual que «Maquetar»
+    // (`maquetar()`, src/app/deck/[id]/page.tsx), que sí registra — antes
+    // esta era la única acción que cambiaba `sesion.estado` sin dejar
+    // constancia de quién lo hizo.
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/documento`)
     if (sesion!.salaSlug) revalidatePath(`/cliente/${sesion!.salaSlug}`)
     revalidatePath('/')
+  }
+
+  /**
+   * Deja constancia de quién abrió el modo presentación (ronda 9, tarea 4 —
+   * "quiénes están en vivo interactuando"). `exigirLectura()`, no
+   * `exigirEditor()`: los tres roles de equipo pueden presentar, no solo
+   * quien edita.
+   *
+   * Este mismo `DocumentoSesion` también lo pinta `/reunion/[id]/page.tsx`,
+   * a donde SÍ llega el director de una sala — por eso el try/catch: para él
+   * `exigirLectura()` rechaza (no es de equipo) y no hay correo que
+   * registrar, y de todos modos esto no puede tumbar el modo presentación si
+   * algo falla (mismo criterio que documenta `ModoPresentar.tsx`).
+   */
+  async function registrarPresentacionAction(sesionId: string): Promise<void> {
+    'use server'
+    try {
+      const quien = await exigirLectura()
+      if (quien.sub) await registrarPresentacion(sesionId, quien.sub)
+    } catch {
+      // Sesión de sala (el director presentando en su propia sala) u otro
+      // rechazo: nada que registrar.
+    }
   }
 
   const yaSePresento = sesion.estado === 'presentada' || sesion.estado === 'minutada'
@@ -99,7 +132,13 @@ export default async function PagSesionMaquetada({
           </p>
         </main>
       ) : (
-        // Esta ruta ya exige equipo para entrar: quien la ve puede minutar.
+        // Esta ruta ya exige equipo para entrar (`exigirLectura()`, arriba),
+        // así que `equipo` se pasa fijo en `true` — el componente no necesita
+        // volver a preguntar SI es equipo. Eso no significa "puede minutar":
+        // los tres roles llegan hasta aquí, pero solo admin/editor pueden de
+        // verdad generar o publicar el acta (`esEditor()` en
+        // src/app/deck/[id]/minuta/acciones.ts); un viewer ve el botón, la
+        // acción lo rechaza.
         <DocumentoSesion
           tema={tema}
           secciones={secciones}
@@ -111,6 +150,7 @@ export default async function PagSesionMaquetada({
           // ya trae el logo real de la fila — sin esto, la portada de una
           // sesión de una sala nueva pintaba una imagen rota.
           logoUrl={sala?.logoUrl ?? null}
+          registrarPresentacionAction={registrarPresentacionAction}
         />
       )}
     </div>

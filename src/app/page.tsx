@@ -19,7 +19,8 @@ import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil } from '@/lib/fecha'
-import { cerrarSesion, exigirEquipo } from '@/auth/sesion'
+import { cerrarSesion } from '@/auth/sesion'
+import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
@@ -37,6 +38,16 @@ import { colorDeTextoDeMarca } from '@/temas'
  * abrirla: qué se me está venciendo, qué viene, y cómo está cada relación.
  */
 export default async function Hub() {
+  // El Home era la ÚNICA pantalla de equipo sin guarda de página (revisión
+  // final de la rama, punto 1) — todas las demás (`/deck`, `/deck/[id]`,
+  // `/salas`, `/personas`...) ya exigen sesión aquí mismo, pegado al render,
+  // y no solo en el proxy (chequeo optimista, ver `src/auth/politica.ts`).
+  // Sin esto, una sesión que el proxy dejara pasar por error se encontraba
+  // con el Home entero pintado y solo tropezaba en el primer `exigir*()` de
+  // una Server Action real — que lanza, y hasta `src/app/error.tsx` (mismo
+  // punto de esta revisión) eso era la pantalla genérica de Next.
+  await exigirLectura()
+
   async function salir() {
     'use server'
     await cerrarSesion()
@@ -45,21 +56,21 @@ export default async function Hub() {
 
   async function cambiarEstatusAction(id: string, estatus: EstatusAcuerdo) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await moverEstatus(id, estatus)
     revalidatePath('/')
   }
 
   async function ponerFechaAction(id: string, fecha: string | null) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await editarAcuerdo(id, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath('/')
   }
 
   async function guardarMoldeAction(nuevo: MoldeMinuta): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     // Se revalida en el servidor aunque el editor ya lo compruebe: ocultar un
     // botón no protege una acción.
     const faltas = loQueFaltaAlMolde(nuevo)
@@ -77,7 +88,7 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, acuerdos, pulso, sesiones, personas] = await Promise.all([
+  const [salasCrudas, acuerdos, pulso, sesiones, personas, admin] = await Promise.all([
     estadoDeSalas(),
     // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
     // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
@@ -88,6 +99,11 @@ export default async function Hub() {
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
     // MinutaCliente — directorio() ya aguanta Monday caído.
     directorio(),
+    // Ronda 9, tarea 3: si quien mira el Home administra Marketing
+    // Corporativo, para enseñar el enlace a /personas en la barra — solo
+    // cosmética (esa pantalla vuelve a exigir admin ella sola), pero no tiene
+    // sentido ofrecer un enlace a quien va a rebotar en cuanto lo toque.
+    esAdmin(),
   ])
   const molde = await moldeDeMinuta(null)
   const salas = ordenarPorProximaReunion(salasCrudas)
@@ -163,7 +179,15 @@ export default async function Hub() {
           <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
           <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
-          <Link href="/salas" className={estilos.barraLink}>Salas</Link>
+          {/* /salas y /personas son las dos únicas secciones solo-admin
+              (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
+              mismo gate aquí (revisión del coordinador a la tarea 3): las dos
+              pantallas ya exigen `exigirAdmin()` por dentro, así que esto no
+              es la protección real, pero un editor o viewer que hace clic y
+              rebota al login sin explicación es una interfaz que promete algo
+              que no puede cumplir. */}
+          {admin && <Link href="/salas" className={estilos.barraLink}>Salas</Link>}
+          {admin && <Link href="/personas" className={estilos.barraLink}>Personas</Link>}
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>
             <button type="submit" className={estilos.barraSalir}>Salir</button>

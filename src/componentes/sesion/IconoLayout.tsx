@@ -110,6 +110,15 @@ export function IconoLayout({ layout, className }: { layout: DecisionSlide['layo
         </svg>
       )
 
+    // Vídeo: el mismo marco que la imagen, con el triángulo de reproducir.
+    case 'video':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="3.5" y="5" width="17" height="14" rx="2" />
+          <path d="M10 9.3l5.5 2.7-5.5 2.7v-5.4z" fill="currentColor" stroke="none" />
+        </svg>
+      )
+
     // Portada, agenda, divisor y cierre son HITOS: su sitio en el documento ya
     // los distingue —abren, separan, cierran— y un icono ahí sería ruido.
     default:

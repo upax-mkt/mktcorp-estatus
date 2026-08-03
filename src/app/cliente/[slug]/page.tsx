@@ -39,9 +39,10 @@ import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acu
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import {
-  esEquipo, exigirEquipo, exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
+  exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
+import { esAdmin, esLector, exigirAdmin, exigirEditor } from '@/auth/roles'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
 
@@ -116,8 +117,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   if (!s) notFound()
   // Se resuelve ANTES del Promise.all de abajo (y no dentro) porque decide
   // si se pide `directorio()` — necesita el valor YA resuelto, no una
-  // promesa hermana que todavía no corrió.
-  const equipo = await esEquipo()
+  // promesa hermana que todavía no corrió. `esLector()` y no la vieja
+  // `esEquipo()` (retirada, corrección post-revisión de la ronda 9): esta
+  // variable solo condiciona VISIBILIDAD (qué se pinta, si se carga el
+  // directorio interno), nunca una escritura — para eso, más abajo, cada
+  // Server Action exige lo suyo por su cuenta.
+  const equipo = await esLector()
   const [benchmark, archivosPresentaciones, archivosDeInteres, todasLasSesiones, personas] = await Promise.all([
     obtenerBenchmark(slug),
     listarArchivos(slug, 'presentacion'),
@@ -156,7 +161,21 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     redirect('/entrar')
   }
 
-  const tokenDeAcceso = equipo ? await generarTokenDeSala(slug) : null
+  /**
+   * ADMIN, no `equipo` (corrección post-revisión de la ronda 9: agujero
+   * crítico).
+   *
+   * `generarTokenDeSala` no es una vista previa: firma, en el momento,
+   * un link real de 30 días que da acceso de lectura a esta sala desde
+   * fuera del equipo — el mismo tipo de secreto que `regenerarClaveAction`/
+   * `quitarClaveAction` (más abajo), que ya son de admin. Con `equipo` como
+   * guarda, CUALQUIER viewer que abriera esta página se llevaba un link
+   * válido servido en el propio HTML, con su botón de copiar, sin pedir
+   * nada más: no era un botón que no debía ver, era el secreto ya
+   * entregado. Mismo razonamiento, misma exigencia.
+   */
+  const admin = await esAdmin()
+  const tokenDeAcceso = admin ? await generarTokenDeSala(slug) : null
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
   const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
@@ -223,10 +242,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    */
   async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
     'use server'
-    // EQUIPO, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
+    // EDITOR, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
     // editar un acuerdo. El director de la UDN mueve sus compromisos; no
     // arma la sesión en la que se los van a presentar.
-    await exigirEquipo()
+    await exigirEditor()
     if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
       return { error: 'Plantilla desconocida.' }
     }
@@ -278,7 +297,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    */
   async function regenerarClaveAction(): Promise<{ clave?: string; error?: string }> {
     'use server'
-    await exigirEquipo()
+    // ADMIN, no editor: generar/revocar la clave decide QUIÉN puede entrar a
+    // esta sala desde fuera del equipo — el mismo nivel que el enlace de
+    // agenda (`generarEnlaceAction`/`revocarEnlaceAction`, src/app/salas/acciones.ts).
+    await exigirAdmin()
     const s = secretoConfigurado()
     if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
     try {
@@ -292,7 +314,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function quitarClaveAction() {
     'use server'
-    await exigirEquipo()
+    // Misma exigencia que regenerarClaveAction: es la otra mitad del acceso
+    // externo de esta sala.
+    await exigirAdmin()
     await quitarClave(slug)
     revalidatePath(`/cliente/${slug}`)
   }
@@ -309,7 +333,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     tamanoBytes: number | null
   }): Promise<{ error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       await registrarArchivo({
         salaSlug: slug,
@@ -334,7 +358,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function editarArchivoAction(id: string, cambios: { titulo: string; fecha: string | null }) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await editarArchivo(id, {
       titulo: cambios.titulo,
       fecha: cambios.fecha ? new Date(cambios.fecha) : null,
@@ -344,7 +368,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function eliminarArchivoAction(id: string) {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     // Franco: "si algo se elimina también se elimina del almacenamiento".
     // Primero la fila, luego el binario: al revés, un fallo al borrar el
     // archivo dejaría una fila que apunta a la nada.

@@ -269,6 +269,46 @@ export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcu
 }
 
 /**
+ * Deja constancia de que `sesionId` RETOMA `acuerdoId` — ronda 9, tarea 6.
+ * Franco pidió poder "arrastrar" un acuerdo abierto de la sala a la sesión
+ * que se está preparando. NO CREA UN ACUERDO NUEVO: darlo de alta otra vez
+ * con el mismo `que` daría dos compromisos donde antes había uno —el
+ * original seguiría colgando de la sala sin que cerrar el nuevo lo cerrara a
+ * él, y viceversa—. El acuerdo es el MISMO; lo único que cambia es que su
+ * historia deja constancia de que esta reunión lo retomó, con el mismo campo
+ * `cambios` (bolsa libre) que ya usan `editarAcuerdo` y la rama "gana-monday"
+ * de `refrescarDesdeMonday` para entradas que no son ni un movimiento de
+ * estatus ni una edición de campos.
+ *
+ * Es la fuente que lee `acuerdosArrastrablesDe` (src/db/consultas.ts) para
+ * dejar de ofrecer un acuerdo que esta sesión ya retomó.
+ *
+ * NO toca `estatus` (retomar no es cerrar) ni sincroniza con Monday: no
+ * cambió ningún dato que le importe al tablero.
+ */
+export async function retomarAcuerdo(acuerdoId: string, sesionId: string): Promise<void> {
+  const ahora = new Date()
+  const entrada: EntradaHistoria = { en: ahora.toISOString(), cambios: { retomadoEnSesion: sesionId } }
+
+  if (hayDB()) {
+    const conexion = db()
+    const actual = (await conexion.select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
+    if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+    const historia = historiaConEntrada(actual.historia, entrada)
+    await conexion
+      .update(esquema.acuerdos)
+      .set({ historia, updatedAt: ahora })
+      .where(eq(esquema.acuerdos.id, acuerdoId))
+    return
+  }
+
+  const actual = memoria.obtenerAcuerdoMemoria(acuerdoId)
+  if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+  const historia = historiaConEntrada(actual.historia, entrada)
+  memoria.actualizarAcuerdoMemoria(acuerdoId, { historia })
+}
+
+/**
  * Borra un acuerdo de verdad, con su historia.
  *
  * Distinto de `moverEstatus(id, 'cancelado')`: cancelar es una decisión de

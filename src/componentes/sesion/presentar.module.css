@@ -126,7 +126,12 @@
 }
 
 .controles:hover,
-.controles:focus-within {
+.controles:focus-within,
+/* Un error de grabación o el aviso de "salir corta la grabación" no pueden
+   depender de que alguien tenga el mouse encima: ver el comentario grande
+   sobre `.grabarError`. */
+.controles:has(.grabarError),
+.controles:has(.confirmarSalida) {
   opacity: 1;
 }
 
@@ -156,6 +161,34 @@
 
 .salir {
   font-size: 0.8rem !important;
+}
+
+/*
+ * LA SEGUNDA RED, no la principal (paso 5 del brief de la tarea 5).
+ *
+ * La que de verdad garantiza que nada se pierde es la limpieza al desmontar
+ * `GrabarReunion` (ver el comentario ahí) — cubre TODAS las salidas,
+ * incluida la que esta app no puede interceptar: el Esc nativo del
+ * navegador saliendo de pantalla completa. Esto solo evita CORTAR una
+ * grabación viva sin querer con el botón «Salir» o el Esc que sí captura
+ * `ModoPresentar` — dos pasos, no un `confirm()` del navegador, mismo
+ * criterio que `PausaSala`/`EliminarSeccion`.
+ */
+.confirmarSalida {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+.confirmarSalidaTexto {
+  font-size: 0.78rem !important;
+  opacity: 0.85;
+}
+.confirmarSalidaSi {
+  font-size: 0.78rem !important;
+  font-weight: 600;
+  color: oklch(0.98 0 0) !important;
+  background: var(--mal) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -234,8 +267,35 @@
   font-style: normal; opacity: 0.55; max-width: 16rem;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.grabarNota, .grabarError { font-size: 0.75rem; opacity: 0.6; }
-.grabarError { color: oklch(0.75 0.16 25); }
+.grabarNota { font-size: 0.75rem; opacity: 0.6; }
+
+/*
+ * EL AVISO DE ERROR TIENE QUE PESAR COMO UN ERROR.
+ *
+ * Antes vivía con el mismo estilo que `.grabarNota` de arriba —texto de
+ * 0.75rem a 0.6 de opacidad— DENTRO de `.controles`, que además empieza a
+ * 0.25 de opacidad hasta que alguien la toca (ver esa regla, abajo). Un
+ * error de reconocimiento a media reunión (`network`, `audio-capture`, ruta
+ * 2 del diagnóstico 2026-07-31) se veía así de discreto: en plena junta,
+ * proyectando el documento delante de un director, es fácil no verlo.
+ *
+ * Ahora es una placa opaca con el color de alerta del sistema (`--mal`,
+ * `src/app/sistema.css`), y la regla `.controles:has(.grabarError)` de arriba
+ * (junto a `.controles:hover`) saca a la barra ENTERA de su opacidad de
+ * reposo mientras el aviso siga en pantalla — no basta con que el texto se
+ * vea si nadie la está mirando.
+ */
+.grabarError {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 1;
+  color: oklch(0.98 0 0);
+  background: var(--mal);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--r-1, 8px);
+  max-width: 22rem;
+  white-space: normal;
+}
 
 /* La ventana de revisión de lo grabado. */
 .dialogoMinuta {
@@ -262,5 +322,53 @@
 }
 .cabeceraMinuta button:hover { background: var(--papel-hundido); color: var(--tinta); }
 
+.cabeceraMinutaAcciones { display: flex; align-items: center; gap: 0.4rem; flex: none; }
+
+/*
+ * DESCARTAR ES OTRO GESTO, no la ✕ (revisión final de la rama, punto 3).
+ * Un texto que hay que LEER, no un ícono al lado del que cierra — y en
+ * `:hover` se pone del color de alerta del sistema: es la única acción de
+ * este diálogo que borra algo sin vuelta atrás. `!important` porque
+ * `.cabeceraMinuta button`, arriba, ya pone su propio color y su propio
+ * `:hover` — mismo criterio que `.salir`/`.confirmarSalidaSi` en este mismo
+ * archivo para pisar la regla genérica de `.controles button`.
+ */
+.descartarTranscripcion {
+  font-size: 0.78rem !important;
+}
+.descartarTranscripcion:hover {
+  color: oklch(1 0 0) !important;
+  background: var(--mal) !important;
+}
+
+/*
+ * EL AVISO DE QUE QUEDA ALGO SIN REVISAR (revisión final de la rama, punto
+ * 3): aparece si el diálogo se cerró (✕ o Esc nativo) sin publicar la minuta
+ * ni pulsar «Descartar». Abajo a la IZQUIERDA a propósito: `.boton`
+ * («Presentar») ya vive en la esquina derecha, y las dos pueden coexistir —
+ * se sale de presentar con una transcripción pendiente y el botón de entrar
+ * vuelve a aparecer al lado de este aviso, no encima.
+ */
+.reabrirTranscripcion {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  z-index: 20;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--linea-fuerte);
+  cursor: pointer;
+  color: var(--tinta);
+  background: var(--papel);
+  box-shadow: 0 2px 10px oklch(0 0 0 / 0.18);
+  transition: filter 0.15s ease;
+}
+.reabrirTranscripcion:hover {
+  filter: brightness(0.97);
+}
+
 /* El flotante de «Presentar» no existe en papel. */
-@media print { .boton { display: none !important; } }
+@media print { .boton, .reabrirTranscripcion { display: none !important; } }

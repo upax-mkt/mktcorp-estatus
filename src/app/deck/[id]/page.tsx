@@ -13,13 +13,15 @@ import {
   anadirSeccion,
   eliminarSeccion,
   guardarItemContenido,
+  anadirAcuerdoRetomado,
+  itemDeAcuerdosPendientes,
 } from '@/db/sesiones'
 import { eliminarSesion } from '@/db/sesiones'
 import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEquipo } from '@/auth/sesion'
+import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
@@ -27,11 +29,17 @@ import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
 import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
 import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
 import { VistaEditor } from '@/componentes/editor/VistaEditor'
+import { AcuerdosArrastrables } from '@/componentes/editor/AcuerdosArrastrables'
+import { ZonaSoltarAcuerdo } from '@/componentes/editor/ZonaSoltarAcuerdo'
 import { estadoDeSeccion, borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrador'
 import type { DecisionSlide } from '@/decision/esquema'
 import { fechaCompleta } from '@/lib/fecha'
 import { registrarArchivo } from '@/db/archivos'
 import { del } from '@vercel/blob'
+import { registrarEdicion, participantesDe } from '@/db/participacion'
+import { acuerdosArrastrablesDe } from '@/db/consultas'
+import { retomarAcuerdo } from '@/db/acuerdos'
+import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 
 // Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
 // el asistente de IA, que sí llama al modelo.
@@ -50,39 +58,48 @@ function etiquetaAlcance(alcance: string): string {
 }
 
 export default async function PagSesion({ params }: { params: Promise<{ id: string }> }) {
+  // Página de equipo que faltaba exigir a nivel de página (corrección
+  // post-revisión de la ronda 9) — la comprobación de sesión va primero,
+  // antes incluso de mirar si el id existe.
+  await exigirLectura()
   const { id } = await params
   const sesion = await obtenerSesion(id)
   if (!sesion) notFound()
 
   // ---- Server actions ----
-  // Cada una exige equipo por su cuenta: una Server Action es un endpoint, y
+  // Cada una exige editor por su cuenta (`exigirEditor()`: admin o editor,
+  // no viewer — ronda 9, tarea 2): una Server Action es un endpoint, y
   // ocultar el botón en la pantalla no protege nada.
 
   async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await guardarSeccion(id, itemId, seccion)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await anadirSeccion(id, layout, nombre)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await anadirSeccion(id, layout, nombre, padre)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function eliminarSeccionAction(itemId: string) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await eliminarSeccion(id, itemId)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
@@ -92,15 +109,25 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
    * Devuelve la propuesta SIN guardarla. Cae en el formulario del navegador y
    * ahí se corrige; nadie presenta algo que no revisó. Guarda el texto crudo
    * para que reabrir el asistente no obligue a volver a pegarlo.
+   *
+   * `guardarItemContenido`, más abajo, SÍ escribe la sesión ya —el texto
+   * crudo, y de paso saca a la sesión de "agendada" (ver
+   * `empezarAPrepararse`, src/db/sesiones.ts)— aunque la propuesta que arma
+   * el modelo nunca llegue a guardarse como sección. Si alguien pega un
+   * texto, ve la propuesta y se va sin confirmar, la sesión queda con
+   * contenido y estado cambiados y nadie registrado: por eso se registra
+   * aquí también (revisión de la ronda 9, tarea 4), no solo en
+   * `guardarSeccionAction` cuando se confirma.
    */
   async function proponerAction(itemId: string, texto: string): Promise<BorradorSeccion | { error: string }> {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     const sesionActual = await obtenerSesion(id)
     const item = sesionActual?.items.find((i) => i.id === itemId)
     if (!item) return { error: 'Esta sección ya no existe.' }
 
     await guardarItemContenido(id, itemId, { ...item.contenido, texto })
+    if (quien.sub) await registrarEdicion(id, quien.sub)
 
     try {
       const { crearClientePorDefecto } = await import('@/motor/decidir')
@@ -131,7 +158,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     tamanoBytes: number | null
   }): Promise<{ url?: string; error?: string }> {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     try {
       const { id: archivoId } = await registrarArchivo({
         salaSlug: null,
@@ -153,31 +180,97 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     }
   }
 
+  /**
+   * Lo mismo que `subirImagenAction`, para el vídeo de una sección (ronda 9,
+   * tarea 7): registra el binario ya subido a Blob —categoría `video`— y
+   * devuelve la URL con la que se sirve. También cuelga de LA SESIÓN: el
+   * tope real de tamaño y de formato ya se comprobó en `/api/archivos/subir`,
+   * la ruta que autoriza la subida; esto solo dobla el binario en una fila.
+   */
+  async function subirVideoAction(datos: {
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ url?: string; error?: string }> {
+    'use server'
+    await exigirEditor()
+    try {
+      const { id: archivoId } = await registrarArchivo({
+        salaSlug: null,
+        sesionId: id,
+        categoria: 'video',
+        titulo: datos.nombreOriginal,
+        fecha: null,
+        ruta: datos.ruta,
+        nombreOriginal: datos.nombreOriginal,
+        tipoContenido: datos.tipoContenido,
+        tamanoBytes: datos.tamanoBytes,
+      })
+      return { url: `/api/archivo/${archivoId}` }
+    } catch (error) {
+      await del(datos.ruta).catch(() => {})
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar el vídeo.' }
+    }
+  }
+
   async function subirItem(formData: FormData) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function bajarItem(formData: FormData) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
   async function reordenar(idsEnOrden: string[]) {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     await reordenarItems(id, idsEnOrden)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
+    revalidatePath(`/deck/${id}`)
+  }
+
+  /**
+   * Retoma un acuerdo abierto de la sala en esta sesión — por arrastre
+   * (ZonaSoltarAcuerdo) o por el botón «Añadir» (AcuerdosArrastrables): las
+   * dos vías llegan aquí igual.
+   *
+   * NO crea un acuerdo nuevo. Dos escrituras, ninguna copia su contenido:
+   *
+   * 1. `anadirAcuerdoRetomado` (src/db/sesiones.ts) lo REFERENCIA en la
+   *    sección de Acuerdos y Pendientes de esta sesión — solo el id. Es lo
+   *    que hace que se VEA: el editor y "Maquetar" resuelven esa referencia
+   *    contra la tabla `acuerdos` en cada lectura, así que si alguien lo
+   *    cierra desde la sala, se cierra el mismo — no queda un gemelo vivo.
+   * 2. `retomarAcuerdo` (src/db/acuerdos.ts) deja constancia en la HISTORIA
+   *    del propio acuerdo de que esta sesión lo retomó — auditoría, no lo
+   *    que decide si se ofrece o se ve (eso ya lo hizo el punto 1).
+   *
+   * `revalidatePath` es lo que lo saca de la columna de arrastrables en el
+   * siguiente render, porque `acuerdosArrastrablesDe` deja de ofrecer lo que
+   * ya está referenciado — no hace falta borrarlo de ningún lado a mano.
+   */
+  async function retomarAcuerdoAction(acuerdoId: string) {
+    'use server'
+    const quien = await exigirEditor()
+    await anadirAcuerdoRetomado(id, acuerdoId)
+    await retomarAcuerdo(acuerdoId, id)
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   async function maquetar() {
     'use server'
-    await exigirEquipo()
+    const quien = await exigirEditor()
     const sesionActual = await obtenerSesion(id)
     if (!sesionActual) throw new Error('Sesión no encontrada')
 
@@ -186,12 +279,15 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
     const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
     await guardarDecisiones(id, resultados)
+    // Antes del redirect: `redirect()` de Next corta la función lanzando, así
+    // que nada después de esta línea se ejecutaría.
+    if (quien.sub) await registrarEdicion(id, quien.sub)
     redirect(`/deck/${id}/documento`)
   }
 
   async function borrarSesionAction() {
     'use server'
-    await exigirEquipo()
+    await exigirEditor()
     await eliminarSesion(id)
     revalidatePath('/deck')
     revalidatePath('/')
@@ -233,6 +329,22 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
       .filter((h) => h.padre === base.tipo)
       .map((h) => ({ id: h.id, titulo: h.titulo, llenado: h.llenado, esSub: true })),
   ])
+
+  // Quién preparó esta sesión y quién la presentó (ronda 9, tarea 4). Esta
+  // página es de equipo (`exigirLectura()`, arriba) — nunca la ve un director
+  // de sala, así que enseñar correos y nombres de Mkt Corp aquí no repite la
+  // fuga de datos que ya se corrigió en /reunion/[id].
+  const participantes = await participantesDe(id)
+
+  // Los acuerdos abiertos de la sala que se pueden arrastrar a esta sesión
+  // (ronda 9, tarea 6). Los acuerdos cuelgan de la SALA, no de la sesión: una
+  // reunión sin sala (comité, arranque de campaña) no tiene de dónde
+  // sugerirlos.
+  const acuerdosArrastrables = sesion.salaSlug ? await acuerdosArrastrablesDe(sesion.salaSlug, id) : []
+  // En qué sección "aterriza" un acuerdo retomado: la de Acuerdos y
+  // Pendientes, si esta sesión tiene una (ver `itemDeAcuerdosPendientes`).
+  // Es la ÚNICA tarjeta que recibe la zona de destino del arrastre.
+  const itemAcuerdos = itemDeAcuerdosPendientes(sesion)
 
   return (
     <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
@@ -282,7 +394,28 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </div>
+
+          <ParticipantesSesion participantes={participantes} />
         </div>
+
+        {/* Los acuerdos abiertos de la sala, listos para retomarse en esta
+            sesión (ronda 9, tarea 6). Antes de la lista de secciones: es lo
+            primero que hay que revisar al abrir una sesión nueva de la sala,
+            igual que Franco lo pidió — "si quiero agregar Acuerdos y
+            Pendientes me debería sugerir...". Solo si la sesión es de una
+            sala: una reunión sin sala no tiene de dónde sugerirlos. */}
+        {sesion.salaSlug && (
+          <AcuerdosArrastrables
+            acuerdos={acuerdosArrastrables}
+            alArrastrar={retomarAcuerdoAction}
+            // Revisión final de la rama, punto 5: `itemAcuerdos` (arriba) es
+            // `undefined` en las plantillas sin sección de Acuerdos y
+            // Pendientes («en blanco», «comité») — sin este dato, el panel
+            // ofrecía arrastre y el botón «Añadir» aunque la acción SIEMPRE
+            // fuera a lanzar (`anadirAcuerdoRetomado` exige esa sección).
+            hayDestino={itemAcuerdos !== undefined}
+          />
+        )}
 
         <div className={estilos.editorConIndice}>
         <div className={estilos.columnaSecciones}>
@@ -296,6 +429,10 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
             // repetirlo dos centímetros más arriba es ruido.
             titulo: b.titulo,
             borrador: b.contenido.seccion ?? { layout: 'portada' },
+            // Para que "Ver y ordenar" enseñe EXACTAMENTE lo que va a
+            // generar "Maquetar" — acuerdos retomados incluidos, resueltos
+            // al momento (ronda 9, tarea 6).
+            acuerdosRetomados: b.acuerdosRetomados,
           }))}
           formularios={
           <>
@@ -320,6 +457,12 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                   tema={tema}
                   sesionId={id}
                   subirImagenAction={subirImagenAction}
+                  subirVideoAction={subirVideoAction}
+                  zonaDeAcuerdos={
+                    base.id === itemAcuerdos?.id ? (
+                      <ZonaSoltarAcuerdo acuerdos={base.acuerdosRetomados} alSoltar={retomarAcuerdoAction} />
+                    ) : undefined
+                  }
                 />
 
                 <div className={estilos.subsecciones}>
@@ -338,6 +481,17 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       tema={tema}
                       sesionId={id}
                       subirImagenAction={subirImagenAction}
+                      subirVideoAction={subirVideoAction}
+                      // Caso raro pero posible: una "Pendientes con semáforo"
+                      // añadida a mano como SUBSECCIÓN de otro bloque, en una
+                      // sesión sin la fija 'acuerdos-pendientes'
+                      // (`itemDeAcuerdosPendientes` no distingue base de
+                      // subsección al buscarla — ver src/db/sesiones.ts).
+                      zonaDeAcuerdos={
+                        hija.id === itemAcuerdos?.id ? (
+                          <ZonaSoltarAcuerdo acuerdos={hija.acuerdosRetomados} alSoltar={retomarAcuerdoAction} />
+                        ) : undefined
+                      }
                     />
                   ))}
                   {/* SOLO UN DIVISOR ABRE UN BLOQUE. Una sección que ya lleva

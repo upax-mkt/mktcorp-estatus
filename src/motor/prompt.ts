@@ -41,10 +41,15 @@ const CAMPOS_POR_LAYOUT: Partial<Record<DecisionSlide['layout'], string>> = {
     'en bloques paralelos (por ejemplo, un tema por UDN o por frente). Si el inventario trae cifras, ' +
     'esas cifras van en "kpis-fila-dos-columnas", no aquí.',
   'imagen-a-sangre':
-    'admite "imagen" (obligatoria, la ruta o URL https de la pieza [imagen] del inventario), ' +
-    '"titulo" (obligatorio) y "subtitulo" (opcional) — se superponen sobre la imagen. Elige este ' +
-    'layout únicamente cuando el inventario trae una pieza [imagen] real; nunca inventes una ruta ' +
-    'ni la uses para contenido que no sea, en esencia, esa imagen.',
+    'admite "imagen" (obligatoria: un objeto {"url": ...}, con la ruta o URL https de la pieza ' +
+    '[imagen] del inventario — nunca inventes "anchoPorcentaje" ni "alineacion", esos los pone el ' +
+    'editor manual), "titulo" (obligatorio) y "subtitulo" (opcional) — se superponen sobre la ' +
+    'imagen. Elige este layout únicamente cuando el inventario trae una pieza [imagen] real; nunca ' +
+    'inventes una ruta ni la uses para contenido que no sea, en esencia, esa imagen.',
+  video:
+    'NO ELIJAS este layout. El vídeo se sube a mano desde el editor y el inventario nunca trae una ' +
+    'pieza de vídeo — no tienes de dónde sacar su "url". Si el contenido necesita ilustrarse, usa ' +
+    '"imagen-a-sangre" solo cuando el inventario traiga una pieza [imagen] real.',
   cierre:
     'admite "titulo" (obligatorio, p. ej. "Gracias" o "Acuerdos") y "subtitulo" (opcional). Cierre ' +
     'institucional de la sesión — resérvalo para la última sección, nunca para un separador ' +

@@ -217,7 +217,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
     empezar(async () => {
       // La llamada a `guardar` va DENTRO del try (mismo criterio que
       // `PausaSala.ejecutar`): `crearSalaAction`/`editarSalaAction` empiezan
-      // con `exigirEquipo()`, y una sesión vencida con esta pestaña todavía
+      // con `exigirAdmin()`, y una sesión vencida con esta pestaña todavía
       // abierta —la cookie de equipo dura 7 días— hace que ESO lance en vez
       // de devolver `{error}`. Sin el catch, esa promesa rechazada no tenía
       // dónde aterrizar: la pantalla reventaba sin decir "tu sesión venció,
@@ -248,7 +248,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
    * ya con "Guardar cambios" o no: un solo clic basta para dejar el color y
    * su paleta sincronizados, sin obligar a guardar primero. Mismo criterio
    * de try/catch que `alEnviar`: `recalcularPaletaAction` empieza con
-   * `exigirEquipo()`, que lanza en vez de devolver `{error}` si la sesión ya
+   * `exigirAdmin()`, que lanza en vez de devolver `{error}` si la sesión ya
    * venció.
    */
   function recalcular() {
