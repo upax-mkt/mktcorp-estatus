@@ -77,7 +77,7 @@ export interface FilaArchivoMemoria {
   id: string
   salaSlug: string | null
   sesionId?: string | null
-  categoria: 'presentacion' | 'interes' | 'imagen'
+  categoria: 'presentacion' | 'interes' | 'imagen' | 'video'
   titulo: string
   fecha: Date | null
   ruta: string

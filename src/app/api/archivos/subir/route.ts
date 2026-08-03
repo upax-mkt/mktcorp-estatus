@@ -1,7 +1,7 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse, type NextRequest } from 'next/server'
 import { esEditor } from '@/auth/roles'
-import { TIPOS_PERMITIDOS, TAMANO_MAXIMO } from '@/lib/blob'
+import { TIPOS_PERMITIDOS, TAMANO_MAXIMO, TIPOS_VIDEO, TAMANO_MAXIMO_VIDEO } from '@/lib/blob'
 
 /**
  * Emite el permiso para que el navegador escriba DIRECTO en Blob.
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const respuesta = await handleUpload({
       body: cuerpo,
       request,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         // La autorización va AQUÍ y no en el formulario: esta ruta es un
         // endpoint, y quien conozca su nombre puede llamarla sin pasar por
         // ninguna pantalla. Un token emitido a la ligera convierte el store
@@ -35,9 +35,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!(await esEditor())) {
           throw new Error('Esta acción requiere permiso de edición en Marketing Corporativo.')
         }
+        // EL TOPE DE SERVIDOR ES EL QUE MANDA (ronda 9, tarea 7). El de
+        // `CampoVideo` en el navegador es cortesía, para no hacer esperar diez
+        // minutos a alguien y luego rechazarlo — este es el que de verdad
+        // limita. `rutaDeArchivo` (src/lib/blob.ts) siempre mete la categoría
+        // en la ruta (`salas/{sala}/{categoria}/...`), así que un vídeo se
+        // reconoce por su carpeta, sin depender de lo que el cliente declare.
+        // Con ella también se cierra el otro lado: un vídeo solo se acepta
+        // bajo esa carpeta, nunca colado como "imagen" o "interes" para
+        // esquivar su propio tope.
+        const esVideo = pathname.includes('/video/')
         return {
-          allowedContentTypes: TIPOS_PERMITIDOS,
-          maximumSizeInBytes: TAMANO_MAXIMO,
+          allowedContentTypes: esVideo ? TIPOS_VIDEO : TIPOS_PERMITIDOS,
+          maximumSizeInBytes: esVideo ? TAMANO_MAXIMO_VIDEO : TAMANO_MAXIMO,
           // El nombre ya lleva un identificador propio (ver `rutaDeArchivo`),
           // así que no hace falta sufijo aleatorio; y sobrescribir nunca es
           // lo que se quiere: dos subidas son dos archivos.

@@ -180,6 +180,40 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     }
   }
 
+  /**
+   * Lo mismo que `subirImagenAction`, para el vídeo de una sección (ronda 9,
+   * tarea 7): registra el binario ya subido a Blob —categoría `video`— y
+   * devuelve la URL con la que se sirve. También cuelga de LA SESIÓN: el
+   * tope real de tamaño y de formato ya se comprobó en `/api/archivos/subir`,
+   * la ruta que autoriza la subida; esto solo dobla el binario en una fila.
+   */
+  async function subirVideoAction(datos: {
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ url?: string; error?: string }> {
+    'use server'
+    await exigirEditor()
+    try {
+      const { id: archivoId } = await registrarArchivo({
+        salaSlug: null,
+        sesionId: id,
+        categoria: 'video',
+        titulo: datos.nombreOriginal,
+        fecha: null,
+        ruta: datos.ruta,
+        nombreOriginal: datos.nombreOriginal,
+        tipoContenido: datos.tipoContenido,
+        tamanoBytes: datos.tamanoBytes,
+      })
+      return { url: `/api/archivo/${archivoId}` }
+    } catch (error) {
+      await del(datos.ruta).catch(() => {})
+      return { error: error instanceof Error ? error.message : 'No se pudo registrar el vídeo.' }
+    }
+  }
+
   async function subirItem(formData: FormData) {
     'use server'
     const quien = await exigirEditor()
@@ -414,6 +448,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                   tema={tema}
                   sesionId={id}
                   subirImagenAction={subirImagenAction}
+                  subirVideoAction={subirVideoAction}
                   zonaDeAcuerdos={
                     base.id === itemAcuerdos?.id ? (
                       <ZonaSoltarAcuerdo acuerdos={base.acuerdosRetomados} alSoltar={retomarAcuerdoAction} />
@@ -437,6 +472,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       tema={tema}
                       sesionId={id}
                       subirImagenAction={subirImagenAction}
+                      subirVideoAction={subirVideoAction}
                       // Caso raro pero posible: una "Pendientes con semáforo"
                       // añadida a mano como SUBSECCIÓN de otro bloque, en una
                       // sesión sin la fija 'acuerdos-pendientes'

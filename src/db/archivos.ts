@@ -19,7 +19,7 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { slugsDeSalas } from './temas'
 
-export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen'
+export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video'
 
 export interface ArchivoSala {
   id: string

@@ -4,6 +4,7 @@ import type { BorradorSeccion } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
 import { tipoDeSeccion } from '@/secciones/catalogo'
 import { EditorSeccion, type SubirImagen } from './EditorSeccion'
+import type { SubirVideo } from './CampoVideo'
 import { EliminarSeccion } from './EliminarSeccion'
 import { SeccionPlegable } from './SeccionPlegable'
 import { loQueFalta } from '@/secciones/borrador'
@@ -32,6 +33,7 @@ interface Props {
   tema: Tema
   sesionId: string
   subirImagenAction: SubirImagen
+  subirVideoAction: SubirVideo
   /**
    * La zona donde soltar un acuerdo arrastrado desde `AcuerdosArrastrables`
    * (ronda 9, tarea 6). Ausente en cualquier tarjeta que no sea la sección de
@@ -53,7 +55,7 @@ function resumen(llenado: boolean, faltas: string[]): string {
 export function TarjetaSeccion({
   item, primera, ultima, subirAction, bajarAction,
   guardarSeccionAction, proponerAction, eliminarSeccionAction, esSub, tema,
-  sesionId, subirImagenAction, zonaDeAcuerdos,
+  sesionId, subirImagenAction, subirVideoAction, zonaDeAcuerdos,
 }: Props) {
   const borrador: BorradorSeccion = item.contenido.seccion ?? { layout: 'kpis-fila-dos-columnas' }
   const tipo = tipoDeSeccion(borrador.layout)
@@ -122,6 +124,7 @@ export function TarjetaSeccion({
           tema={tema}
           sesionId={sesionId}
           subirImagenAction={subirImagenAction}
+          subirVideoAction={subirVideoAction}
           guardarAction={guardarSeccionAction.bind(null, item.id)}
           textoCrudo={item.contenido.texto}
           proponerAction={proponerAction.bind(null, item.id)}

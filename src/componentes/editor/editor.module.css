@@ -819,3 +819,48 @@
   text-decoration: underline; text-underline-offset: 2px;
 }
 .enlacePlegado:hover { color: var(--tx, #222); }
+
+/* ---- ancho y alineación de la imagen (ronda 9, tarea 7) ----
+   No recorta ni edita la imagen: solo decide cuánto de la columna ocupa y a
+   qué lado cae. Vive junto a la miniatura, no como un campo aparte, porque
+   son ajustes DE esa imagen, no contenido nuevo de la sección. */
+.imagenAjustes {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem 1.2rem;
+  padding: 0 0.6rem;
+}
+.imagenAncho {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.78rem; color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+  flex: 1 1 12rem;
+}
+.imagenAncho input[type='range'] { flex: 1; accent-color: var(--sala, currentColor); }
+
+.imagenAlineacion { display: flex; gap: 0.3rem; }
+.botonAlineacion {
+  font: inherit; font-size: 0.78rem;
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--tx, #222) 16%, transparent);
+  background: none; cursor: pointer;
+  color: color-mix(in oklch, var(--tx, #222) 62%, transparent);
+}
+.botonAlineacion[aria-pressed='true'] {
+  border-color: var(--sala, currentColor);
+  background: color-mix(in oklch, var(--sala, #888) 10%, transparent);
+  color: var(--tx, #222);
+  font-weight: 600;
+}
+
+/* ---- campo de vídeo (ronda 9, tarea 7) ----
+   Reutiliza `.imagenAcciones`/`.imagenRuta`/`.quitarImagen`: el título y el
+   botón de quitar son el mismo patrón que la imagen, solo que aquí el título
+   sustituye a la ruta —un `/api/archivo/<uuid>` no dice nada, y el título sí. */
+.videoPuesto {
+  display: grid; gap: 0.6rem;
+  padding: 0.6rem; border-radius: var(--r-3, 14px);
+  background: var(--superficie-2, #f6f6f6);
+}
+.videoReproductorCampo {
+  width: 100%; max-width: 22rem;
+  border-radius: var(--r-2, 10px);
+  background: #000;
+}

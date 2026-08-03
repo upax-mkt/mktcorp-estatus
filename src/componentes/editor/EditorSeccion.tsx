@@ -14,6 +14,7 @@ import { AsistenteIA } from './AsistenteIA'
 import { VistaPrevia } from './VistaPrevia'
 import { SelectorTipo } from './SelectorTipo'
 import { CampoImagen } from './CampoImagen'
+import { CampoVideo, type SubirVideo } from './CampoVideo'
 import { soloCamposDelTipo, NOMBRE_DE_CAMPO } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
 import type { Acuerdo } from '@/dominio/salas'
@@ -45,9 +46,10 @@ interface Props {
   proponerAction?: (texto: string) => Promise<BorradorSeccion | { error: string }>
   /** El tema de la sala: la vista previa se pinta con SUS colores. */
   tema: Tema
-  /** De qué sesión es. Lo necesita la subida de imágenes. */
+  /** De qué sesión es. Lo necesita la subida de imágenes y de vídeo. */
   sesionId?: string
   subirImagenAction?: SubirImagen
+  subirVideoAction?: SubirVideo
   /** Acuerdos retomados de la sala en este item, ya resueltos (ronda 9, tarea 6). */
   acuerdosRetomados?: Acuerdo[]
 }
@@ -162,7 +164,7 @@ const ESPERA_AUTOGUARDADO = 1200
 
 export function EditorSeccion({
   borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction, tema,
-  sesionId, subirImagenAction, acuerdosRetomados,
+  sesionId, subirImagenAction, subirVideoAction, acuerdosRetomados,
 }: Props) {
   const idBase = useId()
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
@@ -315,6 +317,7 @@ export function EditorSeccion({
             cambiar={cambiar}
             sesionId={sesionId}
             subirImagenAction={subirImagenAction}
+            subirVideoAction={subirVideoAction}
           />
         </div>
       ))}
@@ -385,12 +388,14 @@ function Campo({
   cambiar,
   sesionId,
   subirImagenAction,
+  subirVideoAction,
 }: {
   campo: CampoSeccion
   borrador: BorradorSeccion
   cambiar: (parcial: Partial<BorradorSeccion>) => void
   sesionId?: string
   subirImagenAction?: SubirImagen
+  subirVideoAction?: SubirVideo
 }) {
   switch (campo) {
     case 'subtitulo':
@@ -438,6 +443,19 @@ function Campo({
           onChange={(imagen) => cambiar({ imagen })}
           sesionId={sesionId}
           subirImagenAction={subirImagenAction}
+        />
+      )
+
+    case 'video':
+      return (
+        <CampoVideo
+          // `CampoVideo` habla en `null`/`alCambiar` (ver su test); el
+          // borrador habla en `undefined`/`cambiar`, como el resto del
+          // esquema. El puente entre las dos convenciones vive aquí.
+          valor={borrador.video ?? null}
+          alCambiar={(video) => cambiar({ video: video ?? undefined })}
+          sesionId={sesionId}
+          subirVideoAction={subirVideoAction}
         />
       )
 

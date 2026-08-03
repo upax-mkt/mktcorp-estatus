@@ -410,11 +410,34 @@
   background: var(--primario-sobre-superficie);
 }
 
+/* El ancho y la alineación los pone `CampoImagen`, con un tirador de 25 a
+   100% de la columna. `margin-inline` en 0 empuja la imagen a la izquierda
+   por defecto; `[data-alineacion]` la mueve sin tocar el ancho. */
 .imagen {
-  width: 100%;
+  display: block;
+  width: var(--imagen-ancho, 100%);
   height: auto;
   border-radius: 0.7rem;
   margin-top: var(--e-5);
+  margin-inline: 0;
+}
+.imagen[data-alineacion='centro'] { margin-inline: auto; }
+.imagen[data-alineacion='derecha'] { margin-left: auto; margin-right: 0; }
+
+.video {
+  margin: var(--e-5) 0 0;
+}
+.videoReproductor {
+  display: block;
+  width: 100%;
+  border-radius: 0.7rem;
+  background: #000;
+}
+.videoTitulo {
+  margin-top: var(--e-2);
+  font-size: var(--t--1);
+  font-style: normal;
+  color: color-mix(in oklch, var(--texto) 62%, transparent);
 }
 
 .avisoRevision {

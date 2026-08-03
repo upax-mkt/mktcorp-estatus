@@ -291,27 +291,46 @@ describe('TextoPlano — cierre de la rendija de markup/estilo en cadenas', () =
 
   it('rechaza una imagen con esquema javascript:', () => {
     expect(() =>
-      parsearDecision({ ...VALIDA, imagen: 'javascript:alert(1)' })
+      parsearDecision({ ...VALIDA, imagen: { url: 'javascript:alert(1)' } })
     ).toThrow()
   })
 
   it('rechaza una imagen con esquema data:', () => {
     expect(() =>
-      parsearDecision({ ...VALIDA, imagen: 'data:text/html;base64,PHNjcmlwdD4=' })
+      parsearDecision({ ...VALIDA, imagen: { url: 'data:text/html;base64,PHNjcmlwdD4=' } })
     ).toThrow()
   })
 
   it('rechaza una imagen con esquema file:', () => {
-    expect(() => parsearDecision({ ...VALIDA, imagen: 'file:///etc/passwd' })).toThrow()
+    expect(() => parsearDecision({ ...VALIDA, imagen: { url: 'file:///etc/passwd' } })).toThrow()
   })
 
   it('acepta una imagen como ruta relativa o URL https', () => {
     expect(
-      esDecisionValida({ ...VALIDA, imagen: '/assets/grafico-1.png' })
+      esDecisionValida({ ...VALIDA, imagen: { url: '/assets/grafico-1.png' } })
     ).toBe(true)
     expect(
-      esDecisionValida({ ...VALIDA, imagen: 'https://cdn.upax.com.mx/grafico-1.png' })
+      esDecisionValida({ ...VALIDA, imagen: { url: 'https://cdn.upax.com.mx/grafico-1.png' } })
     ).toBe(true)
+  })
+
+  it('el ancho de la imagen respeta el rango de 25 a 100', () => {
+    expect(esDecisionValida({ ...VALIDA, imagen: { url: '/x.png', anchoPorcentaje: 24 } })).toBe(false)
+    expect(esDecisionValida({ ...VALIDA, imagen: { url: '/x.png', anchoPorcentaje: 101 } })).toBe(false)
+    expect(esDecisionValida({ ...VALIDA, imagen: { url: '/x.png', anchoPorcentaje: 25 } })).toBe(true)
+    expect(esDecisionValida({ ...VALIDA, imagen: { url: '/x.png', anchoPorcentaje: 100 } })).toBe(true)
+  })
+
+  it('rechaza una alineación inventada', () => {
+    expect(
+      esDecisionValida({ ...VALIDA, imagen: { url: '/x.png', alineacion: 'flotante' } }),
+    ).toBe(false)
+  })
+
+  it('un vídeo trae url y título, y también respeta el esquema de URL segura', () => {
+    expect(esDecisionValida({ ...VALIDA, video: { url: '/api/archivo/x.mp4', titulo: 'Caso' } })).toBe(true)
+    expect(esDecisionValida({ ...VALIDA, video: { url: 'javascript:alert(1)', titulo: 'Caso' } })).toBe(false)
+    expect(esDecisionValida({ ...VALIDA, video: { url: '/api/archivo/x.mp4', titulo: '' } })).toBe(false)
   })
 
   it('acepta contenido legítimo del proyecto: números, deltas, moneda, flechas y frases con acentos', () => {

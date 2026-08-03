@@ -122,7 +122,9 @@ const CONTENIDO: Record<CampoSeccion, unknown> = {
     { titulo: 'Vertical político-electoral' },
   ],
 
-  imagen: '/logos/zeus-color.png',
+  imagen: { url: '/logos/zeus-color.png', anchoPorcentaje: 60, alineacion: 'centro' },
+
+  video: { url: '/api/archivo/uuid-testigo.mp4', titulo: 'Testimonio de cliente' },
 
   notaPie: 'Fuente: HubSpot, corte al 30 de junio. Excluye la venta interna al grupo.',
 }

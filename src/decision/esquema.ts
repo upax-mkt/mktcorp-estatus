@@ -111,11 +111,54 @@ function esUrlSegura(valor: string): boolean {
 const MENSAJE_URL_SEGURA =
   'Debe ser una ruta relativa del sistema o una URL https. No se permiten esquemas javascript:, data: ni file:.'
 
-/** Restringe `imagen` a rutas relativas del propio sistema o URLs https. */
-const Imagen = z.string().min(1).refine(esUrlSegura, { message: MENSAJE_URL_SEGURA })
-
 /** Lo mismo para el `href` de una viñeta con enlace. */
 const Enlace = z.string().min(1).refine(esUrlSegura, { message: MENSAJE_URL_SEGURA })
+
+/**
+ * Dónde se alinea una imagen cuando su ancho es menor al 100% de la columna.
+ * Un vídeo no lleva alineación: su reproductor ocupa siempre el ancho
+ * completo, con los controles nativos del navegador.
+ */
+export const ALINEACIONES_IMAGEN = ['izquierda', 'centro', 'derecha'] as const
+export type AlineacionImagen = (typeof ALINEACIONES_IMAGEN)[number]
+
+/**
+ * La imagen de una sección: su URL y CÓMO se pinta — nunca cómo se recorta o
+ * edita, que es otro producto (ver `CampoImagen`). `anchoPorcentaje` (25 a
+ * 100) y `alineacion` los decide el editor manual con un tirador; la IA nunca
+ * los pone —no tiene de dónde sacar ese criterio— así que quedan opcionales y
+ * su ausencia cae en 100% / centro al pintarla (`SeccionDocumento`).
+ */
+const Imagen = z.object({
+  url: z.string().min(1).refine(esUrlSegura, { message: MENSAJE_URL_SEGURA }).describe(
+    'La ruta de la pieza [imagen] del inventario, o la que deja la subida del editor. Copiada tal cual, nunca inventada.',
+  ),
+  anchoPorcentaje: z.number().min(25).max(100).optional().describe(
+    'El ancho de la imagen, como porcentaje del ancho de la columna, de 25 a 100. Sin este campo, ocupa el 100%. Es una decisión del editor manual: la IA la deja sin poner.',
+  ),
+  alineacion: z.enum(ALINEACIONES_IMAGEN).optional().describe(
+    'A qué lado se alinea la imagen cuando su ancho es menor al 100%: "izquierda", "centro" o "derecha". Sin este campo, se centra. Es una decisión del editor manual: la IA la deja sin poner.',
+  ),
+}).strict()
+
+export type ImagenSeccion = z.infer<typeof Imagen>
+
+/**
+ * El vídeo de una sección: se SUBE desde el editor (`CampoVideo`), nunca lo
+ * genera la IA — el inventario de una sesión no trae piezas de vídeo (ver
+ * `src/motor/inventario.ts`), así que solo lo lleva una sección compuesta a
+ * mano.
+ */
+const Video = z.object({
+  url: z.string().min(1).refine(esUrlSegura, { message: MENSAJE_URL_SEGURA }).describe(
+    'La ruta del vídeo subido a Blob. Nunca la inventa la IA: no existe una pieza de vídeo en el inventario.',
+  ),
+  titulo: TextoPlano.describe(
+    'Cómo se llama este vídeo en el documento — el nombre del archivo tal como se subió.',
+  ),
+}).strict()
+
+export type VideoSeccion = z.infer<typeof Video>
 
 /**
  * CUÁNTO CABE EN UNA SECCIÓN. Fuente única.
@@ -160,6 +203,7 @@ export const LAYOUTS = [
   'texto-multicolumna',
   'matriz-estados',
   'imagen-a-sangre',
+  'video',
   'cierre',
 ] as const
 
@@ -398,7 +442,10 @@ export const EsquemaDecision = z.object({
     'Aclaración al pie de la sección: de dónde salen los datos, qué queda fuera del corte, una salvedad de medición.',
   ),
   imagen: Imagen.optional().describe(
-    'La ruta de la pieza [imagen] del inventario, copiada tal cual. Solo si el inventario trae una imagen real; nunca inventes una ruta.',
+    'La imagen de la sección: un objeto con "url" —la pieza [imagen] del inventario, copiada tal cual; nunca inventes una ruta— y, opcionalmente, "anchoPorcentaje" y "alineacion", que decide el editor manual y tú dejas sin poner.',
+  ),
+  video: Video.optional().describe(
+    'El vídeo de la sección: un objeto con "url" y "titulo". Solo lo trae una sección compuesta a mano en el editor — el inventario nunca contiene una pieza de vídeo, así que nunca debes rellenar este campo.',
   ),
   // Ojo con la redacción: una versión anterior decía «no un relleno como
   // "placeholder"» y el modelo devolvía exactamente eso — nombrar el ejemplo

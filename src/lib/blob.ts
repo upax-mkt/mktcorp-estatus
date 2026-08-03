@@ -33,6 +33,22 @@ export const TIPOS_PERMITIDOS = [
 /** 100 MB. Un deck con vídeo incrustado llega ahí; más es un vídeo suelto. */
 export const TAMANO_MAXIMO = 100 * 1024 * 1024
 
+/** Lo que Chrome reproduce sin plugins. Nada de contenedores exóticos. */
+export const TIPOS_VIDEO = ['video/mp4', 'video/webm']
+
+/**
+ * 200 MB — el tope del vídeo de una sección, más alto que `TAMANO_MAXIMO`
+ * porque un vídeo pesa más que un deck o una imagen. Vercel Blob admite mucho
+ * más, pero uno más pesado tarda en subir y en cargar delante de un director;
+ * para uno largo, un enlace a YouTube o Drive en una sección de enlaces se ve
+ * igual de bien. Se comprueba EN LOS DOS LADOS: en el navegador antes de
+ * empezar a subir (`CampoVideo`, cortesía — para no hacer esperar diez
+ * minutos y luego rechazarlo) y en la ruta que autoriza la subida
+ * (`/api/archivos/subir`, que es la que manda de verdad).
+ */
+export const TOPE_VIDEO_MB = 200
+export const TAMANO_MAXIMO_VIDEO = TOPE_VIDEO_MB * 1024 * 1024
+
 /**
  * Dónde vive el binario dentro del store.
  *

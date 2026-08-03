@@ -267,7 +267,9 @@ export const minutas = pgTable('minutas', {
 // 'imagen' es la que se inserta DENTRO de una presentación. No cuelga de una
 // sala sino de la sesión: quien puede ver el documento puede ver su imagen, y
 // una reunión sin sala también lleva imágenes.
-export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen'])
+// 'video' (ronda 9, tarea 7) es lo mismo que 'imagen' pero para el vídeo de
+// una sección: tampoco cuelga de una sala, cuelga de la sesión.
+export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen', 'video'])
 
 export const archivos = pgTable('archivos', {
   id: text('id').primaryKey(),

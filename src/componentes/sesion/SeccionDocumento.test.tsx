@@ -240,3 +240,54 @@ describe('viñetas anidadas en columnas (pág. 6)', () => {
     expect(container.querySelector('li ul li')?.textContent).toBe('Retail')
   })
 })
+
+describe('ancho y alineación de la imagen (ronda 9, tarea 7)', () => {
+  it('sin ancho ni alineación puestos, se pinta al 100% y centrada', () => {
+    const { container } = seccion({
+      layout: 'imagen-a-sangre',
+      imagen: { url: '/testigo.jpg' },
+    })
+    const img = container.querySelector('img')
+    expect(img?.getAttribute('src')).toBe('/testigo.jpg')
+    expect(img?.getAttribute('data-alineacion')).toBe('centro')
+    expect(img?.getAttribute('style')).toContain('100%')
+  })
+
+  it('con ancho y alineación puestos, los dos llegan al elemento', () => {
+    const { container } = seccion({
+      layout: 'imagen-a-sangre',
+      imagen: { url: '/testigo.jpg', anchoPorcentaje: 40, alineacion: 'derecha' },
+    })
+    const img = container.querySelector('img')
+    expect(img?.getAttribute('data-alineacion')).toBe('derecha')
+    expect(img?.getAttribute('style')).toContain('40%')
+  })
+
+  it('no se recorta ni se edita: el src sigue siendo el archivo entero', () => {
+    // Esto NO es otro producto (redimensionar el binario): solo cambia
+    // cuánto de la columna ocupa en pantalla.
+    const { container } = seccion({
+      layout: 'imagen-a-sangre',
+      imagen: { url: '/testigo.jpg', anchoPorcentaje: 25 },
+    })
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/testigo.jpg')
+  })
+})
+
+describe('vídeo de la sección (ronda 9, tarea 7)', () => {
+  it('se reproduce con controles nativos y muestra su título', () => {
+    const { container } = seccion({
+      layout: 'video',
+      video: { url: '/api/archivo/uuid-caso.mp4', titulo: 'Testimonio de cliente' },
+    })
+    const video = container.querySelector('video')
+    expect(video?.getAttribute('src')).toBe('/api/archivo/uuid-caso.mp4')
+    expect(video).toHaveAttribute('controls')
+    expect(screen.getByText('Testimonio de cliente')).toBeInTheDocument()
+  })
+
+  it('sin vídeo en la decisión, no se dibuja ningún reproductor', () => {
+    const { container } = seccion({ layout: 'video' })
+    expect(container.querySelector('video')).toBeNull()
+  })
+})

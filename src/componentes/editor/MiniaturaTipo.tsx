@@ -84,6 +84,12 @@ const ESQUEMAS: Record<DecisionSlide['layout'], Pieza[]> = {
   ],
   // Una imagen que ocupa todo.
   'imagen-a-sangre': [[0, 0, 60, 40, 'marca']],
+  // El cuadro del vídeo con su barra de reproducción abajo.
+  'video': [
+    [4, 4, 52, 26, 'marca'],
+    [4, 33, 52, 3, 'suave'],
+    [4, 33, 18, 3, 'fuerte'],
+  ],
   // Cierre: poco texto, centrado.
   'cierre': [[16, 14, 28, 6, 'fuerte'], [22, 24, 16, 3]],
 }
