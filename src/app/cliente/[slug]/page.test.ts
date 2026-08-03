@@ -45,14 +45,41 @@ const SALA_BASE: EstadoSala = {
   pausadaDesde: null,
 }
 
+// Una sala con dos reuniones reales —presentación con `sesionId`, sin
+// minuta— para el bloque de participación más abajo: `SALA_BASE` a propósito
+// no tiene ninguna, así que con ella `reuniones` sale `[]` y la pregunta
+// "¿se llamó participantesDe?" nunca se ejercitaría de verdad.
+const SALA_CON_REUNIONES: EstadoSala = {
+  ...SALA_BASE,
+  presentaciones: [
+    { fecha: '2026-07-15T10:00:00.000Z', titulo: 'Julio', tipo: 'mensual', sesionId: 'sesion-jul' },
+    { fecha: '2026-06-15T10:00:00.000Z', titulo: 'Junio', tipo: 'mensual', sesionId: 'sesion-jun' },
+  ],
+}
+
 // `acuerdosAbiertos`/`acuerdosVencidos`/`estaCongelado` se conservan REALES
 // (importOriginal): son derivados puros sobre `EstadoSala` — con `acuerdos:
 // []` no tienen nada que fallar, y no hace falta reimplementarlos aquí. Solo
 // `estadoDeSala` (lectura real) se sustituye.
+//
+// `estadoDeSalaMock` sale del `vi.fn()` (antes vivía inline, sin nombre) para
+// poder devolver `SALA_CON_REUNIONES` puntualmente en el bloque de
+// participación de más abajo, sin tocar el default (`SALA_BASE`) que usa el
+// resto de los tests de este archivo.
+const estadoDeSalaMock = vi.fn()
 vi.mock('@/db/consultas', async (importarOriginal) => {
   const real = await importarOriginal<typeof import('@/db/consultas')>()
-  return { ...real, estadoDeSala: vi.fn().mockResolvedValue(SALA_BASE) }
+  return { ...real, estadoDeSala: (...args: unknown[]) => estadoDeSalaMock(...args) }
 })
+
+// El colaborador bajo prueba del bloque "la participación es solo de
+// equipo": `participantesDe`. `resumirParticipacion` no hace falta
+// mockearla — nunca corre en este archivo, porque `ParticipantesSesion` es
+// un componente que aquí solo se referencia como JSX (ver la cabecera).
+const participantesDeMock = vi.fn()
+vi.mock('@/db/participacion', () => ({
+  participantesDe: (...args: unknown[]) => participantesDeMock(...args),
+}))
 
 vi.mock('@/db/acuerdos', () => ({
   moverEstatus: vi.fn(),
@@ -137,6 +164,10 @@ beforeEach(() => {
   // `tokenDeAcceso` sale verdadero y la JSX arma el link con `await urlBase()`.
   process.env.APP_URL = 'https://mktcorp-estatus.example'
   generarTokenDeSalaMock.mockResolvedValue('token-firmado-de-prueba')
+  // Default para todo el archivo: la sala sin reuniones. El bloque de
+  // participación lo pisa puntualmente con `mockResolvedValueOnce`.
+  estadoDeSalaMock.mockResolvedValue(SALA_BASE)
+  participantesDeMock.mockResolvedValue([])
 })
 
 async function invocar() {
@@ -181,5 +212,52 @@ describe('VistaSala (/cliente/[slug]) — el token de acceso es solo de admin', 
     await invocar()
 
     expect(generarTokenDeSalaMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * LA PARTICIPACIÓN DE CADA REUNIÓN (quién preparó, quién presentó) ES SOLO DE
+ * EQUIPO — Y LA GUARDA ESTÁ EN LA CARGA, NO EN EL PINTADO (ronda 10).
+ *
+ * `ReunionesSala` es `'use client'`: lo que esta página le pase de prop se
+ * serializa en el payload del navegador aunque el propio componente decida
+ * no mostrarlo (la misma fuga que ya se corrigió para `directorio()` en esta
+ * pantalla, y para `directorio()` otra vez en `/reunion/[id]`). Por eso el
+ * test que importa no es "¿la pantalla del director pinta la línea?" —eso lo
+ * cubre `ReunionesSala.test.tsx`, del lado del componente— sino "¿el
+ * servidor llegó a PEDIR los nombres siquiera?". Si `participantesDe` nunca
+ * se llama, los nombres de Mkt Corp no llegan a existir en este cierre, así
+ * que no hay nada que un payload pueda llevarse.
+ */
+describe('VistaSala (/cliente/[slug]) — la participación de cada reunión es solo de equipo', () => {
+  it('director (esLector false): participantesDe NI SIQUIERA SE LLAMA, aunque la sala tenga reuniones', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_CON_REUNIONES)
+    esLectorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+
+    await invocar()
+
+    expect(participantesDeMock).not.toHaveBeenCalled()
+  })
+
+  it('equipo (esLector true): participantesDe se llama para cada sesión de la sala', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_CON_REUNIONES)
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    await invocar()
+
+    expect(participantesDeMock).toHaveBeenCalledTimes(2)
+    expect(participantesDeMock).toHaveBeenCalledWith('sesion-jul')
+    expect(participantesDeMock).toHaveBeenCalledWith('sesion-jun')
+  })
+
+  it('equipo, pero sin ninguna reunión todavía (SALA_BASE): tampoco se llama — no hay qué pedir', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    await invocar()
+
+    expect(participantesDeMock).not.toHaveBeenCalled()
   })
 })

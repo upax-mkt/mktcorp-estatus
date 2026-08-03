@@ -199,6 +199,10 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .reunionFila:last-child { border-bottom: 1px solid var(--borde); }
 .reunionFilaTexto { display: flex; align-items: baseline; gap: 0.7rem; min-width: 0; }
+/* `.reunionFila` es flex con wrap: sin `flex-basis: 100%` la línea de
+   participación competiría por espacio junto a `.carasCompactas` en vez de
+   quedar debajo, en su propia fila. */
+.reunionFilaParticipacion { flex-basis: 100%; }
 .reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
 
 .caras { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
