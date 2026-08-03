@@ -3,9 +3,7 @@ import { cookies } from 'next/headers'
 import { abrirSesionEquipo, secretoConfigurado } from '@/auth/sesion'
 import { verificar } from '@/auth/firma'
 import {
-  dominioExigido,
   equipoExigido,
-  esCorreoPermitido,
   esEquipoPermitido,
   identidadDesdeCodigo,
   slackConfigurado,
@@ -14,15 +12,28 @@ import { COOKIE_ESTADO_SLACK, urlDeRetornoSlack } from '@/auth/slack-rutas'
 import { buscarPersona, registrarAcceso } from '@/db/directorio'
 
 /**
- * Vuelta de Slack. Cuatro puertas antes de mirar el directorio: el `state`
- * coincide con la cookie y sigue vigente, Slack canjea el código, el
- * workspace es el de UPAX y el correo es del dominio corporativo. Cualquier
- * fallo devuelve a /entrar con un aviso, nunca deja entrar "por si acaso".
+ * Vuelta de Slack. Tres puertas antes de mirar el directorio: el `state`
+ * coincide con la cookie y sigue vigente, Slack canjea el código y el
+ * workspace es el de UPAX (`esEquipoPermitido` contra `SLACK_TEAM_ID` — NO
+ * TOCAR esa comprobación). Cualquier fallo devuelve a /entrar con un aviso,
+ * nunca deja entrar "por si acaso".
  *
- * UNA QUINTA, desde la ronda 9: estar dado de alta en el directorio y activo.
- * Pasar las cuatro primeras prueba que quien llegó es de UPAX; no dice CON QUÉ
+ * UNA CUARTA, desde la ronda 9: estar dado de alta en el directorio y activo.
+ * Pasar las tres primeras prueba que quien llegó es de UPAX; no dice CON QUÉ
  * PERMISO — eso solo lo sabe el directorio (tarea 1, src/db/directorio.ts), y
  * es lo que decide esta ruta a partir de aquí.
+ *
+ * SIN FILTRO POR DOMINIO DE CORREO, a propósito. Lo hubo —`esCorreoPermitido`
+ * contra `dominioExigido()`, ambas vivían en `@/auth/slack`— y se retiró aquí
+ * al poblar el directorio con el equipo real: reparte en cuatro dominios de
+ * correo (`@upax.com.mx`, `@elektra.com.mx`, `@jansan.mx`, `@onuriscp.com`)
+ * porque cada quien lo contrata una entidad distinta del mismo grupo, algo
+ * que no pueden cambiar. El dominio nunca dijo quién era del equipo —mismo
+ * hecho que ya asume el directorio de Monday, ver `src/monday/personas.ts`—
+ * y filtrar por él dejaba fuera a más de la mitad. Si en el futuro parece que
+ * falta una capa aquí: no falta. La capa es la de abajo, el directorio
+ * (`buscarPersona` + `persona.activa`), y a diferencia del dominio sí
+ * distingue quién tiene permiso de verdad, sin importar quién lo contrató.
  */
 export async function GET(request: Request) {
   const secreto = secretoConfigurado()
@@ -47,7 +58,6 @@ export async function GET(request: Request) {
   if (!esEquipoPermitido(identidad.equipo, equipoExigido(), identidad.organizacion)) {
     redirect('/entrar?error=slack')
   }
-  if (!esCorreoPermitido(identidad.email, dominioExigido())) redirect('/entrar?error=slack')
 
   // EL PORTILLO DE EMERGENCIA, y no es un descuido.
   //
