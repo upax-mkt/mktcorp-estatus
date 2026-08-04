@@ -141,6 +141,13 @@
       "when": 1785877842287,
       "tag": "0019_old_puma",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785879468505,
+      "tag": "0020_partir_sesiones",
+      "breakpoints": true
     }
   ]
 }
