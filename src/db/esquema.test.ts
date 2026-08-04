@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getTableColumns } from 'drizzle-orm'
 import * as esquema from './esquema'
+import { cadenciaEnum, documentos, estadoDocumentoEnum, estadoReunionEnum, reuniones, tipoReunionEnum } from './esquema'
 
 describe('esquema de la ronda 7', () => {
   it('la sala sabe si está activa y desde cuándo está en pausa', () => {
@@ -42,5 +43,30 @@ describe('esquema de la ronda 8 (tarea 5: la marca de la sala vive en la base)',
     const columnas = getTableColumns(esquema.salas)
     expect(columnas.logoUrl.notNull).toBe(false)
     expect(columnas.logoRelacionDeTinta.notNull).toBe(false)
+  })
+})
+
+describe('el modelo de reuniones', () => {
+  it('una reunión se puede dar o no, y nada más — el estado del documento es otra cosa', () => {
+    expect(estadoReunionEnum.enumValues).toEqual(['agendada', 'dada'])
+    expect(estadoDocumentoEnum.enumValues).toEqual(['borrador', 'listo'])
+  })
+
+  it('quincenal existe, y en los dos sitios: la cadencia de la sala y el tipo de la reunión', () => {
+    expect(cadenciaEnum.enumValues).toContain('quincenal')
+    expect(tipoReunionEnum.enumValues).toEqual(['semanal', 'quincenal', 'mensual'])
+  })
+
+  it('la reunión guarda lo que trae un evento de calendario', () => {
+    const cols = Object.keys(reuniones)
+    for (const c of ['salaSlug', 'fecha', 'titulo', 'tipo', 'estado', 'noDadaEn', 'lugar', 'alcance', 'participantes']) {
+      expect(cols).toContain(c)
+    }
+  })
+
+  it('un documento pertenece a una reunión y a una sola', () => {
+    expect(Object.keys(documentos)).toContain('reunionId')
+    expect(documentos.reunionId.notNull).toBe(true)
+    expect(documentos.reunionId.isUnique).toBe(true)
   })
 })

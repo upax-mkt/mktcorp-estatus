@@ -25,7 +25,18 @@ import {
 // el spec (§4). Campos abiertos (alcance, prioridad) quedan como texto libre
 // para no inventar un catálogo que el spec no cerró todavía.
 
-export const cadenciaEnum = pgEnum('cadencia', ['semanal', 'mensual'])
+export const cadenciaEnum = pgEnum('cadencia', ['semanal', 'quincenal', 'mensual'])
+export const tipoReunionEnum = pgEnum('tipo_reunion', ['semanal', 'quincenal', 'mensual'])
+
+/**
+ * Dos estados y no cinco. Lo que hoy vive en `estado_sesion` son DOS vidas
+ * mezcladas: la de la junta (¿se dio?) y la del documento (¿está listo?).
+ * Mezcladas costaron dos defectos —el contador del Home que mentía y
+ * marcar-presentada como trámite que nadie hacía—. Ver spec §1.
+ */
+export const estadoReunionEnum = pgEnum('estado_reunion', ['agendada', 'dada'])
+export const estadoDocumentoEnum = pgEnum('estado_documento', ['borrador', 'listo'])
+
 export const tipoSesionEnum = pgEnum('tipo_sesion', ['semanal', 'mensual'])
 // 'agendada' es una sesión con fecha en el calendario que nadie ha empezado a
 // llenar todavía. Sin ella no se puede distinguir "la próxima sesión es el 19
@@ -106,6 +117,49 @@ export const salas = pgTable('salas', {
   logoUrl: text('logo_url'),
   /** Proporción de tinta del PNG/SVG (tarea 6): con qué se deriva su altura relativa. Nula hasta medirlo. */
   logoRelacionDeTinta: real('logo_relacion_de_tinta'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ---- Reunión (ronda 10, tarea 1) ----
+// La junta como entidad, separada de lo que se prepara para ella (ver
+// `documentos` más abajo). Nace vacía: los datos que hoy viven en `sesiones`
+// se mudan aquí en una tarea posterior. Ver spec §1.
+export const reuniones = pgTable('reuniones', {
+  id: text('id').primaryKey(),
+  salaSlug: text('sala_slug').notNull().references(() => salas.slug),
+  /** Instante, anclado a CDMX al escribir (`instanteEnCDMX`). */
+  fecha: timestamp('fecha', { withTimezone: true }).notNull(),
+  titulo: text('titulo').notNull(),
+  tipo: tipoReunionEnum('tipo').notNull(),
+  estado: estadoReunionEnum('estado').notNull().default('agendada'),
+  /**
+   * Alguien dijo que ESTA reunión no se dio —se canceló, se pospuso—. Es un
+   * campo y no un estado porque manda sobre la deducción automática sin
+   * borrar el hecho de que estaba agendada.
+   */
+  noDadaEn: timestamp('no_dada_en', { withTimezone: true }),
+  lugar: text('lugar'),
+  alcance: text('alcance').notNull().default('todos'),
+  participantes: jsonb('participantes').$type<unknown[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ---- Documento (ronda 10, tarea 1) ----
+// Lo que se prepara PARA una reunión: la cara del deck. Nace vacía, igual
+// que `reuniones`. Ver spec §1.
+export const documentos = pgTable('documentos', {
+  id: text('id').primaryKey(),
+  /**
+   * UNIQUE, y en la base: es lo único que impide que dos pestañas abiertas
+   * creen dos documentos para la misma reunión. Con `neon-http` no hay
+   * transacción que lo arregle después.
+   */
+  reunionId: text('reunion_id').notNull().unique().references(() => reuniones.id),
+  estado: estadoDocumentoEnum('estado').notNull().default('borrador'),
+  estructura: jsonb('estructura').$type<unknown>(),
+  plantilla: text('plantilla'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

@@ -111,8 +111,15 @@ export interface EstadoSala {
   acuerdos: Acuerdo[]
   presentaciones: Presentacion[]
   minutas: Minuta[]
-  /** Cadencia acordada; usada para juzgar si está desatendida. */
-  cadencia: 'semanal' | 'mensual'
+  /**
+   * Cadencia acordada; usada para juzgar si está desatendida.
+   *
+   * `quincenal` existe aquí desde la ronda 10 (tarea 1: `cadenciaEnum` ganó
+   * el valor) pero `temperatura()` más abajo todavía no la distingue de
+   * `mensual` — ninguna sala la tiene asignada todavía porque la interfaz
+   * para elegirla es tarea aparte (T16, "Quincenal en la interfaz").
+   */
+  cadencia: 'semanal' | 'quincenal' | 'mensual'
   /**
    * FREEZE COMERCIAL (tarea 12, ronda 7). `false` = no hay reuniones ni
    * gestión hasta nuevo aviso.
