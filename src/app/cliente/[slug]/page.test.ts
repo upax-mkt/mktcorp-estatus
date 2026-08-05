@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
 
 /**
@@ -20,6 +22,29 @@ import type { EstadoSala } from '@/dominio/salas'
  */
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+
+// SOLO PARA LOS TESTS QUE RENDERIZAN DE VERDAD (Tarea 11, más abajo):
+// `LevantarMinuta` (fuera de mi lista de archivos de esta tarea) llama a
+// `useRouter()` — sin un App Router real montado, la implementación real
+// revienta ("invariant expected app router to be mounted"; confirmado con
+// `src/componentes/__router-probe.test.tsx`, que documenta justo este fallo).
+// `notFound`/`redirect` se conservan reales (`importOriginal`): ningún
+// escenario de este archivo llega a dispararlos —ni antes de este mock ni
+// después—, así que no hace falta doblarlos también.
+vi.mock('next/navigation', async (importOriginal) => {
+  const real = await importOriginal<typeof import('next/navigation')>()
+  return {
+    ...real,
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn(),
+      prefetch: vi.fn(),
+    }),
+  }
+})
 
 vi.mock('@/db/temas', () => ({
   cargarTemas: vi.fn().mockResolvedValue({
@@ -103,15 +128,25 @@ vi.mock('@/db/benchmark', () => ({
   obtenerBenchmark: vi.fn().mockResolvedValue(null),
 }))
 
+// `registrarArchivo` con nombre (no un `vi.fn()` anónimo): la Tarea 11 lo
+// necesita para comprobar CON QUÉ se llamó de verdad —si `reunionId` llegó y
+// en qué forma— no solo que se haya llamado.
+const registrarArchivoMock = vi.fn()
 vi.mock('@/db/archivos', () => ({
   listarArchivos: vi.fn().mockResolvedValue([]),
-  registrarArchivo: vi.fn(),
+  registrarArchivo: (...args: unknown[]) => registrarArchivoMock(...args),
   editarArchivo: vi.fn(),
   eliminarArchivo: vi.fn(),
 }))
 
 vi.mock('@vercel/blob', () => ({
   del: vi.fn(),
+}))
+
+// La subida de `ArchivosSala` (SubirArchivo) va del navegador DIRECTO a Blob
+// antes de llamar a la Server Action — ver la cabecera de ese componente.
+vi.mock('@vercel/blob/client', () => ({
+  upload: vi.fn().mockResolvedValue({ pathname: 'salas/neracode/interes/archivo-de-prueba.pdf' }),
 }))
 
 vi.mock('@/db/claves', () => ({
@@ -275,5 +310,83 @@ describe('VistaSala (/cliente/[slug]) — la participación de cada reunión es 
     await invocar()
 
     expect(participantesDeMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * TAREA 11: "ANTES DE ESTA HERRAMIENTA" DESAPARECE.
+ *
+ * Franco: "no entiendo por qué hacer la distinción si al final a la UDN le
+ * interesa ver la última reunión con su presentación y minuta y abajo
+ * Reuniones anteriores con lo mismo". Para la UDN nunca hubo dos clases de
+ * reunión — la subsección era una distinción de implementación (archivo
+ * suelto vs. armado en la app) ascendida a título de sección.
+ *
+ * A DIFERENCIA de los describes de arriba (que invocan `VistaSala` sin
+ * renderizar — ver la cabecera del archivo), aquí SÍ hace falta `render()`:
+ * lo que se comprueba es qué TEXTO queda en pantalla, no qué colaborador se
+ * llamó. `equipo=true` es a propósito, no un default cualquiera: con
+ * `listarArchivos` mockeado en `[]` (arriba) y `equipo=false`, el bloque
+ * viejo YA no se pintaba de por sí —su guarda es `archivosPresentaciones.length
+ * > 0 || equipo`—, así que el primer test habría "pasado" incluso contra el
+ * código sin tocar (falso verde). Con `equipo=true` el bloque SÍ se pinta hoy
+ * —cualquiera del equipo ve el botón para subir una presentación vieja,
+ * aunque no haya ninguna todavía—, así que el RED es real.
+ *
+ * Mismo `equipo=true` resuelve también la segunda pregunta del brief ("¿y si
+ * en la base real no hay ni un archivo de interés?"): la sección "Archivos de
+ * interés" se muestra para el equipo SIEMPRE (`archivosDeInteres.length > 0 ||
+ * equipo`, igual que el bloque viejo) — no hace falta sembrar un archivo de
+ * prueba ni tocar `ArchivosSala` para probar que la sección sigue en su
+ * sitio, y el test no depende de que la base tenga datos que hoy no tiene.
+ */
+describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la herramienta con que se hicieron', () => {
+  it('"antes de esta herramienta" ya no aparece en pantalla', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.queryByText(/antes de esta herramienta/i)).toBeNull()
+  })
+
+  it('archivos de interés sigue en su sitio: eso sí es otra cosa', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.getByText(/archivos de interés/i)).toBeInTheDocument()
+  })
+
+  /**
+   * `registrarArchivoAction` ACEPTA Y PASA `reunionId` (para la Tarea 9,
+   * `CarasDeReunion`) — pero el único llamador que existe HOY sigue siendo
+   * `ArchivosSala` para "archivos de interés", que nunca manda uno: un
+   * archivo de interés es de la SALA, no de ninguna reunión en particular.
+   * Este test ejercita esa acción de punta a punta —clic, título, elegir
+   * archivo— para comprobar que sin `reunionId` en la llamada, `registrarArchivo`
+   * (el colaborador real, `src/db/archivos.ts`) igual lo recibe explícito en
+   * `null`, no `undefined` perdido por el camino ni ausente del todo.
+   */
+  it('un archivo de interés se registra con reunionId null: no es de ninguna reunión, es de la sala', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    const usuario = userEvent.setup()
+
+    render(await invocar())
+
+    await usuario.click(screen.getByRole('button', { name: 'Subir un archivo' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Catálogo 2026')
+
+    const entradaArchivo = document.querySelector('input[type="file"]')
+    if (!(entradaArchivo instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    const archivo = new File(['contenido'], 'catalogo.pdf', { type: 'application/pdf' })
+    await usuario.upload(entradaArchivo, archivo)
+
+    await waitFor(() => expect(registrarArchivoMock).toHaveBeenCalled())
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ salaSlug: 'neracode', categoria: 'interes', reunionId: null }),
+    )
   })
 })

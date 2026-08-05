@@ -46,7 +46,7 @@ interface Props {
 const TEXTOS: Record<CategoriaDeSala, { anadir: string; vacio: string; pideFecha: boolean }> = {
   presentacion: {
     anadir: 'Subir una presentación anterior',
-    vacio: 'Aquí van las presentaciones que se dieron antes de que existiera esta herramienta.',
+    vacio: 'Aquí van las presentaciones que se suban directamente a la sala.',
     pideFecha: true,
   },
   interes: {

@@ -131,9 +131,8 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // directorio interno), nunca una escritura — para eso, más abajo, cada
   // Server Action exige lo suyo por su cuenta.
   const equipo = await esLector()
-  const [benchmark, archivosPresentaciones, archivosDeInteres, todasLasReuniones, personas] = await Promise.all([
+  const [benchmark, archivosDeInteres, todasLasReuniones, personas] = await Promise.all([
     obtenerBenchmark(slug),
-    listarArchivos(slug, 'presentacion'),
     listarArchivos(slug, 'interes'),
     listarReuniones(),
     /**
@@ -396,12 +395,22 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     nombreOriginal: string
     tipoContenido: string | null
     tamanoBytes: number | null
+    /**
+     * De qué reunión es, cuando el archivo se sube desde dentro de una
+     * reunión (Tarea 9, `CarasDeReunion`) — `undefined`/`null` para lo que
+     * sigue siendo de sala, sin reunión de por medio (p. ej. "archivos de
+     * interés", vía `ArchivosSala`). Opcional a propósito: los llamadores que
+     * ya existían nunca lo mandaban, y sin un `reunionId` un PDF subido desde
+     * una reunión no quedaba referenciado a la junta — quedaba en el limbo.
+     */
+    reunionId?: string | null
   }): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
     try {
       await registrarArchivo({
         salaSlug: slug,
+        reunionId: datos.reunionId ?? null,
         categoria: datos.categoria,
         titulo: datos.titulo,
         fecha: datos.fecha ? new Date(datos.fecha) : null,
@@ -776,25 +785,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 salaFija={slug}
                 claseBoton={estilos.nuevaMinutaBoton}
                 personas={personas}
-              />
-            </div>
-          )}
-
-          {/* Las anteriores a esta herramienta: archivos, no documentos web.
-              Van en la misma sección porque para el director son lo mismo —lo
-              que se le presentó— con su propio subtítulo para que se entienda
-              por qué unas se abren y otras se descargan. */}
-          {(archivosPresentaciones.length > 0 || equipo) && (
-            <div className={estilos.subseccion}>
-              <h3 className={estilos.subseccionTitulo}>Antes de esta herramienta</h3>
-              <ArchivosSala
-                salaSlug={slug}
-                categoria="presentacion"
-                archivos={archivosPresentaciones}
-                equipo={equipo}
-                registrarAction={registrarArchivoAction}
-                editarAction={editarArchivoAction}
-                eliminarAction={eliminarArchivoAction}
               />
             </div>
           )}
