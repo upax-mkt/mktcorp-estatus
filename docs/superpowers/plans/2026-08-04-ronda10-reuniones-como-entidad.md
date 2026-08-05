@@ -507,6 +507,30 @@ git commit -m "Minutas, acuerdos, archivos y participación cuelgan de la reuni�
 **Files:**
 - Create: `src/db/reuniones.ts`, `src/db/reuniones.test.ts`
 - Modify: `src/db/sesiones.ts` (se le quita lo que se muda)
+- Modify: **`src/db/store-memoria.ts`** (274 líneas) — el doble de base que usan
+  los tests
+
+> **El doble de base no estaba en el plan y sin él esta tarea no arranca.**
+> `vitest` no carga `.env.local`, así que los tests de datos no hablan con
+> Postgres: hablan con `src/db/store-memoria.ts`, que hoy modela `sesiones`,
+> `items`, `acuerdos`, `minutas` y `archivos` con un `Map` por tabla y una
+> función por operación (`insertarSesionMemoria`, `obtenerSesionMemoria`,
+> `listarSesionesMemoria`, `actualizarEstadoSesionMemoria`…).
+>
+> Esta tarea le añade `reuniones` siguiendo ese mismo patrón —
+> `FilaReunionMemoria`, su `Map`, y las funciones que necesiten `crearReunion`,
+> `obtenerReunion`, `listarReuniones`, `editarReunion`, `marcarDada`,
+> `marcarNoDada`, `desmarcarNoDada`, `eliminarReunion` — y lo incluye en
+> `reiniciarStoreMemoria()`. La Tarea 5 hará lo propio con `documentos`.
+>
+> Las funciones de sesión **no se borran aquí**: `sesiones.ts` sigue vivo hasta
+> la Tarea 5 y sus tests actuales tienen que seguir verdes.
+>
+> El patrón de test también se hereda tal cual de `src/db/sesiones.test.ts`:
+> `salaEstaActiva` va mockeada con `vi.mock('./salas', …)` porque el store en
+> memoria no modela la tabla `salas` ni su columna `activa` — es lo mínimo
+> necesario para poder probar que una sala en pausa rechaza la reunión, y el
+> resto del módulo sigue siendo el real.
 
 **Interfaces:**
 - Produces:
@@ -623,6 +647,9 @@ git commit -m "La capa de datos de la reunión, con su estado propio"
 **Files:**
 - Create: `src/db/documentos.ts`, `src/db/documentos.test.ts`
 - Modify: `src/db/sesiones.ts` (queda vacío al terminar esta tarea)
+- Modify: **`src/db/store-memoria.ts`** — gana `documentos`, y **pierde
+  `sesiones`**: los `Map` y funciones de sesión se retiran cuando ya no queda
+  nadie que los llame. `items` pasa a colgar del documento, igual que en la base.
 
 **Interfaces:**
 - Consumes: `reuniones.ts` de la Tarea 4.
