@@ -1071,7 +1071,14 @@ git commit -m "La sala lee reuniones, no sesiones sueltas emparejadas al vuelo"
 
 **Files:**
 - Modify: `src/db/esquema.ts`
-- Create: `drizzle/0023_*.sql`, `drizzle/0024_*.sql`
+- Create: `drizzle/0024_*.sql`, `drizzle/0025_*.sql`
+
+> **La numeración se corrió un lugar.** La Tarea 5a tuvo que generar
+> `drizzle/0023_soft_kat_farrell.sql` (`items.sesion_id` pierde el `NOT NULL`:
+> un item nuevo cuelga del documento y ya no tiene fila en `sesiones` de la que
+> colgar). **Está generada y sin aplicar a ninguna base** — comprobado el 5-ago
+> leyendo las dos: la real tiene 19 migraciones y el ensayo 23, y en ambas
+> `items.sesion_id` sigue `NOT NULL`. La aplica esta tarea, junto con las suyas.
 
 - [ ] **Step 0: La red de seguridad, ANTES de nada**
 
