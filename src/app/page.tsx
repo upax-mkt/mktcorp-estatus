@@ -16,18 +16,39 @@ import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { destacarAction } from '@/app/acuerdos/acciones'
 import { listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
+import { crearReunionConDocumento } from '@/db/documentos'
 import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
-import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil } from '@/lib/fecha'
+import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import { cerrarSesion } from '@/auth/sesion'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
+import { AgendarRapido, type SalaParaAgendar, type DatosAgendarRapido } from '@/componentes/hogar/AgendarRapido'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { colorDeTextoDeMarca } from '@/temas'
+
+/**
+ * Día + hora del formulario de «Agendar rápido» → instante, anclado a CDMX
+ * (`instanteEnCDMX`, src/lib/fecha.ts) y no a la zona del proceso: en Vercel
+ * el servidor corre en UTC, así que "10:00" se guardaría como las cuatro de
+ * la mañana en México. MISMO MECANISMO, con el mismo comentario, que
+ * `instanteDe` en `app/agenda/page.tsx` (tarea 14, heredado tal cual, sin
+ * reinventarlo): el default de "10:00" cuando la hora llega vacía es una
+ * regla de ESTA pantalla —agendar rápido tampoco exige elegir hora—, no del
+ * helper genérico, así que se queda aquí y no en `lib/fecha.ts`.
+ *
+ * Vive FUERA de `Hub()`: dentro, la Server Action la capturaría en su cierre
+ * y React intentaría serializarla al cliente ("Functions cannot be passed
+ * directly to Client Components") — el build no lo detecta, solo se ve al
+ * usar la página.
+ */
+function instanteDe(dia: string, hora: string): Date {
+  return instanteEnCDMX(dia, hora || '10:00')
+}
 
 /**
  * El Home.
@@ -124,6 +145,49 @@ export default async function Hub() {
     await desmarcarNoDada(sesionId)
     if (quien.sub) await registrarEdicion(sesionId, quien.sub)
     revalidatePath('/')
+  }
+
+  /**
+   * AGENDAR DESDE EL HOME (tarea 14): reusa `crearReunionConDocumento`, no la
+   * `crearReunion` de bajo nivel — y no por casualidad, sino por lo mismo que
+   * usa `/agenda` (`agendarAction`, src/app/agenda/page.tsx): hoy TODA
+   * reunión agendada desde la app nace con su documento —es lo que hace
+   * `/agenda`, y por qué las diez reuniones migradas lo tienen todas—, y ESTE
+   * formulario, a propósito minimalista (sala/día/hora/tipo, nada más), no
+   * pide título. `crearReunionConDocumento` ya sabe qué hacer con uno vacío
+   * (cae a `tituloPorDefecto`, src/db/documentos.ts); la `crearReunion` de
+   * bajo nivel no tiene esa lógica y hubiera guardado un título en blanco —
+   * visible luego en el calendario, en /agenda y en el propio deck. Ser
+   * coherente con "toda reunión agendada tiene documento" también evita
+   * abrir, desde el atajo del Home, el único camino de la app hacia una
+   * reunión sin documento (`documentoDeReunion` lo tolera — devuelve `null` —
+   * pero hoy ningún flujo real lo produce).
+   *
+   * ESCONDER EL BOTÓN NO PROTEGE EL ENDPOINT: `exigirEditor()` primero, igual
+   * que cualquier otra acción de escritura de esta página. Y "una sala en
+   * pausa no se ofrece" (constraint del brief, con su test en
+   * `AgendarRapido.test.tsx`) es cortesía de interfaz nada más — el rechazo
+   * de verdad, contra el freeze real de la base, ya lo hace `crearReunion`
+   * por dentro de `crearReunionConDocumento`. El try/catch de aquí solo
+   * convierte esa excepción en un mensaje legible para el formulario en vez
+   * de tumbar la página entera — mismo patrón que `agendarAction`/
+   * `editarAction` en `/agenda`.
+   */
+  async function agendarRapidoAction(datos: DatosAgendarRapido): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+    try {
+      await crearReunionConDocumento({
+        salaSlug: datos.salaSlug,
+        tipo: datos.tipo,
+        fecha: instanteDe(datos.dia, datos.hora),
+        titulo: '',
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo agendar la reunión.' }
+    }
+    revalidatePath('/')
+    return {}
   }
 
   // Sin esto Next lo prerenderiza y la app queda congelada en la fecha del build.
@@ -241,6 +305,17 @@ export default async function Hub() {
     estado: s.estado,
   }))
 
+  // Para AgendarRapido (tarea 14): la forma mínima que pide el componente,
+  // no `EstadoSala` entero — mismo criterio que ya usa `ModuloMinutas`
+  // (`salas={salasCrudas.map((x) => ({ slug: x.slug, nombre: x.nombre }))}`,
+  // más abajo). `activa` es lo que decide qué sala se ofrece en el selector:
+  // ver el comentario de `SalaParaAgendar`, `componentes/hogar/AgendarRapido.tsx`.
+  const salasParaAgendar: SalaParaAgendar[] = salasCrudas.map((s) => ({
+    slug: s.slug,
+    nombre: s.nombre,
+    activa: s.activa,
+  }))
+
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
@@ -262,7 +337,12 @@ export default async function Hub() {
               a media rama de esta ronda. Aquí no depende de que algo esté
               vacío o lleno. */}
           <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
-          <Link href="/agenda" className={estilos.barraLink}>Agenda</Link>
+          {/* → /reuniones, no /agenda (tarea 14): la tarea 13 la absorbe
+              — /agenda queda como redirección, y apuntar la barra a la
+              redirección es un salto extra que no aporta nada. Si al
+              desplegar /reuniones todavía no existiera, sigue resolviendo
+              vía esa redirección. */}
+          <Link href="/reuniones" className={estilos.barraLink}>Reuniones</Link>
           <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
           {/* /salas y /personas son las dos únicas secciones solo-admin
               (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
@@ -371,7 +451,20 @@ export default async function Hub() {
             cambiarEstatusAction={cambiarEstatusAction}
             ponerFechaAction={ponerFechaAction}
           />
-          <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
+          {/* AGENDAR RÁPIDO (tarea 14), junto al calendario — Franco, literal:
+              "el calendario (no lo desaparezcas del home), más sí debe haber
+              un botón en el home para agendar rápidamente una sesión". El
+              calendario NO SE TOCA: los dos viven envueltos en un mismo
+              `<div>`, que sigue siendo UN SOLO hijo directo de `.modulos`
+              (columna 2, filas 1-2 — ver `.modulos` en `hub.module.css`). Así
+              el CSS de la rejilla queda intacto, a propósito: nada que
+              reajustar en `grid-template-rows`, porque `.modulos` sigue
+              viendo TRES hijos, exactamente como antes — el mismo hueco de la
+              ronda 2 que esas reglas ya resuelven para tres, no para cuatro. */}
+          <div style={{ display: 'grid', gap: '0.9rem', alignContent: 'start' }}>
+            <AgendarRapido salas={salasParaAgendar} agendar={agendarRapidoAction} />
+            <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
+          </div>
           <ModuloMinutas
             minutas={minutas}
             pendientes={sinMinuta}

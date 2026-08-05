@@ -168,10 +168,14 @@ describe('publicarMinutaAction', () => {
     expect(registrarEdicionMock).toHaveBeenCalledWith('reu-nueva', 'iris@upax.com.mx')
   })
 
-  it('sin sala (nueva.salaSlug nulo): rechaza con un mensaje de dominio, no revienta contra la base', async () => {
-    // DatosDeReunion.salaSlug es obligatorio desde la Tarea 4 — una reunión
-    // "sin sala" (un comité, antes soportado) ya no se puede registrar.
+  it('sin sala (nueva.salaSlug nulo): publica igual — la reunión nace con la identidad de Marketing Corp (Tarea 8c)', async () => {
+    // Franco, Tarea 8b: "necesito poder utilizar el componente para crear
+    // minutas de otras reuniones" — un comité, una interna de Mkt Corp.
+    // `crearReunion` ya admite `salaSlug: null` desde la Tarea 8b (nace con
+    // la identidad de Marketing Corp, `identidadDe` en src/db/reuniones.ts);
+    // esta acción ya no lo rechaza (Tarea 8c).
     esEditorMock.mockResolvedValue(true)
+    crearReunionMock.mockResolvedValue({ id: 'reu-comite' })
 
     const resultado = await publicarMinutaAction(
       { nueva: { titulo: 'Comité de dirección', fecha: '2026-08-01T16:00:00.000Z', salaSlug: null } },
@@ -180,9 +184,13 @@ describe('publicarMinutaAction', () => {
       [],
     )
 
-    expect(resultado.ok).toBe(false)
-    expect(resultado.error).toMatch(/sala/i)
-    expect(crearReunionMock).not.toHaveBeenCalled()
+    expect(resultado).toEqual({ ok: true, reunionId: 'reu-comite' })
+    // Nace ya dada, con `salaSlug: null` tal cual — nada lo sustituye por un
+    // valor por defecto ni lo rechaza.
+    expect(crearReunionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ salaSlug: null, estado: 'dada' }),
+    )
+    expect(guardarMinutaMock).toHaveBeenCalledWith('reu-comite', 'transcripción', 'texto final del correo', [])
   })
 
   it('sin correo en la sesión (caso raro): publica igual y no registra participación', async () => {

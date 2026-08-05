@@ -122,3 +122,47 @@ describe('PagSesionPublicada (/reunion/[id]) — el directorio se CARGA condicio
     expect(directorioMock).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * SIN SALA (comité, interna de Mkt Corp — Tarea 8c, 5-ago): una reunión así
+ * no pertenece a ninguna UDN, así que no hay clave de sala que darle a
+ * `puedeVerEstaSala`. El permiso cae al general de lectura (`esLector()`) —
+ * exactamente lo que hacía el modelo viejo cuando `sesion.salaSlug` era nulo
+ * (`sesion.salaSlug ? await puedeVerEstaSala(...) : await esLector()`, git
+ * show d5396be:src/app/reunion/[id]/page.tsx).
+ */
+describe('PagSesionPublicada (/reunion/[id]) — sin sala (comité, Tarea 8c)', () => {
+  it('el permiso cae a esLector(), no a puedeVerEstaSala: sin sala no hay UDN a la que preguntarle', async () => {
+    obtenerReunionMock.mockResolvedValue({ ...REUNION_BASE, salaSlug: null })
+    esLectorMock.mockResolvedValue(true)
+
+    await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
+
+    expect(puedeVerEstaSalaMock).not.toHaveBeenCalled()
+    expect(esLectorMock).toHaveBeenCalled()
+    // El equipo (esLector true) sigue viendo el directorio, igual que en
+    // cualquier otra reunión — la caída a esLector() no le quita nada.
+    expect(directorioMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin lectura general tampoco: nadie sin sesión de equipo entra a una reunión sin sala', async () => {
+    obtenerReunionMock.mockResolvedValue({ ...REUNION_BASE, salaSlug: null })
+    esLectorMock.mockResolvedValue(false)
+
+    // notFound() de Next lanza fuera de un request real — es la señal de que
+    // la página cortó antes de pintar nada, ni de cargar directorio().
+    await expect(PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })).rejects.toThrow()
+
+    expect(puedeVerEstaSalaMock).not.toHaveBeenCalled()
+    expect(directorioMock).not.toHaveBeenCalled()
+  })
+
+  it('no hay sala de la que leer estado: estadoDeSala ni se llama (mismo criterio que el modelo viejo)', async () => {
+    obtenerReunionMock.mockResolvedValue({ ...REUNION_BASE, salaSlug: null })
+    esLectorMock.mockResolvedValue(true)
+
+    await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
+
+    expect(estadoDeSalaMock).not.toHaveBeenCalled()
+  })
+})

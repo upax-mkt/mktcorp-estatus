@@ -43,7 +43,13 @@ export default async function PagSesionMaquetada({
   if (!reunion) notFound()
 
   const tema = temaDeSala(reunion.salaSlug, await cargarTemas())
-  const sala = await estadoDeSala(reunion.salaSlug)
+  // Una reunión sin sala no tiene acuerdos vivos que mostrar: los acuerdos
+  // cuelgan de una sala (spec §4), y esta no pertenece a ninguna (comité,
+  // interna de Mkt Corp — Tarea 8b). Mismo guardián que el modelo viejo
+  // (`sesion.salaSlug ? await estadoDeSala(...) : undefined`, git show
+  // d5396be:src/app/deck/[id]/documento/page.tsx) — `sala` sigue resolviendo
+  // `undefined` más abajo (`sala?.acuerdos ?? []`, `sala?.logoUrl ?? null`).
+  const sala = reunion.salaSlug ? await estadoDeSala(reunion.salaSlug) : undefined
   // Para el selector de responsable si desde aquí se levanta una minuta en
   // modo presentación — directorio() ya aguanta Monday caído.
   const personas = await directorio()
@@ -72,9 +78,14 @@ export default async function PagSesionMaquetada({
     // de quién lo hizo.
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/documento`)
-    // `!`: notFound() de arriba ya lo garantiza; TS no retiene el
-    // estrechamiento de una const externa dentro de una Server Action anidada.
-    revalidatePath(`/cliente/${reunion!.salaSlug}`)
+    // `!`: notFound() de arriba ya garantiza que `reunion` existe; TS no
+    // retiene el estrechamiento de una const externa dentro de una Server
+    // Action anidada. Pero `reunion.salaSlug` sí puede ser null de verdad
+    // (comité, interna de Mkt Corp — Tarea 8b): sin sala no hay página de
+    // cliente que revalidar — mismo guardián que el modelo viejo (`if
+    // (sesion!.salaSlug) revalidatePath(...)`, git show
+    // d5396be:src/app/deck/[id]/documento/page.tsx).
+    if (reunion!.salaSlug) revalidatePath(`/cliente/${reunion!.salaSlug}`)
     revalidatePath('/')
   }
 
@@ -116,9 +127,18 @@ export default async function PagSesionMaquetada({
         <div className={estilos.barraDcha}>
           {secciones.length > 0 &&
             (yaSePresento ? (
-              <Link href={`/cliente/${reunion.salaSlug}`} className={estilos.volver}>
-                Presentada · ver en la sala →
-              </Link>
+              // Sin sala no hay página de cliente a la que enlazar (comité,
+              // interna de Mkt Corp — Tarea 8b): mismo criterio que el
+              // modelo viejo (git show
+              // d5396be:src/app/deck/[id]/documento/page.tsx), que mostraba
+              // el estado sin convertirlo en link a ningún sitio.
+              reunion.salaSlug ? (
+                <Link href={`/cliente/${reunion.salaSlug}`} className={estilos.volver}>
+                  Presentada · ver en la sala →
+                </Link>
+              ) : (
+                <span className={estilos.volver}>Presentada</span>
+              )
             ) : (
               <MarcarPresentada marcarAction={marcarPresentadaAction} />
             ))}

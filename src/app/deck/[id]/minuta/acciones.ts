@@ -53,15 +53,16 @@ async function identidadDeSala(slug: string): Promise<string> {
  * registrado. La segunda es la que evita las reuniones fantasma: una reunión
  * que solo existió como intento de minuta no debe quedar en la app.
  *
- * `nueva.salaSlug` sigue siendo `string | null` en el TIPO (mudado tal cual
- * de la vieja `DeQueReunion`), pero `contextoDe`/`publicarMinutaAction` de
- * abajo YA NO ACEPTAN `null` en la práctica: `DatosDeReunion.salaSlug` es
- * obligatorio desde la Tarea 4, así que un `null` aquí se rechaza con un
- * mensaje de dominio en vez de intentar escribir contra una restricción que
- * lo va a rebotar. Ver el reporte de la Tarea 5b — es una pérdida real de
- * capacidad (antes existía un camino honesto para una junta sin UDN, con sus
- * acuerdos quedando solo en el texto) que esta migración no resuelve, solo
- * evita que reviente en silencio.
+ * `nueva.salaSlug: null` — UNA REUNIÓN QUE NO ES DE NINGUNA SALA (un comité,
+ * un arranque de campaña, una interna de Mkt Corp) — SÍ SE ACEPTA (Tarea 8c,
+ * 5-ago). Entre la Tarea 4 (ronda 10) y la Tarea 8b no se aceptaba:
+ * `DatosDeReunion.salaSlug` se volvió obligatorio y `publicarMinutaAction`
+ * rechazaba el nulo con un mensaje de dominio — una pérdida real de
+ * capacidad, documentada en el reporte de la Tarea 5b. La Tarea 8b devolvió
+ * el nulo a la capa de datos (`crearReunion` ya lo admite, viste la reunión
+ * con la identidad de Marketing Corp — ver `identidadDe`, src/db/reuniones.ts)
+ * y esta tarea termina de cablearlo hasta aquí: `contextoDe`/
+ * `publicarMinutaAction`, más abajo, ya aceptan `null` de punta a punta.
  */
 export type DeQueReunion =
   | { reunionId: string }
@@ -141,14 +142,19 @@ export interface EstadoPublicacion {
  * Una reunión existe porque tiene una minuta o una presentación. Un intento no
  * es ninguna de las dos.
  *
- * UNA DESVIACIÓN DE COMPORTAMIENTO, no a la ligera — ver el reporte de la
- * Tarea 5b para el detalle completo:
- *
- * `nueva.salaSlug: null` (la reunión "sin sala") se RECHAZA con un mensaje
- * de dominio: `DatosDeReunion.salaSlug` es obligatorio desde la Tarea 4 y
- * `crearReunion` no acepta otra cosa. Antes esto registraba la reunión
- * igual y sus acuerdos confirmados se quedaban sin publicar (ver
- * `guardarMinuta` viejo, que solo publicaba `if (salaSlug)`).
+ * `nueva.salaSlug: null` (la reunión "sin sala": un comité, un arranque de
+ * campaña, una interna de Mkt Corp) YA NO SE RECHAZA — SE TERMINÓ DE CABLEAR
+ * aquí (Tarea 8c, 5-ago). Entre la Tarea 4 y la Tarea 8b sí se rechazaba con
+ * un mensaje de dominio (`DatosDeReunion.salaSlug` obligatorio, `crearReunion`
+ * no aceptaba otra cosa): una pérdida real de capacidad, documentada en el
+ * reporte de la Tarea 5b. La Tarea 8b devolvió el nulo a `crearReunion`
+ * (nace con la identidad de Marketing Corp — `identidadDe`,
+ * src/db/reuniones.ts) pero paró ahí, a propósito, en el límite de sus
+ * archivos: esta acción seguía rechazándolo, así que la capacidad quedaba
+ * inerte. Ahora `salaSlug` viaja tal cual hasta `crearReunion`, y
+ * `guardarMinuta` (`src/db/minutas.ts`) sabe que sin sala no hay dónde
+ * publicar los acuerdos confirmados como filas — se quedan en el texto de la
+ * minuta, tal como promete `LevantarMinuta` en pantalla.
  *
  * LO QUE YA NO ES UNA DESVIACIÓN (arreglado el 5-ago, hallazgo de la
  * revisión de la Tarea 5b): el atajo "esto es historia, no trabajo nuevo"
@@ -171,22 +177,18 @@ export async function publicarMinutaAction(
     if (!(await esEditor())) return { ok: false, error: SOLO_EDITOR }
 
     let reunionId: string
-    let salaSlug: string
+    let salaSlug: string | null
     if ('reunionId' in de) {
       const reunion = await obtenerReunion(de.reunionId)
       if (!reunion) return { ok: false, error: 'Reunión no encontrada.' }
       reunionId = reunion.id
       salaSlug = reunion.salaSlug
     } else {
-      if (!de.nueva.salaSlug) {
-        return {
-          ok: false,
-          error: 'Esta reunión necesita una sala: el registro de reuniones sin sala no está disponible.',
-        }
-      }
       // Aquí, y solo aquí, nace la reunión: ya tiene su acta, así que nace
       // directamente `dada` — es historia, no trabajo en curso, y el freeze
-      // de sala la deja pasar (ver el comentario de cabecera).
+      // de sala la deja pasar (ver el comentario de cabecera). `salaSlug:
+      // null` ya no se rechaza (Tarea 8c): `crearReunion` lo admite desde la
+      // Tarea 8b y viste la reunión con la identidad de Marketing Corp.
       const creada = await crearReunion({
         salaSlug: de.nueva.salaSlug,
         titulo: de.nueva.titulo,
@@ -211,7 +213,10 @@ export async function publicarMinutaAction(
     revalidatePath(`/deck/${reunionId}`)
     revalidatePath(`/deck/${reunionId}/minuta`)
     revalidatePath('/deck')
-    revalidatePath(`/cliente/${salaSlug}`)
+    // Sin sala no hay página de cliente que revalidar: una reunión de
+    // Marketing Corp no aparece en ninguna de las diez (ver `identidadDe`,
+    // src/db/reuniones.ts).
+    if (salaSlug) revalidatePath(`/cliente/${salaSlug}`)
     revalidatePath('/')
 
     return { ok: true, reunionId }

@@ -30,11 +30,14 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   const { id } = await params
   const [reunion, documento] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
   if (!reunion) notFound()
-  // Toda reunión es de una sala desde la Tarea 4 (`DatosDeReunion.salaSlug`
-  // obligatorio) — a diferencia de la vieja rama "sin sala" (que caía a
-  // `esLector()`, cualquiera de los tres roles de equipo), siempre hay una
-  // sala real contra la que comprobar el acceso.
-  const permitido = await puedeVerEstaSala(reunion.salaSlug)
+  // Una reunión sin sala (comité, interna de Mkt Corp — Tarea 8b) es interna
+  // de Marketing Corp: no hay director de UDN a quien enseñársela, así que
+  // la ve solo el equipo — cualquiera de los tres roles, de solo lectura
+  // (`esLector()`). Mismo criterio que el modelo viejo (`sesion.salaSlug ?
+  // await puedeVerEstaSala(sesion.salaSlug) : await esLector()`, git show
+  // d5396be:src/app/reunion/[id]/page.tsx) — terminado de cablear aquí
+  // (Tarea 8c, 5-ago).
+  const permitido = reunion.salaSlug ? await puedeVerEstaSala(reunion.salaSlug) : await esLector()
   if (!permitido) notFound()
 
   const secciones: SeccionSesion[] = (documento?.items ?? [])
@@ -47,7 +50,11 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
 
   if (secciones.length === 0) notFound()
 
-  const sala = await estadoDeSala(reunion.salaSlug)
+  // Sin sala no hay acuerdos vivos que mostrar: los acuerdos cuelgan de una
+  // sala (spec §4), y esta no pertenece a ninguna. Mismo guardián que arriba
+  // y que el modelo viejo (`sesion.salaSlug ? await estadoDeSala(...) :
+  // undefined`).
+  const sala = reunion.salaSlug ? await estadoDeSala(reunion.salaSlug) : undefined
   const equipo = await esLector()
   /**
    * SOLO EQUIPO CARGA EL DIRECTORIO — no solo lo pinta condicionado

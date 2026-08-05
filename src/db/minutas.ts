@@ -65,14 +65,15 @@ export interface MinutaGuardada {
 }
 
 /**
- * De qué sala es la reunión.
- *
- * Los acuerdos de una minuta se publican EN UNA SALA. `DatosDeReunion.salaSlug`
- * es obligatorio desde la Tarea 4 —toda reunión es de una sala—, así que a
- * diferencia de la vieja `salaDeSesion` esto ya no puede devolver `null`;
- * se deja el tipo `string` reflejándolo.
+ * De qué sala es la reunión — `null` si no es de ninguna (un comité, una
+ * interna de Mkt Corp; Tarea 8b/8c, 5-ago). Los acuerdos de una minuta se
+ * publican EN UNA SALA (spec §4): sin una, `guardarMinuta` (más abajo) no
+ * tiene dónde colgarlos como fila y los deja tal cual quedaron — escritos en
+ * el texto de la minuta. Vuelve a poder devolver `null`, como la vieja
+ * `salaDeSesion` antes de que la Tarea 4 volviera `DatosDeReunion.salaSlug`
+ * obligatorio.
  */
-async function salaDeReunion(reunionId: string): Promise<string> {
+async function salaDeReunion(reunionId: string): Promise<string | null> {
   if (hayDB()) {
     const fila = (
       await db()
@@ -90,7 +91,17 @@ async function salaDeReunion(reunionId: string): Promise<string> {
 
 /**
  * Guarda la minuta de una reunión y publica sus acuerdos confirmados en la
- * sala.
+ * sala — SI TIENE UNA.
+ *
+ * LA POLÍTICA (Tarea 8c, 5-ago), la misma que `LevantarMinuta` ya promete en
+ * pantalla: "Si la asignas a una sala, su minuta y sus acuerdos quedan ahí;
+ * sin sala, la minuta existe igual y sus acuerdos se quedan en el texto."
+ * Sin `salaSlug` no hay dónde colgar una fila de `acuerdos` (la tabla cuelga
+ * de una sala — spec §4), así que `acuerdosConfirmados` se ignora A
+ * PROPÓSITO, no por descuido: no se degrada a ninguna sala por defecto ni se
+ * lanza un error, simplemente no nace la fila. La minuta en sí —`textoFinal`,
+ * con los acuerdos ya escritos dentro por la IA o por quien la revisó— se
+ * guarda igual, sala o no.
  *
  * NO marca la reunión como `dada` ni toca `noDadaEn` — ver el comentario de
  * cabecera de este módulo para el porqué (evitar adelantar la Tarea 6 y
@@ -119,16 +130,18 @@ export async function guardarMinuta(
     memoria.insertarMinutaMemoria({ id, reunionId, transcripcion, textoFinal, enviadaA: null, createdAt: ahora })
   }
 
-  for (const acuerdo of acuerdosConfirmados) {
-    await crearAcuerdo(salaSlug, {
-      que: acuerdo.que,
-      responsable: acuerdo.responsable,
-      responsableMondayId: acuerdo.responsableMondayId ?? null,
-      squad: acuerdo.squad,
-      prioridad: acuerdo.prioridad,
-      fechaCompromiso: acuerdo.fechaCompromiso ? new Date(acuerdo.fechaCompromiso) : null,
-      reunionOrigenId: reunionId,
-    })
+  if (salaSlug) {
+    for (const acuerdo of acuerdosConfirmados) {
+      await crearAcuerdo(salaSlug, {
+        que: acuerdo.que,
+        responsable: acuerdo.responsable,
+        responsableMondayId: acuerdo.responsableMondayId ?? null,
+        squad: acuerdo.squad,
+        prioridad: acuerdo.prioridad,
+        fechaCompromiso: acuerdo.fechaCompromiso ? new Date(acuerdo.fechaCompromiso) : null,
+        reunionOrigenId: reunionId,
+      })
+    }
   }
 
   return { id }

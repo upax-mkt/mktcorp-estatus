@@ -371,10 +371,13 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   const participantes = await participantesDe(id)
 
   // Los acuerdos abiertos de la sala que se pueden arrastrar a este
-  // documento (ronda 9, tarea 6). Toda reunión es de una sala desde la
-  // Tarea 4 — a diferencia de la vieja rama "sin sala", ya no hace falta
-  // condicionar esta consulta.
-  const acuerdosArrastrables = await acuerdosArrastrablesDe(reunion.salaSlug, id)
+  // documento (ronda 9, tarea 6). Sin sala (comité, interna de Mkt Corp —
+  // Tarea 8b) no hay sala cuyos acuerdos ofrecer: "acuerdos abiertos de LA
+  // SALA" no tiene respuesta para una reunión que no es de ninguna UDN —
+  // vuelve a condicionarse, mismo criterio que el modelo viejo
+  // (`sesion.salaSlug ? await acuerdosArrastrablesDe(...) : []`, git show
+  // d5396be:src/app/deck/[id]/page.tsx).
+  const acuerdosArrastrables = reunion.salaSlug ? await acuerdosArrastrablesDe(reunion.salaSlug, id) : []
   // En qué sección "aterriza" un acuerdo retomado: la de Acuerdos y
   // Pendientes, si este documento tiene una (ver `itemDeAcuerdosPendientes`).
   // Es la ÚNICA tarjeta que recibe la zona de destino del arrastre.
@@ -436,18 +439,23 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
             documento (ronda 9, tarea 6). Antes de la lista de secciones: es
             lo primero que hay que revisar al abrir una reunión nueva de la
             sala, igual que Franco lo pidió — "si quiero agregar Acuerdos y
-            Pendientes me debería sugerir...". Toda reunión es de una sala
-            desde la Tarea 4, así que esto ya no se condiciona. */}
-        <AcuerdosArrastrables
-          acuerdos={acuerdosArrastrables}
-          alArrastrar={retomarAcuerdoAction}
-          // Revisión final de la rama, punto 5: `itemAcuerdos` (arriba) es
-          // `undefined` en las plantillas sin sección de Acuerdos y
-          // Pendientes («en blanco», «comité») — sin este dato, el panel
-          // ofrecía arrastre y el botón «Añadir» aunque la acción SIEMPRE
-          // fuera a lanzar (`anadirAcuerdoRetomado` exige esa sección).
-          hayDestino={itemAcuerdos !== undefined}
-        />
+            Pendientes me debería sugerir...". Solo si la reunión es de una
+            sala (Tarea 8c): una reunión sin sala no tiene de dónde
+            sugerirlos — mismo criterio que el modelo viejo
+            (`sesion.salaSlug && (<AcuerdosArrastrables .../>)`, git show
+            d5396be:src/app/deck/[id]/page.tsx). */}
+        {reunion.salaSlug && (
+          <AcuerdosArrastrables
+            acuerdos={acuerdosArrastrables}
+            alArrastrar={retomarAcuerdoAction}
+            // Revisión final de la rama, punto 5: `itemAcuerdos` (arriba) es
+            // `undefined` en las plantillas sin sección de Acuerdos y
+            // Pendientes («en blanco», «comité») — sin este dato, el panel
+            // ofrecía arrastre y el botón «Añadir» aunque la acción SIEMPRE
+            // fuera a lanzar (`anadirAcuerdoRetomado` exige esa sección).
+            hayDestino={itemAcuerdos !== undefined}
+          />
+        )}
 
         <div className={estilos.editorConIndice}>
         <div className={estilos.columnaSecciones}>

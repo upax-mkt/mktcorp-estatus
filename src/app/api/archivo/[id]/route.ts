@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { obtenerArchivo } from '@/db/archivos'
 import { obtenerReunion } from '@/db/reuniones'
 import { puedeVerEstaSala } from '@/auth/sesion'
+import { esLector } from '@/auth/roles'
 import { interpretarRango, recortarStream } from '@/lib/rango'
 import { tipoSeguroParaServir } from '@/lib/blob'
 
@@ -11,20 +12,21 @@ import { tipoSeguroParaServir } from '@/lib/blob'
  *
  * Dos casos, y el segundo llegó con las imágenes de presentación: un archivo
  * de sala se comprueba contra SU sala, y una imagen incrustada en un
- * documento hereda el permiso DE LA REUNIÓN (antes, "de la sesión") —
- * `DatosDeReunion.salaSlug` es obligatorio desde la Tarea 4, así que a
- * diferencia de la vieja rama "sin sala" siempre hay una sala contra la que
- * comprobar.
+ * documento hereda el permiso DE LA REUNIÓN (antes, "de la sesión") — que
+ * puede no ser de ninguna sala (comité, interna de Mkt Corp — Tarea 8b,
+ * 5-ago). Comprobar la imagen contra una sala que no existe la dejaría fuera
+ * del alcance de todos, incluido quien la subió.
  */
 async function puedeVerlo(archivo: { salaSlug: string | null; reunionId: string | null }) {
   if (archivo.reunionId) {
     const reunion = await obtenerReunion(archivo.reunionId)
     if (!reunion) return false
-    // Toda reunión es de una sala (`DatosDeReunion.salaSlug` obligatorio
-    // desde la Tarea 4) — a diferencia de la vieja rama "sin sala" (que
-    // caía a `esLector()`, cualquiera de los tres roles de equipo), siempre
-    // hay una sala real contra la que comprobar.
-    return puedeVerEstaSala(reunion.salaSlug)
+    // Sin sala no hay UDN a la que pedirle permiso: cae al permiso general
+    // de lectura, cualquiera de los tres roles de equipo — mismo criterio
+    // que el modelo viejo (`sesion.salaSlug ? puedeVerEstaSala(...) :
+    // esLector()`, git show d5396be:src/app/api/archivo/[id]/route.ts) —
+    // terminado de cablear aquí (Tarea 8c).
+    return reunion.salaSlug ? puedeVerEstaSala(reunion.salaSlug) : esLector()
   }
   if (archivo.salaSlug) return puedeVerEstaSala(archivo.salaSlug)
   return false
