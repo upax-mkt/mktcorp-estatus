@@ -1632,6 +1632,24 @@ it('el engrane solo le aparece al admin', async () => {
 
 - [ ] **Step 3: Implementar** reutilizando `FormularioSala` y las acciones de `src/app/salas/acciones.ts`, agrupado como en el spec §5. Primera línea de la página: `await exigirAdmin()`.
 
+> **Hay que terminar de cablear la cadencia, y esto no estaba previsto.** Lo
+> destapó la Tarea 16: **hoy la cadencia de una sala NO se puede cambiar desde
+> ningún sitio de la app.** La columna existe (`salas.cadencia`, con default
+> `'mensual'`), `consultas.ts:305` la lee, y `temperatura` decide con ella
+> cuándo una sala se enfría — pero `FormularioSala` no tenía el campo, y
+> `src/app/salas/acciones.ts` y `src/app/salas/page.tsx` ni la leen ni la
+> escriben. Comprobado con grep: cero apariciones en los dos archivos.
+>
+> La T16 ya construyó la mitad de arriba: el `<select>`, el tipo y el payload.
+> **Falta la de abajo, y es de esta tarea** porque es la que reúne los ajustes
+> de una sala en un solo sitio: que `acciones.ts` lea `cadencia` del formulario
+> y la escriba, y que `page.tsx` la pase como valor actual. Sin esto, elegir
+> "quincenal" y guardar no cambia nada — el peor tipo de defecto, el que no
+> avisa.
+>
+> Cuidado con la regla vecina: **guardar los ajustes NO re-deriva la paleta**.
+> Es la que ya fija el segundo test de esta tarea.
+
 - [ ] **Step 4: Correr los tests.** Expected: PASS.
 
 - [ ] **Step 5: Commit**
