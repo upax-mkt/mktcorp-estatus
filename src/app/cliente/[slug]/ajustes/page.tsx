@@ -162,6 +162,10 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
               logoRelacionDeTinta: extra?.logoRelacionDeTinta ?? null,
               cadencia: extra?.cadencia ?? 'mensual',
             }}
+            // Se vuelve a la sala, no a la lista global: aquí se entró desde
+            // dentro de ella. El default de `FormularioSala` es `/salas`, que
+            // es lo correcto para la pantalla de administración, no para ésta.
+            volverA={`/cliente/${slug}`}
           />
         </section>
 
