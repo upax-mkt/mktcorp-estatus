@@ -546,6 +546,20 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           <span className={estilos.barraPunto} />
           {s.nombre}
         </div>
+        {/* AJUSTES DE LA SALA (ronda 10, tarea 9b). Franco, en la misma queja
+            que originó la ronda: "además la sala debería tener arriba un
+            enlace para los ajustes de la misma sala". Lleva a
+            `/cliente/[slug]/ajustes` (Tarea 15). SOLO ADMIN — no porque
+            esconderlo proteja nada (esa página exige `exigirAdmin()` como su
+            primera línea, y ESO es lo que protege), sino porque a un editor
+            este enlace le rebotaría. Nunca coincide con el "Salir" de abajo:
+            admin implica equipo (`esLector()`), así que cuando este enlace
+            se pinta, `!equipo` ya es falso. */}
+        {admin && (
+          <Link href={`/cliente/${slug}/ajustes`} className={estilos.ajustesEnlace} aria-label="Ajustes de la sala">
+            <span aria-hidden>⚙</span>
+          </Link>
+        )}
         {/* SIEMPRE HAY SALIDA. Quien entra con un link de sala se quedaba sin
             ninguna: la raíz lo devolvía aquí, esta pantalla no ofrecía nada, y
             la cookie dura 30 días. Una sesión que no se puede terminar no es
@@ -753,7 +767,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             </div>
           )}
 
-          <ReunionesSala reuniones={reuniones} equipo={equipo} participacionPorReunion={participacionPorReunion} />
+          <ReunionesSala
+            reuniones={reuniones}
+            equipo={equipo}
+            participacionPorReunion={participacionPorReunion}
+            salaSlug={slug}
+            registrarArchivoAction={registrarArchivoAction}
+          />
 
           {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya
               pasado que la deducción automática de `fueDada` ya cuenta como

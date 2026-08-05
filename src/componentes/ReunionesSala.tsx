@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { tienePresentacion, type Reunion } from '@/dominio/reunion'
 import type { Participante } from '@/db/participacion'
+import type { CategoriaArchivo } from '@/db/archivos'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
+import { TAMANO_MAXIMO, pesoLegible } from '@/lib/blob'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
 import { CarasDeReunion } from './reuniones/CarasDeReunion'
+import { subirArchivoDirecto } from './ArchivosSala'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
@@ -26,6 +29,25 @@ import estilos from '@/app/cliente/cliente.module.css'
  * foco dentro, cierra con Escape, deja inerte lo de detrás y lo anuncia a un
  * lector de pantalla. Reimplementar eso a mano es como se fabrican las trampas
  * de teclado.
+ *
+ * "+ SUBIR PRESENTACIÓN" SUBE DE VERDAD (ronda 10, tarea 9b). La Tarea 9 dejó
+ * el hueco en `CarasDeReunion` (`onSubirPresentacion`, sin nadie que lo
+ * llenara); la Tarea 11 dejó `registrarArchivoAction` listo para recibir un
+ * `reunionId`. Nadie los unió — el botón se veía, se pulsaba, y no pasaba
+ * nada, que es peor que el "Sin presentación" que vino a sustituir.
+ *
+ * El flujo vive AQUÍ, no en `CarasDeReunion` (que solo pide el clic, según su
+ * propio comentario de cabecera) ni en `page.tsx` (Server Component: no
+ * puede sostener un `<input type="file">` con estado propio). Un único input
+ * de archivo, oculto, compartido por todas las filas, disparado
+ * programáticamente por el botón de LA fila que se pulsó —guardada en un
+ * `ref`, no en estado, para no depender de que un re-render llegue a tiempo
+ * antes de que el usuario elija el archivo—. La subida en sí reutiliza
+ * `subirArchivoDirecto`, extraída de `ArchivosSala` en esta misma tarea: el
+ * mismo mecanismo (navegador → Blob → `registrarArchivoAction`), nunca un
+ * segundo camino. `categoria` siempre `'presentacion'`; `reunionId` y
+ * `fecha` siempre los de la reunión que abrió el selector — la fecha se
+ * hereda de la reunión, nunca se le vuelve a pedir a quien sube.
  */
 
 interface Props {
@@ -45,27 +67,91 @@ interface Props {
    * ya no existe como concepto en pantalla.
    */
   participacionPorReunion?: Record<string, Participante[]>
+  /** La sala de estas reuniones — construye la ruta del blob (ronda 10, tarea 9b). */
+  salaSlug: string
   /**
-   * El equipo pulsó "+ Subir presentación" en la fila de ESTA reunión
-   * (`CarasDeReunion`, Tarea 9 de la ronda 10). Opcional y sin default: sin
-   * ella el botón se ve y se puede pulsar igual —el equipo ve la acción
-   * disponible, nunca el lamento viejo "Sin presentación"— pero no hace nada
-   * todavía. Es el hueco de integración con `registrarArchivoAction`
-   * (`cliente/[slug]/page.tsx`), que hoy no sabe de qué REUNIÓN es un
-   * archivo nuevo — ver el reporte de la Tarea 9 para la firma exacta que
-   * necesita esa pantalla.
+   * LA MISMA Server Action que usa `ArchivosSala` para "archivos de
+   * interés" (`registrarArchivoAction`, definida en
+   * `cliente/[slug]/page.tsx`): ya exige `exigirEditor()` y ya acepta y
+   * reenvía `reunionId` (Tarea 11). Aquí se llama con `categoria:
+   * 'presentacion'` y el `reunionId`/`fecha` de la reunión concreta desde la
+   * que se pulsó "+ Subir presentación" (Tarea 9b) — cierra el hueco que
+   * dejó la Tarea 9 en `CarasDeReunion`. NO es opcional: page.tsx siempre la
+   * tiene lista, y dejarla opcional invitaría a que un llamador nuevo la
+   * olvidara otra vez.
    */
-  onSubirPresentacion?: (reunion: Reunion) => void
+  registrarArchivoAction: (datos: {
+    categoria: CategoriaArchivo
+    titulo: string
+    fecha: string | null
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+    reunionId?: string | null
+  }) => Promise<{ error?: string }>
 }
 
 export function ReunionesSala({
   reuniones,
   equipo,
   participacionPorReunion = {},
-  onSubirPresentacion,
+  salaSlug,
+  registrarArchivoAction,
 }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
+
+  // ---- "+ Subir presentación" (Tarea 9b): un input compartido, la reunión
+  // objetivo en un ref (no en estado: no depende de que un re-render llegue
+  // antes de que el usuario elija el archivo del selector nativo). ----
+  const objetivoSubida = useRef<Reunion | null>(null)
+  const entradaArchivo = useRef<HTMLInputElement>(null)
+  const [subiendoReunionId, setSubiendoReunionId] = useState<string | null>(null)
+  const [errorSubida, setErrorSubida] = useState<{ reunionId: string; mensaje: string } | null>(null)
+
+  function alPulsarSubirPresentacion(reunion: Reunion) {
+    objetivoSubida.current = reunion
+    setErrorSubida(null)
+    entradaArchivo.current?.click()
+  }
+
+  async function alElegirArchivoDePresentacion(archivo: File | undefined) {
+    const reunion = objetivoSubida.current
+    if (!archivo || !reunion) return
+
+    // Mismo aviso de cortesía que `ArchivosSala`: el servidor es el que
+    // manda (`/api/archivos/subir`), esto solo evita esperar a que suba un
+    // archivo que iba a rechazarse al final.
+    if (archivo.size > TAMANO_MAXIMO) {
+      setErrorSubida({
+        reunionId: reunion.id,
+        mensaje: `El archivo pesa ${pesoLegible(archivo.size)} y el máximo son 100 MB.`,
+      })
+      return
+    }
+
+    setSubiendoReunionId(reunion.id)
+    try {
+      const subido = await subirArchivoDirecto(salaSlug, 'presentacion', archivo)
+      const r = await registrarArchivoAction({
+        categoria: 'presentacion',
+        titulo: archivo.name,
+        fecha: reunion.fecha,
+        reunionId: reunion.id,
+        ...subido,
+      })
+      if (r.error) setErrorSubida({ reunionId: reunion.id, mensaje: r.error })
+    } catch (e) {
+      setErrorSubida({
+        reunionId: reunion.id,
+        mensaje: e instanceof Error ? e.message : 'No se pudo subir el archivo.',
+      })
+    } finally {
+      setSubiendoReunionId(null)
+      objetivoSubida.current = null
+    }
+  }
 
   // `showModal()` es lo que da el modo modal. Un `<dialog open>` declarativo
   // NO es modal: sale en el flujo y el resto sigue siendo tabulable por detrás.
@@ -100,6 +186,21 @@ export function ReunionesSala({
 
   return (
     <>
+      {/* Compartido por TODAS las filas: se dispara programáticamente desde
+          `alPulsarSubirPresentacion`, nunca se ve ni se clica directo. */}
+      <input
+        ref={entradaArchivo}
+        type="file"
+        className={estilos.entradaOculta}
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => {
+          const archivo = e.target.files?.[0]
+          e.target.value = '' // permite volver a elegir el mismo archivo si algo falla
+          void alElegirArchivoDePresentacion(archivo)
+        }}
+      />
+
       <div className={estilos.reunionDestacada}>
         <div className={estilos.reunionCabecera}>
           <div>
@@ -112,8 +213,10 @@ export function ReunionesSala({
           reunion={ultima}
           equipo={equipo}
           onLeerMinuta={() => setAbierta(ultima)}
-          onSubirPresentacion={onSubirPresentacion ? () => onSubirPresentacion(ultima) : undefined}
+          onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(ultima) : undefined}
         />
+        {subiendoReunionId === ultima.id && <p className={estilos.subirPista}>Subiendo…</p>}
+        {errorSubida?.reunionId === ultima.id && <p className={estilos.subirError}>{errorSubida.mensaje}</p>}
         {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
       </div>
 
@@ -131,9 +234,11 @@ export function ReunionesSala({
                   reunion={r}
                   equipo={equipo}
                   onLeerMinuta={() => setAbierta(r)}
-                  onSubirPresentacion={onSubirPresentacion ? () => onSubirPresentacion(r) : undefined}
+                  onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
                   compacta
                 />
+                {subiendoReunionId === r.id && <p className={estilos.subirPista}>Subiendo…</p>}
+                {errorSubida?.reunionId === r.id && <p className={estilos.subirError}>{errorSubida.mensaje}</p>}
                 {participantes && (
                   <div className={estilos.reunionFilaParticipacion}>
                     <ParticipantesSesion participantes={participantes} />

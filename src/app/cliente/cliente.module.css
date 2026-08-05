@@ -205,31 +205,27 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .reunionFilaParticipacion { flex-basis: 100%; }
 .reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
 
-.caras { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
-.carasCompactas { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-
-.cara {
-  display: inline-flex; align-items: center; gap: 0.45rem;
-  padding: 0.42rem 0.8rem; border-radius: var(--r-lleno);
-  border: 1px solid var(--borde); background: var(--papel);
-  font: inherit; font-size: 0.83rem; font-weight: 600; color: var(--tx);
-  text-decoration: none; cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.cara:hover { border-color: var(--marca); background: color-mix(in oklch, var(--marca) 7%, transparent); }
-.cara:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
-
-/* Lo que FALTA se dice; no se omite. Una fila que simplemente no enseña el
-   botón de minuta no se distingue de una que sí la tiene. */
-.caraPendiente, .caraAusente {
-  display: inline-flex; align-items: center;
-  padding: 0.42rem 0.8rem; border-radius: var(--r-lleno);
-  font-size: 0.83rem; font-weight: 500;
-}
-.caraPendiente { color: var(--ojo); background: var(--ojo-tenue); }
-.caraAusente { color: var(--tx-3); background: var(--papel-hundido); }
-
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
+
+/* Input de archivo compartido de "+ Subir presentación" (ronda 10, tarea
+   9b, `ReunionesSala`): oculto de verdad pero interactivo — se dispara por
+   `.click()` programático, nunca lo ve ni lo toca nadie directamente. Receta
+   estándar de "visualmente oculto": `display:none` lo saca del layout pero
+   también de la interacción en algunos navegadores; esto no. */
+.entradaOculta {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* El enlace ⚙ a los ajustes de la sala (ronda 10): solo admin — ver el
+   comentario junto a su JSX en `cliente/[slug]/page.tsx`. */
+.ajustesEnlace {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  color: var(--tinta-2); text-decoration: none; font-size: 1rem;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.ajustesEnlace:hover { color: var(--tinta); background: var(--papel-hundido); }
 
 /* ---- lightbox de minuta ----
    Es un <dialog> nativo: el foco atrapado, el Escape y el fondo inerte los

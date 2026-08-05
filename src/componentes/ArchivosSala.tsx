@@ -43,6 +43,42 @@ interface Props {
   eliminarAction: (id: string) => Promise<void>
 }
 
+/**
+ * Sube un archivo DIRECTO a Vercel Blob desde el navegador (ver la cabecera
+ * de este archivo: nunca por una Server Action, por el límite de cuerpo) y
+ * arma los datos que espera `registrarAction`, salvo el título y la fecha
+ * —esos los decide cada llamador— porque no todo lo que sube un archivo a
+ * una sala pide lo mismo.
+ *
+ * EXTRAÍDA EN LA RONDA 10, TAREA 9b: hasta esta tarea vivía inline dentro de
+ * `alElegirArchivo`, más abajo. `ReunionesSala` (el botón "+ Subir
+ * presentación" de una reunión, `CarasDeReunion`) necesitaba el MISMO
+ * mecanismo — nunca un segundo camino de subida que divergiera del de esta
+ * sala al primer cambio.
+ */
+export async function subirArchivoDirecto(
+  salaSlug: string,
+  categoria: CategoriaArchivo,
+  archivo: File,
+): Promise<{
+  ruta: string
+  nombreOriginal: string
+  tipoContenido: string | null
+  tamanoBytes: number
+}> {
+  const subido = await upload(rutaDeArchivo(salaSlug, categoria, archivo.name), archivo, {
+    access: 'private',
+    handleUploadUrl: '/api/archivos/subir',
+    contentType: archivo.type || undefined,
+  })
+  return {
+    ruta: subido.pathname,
+    nombreOriginal: archivo.name,
+    tipoContenido: archivo.type || null,
+    tamanoBytes: archivo.size,
+  }
+}
+
 const TEXTOS: Record<CategoriaDeSala, { anadir: string; vacio: string; pideFecha: boolean }> = {
   presentacion: {
     anadir: 'Subir una presentación anterior',
@@ -258,20 +294,13 @@ function SubirArchivo({
 
     setSubiendo(true)
     try {
-      const subido = await upload(rutaDeArchivo(salaSlug, categoria, archivo.name), archivo, {
-        access: 'private',
-        handleUploadUrl: '/api/archivos/subir',
-        contentType: archivo.type || undefined,
-      })
+      const subido = await subirArchivoDirecto(salaSlug, categoria, archivo)
 
       const r = await registrarAction({
         categoria,
         titulo: titulo.trim(),
         fecha: fecha || null,
-        ruta: subido.pathname,
-        nombreOriginal: archivo.name,
-        tipoContenido: archivo.type || null,
-        tamanoBytes: archivo.size,
+        ...subido,
       })
       if (r.error) {
         setError(r.error)

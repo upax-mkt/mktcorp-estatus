@@ -100,13 +100,19 @@ vi.mock('@/db/consultas', async (importarOriginal) => {
 })
 
 // El colaborador bajo prueba del bloque "la participación es solo de
-// equipo": `participantesDe`. `resumirParticipacion` no hace falta
-// mockearla — nunca corre en este archivo, porque `ParticipantesSesion` es
-// un componente que aquí solo se referencia como JSX (ver la cabecera).
+// equipo": `participantesDe`. `resumirParticipacion` NO se sustituye —se
+// deja real vía `importOriginal`, mismo patrón que `@/db/consultas` más
+// abajo—: es una función pura (sin tocar `db`), y desde la Tarea 9b hace
+// falta de verdad: `ParticipantesSesion` SÍ llega a ejecutarse (no solo a
+// referenciarse como JSX) en el describe de "+ Subir presentación", que
+// renderiza una sala con reuniones y `equipo=true` — la combinación que los
+// describes anteriores evitaban (o no renderizaban, o partían de una sala
+// sin reuniones).
 const participantesDeMock = vi.fn()
-vi.mock('@/db/participacion', () => ({
-  participantesDe: (...args: unknown[]) => participantesDeMock(...args),
-}))
+vi.mock('@/db/participacion', async (importarOriginal) => {
+  const real = await importarOriginal<typeof import('@/db/participacion')>()
+  return { ...real, participantesDe: (...args: unknown[]) => participantesDeMock(...args) }
+})
 
 vi.mock('@/db/acuerdos', () => ({
   moverEstatus: vi.fn(),
@@ -388,5 +394,102 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     expect(registrarArchivoMock).toHaveBeenCalledWith(
       expect.objectContaining({ salaSlug: 'neracode', categoria: 'interes', reunionId: null }),
     )
+  })
+})
+
+/**
+ * TAREA 9b: "+ SUBIR PRESENTACIÓN" DE UNA REUNIÓN YA SUBE DE VERDAD.
+ *
+ * La Tarea 9 dejó `CarasDeReunion` pidiendo un `onSubirPresentacion`; la
+ * Tarea 11 dejó `registrarArchivoAction` aceptando y reenviando `reunionId`.
+ * `page.tsx:756` montaba `<ReunionesSala .../>` sin pasarle NADA de eso — el
+ * botón se veía, se pulsaba, y no pasaba nada. Peor que "Sin presentación":
+ * un lamento honesto contra una promesa rota.
+ *
+ * Prueba de punta a punta —clic en la fila ANTERIOR (no la destacada, que es
+ * donde un cableado "siempre la primera reunión" se delataría), elegir
+ * archivo, esperar la llamada real a `registrarArchivo` (mockeado arriba, en
+ * `@/db/archivos`)— de que el archivo queda con el `reunionId` Y LA FECHA de
+ * ESA reunión, no `null` y no el de la otra.
+ */
+describe('VistaSala (/cliente/[slug]) — "+ Subir presentación" de una reunión (ronda 10, tarea 9b)', () => {
+  const REUNION_SIN_PRESENTACION_BASE = {
+    tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: false, archivos: [], acuerdos: [],
+  }
+  const SALA_SIN_PRESENTACIONES: EstadoSala = {
+    ...SALA_BASE,
+    reuniones: [
+      { ...REUNION_SIN_PRESENTACION_BASE, id: 'reunion-jul', fecha: '2026-07-15T10:00:00.000Z', titulo: 'Julio' },
+      { ...REUNION_SIN_PRESENTACION_BASE, id: 'reunion-jun', fecha: '2026-06-15T10:00:00.000Z', titulo: 'Junio' },
+    ],
+  }
+
+  it('el archivo se registra con el reunionId Y LA FECHA de la reunión desde la que se pulsó, no de otra ni null', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_SIN_PRESENTACIONES)
+    const usuario = userEvent.setup()
+
+    render(await invocar())
+
+    // Julio (más reciente) es la destacada; Junio es la fila anterior — el
+    // segundo botón "+ Subir presentación" es el de Junio.
+    const botones = screen.getAllByRole('button', { name: /subir presentación/i })
+    expect(botones).toHaveLength(2)
+    await usuario.click(botones[1])
+
+    const entradaArchivo = document.querySelector('input[type="file"]')
+    if (!(entradaArchivo instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    const archivo = new File(['contenido'], 'quincenal-junio.pdf', { type: 'application/pdf' })
+    await usuario.upload(entradaArchivo, archivo)
+
+    await waitFor(() => expect(registrarArchivoMock).toHaveBeenCalled())
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        salaSlug: 'neracode',
+        categoria: 'presentacion',
+        reunionId: 'reunion-jun',
+        fecha: new Date('2026-06-15T10:00:00.000Z'),
+        nombreOriginal: 'quincenal-junio.pdf',
+      }),
+    )
+  })
+})
+
+/**
+ * EL ENLACE ⚙ A LOS AJUSTES DE LA SALA (ronda 10, añadido a la Tarea 9b).
+ *
+ * Franco, en la misma queja que originó la ronda: "además la sala debería
+ * tener arriba un enlace para los ajustes de la misma sala". La Tarea 15
+ * construyó `/cliente/[slug]/ajustes` con `exigirAdmin()` como primera
+ * línea — ESA es la protección real. Este enlace es cortesía de interfaz:
+ * solo se enseña a quien no le va a rebotar.
+ */
+describe('VistaSala (/cliente/[slug]) — el enlace ⚙ a los ajustes de la sala', () => {
+  it('admin: ve el enlace a los ajustes de ESTA sala', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.getByRole('link', { name: /ajustes/i })).toHaveAttribute('href', '/cliente/neracode/ajustes')
+  })
+
+  it('editor (equipo, no admin): NO ve el enlace — le rebotaría', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.queryByRole('link', { name: /ajustes/i })).toBeNull()
+  })
+
+  it('director (ni equipo): tampoco lo ve', async () => {
+    esLectorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.queryByRole('link', { name: /ajustes/i })).toBeNull()
   })
 })
