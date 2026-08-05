@@ -10,7 +10,7 @@ import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
 import {
-  sesionesMinutables, reunionesDeSala, sesionesPorConfirmar, fueDada, type SesionPorConfirmar,
+  sesionesMinutables, reunionesDeSala, sesionesPorConfirmar, type SesionPorConfirmar,
 } from '@/dominio/salas'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
@@ -39,8 +39,9 @@ import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
 import {
-  crearSesionConEstructura, listarSesiones, marcarPresentada, marcarNoDada, desmarcarNoDada,
-} from '@/db/sesiones'
+  listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada,
+} from '@/db/reuniones'
+import { crearReunionConDocumento, documentoDeReunion } from '@/db/documentos'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
@@ -129,11 +130,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // directorio interno), nunca una escritura — para eso, más abajo, cada
   // Server Action exige lo suyo por su cuenta.
   const equipo = await esLector()
-  const [benchmark, archivosPresentaciones, archivosDeInteres, todasLasSesiones, personas] = await Promise.all([
+  const [benchmark, archivosPresentaciones, archivosDeInteres, todasLasReuniones, personas] = await Promise.all([
     obtenerBenchmark(slug),
     listarArchivos(slug, 'presentacion'),
     listarArchivos(slug, 'interes'),
-    listarSesiones(),
+    listarReuniones(),
     /**
      * Para el selector de responsable de NuevoAcuerdoForm/LevantarMinuta —
      * SOLO SI ES EQUIPO (corrección de la revisión final de la ronda 7,
@@ -155,20 +156,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      */
     equipo ? directorio() : Promise.resolve([]),
   ])
-  const sesionesDeLaSala = todasLasSesiones.filter((x) => x.salaSlug === slug)
+  const reunionesDeLaSala = todasLasReuniones.filter((x) => x.salaSlug === slug)
   // Fuente única de "qué día es hoy" (src/lib/fecha.ts) — la reutilizan
   // `enPreparacion` (aquí abajo), `pendientesDeMinuta` y `porConfirmar`, más
   // adelante: las tres necesitan la MISMA respuesta a "¿ya pasó el día?".
   const hoyCivil = diaCivil(new Date().toISOString())
-  // Lo que está a medio armar para este cliente. No es una reunión todavía —no
-  // se ha dado— así que no entra en la lista de reuniones: es trabajo abierto.
-  // `&& !fueDada(...)`: una `lista` cuyo día ya pasó dejó de ser trabajo en
-  // curso —la deducción automática la da por ocurrida (ver `fueDada`,
-  // src/dominio/salas.ts)— así que tampoco debería seguir invitando a
-  // "Seguir editando" como si la reunión no hubiera pasado todavía.
-  const enPreparacion = sesionesDeLaSala.filter(
-    (x) => (x.estado === 'agendada' || x.estado === 'borrador' || x.estado === 'lista') && !fueDada(x, hoyCivil),
-  )
+  // Lo que está a medio armar para este cliente. No es una reunión todavía —
+  // no se ha dado— así que no entra en la lista de reuniones: es trabajo
+  // abierto. `EstadoReunion` es 'agendada' | 'dada' (ronda 10): a diferencia
+  // de la vieja sesión, ya no hace falta `fueDada` para distinguir una
+  // "lista" cuyo día pasó (esa era la mitad DOCUMENTO del viejo estado
+  // fundido) — `'agendada'` es exactamente "todavía no confirmada como
+  // dada", sin ambigüedad. La deducción automática por fecha pasada
+  // (`fueDada`) no tiene hoy equivalente para reuniones — es trabajo de la
+  // Tarea 6 (`dominio/reunion.ts`); hasta entonces, una reunión con el día ya
+  // pasado sigue aquí, en preparación, hasta que alguien la confirme dada.
+  const enPreparacion = reunionesDeLaSala.filter((x) => x.estado === 'agendada')
+  /**
+   * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
+   * documento, no de la reunión) — se resuelven aquí, solo si hay equipo
+   * mirando (es lo único que renderiza esta lista) y solo para las reuniones
+   * en preparación de ESTA sala, que en la práctica son unas pocas.
+   */
+  const documentosEnPreparacion = equipo
+    ? new Map(await Promise.all(enPreparacion.map(async (r) => [r.id, await documentoDeReunion(r.id)] as const)))
+    : new Map<string, Awaited<ReturnType<typeof documentoDeReunion>>>()
   async function salirDeLaSala() {
     'use server'
     await cerrarSesion()
@@ -251,7 +263,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * Preparar una presentación desde la sala (Franco, punto 3).
    *
    * La sala ya sabe de quién es: no se vuelve a preguntar. Redirige al editor
-   * porque crear una sesión sin abrirla es dejar a alguien mirando la misma
+   * porque crear una reunión sin abrirla es dejar a alguien mirando la misma
    * pantalla preguntándose si pasó algo.
    */
   async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
@@ -263,9 +275,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
       return { error: 'Plantilla desconocida.' }
     }
-    let nueva: { id: string }
+    let nueva: { reunionId: string }
     try {
-      nueva = await crearSesionConEstructura({
+      nueva = await crearReunionConDocumento({
         salaSlug: slug,
         plantilla: datos.plantilla,
         tipo: 'mensual',
@@ -274,14 +286,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         // reunión "del 19" se guarda como las 18:00 del 18 en México. Ver
         // `instanteEnCDMX`, src/lib/fecha.ts.
         fecha: instanteEnCDMX(datos.dia, '10:00'),
-        estado: 'agendada',
+        titulo: '',
+        // Nace agendada — toda reunión nace así (`DatosDeReunion` no tiene
+        // parámetro de estado, a diferencia de la vieja `DatosDeSesion`).
       })
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo crear la sesión.' }
+      return { error: error instanceof Error ? error.message : 'No se pudo crear la reunión.' }
     }
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
-    redirect(`/deck/${nueva.id}`)
+    redirect(`/deck/${nueva.reunionId}`)
   }
 
   // ---- Confirmar si una reunión se dio o no (punto 2/3) ----
@@ -296,7 +310,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function marcarPresentadaAction(sesionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await marcarPresentada(sesionId)
+    await marcarDada(sesionId)
     if (quien.sub) await registrarEdicion(sesionId, quien.sub)
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
@@ -457,24 +471,41 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     const listas = await Promise.all(idsDeSesion.map((id) => participantesDe(id)))
     idsDeSesion.forEach((id, i) => { participacionPorSesion[id] = listas[i] })
   }
-  // Toda sesión de ESTA sala cuyo día ya llegó y siga sin minuta, sea
-  // borrador o no. Ver `sesionesMinutables`.
+  // Toda reunión de ESTA sala cuyo día ya llegó y siga sin minuta, sea
+  // agendada o dada. Ver `sesionesMinutables`.
+  //
+  // Sigue funcionando sin cambios contra `EstadoReunion` (ronda 10): su
+  // filtro excluye `estado !== 'borrador' && estado !== 'agendada'` — con
+  // solo dos valores posibles (`'agendada'` | `'dada'`), eso sigue
+  // significando exactamente "excluye las agendadas", que es lo mismo que
+  // significaba antes.
   const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x)))
   const pendientesDeMinuta = sesionesMinutables(
-    sesionesDeLaSala.map((x) => ({ ...x, salaSlug: slug })),
+    reunionesDeLaSala.map((x) => ({ ...x, salaSlug: slug })),
     conMinuta,
     hoyCivil,
   )
-  // POR CONFIRMAR (punto 2/3): `lista`, con el día ya pasado — el mismo
-  // conjunto que `fueDada` ya cuenta como dada en el contador y en
-  // "Reuniones" arriba, pero que nadie ha confirmado ni negado todavía.
-  //
-  // `salaActiva: s.activa` en las tres (revisión: confirmar/negar es
-  // "gestión", y una sala en pausa no la admite — mismo criterio que
-  // `crearSesion`). Aquí basta CON EL `activa` DE ESTA SALA para todas: a
-  // diferencia del Home, `sesionesDeLaSala` es siempre de la MISMA sala.
+  /**
+   * POR CONFIRMAR (punto 2/3): `lista`, con el día ya pasado — el mismo
+   * conjunto que `fueDada` ya cuenta como dada en el contador y en
+   * "Reuniones" arriba, pero que nadie ha confirmado ni negado todavía.
+   *
+   * `salaActiva: s.activa` en las tres (revisión: confirmar/negar es
+   * "gestión", y una sala en pausa no la admite — mismo criterio que
+   * `crearSesion`). Aquí basta CON EL `activa` DE ESTA SALA para todas: a
+   * diferencia del Home, `reunionesDeLaSala` es siempre de la MISMA sala.
+   *
+   * NOTA (ver el reporte de la Tarea 5b): `sesionesPorConfirmar` solo
+   * mantiene algo cuando `estado === 'lista'`, un valor que `EstadoReunion`
+   * ya no tiene (era la mitad DOCUMENTO del viejo estado fundido). Con datos
+   * de `listarReuniones()` esto da SIEMPRE vacío — honesto, no un error: sin
+   * la deducción automática de la Tarea 6 (`dominio/reunion.ts`), no hay
+   * nada que "ya se dio solo, sin que nadie lo dijera" que ofrecer a
+   * confirmar. Cuando la Tarea 6 la traiga, este llamado deja de estar
+   * vacío sin que haga falta tocar esta línea.
+   */
   const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(
-    sesionesDeLaSala.map((x) => ({ ...x, salaActiva: s.activa })),
+    reunionesDeLaSala.map((x) => ({ ...x, salaActiva: s.activa })),
     hoyCivil,
   )
 
@@ -539,13 +570,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           <div className={estilos.heroMeta}>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{textoDiasDesde(s.diasDesdeUltima)}</span>
-              <span className={estilos.heroMetaL}>última sesión</span>
+              <span className={estilos.heroMetaL}>última reunión</span>
             </div>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>
                 {s.proximaSesion ? fechaCompleta(s.proximaSesion) : 'por agendar'}
               </span>
-              <span className={estilos.heroMetaL}>próxima sesión</span>
+              <span className={estilos.heroMetaL}>próxima reunión</span>
             </div>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{abiertos}{vencidos > 0 ? ` · ${vencidos} venc.` : ''}</span>
@@ -680,17 +711,22 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               entra a trabajar, no. */}
           {equipo && enPreparacion.length > 0 && (
             <div className={estilos.enPreparacion}>
-              {enPreparacion.map((p) => (
+              {enPreparacion.map((p) => {
+                const doc = documentosEnPreparacion.get(p.id)
+                const totalItems = doc?.items.length ?? 0
+                const itemsLlenados = doc?.items.filter((it) => it.llenado).length ?? 0
+                return (
                 <Link key={p.id} href={`/deck/${p.id}`} className={estilos.enPreparacionFila}>
                   <span className={estilos.enPreparacionTexto}>
                     <strong>{p.titulo}</strong>
                     <span>
-                      {fechaBreve(p.fecha)} · {p.itemsLlenados} de {p.totalItems} secciones
+                      {fechaBreve(p.fecha)} · {itemsLlenados} de {totalItems} secciones
                     </span>
                   </span>
                   <span className={estilos.enPreparacionSeguir}>Seguir editando →</span>
                 </Link>
-              ))}
+                )
+              })}
             </div>
           )}
 
@@ -715,10 +751,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
           {equipo && (
             <div className={estilos.reunionAcciones}>
-              {/* Con la sala en pausa no se puede preparar una sesión nueva
+              {/* Con la sala en pausa no se puede preparar una reunión nueva
                   sin reactivarla primero: consultar su historia sí, empezar
                   trabajo nuevo no. Esto es solo el atajo —lo que de verdad
-                  lo impide es que `crearSesion` (src/db/sesiones.ts) rechaza
+                  lo impide es que `crearReunion` (src/db/reuniones.ts) rechaza
                   la escritura del lado del servidor pase lo que pase aquí. */}
               {s.activa && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
               <LevantarMinuta
