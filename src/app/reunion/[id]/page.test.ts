@@ -19,11 +19,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  *
  * `esLector()`, no la vieja `esEquipo()` (retirada, corrección post-revisión
  * de la ronda 9): ahora vive en `@/auth/roles`, no en `@/auth/sesion`.
+ *
+ * MIGRADO (ronda 10, tarea 5b): mockeaba `@/db/sesiones` (`obtenerSesion`,
+ * que devolvía reunión + documento fundidos en un solo objeto); ahora
+ * mockea por separado `@/db/reuniones` (`obtenerReunion`) y `@/db/documentos`
+ * (`documentoDeReunion`) — no importaba `@/db/sesiones` por nombre (lo
+ * mockeaba por string), así que no apareció en el grep que midió la lista de
+ * 20 archivos de la tarea.
  */
 
-const obtenerSesionMock = vi.fn()
-vi.mock('@/db/sesiones', () => ({
-  obtenerSesion: (...args: unknown[]) => obtenerSesionMock(...args),
+const obtenerReunionMock = vi.fn()
+vi.mock('@/db/reuniones', () => ({
+  obtenerReunion: (...args: unknown[]) => obtenerReunionMock(...args),
+}))
+
+const documentoDeReunionMock = vi.fn()
+vi.mock('@/db/documentos', () => ({
+  documentoDeReunion: (...args: unknown[]) => documentoDeReunionMock(...args),
 }))
 
 const estadoDeSalaMock = vi.fn()
@@ -60,14 +72,16 @@ vi.mock('@/db/participacion', () => ({
 
 const { default: PagSesionPublicada } = await import('./page')
 
-// Una sesión real de una sala (neracode, slug registrado en @/temas), con al
-// menos un item resuelto — si `secciones` sale vacío la página llama a
-// `notFound()` antes de llegar a `directorio()`, y eso no es lo que este test
-// quiere ejercitar.
-const SESION_BASE = {
+// Una reunión real de una sala (neracode, slug registrado en @/temas), con su
+// documento trayendo al menos un item resuelto — si `secciones` sale vacío
+// la página llama a `notFound()` antes de llegar a `directorio()`, y eso no
+// es lo que este test quiere ejercitar.
+const REUNION_BASE = {
   id: 's1',
   salaSlug: 'neracode',
   salaNombre: 'NeraCode',
+}
+const DOCUMENTO_BASE = {
   items: [
     {
       resultado: {
@@ -80,7 +94,8 @@ const SESION_BASE = {
 }
 
 beforeEach(() => {
-  obtenerSesionMock.mockReset().mockResolvedValue(SESION_BASE)
+  obtenerReunionMock.mockReset().mockResolvedValue(REUNION_BASE)
+  documentoDeReunionMock.mockReset().mockResolvedValue(DOCUMENTO_BASE)
   estadoDeSalaMock.mockReset().mockResolvedValue({ acuerdos: [] })
   puedeVerEstaSalaMock.mockReset().mockResolvedValue(true)
   esLectorMock.mockReset()

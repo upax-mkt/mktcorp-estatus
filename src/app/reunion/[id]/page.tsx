@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import estilos from '@/app/deck/deck.module.css'
-import { obtenerSesion } from '@/db/sesiones'
+import { obtenerReunion } from '@/db/reuniones'
+import { documentoDeReunion } from '@/db/documentos'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
@@ -14,31 +15,29 @@ import { directorio } from '@/db/personas'
 export const dynamic = 'force-dynamic'
 
 /**
- * Una sesión ya presentada, en solo lectura.
+ * Una reunión ya dada, en solo lectura.
  *
  * Es a donde lleva "Ver presentación" desde la sala: al documento REAL que se
  * presentó, con sus acuerdos al día. Antes ese enlace iba a `/demo/{sala}`, que
  * servía un deck de ejemplo escrito a mano en el código — un documento que
- * nadie había preparado y que no correspondía a ninguna sesión.
+ * nadie había preparado y que no correspondía a ninguna reunión.
  *
  * El control de acceso vive aquí y no en el proxy: la ruta lleva un id de
- * sesión, no un slug de sala, así que hasta no leer la sesión no se sabe de
+ * reunión, no un slug de sala, así que hasta no leer la reunión no se sabe de
  * quién es. El proxy la deja pasar y esta comprobación es la que manda.
  */
 export default async function PagSesionPublicada({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const sesion = await obtenerSesion(id)
-  if (!sesion) notFound()
-  // Una reunión que no es de ninguna sala es interna de Marketing Corp: no
-  // hay director a quien enseñársela, así que la ve solo el equipo —
-  // cualquiera de los tres roles, es de solo lectura (`esLector()`, no la
-  // vieja `esEquipo()`: corrección post-revisión de la ronda 9).
-  const permitido = sesion.salaSlug
-    ? await puedeVerEstaSala(sesion.salaSlug)
-    : await esLector()
+  const [reunion, documento] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
+  if (!reunion) notFound()
+  // Toda reunión es de una sala desde la Tarea 4 (`DatosDeReunion.salaSlug`
+  // obligatorio) — a diferencia de la vieja rama "sin sala" (que caía a
+  // `esLector()`, cualquiera de los tres roles de equipo), siempre hay una
+  // sala real contra la que comprobar el acceso.
+  const permitido = await puedeVerEstaSala(reunion.salaSlug)
   if (!permitido) notFound()
 
-  const secciones: SeccionSesion[] = sesion.items
+  const secciones: SeccionSesion[] = (documento?.items ?? [])
     .filter((i) => i.resultado != null)
     .map((i) => ({
       decision: i.resultado!.decision,
@@ -48,7 +47,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
 
   if (secciones.length === 0) notFound()
 
-  const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
+  const sala = await estadoDeSala(reunion.salaSlug)
   const equipo = await esLector()
   /**
    * SOLO EQUIPO CARGA EL DIRECTORIO — no solo lo pinta condicionado
@@ -79,11 +78,11 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
    * tumbar el modo presentación si algo falla (mismo criterio que documenta
    * `ModoPresentar.tsx`).
    */
-  async function registrarPresentacionAction(sesionId: string): Promise<void> {
+  async function registrarPresentacionAction(reunionId: string): Promise<void> {
     'use server'
     try {
       const quien = await exigirLectura()
-      if (quien.sub) await registrarPresentacion(sesionId, quien.sub)
+      if (quien.sub) await registrarPresentacion(reunionId, quien.sub)
     } catch {
       // Sesión de sala u otro rechazo: nada que registrar.
     }
@@ -92,20 +91,20 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href={`/cliente/${sesion.salaSlug}`} className={estilos.volver}>← {sesion.salaNombre}</Link>
-        <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
+        <Link href={`/cliente/${reunion.salaSlug}`} className={estilos.volver}>← {reunion.salaNombre}</Link>
+        <div className={estilos.barraTitulo}>{reunion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {equipo && (
-            <Link href={`/deck/${sesion.id}`} className={estilos.volver}>Editar →</Link>
+            <Link href={`/deck/${id}`} className={estilos.volver}>Editar →</Link>
           )}
         </div>
       </header>
 
       <DocumentoSesion
-        tema={temaDeSala(sesion.salaSlug, await cargarTemas())}
+        tema={temaDeSala(reunion.salaSlug, await cargarTemas())}
         secciones={secciones}
         acuerdos={sala?.acuerdos ?? []}
-        sesionId={sesion.id}
+        sesionId={id}
         equipo={equipo}
         personas={personas}
         // Revisión final de la rama, punto 3: mismo motivo que en
