@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { crearSesionConEstructura, obtenerSesion, eliminarSeccion } from './sesiones'
+import { crearReunionConDocumento, documentoDeReunion, eliminarSeccion } from './documentos'
 import { reiniciarStoreMemoria } from './store-memoria'
 import { PLANTILLAS, obtenerPlantilla, tiposFijosDe } from '@/secciones/plantillas'
 
@@ -9,6 +9,20 @@ import { PLANTILLAS, obtenerPlantilla, tiposFijosDe } from '@/secciones/plantill
  * Hasta la ronda 2 daba por hecho que toda sesión era el estatus mensual de
  * una UDN: colgaba de una de las diez salas y arrancaba con ocho secciones
  * escritas en el código como si fueran una ley del dominio.
+ *
+ * Mudado de `sesiones.ts` (ronda 10, tarea 5b). El describe original
+ * "reuniones que no son de ninguna sala" perdió su primer test: `crearSesion`
+ * admitía `salaSlug: null` (una reunión de comité, vestida con la identidad
+ * de Marketing Corp); `crearReunion`/`crearReunionConDocumento`
+ * (`src/db/reuniones.ts`, Tarea 4) exigen `salaSlug: string` — decisión ya
+ * tomada y revisada en la Tarea 4 ("una reunión sin sala... queda fuera de
+ * este modelo por ahora", comentario de `DatosDeReunion`), no algo que esta
+ * tarea decida ni deba deshacer. El segundo test del describe ("sala
+ * inventada") no dependía de esa rama — prueba lo contrario, que un slug que
+ * no existe se sigue rechazando — así que sí se muda, tal cual. Las demás
+ * pruebas de este archivo usaban `salaSlug: null` como comodín ("cualquier
+ * sala vale, no es el punto de este test"): se cambiaron a una sala real
+ * (`neracode`) sin tocar lo que de verdad prueban.
  */
 beforeEach(() => reiniciarStoreMemoria())
 
@@ -45,72 +59,61 @@ describe('plantillas', () => {
 
 describe('crear una reunión con plantilla', () => {
   it('nace con las secciones de SU plantilla, no con las ocho del estatus', async () => {
-    const { id } = await crearSesionConEstructura({
-      salaSlug: null, plantilla: 'comite', tipo: 'mensual', alcance: 'todos',
+    const { reunionId } = await crearReunionConDocumento({
+      salaSlug: 'neracode', plantilla: 'comite', tipo: 'mensual', titulo: '', fecha: new Date(),
     })
-    const sesion = (await obtenerSesion(id))!
-    expect(sesion.items.map((i) => i.titulo)).toEqual([
+    const documento = (await documentoDeReunion(reunionId))!
+    expect(documento.items.map((i) => i.titulo)).toEqual([
       'Portada', 'La situación', 'Las opciones', 'Lo que se pide', 'Cierre',
     ])
   })
 
   it('la de "en blanco" arranca con una sola sección', async () => {
-    const { id } = await crearSesionConEstructura({
-      salaSlug: null, plantilla: 'en-blanco', tipo: 'mensual', alcance: 'todos',
+    const { reunionId } = await crearReunionConDocumento({
+      salaSlug: 'neracode', plantilla: 'en-blanco', tipo: 'mensual', titulo: '', fecha: new Date(),
     })
-    expect((await obtenerSesion(id))!.items).toHaveLength(1)
+    expect((await documentoDeReunion(reunionId))!.items).toHaveLength(1)
   })
 
   it('sin plantilla sigue naciendo como estatus de UDN: el flujo viejo no cambia', async () => {
-    const { id } = await crearSesionConEstructura({
-      salaSlug: 'zeus', tipo: 'mensual', alcance: 'todos',
+    const { reunionId } = await crearReunionConDocumento({
+      salaSlug: 'zeus', tipo: 'mensual', titulo: '', fecha: new Date(),
     })
-    const sesion = (await obtenerSesion(id))!
-    expect(sesion.items).toHaveLength(8)
-    expect(sesion.plantilla).toBe('estatus-udn')
+    const documento = (await documentoDeReunion(reunionId))!
+    expect(documento.items).toHaveLength(8)
+    expect(documento.plantilla).toBe('estatus-udn')
   })
 })
 
-describe('reuniones que no son de ninguna sala', () => {
-  it('se crean sin sala y se visten con la identidad del grupo', async () => {
-    const { id } = await crearSesionConEstructura({
-      salaSlug: null, plantilla: 'arranque', tipo: 'mensual', alcance: 'campaña de fin de año',
-    })
-    const sesion = (await obtenerSesion(id))!
-    expect(sesion.salaSlug).toBeNull()
-    // No se queda sin nombre ni sin color: los toma de quien la convoca.
-    expect(sesion.salaNombre).toBe('Marketing Corp')
-    expect(sesion.salaColor).toMatch(/^#[0-9A-Fa-f]{6}$/)
-  })
-
-  it('una sala inventada sigue reventando: null es "ninguna", no "cualquiera"', async () => {
+describe('una sala que no existe', () => {
+  it('sigue reventando al crear la reunión', async () => {
     await expect(
-      crearSesionConEstructura({ salaSlug: 'inventada', tipo: 'mensual', alcance: 'todos' }),
+      crearReunionConDocumento({ salaSlug: 'inventada', tipo: 'mensual', titulo: '', fecha: new Date() }),
     ).rejects.toThrow(/desconocida/i)
   })
 })
 
 describe('qué se puede borrar', () => {
   it('en un estatus de UDN, sus ocho bloques no se borran', async () => {
-    const { id } = await crearSesionConEstructura({
-      salaSlug: 'zeus', plantilla: 'estatus-udn', tipo: 'mensual', alcance: 'todos',
+    const { reunionId, documentoId } = await crearReunionConDocumento({
+      salaSlug: 'zeus', plantilla: 'estatus-udn', tipo: 'mensual', titulo: '', fecha: new Date(),
     })
-    const sesion = (await obtenerSesion(id))!
-    const revops = sesion.items.find((i) => i.tipo === 'revops')!
+    const documento = (await documentoDeReunion(reunionId))!
+    const revops = documento.items.find((i) => i.tipo === 'revops')!
     expect(revops.esBase).toBe(true)
-    await expect(eliminarSeccion(id, revops.id)).rejects.toThrow()
+    await expect(eliminarSeccion(documentoId, revops.id)).rejects.toThrow()
   })
 
   it('en una reunión libre, cualquier sección se puede quitar', async () => {
-    const { id } = await crearSesionConEstructura({
-      salaSlug: null, plantilla: 'comite', tipo: 'mensual', alcance: 'todos',
+    const { reunionId, documentoId } = await crearReunionConDocumento({
+      salaSlug: 'neracode', plantilla: 'comite', tipo: 'mensual', titulo: '', fecha: new Date(),
     })
-    const sesion = (await obtenerSesion(id))!
-    const opciones = sesion.items.find((i) => i.tipo === 'opciones')!
+    const documento = (await documentoDeReunion(reunionId))!
+    const opciones = documento.items.find((i) => i.tipo === 'opciones')!
     expect(opciones.esBase).toBe(false)
 
-    await eliminarSeccion(id, opciones.id)
-    const despues = (await obtenerSesion(id))!
+    await eliminarSeccion(documentoId, opciones.id)
+    const despues = (await documentoDeReunion(reunionId))!
     expect(despues.items.map((i) => i.tipo)).not.toContain('opciones')
   })
 })

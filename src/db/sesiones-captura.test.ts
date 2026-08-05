@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsearTablaTexto, formatearTablaTexto, parsearCifrasTexto } from './sesiones'
+import { parsearTablaTexto, formatearTablaTexto, parsearCifrasTexto } from './documentos'
 
 /**
  * La captura de una tabla es el cuello de botella del cuestionario: en el deck

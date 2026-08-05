@@ -346,13 +346,25 @@ export const acuerdos = pgTable('acuerdos', {
 // a quién se envió.
 export const minutas = pgTable('minutas', {
   id: text('id').primaryKey(),
-  sesionId: text('sesion_id')
-    .notNull()
-    .references(() => sesiones.id),
   /**
-   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` — mismo id,
-   * porque la reunión heredó el de su sesión. Nullable por ahora: se rellena
-   * en 0022 y se vuelve NOT NULL en la Tarea 8.
+   * Deja de ser `NOT NULL` en la Tarea 5b: una minuta que nace de
+   * `src/db/minutas.ts` DESPUÉS de que `sesiones.ts` desaparece no tiene fila
+   * de `sesiones` de la que colgar —el modelo nuevo no la crea—, así que
+   * exigirla aquí habría hecho imposible guardar la minuta de una reunión
+   * nueva contra Postgres (`guardarMinuta`/`cargarMinutaExterna` solo conocen
+   * `reunionId`). Mismo motivo, mismo tratamiento y mismo comentario que
+   * `items.sesionId`, un poco más abajo. Una minuta vieja (guardada antes de
+   * la Tarea 5b) la sigue trayendo siempre; nunca se le quita a una fila
+   * existente. Se DROPEA del todo en la Tarea 8, junto con la tabla
+   * `sesiones`.
+   */
+  sesionId: text('sesion_id').references(() => sesiones.id),
+  /**
+   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` en las
+   * filas migradas —mismo id, porque la reunión heredó el de su sesión—, y
+   * ÚNICO id en las minutas nuevas desde la Tarea 5b (`sesionId: null`).
+   * Nullable por ahora: se rellena en 0022 y se vuelve NOT NULL en la
+   * Tarea 8.
    */
   reunionId: text('reunion_id').references(() => reuniones.id),
   transcripcion: text('transcripcion'),

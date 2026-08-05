@@ -55,6 +55,10 @@ export interface ReunionResumen {
   noDadaEn: string | null // ISO, o null
   /** Dónde se da: sala física, link, "por definir". */
   lugar: string | null
+  /** 'todos los squads' / squads específicos / tema puntual — texto libre. */
+  alcance: string
+  /** Quién va. Vacío mientras nadie lo haya dicho. */
+  participantes: string[]
   /** Si tiene un documento (deck) preparado — no dice si está LISTO, solo si existe. */
   tieneDocumento: boolean
   /** Si tiene una minuta guardada. */
@@ -77,7 +81,14 @@ export interface DatosDeReunion {
   lugar?: string | null
   /** 'todos los squads' / squads específicos / tema puntual — texto libre. Por defecto, 'todos'. */
   alcance?: string
-  participantes?: unknown[]
+  /**
+   * Quién va. `string[]`, no `unknown[]` (deuda de la Tarea 4): así lo produce
+   * el único llamador real, `app/agenda/page.tsx`, que parte un textarea por
+   * comas — y así es como `editarReunion` puede volver a sanitizarla
+   * (`.trim()` no existe sobre un `unknown`). Ver el comentario de
+   * `editarReunion` más abajo para el porqué completo.
+   */
+  participantes?: string[]
 }
 
 /**
@@ -103,6 +114,8 @@ interface FilaReunionComun {
   estado: EstadoReunion
   noDadaEn: Date | null
   lugar: string | null
+  alcance: string
+  participantes: unknown
 }
 
 function resumenDeFilaReunion(
@@ -124,6 +137,11 @@ function resumenDeFilaReunion(
     estado: fila.estado,
     noDadaEn: fila.noDadaEn ? fila.noDadaEn.toISOString() : null,
     lugar: fila.lugar,
+    alcance: fila.alcance,
+    // `jsonb` sin validar al leer, mismo criterio que el resto de la app
+    // (ver `ContenidoItemCrudo` en documentos.ts): la escribe siempre
+    // `crearReunion`/`editarReunion`, nunca a mano fuera de este módulo.
+    participantes: Array.isArray(fila.participantes) ? (fila.participantes as string[]) : [],
     tieneDocumento,
     tieneMinuta,
     archivos,
@@ -260,13 +278,20 @@ export async function obtenerReunion(id: string): Promise<ReunionResumen | null>
  * Cambia los datos de la reunión: cuándo, cómo se llama, qué tipo, quién va,
  * dónde, para quién es.
  *
- * `cambios.salaSlug`, si viene, se IGNORA — mismo criterio que `editarSesion`
- * (src/db/sesiones.ts), que nunca tocó `salaSlug`: de qué sala es una reunión
- * no es editable después de crearla. `Partial<DatosDeReunion>` lo admite en
- * el tipo porque `DatosDeReunion` lo tiene como campo obligatorio de
- * creación, no porque este método deba aplicarlo.
+ * `salaSlug` NO SE ADMITE NI EN EL TIPO (cerrado en compilación, deuda de la
+ * Tarea 4): mover una reunión de sala no es editarla — de qué sala es una
+ * reunión no es editable después de crearla, mismo criterio que
+ * `editarSesion` (`src/db/sesiones.ts`), que nunca tocó `salaSlug`. La
+ * versión vieja de este tipo era `Partial<DatosDeReunion>`, que lo admitía en
+ * compilación (y lo ignoraba en runtime sin avisar) porque `DatosDeReunion`
+ * lo tiene como campo obligatorio de CREACIÓN — `Omit` refleja que edición y
+ * creación piden cosas distintas. Si algún día hace falta mover una reunión
+ * de sala, es su propia función, no un caso especial de esta.
  */
-export async function editarReunion(id: string, cambios: Partial<DatosDeReunion>): Promise<void> {
+export async function editarReunion(
+  id: string,
+  cambios: Omit<Partial<DatosDeReunion>, 'salaSlug'>,
+): Promise<void> {
   const actual = await obtenerReunion(id)
   if (!actual) throw new Error(`Reunión no encontrada: "${id}"`)
 
@@ -281,7 +306,18 @@ export async function editarReunion(id: string, cambios: Partial<DatosDeReunion>
   if (titulo !== undefined) columnas.titulo = titulo
   if (cambios.tipo !== undefined) columnas.tipo = cambios.tipo
   if (cambios.alcance !== undefined) columnas.alcance = cambios.alcance
-  if (cambios.participantes !== undefined) columnas.participantes = cambios.participantes
+  if (cambios.participantes !== undefined) {
+    // Sin nombres vacíos ni repetidos (deuda de la Tarea 4: se perdió al
+    // pasar el tipo de `string[]` a `unknown[]`, que no tiene `.trim()`).
+    // `participantes` ya volvió a ser `string[]` en `DatosDeReunion` — ver su
+    // comentario — así que esto es exactamente lo que hacía `editarSesion`
+    // (`sesiones.ts:1138-1144`): la lista se escribe a mano, separada por
+    // comas (`app/agenda/page.tsx`: `datos.participantes.split(',')...`), y
+    // "Ceci, , Pablo, Ceci," es lo normal al teclear, no la excepción.
+    columnas.participantes = [
+      ...new Set(cambios.participantes.map((p) => p.trim()).filter((p) => p.length > 0)),
+    ]
+  }
   if (cambios.lugar !== undefined) columnas.lugar = cambios.lugar?.trim() || null
 
   if (hayDB()) {

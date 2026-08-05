@@ -1,10 +1,33 @@
 /**
- * Persistencia de Minuta (spec §4: "Ligada a una sesión. Guarda la
+ * Persistencia de Minuta (spec §4: "Ligada a una reunión. Guarda la
  * transcripción original, el texto final editado y a quién se envió") y del
  * paso de publicación: los acuerdos confirmados por el equipo se cuelgan de
- * la SALA de la sesión (spec §4, no de la sesión), con `sesionOrigenId` para
- * saber dónde nacieron. Con `hayDB()` escribe a Postgres vía Drizzle; sin DB,
- * usa el store en memoria — mismo patrón que src/db/sesiones.ts.
+ * la SALA de la reunión (spec §4, no de la reunión), con `reunionOrigenId`
+ * para saber dónde nacieron. Con `hayDB()` escribe a Postgres vía Drizzle;
+ * sin DB, usa el store en memoria — mismo patrón que src/db/reuniones.ts.
+ *
+ * MIGRADO A REUNIONES (ronda 10, tarea 5b) fuera de la lista formal de 20
+ * archivos: no importaba `@/db/sesiones` (usaba `esquema.sesiones` y
+ * `memoria.*SesionMemoria` directo), así que el grep que midió esa lista no
+ * lo encontró. Pero SÍ dependía de que `crearSesion`/`crearSesionConEstructura`
+ * (`sesiones.ts`) siguieran sembrando una fila en `esquema.sesiones` por cada
+ * reunión — `minutas.sesion_id` es `NOT NULL` + FK a esa tabla. En cuanto
+ * `sesiones.ts` desaparece, TODA reunión nueva nace solo en `esquema.reuniones`
+ * (`crearReunion`/`crearReunionConDocumento`), así que guardar su minuta
+ * habría reventado por violación de clave foránea contra una fila que nunca
+ * existió — un fallo que ningún test en memoria detecta (el store no modela
+ * la FK) y que solo se habría visto en Postgres, en producción, la primera
+ * vez que alguien intentara minutar una reunión creada después de este
+ * cambio. Mismo síntoma, mismo arreglo y mismo criterio que ya aplicó la
+ * Tarea 5a a `items.sesionId`: la columna deja de ser `NOT NULL` (ver
+ * `esquema.ts`), y este módulo pasa a resolver todo por `reunionId`.
+ *
+ * NO SE TOCA `reuniones.estado`/`noDadaEn` desde aquí a propósito: sería
+ * adelantar el trabajo de la Tarea 6 (`src/dominio/reunion.ts`), cuyo
+ * `tieneRespaldo` ya cuenta una minuta como prueba de que la junta ocurrió
+ * SIN que nadie tenga que forzar `estado: 'dada'` a mano — y hacerlo aquí
+ * además dispararía el freeze de sala de `marcarDada` en un sitio donde hoy
+ * no se esperaba (ver el reporte de esta tarea, "problemas o preocupaciones").
  */
 import { eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
@@ -34,7 +57,7 @@ export interface AcuerdoConfirmado extends AcuerdoPropuesto {
 
 export interface MinutaGuardada {
   id: string
-  sesionId: string
+  reunionId: string
   transcripcion: string | null
   textoFinal: string | null
   enviadaA: string[] | null
@@ -42,90 +65,82 @@ export interface MinutaGuardada {
 }
 
 /**
- * De qué sala es la sesión, o `null` si no es de ninguna.
+ * De qué sala es la reunión.
  *
- * Los acuerdos de una minuta se publican EN UNA SALA. Una reunión sin sala
- * —un comité, un arranque de campaña— puede tener minuta igual, pero sus
- * acuerdos no tienen dónde colgarse: se quedan en el texto, que es lo honesto
- * (ver `guardarMinuta`).
+ * Los acuerdos de una minuta se publican EN UNA SALA. `DatosDeReunion.salaSlug`
+ * es obligatorio desde la Tarea 4 —toda reunión es de una sala—, así que a
+ * diferencia de la vieja `salaDeSesion` esto ya no puede devolver `null`;
+ * se deja el tipo `string` reflejándolo.
  */
-async function salaDeSesion(sesionId: string): Promise<string | null> {
+async function salaDeReunion(reunionId: string): Promise<string> {
   if (hayDB()) {
     const fila = (
       await db()
-        .select({ salaSlug: esquema.sesiones.salaSlug })
-        .from(esquema.sesiones)
-        .where(eq(esquema.sesiones.id, sesionId))
+        .select({ salaSlug: esquema.reuniones.salaSlug })
+        .from(esquema.reuniones)
+        .where(eq(esquema.reuniones.id, reunionId))
     )[0]
-    if (!fila) throw new Error(`Sesión no encontrada: "${sesionId}"`)
+    if (!fila) throw new Error(`Reunión no encontrada: "${reunionId}"`)
     return fila.salaSlug
   }
-  const fila = memoria.obtenerSesionMemoria(sesionId)
-  if (!fila) throw new Error(`Sesión no encontrada: "${sesionId}"`)
-  return fila.salaSlug ?? null
+  const fila = memoria.obtenerReunionMemoria(reunionId)
+  if (!fila) throw new Error(`Reunión no encontrada: "${reunionId}"`)
+  return fila.salaSlug
 }
 
 /**
- * Guarda la minuta de una sesión y publica sus acuerdos confirmados en la
- * sala. Deja la sesión en estado `minutada` — el final natural de su ciclo
- * (spec §4: `borrador → lista → presentada → minutada`).
+ * Guarda la minuta de una reunión y publica sus acuerdos confirmados en la
+ * sala.
+ *
+ * NO marca la reunión como `dada` ni toca `noDadaEn` — ver el comentario de
+ * cabecera de este módulo para el porqué (evitar adelantar la Tarea 6 y
+ * disparar el freeze de sala de `marcarDada` en un sitio nuevo).
  */
 export async function guardarMinuta(
-  sesionId: string,
+  reunionId: string,
   transcripcion: string,
   textoFinal: string,
   acuerdosConfirmados: AcuerdoConfirmado[],
 ): Promise<{ id: string }> {
-  const salaSlug = await salaDeSesion(sesionId)
+  const salaSlug = await salaDeReunion(reunionId)
   const id = crypto.randomUUID()
   const ahora = new Date()
 
   if (hayDB()) {
-    const conexion = db()
-    await conexion.insert(esquema.minutas).values({
+    await db().insert(esquema.minutas).values({
       id,
-      sesionId,
+      sesionId: null,
+      reunionId,
       transcripcion,
       textoFinal,
       enviadaA: null,
     })
-    await conexion
-      .update(esquema.sesiones)
-      // noDadaEn: null — guardar una minuta es la confirmación más fuerte
-      // posible de que la reunión SÍ ocurrió; limpia cualquier "no se dio"
-      // que hubiera quedado de antes (ver el comentario de la columna en
-      // src/db/esquema.ts).
-      .set({ estado: 'minutada', noDadaEn: null, updatedAt: ahora })
-      .where(eq(esquema.sesiones.id, sesionId))
   } else {
-    memoria.insertarMinutaMemoria({ id, sesionId, transcripcion, textoFinal, enviadaA: null, createdAt: ahora })
-    memoria.actualizarEstadoSesionMemoria(sesionId, 'minutada')
+    memoria.insertarMinutaMemoria({ id, reunionId, transcripcion, textoFinal, enviadaA: null, createdAt: ahora })
   }
 
-  // Sin sala, los acuerdos confirmados no se publican: no hay dónde. Quedan
-  // escritos en el texto de la minuta, que es donde el equipo los leerá.
-  for (const acuerdo of salaSlug ? acuerdosConfirmados : []) {
-    await crearAcuerdo(salaSlug!, {
+  for (const acuerdo of acuerdosConfirmados) {
+    await crearAcuerdo(salaSlug, {
       que: acuerdo.que,
       responsable: acuerdo.responsable,
       responsableMondayId: acuerdo.responsableMondayId ?? null,
       squad: acuerdo.squad,
       prioridad: acuerdo.prioridad,
       fechaCompromiso: acuerdo.fechaCompromiso ? new Date(acuerdo.fechaCompromiso) : null,
-      sesionOrigenId: sesionId,
+      reunionOrigenId: reunionId,
     })
   }
 
   return { id }
 }
 
-export async function obtenerMinuta(sesionId: string): Promise<MinutaGuardada | null> {
+export async function obtenerMinuta(reunionId: string): Promise<MinutaGuardada | null> {
   if (!hayDB()) {
-    const fila = memoria.obtenerMinutaDeSesionMemoria(sesionId)
+    const fila = memoria.obtenerMinutaDeReunionMemoria(reunionId)
     if (!fila) return null
     return {
       id: fila.id,
-      sesionId: fila.sesionId,
+      reunionId: fila.reunionId,
       transcripcion: fila.transcripcion,
       textoFinal: fila.textoFinal,
       enviadaA: fila.enviadaA,
@@ -134,11 +149,11 @@ export async function obtenerMinuta(sesionId: string): Promise<MinutaGuardada | 
   }
 
   const conexion = db()
-  const fila = (await conexion.select().from(esquema.minutas).where(eq(esquema.minutas.sesionId, sesionId)))[0]
+  const fila = (await conexion.select().from(esquema.minutas).where(eq(esquema.minutas.reunionId, reunionId)))[0]
   if (!fila) return null
   return {
     id: fila.id,
-    sesionId: fila.sesionId,
+    reunionId: fila.reunionId ?? reunionId,
     transcripcion: fila.transcripcion,
     textoFinal: fila.textoFinal,
     enviadaA: fila.enviadaA,
@@ -154,31 +169,31 @@ export async function obtenerMinuta(sesionId: string): Promise<MinutaGuardada | 
  * nacen (eso no se repite, o se duplicarían); corregir es arreglar una frase
  * del correo. Por eso esto NO pasa por `guardarMinuta`.
  */
-export async function editarTextoMinuta(sesionId: string, textoFinal: string): Promise<void> {
+export async function editarTextoMinuta(reunionId: string, textoFinal: string): Promise<void> {
   if (hayDB()) {
     await db()
       .update(esquema.minutas)
       .set({ textoFinal })
-      .where(eq(esquema.minutas.sesionId, sesionId))
+      .where(eq(esquema.minutas.reunionId, reunionId))
     return
   }
-  const fila = memoria.obtenerMinutaDeSesionMemoria(sesionId)
+  const fila = memoria.obtenerMinutaDeReunionMemoria(reunionId)
   if (fila) fila.textoFinal = textoFinal
 }
 
 /**
- * Borra la minuta de una sesión.
+ * Borra la minuta de una reunión.
  *
  * Los acuerdos que se publicaron desde ella NO se borran: ya viven en la sala
  * y pueden llevar semanas moviéndose. Si alguno tampoco debía existir, se
  * elimina por su cuenta desde la sala.
  */
-export async function eliminarMinuta(sesionId: string): Promise<void> {
+export async function eliminarMinuta(reunionId: string): Promise<void> {
   if (hayDB()) {
-    await db().delete(esquema.minutas).where(eq(esquema.minutas.sesionId, sesionId))
+    await db().delete(esquema.minutas).where(eq(esquema.minutas.reunionId, reunionId))
     return
   }
-  memoria.eliminarMinutaDeSesionMemoria(sesionId)
+  memoria.eliminarMinutaDeReunionMemoria(reunionId)
 }
 
 /**
@@ -186,20 +201,20 @@ export async function eliminarMinuta(sesionId: string): Promise<void> {
  * que ya existía). No hay transcripción ni acuerdos propuestos por la IA: es
  * texto que el equipo pega tal cual.
  */
-export async function cargarMinutaExterna(sesionId: string, textoFinal: string): Promise<void> {
-  await salaDeSesion(sesionId)   // valida que la sesión exista
+export async function cargarMinutaExterna(reunionId: string, textoFinal: string): Promise<void> {
+  await salaDeReunion(reunionId)   // valida que la reunión exista
   const ahora = new Date()
-  const id = `minuta-externa-${sesionId}-${ahora.getTime()}`
+  const id = `minuta-externa-${reunionId}-${ahora.getTime()}`
 
   if (hayDB()) {
     await db()
       .insert(esquema.minutas)
-      .values({ id, sesionId, transcripcion: null, textoFinal, enviadaA: [] })
+      .values({ id, sesionId: null, reunionId, transcripcion: null, textoFinal, enviadaA: [] })
     return
   }
   memoria.insertarMinutaMemoria({
     id,
-    sesionId,
+    reunionId,
     transcripcion: null,
     textoFinal,
     enviadaA: [],

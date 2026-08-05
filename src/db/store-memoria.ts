@@ -128,7 +128,14 @@ export interface FilaAcuerdoMemoria {
 
 export interface FilaMinutaMemoria {
   id: string
-  sesionId: string
+  /**
+   * De qué reunión es. Se llamó `sesionId` hasta la ronda 10, tarea 5b: el
+   * único llamador (`src/db/minutas.ts`) pasó a resolver todo por reunión en
+   * cuanto `sesiones.ts` (y su fila en `esquema.sesiones`, de la que
+   * `esquema.minutas.sesion_id` dependía con un FK `NOT NULL`) desaparecieron
+   * — ver el comentario de cabecera de `minutas.ts`.
+   */
+  reunionId: string
   transcripcion: string | null
   textoFinal: string | null
   enviadaA: string[] | null
@@ -417,9 +424,19 @@ export function insertarMinutaMemoria(fila: FilaMinutaMemoria): void {
   minutas.set(fila.id, fila)
 }
 
-/** Una sesión tiene a lo más una minuta (ligada 1:1, spec §4). */
+/** Una reunión tiene a lo más una minuta (ligada 1:1, spec §4). */
+export function obtenerMinutaDeReunionMemoria(reunionId: string): FilaMinutaMemoria | undefined {
+  return Array.from(minutas.values()).find((m) => m.reunionId === reunionId)
+}
+
+/**
+ * TEMPORAL: alias del nombre viejo, solo mientras `src/db/sesiones.ts` (que
+ * todavía llama a esta función con su nombre de antes de la ronda 10, tarea
+ * 5b) sigue existiendo. Se retira en el mismo commit que borra `sesiones.ts`
+ * — no queda nadie más que la llame.
+ */
 export function obtenerMinutaDeSesionMemoria(sesionId: string): FilaMinutaMemoria | undefined {
-  return Array.from(minutas.values()).find((m) => m.sesionId === sesionId)
+  return obtenerMinutaDeReunionMemoria(sesionId)
 }
 
 /** Espejo en memoria del borrado real de un acuerdo (ver src/db/acuerdos.ts). */
@@ -428,10 +445,15 @@ export function eliminarAcuerdoMemoria(id: string): void {
 }
 
 /** Espejo en memoria del borrado de una minuta (ver src/db/minutas.ts). */
-export function eliminarMinutaDeSesionMemoria(sesionId: string): void {
+export function eliminarMinutaDeReunionMemoria(reunionId: string): void {
   for (const [id, fila] of minutas) {
-    if (fila.sesionId === sesionId) minutas.delete(id)
+    if (fila.reunionId === reunionId) minutas.delete(id)
   }
+}
+
+/** TEMPORAL: mismo motivo que `obtenerMinutaDeSesionMemoria` — se retira junto con `sesiones.ts`. */
+export function eliminarMinutaDeSesionMemoria(sesionId: string): void {
+  eliminarMinutaDeReunionMemoria(sesionId)
 }
 
 // ---- Archivos de sala (ver src/db/archivos.ts) ----
