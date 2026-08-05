@@ -1058,6 +1058,27 @@ git commit -m "La sala lee reuniones, no sesiones sueltas emparejadas al vuelo"
 - Modify: `src/db/esquema.ts`
 - Create: `drizzle/0023_*.sql`, `drizzle/0024_*.sql`
 
+- [ ] **Step 0: La red de seguridad, ANTES de nada**
+
+Medido el 4-ago: el proyecto de Neon está en plan `free_v3` con
+**`history_retention_seconds` = 21600, seis horas**. Pasado ese punto, el
+*point-in-time restore* ya no alcanza a este momento. Seis horas es menos de lo
+que dura esta ronda.
+
+Una **rama** de Neon, en cambio, es un puntero permanente: se queda hasta que
+alguien la borre. Antes de tocar la base real:
+
+```bash
+PROJ=$(node -e "process.loadEnvFile('.env.local'); process.stdout.write(process.env.NEON_PROJECT_ID)")
+npx neonctl branches create --name respaldo-pre-ronda10 --project-id "$PROJ"
+npx neonctl branches list --project-id "$PROJ"     # confirmar que existe
+```
+
+Esa rama es la foto de la base **antes** del único paso irreversible, y es lo
+que permite recuperar los datos si algo sale mal después de que expire la
+ventana de seis horas. No se borra al terminar la ronda: se borra cuando Franco
+diga, y la del ensayo (`ensayo-ronda10`) sí se borra en el paso 4.
+
 - [ ] **Step 1: Verificación leída final en la rama de ensayo**
 
 ```bash
