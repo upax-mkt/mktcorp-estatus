@@ -1210,6 +1210,21 @@ git commit -m "Lo que le falta a una reunión es el botón que lo llena, no un t
 **Files:**
 - Create: `src/componentes/reuniones/AcuerdosDeReunion.tsx`, `.test.tsx`
 - Modify: `src/db/consultas.ts` (los acuerdos viajan ya agrupados por reunión)
+- Modify: **`src/dominio/salas.ts`** — el tipo `Acuerdo` gana su reunión de origen
+
+> **El `Acuerdo` del dominio no sabe de qué junta salió.** Medido el 5-ago:
+> `Acuerdo` (`src/dominio/salas.ts:29-35`) tiene `id`, `que`, `responsable`,
+> `fechaCompromiso` y `estatus` — **y nada más**. El dato existe en la base
+> (`acuerdos.reunion_origen_id`, poblado en la Tarea 3) pero se pierde al armar
+> el dominio, así que hoy no hay forma de agrupar acuerdos por reunión.
+>
+> Esta tarea lo sube: `Acuerdo` gana `reunionOrigenId: string | null` y
+> `consultas.ts` deja de descartarlo. Nulo cuando el acuerdo no nació en ninguna
+> junta —se levantó a mano— o cuando su reunión se borró: la clave ajena se
+> anula, no cascada, y el compromiso sobrevive. Un acuerdo con
+> `reunionOrigenId` nulo **no aparece en ningún desplegable**, y eso es correcto:
+> sigue vivo en la lista de acuerdos de la sala, que es donde se le da
+> seguimiento.
 
 - [ ] **Step 1: Escribir el test que falla**
 
