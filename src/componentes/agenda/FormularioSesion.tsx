@@ -29,13 +29,17 @@ export interface DatosFormulario {
   /** HH:MM */
   hora: string
   /**
-   * El formulario solo ofrece Mensual/Semanal como radios (abajo): 'quincenal'
-   * ("Quincenal en la interfaz" es trabajo de otra tarea) no se puede ELEGIR
-   * aquí. Se ensancha el tipo para que `inicial.tipo` pueda recibir, sin
-   * reventar, la de una reunión que ya es quincenal (Research Land) al abrir
-   * su formulario de edición — ninguno de los radios la marca por defecto en
-   * ese caso, que es el mismo comportamiento (ningún radio matched) que ya
-   * tenía cualquier otro valor no contemplado.
+   * Con qué frecuencia es ESTA reunión en particular — no confundir con la
+   * CADENCIA DE LA SALA (cada cuánto nos reunimos con este cliente en
+   * general), que se elige en `FormularioSala` y vive en un enum aparte
+   * (`cadenciaEnum`, mismos tres valores, distinto eje).
+   *
+   * Las tres opciones ya se pueden ELEGIR en el `<select>` de abajo desde
+   * la ronda 10, tarea 16 ("Quincenal en la interfaz"). Antes de esa tarea
+   * el tipo ya venía ensanchado a las tres —ver `PanelAgenda.tsx`— para que
+   * `inicial.tipo` pudiera recibir, sin reventar, la de una reunión que ya
+   * es quincenal (Research Land) al abrir su formulario de edición; solo
+   * faltaba poder escogerla aquí.
    */
   tipo: 'semanal' | 'quincenal' | 'mensual'
   alcance: string
@@ -55,6 +59,14 @@ interface Props {
 }
 
 const HORA_POR_DEFECTO = '10:00'
+
+/**
+ * Las cadencias elegibles para el tipo de una reunión, de más frecuente a
+ * menos — mismo orden que usa `tipoReunionEnum` (src/db/esquema.ts). Fuente
+ * única para las `<option>` de abajo: así un enum que gane un valor no deja
+ * un `<option>` suelto desincronizado.
+ */
+const TIPOS_REUNION: DatosFormulario['tipo'][] = ['semanal', 'quincenal', 'mensual']
 
 export function FormularioSesion({
   salas,
@@ -141,10 +153,13 @@ export function FormularioSesion({
           <select
             className={estilos.entrada}
             value={datos.tipo}
-            onChange={(e) => campo('tipo', e.target.value as 'semanal' | 'mensual')}
+            onChange={(e) => campo('tipo', e.target.value as DatosFormulario['tipo'])}
           >
-            <option value="mensual">mensual</option>
-            <option value="semanal">semanal</option>
+            {TIPOS_REUNION.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
           </select>
         </label>
       </div>

@@ -5,6 +5,7 @@ import { upload } from '@vercel/blob/client'
 import { slugDesdeNombre } from '@/lib/marca'
 import { medirTinta } from '@/lib/tinta'
 import { rutaDeArchivo, pesoLegible, TAMANO_MAXIMO } from '@/lib/blob'
+import type { Cadencia } from '@/dominio/reunion'
 import { VistaPreviaMarca } from './VistaPreviaMarca'
 import { SelectorTipografia } from './SelectorTipografia'
 import estilos from '@/app/salas/salas.module.css'
@@ -27,6 +28,26 @@ import estilos from '@/app/salas/salas.module.css'
 /** La familia por defecto de una sala nueva — la misma que ya tenían las diez antes de que existiera este selector. */
 const FAMILIA_POR_DEFECTO = 'outfit'
 
+/**
+ * QUINCENAL EN LA INTERFAZ (ronda 10, tarea 16): con qué frecuencia se
+ * reúne el equipo con esta sala. Mismo default ('mensual') que la columna
+ * `cadencia` en la base (`cadenciaEnum`, `src/db/esquema.ts`) y mismo
+ * orden que ese enum, de más frecuente a menos — fuente única para las
+ * `<option>` de abajo.
+ *
+ * OJO — LO QUE ESTE ARCHIVO TODAVÍA NO CIERRA: `crearSalaAction` y
+ * `editarSalaAction` (`src/app/salas/acciones.ts`) hoy no leen ni escriben
+ * `datos.cadencia`, y `src/app/salas/page.tsx` todavía no pasa la cadencia
+ * real de la sala en el prop `sala` — los dos quedan fuera de la lista de
+ * archivos de esta tarea (T16; ver su reporte). Este formulario ya recoge
+ * el valor elegido y lo manda dentro de `guardar()` para que conectar esos
+ * dos archivos sea trivial después, pero hasta que eso pase, elegir
+ * "quincenal" aquí y guardar NO cambia todavía la cadencia de verdad en la
+ * base — hace falta ese trabajo aparte.
+ */
+const CADENCIA_POR_DEFECTO: Cadencia = 'mensual'
+const CADENCIAS: Cadencia[] = ['semanal', 'quincenal', 'mensual']
+
 /** Lo que este formulario le manda a `guardar` — ya validado del lado del cliente. */
 export interface DatosSala {
   nombre: string
@@ -37,6 +58,17 @@ export interface DatosSala {
   familiaTexto: string
   logoUrl: string | null
   logoRelacionDeTinta: number | null
+  /**
+   * Cada cuánto se reúne el equipo con esta sala (ronda 10, tarea 16) — ver
+   * el aviso junto a `CADENCIAS`, arriba. OPCIONAL, no porque este
+   * formulario alguna vez la omita (siempre la manda, ver `guardar()` más
+   * abajo), sino porque `DatosSala` también es el tipo con el que
+   * `src/app/salas/acciones.test.ts` (fuera de la lista de archivos de esta
+   * tarea) construye sus fixtures directamente sin pasar por este
+   * componente — exigirla habría roto esos fixtures por un campo que
+   * todavía no leen ni escriben `crearSalaAction`/`editarSalaAction`.
+   */
+  cadencia?: Cadencia
 }
 
 /** Lo mínimo de una sala YA CREADA que este formulario necesita para editarla. */
@@ -53,6 +85,8 @@ export interface SalaExistente {
   familiaTexto?: string
   logoUrl?: string | null
   logoRelacionDeTinta?: number | null
+  /** Opcional por lo mismo — hoy `page.tsx` todavía no la trae (ver el aviso junto a `CADENCIAS`); si falta, arranca en `CADENCIA_POR_DEFECTO`. */
+  cadencia?: Cadencia
 }
 
 interface Props {
@@ -99,6 +133,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
   const [primario, setPrimario] = useState(sala?.primario ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
+  const [cadencia, setCadencia] = useState<Cadencia>(sala?.cadencia ?? CADENCIA_POR_DEFECTO)
   const [logoUrl, setLogoUrl] = useState<string | null>(sala?.logoUrl ?? null)
   const [logoRelacion, setLogoRelacion] = useState<number | null>(sala?.logoRelacionDeTinta ?? null)
   const [avisoLogo, setAvisoLogo] = useState<string | null>(null)
@@ -231,6 +266,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
           familiaTexto,
           logoUrl,
           logoRelacionDeTinta: logoRelacion,
+          cadencia,
         })
         if (r.error) {
           setError(r.error)
@@ -316,6 +352,23 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
                 Ya existe una sala con este identificador (&quot;{identificadorFinal}&quot;). Elige otro.
               </p>
             )}
+          </div>
+
+          <div className={estilos.campo}>
+            <label className={estilos.etiqueta} htmlFor="cadencia-sala">Cadencia</label>
+            <select
+              id="cadencia-sala"
+              className={estilos.entrada}
+              value={cadencia}
+              onChange={(e) => setCadencia(e.target.value as Cadencia)}
+            >
+              {CADENCIAS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <p className={estilos.pista}>Cada cuánto se reúne el equipo con esta sala.</p>
           </div>
 
           <div className={estilos.campo}>

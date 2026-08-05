@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FormularioSala } from './FormularioSala'
 
@@ -131,5 +131,81 @@ describe('FormularioSala — recalcular paleta (revisión final de la rama, punt
     await usuario.click(screen.getByRole('button', { name: /^cancelar$/i }))
     expect(recalcularPaleta).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: /recalcular paleta desde este color/i })).toBeInTheDocument()
+  })
+})
+
+// QUINCENAL EN LA INTERFAZ (ronda 10, tarea 16): la cadencia de la sala
+// —cada cuánto se reúne el equipo con ella— gana un tercer valor. El
+// dominio y la base ya lo entienden desde la Tarea 6 y la Tarea 1; lo que
+// faltaba era poder ELEGIRLO aquí. Sin estos tests, un `<option>` suelto
+// que se desincroniza del enum real (o que nunca llega a `guardar()`)
+// habría pasado desapercibido.
+describe('FormularioSala — cadencia (ronda 10, tarea 16: quincenal en la interfaz)', () => {
+  const rl = { slug: 'research-land', nombre: 'Research Land', primario: '#614ACA' }
+
+  it('la cadencia de una sala se puede poner quincenal', () => {
+    render(<FormularioSala sala={rl} guardar={vi.fn()} slugsUsados={[]} />)
+    expect(screen.getByRole('option', { name: /quincenal/i })).toBeInTheDocument()
+  })
+
+  it('ofrece las tres cadencias en orden de más a menos frecuente: semanal, quincenal, mensual', () => {
+    render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} />)
+    const opciones = within(screen.getByLabelText(/cadencia/i))
+      .getAllByRole('option')
+      .map((o) => o.textContent)
+    expect(opciones).toEqual(['semanal', 'quincenal', 'mensual'])
+  })
+
+  it('al crear, arranca en "mensual" — el mismo default que la columna en la base', () => {
+    render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} />)
+    expect(screen.getByLabelText(/cadencia/i)).toHaveValue('mensual')
+  })
+
+  it('al editar, arranca con la cadencia YA guardada de la sala, no con la por defecto', () => {
+    render(
+      <FormularioSala
+        guardar={vi.fn()}
+        slugsUsados={[]}
+        sala={{ slug: 'research-land', nombre: 'Research Land', primario: '#614ACA', cadencia: 'quincenal' }}
+      />,
+    )
+    expect(screen.getByLabelText(/cadencia/i)).toHaveValue('quincenal')
+  })
+
+  it('la cadencia elegida viaja a guardar() junto con el resto', async () => {
+    const guardar = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(<FormularioSala guardar={guardar} slugsUsados={[]} />)
+
+    await usuario.type(screen.getByLabelText(/nombre/i), 'Prueba')
+    await usuario.type(screen.getByPlaceholderText('#614ACA'), '#614ACA')
+    await usuario.selectOptions(screen.getByLabelText(/cadencia/i), 'quincenal')
+    await usuario.click(screen.getByRole('button', { name: /crear sala/i }))
+
+    expect(guardar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ cadencia: 'quincenal' }))
+  })
+
+  // RECALCULAR PALETA (regla dura del brief de esta tarea): cambiar la
+  // cadencia y guardar es un guardado normal como cualquier otro campo —
+  // NO debe disparar el recálculo de paleta, que es una acción aparte y
+  // explícita (ver el describe de arriba). Sin este test, conectar
+  // `cadencia` al lado de `primario` habría sido fácil de hacer mal.
+  it('cambiar la cadencia y guardar NO dispara recalcularPaleta: eso destruía el brandbook', async () => {
+    const recalcularPaleta = vi.fn().mockResolvedValue({})
+    const guardar = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSala
+        guardar={guardar}
+        slugsUsados={[]}
+        sala={{ slug: 'zeus', nombre: 'Zeus', primario: '#614ACA' }}
+        recalcularPaleta={recalcularPaleta}
+      />,
+    )
+    await usuario.selectOptions(screen.getByLabelText(/cadencia/i), 'quincenal')
+    await usuario.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+    expect(guardar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ cadencia: 'quincenal' }))
+    expect(recalcularPaleta).not.toHaveBeenCalled()
   })
 })
