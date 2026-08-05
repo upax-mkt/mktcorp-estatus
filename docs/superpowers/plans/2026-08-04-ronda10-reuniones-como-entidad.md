@@ -446,13 +446,15 @@ process.loadEnvFile('.env.ensayo')
 const { neon } = await import('@neondatabase/serverless')
 const sql = neon(process.env.DATABASE_URL)
 for (const [t, c] of [['minutas','reunion_id'],['acuerdos','reunion_origen_id'],['archivos','reunion_id'],['participacion','reunion_id'],['items','documento_id']]) {
-  const [{ n }] = await sql(\`select count(*)::int n from \${t} where \${c} is null\`)
+  // sql.query, NO sql(...): el cliente de neon-http solo acepta tagged
+  // template en su forma normal y lanza si se le llama como función.
+  const [{ n }] = await sql.query(\`select count(*)::int n from \${t} where \${c} is null\`)
   console.log(t.padEnd(15), 'sin padre:', n)
 }
 "
 ```
 
-Expected: `0` en las cinco, salvo `archivos` donde las imágenes de documento sí tienen reunión y los archivos de categoría `interes` no cuentan (filtrar por categoría al leer si sale ruido).
+Expected: **`0` en las cinco, sin excepciones.** Medido el 4-ago en la base real: `archivos` solo tiene la categoría `presentacion` (2 filas, las dos huérfanas y las dos con sala y fecha, sin colisiones de `(sala, fecha, titulo)`); no hay archivos de `interes` ni imágenes de documento que puedan meter ruido. `participacion` está vacía. `minutas` 1 y `acuerdos` 6, todos apuntando a sesiones que existen.
 
 - [ ] **Step 5: Un archivo sin fecha no se inventa**
 
@@ -1137,6 +1139,15 @@ it('los archivos de interés siguen en su sitio: eso sí es otra cosa', async ()
 - [ ] **Step 2: Correr y verlo fallar.**
 
 - [ ] **Step 3: Borrar el bloque** de las líneas 733-750 y su subtítulo. La subida de archivos ya vive dentro de cada reunión (Tarea 9). `ArchivosSala` sigue existiendo para la categoría `interes`.
+
+> **Ojo con el segundo test.** Medido el 4-ago: en la base real **no hay ni un
+> archivo de categoría `interes`** — los únicos 2 archivos que existen son de
+> `presentacion`, y los dos se convierten en reuniones en la Tarea 3. Si la
+> sección "Archivos de interés" se oculta cuando está vacía, el test falla por
+> falta de datos, no por el cambio. Comprobarlo antes de escribirlo: o se
+> siembra un archivo de interés de prueba (y se borra al terminar la tarea,
+> como manda el constraint global), o el test se escribe contra el componente
+> `ArchivosSala` en vez de contra la página.
 
 - [ ] **Step 4: Correr todo.** Run: `npx vitest run && npx tsc --noEmit`
 
