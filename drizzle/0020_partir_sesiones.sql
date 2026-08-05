@@ -27,16 +27,25 @@ SELECT
   s.updated_at
 FROM sesiones s;
 --> statement-breakpoint
--- El documento solo nace si la sesión llegó a tener vida de documento.
--- 'agendada' es una fecha en el calendario y nada más: no genera documento.
+-- El documento nace si la sesión llegó a tener vida de documento: estructura
+-- o items. NO se filtra por `estado <> 'agendada'`.
+--
+-- CORREGIDO EL 4-AGO CONTRA LA BASE REAL. El plan asumía que 'agendada' era
+-- "una fecha en el calendario y nada más". Es falso: `/agenda` agenda con
+-- `crearSesionConEstructura`, así que las 7 sesiones 'agendada' de hoy tienen
+-- su plantilla de 8 secciones y 56 items entre todas. Filtrarlas dejaba esos
+-- 56 items sin documento, y el `SET NOT NULL` de la Tarea 8 habría fallado.
 INSERT INTO documentos (id, reunion_id, estado, estructura, plantilla, created_at, updated_at)
 SELECT
   gen_random_uuid()::text,
   s.id,
-  CASE WHEN s.estado = 'borrador' THEN 'borrador' ELSE 'listo' END::estado_documento,
+  -- Solo 'lista' y 'minutada' son un documento terminado. 'agendada' y
+  -- 'borrador' son trabajo en curso, por muy poblada que esté la plantilla.
+  CASE WHEN s.estado IN ('lista', 'minutada') THEN 'listo' ELSE 'borrador' END::estado_documento,
   s.estructura,
   s.plantilla,
   s.created_at,
   s.updated_at
 FROM sesiones s
-WHERE s.estado <> 'agendada';
+WHERE s.estructura IS NOT NULL
+   OR EXISTS (SELECT 1 FROM items i WHERE i.sesion_id = s.id);
