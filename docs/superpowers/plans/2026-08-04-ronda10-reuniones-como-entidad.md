@@ -666,9 +666,40 @@ Expected: FAIL — el módulo no existe.
 
 - [ ] **Step 3: Escribir `src/db/documentos.ts`** con lo mudado de `sesiones.ts`.
 
-- [ ] **Step 4: Borrar `src/db/sesiones.ts` y su test**
+- [ ] **Step 4: Borrar `src/db/sesiones.ts` y repartir su test**
 
-Ya no queda nada dentro. Actualizar los imports de quien lo usaba: `src/app/agenda/page.tsx`, `src/app/cliente/[slug]/page.tsx`, `src/app/deck/**`, `src/app/reunion/[id]/**`, `src/db/consultas.ts`. `npx tsc --noEmit` dice exactamente cuáles.
+Ya no queda nada dentro. **Son 20 archivos los que importan de él, no 5** — medido el
+4-ago con `grep -rln "from '@/db/sesiones'" src/`:
+
+*Páginas y rutas (12):* `app/agenda/page.tsx` · `app/agenda/[token]/page.tsx` ·
+`app/api/archivo/[id]/route.ts` · `app/cliente/[slug]/page.tsx` · `app/page.tsx` ·
+`app/reunion/[id]/page.tsx` · `app/deck/page.tsx` · `app/deck/nueva/page.tsx` ·
+`app/deck/[id]/page.tsx` · `app/deck/[id]/documento/page.tsx` ·
+`app/deck/[id]/minuta/page.tsx` · `app/deck/[id]/minuta/acciones.ts`
+
+*Componentes (2):* `componentes/agenda/CalendarioPublico.tsx` ·
+`componentes/editor/TarjetaSeccion.tsx`
+
+*Datos (1):* `db/consultas.ts`
+
+*Tests (5):* `db/sesiones.test.ts` · `db/acuerdos-retomados.test.ts` ·
+`db/ciclo-sesion.test.ts` · `db/estructura-sesion.test.ts` · `db/plantillas.test.ts` ·
+`db/sesiones-captura.test.ts`
+
+> **`/agenda/[token]` sí cambia su import.** El constraint global dice que esa ruta
+> "no se toca": significa que **su URL, su firma y su comportamiento no cambian** —
+> es la agenda pública de enlace firmado, ya compartida fuera. Pero si
+> `sesiones.ts` desaparece, su `import` tiene que apuntar al módulo nuevo como el de
+> todos. Cambiar el import no es tocar la ruta; cambiar lo que devuelve, sí. Al
+> terminar, comprobar con `curl -sI` sobre un enlace vivo que sigue dando 200.
+
+`sesiones.test.ts` son 248 líneas y cuatro `describe` que **se reparten, no se
+tiran**: `crearSesion — freeze de salas` y `marcarPresentada / marcarNoDada — freeze
+de salas` y `sesionesPublicasDelMes` van a `reuniones.test.ts`; `imagen con la forma
+vieja (string) sigue en la base` va a `documentos.test.ts`. Los otros 5 archivos de
+test solo cambian su import.
+
+`npx tsc --noEmit` confirma que no queda ninguno suelto.
 
 - [ ] **Step 5: Correr todo**
 
