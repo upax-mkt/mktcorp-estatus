@@ -324,9 +324,15 @@ INSERT INTO documentos (id, reunion_id, estado, estructura, plantilla, created_a
 SELECT
   gen_random_uuid()::text,
   s.id,
-  -- Solo 'lista' y 'minutada' son un documento terminado. 'agendada' y
-  -- 'borrador' son trabajo en curso, por muy poblada que esté la plantilla.
-  CASE WHEN s.estado IN ('lista', 'minutada') THEN 'listo' ELSE 'borrador' END::estado_documento,
+  -- 'lista', 'presentada' y 'minutada' son un documento terminado. 'agendada'
+  -- y 'borrador' son trabajo en curso, por muy poblada que esté la plantilla.
+  --
+  -- `presentada` estaba OLVIDADA en la primera corrección (la cazó la revisión
+  -- de la T2 comparando contra la tabla de este spec). Hoy no hay ninguna
+  -- sesión en ese estado, así que no cambia ni una fila — pero Franco puede
+  -- marcar una presentada entre hoy y la Tarea 8, y entonces su documento
+  -- habría nacido en 'borrador' teniendo la junta ya dada.
+  CASE WHEN s.estado IN ('lista', 'presentada', 'minutada') THEN 'listo' ELSE 'borrador' END::estado_documento,
   s.estructura,
   s.plantilla,
   s.created_at,
