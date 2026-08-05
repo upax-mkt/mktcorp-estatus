@@ -752,6 +752,21 @@ test solo cambian su import.
 Run: `npx vitest run && npm run lint && npx tsc --noEmit`
 Expected: verde. Los tests que fallen por el renombrado se actualizan; los que fallen por comportamiento, **no** se tocan sin entender por qué.
 
+> **Dos deudas de la Tarea 4 que se cierran aquí**, señaladas por su revisión:
+>
+> 1. **`eliminarReunion` con documento lanza `23503` crudo.** Ninguna clave
+>    ajena del esquema declara `onDelete` (comprobado: cero resultados de
+>    `grep -n "onDelete" src/db/esquema.ts`), así que el default de Postgres es
+>    `NO ACTION`. Hoy no revienta porque **nadie la llama todavía** fuera de
+>    `src/db/` — es una bomba sin cebar. Al conectarla, quien depure debe ver un
+>    mensaje de dominio legible como el del resto del módulo, no una excepción
+>    cruda del driver.
+> 2. **`editarReunion` admite `salaSlug` a nivel de tipos y lo ignora en
+>    runtime**, sin avisar. `editarSesion` no lo permitía porque su tipo ni
+>    incluía el campo. Se cierra en compilación con
+>    `Omit<Partial<DatosDeReunion>, 'salaSlug'>` — mover una reunión de sala no
+>    es editarla, y si algún día hace falta, será su propia función.
+
 - [ ] **Step 6: Commit**
 
 ```bash
