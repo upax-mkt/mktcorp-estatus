@@ -387,12 +387,29 @@ export async function desmarcarNoDada(id: string): Promise<void> {
  * función que sabe borrar el documento. Sin `eliminarDocumento` (el caso de
  * hoy en `reuniones.test.ts`, y el de cualquier reunión que nunca llegó a
  * tener documento) el comportamiento es EXACTAMENTE el de antes.
+ *
+ * DEFENSIVO (hallazgo de la revisión de la T4, anotado en el plan de la ronda
+ * 10): sin `eliminarDocumento`, una reunión que SÍ tiene documento no debe
+ * fallar con una violación de clave foránea cruda del driver (23503) cuando
+ * haya DB, ni dejar un documento huérfano en silencio cuando no la haya — las
+ * dos son peores que decir claramente qué falta. Se comprueba con
+ * `esquema.documentos`/`store-memoria` directamente (infraestructura
+ * compartida, no el módulo `documentos.ts`): no es la dirección de
+ * dependencia prohibida, es el mismo tipo de acceso que ya hace este archivo
+ * a `esquema.acuerdos`/`esquema.minutas`.
  */
 export async function eliminarReunion(
   id: string,
   eliminarDocumento?: (reunionId: string) => Promise<void>,
 ): Promise<void> {
-  if (eliminarDocumento) await eliminarDocumento(id)
+  if (eliminarDocumento) {
+    await eliminarDocumento(id)
+  } else if (await tieneDocumento(id)) {
+    throw new Error(
+      `No se puede borrar la reunión "${id}": tiene un documento. Pasa "eliminarDocumentoDeReunion" ` +
+        '(src/db/documentos.ts) como segundo argumento de eliminarReunion.',
+    )
+  }
 
   if (hayDB()) {
     const conexion = db()
@@ -407,6 +424,18 @@ export async function eliminarReunion(
   }
   memoria.anularReunionOrigenDeAcuerdosMemoria(id)
   memoria.eliminarReunionMemoria(id)
+}
+
+/** Si `reunionId` tiene un documento — ver el comentario defensivo de `eliminarReunion`. */
+async function tieneDocumento(reunionId: string): Promise<boolean> {
+  if (hayDB()) {
+    const [documento] = await db()
+      .select({ id: esquema.documentos.id })
+      .from(esquema.documentos)
+      .where(eq(esquema.documentos.reunionId, reunionId))
+    return Boolean(documento)
+  }
+  return memoria.obtenerDocumentoDeReunionMemoria(reunionId) != null
 }
 
 // ---- Agenda pública ----

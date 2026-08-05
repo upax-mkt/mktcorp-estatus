@@ -525,3 +525,471 @@ export async function eliminarDocumentoDeReunion(reunionId: string): Promise<voi
   memoria.eliminarItemsDeDocumentoMemoria(documento.id)
   memoria.eliminarDocumentoMemoria(documento.id)
 }
+
+// ---- Items: contenido y secciones ----
+// Todo lo de aquí abajo es lo que hoy vive en `sesiones.ts` sobre items,
+// mudado con el mismo nombre y firma salvo que el primer parámetro pasa de
+// `sesionId` a `documentoId`. A diferencia de la vieja `guardarItemContenido`,
+// ninguna de estas funciones dispara una transición de estado tipo
+// "empezarAPrepararse": esa transición era 'agendada' → 'borrador', y
+// `EstadoDocumento` no tiene un valor 'agendada' — un documento nace
+// directamente en 'borrador' (ver `crearDocumento`), así que no hay nada que
+// disparar. No es una regla perdida: es una consecuencia de que su
+// precondición dejó de existir (ver la comparación lado a lado del reporte).
+
+/** Persiste lo que el equipo escribió para un item. Nunca toca `decisionMaquetacion`. */
+export async function guardarItemContenido(
+  documentoId: string,
+  itemId: string,
+  contenidoCrudo: ContenidoItemCrudo,
+): Promise<void> {
+  if (!hayDB()) {
+    memoria.actualizarContenidoItemMemoria(itemId, contenidoCrudo)
+    return
+  }
+  await db()
+    .update(esquema.items)
+    .set({ contenidoCrudo, updatedAt: new Date() })
+    .where(and(eq(esquema.items.id, itemId), eq(esquema.items.documentoId, documentoId)))
+}
+
+/**
+ * Guarda la sección que el equipo compuso a mano, conservando el material
+ * crudo del asistente (si lo hubiera) que vive en el mismo item.
+ */
+export async function guardarSeccion(
+  documentoId: string,
+  itemId: string,
+  seccion: BorradorSeccion,
+): Promise<void> {
+  const documento = await obtenerDocumento(documentoId)
+  const item = documento?.items.find((i) => i.id === itemId)
+  if (!item) throw new Error(`Sección no encontrada: "${itemId}"`)
+  await guardarItemContenido(documentoId, itemId, { ...item.contenido, seccion })
+}
+
+/**
+ * Dónde entra una sección nueva.
+ *
+ * - Una SUBSECCIÓN entra al final de las de su bloque, justo antes de la
+ *   siguiente sección base. Así el documento se lee en el orden en que está
+ *   escrito y nadie tiene que arrastrarla a su sitio.
+ * - Una sección BASE entra al final, pero antes del cierre si lo hay: el
+ *   cierre es el final por definición.
+ */
+function posicionDeInsercion(
+  items: ItemDocumento[],
+  padre: string | undefined,
+  layout: DecisionSlide['layout'],
+): number {
+  if (padre) {
+    const inicio = items.findIndex((i) => i.tipo === padre)
+    if (inicio < 0) return items.length
+    // Justo antes del siguiente item que NO cuelgue de este padre.
+    let fin = inicio + 1
+    while (fin < items.length && items[fin].padre === padre) fin++
+    return fin
+  }
+  const indiceCierre = items.findIndex((i) => i.contenido.seccion?.layout === 'cierre')
+  return indiceCierre >= 0 && layout !== 'cierre' ? indiceCierre : items.length
+}
+
+/**
+ * Añade una sección al final del documento.
+ *
+ * Toca DOS sitios porque el documento los tiene separados a propósito: la
+ * `estructura` dice qué secciones lo componen (y sobrevive a reordenar), y la
+ * tabla de items guarda el contenido de cada una. El `tipo` de la sección
+ * nueva es un id propio: los nombres fijos ("portada") solo valen para las que
+ * trae la plantilla, y dos secciones del mismo tipo se pisarían.
+ */
+export async function anadirSeccion(
+  documentoId: string,
+  layout: DecisionSlide['layout'],
+  nombre: string,
+  /** `tipo` de la sección base que la contiene. Sin esto, nace como base. */
+  padre?: string,
+): Promise<{ itemId: string }> {
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) throw new Error(`Documento no encontrado: "${documentoId}"`)
+
+  const itemId = crypto.randomUUID()
+  const definicion: DefinicionItem = {
+    tipo: `seccion-${itemId}`,
+    titulo: nombre,
+    pregunta: '',
+    layout,
+    ...(padre ? { padre } : {}),
+  }
+  const ahora = new Date()
+  const posicion = posicionDeInsercion(documento.items, padre, layout)
+  const desplazados = documento.items.slice(posicion)
+
+  const fila = {
+    id: itemId,
+    documentoId,
+    orden: posicion,
+    tipo: definicion.tipo,
+    contenidoCrudo: { seccion: { layout } } as ContenidoItemCrudo,
+    decisionMaquetacion: null as unknown,
+  }
+
+  if (hayDB()) {
+    const conexion = db()
+    const [filaDocumento] = await conexion
+      .select({ estructura: esquema.documentos.estructura })
+      .from(esquema.documentos)
+      .where(eq(esquema.documentos.id, documentoId))
+    const estructura = leerEstructura(filaDocumento?.estructura)
+    await conexion
+      .update(esquema.documentos)
+      .set({ estructura: { ...estructura, items: [...estructura.items, definicion] }, updatedAt: ahora })
+      .where(eq(esquema.documentos.id, documentoId))
+    await conexion.insert(esquema.items).values(fila)
+    await Promise.all(
+      desplazados.map((i, k) =>
+        conexion.update(esquema.items).set({ orden: posicion + 1 + k, updatedAt: ahora }).where(eq(esquema.items.id, i.id)),
+      ),
+    )
+  } else {
+    const filaDocumento = memoria.obtenerDocumentoMemoria(documentoId)
+    const estructura = leerEstructura(filaDocumento?.estructura)
+    memoria.actualizarEstructuraDocumentoMemoria(documentoId, {
+      ...estructura,
+      items: [...estructura.items, definicion],
+    })
+    memoria.insertarItemsMemoria([{ ...fila, createdAt: ahora, updatedAt: ahora }])
+    desplazados.forEach((i, k) => memoria.actualizarOrdenItemMemoria(i.id, posicion + 1 + k))
+  }
+  return { itemId }
+}
+
+/**
+ * Borra una sección y renumera las que quedan.
+ *
+ * La renumeración importa: sin ella queda un hueco en el orden (0,1,3,4) que
+ * el arrastre interpretaría como una permutación inválida y rechazaría.
+ */
+export async function eliminarSeccion(documentoId: string, itemId: string): Promise<void> {
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) return
+  const item = documento.items.find((i) => i.id === itemId)
+  if (!item) return
+  // Las secciones base de la plantilla son la estructura del documento: se
+  // editan y se reordenan, no se borran. El editor tampoco ofrece el botón,
+  // pero una Server Action es un endpoint y no se confía en que la pantalla
+  // lo tape.
+  if (item.esBase) throw new Error(`"${item.titulo}" es una sección base: no se puede eliminar.`)
+
+  // Una sección con subsecciones se lleva las suyas: dejarlas huérfanas las
+  // haría desaparecer del editor sin desaparecer de la base.
+  const aBorrar = new Set([itemId])
+  for (const hijo of documento.items) {
+    if (hijo.padre === item.tipo) aBorrar.add(hijo.id)
+  }
+  const tiposBorrados = new Set(documento.items.filter((i) => aBorrar.has(i.id)).map((i) => i.tipo))
+
+  const quedan = documento.items.filter((i) => !aBorrar.has(i.id))
+  const ahora = new Date()
+
+  if (hayDB()) {
+    const conexion = db()
+    const [filaDocumento] = await conexion
+      .select({ estructura: esquema.documentos.estructura })
+      .from(esquema.documentos)
+      .where(eq(esquema.documentos.id, documentoId))
+    const estructura = leerEstructura(filaDocumento?.estructura)
+    await conexion
+      .update(esquema.documentos)
+      .set({
+        estructura: { ...estructura, items: estructura.items.filter((d) => !tiposBorrados.has(d.tipo)) },
+        updatedAt: ahora,
+      })
+      .where(eq(esquema.documentos.id, documentoId))
+    await Promise.all(
+      [...aBorrar].map((borrarId) =>
+        conexion
+          .delete(esquema.items)
+          .where(and(eq(esquema.items.id, borrarId), eq(esquema.items.documentoId, documentoId))),
+      ),
+    )
+    await Promise.all(
+      quedan.map((i, orden) =>
+        conexion.update(esquema.items).set({ orden, updatedAt: ahora }).where(eq(esquema.items.id, i.id)),
+      ),
+    )
+    return
+  }
+
+  const filaDocumento = memoria.obtenerDocumentoMemoria(documentoId)
+  const estructura = leerEstructura(filaDocumento?.estructura)
+  memoria.actualizarEstructuraDocumentoMemoria(documentoId, {
+    ...estructura,
+    items: estructura.items.filter((d) => !tiposBorrados.has(d.tipo)),
+  })
+  for (const borrarId of aBorrar) memoria.eliminarItemMemoria(borrarId)
+  quedan.forEach((i, orden) => memoria.actualizarOrdenItemMemoria(i.id, orden))
+}
+
+/**
+ * Deja los items del documento en el orden exacto de `idsEnOrden`.
+ *
+ * Es lo que persiste el arrastre: mover el tercer item al primer sitio no es
+ * un intercambio con el vecino, así que se reasigna el orden completo (0..n-1).
+ * Se rechaza en silencio cualquier lista que no sea una permutación exacta de
+ * los items de este documento — llega del navegador, así que no se confía en ella.
+ */
+export async function reordenarItems(documentoId: string, idsEnOrden: string[]): Promise<void> {
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) return
+
+  // Lo que llega del editor son los BLOQUES en su orden nuevo, no todos los
+  // items: las subsecciones no se arrastran sueltas, viajan con el suyo. Aquí
+  // se reconstruye el orden completo poniendo cada bloque seguido de sus
+  // hijas, en el orden que ya tenían.
+  const bases = documento.items.filter((i) => !i.padre).map((i) => i.id)
+  if (!esPermutacionValida(bases, idsEnOrden)) return
+
+  const porId = new Map(documento.items.map((i) => [i.id, i]))
+  const ordenCompleto = idsEnOrden.flatMap((idBase) => {
+    const base = porId.get(idBase)!
+    const hijas = documento.items.filter((h) => h.padre === base.tipo).map((h) => h.id)
+    return [idBase, ...hijas]
+  })
+  idsEnOrden = ordenCompleto
+
+  if (hayDB()) {
+    const conexion = db()
+    const ahora = new Date()
+    for (const [posicion, itemId] of idsEnOrden.entries()) {
+      await conexion
+        .update(esquema.items)
+        .set({ orden: posicion, updatedAt: ahora })
+        .where(and(eq(esquema.items.id, itemId), eq(esquema.items.documentoId, documentoId)))
+    }
+    return
+  }
+
+  idsEnOrden.forEach((itemId, posicion) => {
+    memoria.actualizarOrdenItemMemoria(itemId, posicion)
+  })
+}
+
+/**
+ * Mueve una sección un puesto arriba o abajo, ENTRE SUS HERMANAS.
+ *
+ * Es lo que usan los botones ↑/↓, el camino accesible por teclado del que el
+ * arrastre es solo un atajo. Una subsección se mueve dentro de su bloque; un
+ * bloque se mueve entre bloques y se lleva sus subsecciones. Sin esta regla,
+ * bajar una subsección la sacaría de su bloque y entraría en el siguiente sin
+ * que nadie lo pidiera.
+ */
+export async function moverItem(
+  documentoId: string,
+  itemId: string,
+  direccion: 'arriba' | 'abajo',
+): Promise<void> {
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) return
+  const item = documento.items.find((i) => i.id === itemId)
+  if (!item) return
+
+  const hermanas = documento.items.filter((i) => i.padre === item.padre)
+  const idx = hermanas.findIndex((i) => i.id === itemId)
+  const destino = direccion === 'arriba' ? idx - 1 : idx + 1
+  if (destino < 0 || destino >= hermanas.length) return
+
+  const nuevasHermanas = [...hermanas]
+  ;[nuevasHermanas[idx], nuevasHermanas[destino]] = [nuevasHermanas[destino], nuevasHermanas[idx]]
+
+  // Se recalcula el orden COMPLETO a partir del árbol nuevo: es más simple de
+  // razonar que intercambiar dos números y menos frágil ante huecos.
+  const bases = documento.items.filter((i) => !i.padre)
+  const basesFinales = item.padre ? bases : nuevasHermanas
+  const ordenCompleto = basesFinales.flatMap((base) => {
+    const hijas = item.padre === base.tipo
+      ? nuevasHermanas
+      : documento.items.filter((h) => h.padre === base.tipo)
+    return [base.id, ...hijas.map((h) => h.id)]
+  })
+
+  await reasignarOrden(documentoId, ordenCompleto)
+}
+
+/** Deja los items en el orden 0..n-1 que dice la lista. */
+async function reasignarOrden(documentoId: string, idsEnOrden: string[]): Promise<void> {
+  if (idsEnOrden.length === 0) return
+  if (hayDB()) {
+    const conexion = db()
+    const ahora = new Date()
+    await Promise.all(
+      idsEnOrden.map((itemId, posicion) =>
+        conexion
+          .update(esquema.items)
+          .set({ orden: posicion, updatedAt: ahora })
+          .where(and(eq(esquema.items.id, itemId), eq(esquema.items.documentoId, documentoId))),
+      ),
+    )
+    return
+  }
+  idsEnOrden.forEach((itemId, posicion) => memoria.actualizarOrdenItemMemoria(itemId, posicion))
+}
+
+/**
+ * Guarda las decisiones del motor de maquetación (una por item llenado, en
+ * el mismo orden que produjo `entradasCrudasDeDocumento`) y marca el
+ * documento como `listo` (ver `marcarListo`) — mismo comportamiento que la
+ * vieja `guardarDecisiones` (que dejaba la sesión en `'lista'`), solo que la
+ * transición ahora vive en su propia función reutilizable.
+ */
+export async function guardarDecisiones(
+  documentoId: string,
+  resultados: ResultadoMaquetacion[],
+): Promise<void> {
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) throw new Error(`Documento no encontrado: "${documentoId}"`)
+  const llenados = documento.items.filter((i) => i.llenado)
+  if (llenados.length !== resultados.length) {
+    throw new Error(
+      `guardarDecisiones: ${resultados.length} resultado(s) no coincide con ${llenados.length} item(s) llenado(s)`,
+    )
+  }
+
+  if (hayDB()) {
+    const conexion = db()
+    await Promise.all(
+      llenados.map((item, i) =>
+        conexion
+          .update(esquema.items)
+          .set({ decisionMaquetacion: resultados[i], updatedAt: new Date() })
+          .where(eq(esquema.items.id, item.id)),
+      ),
+    )
+  } else {
+    llenados.forEach((item, i) => memoria.actualizarDecisionItemMemoria(item.id, resultados[i]))
+  }
+  await marcarListo(documentoId)
+}
+
+// ---- Acuerdos retomados (ronda 9, tarea 6) ----
+
+/**
+ * En qué item del documento aterriza un acuerdo retomado: el de tipo
+ * `'acuerdos-pendientes'` —la sección fija del estatus de UDN, ver
+ * `ESTATUS_UDN` en src/secciones/plantillas.ts— si existe; si no, la primera
+ * sección que ya sea `pendientes-semaforo` (otra plantilla, como "seguimiento"
+ * o "arranque", también trae una). Si ninguna existe, no hay dónde ofrecerlo
+ * — `anadirAcuerdoRetomado` lo dice con un error claro en vez de inventar una
+ * sección que nadie pidió.
+ */
+export function itemDeAcuerdosPendientes(documento: DocumentoCompleto): ItemDocumento | undefined {
+  return (
+    documento.items.find((i) => i.tipo === 'acuerdos-pendientes') ??
+    documento.items.find((i) => i.contenido.seccion?.layout === 'pendientes-semaforo')
+  )
+}
+
+/**
+ * Retoma `acuerdoId` en `documentoId`: lo REFERENCIA en la sección de
+ * Acuerdos y Pendientes del documento, sin copiar su contenido — se guarda
+ * el id, no el texto (ver el comentario de `ContenidoItemCrudo.acuerdoIdsRetomados`).
+ * `documentoDeReunion`/`obtenerDocumento` son quienes lo resuelven contra
+ * `acuerdos` en cada lectura, así que esto nunca queda desactualizado.
+ *
+ * Idempotente: retomarlo dos veces no lo duplica en la lista.
+ */
+export async function anadirAcuerdoRetomado(documentoId: string, acuerdoId: string): Promise<void> {
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) throw new Error(`Documento no encontrado: "${documentoId}"`)
+  const item = itemDeAcuerdosPendientes(documento)
+  if (!item) {
+    throw new Error('Este documento no tiene una sección de Acuerdos y Pendientes a la que retomar el acuerdo.')
+  }
+  const actuales = item.contenido.acuerdoIdsRetomados ?? []
+  if (actuales.includes(acuerdoId)) return // ya estaba: nada que hacer.
+  await guardarItemContenido(documentoId, item.id, { ...item.contenido, acuerdoIdsRetomados: [...actuales, acuerdoId] })
+}
+
+/**
+ * Convierte los items llenados de un documento en `EntradaCruda[]` para el
+ * motor (etapa 1). Mismo criterio de filtrado y mismo orden que
+ * `guardarDecisiones` usa para reasociar sus resultados — llamar a ambas
+ * en la misma acción, sin mutaciones intermedias entre una y otra.
+ */
+export function entradasCrudasDeDocumento(documento: DocumentoCompleto): EntradaCruda[] {
+  return documento.items
+    .filter((i) => i.llenado)
+    .map((i) => ({
+      titulo: i.titulo,
+      seccion: i.contenido.seccion,
+      texto: i.contenido.texto,
+      cifras: i.contenido.cifras,
+      tablas: i.contenido.tablas,
+      imagenes: i.contenido.imagenes,
+      nota: i.contenido.nota,
+      // Ya resueltos (ver `resolverAcuerdosRetomados`): es lo que hace que
+      // "Maquetar" los meta al documento sin que nadie los haya copiado a
+      // mano en la tabla de pendientes.
+      acuerdosRetomados: i.acuerdosRetomados,
+    }))
+}
+
+// ---- Helpers de formato para el textarea de cifras ("valor | rótulo | delta") ----
+
+export function parsearCifrasTexto(texto: string): CifraCruda[] {
+  return texto
+    .split('\n')
+    .map((linea) => linea.trim())
+    .filter((linea) => linea.length > 0)
+    .map((linea) => {
+      const partes = linea.split('|').map((p) => p.trim())
+      const delta = partes[2]
+      return { valor: partes[0] ?? '', rotulo: partes[1] ?? '', delta: delta ? delta : undefined }
+    })
+    .filter((c) => c.valor.length > 0 && c.rotulo.length > 0)
+}
+
+export function formatearCifrasTexto(cifras: CifraCruda[] | undefined): string {
+  if (!cifras || cifras.length === 0) return ''
+  return cifras
+    .map((c) => [c.valor, c.rotulo, c.delta].filter((v) => v !== undefined && v !== '').join(' | '))
+    .join('\n')
+}
+
+/**
+ * Convierte una tabla pegada en la rejilla que espera el motor.
+ *
+ * Acepta las DOS formas en que llega una tabla en la vida real: pegada desde
+ * Google Sheets o Excel (las celdas vienen separadas por tabulador) o escrita a
+ * mano con barras. Es el caso que más pesa —en el deck de referencia la tabla
+ * aparece tres veces— y obligar a reescribirla a mano era garantizar que nadie
+ * la metiera.
+ *
+ * La primera línea es el encabezado. Las filas cortas se rellenan y las largas
+ * se recortan al ancho del encabezado: una fila desalineada descuadraría la
+ * tabla entera, y perder una celda de más es mejor que perder la rejilla.
+ */
+export function parsearTablaTexto(texto: string): string[][] {
+  const filas = texto
+    .split('\n')
+    .filter((linea) => linea.trim().length > 0)
+    .map((linea) =>
+      // Tabulador primero: una celda pegada desde Sheets puede contener "|"
+      // como parte de su texto, pero nunca un tabulador.
+      (linea.includes('\t') ? linea.split('\t') : linea.split('|')).map((c) => c.trim()),
+    )
+
+  const [encabezado, ...resto] = filas
+  if (!encabezado) return []
+
+  const ancho = encabezado.length
+  return [
+    encabezado,
+    ...resto.map((fila) => Array.from({ length: ancho }, (_, i) => fila[i] ?? '')),
+  ]
+}
+
+export function formatearTablaTexto(tablas: string[][][] | undefined): string {
+  if (!tablas || tablas.length === 0) return ''
+  return tablas[0].map((fila) => fila.join(' | ')).join('\n')
+}
