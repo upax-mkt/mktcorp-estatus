@@ -1,0 +1,123 @@
+/* Reuniones — mismos neutros OKLCH cálidos y barra oscura que el hub, la
+   vista de sala y la vieja agenda, para que se lea como parte del mismo
+   sistema. Es el CASCARÓN de la página (barra/main/encabezado) más el
+   bloque nuevo, "Ya dadas este mes"; el calendario y "agendar" (PanelAgenda,
+   mudado tal cual) traen sus propias clases de agenda.module.css. */
+
+.app {
+  /* MISMO bloque de alias que agenda.module.css, letra por letra — no es un
+     capricho de copiar/pegar: `PanelAgenda`/`Calendario`/`FormularioSesion`
+     siguen importando SU PROPIO `agenda.module.css` (no se tocan, "tal
+     cual"), y sus reglas usan `var(--superficie)`, `var(--acento)`, etc. Esas
+     variables no son globales — solo existen dentro de un elemento con la
+     clase `.app` que las declare (cascada normal de CSS, indiferente al
+     módulo que la escribió). Sin este mismo bloque aquí, `PanelAgenda`
+     montado bajo ESTE `.app` (el de `reuniones.module.css`, no el de
+     `agenda.module.css`) heredaría variables sin definir y se vería roto:
+     `sistema.css` pone los tokens VERDADEROS (`--papel`, `--marca`...) en
+     `:root` para toda la app, pero el alias corto (`--superficie`...) lo
+     declara cada pantalla sobre su propio `.app`. */
+  --fondo: var(--lienzo);
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --hundido: var(--papel-hundido);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+  --ok: var(--bien);
+  --ok-suave: var(--bien-tenue);
+  --tibia: var(--ojo);
+  --tibia-suave: var(--ojo-tenue);
+  --acento: var(--marca, var(--tinta));
+  --acento-suave: color-mix(in oklch, var(--marca, var(--tinta)) 10%, transparent);
+
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--tx);
+  font-family: var(--f-outfit), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- barra ---- (idéntica a agenda.module.css/hub.module.css: mismo
+   material translúcido flotando sobre el lienzo, en vez de un bloque). */
+.barra {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
+  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
+  color: var(--tinta);
+}
+.volver { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.volver:hover { color: var(--tinta-2); }
+.barraTitulo { font-weight: 650; font-size: 0.95rem; }
+.barraDcha { margin-left: auto; display: flex; align-items: center; gap: 1.2rem; }
+.barraLink { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
+.barraLink:hover { color: var(--tinta-2); }
+.barraFecha { font-size: 0.82rem; color: var(--tinta-4); }
+
+.main { max-width: 84rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.encabezado { margin-bottom: 1.75rem; }
+.titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
+.subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 52ch; }
+
+/* ---- Ya dadas este mes ----
+   Mismo lenguaje visual que "Lo que viene" en agenda.module.css
+   (tarjeta con filo de color de sala) y que `.caraPendiente`/`.caraAusente`
+   en cliente.module.css para "lo que le falta" — no una escala nueva. */
+.dadasSeccion { margin-top: clamp(2rem, 4vw, 3rem); }
+.dadasTitulo {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em;
+  margin: 0 0 1.1rem;
+}
+.conteo {
+  font-size: 0.78rem; letter-spacing: 0; color: var(--tx-3); font-weight: 500;
+}
+.vacio { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
+
+.dadasGrupos { display: grid; gap: 1.5rem; }
+.grupoSala { display: grid; gap: 0.7rem; }
+.grupoTitulo {
+  font-size: 0.76rem; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; color: var(--sala, var(--tx-3)); margin: 0;
+}
+
+.listaDadas {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 0.7rem;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+}
+.reunionDada {
+  padding: 0.85rem 1rem; border-radius: var(--r-4);
+  border-left: 3px solid var(--sala, var(--tx-3));
+  background: var(--superficie);
+  box-shadow: var(--e-1);
+  display: grid; gap: 0.5rem;
+}
+.reunionDadaCabecera { display: grid; gap: 0.2rem; }
+.reunionDadaTitulo { font-size: 0.95rem; font-weight: 600; }
+.reunionDadaFecha { font-size: 0.8rem; color: var(--tx-3); }
+
+.faltantes { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+/* Lo que falta se DICE, no se omite (mismo criterio que
+   ReunionesSala/cliente.module.css: una tarjeta que solo omite el botón no
+   se distingue de una que sí tiene la pieza). */
+.faltante {
+  display: inline-flex; align-items: center;
+  padding: 0.3rem 0.6rem; border-radius: var(--r-lleno);
+  font-size: 0.76rem; font-weight: 500;
+}
+/* "Falta la minuta": algo pendiente de hacer — tono tibia/ojo, igual que
+   `.caraPendiente` en cliente.module.css. */
+.faltaMinuta { color: var(--tibia); background: var(--tibia-suave); }
+/* "Sin presentación": neutro, igual que `.caraAusente` — todavía no hay
+   nada que mostrar, no es necesariamente un pendiente urgente. */
+.sinPresentacion { color: var(--tx-3); background: var(--hundido); }
