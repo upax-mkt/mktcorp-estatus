@@ -1227,6 +1227,95 @@ git add -A && git commit -m "Se retira sesiones: la reunión es la entidad y no 
 
 ---
 
+### Tarea 8b: Una reunión puede no ser de ninguna sala
+
+**Files:**
+- Modify: `src/db/esquema.ts` · `src/db/reuniones.ts` · `src/componentes/LevantarMinuta.tsx`
+- Create: `drizzle/0027_*.sql`
+
+**Pedida por Franco el 5-ago**, al plantearle la pérdida: *"necesito poder
+utilizar el componente para crear minutas de otras reuniones"*.
+
+La capacidad existía y se perdió en la Tarea 4, cuando `DatosDeReunion.salaSlug`
+pasó a ser obligatorio. Servía para minutar lo que **no es de ninguna UDN**: un
+comité, un arranque de campaña, una interna de Mkt Corp. El original lo
+documentaba así (`sesiones.ts:160-167`):
+
+> *"Una que no pertenece a ninguna sala —un comité, un arranque de campaña—
+> lleva la identidad de Marketing Corp: es de quien la convoca."*
+
+Con su color propio: `MARKETING_CORP = { nombre: 'Marketing Corp', primario: '#E34714' }`.
+
+Va **después de la Tarea 8** a propósito: toca el esquema, y la 8 es la que
+aplica las migraciones a la base real. Añadir una sexta migración antes
+complicaría el paso destructivo sin ganar nada.
+
+- [ ] **Step 1: Los tests que fallan**
+
+```ts
+it('una reunión puede no ser de ninguna sala: un comité no es una UDN', async () => {
+  const { id } = await crearReunion({
+    salaSlug: null, fecha: new Date(), titulo: 'Comité de marca', tipo: 'mensual',
+  })
+  expect((await obtenerReunion(id))!.salaSlug).toBeNull()
+})
+
+it('sin sala lleva la identidad de quien la convoca: Marketing Corp', async () => {
+  const { id } = await crearReunion({
+    salaSlug: null, fecha: new Date(), titulo: 'Comité de marca', tipo: 'mensual',
+  })
+  const r = (await obtenerReunion(id))!
+  expect(r.salaNombre).toBe('Marketing Corp')
+  expect(r.salaColor).toBe('#E34714')
+})
+
+it('sin sala no hay freeze que comprobar: nadie pausa un comité', async () => {
+  // `salaEstaActiva` ni se llama — no hay sala de la que preguntar.
+  await crearReunion({ salaSlug: null, fecha: new Date(), titulo: 'x', tipo: 'mensual' })
+  expect(salaEstaActivaMock).not.toHaveBeenCalled()
+})
+```
+
+- [ ] **Step 2: Correr y verlos fallar.**
+
+- [ ] **Step 3: `reuniones.sala_slug` deja de ser `NOT NULL`**
+
+En `esquema.ts`, quitar el `.notNull()` (la referencia a `salas.slug` se queda).
+Generar la migración y **leerla**: debe ser una sola línea sobre esa columna.
+
+- [ ] **Step 4: La capa de datos admite el nulo**
+
+`DatosDeReunion.salaSlug: string | null` y `ReunionResumen.salaSlug: string | null`.
+`crearReunion` **se salta el freeze cuando no hay sala** — no hay nada que pueda
+estar en pausa. La identidad la resuelve el mismo helper que hoy: sala si la hay,
+Marketing Corp si no.
+
+- [ ] **Step 5: Vuelve la opción "Ninguna"**
+
+En `LevantarMinuta.tsx`, el `<select>` recupera su `<option value="">Ninguna</option>`,
+y con él el texto que explicaba la consecuencia — **que no es un adorno, dice qué
+pasa con los acuerdos**:
+
+> *"Si la asignas a una sala, su minuta y sus acuerdos quedan ahí; sin sala, la
+> minuta existe igual y sus acuerdos se quedan en el texto."*
+
+- [ ] **Step 6: Dónde se ven estas reuniones**
+
+No están en ninguna sala, así que la sala no las enseña — correcto. Salen en
+**`/reuniones`** (Tarea 13), que es la vista global. Comprobar ahí que aparecen
+con su identidad de Marketing Corp y no rompen el agrupado por sala.
+
+- [ ] **Step 7: Aplicar, verificar leyendo, y commit**
+
+```bash
+node scripts/verificar-migracion.mjs antes
+npm run db:migrate
+node scripts/verificar-migracion.mjs despues
+git add -A && git commit -m "Una reunión puede no ser de ninguna sala: un comité es de quien lo convoca"
+```
+
+---
+
 # FASE B — Reuniones en la sala
 
 Aquí es donde Franco puede por fin cargar su RL de ayer.
