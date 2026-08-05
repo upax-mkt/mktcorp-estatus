@@ -15,10 +15,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  *
  * MIGRADO (ronda 10, tarea 5b): mockeaba `@/db/sesiones` (`obtenerSesion`,
  * `crearSesion`); ahora mockea `@/db/reuniones` (`obtenerReunion`,
- * `crearReunion`, `marcarDada`) — `publicarMinutaAction` llama a `marcarDada`
- * tras `crearReunion` en el camino `{ nueva: ... }`, algo que la vieja
- * `crearSesion({ estado: 'presentada' })` resolvía en una sola llamada (ver
- * el comentario de cabecera de `acciones.ts` para el porqué completo).
+ * `crearReunion`, `marcarDada`). `marcarDada` se sigue mockeando aunque
+ * `acciones.ts` ya no la llame (restaurado el 5-ago: `crearReunion({...,
+ * estado: 'dada' })` resuelve el registro retroactivo en una sola llamada,
+ * igual que la vieja `crearSesion({ estado: 'presentada' })` — ver el
+ * comentario de cabecera de `acciones.ts`) — se deja declarada para poder
+ * afirmar `not.toHaveBeenCalled()` y que nadie la reintroduzca sin querer.
  */
 
 const esEditorMock = vi.fn()
@@ -145,7 +147,7 @@ describe('publicarMinutaAction', () => {
     expect(registrarEdicionMock).not.toHaveBeenCalled()
   })
 
-  it('con editor: publica de verdad — crea la reunión, la marca dada, guarda la minuta y registra a quien publicó (ronda 9, tarea 4)', async () => {
+  it('con editor: publica de verdad — crea la reunión ya dada, guarda la minuta y registra a quien publicó (ronda 9, tarea 4)', async () => {
     esEditorMock.mockResolvedValue(true)
     crearReunionMock.mockResolvedValue({ id: 'reu-nueva' })
 
@@ -157,9 +159,11 @@ describe('publicarMinutaAction', () => {
     )
 
     expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva' })
-    // Nace agendada y se confirma dada de inmediato — es historia, no
-    // trabajo en curso (ver el comentario de cabecera de acciones.ts).
-    expect(marcarDadaMock).toHaveBeenCalledWith('reu-nueva')
+    // Nace YA dada, en un solo paso (restaurado el 5-ago) — es historia, no
+    // trabajo en curso: ni siquiera pasa por `marcarDada` (ver el
+    // comentario de cabecera de acciones.ts).
+    expect(crearReunionMock).toHaveBeenCalledWith(expect.objectContaining({ estado: 'dada' }))
+    expect(marcarDadaMock).not.toHaveBeenCalled()
     expect(guardarMinutaMock).toHaveBeenCalledWith('reu-nueva', 'transcripción', 'texto final del correo', [])
     expect(registrarEdicionMock).toHaveBeenCalledWith('reu-nueva', 'iris@upax.com.mx')
   })

@@ -10,7 +10,7 @@
 import { revalidatePath } from 'next/cache'
 import { esEditor } from '@/auth/roles'
 import { sesionActual } from '@/auth/sesion'
-import { obtenerReunion, crearReunion, marcarDada } from '@/db/reuniones'
+import { obtenerReunion, crearReunion } from '@/db/reuniones'
 import { cargarTemas } from '@/db/temas'
 import { generarMinuta } from '@/minuta/generar'
 import { moldeDeMinuta } from '@/db/plantillas'
@@ -141,26 +141,25 @@ export interface EstadoPublicacion {
  * Una reunión existe porque tiene una minuta o una presentación. Un intento no
  * es ninguna de las dos.
  *
- * DOS DESVIACIONES DE COMPORTAMIENTO, ninguna a la ligera — ver el reporte de
- * la Tarea 5b para el detalle completo:
+ * UNA DESVIACIÓN DE COMPORTAMIENTO, no a la ligera — ver el reporte de la
+ * Tarea 5b para el detalle completo:
  *
- * 1. `nueva.salaSlug: null` (la reunión "sin sala") se RECHAZA con un mensaje
- *    de dominio: `DatosDeReunion.salaSlug` es obligatorio desde la Tarea 4 y
- *    `crearReunion` no acepta otra cosa. Antes esto registraba la reunión
- *    igual y sus acuerdos confirmados se quedaban sin publicar (ver
- *    `guardarMinuta` viejo, que solo publicaba `if (salaSlug)`).
- * 2. UNA SALA EN PAUSA YA NO TIENE EL ATAJO DE "esto es historia, no trabajo
- *    nuevo": la vieja `crearSesion({ estado: 'presentada' })` dejaba pasar el
- *    registro retroactivo de una reunión aunque la sala estuviera congelada
- *    ("consultar su historia sí, empezar trabajo nuevo no" — Franco). La
- *    nueva `crearReunion` no tiene ese parámetro de estado —nace agendada
- *    siempre— y su guardián de freeze (igual que `marcarDada`, que se llama
- *    después) no distingue "esto ya pasó" de "esto es trabajo nuevo": las dos
- *    llamadas rechazan igual si la sala está en pausa. El error se propaga
- *    tal cual (mismo `catch` de siempre), así que quien publica ve el motivo
- *    ("... está pausada..."), no una reunión fantasma ni un crash — pero no
- *    puede minutar retroactivamente una junta de una sala pausada sin
- *    reactivarla primero, que es justo lo que antes SÍ podía hacer.
+ * `nueva.salaSlug: null` (la reunión "sin sala") se RECHAZA con un mensaje
+ * de dominio: `DatosDeReunion.salaSlug` es obligatorio desde la Tarea 4 y
+ * `crearReunion` no acepta otra cosa. Antes esto registraba la reunión
+ * igual y sus acuerdos confirmados se quedaban sin publicar (ver
+ * `guardarMinuta` viejo, que solo publicaba `if (salaSlug)`).
+ *
+ * LO QUE YA NO ES UNA DESVIACIÓN (arreglado el 5-ago, hallazgo de la
+ * revisión de la Tarea 5b): el atajo "esto es historia, no trabajo nuevo"
+ * de la vieja `crearSesion({ estado: 'presentada' })` SÍ tiene equivalente
+ * hoy — `crearReunion({ ..., estado: 'dada' })` (ver el comentario de
+ * `DatosDeReunion.estado`, src/db/reuniones.ts). Nace ya dada, en un solo
+ * paso, sin pasar por `marcarDada` — que sigue siendo freeze-guardado, a
+ * propósito, para la confirmación de una reunión YA EXISTENTE (ver el
+ * comentario de `marcarDada`: confirmar es gestión, no historia). Minutar
+ * retroactivamente una junta de una sala en pausa vuelve a funcionar, igual
+ * que antes de esta ronda.
  */
 export async function publicarMinutaAction(
   de: DeQueReunion,
@@ -185,17 +184,17 @@ export async function publicarMinutaAction(
           error: 'Esta reunión necesita una sala: el registro de reuniones sin sala no está disponible.',
         }
       }
-      // Aquí, y solo aquí, nace la reunión: ya tiene su acta. Nace agendada
-      // (no hay atajo "ya dada" — ver el comentario de cabecera) y se
-      // confirma dada de inmediato: es historia, no trabajo en curso.
+      // Aquí, y solo aquí, nace la reunión: ya tiene su acta, así que nace
+      // directamente `dada` — es historia, no trabajo en curso, y el freeze
+      // de sala la deja pasar (ver el comentario de cabecera).
       const creada = await crearReunion({
         salaSlug: de.nueva.salaSlug,
         titulo: de.nueva.titulo,
         tipo: 'mensual',
         alcance: 'todos',
         fecha: new Date(de.nueva.fecha),
+        estado: 'dada',
       })
-      await marcarDada(creada.id)
       reunionId = creada.id
       salaSlug = de.nueva.salaSlug
     }

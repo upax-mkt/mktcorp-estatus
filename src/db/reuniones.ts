@@ -89,6 +89,22 @@ export interface DatosDeReunion {
    * `editarReunion` más abajo para el porqué completo.
    */
   participantes?: string[]
+  /**
+   * AÑADIDO EL 5-AGO. Sin este campo no había forma de registrar una junta
+   * que YA OCURRIÓ, y con ello se perdía una regla que Franco dejó explícita
+   * en el original (`sesiones.ts`, el bloque de `esTrabajoNuevo`):
+   *
+   *   "consultar su historia sí; empezar trabajo nuevo no"
+   *
+   * El freeze de una sala en pausa bloquea preparar algo nuevo, pero **deja
+   * pasar el registro de lo ya sucedido**: completar la historia no es
+   * empezar trabajo. El original lo resolvía dejando pasar `presentada` y
+   * bloqueando `agendada`/`borrador`. El equivalente aquí es `'dada'`.
+   *
+   * Es además el caso de uso central de la ronda: cargar una junta que ya
+   * pasó con lo que sea que se tenga de ella.
+   */
+  estado?: EstadoReunion
 }
 
 /**
@@ -155,15 +171,18 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   /**
-   * UNA SALA EN FREEZE NO ADMITE REUNIONES NUEVAS (mismo rechazo que
-   * `crearSesion`, src/db/sesiones.ts, tarea 12 ronda 7 — se conserva íntegro
-   * en esta mudanza). A diferencia de `crearSesion`, no hay que preguntar
-   * primero "¿es trabajo nuevo?": `DatosDeReunion` no tiene un parámetro de
-   * estado — toda reunión nace `agendada` (ver más abajo) — así que el
-   * freeze se comprueba siempre que hay sala, sin la rama que antes dejaba
-   * pasar una `presentada` histórica.
+   * UNA SALA EN FREEZE NO ADMITE REUNIONES NUEVAS — PERO SÍ ADMITE REGISTRAR
+   * LO YA SUCEDIDO (mismo rechazo, y la MISMA EXCEPCIÓN, que `crearSesion`,
+   * src/db/sesiones.ts, tarea 12 ronda 7). Restaurada el 5-ago: se había
+   * perdido al mudar a `crearReunion` —`DatosDeReunion` nació sin `estado`—,
+   * y con ella la regla que Franco dejó explícita: "consultar su historia
+   * sí; empezar trabajo nuevo no" (ver el comentario de `DatosDeReunion.estado`,
+   * arriba). Completar el acta de una reunión que YA OCURRIÓ no es trabajo
+   * nuevo, así que el freeze deja pasar `estado: 'dada'` y bloquea el resto
+   * (`'agendada'`, el valor por defecto).
    */
-  if (!(await salaEstaActiva(datos.salaSlug))) {
+  const esTrabajoNuevo = (datos.estado ?? 'agendada') !== 'dada'
+  if (esTrabajoNuevo && !(await salaEstaActiva(datos.salaSlug))) {
     const registro = await cargarTemas()
     throw new Error(
       `${identidadDeSala(datos.salaSlug, registro).nombre} está pausada: reactívala antes de crear una reunión nueva.`,
@@ -178,12 +197,12 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
     fecha: datos.fecha,
     titulo: datos.titulo,
     tipo: datos.tipo,
-    // Una reunión nace agendada, nunca dada: agendar no es haber ocurrido
-    // (spec §1). No hay parámetro de estado en `DatosDeReunion` porque no
-    // hace falta: el caso de "registrar una junta que ya pasó" que antes
-    // colaba `estado: 'presentada'` en `crearSesion` se resuelve marcándola
-    // dada después, no fingiendo un nacimiento distinto.
-    estado: 'agendada' as const,
+    // Nace agendada por defecto (agendar no es haber ocurrido, spec §1) —
+    // salvo que quien llama diga explícitamente que ya se dio. Es lo que usa
+    // el registro retroactivo de una minuta (`publicarMinutaAction`) para
+    // nacer ya dada, en un solo paso — igual que hacía
+    // `crearSesion({ estado: 'presentada' })`, sin un `marcarDada` aparte.
+    estado: datos.estado ?? 'agendada',
     // Nace sin que nadie haya dicho que no se dio — ver la columna en
     // src/db/esquema.ts.
     noDadaEn: null,
@@ -333,6 +352,22 @@ export async function editarReunion(
  * Idempotente hacia adelante: una reunión ya `dada` no revienta por volver a
  * pulsar, ni vuelve a preguntar por el freeze de su sala — mismo criterio que
  * `marcarPresentada` (src/db/sesiones.ts).
+ *
+ * ESTE GUARDIÁN DE FREEZE SE QUEDA, A PROPÓSITO — reconfirmado el 5-ago al
+ * restaurar la excepción de `crearReunion` (ver el comentario de
+ * `DatosDeReunion.estado`): "consultar su historia sí; empezar trabajo
+ * nuevo no" suena a que CONFIRMAR una reunión debería ser "historia" igual
+ * que CREARLA ya dada, pero el original (`marcarPresentada`, sesiones.ts)
+ * ya trazaba esa línea distinto, y a propósito — su propio comentario, de
+ * una revisión posterior y separada de `crearSesion`: "confirmar que una
+ * reunión se dio es gestión, y una sala en pausa no admite gestión — mismo
+ * criterio... que usa `crearSesion` para bloquear trabajo nuevo". La
+ * diferencia real: crear-ya-dada es registrar un hecho consumado de una
+ * vez (nada que gestionar después); confirmar una reunión que YA EXISTÍA
+ * como `agendada` es tocar un registro vivo de la sala — es gestión, y el
+ * freeze la bloquea igual que crear algo nuevo. `marcarNoDada`, más abajo,
+ * es la misma pregunta al revés y lleva el mismo guardián por el mismo
+ * motivo.
  */
 export async function marcarDada(id: string): Promise<void> {
   const reunion = await obtenerReunion(id)
@@ -340,7 +375,8 @@ export async function marcarDada(id: string): Promise<void> {
   if (reunion.estado === 'dada') return
 
   // FREEZE DE LA SALA: confirmar que una reunión se dio es gestión, y una
-  // sala en pausa no admite gestión — mismo guardián que `crearReunion`.
+  // sala en pausa no admite gestión — mismo guardián que `crearReunion`
+  // cuando SÍ es trabajo nuevo (ver el comentario de arriba).
   if (!(await salaEstaActiva(reunion.salaSlug))) {
     throw new Error(`${reunion.salaNombre} está pausada: reactívala antes de confirmar esta reunión.`)
   }

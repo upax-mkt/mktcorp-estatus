@@ -33,6 +33,33 @@ describe('crearReunion', () => {
   })
 
   /**
+   * RESTAURADO EL 5-AGO (hallazgo de la revisión de la Tarea 5b): al mudar
+   * `crearSesion` a `crearReunion`, `DatosDeReunion` se quedó sin `estado` y
+   * con él desapareció esta excepción. Es el caso de uso central de la
+   * ronda: cargar una junta que ya pasó con lo que sea que se tenga de ella.
+   *
+   * `salaEstaActivaMock` en `false` A PROPÓSITO (el ejemplo del plan no la
+   * tocaba, y así solo probaba que el campo se guarda — no que la excepción
+   * bloquea el freeze de verdad, que es justo lo que dice el nombre del
+   * test). Con la sala en pausa de verdad, esto solo pasa si `esTrabajoNuevo`
+   * corta el `&&` antes de preguntarle a `salaEstaActiva` — por eso el
+   * `not.toHaveBeenCalled()` de abajo, no un detalle de implementación
+   * gratuito: es la prueba de que la excepción actuó.
+   */
+  it('...pero sí admite registrar una que YA SE DIO: eso es historia, no trabajo nuevo', async () => {
+    // La regla que Franco dejó explícita: "consultar su historia sí; empezar
+    // trabajo nuevo no". Sin esto, pausar una sala impide para siempre
+    // registrar las juntas que se tuvieron con ella antes de la pausa.
+    salaEstaActivaMock.mockResolvedValue(false)
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', fecha: new Date(), titulo: 'La última antes de la pausa',
+      tipo: 'mensual', estado: 'dada',
+    })
+    expect((await obtenerReunion(id))!.estado).toBe('dada')
+    expect(salaEstaActivaMock).not.toHaveBeenCalled()
+  })
+
+  /**
    * Mudado de `sesiones.test.ts` (ronda 10, tarea 5b — el archivo desaparece
    * con `sesiones.ts`; este test no estaba cubierto aquí todavía). Mismo
    * criterio que el resto del guardián de freeze: el mensaje lo lee una
