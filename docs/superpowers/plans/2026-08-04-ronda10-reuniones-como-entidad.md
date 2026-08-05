@@ -284,8 +284,24 @@ SELECT
   s.id,
   s.sala_slug,
   s.fecha,
-  -- La app deriva hoy el título de la sesión; se conserva el mismo criterio.
-  COALESCE(NULLIF(TRIM(s.plantilla), ''), INITCAP(s.tipo::text)) || ' · ' || TO_CHAR(s.fecha AT TIME ZONE 'America/Mexico_City', 'FMDD "de" FMMonth'),
+  -- CORREGIDO EL 4-AGO CONTRA LA BASE REAL. El título NO se deriva: ya existe,
+  -- escrito a mano por el equipo, dentro de `estructura->>'titulo'` — "Estatus
+  -- Comercial Quincenal" es la RL del 3-ago. La versión anterior lo ignoraba y
+  -- construía uno desde `s.plantilla`, que vale 'estatus-udn' en las 10 filas:
+  -- producía "estatus-udn · 3 de Agosto" y borraba el nombre real de la junta.
+  --
+  -- El fallback replica `tituloPorDefecto` (src/db/sesiones.ts:186) al pie de
+  -- la letra: "Estatus {tipo} · {Mes} de {año}". Los meses van en un array y no
+  -- en TO_CHAR porque `FMMonth` depende del `lc_time` del servidor y saldría en
+  -- inglés; van capitalizados porque así los capitaliza la app.
+  COALESCE(
+    NULLIF(TRIM(s.estructura->>'titulo'), ''),
+    'Estatus ' || s.tipo::text || ' · ' ||
+      (ARRAY['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
+             'Septiembre','Octubre','Noviembre','Diciembre'])[
+        EXTRACT(MONTH FROM s.fecha AT TIME ZONE 'America/Mexico_City')]
+      || ' de ' || EXTRACT(YEAR FROM s.fecha AT TIME ZONE 'America/Mexico_City')::text
+  ),
   s.tipo::text::tipo_reunion,
   CASE WHEN s.estado IN ('presentada', 'minutada') THEN 'dada' ELSE 'agendada' END::estado_reunion,
   s.no_dada_en,
