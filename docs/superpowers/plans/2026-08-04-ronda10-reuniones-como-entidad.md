@@ -21,6 +21,14 @@
 - **`ANTHROPIC_API_KEY` no está en local.** Nada que llame al modelo (maquetar, minuta desde transcripción) se puede probar en `localhost`; se verifica contra el despliegue.
 - **`/agenda/[token]` no se toca**: es la agenda pública de enlace firmado, ya compartida fuera.
 - **Verde antes de commit:** `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, `npm run build`. Los 1278 tests actuales siguen verdes salvo donde una tarea diga explícitamente qué test cambia y por qué.
+- **PRIMERO LA BASE, DESPUÉS EL CÓDIGO. No se empuja nada a GitHub hasta la
+  Tarea 8.** Comprobado el 5-ago: producción **no tiene** `reuniones` ni
+  `documentos`, solo `sesiones`; y el repo no tiene `vercel.json`, así que
+  Vercel despliega `main` a producción y **cualquier otra rama a un preview**.
+  Como todos los entornos comparten la MISMA base de Neon, un preview de esta
+  rama consultaría tablas que no existen y reventaría igual que producción. Por
+  eso el orden es: aplicar las migraciones a la base real (Tarea 8, paso 3) →
+  empujar → desplegar. La rama vive en local hasta entonces.
 
 ---
 
