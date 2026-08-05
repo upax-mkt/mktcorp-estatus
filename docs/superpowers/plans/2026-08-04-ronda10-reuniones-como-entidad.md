@@ -630,6 +630,19 @@ git commit -m "La capa de datos de la reunión, con su estado propio"
   export async function crearDocumento(reunionId: string, plantilla?: string): Promise<{ id: string }>
   export async function documentoDeReunion(reunionId: string): Promise<DocumentoCompleto | null>
   export async function marcarListo(documentoId: string): Promise<void>
+
+  /**
+   * Sustituye a `crearSesionConEstructura` (sesiones.ts:454), que el plan no
+   * asignaba a ningún módulo. Es la que usa `/agenda`: crea la reunión y su
+   * documento con la plantilla de una vez — y es la causa de que en la base
+   * real las 10 reuniones tengan documento.
+   *
+   * Vive AQUÍ y no en `reuniones.ts` para no invertir la dirección de
+   * dependencia: este módulo importa de `reuniones.ts`, nunca al revés.
+   */
+  export async function crearReunionConDocumento(
+    datos: DatosDeReunion & { plantilla?: string },
+  ): Promise<{ reunionId: string; documentoId: string }>
   ```
   Más lo que hoy vive en `sesiones.ts` sobre items, con el mismo nombre y firma salvo que el primer parámetro pasa de `sesionId` a `documentoId`: `guardarItemContenido`, `guardarSeccion`, `anadirSeccion`, `eliminarSeccion`, `reordenarItems`, `moverItem`, `guardarDecisiones`, `esLlenado`, `itemDeAcuerdosPendientes`, `anadirAcuerdoRetomado`, `entradasCrudasDeSesion` (→ `entradasCrudasDeDocumento`), `parsearCifrasTexto`, `formatearCifrasTexto`, `parsearTablaTexto`, `formatearTablaTexto`.
 
