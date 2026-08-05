@@ -1106,14 +1106,23 @@ git commit -m "La sala lee reuniones, no sesiones sueltas emparejadas al vuelo"
 
 **Files:**
 - Modify: `src/db/esquema.ts`
-- Create: `drizzle/0024_*.sql`, `drizzle/0025_*.sql`
+- Create: `drizzle/0025_*.sql`, `drizzle/0026_*.sql`
 
-> **La numeración se corrió un lugar.** La Tarea 5a tuvo que generar
-> `drizzle/0023_soft_kat_farrell.sql` (`items.sesion_id` pierde el `NOT NULL`:
-> un item nuevo cuelga del documento y ya no tiene fila en `sesiones` de la que
-> colgar). **Está generada y sin aplicar a ninguna base** — comprobado el 5-ago
-> leyendo las dos: la real tiene 19 migraciones y el ensayo 23, y en ambas
-> `items.sesion_id` sigue `NOT NULL`. La aplica esta tarea, junto con las suyas.
+> **La numeración se corrió DOS lugares**, y las dos migraciones heredadas están
+> generadas y **sin aplicar a ninguna base** (comprobado el 5-ago leyendo las
+> dos: la real tiene 19 migraciones y el ensayo 23):
+>
+> - `drizzle/0023_soft_kat_farrell.sql` — `items.sesion_id` pierde el `NOT NULL`
+>   (Tarea 5a): un item nuevo cuelga del documento y ya no tiene fila en
+>   `sesiones` de la que colgar.
+> - `drizzle/0024_lucky_eternals.sql` — `minutas.sesion_id` pierde el `NOT NULL`
+>   (Tarea 5b). **Sin ésta, publicar cualquier minuta nueva revienta contra
+>   Postgres**: el código escribe `sesionId: null` desde la 5b y la columna
+>   seguía siendo obligatoria. La cazó la revisión de la Tarea 5.
+>
+> Las dos las aplica esta tarea junto con las suyas. Al aplicarlas, la deriva
+> entre el esquema TypeScript y la base real debe quedar en cero — se comprueba
+> leyendo `information_schema.columns`, no razonando.
 
 - [ ] **Step 0: La red de seguridad, ANTES de nada**
 
