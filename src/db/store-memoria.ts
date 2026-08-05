@@ -39,6 +39,29 @@ export interface FilaItemMemoria {
   updatedAt: Date
 }
 
+/**
+ * La junta como entidad propia (ronda 10, tarea 4) — separada de lo que se
+ * prepara para ella, que sigue viviendo en `FilaSesionMemoria`/`FilaItemMemoria`
+ * hasta que la Tarea 5 le añada su propio `FilaDocumentoMemoria`. Misma forma
+ * de fila que `esquema.reuniones` (src/db/esquema.ts), menos los defaults de
+ * Postgres, que se ponen a mano igual que en `FilaSesionMemoria`.
+ */
+export interface FilaReunionMemoria {
+  id: string
+  salaSlug: string
+  fecha: Date
+  titulo: string
+  tipo: 'semanal' | 'quincenal' | 'mensual'
+  estado: 'agendada' | 'dada'
+  /** Ver la columna homónima en src/db/esquema.ts. */
+  noDadaEn: Date | null
+  lugar: string | null
+  alcance: string
+  participantes: unknown[]
+  createdAt: Date
+  updatedAt: Date
+}
+
 /** Una entrada de la historia de cambios de un acuerdo — ver src/db/acuerdos.ts. */
 export interface HistoriaAcuerdoMemoria {
   en: string // ISO
@@ -57,6 +80,14 @@ export interface FilaAcuerdoMemoria {
   estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
   /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
   sesionOrigenId: string | null
+  /**
+   * Reunión donde nació el acuerdo (ronda 10, tarea 4) — mismo id que
+   * `sesionOrigenId` cuando ambos aplican, porque la reunión heredó el de su
+   * sesión (ver src/db/esquema.ts). Nulo si se dio de alta fuera de una
+   * reunión, o si la reunión que lo originó ya se borró (ver
+   * `anularReunionOrigenDeAcuerdosMemoria`: la clave se anula, no cascada).
+   */
+  reunionOrigenId: string | null
   /** El id de usuario de Monday del responsable, si es alguien de Mkt Corp — ver src/monday/bandeja.ts. */
   responsableMondayId: string | null
   /** 'no_aplica' | 'pendiente' | 'subido' | 'descartado' — ver src/monday/bandeja.ts. */
@@ -92,6 +123,7 @@ export interface FilaArchivoMemoria {
 }
 
 const sesiones = new Map<string, FilaSesionMemoria>()
+const reuniones = new Map<string, FilaReunionMemoria>()
 const items = new Map<string, FilaItemMemoria>()
 const acuerdos = new Map<string, FilaAcuerdoMemoria>()
 const minutas = new Map<string, FilaMinutaMemoria>()
@@ -99,6 +131,7 @@ const archivos = new Map<string, FilaArchivoMemoria>()
 /** Sólo para tests: vuelve el store a estado vacío. */
 export function reiniciarStoreMemoria(): void {
   sesiones.clear()
+  reuniones.clear()
   items.clear()
   acuerdos.clear()
   minutas.clear()
@@ -158,6 +191,57 @@ export function listarSesionesMemoria(): FilaSesionMemoria[] {
   return Array.from(sesiones.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 }
 
+// ---- Reuniones (ronda 10, tarea 4) ----
+// La junta como entidad propia. Mismo patrón que `sesiones` arriba: un Map,
+// una función por operación.
+
+export function insertarReunionMemoria(fila: FilaReunionMemoria): void {
+  reuniones.set(fila.id, fila)
+}
+
+export function obtenerReunionMemoria(id: string): FilaReunionMemoria | undefined {
+  return reuniones.get(id)
+}
+
+/** Más recientes primero — mismo orden que la consulta Drizzle equivalente. */
+export function listarReunionesMemoria(): FilaReunionMemoria[] {
+  return Array.from(reuniones.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+}
+
+/** Espejo en memoria de `editarReunion` (ver src/db/reuniones.ts). */
+export function actualizarDatosReunionMemoria(
+  reunionId: string,
+  cambios: Partial<Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>,
+): void {
+  const fila = reuniones.get(reunionId)
+  if (!fila) return
+  reuniones.set(reunionId, { ...fila, ...cambios, updatedAt: new Date() })
+}
+
+/** Espejo en memoria de `marcarDada` (ver src/db/reuniones.ts). */
+export function actualizarEstadoReunionMemoria(reunionId: string, estado: FilaReunionMemoria['estado']): void {
+  const fila = reuniones.get(reunionId)
+  if (!fila) return
+  fila.estado = estado
+  // Mismo razonamiento que `actualizarEstadoSesionMemoria`: confirmar que la
+  // reunión se dio es más fuerte que una marca "no se dio" puesta antes.
+  fila.noDadaEn = null
+  fila.updatedAt = new Date()
+}
+
+/** Espejo en memoria de `marcarNoDada`/`desmarcarNoDada` (ver src/db/reuniones.ts). */
+export function actualizarNoDadaReunionMemoria(reunionId: string, valor: Date | null): void {
+  const fila = reuniones.get(reunionId)
+  if (!fila) return
+  fila.noDadaEn = valor
+  fila.updatedAt = new Date()
+}
+
+/** Espejo en memoria del borrado de una reunión (ver src/db/reuniones.ts). */
+export function eliminarReunionMemoria(reunionId: string): void {
+  reuniones.delete(reunionId)
+}
+
 export function insertarItemsMemoria(filas: FilaItemMemoria[]): void {
   for (const fila of filas) items.set(fila.id, fila)
 }
@@ -213,6 +297,23 @@ export function actualizarAcuerdoMemoria(
   if (!fila) return
   Object.assign(fila, cambios)
   fila.updatedAt = new Date()
+}
+
+/**
+ * Anula `reunionOrigenId` en todos los acuerdos que apuntaban a `reunionId`
+ * — espejo en memoria de la parte de `eliminarReunion` (ver
+ * src/db/reuniones.ts) que suelta la referencia ANTES de borrar la reunión:
+ * un compromiso no desaparece porque se borre la junta que lo originó. Mismo
+ * criterio que ya aplica `eliminarSesion` con `sesionOrigenId` en el camino
+ * de Postgres — la clave se anula, no cascada.
+ */
+export function anularReunionOrigenDeAcuerdosMemoria(reunionId: string): void {
+  for (const fila of acuerdos.values()) {
+    if (fila.reunionOrigenId === reunionId) {
+      fila.reunionOrigenId = null
+      fila.updatedAt = new Date()
+    }
+  }
 }
 
 // ---- Minutas ----

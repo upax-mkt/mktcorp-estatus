@@ -34,6 +34,14 @@ export interface NuevoAcuerdo {
   /** Sesión donde nació el acuerdo. Omitir si se da de alta fuera de una sesión. */
   sesionOrigenId?: string | null
   /**
+   * Reunión donde nació el acuerdo (ronda 10, tarea 4) — campo aparte de
+   * `sesionOrigenId`, no un reemplazo: mientras conviven los dos modelos, una
+   * reunión creada con `crearReunion` (src/db/reuniones.ts) no tiene fila en
+   * `sesiones`, así que no hay un `sesionOrigenId` que darle. Omitir si se da
+   * de alta fuera de una reunión.
+   */
+  reunionOrigenId?: string | null
+  /**
    * El id de usuario de Monday del responsable, solo si es alguien de Mkt
    * Corp. Es lo único que decide si el acuerdo entra a la bandeja — ver
    * src/monday/bandeja.ts. Nulo u omitido = responsable de la UDN.
@@ -138,6 +146,7 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
         fechaCompromiso: datos.fechaCompromiso,
         estatus: 'abierto',
         sesionOrigenId: datos.sesionOrigenId ?? null,
+        reunionOrigenId: datos.reunionOrigenId ?? null,
         responsableMondayId,
         bandeja,
         historia: [],
@@ -153,6 +162,7 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
       fechaCompromiso: datos.fechaCompromiso,
       estatus: 'abierto',
       sesionOrigenId: datos.sesionOrigenId ?? null,
+      reunionOrigenId: datos.reunionOrigenId ?? null,
       responsableMondayId,
       bandeja,
       historia: [],
