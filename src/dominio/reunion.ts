@@ -18,23 +18,48 @@
  * corrigiendo. Los tres se importan como TIPO (`import type`): se borran al
  * compilar, así que este módulo sigue sin ninguna dependencia en tiempo de
  * ejecución de la capa de datos — la misma garantía que promete la cabecera
- * de `salas.ts`, con `Minuta` (de ahí) en la misma categoría.
+ * de `salas.ts`.
  *
- * ESTADO DE LA MIGRACIÓN (léase junto con `dominio/salas.ts`): el brief de
- * esta tarea pide sacar de `salas.ts` su propio `Reunion`/`reunionesDeSala`
- * (el par viejo, cosido a mano desde `presentaciones`+`minutas`). Ese par
- * TODAVÍA sigue ahí: `src/app/cliente/[slug]/page.tsx` y
- * `EstadoSala.presentaciones`/`.minutas` (poblados en `src/db/consultas.ts`)
- * dependen de él en producción hoy mismo, y migrarlos a este módulo nuevo es
- * exactamente el alcance de la Tarea 7 ("`EstadoSala.reuniones` sustituye a
- * `presentaciones` + `minutas`", su brief). Quitar el par viejo antes de que
- * la T7 corra rompería esa página — ver el reporte de esta tarea para el
- * detalle y la evidencia.
+ * `Minuta` VIVE AQUÍ, no en `salas.ts` (Tarea 7). Hasta esa tarea este módulo
+ * la importaba de `salas.ts` como tipo, y `salas.ts` importaba `Cadencia` de
+ * aquí — un ciclo de tipos, transitorio y sin efecto en runtime
+ * (`import type` se borra al compilar) pero un ciclo al fin. La Tarea 6 no lo
+ * podía deshacer: `salas.ts` todavía usaba `Minuta` en `EstadoSala.minutas` y
+ * en el `Reunion`/`reunionesDeSala` viejos. La Tarea 7 quitó las dos cosas
+ * (`EstadoSala.reuniones` sustituye a `presentaciones`+`minutas`, y el par
+ * viejo se jubiló con ellas) — sin más razón para que `Minuta` siguiera en
+ * `salas.ts`, se mudó aquí, que es quien de verdad la necesita
+ * (`Reunion.minuta`, `DatosDeSalaParaReuniones.minutas`). `salas.ts` sigue
+ * importando `Cadencia` de aquí para `EstadoSala.cadencia` — esa dirección
+ * única es la que queda, sin ciclo.
  */
 import { diaCivil } from '@/lib/fecha'
-import type { Minuta } from './salas'
 import type { EstatusAcuerdo } from '@/db/acuerdos'
 import type { TipoReunion, EstadoReunion } from '@/db/reuniones'
+
+/**
+ * Lo que se acordó en una reunión, ya levantado.
+ *
+ * MUDADO DE `dominio/salas.ts` EN LA TAREA 7 — ver el porqué en la cabecera
+ * de este módulo. No lleva `id` propio: su identidad es la reunión de la que
+ * cuelga (`Reunion.minuta`), así que dentro de un `Reunion` no hace falta uno
+ * aparte.
+ */
+export interface Minuta {
+  fecha: string // ISO
+  titulo: string
+  enviadaA: number // # de participantes
+  /** Sesión de la que salió: es lo que permite abrirla desde la sala. */
+  sesionId?: string
+  /**
+   * El texto de la minuta, para leerla SIN salir de la sala.
+   *
+   * Antes la sala solo llevaba a `/preparar/{id}/minuta`, que es la pantalla
+   * de edición del equipo: un director al que se le comparte su sala no puede
+   * entrar ahí, así que su lista de minutas no llevaba a ninguna parte.
+   */
+  texto?: string
+}
 
 /**
  * Con qué frecuencia se reúne una sala. Sustituye al literal suelto
@@ -227,9 +252,28 @@ export function reunionesMinutables(rs: Reunion[], hoyCivil: string): Reunion[] 
  *
  * Una reunión ya `dada` explícitamente no se pregunta: es un hecho confirmado,
  * no una duda que ofrecer.
+ *
+ * RESPETA EL FREEZE DE LA SALA (Tarea 7, regresión cerrada). Su antecesora
+ * —`sesionesPorConfirmar`, `dominio/salas.ts:435`— filtra por
+ * `salaActiva !== false` desde el 3-ago, el día antes de esta ronda (commit
+ * `f51ef38`): confirmar o negar una reunión es justo la "gestión" que el
+ * freeze comercial congela (mismo criterio que `crearReunion`, que bloquea
+ * trabajo nuevo para una sala en pausa — ver `src/db/reuniones.ts`). `Reunion`
+ * no lleva `salaActiva` a propósito —no es una propiedad de la reunión, es de
+ * la SALA que la aloja— así que viaja como campo adicional en la entrada,
+ * igual que hacía la vieja función con su objeto de sesión. El filtro vive
+ * AQUÍ, dentro de la función compartida, y no en cada pantalla que la llama:
+ * el comentario original explica por qué — "si cada pantalla se acordara de
+ * filtrar, bastaría con que UNA se olvidara". `!== false` (no `=== true`): una
+ * reunión cuyo llamador no sabe si su sala está activa no tiene freeze que
+ * respetar, y debe seguir ofreciéndose — mismo criterio que la vieja función.
  */
-export function reunionesPorConfirmar(rs: Reunion[], hoyCivil: string): Reunion[] {
+export function reunionesPorConfirmar(
+  rs: Array<Reunion & { salaActiva?: boolean }>,
+  hoyCivil: string,
+): Reunion[] {
   return rs
+    .filter((r) => r.salaActiva !== false)
     .filter((r) => r.estado !== 'dada')
     .filter((r) => tieneRespaldo(r) && diaCivil(r.fecha) < hoyCivil)
     .sort((a, b) => b.fecha.localeCompare(a.fecha))

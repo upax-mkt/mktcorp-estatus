@@ -12,34 +12,32 @@
  * ya resuelto, venga de donde venga — así que se re-exportan tal cual desde
  * dominio/salas.ts en vez de duplicar su lógica.
  */
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import { cargarTemas, slugsDeSalas } from './temas'
 import type { Tema } from '@/temas'
 import * as fallback from '@/dominio/salas'
+import * as reunionDominio from '@/dominio/reunion'
 import { esLlenado, documentoDeReunion, type ContenidoItemCrudo } from './documentos'
 import { diaCivil } from '@/lib/fecha'
 import type {
   Acuerdo,
   AcuerdoEnRiesgo,
   EstadoSala,
-  Minuta,
-  Presentacion,
   PulsoDelMes,
-  SesionDeSala,
 } from '@/dominio/salas'
+import type { AcuerdoDeReunion, CaraArchivo, Minuta, Reunion } from '@/dominio/reunion'
 
 export type {
   Acuerdo,
   AcuerdoEnRiesgo,
   EstadoSala,
   EstatusAcuerdo,
-  Minuta,
-  Presentacion,
   PulsoDelMes,
   Temperatura,
 } from '@/dominio/salas'
+export type { AcuerdoDeReunion, CaraArchivo, Minuta, Reunion } from '@/dominio/reunion'
 
 // Derivados puros: misma función, sin importar la fuente de los datos.
 export {
@@ -61,54 +59,23 @@ function isoFecha(d: Date): string {
 }
 
 /**
- * La tabla minutas no guarda un título propio: se deriva de la sesión que
- * la originó, igual que el título de una Presentacion. Si la estructura
- * congelada de la sesión trae un `titulo` explícito se usa; si no, se
- * construye a partir de tipo + fecha (mismo patrón que dominio/salas.ts).
- */
-function tituloDeSesion(sesion: { tipo: 'semanal' | 'mensual'; fecha: Date; estructura: unknown }): string {
-  const estructura = sesion.estructura as { titulo?: unknown } | null
-  if (estructura && typeof estructura.titulo === 'string' && estructura.titulo.length > 0) {
-    return estructura.titulo
-  }
-  const mes = sesion.fecha.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })
-  const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1)
-  return `Estatus ${sesion.tipo} · ${mesCap}`
-}
-
-interface FilaSesion {
-  id: string
-  fecha: Date
-  tipo: 'semanal' | 'mensual'
-  estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
-  estructura: unknown
-  noDadaEn: Date | null
-}
-
-/**
- * Cuánto lleva escrito una sesión en preparación.
+ * Cuánto lleva escrito el documento de una reunión en preparación.
  *
- * Antes era una heurística por estado —35% si borrador, 90% si lista— porque
- * no se contaban los items. Se cuentan: una sesión con 3 de 14 secciones
- * escritas dice 21%, no 35%. Y es lo que hace visible el borrador
- * colaborativo: varias personas llenan secciones distintas y la barra sube.
+ * Antes era una heurística por estado de la SESIÓN —35% si borrador, 90% si
+ * lista— porque no se contaban los items. Se cuentan: un documento con 3 de
+ * 14 secciones escritas dice 21%, no 35%. Y es lo que hace visible el
+ * borrador colaborativo: varias personas llenan secciones distintas y la
+ * barra sube.
  *
- * `lista` significa maquetada, así que va al 100 aunque queden secciones
- * vacías: alguien ya decidió que con eso se presenta.
+ * MIGRADO A `documentoListo` EN LA TAREA 7 (era `estado === 'lista'` sobre la
+ * sesión): el equivalente de "maquetada" ahora es el documento, no la
+ * reunión — ver `EstadoDocumento`, `db/documentos.ts`. Va al 100 aunque
+ * queden secciones vacías: alguien ya decidió que con eso se presenta.
  */
-function avanceDeItems(estado: FilaSesion['estado'], llenados: number, total: number): number {
-  if (estado === 'lista') return 100
+function avanceDeItems(documentoListo: boolean, llenados: number, total: number): number {
+  if (documentoListo) return 100
   if (total === 0) return 0
   return Math.round((llenados / total) * 100)
-}
-
-/**
- * Una sesión "en preparación" es la que ya se está llenando. Una sesión
- * `agendada` todavía no: solo ocupa una fecha en el calendario, y aparece en
- * el hub como próxima sesión, no como trabajo en curso.
- */
-function estaEnPreparacion(estado: FilaSesion['estado']): boolean {
-  return estado === 'borrador' || estado === 'lista'
 }
 
 async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
@@ -119,104 +86,175 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   const conexion = db()
   const ahora = new Date()
 
-  const [salaRow, sesionesRows, acuerdosRows, minutasRows, itemsRows] = await Promise.all([
+  // LA CONSULTA PASA A `esquema.reuniones` (Tarea 7), no `esquema.sesiones`:
+  // desde la migración de la ronda 10 (`drizzle/0020_partir_sesiones.sql`),
+  // TODA reunión —migrada o nueva— nace en `reuniones`; `sesiones` queda
+  // congelada en el snapshot del momento de migrar (`crearReunion` nunca
+  // vuelve a escribir ahí). Seguir leyendo de `sesiones` habría dejado
+  // invisible cualquier reunión creada después de migrar — el mismo defecto,
+  // por la misma razón, que el JOIN de minutas de más abajo.
+  const [salaRow, reunionesRows, acuerdosRows, minutasRows, archivosRows, itemsRows] = await Promise.all([
     conexion.select().from(esquema.salas).where(eq(esquema.salas.slug, slug)).then((r) => r[0]),
+    // LEFT JOIN a `documentos`: una reunión puede no tener uno todavía (una
+    // junta agendada a secas) o nunca tenerlo (la que se registró solo con
+    // minuta) — `documentoDeReunion` documenta el mismo caso. `documentoId`/
+    // `documentoEstado` salen `null` cuando no hay fila, y de ahí sale
+    // `documentoListo` más abajo.
     conexion
       .select({
-        id: esquema.sesiones.id,
-        fecha: esquema.sesiones.fecha,
-        tipo: esquema.sesiones.tipo,
-        estado: esquema.sesiones.estado,
-        estructura: esquema.sesiones.estructura,
-        noDadaEn: esquema.sesiones.noDadaEn,
+        id: esquema.reuniones.id,
+        fecha: esquema.reuniones.fecha,
+        titulo: esquema.reuniones.titulo,
+        tipo: esquema.reuniones.tipo,
+        estado: esquema.reuniones.estado,
+        noDadaEn: esquema.reuniones.noDadaEn,
+        documentoId: esquema.documentos.id,
+        documentoEstado: esquema.documentos.estado,
       })
-      .from(esquema.sesiones)
-      .where(eq(esquema.sesiones.salaSlug, slug))
-      .orderBy(desc(esquema.sesiones.fecha)),
+      .from(esquema.reuniones)
+      .leftJoin(esquema.documentos, eq(esquema.documentos.reunionId, esquema.reuniones.id))
+      .where(eq(esquema.reuniones.salaSlug, slug))
+      .orderBy(desc(esquema.reuniones.fecha)),
     conexion.select().from(esquema.acuerdos).where(eq(esquema.acuerdos.salaSlug, slug)),
+    // HALLAZGO HEREDADO DE LA T5 (cerrado aquí): este JOIN era por
+    // `sesionId`. Desde la Tarea 5b toda minuta nueva se guarda con
+    // `sesionId: null` y `reunionId` poblado (`guardarMinuta`,
+    // `cargarMinutaExterna` — `src/db/minutas.ts`), así que un JOIN por
+    // `sesionId` la dejaba fuera: la UDN vería "falta la minuta" en una
+    // reunión que sí la tiene. `reunionId` es además la fuente del título y
+    // la fecha: la reunión ya los trae en columna propia, así que no hace
+    // falta derivarlos de una `estructura` congelada (lo que hacía
+    // `tituloDeSesion`, retirada en esta misma tarea).
     conexion
       .select({
-        id: esquema.minutas.id,
+        reunionId: esquema.minutas.reunionId,
         enviadaA: esquema.minutas.enviadaA,
-        sesionId: esquema.minutas.sesionId,
         textoFinal: esquema.minutas.textoFinal,
-        fecha: esquema.sesiones.fecha,
-        tipo: esquema.sesiones.tipo,
-        estructura: esquema.sesiones.estructura,
+        fecha: esquema.reuniones.fecha,
+        titulo: esquema.reuniones.titulo,
       })
       .from(esquema.minutas)
-      .innerJoin(esquema.sesiones, eq(esquema.minutas.sesionId, esquema.sesiones.id))
-      .where(eq(esquema.sesiones.salaSlug, slug))
-      .orderBy(desc(esquema.sesiones.fecha)),
-    // El contenido de los items, para saber cuánto lleva escrito la sesión
-    // que se está preparando. Con join, no una consulta por sesión: son diez
-    // salas × N sesiones y el hub las pide todas a la vez.
+      .innerJoin(esquema.reuniones, eq(esquema.minutas.reunionId, esquema.reuniones.id))
+      .where(eq(esquema.reuniones.salaSlug, slug)),
+    // Los archivos de presentación colgados de una reunión (Tarea 7): la cara
+    // "archivo" de una junta, junto a su documento y su minuta — ver
+    // `CaraArchivo`, `dominio/reunion.ts`. Solo `categoria: 'presentacion'`:
+    // una imagen o un vídeo incrustado en una sección (`'imagen'`/`'video'`)
+    // es contenido DE un documento, no un archivo colgado de la reunión en
+    // sí, y no tiene sentido ofrecerlo como "la presentación" de la junta.
     conexion
       .select({
-        sesionId: esquema.items.sesionId,
+        id: esquema.archivos.id,
+        titulo: esquema.archivos.titulo,
+        nombreOriginal: esquema.archivos.nombreOriginal,
+        reunionId: esquema.archivos.reunionId,
+      })
+      .from(esquema.archivos)
+      .innerJoin(esquema.reuniones, eq(esquema.archivos.reunionId, esquema.reuniones.id))
+      .where(and(eq(esquema.reuniones.salaSlug, slug), eq(esquema.archivos.categoria, 'presentacion'))),
+    // El contenido de los items, para saber cuánto lleva escrito el documento
+    // que se está preparando. Por `documentoId` (Tarea 7), no por `sesionId`:
+    // un item de una reunión nueva solo cuelga de su documento (ver la
+    // cabecera de `db/documentos.ts`), así que un JOIN por `sesionId` no lo
+    // vería. Con join y no una consulta por reunión: son diez salas × N
+    // reuniones y el hub las pide todas a la vez.
+    conexion
+      .select({
+        documentoId: esquema.items.documentoId,
         contenidoCrudo: esquema.items.contenidoCrudo,
       })
       .from(esquema.items)
-      .innerJoin(esquema.sesiones, eq(esquema.items.sesionId, esquema.sesiones.id))
-      .where(eq(esquema.sesiones.salaSlug, slug)),
+      .innerJoin(esquema.documentos, eq(esquema.items.documentoId, esquema.documentos.id))
+      .innerJoin(esquema.reuniones, eq(esquema.documentos.reunionId, esquema.reuniones.id))
+      .where(eq(esquema.reuniones.salaSlug, slug)),
   ])
 
-  const sesiones = sesionesRows as FilaSesion[]
   const hoyCivil = diaCivil(ahora.toISOString())
-  // `fueDada` (src/dominio/salas.ts) es la ÚNICA verdad de "¿esta sesión ya
-  // ocurrió?" desde la ronda "contador y presentadas" (2026-08-03): antes esta
-  // línea comparaba `estado === 'presentada' || 'minutada'` a mano, que es
-  // justo la comparación que dejaba fuera a una `lista` cuyo día ya pasó y
-  // nadie marcó — la raíz del síntoma que reportó Franco. Un helper y no la
-  // comparación repetida: es la MISMA pregunta que responde el pulso del mes
-  // (`construirPulso`, más abajo) y `sesionesMinutables`, y las tres tienen
-  // que estar de acuerdo o vuelve a haber dos verdades distintas sobre si una
-  // reunión sucedió.
-  const dada = (s: FilaSesion) =>
-    fallback.fueDada({ estado: s.estado, fecha: s.fecha.toISOString(), noDadaEn: s.noDadaEn?.toISOString() ?? null }, hoyCivil)
 
-  const yaSucedidas = sesiones.filter(dada)
-  const futuras = sesiones
-    .filter((s) => s.fecha.getTime() > ahora.getTime())
-    .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
-  // Ya no "borrador o lista" a secas: una `lista` cuyo día ya pasó dejó de ser
-  // trabajo en curso —`fueDada` la cuenta como ocurrida—, así que tampoco
-  // debería seguir ofreciéndose como "en preparación" en el hub.
-  const enPreparacionRows = sesiones.filter((s) => estaEnPreparacion(s.estado) && !dada(s))
+  // La base de cada reunión —sin archivos, minuta ni acuerdos todavía—, tal
+  // como la pide `reunionesDeSala` (`dominio/reunion.ts`). `documentoListo`,
+  // no `Boolean(documentoId)`: en los datos reales casi toda reunión tiene
+  // documento desde que se agenda (la plantilla nace con la junta, ver
+  // `crearReunionConDocumento`), así que su mera existencia no prueba nada —
+  // el umbral es el documento TERMINADO, igual que el viejo estado `lista`.
+  const reunionesBase: Array<Omit<Reunion, 'archivos' | 'minuta' | 'acuerdos'>> = reunionesRows.map((r) => ({
+    id: r.id,
+    fecha: r.fecha.toISOString(),
+    titulo: r.titulo,
+    tipo: r.tipo,
+    estado: r.estado,
+    noDadaEn: r.noDadaEn ? r.noDadaEn.toISOString() : null,
+    documentoId: r.documentoId ?? undefined,
+    documentoListo: r.documentoEstado === 'listo',
+  }))
+
+  const archivos: Array<CaraArchivo & { reunionId: string }> = archivosRows.map((a) => ({
+    id: a.id,
+    titulo: a.titulo,
+    nombreOriginal: a.nombreOriginal,
+    // Servido por la ruta que ya comprueba permiso contra la reunión dueña
+    // del archivo — ver `src/app/api/archivo/[id]/route.ts`.
+    url: `/api/archivo/${a.id}`,
+    // `!`: el INNER JOIN de arriba (`archivos.reunionId = reuniones.id`) ya
+    // descarta toda fila sin `reunionId` — la columna es nullable en el
+    // esquema (archivos sin reunión también existen), pero no en lo que
+    // sobrevive a este JOIN.
+    reunionId: a.reunionId!,
+  }))
+
+  const minutas: Array<Minuta & { reunionId: string }> = minutasRows.map((m) => ({
+    reunionId: m.reunionId!, // mismo motivo que en `archivos`, arriba
+    fecha: isoFecha(m.fecha),
+    titulo: m.titulo,
+    enviadaA: Array.isArray(m.enviadaA) ? m.enviadaA.length : 0,
+    texto: m.textoFinal ?? undefined,
+  }))
+
+  const acuerdosParaReuniones: Array<AcuerdoDeReunion & { reunionOrigenId: string }> = acuerdosRows
+    .filter((a): a is typeof a & { reunionOrigenId: string } => a.reunionOrigenId != null)
+    .map((a) => ({
+      id: a.id,
+      que: a.que,
+      responsable: a.responsable,
+      estatus: a.estatus as fallback.EstatusAcuerdo,
+      fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
+      reunionOrigenId: a.reunionOrigenId,
+    }))
+
+  // LAS REUNIONES DE LA SALA, ya cosidas — sustituye a `presentaciones` +
+  // `minutas` (dos listas paralelas emparejadas a mano). Ver `EstadoSala.reuniones`.
+  const reuniones = reunionDominio.reunionesDeSala({
+    reuniones: reunionesBase,
+    archivos,
+    minutas,
+    acuerdos: acuerdosParaReuniones,
+  })
+
+  // `fueDada` (`dominio/reunion.ts`) es la ÚNICA verdad de "¿esta reunión ya
+  // ocurrió?": la misma pregunta que responde el pulso del mes
+  // (`construirPulso`, más abajo) y las dos tienen que estar de acuerdo o
+  // vuelve a haber dos verdades distintas sobre si una reunión sucedió.
+  const yaSucedidas = reuniones.filter((r) => reunionDominio.fueDada(r, hoyCivil)) // reuniones ya viene desc por fecha
+  const futuras = reuniones
+    .filter((r) => new Date(r.fecha).getTime() > ahora.getTime())
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+  // "En preparación": tiene un documento (algo, aunque esté vacío) y todavía
+  // no se cuenta como dada. Ya no "borrador o lista" (esa distinción era del
+  // viejo estado fundido de la sesión): el equivalente hoy es tener
+  // `documentoId` —nace con la reunión, ver `crearReunionConDocumento`— sin
+  // que `fueDada` la haya dado ya por ocurrida.
+  const enPreparacionRows = reuniones.filter((r) => r.documentoId != null && !reunionDominio.fueDada(r, hoyCivil))
   // La que se está preparando: la más próxima, no la primera que devuelva la
   // base. Con dos abiertas a la vez, la que importa es la que toca antes.
-  const enPreparacion = [...enPreparacionRows].sort(
-    (a, b) => a.fecha.getTime() - b.fecha.getTime(),
-  )[0]
+  const enPreparacion = [...enPreparacionRows].sort((a, b) => a.fecha.localeCompare(b.fecha))[0]
   const itemsDeEsa = enPreparacion
-    ? itemsRows.filter((i) => i.sesionId === enPreparacion.id)
+    ? itemsRows.filter((i) => i.documentoId === enPreparacion.documentoId)
     : []
   const total = itemsDeEsa.length
   const llenados = itemsDeEsa.filter((i) => esLlenado(i.contenidoCrudo as ContenidoItemCrudo)).length
 
-  const ultima = yaSucedidas[0] // ya viene ordenada desc por fecha
+  const ultima = yaSucedidas[0]
   const proxima = futuras[0]
-
-  const presentaciones: Presentacion[] = yaSucedidas.map((s) => ({
-    fecha: isoFecha(s.fecha),
-    titulo: tituloDeSesion(s),
-    tipo: s.tipo,
-    sesionId: s.id,
-  }))
-
-  const minutas: Minuta[] = minutasRows.map((m) => ({
-    fecha: isoFecha(m.fecha),
-    titulo: tituloDeSesion(m),
-    enviadaA: Array.isArray(m.enviadaA) ? m.enviadaA.length : 0,
-    // `?? undefined`, no cambio de comportamiento: el INNER JOIN de más abajo
-    // (`eq(esquema.minutas.sesionId, esquema.sesiones.id)`) ya descarta toda
-    // fila con `sesionId` nulo antes de llegar aquí — pero la columna dejó de
-    // ser `NOT NULL` en esta tarea (ver esquema.ts, minutas.sesionId), así
-    // que el tipo que infiere Drizzle ahora es `string | null` y hay que
-    // volver a alinearlo con `Minuta.sesionId?: string`.
-    sesionId: m.sesionId ?? undefined,
-    texto: m.textoFinal ?? undefined,
-  }))
 
   // 'cancelado' no existe en el tipo EstatusAcuerdo del shell (solo
   // abierto/cumplido/vencido) — un acuerdo cancelado deja de mostrarse,
@@ -254,17 +292,16 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     slug,
     nombre: tema.nombre,
     color: tema.primario,
-    diasDesdeUltima: ultima ? diasEntre(ultima.fecha, ahora) : null,
-    ultimaSesion: ultima ? isoFecha(ultima.fecha) : null,
-    proximaSesion: proxima ? isoFecha(proxima.fecha) : null,
+    diasDesdeUltima: ultima ? diasEntre(new Date(ultima.fecha), ahora) : null,
+    ultimaSesion: ultima ? isoFecha(new Date(ultima.fecha)) : null,
+    proximaReunion: proxima ? isoFecha(new Date(proxima.fecha)) : null,
     enPreparacion: enPreparacionRows.length > 0,
-    avancePreparacion: enPreparacion ? avanceDeItems(enPreparacion.estado, llenados, total) : undefined,
-    sesionEnPreparacionId: enPreparacion?.id,
+    avancePreparacion: enPreparacion ? avanceDeItems(enPreparacion.documentoListo, llenados, total) : undefined,
+    documentoEnPreparacionId: enPreparacion?.id,
     seccionesEscritas: enPreparacion ? llenados : undefined,
     seccionesTotales: enPreparacion ? total : undefined,
     acuerdos,
-    presentaciones,
-    minutas,
+    reuniones,
     cadencia: salaRow?.cadencia ?? 'mensual',
     activa,
     pausadaDesde: salaRow?.pausadaDesde ? isoFecha(salaRow.pausadaDesde) : null,
@@ -273,15 +310,6 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     // parte de ese tipo, ver esquema.ts). `archivoDeLogo` cae al archivo
     // estático cuando esto es `null`.
     logoUrl: salaRow?.logoUrl ?? null,
-    // TODAS las sesiones, cualquier estado — lo que necesita `construirPulso`
-    // para contar REUNIONES del mes en curso (no salas) y saber cuáles ya se
-    // dieron. Distinto de `presentaciones`, arriba, que solo trae las que
-    // `fueDada` ya dio por ocurridas.
-    sesiones: sesiones.map((s): SesionDeSala => ({
-      fecha: s.fecha.toISOString(),
-      estado: s.estado,
-      noDadaEn: s.noDadaEn ? s.noDadaEn.toISOString() : null,
-    })),
   }
 }
 
@@ -330,11 +358,15 @@ function construirRiesgo(salas: EstadoSala[]): AcuerdoEnRiesgo[] {
  *   reuniones ni gestión hasta nuevo aviso" (mismo criterio que
  *   `acuerdosAbiertos`/`acuerdosVencidos`, un poco más arriba).
  * - `reunionesDadas`: de esas mismas, cuántas ya se dieron según `fueDada`
- *   (src/dominio/salas.ts) — explícitas (`presentada`/`minutada`) o
- *   deducidas (`lista` con el día civil ya pasado, sin marcar "no se dio").
- *   Es la MISMA función que usa `estadoDeSalaDB` para decidir sus
- *   `presentaciones`: si aquí y allá respondieran distinto, el pulso y "la
- *   sala" dirían dos cosas diferentes sobre si una reunión ocurrió.
+ *   (`dominio/reunion.ts`) — explícita (`estado === 'dada'`) o deducida (algo
+ *   la respalda —documento terminado, un archivo, o su minuta— y su día
+ *   civil ya pasó, sin marcar "no se dio"). Es la MISMA función que usa
+ *   `estadoDeSalaDB` para decidir `EstadoSala.reuniones`: si aquí y allá
+ *   respondieran distinto, el pulso y "la sala" dirían dos cosas diferentes
+ *   sobre si una reunión ocurrió — por eso este helper itera `sala.reuniones`
+ *   (Tarea 7; antes `sala.sesiones`, un `SesionDeSala[]` retirado con esa
+ *   tarea por no traer respaldo con que deducir "dada" bajo el modelo nuevo)
+ *   y no una lista aparte.
  */
 // Exportada — a diferencia de construirRiesgo, sin test directo — porque es
 // la función exacta detrás del síntoma que reportó Franco: se prueba sola,
@@ -346,10 +378,10 @@ export function construirPulso(salas: EstadoSala[], hoyCivil: string): PulsoDelM
   let reunionesDadas = 0
   for (const sala of salas) {
     if (!sala.activa) continue
-    for (const sesion of sala.sesiones) {
-      if (diaCivil(sesion.fecha).slice(0, 7) !== mesActual) continue
+    for (const reunion of sala.reuniones) {
+      if (diaCivil(reunion.fecha).slice(0, 7) !== mesActual) continue
       reunionesEsteMes++
-      if (fallback.fueDada(sesion, hoyCivil)) reunionesDadas++
+      if (reunionDominio.fueDada(reunion, hoyCivil)) reunionesDadas++
     }
   }
   const abiertos = salas.reduce((n, s) => n + fallback.acuerdosAbiertos(s), 0)

@@ -122,6 +122,49 @@ describe('reunionesPorConfirmar', () => {
   it('una reunión ya confirmada no se pregunta: es un hecho, no una duda', () => {
     expect(reunionesPorConfirmar([{ ...base, estado: 'dada' }], hoy)).toHaveLength(0)
   })
+
+  /**
+   * REGRESIÓN CERRADA (Tarea 7). La antecesora de esta función,
+   * `sesionesPorConfirmar` (dominio/salas.ts:435), filtra por
+   * `salaActiva !== false` desde el 3-ago —el día antes de esta ronda,
+   * commit `f51ef38`— porque confirmar o negar una reunión es la "gestión"
+   * que el freeze comercial congela (mismo criterio que `crearReunion`,
+   * que bloquea trabajo nuevo para una sala en pausa). `Reunion` no lleva
+   * `salaActiva` —no es una propiedad de la reunión, es de su sala— así que
+   * viaja como campo adicional opcional en la entrada, igual que hacía la
+   * vieja función con su objeto de sesión.
+   */
+  describe('respeta el freeze de la sala', () => {
+    const conArchivo = { ...base, archivos: [{ id: 'a', titulo: 'x', nombreOriginal: 'x.pdf', url: '/x' }] }
+
+    it('salaActiva: false — no aparece, aunque tenga respaldo y el día ya pasado', () => {
+      expect(reunionesPorConfirmar([{ ...conArchivo, salaActiva: false }], hoy)).toHaveLength(0)
+    })
+
+    it('salaActiva: true — aparece con normalidad', () => {
+      expect(reunionesPorConfirmar([{ ...conArchivo, salaActiva: true }], hoy)).toHaveLength(1)
+    })
+
+    it('salaActiva ausente (el llamador no lo sabe): se trata como activa', () => {
+      expect(reunionesPorConfirmar([conArchivo], hoy)).toHaveLength(1)
+    })
+
+    it('una marcada "no se dio" en una sala pausada tampoco aparece: ni para deshacerla mientras dure la pausa', () => {
+      const negada = { ...conArchivo, noDadaEn: '2026-08-03', salaActiva: false }
+      expect(reunionesPorConfirmar([negada], hoy)).toHaveLength(0)
+    })
+
+    it('con varias reuniones, solo se excluye la de la sala pausada — las demás siguen ofreciéndose', () => {
+      const r = reunionesPorConfirmar(
+        [
+          { ...conArchivo, id: 'activa', salaActiva: true },
+          { ...conArchivo, id: 'pausada', salaActiva: false },
+        ],
+        hoy,
+      )
+      expect(r.map((x) => x.id)).toEqual(['activa'])
+    })
+  })
 })
 
 describe('tienePresentacion', () => {

@@ -1,7 +1,7 @@
 /**
  * EL ESTADO DE LA RELACIÓN CON CADA SALA: tipos y lógica derivada.
  *
- * Aquí NO hay datos. Ni uno. Todo lo que la app enseña —acuerdos, sesiones,
+ * Aquí NO hay datos. Ni uno. Todo lo que la app enseña —acuerdos, reuniones,
  * minutas, y desde la ronda 8 también el nombre y la marca de cada sala— sale
  * de lo que el equipo creó o editó en la propia app y vive en su base de
  * datos; si algo se borra o cambia ahí, cambia en la app. Este módulo solo
@@ -23,7 +23,7 @@
  * `async`— pueda ofrecer por su cuenta: ver `estadoDeSalas()` más abajo.
  */
 import { diaCivil } from '@/lib/fecha'
-import type { Cadencia } from './reunion'
+import type { Cadencia, Reunion } from './reunion'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido'
 
@@ -43,43 +43,6 @@ export interface Acuerdo {
   destacado?: boolean
 }
 
-export interface Presentacion {
-  fecha: string // ISO
-  titulo: string
-  tipo: 'semanal' | 'mensual'
-  /** La sesión real de la que salió. Sin ella no hay documento que abrir. */
-  sesionId?: string
-}
-
-export interface Minuta {
-  fecha: string // ISO
-  titulo: string
-  enviadaA: number // # de participantes
-  /** Sesión de la que salió: es lo que permite abrirla desde la sala. */
-  sesionId?: string
-  /**
-   * El texto de la minuta, para leerla SIN salir de la sala.
-   *
-   * Antes la sala solo llevaba a `/preparar/{id}/minuta`, que es la pantalla
-   * de edición del equipo: un director al que se le comparte su sala no puede
-   * entrar ahí, así que su lista de minutas no llevaba a ninguna parte.
-   */
-  texto?: string
-}
-
-/**
- * Una sesión de la sala, cruda: lo mínimo que necesita `fueDada` (arriba) para
- * decidir si ya ocurrió. A diferencia de `presentaciones` —que solo trae las
- * que YA se sabía que sucedieron— esta trae TODAS: es lo que le hace falta al
- * pulso del mes para contar reuniones (no salas) del mes en curso sea cual
- * sea su estado, y para saber cuáles de esas ya se dieron.
- */
-export interface SesionDeSala {
-  fecha: string // ISO
-  estado: string
-  noDadaEn: string | null
-}
-
 export interface EstadoSala {
   slug: string
   nombre: string
@@ -95,11 +58,25 @@ export interface EstadoSala {
   /** Días desde la última sesión. Alto = desatendida. `null` = nunca. */
   diasDesdeUltima: number | null
   ultimaSesion: string | null // ISO
-  proximaSesion: string | null // ISO
+  /**
+   * RENOMBRADO EN LA TAREA 7 (`proximaSesion` → `proximaReunion`): "sesión"
+   * desaparece de la interfaz, y este campo llega a pantalla (el hub y la
+   * sala lo pintan como "próxima reunión"). Mismo dato — la fecha ISO de la
+   * próxima reunión agendada, o `null` si no hay ninguna.
+   */
+  proximaReunion: string | null // ISO
   enPreparacion: boolean
   avancePreparacion?: number // 0..100
-  /** La sesión que se está preparando, para poder ir directo a ella. */
-  sesionEnPreparacionId?: string
+  /**
+   * RENOMBRADO EN LA TAREA 7 (`sesionEnPreparacionId` → `documentoEnPreparacionId`):
+   * el DOCUMENTO que se está preparando, para poder ir directo a él —
+   * `/deck/{id}` sigue recibiendo el id de la REUNIÓN (la heredó de su
+   * sesión), así que en la práctica este id es el de la reunión en
+   * preparación, no el de su fila en `documentos`. El nombre cambia porque lo
+   * que decide "en preparación" ahora es el DOCUMENTO (`EstadoDocumento`,
+   * `db/documentos.ts`), no un estado fundido de la reunión.
+   */
+  documentoEnPreparacionId?: string
   /**
    * Cuántas secciones lleva escritas y cuántas tiene.
    *
@@ -110,8 +87,16 @@ export interface EstadoSala {
   seccionesEscritas?: number
   seccionesTotales?: number
   acuerdos: Acuerdo[]
-  presentaciones: Presentacion[]
-  minutas: Minuta[]
+  /**
+   * LAS REUNIONES DE LA SALA (Tarea 7): sustituye a `presentaciones` +
+   * `minutas` — dos listas paralelas, cada una ordenada por su cuenta, que
+   * había que cruzar a mano para saber qué se acordó en la presentación de
+   * mayo. `Reunion` (`dominio/reunion.ts`) es la reunión como entidad propia
+   * (spec §1): trae su presentación (`documentoListo`/`archivos`), su minuta
+   * y sus acuerdos ya cosidos. De la más reciente a la más antigua — ver
+   * `reunionesDeSala`, `dominio/reunion.ts`.
+   */
+  reuniones: Reunion[]
   /**
    * Cadencia acordada; usada para juzgar si está desatendida.
    *
@@ -133,14 +118,13 @@ export interface EstadoSala {
    * Una sala en pausa no se borra ni se esconde: su historia sigue entera y
    * se consulta. Lo que se apaga es lo que la app le EXIGE — ver
    * `acuerdosVencidos`, `acuerdosAbiertos`, `ordenarPorProximaReunion` y
-   * `estaCongelado` más abajo, y `crearSesion` en src/db/sesiones.ts (no se
-   * puede preparar una sesión nueva sin reactivarla primero).
+   * `estaCongelado` más abajo, y `crearReunion` en src/db/reuniones.ts (no se
+   * puede crear una reunión nueva sin reactivarla primero, salvo que sea
+   * historia — ver el comentario de `DatosDeReunion.estado` ahí).
    */
   activa: boolean
   /** Desde cuándo está en pausa. ISO, o `null` si nunca se pausó (o ya se reactivó). */
   pausadaDesde: string | null
-  /** TODAS las sesiones de la sala, cualquier estado — ver `SesionDeSala`. */
-  sesiones: SesionDeSala[]
 }
 
 /**
@@ -249,14 +233,6 @@ export interface SesionMinutable {
 }
 
 /**
- * De qué sesiones falta minuta: las que ya sucedieron y no tienen una.
- *
- * Se deriva de lo que la sala ya sabe en vez de preguntarlo a la base: una
- * sesión con minuta aparece en las dos listas, así que lo que falta es la
- * diferencia. Las presentaciones sin `sesionId` quedan fuera — no hay
- * sesión detrás a la que colgar nada.
- */
-/**
  * QUÉ REUNIONES SE PUEDEN MINUTAR.
  *
  * Franco: "a la minuta le falta el motor para cargar una transcripción de la
@@ -285,7 +261,7 @@ export function sesionesMinutables(
     salaNombre?: string
     salaColor?: string
     estado: string
-    /** Ver `fueDada`, más abajo. Ausente = nunca se marcó así. */
+    /** Ver `fueDada`, `dominio/reunion.ts`. Ausente = nunca se marcó así. */
     noDadaEn?: string | null
   }>,
   /** Ids de sesión que YA tienen minuta. */
@@ -312,8 +288,8 @@ export function sesionesMinutables(
     /**
      * TAMPOCO UNA MARCADA "NO SE DIO" (ronda "contador y presentadas",
      * 2026-08-03): se canceló o se pospuso — no hay nada que transcribir de
-     * una reunión que no ocurrió. Mismo criterio que aplica `fueDada`, aquí
-     * abajo, para "¿ya pasó de verdad?".
+     * una reunión que no ocurrió. Mismo criterio que aplica `fueDada`
+     * (`dominio/reunion.ts`) para "¿ya pasó de verdad?".
      */
     .filter((s) => !s.noDadaEn)
     /**
@@ -338,47 +314,16 @@ export function sesionesMinutables(
 }
 
 /**
- * SI UNA SESIÓN YA OCURRIÓ, sin que nadie tenga que decirlo.
+ * Una reunión con el día civil ya pasado, deducida como dada sin que nadie lo
+ * dijera — el conjunto sobre el que actúa `reunionesPorConfirmar`
+ * (`dominio/reunion.ts`), que es quien de verdad la produce hoy.
  *
- * Franco: «en el contador dice solo una sesión en el mes siendo que están
- * agendadas todas y registradas en la app». La raíz: el contador (y "la
- * sala", y el listado de minutas pendientes) solo daban por ocurrida una
- * sesión con `estado === 'presentada'`, y llegar ahí exige que alguien entre
- * al editor, abra el documento y pulse un botón — un paso administrativo que
- * nueve de cada diez reuniones nunca cruzan. Que una reunión cuente dependa
- * de ese clic es justo lo que produce el síntoma.
- *
- * `fueDada` decide sola cuando puede, y dos cosas la pueden desmentir en los
- * dos sentidos:
- *
- * - Lo EXPLÍCITO manda siempre que existe: `presentada`/`minutada` es un
- *   hecho que alguien confirmó, así que gana sin mirar fecha ni nada más.
- * - `noDadaEn` (columna nueva y aditiva en `sesiones`, ver src/db/esquema.ts
- *   para por qué es un campo y no un estado nuevo) es lo contrario: alguien
- *   dijo explícitamente que ESTA sesión en concreto NO se dio —se canceló, se
- *   pospuso— y eso manda sobre la deducción automática de aquí abajo. Nunca
- *   sobre lo explícito: si ya está `presentada`, `noDadaEn` ni se consulta.
- *
- * A falta de las dos, se deduce: `lista` (maquetada — mismo umbral de
- * "tiene contenido" que ya usa `sesionesMinutables`, arriba, no uno inventado
- * aparte) Y su día CIVIL ya pasó, estrictamente antes de hoy. "Estrictamente"
- * es a propósito: una reunión de hoy a las 9:00 no está "pasada" a las 10:00
- * del mismo día — se compara por día, no por instante (`diaCivil`, no la hora
- * del reloj), así que hoy nunca es "ya pasado" pase lo que pase con el reloj.
- * `borrador`/`agendada` nunca cuentan aquí: son justo las dos que
- * `sesionesMinutables` también excluye por no ser "una junta que se dio".
+ * EL TIPO SE QUEDA AQUÍ (Tarea 7): lo consume `ReunionesPorConfirmar`
+ * (`src/componentes`), la pieza que pintan el Home y la sala, y es la forma
+ * en la que las dos pantallas reempaquetan lo que devuelve
+ * `reunionesPorConfirmar` —un `Reunion[]`, sin nombre ni color de sala—
+ * sumándole la identidad de la sala que ya conocen por su cuenta.
  */
-export function fueDada(
-  sesion: { estado: string; fecha: string; noDadaEn?: string | null },
-  hoyCivil: string,
-): boolean {
-  if (sesion.estado === 'presentada' || sesion.estado === 'minutada') return true
-  if (sesion.noDadaEn) return false
-  if (sesion.estado !== 'lista') return false
-  return diaCivil(sesion.fecha) < hoyCivil
-}
-
-/** Una sesión `lista` cuyo día ya pasó: la deducción de `fueDada` actuó (o actuaría) sobre ella. */
 export interface SesionPorConfirmar {
   id: string
   titulo: string
@@ -389,68 +334,6 @@ export interface SesionPorConfirmar {
   salaColor?: string
   /** `null` = pendiente de decir algo; con fecha, ya se marcó "no se dio". */
   noDadaEn: string | null
-}
-
-/**
- * QUÉ REUNIONES NECESITAN UNA PALABRA HUMANA: `lista`, con el día civil ya
- * pasado — exactamente el conjunto sobre el que actúa la deducción automática
- * de `fueDada`.
- *
- * Se ofrecen las DOS caras, no solo las que faltan por confirmar: una sesión
- * ya marcada `noDadaEn` sigue en la lista (con esa marca puesta) para que se
- * pueda deshacer — si solo se ofrecieran las pendientes, marcar "no se dio"
- * la haría desaparecer de aquí y con ella la única puerta para arrepentirse.
- * `presentada`/`minutada` no aparecen: ya son un hecho confirmado, no algo
- * que preguntar. `borrador`/`agendada` con el día pasado tampoco: nunca
- * llegaron a "tener contenido", así que `fueDada` nunca los iba a contar —no
- * hay nada que confirmar sobre algo que la deducción ya ignora.
- *
- * UNA SALA EN PAUSA NO OFRECE NADA AQUÍ (revisión post-implementación,
- * 2026-08-03 — Franco pausó Zeus mientras tanto y dejó de ser teórico):
- * confirmar o negar una reunión es justo la "gestión" que el freeze comercial
- * dice congelar (mismo criterio que `crearSesion`, que bloquea `agendada`/
- * `borrador` nuevos para una sala en pausa). Se comprueba AQUÍ, en la función
- * que arman las dos pantallas que ofrecen esto —el Home y la sala—, no
- * repetido en cada una: si la protección dependiera de que cada pantalla se
- * acordara de filtrar, bastaría con que UNA se olvidara. `salaActiva !==
- * false` (no `=== true`): una sesión sin sala no tiene freeze que respetar,
- * y debe seguir ofreciéndose.
- */
-export function sesionesPorConfirmar(
-  sesiones: Array<{
-    id: string
-    titulo: string
-    fecha: string
-    salaSlug?: string | null
-    salaNombre?: string
-    salaColor?: string
-    estado: string
-    noDadaEn?: string | null
-    /** Si la sala de esta sesión sigue activa. Ausente/`true` = sin freeze que respetar. */
-    salaActiva?: boolean
-  }>,
-  hoyCivil: string,
-): SesionPorConfirmar[] {
-  return sesiones
-    .filter((s) => s.salaActiva !== false)
-    .filter((s) => s.estado === 'lista' && diaCivil(s.fecha) < hoyCivil)
-    .sort((a, b) => b.fecha.localeCompare(a.fecha))
-    .map((s) => ({
-      id: s.id,
-      titulo: s.titulo,
-      fecha: s.fecha,
-      salaSlug: s.salaSlug,
-      salaNombre: s.salaNombre,
-      salaColor: s.salaColor,
-      noDadaEn: s.noDadaEn ?? null,
-    }))
-}
-
-export function sesionesSinMinuta(s: EstadoSala): SesionMinutable[] {
-  const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter(Boolean))
-  return s.presentaciones
-    .filter((p) => p.sesionId != null && !conMinuta.has(p.sesionId))
-    .map((p) => ({ id: p.sesionId!, titulo: p.titulo, fecha: p.fecha }))
 }
 
 /** Temperatura de atención: cuánto se ha desatendido la relación. */
@@ -493,12 +376,12 @@ export function temperatura(s: EstadoSala): Temperatura {
  * bloque.
  */
 export function ordenarPorProximaReunion(salas: EstadoSala[]): EstadoSala[] {
-  const bloque = (s: EstadoSala) => (s.activa === false ? 2 : s.proximaSesion ? 0 : 1)
+  const bloque = (s: EstadoSala) => (s.activa === false ? 2 : s.proximaReunion ? 0 : 1)
   return [...salas].sort((a, b) => {
     const ba = bloque(a)
     const bb = bloque(b)
     if (ba !== bb) return ba - bb
-    if (ba === 0) return a.proximaSesion!.localeCompare(b.proximaSesion!)
+    if (ba === 0) return a.proximaReunion!.localeCompare(b.proximaReunion!)
     return a.nombre.localeCompare(b.nombre, 'es')
   })
 }
@@ -532,7 +415,7 @@ export interface PulsoDelMes {
    * src/db/consultas.ts.
    */
   reunionesEsteMes: number
-  /** De esas mismas, cuántas ya se dieron según `fueDada` — ver más abajo. */
+  /** De esas mismas, cuántas ya se dieron según `fueDada` (`dominio/reunion.ts`). */
   reunionesDadas: number
   acuerdosAbiertos: number
   acuerdosVencidos: number
@@ -567,80 +450,15 @@ export function salaMasDesatendida(salas: EstadoSala[]): { nombre: string; dias:
   return { nombre: peor.nombre, dias: peor.diasDesdeUltima }
 }
 
-/**
- * UNA REUNIÓN (MODELO VIEJO, EN TRANSICIÓN — ver Tarea 7): lo que se
- * presentó y lo que se acordó, cosidos a mano desde `presentaciones` y
- * `minutas` por `sesionId`.
- *
- * DESDE LA RONDA 10, TAREA 6 este par tiene sucesor: `Reunion` y
- * `reunionesDeSala` en `dominio/reunion.ts`, con la reunión como entidad
- * propia (spec §1) en vez de dos listas emparejadas al vuelo. El brief de esa
- * tarea pide sacar ESTE par de aquí — y así debería quedar el día que la
- * Tarea 7 corra — pero hoy `src/app/cliente/[slug]/page.tsx:454` y
- * `EstadoSala.presentaciones`/`.minutas` (poblados por `estadoDeSalaDB`,
- * `src/db/consultas.ts`, con datos reales de Postgres) TODAVÍA dependen de
- * él en producción. Quitarlo antes de que la T7 rewiree esa página y esa
- * consulta —"`EstadoSala.reuniones` sustituye a `presentaciones` +
- * `minutas`", su propio brief— rompería el build por algo que no es de la
- * T6. Se queda vivo a propósito hasta que la T7 lo jubile.
- *
- * Franco: "el módulo Presentaciones y minutas creo que debe ser uno, así la
- * presentación está asociada a una minuta, es decir a una reunión". Tenía
- * razón — es exactamente la idea que hereda `dominio/reunion.ts`.
- */
-export interface Reunion {
-  /** La sesión. Es la identidad de la reunión. */
-  sesionId?: string
-  fecha: string // ISO
-  titulo: string
-  /** El documento que se presentó, si se armó en la app. */
-  presentacion?: Presentacion
-  /** Lo que se acordó, si ya se levantó. */
-  minuta?: Minuta
-}
-
-/**
- * Las reuniones de una sala, de la más reciente a la más antigua.
- *
- * Una presentación y una minuta de la misma sesión son UNA reunión. Lo que no
- * tiene `sesionId` —los datos que llegaron sin ella— no se puede emparejar con
- * nada, así que va suelto en vez de emparejarse por fecha: coincidir en el día
- * no significa ser la misma reunión, y una sala puede tener dos el mismo día.
- */
-export function reunionesDeSala(
-  presentaciones: Presentacion[],
-  minutas: Minuta[],
-): Reunion[] {
-  const porSesion = new Map<string, Reunion>()
-  const sueltas: Reunion[] = []
-
-  for (const p of presentaciones) {
-    const r: Reunion = { sesionId: p.sesionId, fecha: p.fecha, titulo: p.titulo, presentacion: p }
-    if (p.sesionId) porSesion.set(p.sesionId, r)
-    else sueltas.push(r)
-  }
-
-  for (const m of minutas) {
-    const existente = m.sesionId ? porSesion.get(m.sesionId) : undefined
-    if (existente) {
-      existente.minuta = m
-      continue
-    }
-    const r: Reunion = { sesionId: m.sesionId, fecha: m.fecha, titulo: m.titulo, minuta: m }
-    if (m.sesionId) porSesion.set(m.sesionId, r)
-    else sueltas.push(r)
-  }
-
-  return [...porSesion.values(), ...sueltas].sort((a, b) => b.fecha.localeCompare(a.fecha))
-}
-
-/**
- * Reuniones que se presentaron y siguen sin minuta.
- *
- * Mismo modelo viejo que `Reunion`/`reunionesDeSala`, arriba — sin más
- * llamador que su propio test (`dominio/reuniones.test.ts`) hoy, pero se
- * queda con ellos hasta que la T7 retire el trío entero de una vez.
- */
-export function reunionesSinMinuta(reuniones: Reunion[]): Reunion[] {
-  return reuniones.filter((r) => r.presentacion && !r.minuta)
-}
+// El `Reunion`/`reunionesDeSala` VIEJO (modelo de transición, cosido a mano
+// desde `presentaciones`+`minutas` por `sesionId`) y `reunionesSinMinuta`
+// vivieron aquí hasta la Tarea 7, a propósito: `src/app/cliente/[slug]/page.tsx`
+// y `EstadoSala.presentaciones`/`.minutas` (poblados por `estadoDeSalaDB`,
+// `src/db/consultas.ts`) dependían de ellos en producción, y quitarlos antes
+// de que esta tarea rewireara esa página y esa consulta habría roto el build
+// por algo que no era de la Tarea 6. Su sucesor —`Reunion`/`reunionesDeSala`
+// en `dominio/reunion.ts`, con la reunión como entidad propia (spec §1)— es
+// quien arma `EstadoSala.reuniones` ahora. Franco: "el módulo Presentaciones y
+// minutas creo que debe ser uno, así la presentación está asociada a una
+// minuta, es decir a una reunión" — es exactamente la idea que hereda ese
+// módulo nuevo.
