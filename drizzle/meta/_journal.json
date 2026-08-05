@@ -169,6 +169,13 @@
       "when": 1785951552267,
       "tag": "0023_soft_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785960424710,
+      "tag": "0024_lucky_eternals",
+      "breakpoints": true
     }
   ]
 }

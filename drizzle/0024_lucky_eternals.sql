@@ -1,0 +1,1 @@
+ALTER TABLE "minutas" ALTER COLUMN "sesion_id" DROP NOT NULL;

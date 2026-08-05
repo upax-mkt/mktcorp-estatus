@@ -452,6 +452,23 @@ export async function marcarListo(documentoId: string): Promise<void> {
  * confía en el título por defecto. Aquí el equivalente en tiempo de
  * ejecución es la cadena vacía: si `datos.titulo` llega vacío o solo
  * espacios, se usa `tituloPorDefecto` — igual que el flujo viejo.
+ *
+ * SIN TRANSACCIÓN (anotado en la revisión de la Tarea 5b, `neon-http` no
+ * soporta `SELECT FOR UPDATE` ni transacciones — constraint global de la
+ * ronda): esto es `crearReunion` + `crearDocumento` + `update(documentos)` +
+ * `insert(items)`, cuatro sentencias sueltas. Si algo revienta a la mitad —
+ * la conexión se cae justo después de crear el documento, por ejemplo— la
+ * reunión queda con un documento sin `estructura` ni items, o incluso sin
+ * documento del todo. No es corrupción: `documentoDeReunion` lee una
+ * `estructura` nula como `{ items: [] }` (ver `leerEstructura`) y el
+ * documento se ve simplemente vacío, listo para que alguien vuelva a
+ * `/deck/<id>` y seguir —o, en el caso más raro, para que `crearDocumento`
+ * se llame de nuevo a mano sobre esa reunión—; no deja una fila a medio
+ * escribir ni una referencia rota. El patrón viene íntegro de la vieja
+ * `crearSesionConEstructura` (`sesiones.ts`, ya borrado): esta tarea no lo
+ * introdujo, solo lo hereda. Mismo criterio de "documentar el riesgo, no
+ * ocultarlo" que ya aplica `eliminarDocumentoDeReunion`, más abajo, para su
+ * propia secuencia de dos sentencias.
  */
 export async function crearReunionConDocumento(
   datos: DatosDeReunion & { plantilla?: string },
