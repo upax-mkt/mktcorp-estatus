@@ -1316,6 +1316,73 @@ git add -A && git commit -m "Una reunión puede no ser de ninguna sala: un comit
 
 ---
 
+### Tarea 8c: Terminar de cablear la reunión sin sala
+
+**Files:** `src/app/deck/[id]/minuta/acciones.ts` · `src/db/minutas.ts` ·
+`src/app/api/archivo/[id]/route.ts` · `src/app/deck/[id]/page.tsx` ·
+`src/app/deck/[id]/documento/page.tsx` · `src/app/reunion/[id]/page.tsx`
+
+La Tarea 8b abrió la puerta —`reuniones.sala_slug` admite nulo, la capa de datos
+lo entiende, y `LevantarMinuta` recupera su opción "Ninguna"— pero **paró en el
+límite de sus archivos, que era lo correcto**. La capacidad queda hoy *inerte
+pero segura*: `publicarMinutaAction` sigue rechazando `salaSlug: null` con su
+propio mensaje, así que Franco todavía no puede usarla de punta a punta, y
+tampoco hay riesgo de dato corrupto.
+
+Esta tarea la termina. **Va después de la Tarea 7**, porque cinco de estos seis
+archivos son suyos mientras corre.
+
+- [ ] **Step 1: Los ocho errores de `tsc`**
+
+Medidos el 5-ago con `npx tsc --noEmit`, todos por `salaSlug: string | null`:
+
+```
+api/archivo/[id]/route.ts:27      deck/[id]/documento/page.tsx:46
+deck/[id]/minuta/acciones.ts:179  deck/[id]/page.tsx:377
+reunion/[id]/page.tsx:37 y :50    db/minutas.ts:84 y :88
+```
+
+**No los silencies con `!` ni con un `?? ''`.** Cada uno es una pregunta real:
+*¿qué hace esta pantalla cuando la reunión no es de ninguna sala?* La respuesta
+casi siempre es "usa la identidad de Marketing Corp", que es justo lo que la
+Tarea 8b dejó resuelto en la capa de datos — reúsalo.
+
+Los que comprueban permiso por sala (`puedeVerEstaSala`) son el caso delicado:
+una reunión sin sala **no pertenece a ninguna UDN**, así que no hay clave de sala
+que valga. Debe caer en el permiso general de lectura (`esLector()`), que es
+exactamente lo que hacía el modelo viejo cuando `salaSlug` era nulo — mirar
+`git show d5396be` antes de decidir.
+
+- [ ] **Step 2: `publicarMinutaAction` acepta que no haya sala**
+
+En `src/app/deck/[id]/minuta/acciones.ts`. Hoy rechaza el nulo explícitamente.
+Quitar ese rechazo **con su test**, y comprobar que la minuta se guarda.
+
+- [ ] **Step 3: La política de acuerdos sin sala**
+
+El texto que `LevantarMinuta` enseña al usuario ya promete el comportamiento:
+
+> *"Si la asignas a una sala, su minuta y sus acuerdos quedan ahí; sin sala, la
+> minuta existe igual y sus acuerdos se quedan en el texto."*
+
+O sea: **sin sala no se crean acuerdos como filas** — se quedan escritos dentro
+de la minuta. `src/db/minutas.ts` tiene que respetarlo. Con test.
+
+- [ ] **Step 4: De punta a punta, a mano**
+
+Levantar una minuta con "Ninguna" seleccionada y comprobar leyendo la base que
+la reunión nace con `sala_slug` nulo y su minuta existe. Es lo único que prueba
+que la capacidad dejó de ser inerte.
+
+- [ ] **Step 5: Verde y commit**
+
+```bash
+npx vitest run && npm run lint && npx tsc --noEmit && npm run build
+git add <tus archivos> && git commit -m "La minuta de un comité ya se puede levantar: sin sala, los acuerdos viven en el texto"
+```
+
+---
+
 # FASE B — Reuniones en la sala
 
 Aquí es donde Franco puede por fin cargar su RL de ayer.
