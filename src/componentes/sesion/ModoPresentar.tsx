@@ -404,7 +404,10 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
               </div>
             </header>
             <MinutaCliente
-              de={{ sesionId }}
+              // `sesionId` es el prop propio de ModoPresentar (heredado de
+              // antes de la ronda 10; en runtime siempre fue el id de la
+              // reunión, ids compartidos) — `DeQueReunion` pide `reunionId`.
+              de={{ reunionId: sesionId }}
               transcripcionInicial={transcripcion}
               alPublicar={limpiarTranscripcion}
               personas={personas}

@@ -39,11 +39,11 @@ interface Props {
   de: DeQueReunion
   /**
    * Qué hacer cuando la minuta queda publicada. Por defecto vuelve al
-   * cuestionario de la sesión — lo correcto cuando el flujo se abre desde el
+   * cuestionario de la reunión — lo correcto cuando el flujo se abre desde el
    * preparador. Desde la SALA, en cambio, no hay a dónde volver: se cierra la
    * ventana flotante y la sala se refresca.
    */
-  alPublicar?: (sesionId: string) => void
+  alPublicar?: (reunionId: string) => void
   /**
    * Transcripción ya capturada, si la reunión se grabó desde el modo
    * presentación. Es un valor INICIAL, no controlado: quien lo recibe puede
@@ -186,16 +186,16 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
         .map(({ incluir: _incluir, sugerencia: _sugerencia, claveUi: _claveUi, ...resto }) => resto)
 
       const r = await publicarMinutaAction(de, transcripcion, textoCorreo, confirmados)
-      if (!r.ok || !r.sesionId) {
+      if (!r.ok || !r.reunionId) {
         setError(r.error ?? 'No se pudo publicar la minuta.')
         return
       }
       // El id viene de la respuesta y no de las props: cuando la reunión se
       // describió a mano, hasta este momento no existía.
       if (alPublicar) {
-        alPublicar(r.sesionId)
+        alPublicar(r.reunionId)
       } else {
-        router.push(`/deck/${r.sesionId}`)
+        router.push(`/deck/${r.reunionId}`)
       }
       router.refresh()
     })

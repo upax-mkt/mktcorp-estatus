@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  * `generarMinutaAction`/`publicarMinutaAction` — el agujero crítico que
  * detectó la revisión de la ronda 9: usaban la vieja `esEquipo()` (que nunca
  * miraba `rolApp`), así que un viewer podía generar Y PUBLICAR una minuta de
- * verdad. `publicarMinutaAction` no es de mentira: crea la sesión si hace
+ * verdad. `publicarMinutaAction` no es de mentira: crea la reunión si hace
  * falta y persiste el acta con sus acuerdos confirmados — compromisos reales
  * para gente real en cualquiera de las nueve salas. Ninguna de las dos tenía
  * test hasta ahora.
@@ -12,6 +12,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  * Se prueba solo LA GUARDA (orden: `esEditor()` antes que cualquier
  * escritura) — la lógica de `generarMinuta`/`guardarMinuta` en sí ya tiene
  * su propia cobertura en sus módulos.
+ *
+ * MIGRADO (ronda 10, tarea 5b): mockeaba `@/db/sesiones` (`obtenerSesion`,
+ * `crearSesion`); ahora mockea `@/db/reuniones` (`obtenerReunion`,
+ * `crearReunion`, `marcarDada`) — `publicarMinutaAction` llama a `marcarDada`
+ * tras `crearReunion` en el camino `{ nueva: ... }`, algo que la vieja
+ * `crearSesion({ estado: 'presentada' })` resolvía en una sola llamada (ver
+ * el comentario de cabecera de `acciones.ts` para el porqué completo).
  */
 
 const esEditorMock = vi.fn()
@@ -26,14 +33,16 @@ vi.mock('@/auth/sesion', () => ({
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
-const obtenerSesionMock = vi.fn()
-const crearSesionMock = vi.fn()
-vi.mock('@/db/sesiones', () => ({
-  obtenerSesion: (...args: unknown[]) => obtenerSesionMock(...args),
-  crearSesion: (...args: unknown[]) => crearSesionMock(...args),
+const obtenerReunionMock = vi.fn()
+const crearReunionMock = vi.fn()
+const marcarDadaMock = vi.fn()
+vi.mock('@/db/reuniones', () => ({
+  obtenerReunion: (...args: unknown[]) => obtenerReunionMock(...args),
+  crearReunion: (...args: unknown[]) => crearReunionMock(...args),
+  marcarDada: (...args: unknown[]) => marcarDadaMock(...args),
 }))
 
-// No se ejercita en ninguno de los caminos probados aquí ({sesionId: ...}),
+// No se ejercita en ninguno de los caminos probados aquí ({reunionId: ...}),
 // pero `identidadDeSala` (dentro de acciones.ts) la importa para el camino
 // {nueva: ...} — mismo criterio defensivo que ya usa este repo en otros
 // dobles (ver src/app/acuerdos/acciones.test.ts): sin mock, el import
@@ -64,8 +73,8 @@ vi.mock('@/db/participacion', () => ({
 
 const { generarMinutaAction, publicarMinutaAction } = await import('./acciones')
 
-const SESION_FALSA = {
-  id: 'ses-1',
+const REUNION_FALSA = {
+  id: 'reu-1',
   salaSlug: 'neracode',
   salaNombre: 'NeraCode',
   tipo: 'mensual' as const,
@@ -75,10 +84,11 @@ const SESION_FALSA = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  obtenerSesionMock.mockResolvedValue(SESION_FALSA)
+  obtenerReunionMock.mockResolvedValue(REUNION_FALSA)
   moldeDeMinutaMock.mockResolvedValue(null)
   generarMinutaMock.mockResolvedValue({ textoCorreo: 'Correo generado', acuerdosPropuestos: [] })
   guardarMinutaMock.mockResolvedValue(undefined)
+  marcarDadaMock.mockResolvedValue(undefined)
   sesionActualMock.mockResolvedValue({
     rol: 'equipo',
     sub: 'iris@upax.com.mx',
@@ -91,20 +101,20 @@ describe('generarMinutaAction', () => {
   it('sin permiso de edición: rechaza y no llama al modelo', async () => {
     esEditorMock.mockResolvedValue(false)
 
-    const resultado = await generarMinutaAction({ sesionId: 'ses-1' }, 'transcripción cruda')
+    const resultado = await generarMinutaAction({ reunionId: 'reu-1' }, 'transcripción cruda')
 
     expect(resultado).toEqual({
       ok: false,
       error: 'Esta acción requiere permiso de edición en Marketing Corporativo.',
     })
     expect(generarMinutaMock).not.toHaveBeenCalled()
-    expect(obtenerSesionMock).not.toHaveBeenCalled()
+    expect(obtenerReunionMock).not.toHaveBeenCalled()
   })
 
   it('con editor: genera y devuelve el borrador', async () => {
     esEditorMock.mockResolvedValue(true)
 
-    const resultado = await generarMinutaAction({ sesionId: 'ses-1' }, 'transcripción cruda')
+    const resultado = await generarMinutaAction({ reunionId: 'reu-1' }, 'transcripción cruda')
 
     expect(resultado.ok).toBe(true)
     expect(generarMinutaMock).toHaveBeenCalledTimes(1)
@@ -112,7 +122,7 @@ describe('generarMinutaAction', () => {
 })
 
 describe('publicarMinutaAction', () => {
-  it('sin permiso de edición: rechaza ANTES de crear la sesión o guardar la minuta', async () => {
+  it('sin permiso de edición: rechaza ANTES de crear la reunión o guardar la minuta', async () => {
     esEditorMock.mockResolvedValue(false)
 
     const resultado = await publicarMinutaAction(
@@ -129,14 +139,15 @@ describe('publicarMinutaAction', () => {
     // Lo más importante: NINGUNA escritura ocurrió. Publicar es lo que crea
     // la reunión y los acuerdos confirmados — si esto se llamara igual, el
     // rechazo sería de mentira.
-    expect(crearSesionMock).not.toHaveBeenCalled()
+    expect(crearReunionMock).not.toHaveBeenCalled()
+    expect(marcarDadaMock).not.toHaveBeenCalled()
     expect(guardarMinutaMock).not.toHaveBeenCalled()
     expect(registrarEdicionMock).not.toHaveBeenCalled()
   })
 
-  it('con editor: publica de verdad — crea la sesión, guarda la minuta y registra a quien publicó (ronda 9, tarea 4)', async () => {
+  it('con editor: publica de verdad — crea la reunión, la marca dada, guarda la minuta y registra a quien publicó (ronda 9, tarea 4)', async () => {
     esEditorMock.mockResolvedValue(true)
-    crearSesionMock.mockResolvedValue({ id: 'ses-nueva' })
+    crearReunionMock.mockResolvedValue({ id: 'reu-nueva' })
 
     const resultado = await publicarMinutaAction(
       { nueva: { titulo: 'Reunión de prueba', fecha: '2026-08-01T16:00:00.000Z', salaSlug: 'neracode' } },
@@ -145,14 +156,34 @@ describe('publicarMinutaAction', () => {
       [],
     )
 
-    expect(resultado).toEqual({ ok: true, sesionId: 'ses-nueva' })
-    expect(guardarMinutaMock).toHaveBeenCalledWith('ses-nueva', 'transcripción', 'texto final del correo', [])
-    expect(registrarEdicionMock).toHaveBeenCalledWith('ses-nueva', 'iris@upax.com.mx')
+    expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva' })
+    // Nace agendada y se confirma dada de inmediato — es historia, no
+    // trabajo en curso (ver el comentario de cabecera de acciones.ts).
+    expect(marcarDadaMock).toHaveBeenCalledWith('reu-nueva')
+    expect(guardarMinutaMock).toHaveBeenCalledWith('reu-nueva', 'transcripción', 'texto final del correo', [])
+    expect(registrarEdicionMock).toHaveBeenCalledWith('reu-nueva', 'iris@upax.com.mx')
+  })
+
+  it('sin sala (nueva.salaSlug nulo): rechaza con un mensaje de dominio, no revienta contra la base', async () => {
+    // DatosDeReunion.salaSlug es obligatorio desde la Tarea 4 — una reunión
+    // "sin sala" (un comité, antes soportado) ya no se puede registrar.
+    esEditorMock.mockResolvedValue(true)
+
+    const resultado = await publicarMinutaAction(
+      { nueva: { titulo: 'Comité de dirección', fecha: '2026-08-01T16:00:00.000Z', salaSlug: null } },
+      'transcripción',
+      'texto final del correo',
+      [],
+    )
+
+    expect(resultado.ok).toBe(false)
+    expect(resultado.error).toMatch(/sala/i)
+    expect(crearReunionMock).not.toHaveBeenCalled()
   })
 
   it('sin correo en la sesión (caso raro): publica igual y no registra participación', async () => {
     esEditorMock.mockResolvedValue(true)
-    crearSesionMock.mockResolvedValue({ id: 'ses-nueva' })
+    crearReunionMock.mockResolvedValue({ id: 'reu-nueva' })
     sesionActualMock.mockResolvedValue(null)
 
     const resultado = await publicarMinutaAction(
@@ -162,7 +193,7 @@ describe('publicarMinutaAction', () => {
       [],
     )
 
-    expect(resultado).toEqual({ ok: true, sesionId: 'ses-nueva' })
+    expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva' })
     expect(registrarEdicionMock).not.toHaveBeenCalled()
   })
 })

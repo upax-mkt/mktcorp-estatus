@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import estilos from '../../deck.module.css'
-import { obtenerSesion, marcarPresentada } from '@/db/sesiones'
+import { obtenerReunion, marcarDada } from '@/db/reuniones'
+import { documentoDeReunion } from '@/db/documentos'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
@@ -20,7 +21,7 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 /**
- * La sesión maquetada. Antes eran diapositivas 16:9 apiladas — un PowerPoint
+ * El documento maquetado de una reunión. Antes eran diapositivas 16:9 apiladas — un PowerPoint
  * dibujado con HTML que no se podía navegar, enlazar ni actualizar. Ahora es
  * un documento: se lee con scroll, el índice lleva a cada sección, los
  * acuerdos muestran su estado de hoy, y el botón "Presentar" lo proyecta a
@@ -38,18 +39,19 @@ export default async function PagSesionMaquetada({
   await exigirLectura()
   const { imprimir } = await searchParams
   const { id } = await params
-  const sesion = await obtenerSesion(id)
-  if (!sesion) notFound()
+  const [reunion, documento] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
+  if (!reunion) notFound()
 
-  const tema = temaDeSala(sesion.salaSlug, await cargarTemas())
-  // Una reunión sin sala no tiene acuerdos vivos que mostrar: los acuerdos
-  // cuelgan de una sala, y esta no pertenece a ninguna.
-  const sala = sesion.salaSlug ? await estadoDeSala(sesion.salaSlug) : undefined
+  const tema = temaDeSala(reunion.salaSlug, await cargarTemas())
+  const sala = await estadoDeSala(reunion.salaSlug)
   // Para el selector de responsable si desde aquí se levanta una minuta en
   // modo presentación — directorio() ya aguanta Monday caído.
   const personas = await directorio()
 
-  const secciones: SeccionSesion[] = sesion.items
+  // Sin documento (una reunión registrada solo con minuta, sin pasar por
+  // "preparar") esto queda vacío: la misma rama que ya cubre "todavía no se
+  // ha maquetado" más abajo.
+  const secciones: SeccionSesion[] = (documento?.items ?? [])
     .filter((i) => i.resultado != null)
     .map((i) => ({
       decision: i.resultado!.decision,
@@ -57,20 +59,22 @@ export default async function PagSesionMaquetada({
       motivo: i.resultado!.motivo,
     }))
 
-  // Cierra el ciclo: mientras nadie diga que la sesión se dio, no aparece en
-  // la sala del director ni puede tener minuta. Ver `marcarPresentada`.
+  // Cierra el ciclo: mientras nadie diga que la reunión se dio, no aparece en
+  // la sala del director ni puede tener minuta. Ver `marcarDada`.
   async function marcarPresentadaAction() {
     'use server'
     const quien = await exigirEditor()
-    await marcarPresentada(id)
+    await marcarDada(id)
     // Enganchada al registro de participación (revisión final de la rama,
-    // menores): escribe el estado de la sesión igual que «Maquetar»
+    // menores): escribe el estado de la reunión igual que «Maquetar»
     // (`maquetar()`, src/app/deck/[id]/page.tsx), que sí registra — antes
-    // esta era la única acción que cambiaba `sesion.estado` sin dejar
-    // constancia de quién lo hizo.
+    // esta era la única acción que cambiaba el estado sin dejar constancia
+    // de quién lo hizo.
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}/documento`)
-    if (sesion!.salaSlug) revalidatePath(`/cliente/${sesion!.salaSlug}`)
+    // `!`: notFound() de arriba ya lo garantiza; TS no retiene el
+    // estrechamiento de una const externa dentro de una Server Action anidada.
+    revalidatePath(`/cliente/${reunion!.salaSlug}`)
     revalidatePath('/')
   }
 
@@ -97,7 +101,8 @@ export default async function PagSesionMaquetada({
     }
   }
 
-  const yaSePresento = sesion.estado === 'presentada' || sesion.estado === 'minutada'
+  // Dos valores, no cinco: `EstadoReunion` es 'agendada' | 'dada'.
+  const yaSePresento = reunion.estado === 'dada'
 
   return (
     <div className={estilos.app} data-imprimiendo={imprimir ? 'true' : undefined}>
@@ -106,18 +111,14 @@ export default async function PagSesionMaquetada({
           MISMO render que se proyecta. */}
       {imprimir && <AlImprimir />}
       <header className={estilos.barra}>
-        <Link href={`/deck/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
-        <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
+        <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
+        <div className={estilos.barraTitulo}>{reunion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {secciones.length > 0 &&
             (yaSePresento ? (
-              sesion.salaSlug ? (
-                <Link href={`/cliente/${sesion.salaSlug}`} className={estilos.volver}>
-                  Presentada · ver en la sala →
-                </Link>
-              ) : (
-                <span className={estilos.volver}>Presentada</span>
-              )
+              <Link href={`/cliente/${reunion.salaSlug}`} className={estilos.volver}>
+                Presentada · ver en la sala →
+              </Link>
             ) : (
               <MarcarPresentada marcarAction={marcarPresentadaAction} />
             ))}
@@ -127,8 +128,8 @@ export default async function PagSesionMaquetada({
       {secciones.length === 0 ? (
         <main className={estilos.main}>
           <p className={estilos.panelMaquetarAviso}>
-            Esta sesión todavía no se ha maquetado.{' '}
-            <Link href={`/deck/${sesion.id}`}>Vuelve al cuestionario</Link> y usa el botón «Maquetar».
+            Esta reunión todavía no se ha maquetado.{' '}
+            <Link href={`/deck/${id}`}>Vuelve al cuestionario</Link> y usa el botón «Maquetar».
           </p>
         </main>
       ) : (
@@ -143,12 +144,12 @@ export default async function PagSesionMaquetada({
           tema={tema}
           secciones={secciones}
           acuerdos={sala?.acuerdos ?? []}
-          sesionId={sesion.id}
+          sesionId={id}
           equipo
           personas={personas}
           // Revisión final de la rama, punto 3: `sala` (estadoDeSala, arriba)
           // ya trae el logo real de la fila — sin esto, la portada de una
-          // sesión de una sala nueva pintaba una imagen rota.
+          // reunión de una sala nueva pintaba una imagen rota.
           logoUrl={sala?.logoUrl ?? null}
           registrarPresentacionAction={registrarPresentacionAction}
         />

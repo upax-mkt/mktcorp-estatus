@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { CSSProperties } from 'react'
 import estilos from '../../deck.module.css'
-import { obtenerSesion } from '@/db/sesiones'
+import { obtenerReunion } from '@/db/reuniones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
@@ -23,10 +23,10 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   // post-revisión de la ronda 9) — la comprobación de sesión va primero.
   await exigirLectura()
   const { id } = await params
-  const sesion = await obtenerSesion(id)
-  if (!sesion) notFound()
+  const reunion = await obtenerReunion(id)
+  if (!reunion) notFound()
 
-  const estiloSala = { '--sala': sesion.salaColor } as CSSProperties
+  const estiloSala = { '--sala': reunion.salaColor } as CSSProperties
 
   /**
    * LO QUE DECIDE ES SI LA REUNIÓN YA OCURRIÓ, no si alguien alcanzó a
@@ -43,19 +43,19 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
    * Lo único que sigue sin tener sentido es minutar algo que aún no ha
    * pasado: no hay nada que transcribir.
    */
-  const yaOcurrio = diaCivil(sesion.fecha) <= diaCivil(new Date().toISOString())
+  const yaOcurrio = diaCivil(reunion.fecha) <= diaCivil(new Date().toISOString())
   if (!yaOcurrio) {
     return (
       <div className={estilos.app} style={estiloSala}>
         <header className={estilos.barra}>
-          <Link href={`/deck/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
-          <div className={estilos.barraTitulo}>{sesion.salaNombre} · Minuta</div>
+          <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
+          <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>
         </header>
         <main className={estilos.main}>
           <p className={estilos.panelMaquetarAviso}>
-            Esta reunión está agendada para el {fechaCompleta(sesion.fecha)}. La minuta se levanta
+            Esta reunión está agendada para el {fechaCompleta(reunion.fecha)}. La minuta se levanta
             cuando ya se dio: se pega su transcripción y la IA propone el acta y los acuerdos.{' '}
-            <Link href={`/deck/${sesion.id}`}>Volver al cuestionario</Link>.
+            <Link href={`/deck/${id}`}>Volver al cuestionario</Link>.
           </p>
         </main>
       </div>
@@ -98,8 +98,8 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   return (
     <div className={estilos.app} style={estiloSala}>
       <header className={estilos.barra}>
-        <Link href={`/deck/${sesion.id}`} className={estilos.volver}>← Cuestionario</Link>
-        <div className={estilos.barraTitulo}>{sesion.salaNombre} · Minuta</div>
+        <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
+        <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>
       </header>
 
       <main className={estilos.main}>
@@ -108,7 +108,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
             <h1 className={estilos.titulo}>Minuta</h1>
             <p className={estilos.subtitulo}>
               {minutaGuardada
-                ? 'Esta sesión ya tiene una minuta publicada. Sus acuerdos confirmados ya viven en el espacio del cliente.'
+                ? 'Esta reunión ya tiene una minuta publicada. Sus acuerdos confirmados ya viven en el espacio del cliente.'
                 : 'Pega la transcripción de la reunión y genera el correo con la IA — nada se publica sin revisión.'}
             </p>
           </div>
@@ -122,7 +122,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
           />
         ) : (
           <>
-            <MinutaCliente de={{ sesionId: sesion.id }} personas={personas} />
+            <MinutaCliente de={{ reunionId: id }} personas={personas} />
             <MinutaExternaForm cargarAction={cargarExternaAction} />
           </>
         )}

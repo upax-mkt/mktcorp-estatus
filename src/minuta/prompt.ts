@@ -9,7 +9,15 @@
 
 export interface SesionParaMinuta {
   salaNombre: string
-  tipo: 'semanal' | 'mensual'
+  /**
+   * `TipoReunion` (`@/db/reuniones`) admite `'quincenal'` desde antes de la
+   * ronda 10, tarea 5b (Research Land ya es quincenal) — se ensancha para
+   * poder recibir esas reuniones. Solo se usa como texto de contexto para el
+   * modelo (`construirPromptMinuta`) y para elegir el formato de fecha en
+   * `generar.ts` (`sesion.tipo === 'mensual'` ? mes : día exacto — una
+   * quincenal cae al mismo formato que una semanal, que es lo sensato).
+   */
+  tipo: 'semanal' | 'quincenal' | 'mensual'
   alcance: string
   fecha: string // ISO
 }
