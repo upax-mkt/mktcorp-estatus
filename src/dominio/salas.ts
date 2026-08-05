@@ -41,6 +41,26 @@ export interface Acuerdo {
    * cabecera de `todosLosAcuerdos` en src/db/consultas.ts.
    */
   destacado?: boolean
+  /**
+   * DE QUÉ REUNIÓN NACIÓ (ronda 10, tarea 10; dato en base desde la tarea 3:
+   * `acuerdos.reunion_origen_id`). Es lo que permite agrupar los acuerdos de
+   * la sala por la junta donde se levantaron — ver `AcuerdosDeReunion`
+   * (`src/componentes/reuniones`) y `estadoDeSalaDB` (`src/db/consultas.ts`),
+   * que deriva de aquí el `Reunion.acuerdos` de cada reunión.
+   *
+   * `null` en dos casos, ninguno un error: el acuerdo se levantó a mano fuera
+   * de cualquier reunión, o su reunión se borró después —la clave ajena se
+   * anula, no cascada (ver `src/db/reuniones.ts`), y el compromiso
+   * sobrevive sin dueño. Un acuerdo con `reunionOrigenId` nulo no aparece en
+   * ningún desplegable de reunión; sigue vivo aquí, en la lista de la sala,
+   * que es donde se le da seguimiento.
+   *
+   * Opcional, como `destacado` arriba: solo la capa de DB (`estadoDeSalaDB`)
+   * lo sabe poblar — y así ningún consumidor que arma un `Acuerdo` sin pensar
+   * en su reunión de origen (p. ej. `motor/maquetar.test.ts`, que solo
+   * maqueta pendientes) tiene que inventar un valor que no le importa.
+   */
+  reunionOrigenId?: string | null
 }
 
 export interface EstadoSala {

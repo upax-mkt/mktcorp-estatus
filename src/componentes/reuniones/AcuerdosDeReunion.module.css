@@ -1,0 +1,61 @@
+/*
+ * Hoja PROPIA sobre los tokens compartidos de `sistema.css` (--tinta,
+ * --papel-hundido, --r-3…) — mismo criterio que ReunionesPorConfirmar.module.css:
+ * este desplegable puede colgar de cualquier fila de reunión (la destacada o
+ * una compacta), no solo de una pantalla con sus propios alias.
+ */
+
+.desplegable {
+  border-radius: var(--r-3);
+  background: var(--papel-hundido);
+  padding: 0 0.9rem;
+}
+
+.resumen {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tinta-2);
+  padding: 0.55rem 0;
+  user-select: none;
+}
+.resumen:hover { color: var(--tinta); }
+
+.lista {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.15rem 0 0.7rem;
+  margin: 0;
+  border-top: 1px solid var(--linea);
+  list-style: none;
+}
+
+.fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+.fila + .fila { border-top: 1px solid var(--linea); }
+
+.que {
+  color: var(--tinta);
+  font-weight: 500;
+  flex: 1 1 auto;
+  min-width: 12ch;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--tinta-3);
+  white-space: nowrap;
+}
+
+.punto { color: var(--tinta-4); }
+
+.fechaVencida { color: var(--mal); }

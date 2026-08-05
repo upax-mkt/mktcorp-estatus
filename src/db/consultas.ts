@@ -210,14 +210,69 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     texto: m.textoFinal ?? undefined,
   }))
 
-  const acuerdosParaReuniones: Array<AcuerdoDeReunion & { reunionOrigenId: string }> = acuerdosRows
+  // `salas.activa` puede faltar si la fila aún no existe (dev sin sembrar):
+  // por defecto, activa — mismo criterio que `cadencia: salaRow?.cadencia ??
+  // 'mensual'` más abajo. Se calcula AQUÍ (antes vivía junto a `acuerdos`, más
+  // abajo) porque `acuerdos` la necesita para `estatusEfectivo`, y de
+  // `acuerdos` sale ahora también `acuerdosParaReuniones` — ver su comentario.
+  const activa = salaRow?.activa ?? true
+
+  // TODOS los acuerdos de la sala, con su estatus de HOY y su reunión de
+  // origen (`reunionOrigenId`, tarea 10 — antes se perdía al armar el
+  // dominio: `Acuerdo`, dominio/salas.ts, no lo traía). 'cancelado' no existe
+  // en el tipo EstatusAcuerdo del shell (solo abierto/cumplido/vencido) — un
+  // acuerdo cancelado deja de mostrarse, igual que si nunca hubiera existido
+  // para efectos de la sala.
+  const acuerdos: Acuerdo[] = acuerdosRows
+    .filter((a) => a.estatus !== 'cancelado')
+    .map((a) => ({
+      id: a.id,
+      que: a.que,
+      responsable: a.responsable,
+      squad: a.squad ?? undefined,
+      fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
+      estatus: a.estatus as fallback.EstatusAcuerdo,
+      destacado: a.destacado,
+      reunionOrigenId: a.reunionOrigenId,
+    }))
+    /**
+     * `vencido` se deriva de la fecha, no se lee de la base — ver
+     * `estatusEfectivo`. Sin esto un compromiso de hace dos semanas seguía
+     * contando como abierto.
+     *
+     * `estatusEfectivo` y no `estatusVigente` a secas (tarea 12): con la sala
+     * en pausa el acuerdo se congela tal cual está guardado —no se pregunta
+     * si ya pasó de fecha—, y es la MISMA función la que, en cuanto la sala
+     * se reactiva, vuelve a aplicar `estatusVigente` sobre ese acuerdo sin
+     * que nadie lo tenga que recalcular a mano.
+     */
+    .map((a) => ({ ...a, estatus: fallback.estatusEfectivo(a, activa, isoFecha(ahora)) }))
+
+  /**
+   * LOS ACUERDOS AGRUPADOS POR REUNIÓN (tarea 10): se derivan de `acuerdos`
+   * —el mismo array de arriba, no una segunda lectura de `acuerdosRows`— para
+   * que `Reunion.acuerdos` herede el MISMO estatus de hoy (`estatusEfectivo`)
+   * que ya se calculó ahí, en vez de recalcularlo dos veces o, peor, mostrar
+   * el estatus crudo de la base. Antes de esta tarea era justo eso: una
+   * segunda `.map()` sobre `acuerdosRows` con `a.estatus` sin pasar por
+   * `estatusEfectivo` — un acuerdo vencido desde hace semanas seguía
+   * apareciendo "abierto" en el desplegable de su reunión (`AcuerdosDeReunion`,
+   * src/componentes/reuniones).
+   *
+   * `reunionOrigenId != null` es el filtro real: un acuerdo levantado a mano
+   * (nunca nació en una junta) o cuya reunión se borró (la FK se anula, no
+   * cascada — ver `dominio/reunion.ts`) no cuelga de ninguna reunión y no debe
+   * aparecer en ningún desplegable — sigue vivo en `acuerdos`, arriba, que es
+   * donde se le da seguimiento.
+   */
+  const acuerdosParaReuniones: Array<AcuerdoDeReunion & { reunionOrigenId: string }> = acuerdos
     .filter((a): a is typeof a & { reunionOrigenId: string } => a.reunionOrigenId != null)
     .map((a) => ({
       id: a.id,
       que: a.que,
       responsable: a.responsable,
-      estatus: a.estatus as fallback.EstatusAcuerdo,
-      fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
+      estatus: a.estatus,
+      fechaCompromiso: a.fechaCompromiso,
       reunionOrigenId: a.reunionOrigenId,
     }))
 
@@ -256,37 +311,8 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   const ultima = yaSucedidas[0]
   const proxima = futuras[0]
 
-  // 'cancelado' no existe en el tipo EstatusAcuerdo del shell (solo
-  // abierto/cumplido/vencido) — un acuerdo cancelado deja de mostrarse,
-  // igual que si nunca hubiera existido para efectos de la sala.
-  // `salas.activa` puede faltar si la fila aún no existe (dev sin sembrar):
-  // por defecto, activa — mismo criterio que `cadencia: salaRow?.cadencia ??
-  // 'mensual'` un poco más abajo.
-  const activa = salaRow?.activa ?? true
-
-  const acuerdos: Acuerdo[] = acuerdosRows
-    .filter((a) => a.estatus !== 'cancelado')
-    .map((a) => ({
-      id: a.id,
-      que: a.que,
-      responsable: a.responsable,
-      squad: a.squad ?? undefined,
-      fechaCompromiso: a.fechaCompromiso ? isoFecha(a.fechaCompromiso) : null,
-      estatus: a.estatus as fallback.EstatusAcuerdo,
-      destacado: a.destacado,
-    }))
-    /**
-     * `vencido` se deriva de la fecha, no se lee de la base — ver
-     * `estatusEfectivo`. Sin esto un compromiso de hace dos semanas seguía
-     * contando como abierto.
-     *
-     * `estatusEfectivo` y no `estatusVigente` a secas (tarea 12): con la sala
-     * en pausa el acuerdo se congela tal cual está guardado —no se pregunta
-     * si ya pasó de fecha—, y es la MISMA función la que, en cuanto la sala
-     * se reactiva, vuelve a aplicar `estatusVigente` sobre ese acuerdo sin
-     * que nadie lo tenga que recalcular a mano.
-     */
-    .map((a) => ({ ...a, estatus: fallback.estatusEfectivo(a, activa, isoFecha(ahora)) }))
+  // `activa` y `acuerdos` se calculan arriba, junto a `acuerdosParaReuniones`
+  // (tarea 10) — ver su comentario para el porqué de que vivan ahí y no aquí.
 
   return {
     slug,
