@@ -14,7 +14,7 @@ import { sesionesMinutables, sesionesPorConfirmar, type SesionMinutable, type Se
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { destacarAction } from '@/app/acuerdos/acciones'
-import { listarSesiones, marcarPresentada, marcarNoDada, desmarcarNoDada } from '@/db/sesiones'
+import { listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
 import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
@@ -92,11 +92,11 @@ export default async function Hub() {
    * así que de siete reuniones dadas solo una se marcó. Vive aquí, junto al
    * "por confirmar" que arma más abajo (`sesionesPorConfirmar`).
    *
-   * PUNTO 3: junto al "sí" vive el "no" —la sesión se canceló o se pospuso—,
+   * PUNTO 3: junto al "sí" vive el "no" —la reunión se canceló o se pospuso—,
    * porque las dos son la misma pregunta y las dos tienen que poder
    * responderse (y deshacerse) desde donde se ve la reunión.
    *
-   * Las tres escriben una sesión: exigen editor primero y quedan enganchadas
+   * Las tres escriben una reunión: exigen editor primero y quedan enganchadas
    * a `registrarEdicion` (`src/db/participacion.ts`), que NUNCA propaga un
    * fallo suyo — mismo patrón que `marcarPresentadaAction` en
    * src/app/deck/[id]/documento/page.tsx, de donde sale esta misma acción.
@@ -104,7 +104,7 @@ export default async function Hub() {
   async function marcarPresentadaAction(sesionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await marcarPresentada(sesionId)
+    await marcarDada(sesionId)
     if (quien.sub) await registrarEdicion(sesionId, quien.sub)
     revalidatePath('/')
   }
@@ -129,14 +129,14 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, acuerdos, pulso, sesiones, personas, admin] = await Promise.all([
+  const [salasCrudas, acuerdos, pulso, reuniones, personas, admin] = await Promise.all([
     estadoDeSalas(),
     // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
     // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
     // la MISMA lista, no dos consultas que se puedan desincronizar entre sí.
     todosLosAcuerdos(),
     pulsoDelMes(),
-    listarSesiones(),
+    listarReuniones(),
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
     // MinutaCliente — directorio() ya aguanta Monday caído.
     directorio(),
@@ -150,7 +150,7 @@ export default async function Hub() {
   const salas = ordenarPorProximaReunion(salasCrudas)
   // En pausa, aparte (tarea 12): `ordenarPorProximaReunion` ya las manda al
   // final del mismo orden, pero la tarjeta de una sala congelada no tiene
-  // nada en común con la de una activa —ni próxima sesión, ni vencidos que
+  // nada en común con la de una activa —ni próxima reunión, ni vencidos que
   // contar— así que se separan en su propio bloque en vez de mezclarse en la
   // misma rejilla con media tarjeta vacía.
   const salasActivas = salas.filter((s) => s.activa)
@@ -177,34 +177,48 @@ export default async function Hub() {
     )
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  // TODA reunión cuyo día ya llegó y que no tenga minuta, sea borrador o no.
-  // Antes solo se ofrecían las marcadas como «presentada», y marcar una sesión
-  // como presentada es papeleo: la reunión ocurrió igual. Obligar al papeleo
-  // antes de poder minutar es la forma más segura de que nadie encuentre el
-  // motor de transcripción.
+  // TODA reunión cuyo día ya llegó y que no tenga minuta, sea agendada o
+  // dada. Antes solo se ofrecían las marcadas como «presentada», y marcar
+  // una reunión como presentada es papeleo: la reunión ocurrió igual. Obligar
+  // al papeleo antes de poder minutar es la forma más segura de que nadie
+  // encuentre el motor de transcripción.
+  //
+  // `sesionesMinutables` (dominio/salas.ts, sin tocar) sigue funcionando
+  // igual contra `EstadoReunion` (ronda 10): su exclusión `!== 'borrador' &&
+  // !== 'agendada'` sigue significando "excluye las agendadas" con solo dos
+  // valores posibles.
   const conMinuta = new Set(
     salasCrudas.flatMap((s) => s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x))),
   )
   const hoyCivil = diaCivil(hoy.toISOString())
-  const sinMinuta: SesionMinutable[] = sesionesMinutables(sesiones, conMinuta, hoyCivil)
+  const sinMinuta: SesionMinutable[] = sesionesMinutables(reuniones, conMinuta, hoyCivil)
 
-  // REUNIONES POR CONFIRMAR (punto 2/3): `lista`, con el día civil ya pasado —
-  // el mismo conjunto sobre el que actúa `fueDada` para darlas por ocurridas
-  // sola, sin que nadie marque nada. Aquí se ofrecen las dos respuestas: que
-  // sí se dio (de un clic, hoy enterrado en el editor) o que no (nueva).
-  //
-  // Con el `activa` de CADA sesión (revisión: una sala en pausa no admite
-  // "gestión", y confirmar/negar lo es — mismo criterio que `crearSesion`).
-  // El Home cruza NUEVE salas a la vez, así que hace falta resolverlo por
-  // sesión, no un único `{sala.activa && ...}` como en la vista de sala
-  // (donde todas las sesiones son de la MISMA sala).
+  /**
+   * REUNIONES POR CONFIRMAR (punto 2/3): `lista`, con el día civil ya pasado —
+   * el mismo conjunto sobre el que actúa `fueDada` para darlas por ocurridas
+   * sola, sin que nadie marque nada. Aquí se ofrecen las dos respuestas: que
+   * sí se dio (de un clic, hoy enterrado en el editor) o que no (nueva).
+   *
+   * Con el `activa` de CADA reunión (revisión: una sala en pausa no admite
+   * "gestión", y confirmar/negar lo es — mismo criterio que `crearReunion`).
+   * El Home cruza NUEVE salas a la vez, así que hace falta resolverlo por
+   * reunión, no un único `{sala.activa && ...}` como en la vista de sala
+   * (donde todas las reuniones son de la MISMA sala). Ya no hace falta el
+   * `?:` de antes para `salaSlug` — toda reunión es de una sala desde la
+   * Tarea 4.
+   *
+   * NOTA (ver el reporte de la Tarea 5b): `sesionesPorConfirmar` solo
+   * mantiene algo cuando `estado === 'lista'`, valor que `EstadoReunion` ya
+   * no tiene — con datos de `listarReuniones()` esto da SIEMPRE vacío,
+   * honesto hasta que la Tarea 6 traiga la deducción automática.
+   */
   const activaPorSala = new Map(salasCrudas.map((sl) => [sl.slug, sl.activa] as const))
   const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(
-    sesiones.map((s) => ({ ...s, salaActiva: s.salaSlug ? activaPorSala.get(s.salaSlug) : undefined })),
+    reuniones.map((s) => ({ ...s, salaActiva: activaPorSala.get(s.salaSlug) })),
     hoyCivil,
   )
 
-  const paraCalendario = sesiones.map((s) => ({
+  const paraCalendario = reuniones.map((s) => ({
     id: s.id,
     fecha: s.fecha,
     titulo: s.titulo,
@@ -266,7 +280,7 @@ export default async function Hub() {
         {!hayDB() && (
           <div className={estilos.avisoSinBase} role="alert">
             <strong>Sin base de datos configurada</strong> — falta <code>DATABASE_URL</code> en este
-            entorno. Nada de lo que se ve abajo —salas, acuerdos, sesiones, minutas— es real: es una
+            entorno. Nada de lo que se ve abajo —salas, acuerdos, reuniones, minutas— es real: es una
             pantalla vacía, no un estado de &quot;todo al día&quot;.
           </div>
         )}
@@ -440,7 +454,7 @@ export default async function Hub() {
         {/* EN PAUSA (tarea 12): aparte de "Los clientes", no mezcladas en la
             misma rejilla. Una sala en freeze no se borra —su historia se
             sigue consultando igual, y por eso sigue siendo un link a su
-            sala— pero no tiene próxima sesión que anunciar ni vencidos que
+            sala— pero no tiene próxima reunión que anunciar ni vencidos que
             contar, así que la tarjeta dice otra cosa: desde cuándo está en
             pausa. */}
         {salasPausadas.length > 0 && (
