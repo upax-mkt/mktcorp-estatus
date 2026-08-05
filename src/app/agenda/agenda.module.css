@@ -125,7 +125,7 @@
   color: var(--tx); min-width: 0;
 }
 .marca:hover { background: color-mix(in oklch, var(--sala) 20%, transparent); }
-/* Una sesión que solo está agendada se dibuja en trazo, no en relleno:
+/* Una reunión que solo está agendada se dibuja en trazo, no en relleno:
    todavía no hay nada dentro. */
 .marca[data-estado='agendada'] { background: none; border-left-style: dashed; }
 .marcaHora { font-size: 0.66rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
@@ -148,7 +148,7 @@
 .leyendaItem[data-estado='agendada']::before {
   background: none; border-left-style: dashed;
 }
-.leyendaItem[data-estado='presentada']::before {
+.leyendaItem[data-estado='dada']::before {
   border-left-color: var(--ok); background: color-mix(in oklch, var(--ok) 16%, transparent);
 }
 
@@ -190,8 +190,7 @@
   padding: 0.15rem 0.4rem; border-radius: 0.3rem;
   color: var(--tx-3); background: var(--superficie-2);
 }
-.proximaEstado[data-estado='borrador'] { color: var(--acento); background: color-mix(in oklch, var(--acento) 12%, transparent); }
-.proximaEstado[data-estado='lista'] { color: var(--ok); background: color-mix(in oklch, var(--ok) 14%, transparent); }
+.proximaEstado[data-estado='dada'] { color: var(--ok); background: color-mix(in oklch, var(--ok) 14%, transparent); }
 .proximaTitulo { font-size: 0.95rem; font-weight: 600; margin-top: 0.3rem; }
 .proximaCuando { font-size: 0.8rem; color: var(--tx-2); margin-top: 0.2rem; }
 .proximaGente { font-size: 0.78rem; color: var(--tx-3); margin-top: 0.3rem; }

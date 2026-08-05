@@ -23,10 +23,15 @@ export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video'
 
 export interface ArchivoSala {
   id: string
-  /** Nulo en una imagen de presentación: esa cuelga de la sesión. */
+  /** Nulo en una imagen de presentación: esa cuelga de la reunión. */
   salaSlug: string | null
-  /** La sesión de la que es, si es una imagen incrustada en su documento. */
-  sesionId: string | null
+  /**
+   * La reunión de la que es, si es una imagen o vídeo incrustado en su
+   * documento. Se llamaba `sesionId`; pasa a `reunionId` en la ronda 10,
+   * tarea 5b, cuando `sesiones.ts` desaparece — `esquema.archivos.reunion_id`
+   * ya existía (tarea 3) pero este módulo todavía no lo usaba.
+   */
+  reunionId: string | null
   categoria: CategoriaArchivo
   titulo: string
   /** ISO, o null cuando no tiene fecha propia (habitual en los de interés). */
@@ -46,7 +51,7 @@ function isoFecha(d: Date): string {
 function desdeFila(fila: {
   id: string
   salaSlug: string | null
-  sesionId?: string | null
+  reunionId?: string | null
   categoria: CategoriaArchivo
   titulo: string
   fecha: Date | null
@@ -60,7 +65,7 @@ function desdeFila(fila: {
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
-    sesionId: fila.sesionId ?? null,
+    reunionId: fila.reunionId ?? null,
     categoria: fila.categoria,
     titulo: fila.titulo,
     fecha: fila.fecha ? isoFecha(fila.fecha) : null,
@@ -113,7 +118,11 @@ export async function obtenerArchivo(id: string): Promise<ArchivoSala | null> {
 
 export async function registrarArchivo(datos: {
   salaSlug: string | null
-  sesionId?: string | null
+  /**
+   * De qué reunión es, si es una imagen o vídeo incrustado en su documento.
+   * Se llamaba `sesionId` (ver el comentario de `ArchivoSala.reunionId`).
+   */
+  reunionId?: string | null
   categoria: CategoriaArchivo
   titulo: string
   fecha: Date | null
@@ -126,10 +135,10 @@ export async function registrarArchivo(datos: {
   if (datos.salaSlug && !(await slugsDeSalas()).includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
-  // Un archivo tiene que colgar de algo: de una sala o de una sesión. Sin
+  // Un archivo tiene que colgar de algo: de una sala o de una reunión. Sin
   // ninguno de los dos no habría contra qué comprobar quién puede verlo.
-  if (!datos.salaSlug && !datos.sesionId) {
-    throw new Error('El archivo debe pertenecer a una sala o a una sesión.')
+  if (!datos.salaSlug && !datos.reunionId) {
+    throw new Error('El archivo debe pertenecer a una sala o a una reunión.')
   }
   const titulo = datos.titulo.trim()
   // Sin título la lista sería una columna de nombres de fichero
@@ -144,7 +153,11 @@ export async function registrarArchivo(datos: {
     await db().insert(esquema.archivos).values({
       id,
       salaSlug: datos.salaSlug,
-      sesionId: datos.sesionId ?? null,
+      // `sesionId` queda siempre null en un archivo nuevo (ronda 10, tarea
+      // 5b): la columna sigue viva solo para las imágenes/vídeos que ya
+      // colgaban de una sesión antes de esta tarea.
+      sesionId: null,
+      reunionId: datos.reunionId ?? null,
       categoria: datos.categoria,
       titulo,
       fecha: datos.fecha,
@@ -158,7 +171,7 @@ export async function registrarArchivo(datos: {
     memoria.insertarArchivoMemoria({
       id,
       salaSlug: datos.salaSlug,
-      sesionId: datos.sesionId ?? null,
+      reunionId: datos.reunionId ?? null,
       categoria: datos.categoria,
       titulo,
       fecha: datos.fecha,

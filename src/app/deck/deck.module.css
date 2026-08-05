@@ -143,11 +143,15 @@
   padding: 0.22rem 0.6rem; border-radius: var(--r-lleno);
   background: var(--hundido); color: var(--tx-2); border: none;
 }
-/* Agendada: solo tiene fecha, nadie la ha empezado. Más tenue que borrador. */
+/* Dos ejes independientes (ronda 10, spec §1), compartiendo esta misma hoja:
+   el de la REUNIÓN (app/deck/page.tsx, EstadoReunion: 'agendada' | 'dada') y
+   el del DOCUMENTO (app/deck/[id]/page.tsx, EstadoDocumento: 'borrador' |
+   'listo'). Los cuatro nombres conviven aquí porque ninguna de las dos
+   páginas usa los del otro eje — no hay colisión de valores, solo de hoja. */
 .chip.agendada { background: var(--hundido); color: var(--tx-3); }
+.chip.dada { background: var(--superficie-2); color: var(--tx-2); }
 .chip.borrador { background: var(--acento-suave); color: var(--acento); }
-.chip.lista { background: var(--ok-suave); color: var(--ok); }
-.chip.presentada, .chip.minutada { background: var(--superficie-2); color: var(--tx-2); }
+.chip.listo { background: var(--ok-suave); color: var(--ok); }
 
 /* ---- barra de avance ---- */
 .avance { display: flex; align-items: center; gap: 0.5rem; min-width: 110px; }

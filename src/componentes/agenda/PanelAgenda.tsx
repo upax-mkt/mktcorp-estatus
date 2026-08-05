@@ -19,7 +19,14 @@ import estilos from '@/app/agenda/agenda.module.css'
 
 export interface SesionAgendada extends SesionEnCalendario {
   alcance: string
-  tipo: 'semanal' | 'mensual'
+  /**
+   * `TipoReunion` (`@/db/reuniones`) admite `'quincenal'` desde antes de esta
+   * tarea (Research Land ya es quincenal) — este tipo se ensancha para
+   * poder recibir esas reuniones sin reventar, aunque `FormularioSesion` de
+   * abajo todavía no ofrezca la opción en su formulario ("Quincenal en la
+   * interfaz" es trabajo de otra tarea, fuera de esta migración).
+   */
+  tipo: 'semanal' | 'quincenal' | 'mensual'
   lugar: string | null
   participantes: string[]
   itemsLlenados: number
@@ -34,12 +41,15 @@ interface Props {
   editarAction: (id: string, datos: DatosFormulario) => Promise<{ error?: string }>
 }
 
+/**
+ * Dos valores, no cinco (ronda 10: `EstadoReunion` es `'agendada' | 'dada'`
+ * — la vieja distinción "agendada/preparándose/lista para presentar" era en
+ * realidad del DOCUMENTO, no de la reunión, y esta pantalla solo conoce la
+ * reunión).
+ */
 const ETIQUETA_ESTADO: Record<string, string> = {
   agendada: 'agendada',
-  borrador: 'preparándose',
-  lista: 'lista para presentar',
-  presentada: 'ya se dio',
-  minutada: 'minutada',
+  dada: 'ya se dio',
 }
 
 export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction }: Props) {
@@ -52,10 +62,10 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
   // que es cómo se reinicia estado en React sin un efecto que lo sincronice.
   const [mesFoco, setMesFoco] = useState<string | null>(null)
 
-  // Lo que todavía no ha pasado, lo primero arriba. Una sesión ya presentada
-  // NO es "lo que viene" aunque sea de hoy: su sitio es la sala de su UDN.
+  // Lo que todavía no ha pasado, lo primero arriba. Una reunión ya dada NO es
+  // "lo que viene" aunque sea de hoy: su sitio es la sala de su UDN.
   const proximas = sesiones
-    .filter((s) => s.estado !== 'presentada' && s.estado !== 'minutada')
+    .filter((s) => s.estado !== 'dada')
     .filter((s) => diaCivil(s.fecha) >= diaCivil(hoy))
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
 
@@ -82,7 +92,7 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
         {agendando || editando ? (
           <section className={estilos.tarjetaFormulario}>
             <h2 className={estilos.lateralTitulo}>
-              {editando ? 'Corregir la sesión' : 'Agendar una sesión'}
+              {editando ? 'Corregir la reunión' : 'Agendar una reunión'}
             </h2>
             {editando ? (
               <FormularioSesion
@@ -127,7 +137,7 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
             className={estilos.botonAgendar}
             onClick={() => setAgendando({})}
           >
-            + Agendar una sesión
+            + Agendar una reunión
           </button>
         )}
 
@@ -139,7 +149,7 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
 
           {proximas.length === 0 ? (
             <p className={estilos.vacio}>
-              No hay ninguna sesión agendada. Elige un día en el calendario para poner la primera.
+              No hay ninguna reunión agendada. Elige un día en el calendario para poner la primera.
             </p>
           ) : (
             <ul className={estilos.proximas}>
@@ -163,7 +173,11 @@ export function PanelAgenda({ sesiones, salas, hoy, agendarAction, editarAction 
                   {s.participantes.length > 0 && (
                     <div className={estilos.proximaGente}>{s.participantes.join(' · ')}</div>
                   )}
-                  {s.estado === 'borrador' && s.totalItems > 0 && (
+                  {/* Sin condición de estado: por construcción, todo lo que llega
+                      aquí ya es "no dada" (ver el filtro `proximas` arriba) — no
+                      hace falta distinguir "preparándose" de "agendada" para
+                      decidir si se enseña el avance. */}
+                  {s.totalItems > 0 && (
                     <div className={estilos.proximaAvance}>
                       {s.itemsLlenados} de {s.totalItems} secciones escritas
                     </div>

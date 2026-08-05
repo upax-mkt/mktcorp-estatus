@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import type { CSSProperties } from 'react'
 import estilos from '../deck.module.css'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
-import { crearSesionConEstructura, type TipoSesion } from '@/db/sesiones'
+import { crearReunionConDocumento } from '@/db/documentos'
+import type { TipoReunion } from '@/db/reuniones'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
@@ -11,12 +12,19 @@ import { exigirEditor, exigirLectura } from '@/auth/roles'
 export const dynamic = 'force-dynamic'
 
 /**
- * "Nueva sesión" es otro camino de preparar una sesión para una sala, además
- * del que vive dentro de la propia sala (tarea 12): la escritura ya la
- * rechaza igual —las dos pasan por `crearSesion`, src/db/sesiones.ts, que es
- * donde vive la comprobación que cuenta—, pero sin esto alguien podía elegir
- * una sala en pausa, llenar el formulario entero y enterarse recién al
- * enviarlo. Se marcan aquí para que no llegue a ese punto.
+ * "Nueva reunión" es otro camino de preparar el documento de una sala,
+ * además del que vive dentro de la propia sala (tarea 12): la escritura ya
+ * la rechaza igual —las dos pasan por `crearReunion`, src/db/reuniones.ts,
+ * que es donde vive la comprobación que cuenta—, pero sin esto alguien podía
+ * elegir una sala en pausa, llenar el formulario entero y enterarse recién
+ * al enviarlo. Se marcan aquí para que no llegue a ese punto.
+ *
+ * YA NO HAY OPCIÓN "Ninguna" (ronda 10, tarea 5b): `DatosDeReunion.salaSlug`
+ * es obligatorio desde la Tarea 4 — decisión ya tomada y revisada, "una
+ * reunión sin sala... queda fuera de este modelo por ahora" (comentario de
+ * ese tipo). Antes existía para un comité o un arranque de campaña; hoy esa
+ * necesidad queda sin cubrir por esta pantalla — ver el reporte de esta
+ * tarea.
  */
 export default async function PagNuevaSesion() {
   // Página de equipo que faltaba exigir a nivel de página (corrección
@@ -32,16 +40,13 @@ export default async function PagNuevaSesion() {
     'use server'
     await exigirEditor()
 
-    const salaCruda = String(formData.get('salaSlug') ?? '')
+    const salaSlug = String(formData.get('salaSlug') ?? '')
     const plantilla = String(formData.get('plantilla') ?? PLANTILLA_POR_DEFECTO)
-    const tipo = (String(formData.get('tipo') ?? 'mensual')) as TipoSesion
+    const tipo = (String(formData.get('tipo') ?? 'mensual')) as TipoReunion
     const alcanceModo = String(formData.get('alcanceModo') ?? 'todos')
     const alcanceTema = String(formData.get('alcanceTema') ?? '').trim()
 
-    // "ninguna" es una opción de verdad: un comité o un arranque de campaña no
-    // pertenecen a ninguna de las nueve salas.
-    const salaSlug = salaCruda === 'ninguna' ? null : salaCruda
-    if (salaSlug && !(await slugsDeSalas()).includes(salaSlug)) {
+    if (!salaSlug || !(await slugsDeSalas()).includes(salaSlug)) {
       throw new Error(`Elige una sala válida (recibido: "${salaSlug}")`)
     }
     if (!PLANTILLAS.some((p) => p.id === plantilla)) {
@@ -50,23 +55,29 @@ export default async function PagNuevaSesion() {
 
     const alcance = alcanceModo === 'tema' && alcanceTema.length > 0 ? alcanceTema : 'todos'
 
-    const { id } = await crearSesionConEstructura({ salaSlug, plantilla, tipo, alcance })
-    redirect(`/deck/${id}`)
+    // Sin campo de fecha en este formulario (igual que el flujo viejo): nace
+    // "ahora", mismo default que aplicaba `crearSesionConEstructura` cuando
+    // no se le pasaba `fecha`. Título en blanco: `crearReunionConDocumento`
+    // pone uno legible por defecto.
+    const { reunionId } = await crearReunionConDocumento({
+      salaSlug, plantilla, tipo, alcance, titulo: '', fecha: new Date(),
+    })
+    redirect(`/deck/${reunionId}`)
   }
 
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
         <Link href="/deck" className={estilos.volver}>← Deck Designer</Link>
-        <div className={estilos.barraTitulo}>Nueva sesión</div>
+        <div className={estilos.barraTitulo}>Nueva reunión</div>
       </header>
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>
           <div>
-            <h1 className={estilos.titulo}>Nueva sesión</h1>
+            <h1 className={estilos.titulo}>Nueva reunión</h1>
             {/* Esta línea ha mentido dos veces. Primero describía cuatro
-                secciones que ya no existían; después afirmaba que la sesión
+                secciones que ya no existían; después afirmaba que la reunión
                 arranca con los ocho bloques del estatus, que dejó de ser
                 cierto en cuanto hubo cinco plantillas. Ahora describe la
                 ELECCIÓN, que es lo único que no caduca. */}
@@ -77,7 +88,7 @@ export default async function PagNuevaSesion() {
             <p className={estilos.subtitulo}>
               Si lo que quieres es <strong>apuntar una fecha</strong> sin empezar a redactar,
               agéndala en <Link href="/agenda">la agenda</Link>: aparecerá en el hub como próxima
-              sesión y se podrá llenar después.
+              reunión y se podrá llenar después.
             </p>
           </div>
         </div>
@@ -86,12 +97,6 @@ export default async function PagNuevaSesion() {
           <div className={estilos.campo}>
             <span className={estilos.campoTitulo}>Sala</span>
             <div className={estilos.salasGrid}>
-              {/* Una reunión puede no ser de ninguna sala. */}
-              <label className={estilos.salaOpcion} style={{ '--sala': 'var(--tx-3)' } as CSSProperties}>
-                <input type="radio" name="salaSlug" value="ninguna" required defaultChecked />
-                <span className={estilos.salaOpcionPunto} />
-                <span className={estilos.salaOpcionNombre}>Ninguna</span>
-              </label>
               {salas.map((slug) => {
                 const tema = registro[slug]
                 const enPausa = pausadas.has(slug)
@@ -167,7 +172,7 @@ export default async function PagNuevaSesion() {
 
           <div>
             <button type="submit" className={`${estilos.boton} ${estilos.botonAcento}`}>
-              Crear sesión →
+              Crear reunión →
             </button>
           </div>
         </form>

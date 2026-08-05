@@ -145,7 +145,8 @@ export interface FilaMinutaMemoria {
 export interface FilaArchivoMemoria {
   id: string
   salaSlug: string | null
-  sesionId?: string | null
+  /** De qué reunión es, si es una imagen o vídeo incrustado en su documento. Se llamaba `sesionId`. */
+  reunionId?: string | null
   categoria: 'presentacion' | 'interes' | 'imagen' | 'video'
   titulo: string
   fecha: Date | null

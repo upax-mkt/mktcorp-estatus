@@ -133,8 +133,9 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
 }
 
 function Proximas({ sesiones, hoy }: Props) {
+  // Dos valores, no cinco (ronda 10) — ver el mismo comentario en PanelAgenda.tsx.
   const proximas = sesiones
-    .filter((s) => s.estado !== 'presentada' && s.estado !== 'minutada')
+    .filter((s) => s.estado !== 'dada')
     .filter((s) => diaCivil(s.fecha) >= diaCivil(hoy))
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
     .slice(0, 3)
@@ -143,7 +144,7 @@ function Proximas({ sesiones, hoy }: Props) {
     return (
       <div className={estilos.diaDetalle}>
         <p className={estilos.moduloVacio}>
-          No hay sesiones agendadas. <Link href="/agenda" className={estilos.enlaceSuave}>Agendar la primera →</Link>
+          No hay reuniones agendadas. <Link href="/agenda" className={estilos.enlaceSuave}>Agendar la primera →</Link>
         </p>
       </div>
     )

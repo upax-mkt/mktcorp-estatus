@@ -28,7 +28,16 @@ export interface DatosFormulario {
   dia: string
   /** HH:MM */
   hora: string
-  tipo: 'semanal' | 'mensual'
+  /**
+   * El formulario solo ofrece Mensual/Semanal como radios (abajo): 'quincenal'
+   * ("Quincenal en la interfaz" es trabajo de otra tarea) no se puede ELEGIR
+   * aquí. Se ensancha el tipo para que `inicial.tipo` pueda recibir, sin
+   * reventar, la de una reunión que ya es quincenal (Research Land) al abrir
+   * su formulario de edición — ninguno de los radios la marca por defecto en
+   * ese caso, que es el mismo comportamiento (ningún radio matched) que ya
+   * tenía cualquier otro valor no contemplado.
+   */
+  tipo: 'semanal' | 'quincenal' | 'mensual'
   alcance: string
   lugar: string
   /** Nombres separados por coma, tal como se escriben. */

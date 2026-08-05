@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ItemSesion } from '@/db/sesiones'
+import type { ItemDocumento } from '@/db/documentos'
 import type { BorradorSeccion } from '@/secciones/borrador'
 import type { Tema } from '@/temas/tipos'
 import { tipoDeSeccion } from '@/secciones/catalogo'
@@ -19,14 +19,14 @@ import estilos from '@/app/deck/deck.module.css'
  * garantizar que las dos se separaran en el primer retoque.
  */
 interface Props {
-  item: ItemSesion
+  item: ItemDocumento
   primera: boolean
   ultima: boolean
   subirAction: (formData: FormData) => Promise<void>
   bajarAction: (formData: FormData) => Promise<void>
   guardarSeccionAction: (itemId: string, seccion: BorradorSeccion) => Promise<void>
   proponerAction: (itemId: string, texto: string) => Promise<BorradorSeccion | { error: string }>
-  /** Ausente en las ocho secciones base: la estructura de la reunión no se borra. */
+  /** Ausente en las ocho secciones base: la estructura del documento no se borra. */
   eliminarSeccionAction?: (itemId: string) => Promise<void>
   esSub?: boolean
   /** El tema de la sala, para que la vista previa se pinte con sus colores. */

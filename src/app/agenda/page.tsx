@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import estilos from './agenda.module.css'
-import { crearSesionConEstructura, editarSesion, listarSesiones } from '@/db/sesiones'
+import { editarReunion, listarReuniones } from '@/db/reuniones'
+import { crearReunionConDocumento, documentoDeReunion } from '@/db/documentos'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
@@ -49,8 +50,8 @@ export default async function PagAgenda() {
   await connection()
   const hoy = new Date()
 
-  const [sesiones, slugsReales, registro] = await Promise.all([
-    listarSesiones(),
+  const [reuniones, slugsReales, registro] = await Promise.all([
+    listarReuniones(),
     slugsDeSalas(),
     cargarTemas(),
   ])
@@ -60,40 +61,50 @@ export default async function PagAgenda() {
     return { slug, nombre: tema.nombre, color: tema.primario }
   })
 
-  const paraElPanel: SesionAgendada[] = sesiones.map((s) => ({
-    id: s.id,
-    fecha: s.fecha,
-    titulo: s.titulo,
-    salaSlug: s.salaSlug,
-    salaNombre: s.salaNombre,
-    salaColor: s.salaColor,
-    estado: s.estado,
-    alcance: s.alcance,
-    tipo: s.tipo,
-    lugar: s.lugar,
-    participantes: s.participantes,
-    itemsLlenados: s.itemsLlenados,
-    totalItems: s.totalItems,
-  }))
+  /**
+   * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
+   * documento, no de la reunión — spec §1): se resuelven aquí, una consulta
+   * por reunión en paralelo. La lista de la agenda es de decenas de
+   * reuniones, no miles, así que esto no es el problema de N+1 que sería en
+   * una lista sin cota.
+   */
+  const documentos = await Promise.all(reuniones.map((r) => documentoDeReunion(r.id)))
+  const paraElPanel: SesionAgendada[] = reuniones.map((r, i) => {
+    const doc = documentos[i]
+    return {
+      id: r.id,
+      fecha: r.fecha,
+      titulo: r.titulo,
+      salaSlug: r.salaSlug,
+      salaNombre: r.salaNombre,
+      salaColor: r.salaColor,
+      estado: r.estado,
+      alcance: r.alcance,
+      tipo: r.tipo,
+      lugar: r.lugar,
+      participantes: r.participantes,
+      itemsLlenados: doc?.items.filter((it) => it.llenado).length ?? 0,
+      totalItems: doc?.items.length ?? 0,
+    }
+  })
 
   async function agendarAction(datos: DatosFormulario): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
     try {
-      await crearSesionConEstructura({
+      await crearReunionConDocumento({
         salaSlug: datos.salaSlug,
         tipo: datos.tipo,
         alcance: datos.alcance.trim() || 'todos',
         fecha: instanteDe(datos.dia, datos.hora),
-        titulo: datos.titulo.trim() || undefined,
+        titulo: datos.titulo.trim(),
         participantes: datos.participantes.split(',').map((p) => p.trim()).filter(Boolean),
         lugar: datos.lugar.trim() || null,
-        // Nace como fecha en el calendario, no como trabajo en curso: pasa
-        // sola a 'borrador' en cuanto alguien escribe algo dentro.
-        estado: 'agendada',
+        // Nace agendada — toda reunión nace así (`DatosDeReunion` no tiene
+        // parámetro de estado, a diferencia de la vieja `DatosDeSesion`).
       })
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo agendar la sesión.' }
+      return { error: error instanceof Error ? error.message : 'No se pudo agendar la reunión.' }
     }
     revalidatePath('/agenda')
     revalidatePath('/')
@@ -104,16 +115,16 @@ export default async function PagAgenda() {
     'use server'
     await exigirEditor()
     try {
-      await editarSesion(id, {
+      await editarReunion(id, {
         fecha: instanteDe(datos.dia, datos.hora),
-        titulo: datos.titulo.trim() || undefined,
+        titulo: datos.titulo.trim(),
         tipo: datos.tipo,
         alcance: datos.alcance.trim() || 'todos',
         participantes: datos.participantes.split(',').map((p) => p.trim()).filter(Boolean),
         lugar: datos.lugar.trim() || null,
       })
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo guardar la sesión.' }
+      return { error: error instanceof Error ? error.message : 'No se pudo guardar la reunión.' }
     }
     revalidatePath('/agenda')
     revalidatePath('/')
@@ -135,8 +146,8 @@ export default async function PagAgenda() {
         <div className={estilos.encabezado}>
           <h1 className={estilos.titulo}>Agenda</h1>
           <p className={estilos.subtitulo}>
-            Las sesiones de todos los clientes. Lo que se agenda aquí es lo que el hub anuncia como
-            próxima sesión.
+            Las reuniones de todos los clientes. Lo que se agenda aquí es lo que el hub anuncia como
+            próxima reunión.
           </p>
         </div>
 

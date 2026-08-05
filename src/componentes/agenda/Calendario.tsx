@@ -120,8 +120,7 @@ export function Calendario({ sesiones, hoy, mesInicial, alElegirDia }: Props) {
 
       <p className={estilos.leyendaCalendario}>
         <span className={estilos.leyendaItem} data-estado="agendada">agendada</span>
-        <span className={estilos.leyendaItem} data-estado="borrador">preparándose</span>
-        <span className={estilos.leyendaItem} data-estado="presentada">ya se dio</span>
+        <span className={estilos.leyendaItem} data-estado="dada">ya se dio</span>
       </p>
     </div>
   )

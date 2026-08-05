@@ -1,6 +1,6 @@
 import { semanasDelMes, agruparPorDia, mesVecino, NOMBRES_DE_DIA } from '@/dominio/calendario'
 import { mesLargo, fechaCompleta } from '@/lib/fecha'
-import type { ReunionPublica } from '@/db/sesiones'
+import type { ReunionPublica } from '@/db/reuniones'
 import estilos from './calendario-publico.module.css'
 
 interface Props {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { tokenValido } from '@/db/enlace-agenda'
-import { sesionesPublicasDelMes } from '@/db/sesiones'
+import { reunionesPublicasDelMes } from '@/db/reuniones'
 import { diaCivil } from '@/lib/fecha'
 import { CalendarioPublico } from '@/componentes/agenda/CalendarioPublico'
 import estilos from '@/componentes/agenda/calendario-publico.module.css'
@@ -73,9 +73,10 @@ export default async function PagAgendaPublica({
   const { anio, mes } = resolverMes(mesParam, hoy)
 
   // La consulta trae solo los cinco campos que esta pantalla pinta (ver
-  // sesionesPublicasDelMes, src/db/sesiones.ts) — nunca la sesión entera para
-  // filtrar aquí: lo que no viaja al navegador no se puede filtrar por error.
-  const reuniones = await sesionesPublicasDelMes(anio, mes)
+  // reunionesPublicasDelMes, src/db/reuniones.ts) — nunca la reunión entera
+  // para filtrar aquí: lo que no viaja al navegador no se puede filtrar por
+  // error.
+  const reuniones = await reunionesPublicasDelMes(anio, mes)
 
   return (
     <div className={estilos.pagina}>

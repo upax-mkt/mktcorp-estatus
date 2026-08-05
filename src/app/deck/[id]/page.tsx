@@ -3,11 +3,12 @@ import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import type { CSSProperties } from 'react'
 import estilos from '../deck.module.css'
+import { obtenerReunion } from '@/db/reuniones'
 import {
-  obtenerSesion,
+  documentoDeReunion,
   moverItem,
   reordenarItems,
-  entradasCrudasDeSesion,
+  entradasCrudasDeDocumento,
   guardarDecisiones,
   guardarSeccion,
   anadirSeccion,
@@ -15,8 +16,9 @@ import {
   guardarItemContenido,
   anadirAcuerdoRetomado,
   itemDeAcuerdosPendientes,
-} from '@/db/sesiones'
-import { eliminarSesion } from '@/db/sesiones'
+  eliminarDocumentoDeReunion,
+} from '@/db/documentos'
+import { eliminarReunion } from '@/db/reuniones'
 import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
@@ -41,16 +43,15 @@ import { acuerdosArrastrablesDe } from '@/db/consultas'
 import { retomarAcuerdo } from '@/db/acuerdos'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 
-// Maquetar una sesión armada a mano es instantáneo. El margen de 60 s es para
-// el asistente de IA, que sí llama al modelo.
+// Maquetar un documento armado a mano es instantáneo. El margen de 60 s es
+// para el asistente de IA, que sí llama al modelo.
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
+/** Dos estados, no cinco (ronda 10): `EstadoDocumento` es `'borrador' | 'listo'`. */
 const ETIQUETA_ESTADO: Record<string, string> = {
   borrador: 'borrador',
-  lista: 'lista para presentar',
-  presentada: 'presentada',
-  minutada: 'minutada',
+  listo: 'lista para presentar',
 }
 
 function etiquetaAlcance(alcance: string): string {
@@ -63,8 +64,20 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // antes incluso de mirar si el id existe.
   await exigirLectura()
   const { id } = await params
-  const sesion = await obtenerSesion(id)
-  if (!sesion) notFound()
+  // El id de la URL es el de la REUNIÓN (heredado de la vieja sesión: las
+  // dos comparten id). El documento es una fila aparte, ligada 1:1 — puede
+  // no existir todavía (una reunión registrada solo con minuta, sin pasar
+  // por "preparar", ver publicarMinutaAction). Sin documento, esta página
+  // se ve como una reunión recién creada sin ninguna sección: mismo caso
+  // que ya toleraba `crearSesion` sin plantilla. Crear el documento a
+  // demanda si no existe es trabajo de la Tarea 7 (ver su brief, "abre el
+  // documento de esa reunión, y lo crea si aún no tiene") — aquí solo se
+  // evita que la página reviente.
+  const [reunion, documento] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
+  if (!reunion) notFound()
+  const documentoId = documento?.id ?? ''
+  const items = documento?.items ?? []
+  const documentoEstado = documento?.estado ?? 'borrador'
 
   // ---- Server actions ----
   // Cada una exige editor por su cuenta (`exigirEditor()`: admin o editor,
@@ -74,7 +87,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
     const quien = await exigirEditor()
-    await guardarSeccion(id, itemId, seccion)
+    await guardarSeccion(documentoId, itemId, seccion)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
@@ -82,7 +95,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
     'use server'
     const quien = await exigirEditor()
-    await anadirSeccion(id, layout, nombre)
+    await anadirSeccion(documentoId, layout, nombre)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
@@ -90,7 +103,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
     'use server'
     const quien = await exigirEditor()
-    await anadirSeccion(id, layout, nombre, padre)
+    await anadirSeccion(documentoId, layout, nombre, padre)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
@@ -98,7 +111,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function eliminarSeccionAction(itemId: string) {
     'use server'
     const quien = await exigirEditor()
-    await eliminarSeccion(id, itemId)
+    await eliminarSeccion(documentoId, itemId)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
@@ -110,30 +123,36 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
    * ahí se corrige; nadie presenta algo que no revisó. Guarda el texto crudo
    * para que reabrir el asistente no obligue a volver a pegarlo.
    *
-   * `guardarItemContenido`, más abajo, SÍ escribe la sesión ya —el texto
-   * crudo, y de paso saca a la sesión de "agendada" (ver
-   * `empezarAPrepararse`, src/db/sesiones.ts)— aunque la propuesta que arma
-   * el modelo nunca llegue a guardarse como sección. Si alguien pega un
-   * texto, ve la propuesta y se va sin confirmar, la sesión queda con
-   * contenido y estado cambiados y nadie registrado: por eso se registra
-   * aquí también (revisión de la ronda 9, tarea 4), no solo en
+   * `guardarItemContenido`, más abajo, escribe el documento ya —el texto
+   * crudo— aunque la propuesta que arma el modelo nunca llegue a guardarse
+   * como sección. A diferencia de la vieja `sesiones.ts`, esto ya NO dispara
+   * ninguna transición de estado (`empezarAPrepararse` no tiene equivalente:
+   * `EstadoDocumento` nace directamente en `'borrador'`, ver el comentario de
+   * sección en documentos.ts) — pero SÍ se sigue registrando la edición
+   * (revisión de la ronda 9, tarea 4): si alguien pega un texto, ve la
+   * propuesta y se va sin confirmar, el documento queda con contenido nuevo y
+   * nadie registrado si esto no lo hiciera aquí también, no solo en
    * `guardarSeccionAction` cuando se confirma.
    */
   async function proponerAction(itemId: string, texto: string): Promise<BorradorSeccion | { error: string }> {
     'use server'
     const quien = await exigirEditor()
-    const sesionActual = await obtenerSesion(id)
-    const item = sesionActual?.items.find((i) => i.id === itemId)
+    const documentoActual = await documentoDeReunion(id)
+    const item = documentoActual?.items.find((i) => i.id === itemId)
     if (!item) return { error: 'Esta sección ya no existe.' }
 
-    await guardarItemContenido(id, itemId, { ...item.contenido, texto })
+    await guardarItemContenido(documentoId, itemId, { ...item.contenido, texto })
     if (quien.sub) await registrarEdicion(id, quien.sub)
 
     try {
       const { crearClientePorDefecto } = await import('@/motor/decidir')
       const resultado = await maquetarItem(
         { titulo: item.titulo, texto },
-        temaDeSala(sesionActual!.salaSlug, await cargarTemas()),
+        // `!`: mismo motivo que `sesionActual!` en el original — el
+        // `notFound()` de arriba ya lo garantiza en runtime, pero TS no
+        // retiene el estrechamiento de una `const` externa dentro de una
+        // Server Action anidada.
+        temaDeSala(reunion!.salaSlug, await cargarTemas()),
         crearClientePorDefecto(),
       )
       // `razon` es la explicación que da el modelo de su decisión. En cuanto
@@ -148,8 +167,10 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   /**
    * Registra una imagen ya subida a Blob y devuelve la URL con la que se
-   * sirve. Cuelga de LA SESIÓN, no de una sala: quien puede ver el documento
-   * puede ver su imagen, y hay reuniones que no son de ninguna sala.
+   * sirve. Cuelga de LA REUNIÓN, no de una sala: quien puede ver el documento
+   * puede ver su imagen — toda reunión es de una sala desde la Tarea 4, pero
+   * la comprobación real de permiso (`puedeVerlo`, src/app/api/archivo/[id]/route.ts)
+   * sigue siendo por reunión, no por sala directamente.
    */
   async function subirImagenAction(datos: {
     ruta: string
@@ -162,7 +183,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     try {
       const { id: archivoId } = await registrarArchivo({
         salaSlug: null,
-        sesionId: id,
+        reunionId: id,
         categoria: 'imagen',
         titulo: datos.nombreOriginal,
         fecha: null,
@@ -183,7 +204,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   /**
    * Lo mismo que `subirImagenAction`, para el vídeo de una sección (ronda 9,
    * tarea 7): registra el binario ya subido a Blob —categoría `video`— y
-   * devuelve la URL con la que se sirve. También cuelga de LA SESIÓN: el
+   * devuelve la URL con la que se sirve. También cuelga de LA REUNIÓN: el
    * tope real de tamaño y de formato ya se comprobó en `/api/archivos/subir`,
    * la ruta que autoriza la subida; esto solo dobla el binario en una fila.
    */
@@ -198,7 +219,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     try {
       const { id: archivoId } = await registrarArchivo({
         salaSlug: null,
-        sesionId: id,
+        reunionId: id,
         categoria: 'video',
         titulo: datos.nombreOriginal,
         fecha: null,
@@ -217,7 +238,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function subirItem(formData: FormData) {
     'use server'
     const quien = await exigirEditor()
-    await moverItem(id, String(formData.get('itemId') ?? ''), 'arriba')
+    await moverItem(documentoId, String(formData.get('itemId') ?? ''), 'arriba')
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
@@ -225,7 +246,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function bajarItem(formData: FormData) {
     'use server'
     const quien = await exigirEditor()
-    await moverItem(id, String(formData.get('itemId') ?? ''), 'abajo')
+    await moverItem(documentoId, String(formData.get('itemId') ?? ''), 'abajo')
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
@@ -234,25 +255,25 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function reordenar(idsEnOrden: string[]) {
     'use server'
     const quien = await exigirEditor()
-    await reordenarItems(id, idsEnOrden)
+    await reordenarItems(documentoId, idsEnOrden)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
   }
 
   /**
-   * Retoma un acuerdo abierto de la sala en esta sesión — por arrastre
+   * Retoma un acuerdo abierto de la sala en este documento — por arrastre
    * (ZonaSoltarAcuerdo) o por el botón «Añadir» (AcuerdosArrastrables): las
    * dos vías llegan aquí igual.
    *
    * NO crea un acuerdo nuevo. Dos escrituras, ninguna copia su contenido:
    *
-   * 1. `anadirAcuerdoRetomado` (src/db/sesiones.ts) lo REFERENCIA en la
-   *    sección de Acuerdos y Pendientes de esta sesión — solo el id. Es lo
+   * 1. `anadirAcuerdoRetomado` (src/db/documentos.ts) lo REFERENCIA en la
+   *    sección de Acuerdos y Pendientes de este documento — solo el id. Es lo
    *    que hace que se VEA: el editor y "Maquetar" resuelven esa referencia
    *    contra la tabla `acuerdos` en cada lectura, así que si alguien lo
    *    cierra desde la sala, se cierra el mismo — no queda un gemelo vivo.
    * 2. `retomarAcuerdo` (src/db/acuerdos.ts) deja constancia en la HISTORIA
-   *    del propio acuerdo de que esta sesión lo retomó — auditoría, no lo
+   *    del propio acuerdo de que esta reunión lo retomó — auditoría, no lo
    *    que decide si se ofrece o se ve (eso ya lo hizo el punto 1).
    *
    * `revalidatePath` es lo que lo saca de la columna de arrastrables en el
@@ -262,7 +283,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function retomarAcuerdoAction(acuerdoId: string) {
     'use server'
     const quien = await exigirEditor()
-    await anadirAcuerdoRetomado(id, acuerdoId)
+    await anadirAcuerdoRetomado(documentoId, acuerdoId)
     await retomarAcuerdo(acuerdoId, id)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidatePath(`/deck/${id}`)
@@ -271,14 +292,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function maquetar() {
     'use server'
     const quien = await exigirEditor()
-    const sesionActual = await obtenerSesion(id)
-    if (!sesionActual) throw new Error('Sesión no encontrada')
+    const documentoActual = await documentoDeReunion(id)
+    if (!documentoActual) throw new Error('Documento no encontrado')
 
-    const entradas = entradasCrudasDeSesion(sesionActual)
+    const entradas = entradasCrudasDeDocumento(documentoActual)
     if (entradas.length === 0) throw new Error('No hay secciones llenadas que presentar')
 
-    const resultados = await maquetarSesion(entradas, sesionActual.salaSlug)
-    await guardarDecisiones(id, resultados)
+    const resultados = await maquetarSesion(entradas, reunion!.salaSlug)
+    await guardarDecisiones(documentoActual.id, resultados)
     // Antes del redirect: `redirect()` de Next corta la función lanzando, así
     // que nada después de esta línea se ejecutaría.
     if (quien.sub) await registrarEdicion(id, quien.sub)
@@ -288,7 +309,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   async function borrarSesionAction() {
     'use server'
     await exigirEditor()
-    await eliminarSesion(id)
+    await eliminarReunion(id, eliminarDocumentoDeReunion)
     revalidatePath('/deck')
     revalidatePath('/')
     redirect('/deck')
@@ -296,23 +317,25 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   // ---- Vista ----
 
-  const total = sesion.items.length
+  const total = items.length
+  const itemsLlenados = items.filter((i) => i.llenado).length
   // Las secciones base son los bloques de la reunión; el resto cuelga de una.
-  const bases = sesion.items.filter((i) => !i.padre)
+  const bases = items.filter((i) => !i.padre)
   // El tema de la sala baja hasta cada editor: la vista previa tiene que
   // pintarse con los colores con los que se va a presentar, no con los del
   // cascarón de preparación.
-  const tema = temaDeSala(sesion.salaSlug, await cargarTemas())
+  const tema = temaDeSala(reunion.salaSlug, await cargarTemas())
   // Si alguna sección se va a resolver con el asistente. Solo entonces
-  // maquetar tarda de verdad: una sesión armada a mano no llama a ningún
+  // maquetar tarda de verdad: un documento armado a mano no llama a ningún
   // modelo, y anunciar "~25 s" para algo instantáneo enseña a desconfiar del
   // resto de los avisos.
-  const usaIA = sesion.items.some((i) => !borradorTieneContenido(i.contenido.seccion) && Boolean(i.contenido.texto?.trim()))
+  const usaIA = items.some((i) => !borradorTieneContenido(i.contenido.seccion) && Boolean(i.contenido.texto?.trim()))
 
-  // Qué le falta a la sesión para poder generarse entera, con el MISMO criterio
-  // con el que se va a maquetar. Se calcula en el servidor y se enseña junto al
-  // botón: quien lo pulsa no sabe si los demás terminaron sus secciones.
-  const estados = sesion.items.map((i) => ({
+  // Qué le falta al documento para poder generarse entero, con el MISMO
+  // criterio con el que se va a maquetar. Se calcula en el servidor y se
+  // enseña junto al botón: quien lo pulsa no sabe si los demás terminaron
+  // sus secciones.
+  const estados = items.map((i) => ({
     titulo: i.contenido.seccion?.titulo || i.titulo,
     estado: estadoDeSeccion(i.contenido.seccion ?? { layout: 'portada' }, i.titulo),
   }))
@@ -322,44 +345,44 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     .map((e) => e.titulo)
 
   // El índice, en el orden REAL en que se leen: cada bloque seguido de sus
-  // subsecciones. `sesion.items` viene ordenado por posición, no por árbol.
+  // subsecciones. `items` viene ordenado por posición, no por árbol.
   const entradasIndice: EntradaIndice[] = bases.flatMap((base) => [
     { id: base.id, titulo: base.titulo, llenado: base.llenado, esSub: false },
-    ...sesion.items
+    ...items
       .filter((h) => h.padre === base.tipo)
       .map((h) => ({ id: h.id, titulo: h.titulo, llenado: h.llenado, esSub: true })),
   ])
 
-  // Quién preparó esta sesión y quién la presentó (ronda 9, tarea 4). Esta
+  // Quién preparó esta reunión y quién la presentó (ronda 9, tarea 4). Esta
   // página es de equipo (`exigirLectura()`, arriba) — nunca la ve un director
   // de sala, así que enseñar correos y nombres de Mkt Corp aquí no repite la
   // fuga de datos que ya se corrigió en /reunion/[id].
   const participantes = await participantesDe(id)
 
-  // Los acuerdos abiertos de la sala que se pueden arrastrar a esta sesión
-  // (ronda 9, tarea 6). Los acuerdos cuelgan de la SALA, no de la sesión: una
-  // reunión sin sala (comité, arranque de campaña) no tiene de dónde
-  // sugerirlos.
-  const acuerdosArrastrables = sesion.salaSlug ? await acuerdosArrastrablesDe(sesion.salaSlug, id) : []
+  // Los acuerdos abiertos de la sala que se pueden arrastrar a este
+  // documento (ronda 9, tarea 6). Toda reunión es de una sala desde la
+  // Tarea 4 — a diferencia de la vieja rama "sin sala", ya no hace falta
+  // condicionar esta consulta.
+  const acuerdosArrastrables = await acuerdosArrastrablesDe(reunion.salaSlug, id)
   // En qué sección "aterriza" un acuerdo retomado: la de Acuerdos y
-  // Pendientes, si esta sesión tiene una (ver `itemDeAcuerdosPendientes`).
+  // Pendientes, si este documento tiene una (ver `itemDeAcuerdosPendientes`).
   // Es la ÚNICA tarjeta que recibe la zona de destino del arrastre.
-  const itemAcuerdos = itemDeAcuerdosPendientes(sesion)
+  const itemAcuerdos = documento ? itemDeAcuerdosPendientes(documento) : undefined
 
   return (
-    <div className={estilos.app} style={{ '--sala': sesion.salaColor } as CSSProperties}>
+    <div className={estilos.app} style={{ '--sala': reunion.salaColor } as CSSProperties}>
       <header className={estilos.barra}>
         <Link href="/deck" className={estilos.volver}>← Deck Designer</Link>
-        <div className={estilos.barraTitulo}>{sesion.salaNombre}</div>
+        <div className={estilos.barraTitulo}>{reunion.salaNombre}</div>
         <div className={estilos.barraDcha}>
-          {sesion.estado !== 'borrador' && (
-            <Link href={`/deck/${sesion.id}/documento`} className={estilos.volver}>Ver documento →</Link>
+          {documentoEstado === 'listo' && (
+            <Link href={`/deck/${id}/documento`} className={estilos.volver}>Ver documento →</Link>
           )}
           {/* LA MINUTA NO ESPERA A QUE SE MAQUETE. Estaba escondida detrás de
               «no es borrador», y una reunión puede darse sin que a nadie le dé
               tiempo de maquetar: la transcripción existe igual y el acta hace
               falta igual. Es aquí donde uno está cuando sale de la reunión. */}
-          <Link href={`/deck/${sesion.id}/minuta`} className={estilos.volver}>
+          <Link href={`/deck/${id}/minuta`} className={estilos.volver}>
             Minuta con IA →
           </Link>
         </div>
@@ -371,26 +394,26 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
             <div>
               <div className={estilos.heroSala}>
                 <span className={estilos.heroPunto} />
-                {sesion.salaNombre}
+                {reunion.salaNombre}
               </div>
               <div className={estilos.heroMeta}>
-                <span>{sesion.tipo}</span>
+                <span>{reunion.tipo}</span>
                 <span className={estilos.sep}>·</span>
-                <span>{etiquetaAlcance(sesion.alcance)}</span>
+                <span>{etiquetaAlcance(reunion.alcance)}</span>
                 <span className={estilos.sep}>·</span>
-                <span>{fechaCompleta(sesion.fecha)}</span>
+                <span>{fechaCompleta(reunion.fecha)}</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span className={`${estilos.chip} ${estilos[sesion.estado]}`}>{ETIQUETA_ESTADO[sesion.estado]}</span>
+              <span className={`${estilos.chip} ${estilos[documentoEstado]}`}>{ETIQUETA_ESTADO[documentoEstado]}</span>
               <div className={estilos.avance} style={{ marginTop: '0.6rem', minWidth: 160 }}>
                 <div className={estilos.avanceBarra}>
                   <div
                     className={estilos.avanceRelleno}
-                    style={{ width: `${total > 0 ? Math.round((sesion.itemsLlenados / total) * 100) : 0}%` }}
+                    style={{ width: `${total > 0 ? Math.round((itemsLlenados / total) * 100) : 0}%` }}
                   />
                 </div>
-                <span className={estilos.avanceTexto}>{sesion.itemsLlenados}/{total} listas</span>
+                <span className={estilos.avanceTexto}>{itemsLlenados}/{total} listas</span>
               </div>
             </div>
           </div>
@@ -398,24 +421,22 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
           <ParticipantesSesion participantes={participantes} />
         </div>
 
-        {/* Los acuerdos abiertos de la sala, listos para retomarse en esta
-            sesión (ronda 9, tarea 6). Antes de la lista de secciones: es lo
-            primero que hay que revisar al abrir una sesión nueva de la sala,
-            igual que Franco lo pidió — "si quiero agregar Acuerdos y
-            Pendientes me debería sugerir...". Solo si la sesión es de una
-            sala: una reunión sin sala no tiene de dónde sugerirlos. */}
-        {sesion.salaSlug && (
-          <AcuerdosArrastrables
-            acuerdos={acuerdosArrastrables}
-            alArrastrar={retomarAcuerdoAction}
-            // Revisión final de la rama, punto 5: `itemAcuerdos` (arriba) es
-            // `undefined` en las plantillas sin sección de Acuerdos y
-            // Pendientes («en blanco», «comité») — sin este dato, el panel
-            // ofrecía arrastre y el botón «Añadir» aunque la acción SIEMPRE
-            // fuera a lanzar (`anadirAcuerdoRetomado` exige esa sección).
-            hayDestino={itemAcuerdos !== undefined}
-          />
-        )}
+        {/* Los acuerdos abiertos de la sala, listos para retomarse en este
+            documento (ronda 9, tarea 6). Antes de la lista de secciones: es
+            lo primero que hay que revisar al abrir una reunión nueva de la
+            sala, igual que Franco lo pidió — "si quiero agregar Acuerdos y
+            Pendientes me debería sugerir...". Toda reunión es de una sala
+            desde la Tarea 4, así que esto ya no se condiciona. */}
+        <AcuerdosArrastrables
+          acuerdos={acuerdosArrastrables}
+          alArrastrar={retomarAcuerdoAction}
+          // Revisión final de la rama, punto 5: `itemAcuerdos` (arriba) es
+          // `undefined` en las plantillas sin sección de Acuerdos y
+          // Pendientes («en blanco», «comité») — sin este dato, el panel
+          // ofrecía arrastre y el botón «Añadir» aunque la acción SIEMPRE
+          // fuera a lanzar (`anadirAcuerdoRetomado` exige esa sección).
+          hayDestino={itemAcuerdos !== undefined}
+        />
 
         <div className={estilos.editorConIndice}>
         <div className={estilos.columnaSecciones}>
@@ -436,13 +457,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
           }))}
           formularios={
           <>
-        {/* El editor enseña el ÁRBOL de la sesión: las secciones base son los
-            bloques de la reunión y dentro cuelgan sus subsecciones, que es lo
-            que cambia de un mes a otro. El arrastre reordena los bloques; las
-            subsecciones se mueven con las flechas dentro del suyo. */}
+        {/* El editor enseña el ÁRBOL del documento: las secciones base son
+            los bloques de la reunión y dentro cuelgan sus subsecciones, que
+            es lo que cambia de un mes a otro. El arrastre reordena los
+            bloques; las subsecciones se mueven con las flechas dentro del
+            suyo. */}
         <ListaOrdenable ids={bases.map((i) => i.id)} reordenarAction={reordenar}>
           {bases.map((base, i) => {
-            const hijas = sesion.items.filter((h) => h.padre === base.tipo)
+            const hijas = items.filter((h) => h.padre === base.tipo)
             return (
               <div key={base.id} className={estilos.bloqueSeccion}>
                 <TarjetaSeccion
@@ -483,10 +505,10 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       subirImagenAction={subirImagenAction}
                       subirVideoAction={subirVideoAction}
                       // Caso raro pero posible: una "Pendientes con semáforo"
-                      // añadida a mano como SUBSECCIÓN de otro bloque, en una
-                      // sesión sin la fija 'acuerdos-pendientes'
+                      // añadida a mano como SUBSECCIÓN de otro bloque, en un
+                      // documento sin la fija 'acuerdos-pendientes'
                       // (`itemDeAcuerdosPendientes` no distingue base de
-                      // subsección al buscarla — ver src/db/sesiones.ts).
+                      // subsección al buscarla — ver src/db/documentos.ts).
                       zonaDeAcuerdos={
                         hija.id === itemAcuerdos?.id ? (
                           <ZonaSoltarAcuerdo acuerdos={hija.acuerdosRetomados} alSoltar={retomarAcuerdoAction} />
@@ -519,17 +541,17 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
         {/* El índice va DESPUÉS en el orden del documento y a la izquierda en
             la pantalla: el contenido primero para quien navega con teclado o
             lector, y a la vista para quien mira. */}
-        <IndiceSesion entradas={entradasIndice} llenadas={sesion.itemsLlenados} total={total} />
+        <IndiceSesion entradas={entradasIndice} llenadas={itemsLlenados} total={total} />
         </div>
 
         {/* GENERAR CUANDO ESTÉ TODO LISTO, no cuando alguien se canse.
             Franco: "ya cuando todos hayan terminado de editar y estén ok con
             el diseño se genera la presentación web". Varias personas llenan
-            secciones distintas de la misma sesión, así que quien pulsa
+            secciones distintas del mismo documento, así que quien pulsa
             "Maquetar" no sabe si los demás terminaron. Ahora se dice cuántas
             faltan y cuáles: generar con la mitad en blanco produce un
             documento que hay que volver a generar. */}
-        {sesion.itemsLlenados > 0 ? (
+        {itemsLlenados > 0 ? (
           <form action={maquetar} className={estilos.panelMaquetar}>
             <span className={estilos.panelMaquetarTexto}>
               {conProblema.length > 0 ? (
@@ -543,14 +565,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                 </>
               ) : sinEmpezar.length > 0 ? (
                 <>
-                  {sesion.itemsLlenados} de {total} secciones listas. Faltan por escribir:{' '}
+                  {itemsLlenados} de {total} secciones listas. Faltan por escribir:{' '}
                   {sinEmpezar.slice(0, 3).join(', ')}
                   {sinEmpezar.length > 3 && ` y ${sinEmpezar.length - 3} más`}.
                 </>
               ) : (
                 <>
                   Las {total} secciones están listas.
-                  {sesion.estado !== 'borrador' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
+                  {documentoEstado === 'listo' && ' Ya hay un documento generado — volver a generarlo lo reemplaza.'}
                 </>
               )}
             </span>

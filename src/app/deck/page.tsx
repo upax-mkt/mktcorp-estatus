@@ -1,22 +1,20 @@
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import estilos from './deck.module.css'
-import { listarSesiones, eliminarSesion } from '@/db/sesiones'
+import { listarReuniones, eliminarReunion } from '@/db/reuniones'
+import { documentoDeReunion, eliminarDocumentoDeReunion } from '@/db/documentos'
 import { obtenerMinuta } from '@/db/minutas'
 import { exigirEditor, exigirLectura } from '@/auth/roles'
-import { fechaBreveConAnio, diaCivil } from '@/lib/fecha'
-import { fueDada } from '@/dominio/salas'
+import { fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
 
 export const dynamic = 'force-dynamic'
 
+/** Dos valores, no cinco (ronda 10): `EstadoReunion` es `'agendada' | 'dada'`. */
 const ETIQUETA_ESTADO: Record<string, string> = {
   agendada: 'agendada',
-  borrador: 'borrador',
-  lista: 'lista para presentar',
-  presentada: 'presentada',
-  minutada: 'minutada',
+  dada: 'dada',
 }
 
 function etiquetaAlcance(alcance: string): string {
@@ -29,17 +27,22 @@ export default async function PagPreparar() {
   // exigían editor por su cuenta, pero cargar la pantalla en sí no exigía
   // nada — el patrón del repo es que cada página repita la comprobación.
   await exigirLectura()
-  const sesiones = await listarSesiones()
-  const hoyCivil = diaCivil(new Date().toISOString())
-  // Lo que está por delante (agendado o a medio llenar) contra lo que ya pasó.
-  // Una sesión 'agendada' pertenece aquí: es justo lo que hay que preparar.
-  // `&& !fueDada(...)` (punto 3): una `lista` cuyo día ya pasó dejó de ser
-  // trabajo en curso —la deducción automática la da por ocurrida, ver
-  // `fueDada` en src/dominio/salas.ts— así que ya no pertenece aquí, sino a
-  // «Se dieron, falta su minuta», más abajo.
-  const enPreparacion = sesiones.filter(
-    (s) => (s.estado === 'agendada' || s.estado === 'borrador' || s.estado === 'lista') && !fueDada(s, hoyCivil),
-  )
+  const reuniones = await listarReuniones()
+  // Lo que está por delante (agendada, a medio llenar o ya lista para
+  // presentar) contra lo que ya pasó. `EstadoReunion` solo tiene dos valores
+  // (ronda 10, spec §1): una reunión es `agendada` O `dada`, nunca las dos —
+  // así que a diferencia del viejo filtro (que necesitaba `fueDada` para
+  // distinguir una `lista` cuyo día ya pasó, deducida como dada sin que
+  // nadie lo marcara) esto ya no hace falta: `estado === 'agendada'` es
+  // exactamente "todavía no confirmada", sin ambigüedad ni deducción.
+  //
+  // NOTA (ver el reporte de esta tarea): la deducción automática "una lista
+  // con el día pasado ya se dio sola" (`fueDada`, dominio/salas.ts) no tiene
+  // hoy un equivalente para reuniones — es trabajo de la Tarea 6
+  // (`dominio/reunion.ts`). Mientras tanto, una reunión solo pasa a "dada"
+  // cuando alguien lo confirma explícitamente (`marcarDada`); hasta
+  // entonces sigue en "En preparación", aunque su día ya haya pasado.
+  const enPreparacion = reuniones.filter((r) => r.estado === 'agendada')
   /**
    * QUÉ ES CADA LISTA, que antes no se sabía.
    *
@@ -50,22 +53,25 @@ export default async function PagPreparar() {
    *
    * Ahora son dos, y la diferencia es accionable: las CERRADAS ya no piden
    * nada; las que están a medias piden exactamente una cosa, su minuta.
-   *
-   * `fueDada`, no `estado === 'presentada' || 'minutada'` a secas (punto 3,
-   * ronda "contador y presentadas"): una `lista` con el día ya pasado y sin
-   * marcar como "no se dio" TAMBIÉN se dio, aunque nadie haya pulsado el
-   * botón — y si le falta minuta, es justo esta lista la que tiene que
-   * pedirla. Es la MISMA función que usa el pulso del mes y "la sala"; que
-   * las tres respondan lo mismo es lo que evita, por ejemplo, que una
-   * reunión aparezca "ya se dio" en el Home y siga en "En preparación" aquí.
    */
-  const cerradas = sesiones.filter((s) => s.tieneMinuta)
-  const faltaMinuta = sesiones.filter((s) => !s.tieneMinuta && fueDada(s, hoyCivil))
+  const cerradas = reuniones.filter((r) => r.tieneMinuta)
+  const faltaMinuta = reuniones.filter((r) => !r.tieneMinuta && r.estado === 'dada')
 
   // El texto de cada minuta, para poder descargarla desde la lista sin entrar.
   const textos = new Map(
     await Promise.all(
-      cerradas.map(async (s) => [s.id, (await obtenerMinuta(s.id))?.textoFinal ?? null] as const),
+      cerradas.map(async (r) => [r.id, (await obtenerMinuta(r.id))?.textoFinal ?? null] as const),
+    ),
+  )
+
+  /**
+   * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
+   * documento, no de la reunión) — se resuelven aquí, una consulta por
+   * reunión en preparación, en paralelo. Mismo patrón que `app/agenda/page.tsx`.
+   */
+  const documentosEnPreparacion = new Map(
+    await Promise.all(
+      enPreparacion.map(async (r) => [r.id, await documentoDeReunion(r.id)] as const),
     ),
   )
 
@@ -73,7 +79,7 @@ export default async function PagPreparar() {
     'use server'
     await exigirEditor()
     try {
-      await eliminarSesion(id)
+      await eliminarReunion(id, eliminarDocumentoDeReunion)
       revalidatePath('/deck')
       revalidatePath('/')
       return {}
@@ -98,17 +104,21 @@ export default async function PagPreparar() {
             <p className={estilos.subtitulo}>Crear → llenar → maquetar → presentar.</p>
           </div>
           <Link href="/deck/nueva" className={`${estilos.boton} ${estilos.botonAcento}`}>
-            + Nueva sesión
+            + Nueva reunión
           </Link>
         </div>
 
         <section style={{ marginBottom: '2.5rem' }}>
           <h2 className={estilos.rotuloSeccion}>En preparación</h2>
           {enPreparacion.length === 0 ? (
-            <p className={estilos.vacio}>Nada en preparación todavía. Arranca una sesión nueva.</p>
+            <p className={estilos.vacio}>Nada en preparación todavía. Arranca una reunión nueva.</p>
           ) : (
             <div className={estilos.lista}>
-              {enPreparacion.map((s) => (
+              {enPreparacion.map((s) => {
+                const doc = documentosEnPreparacion.get(s.id)
+                const totalItems = doc?.items.length ?? 0
+                const itemsLlenados = doc?.items.filter((i) => i.llenado).length ?? 0
+                return (
                 <div key={s.id} className={estilos.fila}>
                   <Link href={`/deck/${s.id}`} className={estilos.filaIzq}>
                     <div className={estilos.filaNombre}>
@@ -128,15 +138,15 @@ export default async function PagPreparar() {
                       <div className={estilos.avanceBarra}>
                         <div
                           className={estilos.avanceRelleno}
-                          style={{ width: `${s.totalItems > 0 ? Math.round((s.itemsLlenados / s.totalItems) * 100) : 0}%` }}
+                          style={{ width: `${totalItems > 0 ? Math.round((itemsLlenados / totalItems) * 100) : 0}%` }}
                         />
                       </div>
-                      <span className={estilos.avanceTexto}>{s.itemsLlenados}/{s.totalItems}</span>
+                      <span className={estilos.avanceTexto}>{itemsLlenados}/{totalItems}</span>
                     </div>
                     <span className={`${estilos.chip} ${estilos[s.estado]}`}>{ETIQUETA_ESTADO[s.estado]}</span>
-                    {/* Un borrador que ya no va a ninguna parte tiene que
+                    {/* Una reunión que ya no va a ninguna parte tiene que
                         poder borrarse desde donde se ve. Sin esto, la lista
-                        solo crece — y esas mismas sesiones reaparecían luego
+                        solo crece — y esas mismas reuniones reaparecían luego
                         en el selector de «Generar una minuta», donde no hay
                         forma de limpiarlas. */}
                     <BorrarBorrador
@@ -146,7 +156,8 @@ export default async function PagPreparar() {
                     />
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>
@@ -214,7 +225,7 @@ export default async function PagPreparar() {
                       sesionId={s.id}
                       titulo={`${s.salaNombre} · ${s.titulo}`}
                       textoMinuta={textos.get(s.id)}
-                      hayDocumento={s.itemsLlenados > 0}
+                      hayDocumento={s.tieneDocumento}
                       eliminarAction={eliminarAction}
                     />
                   </div>
