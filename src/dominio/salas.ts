@@ -23,6 +23,7 @@
  * `async`— pueda ofrecer por su cuenta: ver `estadoDeSalas()` más abajo.
  */
 import { diaCivil } from '@/lib/fecha'
+import type { Cadencia } from './reunion'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido'
 
@@ -115,11 +116,16 @@ export interface EstadoSala {
    * Cadencia acordada; usada para juzgar si está desatendida.
    *
    * `quincenal` existe aquí desde la ronda 10 (tarea 1: `cadenciaEnum` ganó
-   * el valor) pero `temperatura()` más abajo todavía no la distingue de
-   * `mensual` — ninguna sala la tiene asignada todavía porque la interfaz
-   * para elegirla es tarea aparte (T16, "Quincenal en la interfaz").
+   * el valor) y desde la tarea 6 `temperatura()` (más abajo) ya la distingue
+   * de `mensual` con su propio umbral — ver `UMBRALES`. Ninguna sala la
+   * tiene asignada todavía en la práctica: la interfaz para elegirla es
+   * tarea aparte (T16, "Quincenal en la interfaz").
+   *
+   * El tipo es `Cadencia` (`dominio/reunion.ts`), no un literal local: mismos
+   * tres valores que `TipoReunion` por coincidencia, no por ser el mismo eje
+   * — ver la cabecera de ese módulo para el porqué.
    */
-  cadencia: 'semanal' | 'quincenal' | 'mensual'
+  cadencia: Cadencia
   /**
    * FREEZE COMERCIAL (tarea 12, ronda 7). `false` = no hay reuniones ni
    * gestión hasta nuevo aviso.
@@ -449,11 +455,27 @@ export function sesionesSinMinuta(s: EstadoSala): SesionMinutable[] {
 
 /** Temperatura de atención: cuánto se ha desatendido la relación. */
 export type Temperatura = 'reciente' | 'tibia' | 'fria'
+
+/**
+ * Umbral de "reciente" y de "tibia" por cadencia (arriba de "tibia" es
+ * "fria"). Hasta la tarea 6 (ronda 10) esto era un ternario binario
+ * (`cadencia === 'semanal' ? A : B`): alcanzaba con dos cadencias, pero
+ * `quincenal` ya existe en el tipo desde la tarea 1 y un ternario no
+ * distingue tres casos sin anidarse. Con tres cadencias un `Record` dice lo
+ * mismo sin anidar — y el próximo umbral que se agregue es una fila, no una
+ * rama nueva.
+ */
+const UMBRALES: Record<Cadencia, { reciente: number; tibia: number }> = {
+  semanal: { reciente: 8, tibia: 10 },
+  quincenal: { reciente: 15, tibia: 21 },
+  mensual: { reciente: 20, tibia: 35 },
+}
+
 export function temperatura(s: EstadoSala): Temperatura {
   if (s.diasDesdeUltima == null) return 'fria'
-  const limite = s.cadencia === 'semanal' ? 10 : 35
-  if (s.diasDesdeUltima <= (s.cadencia === 'semanal' ? 8 : 20)) return 'reciente'
-  if (s.diasDesdeUltima <= limite) return 'tibia'
+  const { reciente, tibia } = UMBRALES[s.cadencia]
+  if (s.diasDesdeUltima <= reciente) return 'reciente'
+  if (s.diasDesdeUltima <= tibia) return 'tibia'
   return 'fria'
 }
 
@@ -546,19 +568,25 @@ export function salaMasDesatendida(salas: EstadoSala[]): { nombre: string; dias:
 }
 
 /**
- * UNA REUNIÓN: lo que se presentó y lo que se acordó, juntos.
+ * UNA REUNIÓN (MODELO VIEJO, EN TRANSICIÓN — ver Tarea 7): lo que se
+ * presentó y lo que se acordó, cosidos a mano desde `presentaciones` y
+ * `minutas` por `sesionId`.
+ *
+ * DESDE LA RONDA 10, TAREA 6 este par tiene sucesor: `Reunion` y
+ * `reunionesDeSala` en `dominio/reunion.ts`, con la reunión como entidad
+ * propia (spec §1) en vez de dos listas emparejadas al vuelo. El brief de esa
+ * tarea pide sacar ESTE par de aquí — y así debería quedar el día que la
+ * Tarea 7 corra — pero hoy `src/app/cliente/[slug]/page.tsx:454` y
+ * `EstadoSala.presentaciones`/`.minutas` (poblados por `estadoDeSalaDB`,
+ * `src/db/consultas.ts`, con datos reales de Postgres) TODAVÍA dependen de
+ * él en producción. Quitarlo antes de que la T7 rewiree esa página y esa
+ * consulta —"`EstadoSala.reuniones` sustituye a `presentaciones` +
+ * `minutas`", su propio brief— rompería el build por algo que no es de la
+ * T6. Se queda vivo a propósito hasta que la T7 lo jubile.
  *
  * Franco: "el módulo Presentaciones y minutas creo que debe ser uno, así la
- * presentación está asociada a una minuta, es decir a una reunión".
- *
- * Tiene razón y el modelo ya lo decía: presentación y minuta cuelgan de la
- * MISMA `sesionId`. Lo que estaba partido era la pantalla — dos listas
- * paralelas, cada una ordenada por su cuenta, y para saber qué se acordó en la
- * presentación de mayo había que buscar mayo dos veces.
- *
- * Aquí se unen por la sesión de la que salieron. El caso raro también existe y
- * no se esconde: una minuta cargada a mano sin presentación (una reunión que
- * se dio antes de esta herramienta) es una reunión igual, sin documento.
+ * presentación está asociada a una minuta, es decir a una reunión". Tenía
+ * razón — es exactamente la idea que hereda `dominio/reunion.ts`.
  */
 export interface Reunion {
   /** La sesión. Es la identidad de la reunión. */
@@ -606,7 +634,13 @@ export function reunionesDeSala(
   return [...porSesion.values(), ...sueltas].sort((a, b) => b.fecha.localeCompare(a.fecha))
 }
 
-/** Reuniones que se presentaron y siguen sin minuta. */
+/**
+ * Reuniones que se presentaron y siguen sin minuta.
+ *
+ * Mismo modelo viejo que `Reunion`/`reunionesDeSala`, arriba — sin más
+ * llamador que su propio test (`dominio/reuniones.test.ts`) hoy, pero se
+ * queda con ellos hasta que la T7 retire el trío entero de una vez.
+ */
 export function reunionesSinMinuta(reuniones: Reunion[]): Reunion[] {
   return reuniones.filter((r) => r.presentacion && !r.minuta)
 }

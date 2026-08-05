@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   sesionesSinMinuta, salaMasDesatendida, estatusVigente, estatusEfectivo, estaCongelado,
-  ordenarPorProximaReunion, acuerdosVencidos, acuerdosAbiertos, type EstadoSala,
+  ordenarPorProximaReunion, acuerdosVencidos, acuerdosAbiertos, temperatura, type EstadoSala,
 } from './salas'
 
 /**
@@ -70,6 +70,33 @@ describe('sesionesSinMinuta', () => {
 
   it('una sala sin presentaciones no revienta', () => {
     expect(sesionesSinMinuta(sala({}))).toEqual([])
+  })
+})
+
+describe('temperatura', () => {
+  it('una sala semanal aguanta 8 días antes de enfriarse', () => {
+    expect(temperatura(sala({ cadencia: 'semanal', diasDesdeUltima: 8 }))).toBe('reciente')
+    expect(temperatura(sala({ cadencia: 'semanal', diasDesdeUltima: 10 }))).toBe('tibia')
+    expect(temperatura(sala({ cadencia: 'semanal', diasDesdeUltima: 11 }))).toBe('fria')
+  })
+
+  it('una sala quincenal aguanta 15 días antes de enfriarse', () => {
+    // El caso que hoy no existía: hasta la tarea 6 el ternario de
+    // `temperatura` solo distinguía semanal de "lo demás", así que quincenal
+    // heredaba sin querer los umbrales de mensual (20/35).
+    expect(temperatura(sala({ cadencia: 'quincenal', diasDesdeUltima: 15 }))).toBe('reciente')
+    expect(temperatura(sala({ cadencia: 'quincenal', diasDesdeUltima: 21 }))).toBe('tibia')
+    expect(temperatura(sala({ cadencia: 'quincenal', diasDesdeUltima: 22 }))).toBe('fria')
+  })
+
+  it('una sala mensual aguanta 20 días antes de enfriarse', () => {
+    expect(temperatura(sala({ cadencia: 'mensual', diasDesdeUltima: 20 }))).toBe('reciente')
+    expect(temperatura(sala({ cadencia: 'mensual', diasDesdeUltima: 35 }))).toBe('tibia')
+    expect(temperatura(sala({ cadencia: 'mensual', diasDesdeUltima: 36 }))).toBe('fria')
+  })
+
+  it('sin sesión previa, siempre fría', () => {
+    expect(temperatura(sala({ diasDesdeUltima: null }))).toBe('fria')
   })
 })
 
