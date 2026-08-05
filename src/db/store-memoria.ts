@@ -43,7 +43,16 @@ export interface FilaItemMemoria {
  */
 export interface FilaReunionMemoria {
   id: string
-  salaSlug: string
+  /**
+   * `null` para una reunión que no es de ninguna sala (Tarea 8b, 5-ago) —
+   * mismo significado que `esquema.reuniones.salaSlug`/`DatosDeReunion.salaSlug`
+   * (`src/db/reuniones.ts`). Ensanchado desde `string`: es el único cambio de
+   * este archivo para esa tarea — necesario porque `crearReunion` (su único
+   * escritor) pasa a insertar `salaSlug: string | null` en las dos capas
+   * (Postgres y este store) y TypeScript no deja pasar un `null` donde este
+   * campo exigía `string`.
+   */
+  salaSlug: string | null
   fecha: Date
   titulo: string
   tipo: 'semanal' | 'quincenal' | 'mensual'
