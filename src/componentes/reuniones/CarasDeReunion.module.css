@@ -1,0 +1,41 @@
+/*
+ * Hoja PROPIA sobre los tokens compartidos de `sistema.css` (--tinta, --papel,
+ * --papel-hundido, --e-0/--e-1, --r-lleno…), no sobre los alias de una
+ * página (--tx, --borde, los de `cliente.module.css`) — mismo criterio que
+ * AcuerdosDeReunion.module.css y ReunionesPorConfirmar.module.css (ver su
+ * cabecera): este componente puede colgar de cualquier fila de reunión, en
+ * cualquier pantalla que las liste (la sala, y a futuro el Home), no solo de
+ * `cliente/[slug]/page.tsx` y los alias que declara SU `.app`.
+ *
+ * El foco visible NO se declara aquí: `sistema.css` ya lo aplica a todo
+ * `a, button, [tabindex]` con `:focus-visible` — duplicarlo sería el mismo
+ * outline dos veces.
+ */
+
+.caras { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.carasCompactas { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+
+/* Lo que YA HAY: el documento, un archivo, la minuta publicada. Papel elevado
+   sobre el fondo hundido de la fila — la misma superficie que .botonAfirmar
+   en ReunionesPorConfirmar.module.css — en vez del borde de la hoja vieja. */
+.cara {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.42rem 0.8rem; border-radius: var(--r-lleno);
+  border: none; background: var(--papel); box-shadow: var(--e-0);
+  font: inherit; font-size: 0.83rem; font-weight: 600; color: var(--tinta);
+  text-decoration: none; cursor: pointer;
+  transition: box-shadow 140ms ease, color 140ms ease;
+}
+.cara:hover { box-shadow: var(--e-1); color: var(--marca, var(--tinta)); }
+
+/* LO QUE FALTA Y EL EQUIPO PUEDE LLENAR: mismo tamaño que .cara, borde
+   discontinuo — es una invitación a añadir, no algo que ya existe. */
+.caraAccion {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.8rem; border-radius: var(--r-lleno);
+  border: 1px dashed var(--tinta-4); background: none;
+  font: inherit; font-size: 0.83rem; font-weight: 600; color: var(--tinta-2);
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+.caraAccion:hover { border-color: var(--marca, var(--tinta)); color: var(--marca, var(--tinta)); border-style: solid; }

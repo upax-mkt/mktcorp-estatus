@@ -7,6 +7,7 @@ import type { Participante } from '@/db/participacion'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
+import { CarasDeReunion } from './reuniones/CarasDeReunion'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
@@ -44,9 +45,25 @@ interface Props {
    * ya no existe como concepto en pantalla.
    */
   participacionPorReunion?: Record<string, Participante[]>
+  /**
+   * El equipo pulsó "+ Subir presentación" en la fila de ESTA reunión
+   * (`CarasDeReunion`, Tarea 9 de la ronda 10). Opcional y sin default: sin
+   * ella el botón se ve y se puede pulsar igual —el equipo ve la acción
+   * disponible, nunca el lamento viejo "Sin presentación"— pero no hace nada
+   * todavía. Es el hueco de integración con `registrarArchivoAction`
+   * (`cliente/[slug]/page.tsx`), que hoy no sabe de qué REUNIÓN es un
+   * archivo nuevo — ver el reporte de la Tarea 9 para la firma exacta que
+   * necesita esa pantalla.
+   */
+  onSubirPresentacion?: (reunion: Reunion) => void
 }
 
-export function ReunionesSala({ reuniones, equipo, participacionPorReunion = {} }: Props) {
+export function ReunionesSala({
+  reuniones,
+  equipo,
+  participacionPorReunion = {},
+  onSubirPresentacion,
+}: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -91,7 +108,12 @@ export function ReunionesSala({ reuniones, equipo, participacionPorReunion = {} 
             <div className={estilos.presFecha}>{fechaCompleta(ultima.fecha)}</div>
           </div>
         </div>
-        <Caras reunion={ultima} onLeerMinuta={() => setAbierta(ultima)} />
+        <CarasDeReunion
+          reunion={ultima}
+          equipo={equipo}
+          onLeerMinuta={() => setAbierta(ultima)}
+          onSubirPresentacion={onSubirPresentacion ? () => onSubirPresentacion(ultima) : undefined}
+        />
         {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
       </div>
 
@@ -105,7 +127,13 @@ export function ReunionesSala({ reuniones, equipo, participacionPorReunion = {} 
                   <span className={estilos.presFilaTitulo}>{r.titulo}</span>
                   <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
                 </div>
-                <Caras reunion={r} onLeerMinuta={() => setAbierta(r)} compacta />
+                <CarasDeReunion
+                  reunion={r}
+                  equipo={equipo}
+                  onLeerMinuta={() => setAbierta(r)}
+                  onSubirPresentacion={onSubirPresentacion ? () => onSubirPresentacion(r) : undefined}
+                  compacta
+                />
                 {participantes && (
                   <div className={estilos.reunionFilaParticipacion}>
                     <ParticipantesSesion participantes={participantes} />
@@ -178,51 +206,6 @@ export function ReunionesSala({ reuniones, equipo, participacionPorReunion = {} 
         )}
       </dialog>
     </>
-  )
-}
-
-/**
- * Las dos caras de una reunión, y lo que le falta.
- *
- * Que falte se DICE, no se omite: una reunión presentada sin minuta es
- * trabajo pendiente, y una fila que simplemente no enseña el botón de minuta
- * no se distingue de una que sí la tiene.
- *
- * SIN TOCAR EN LA TAREA 7 más que lo que exige compilar contra el modelo
- * nuevo (su brief, punto 7): sustituirla por huecos accionables es la Tarea
- * 9. `reunion.presentacion?.sesionId` (el viejo) equivale hoy a
- * `tienePresentacion(reunion)` — mismo umbral (documento LISTO o algún
- * archivo, ver `dominio/reunion.ts`) — y el enlace usa `reunion.id`
- * directamente: `/reunion/[id]` ya recibe el id de la REUNIÓN, no el de un
- * documento aparte.
- */
-function Caras({
-  reunion,
-  onLeerMinuta,
-  compacta,
-}: {
-  reunion: Reunion
-  onLeerMinuta: () => void
-  compacta?: boolean
-}) {
-  return (
-    <div className={compacta ? estilos.carasCompactas : estilos.caras}>
-      {tienePresentacion(reunion) ? (
-        <Link href={`/reunion/${reunion.id}`} className={estilos.cara}>
-          <span aria-hidden>▤</span> Presentación
-        </Link>
-      ) : (
-        <span className={estilos.caraAusente}>Sin presentación</span>
-      )}
-
-      {reunion.minuta ? (
-        <button type="button" className={estilos.cara} onClick={onLeerMinuta}>
-          <span aria-hidden>✎</span> Minuta
-        </button>
-      ) : (
-        <span className={estilos.caraPendiente}>Falta la minuta</span>
-      )}
-    </div>
   )
 }
 
