@@ -250,6 +250,12 @@ export const items = pgTable('items', {
   sesionId: text('sesion_id')
     .notNull()
     .references(() => sesiones.id),
+  /**
+   * De qué documento es (ronda 10, tarea 3): un item es contenido de lo que
+   * se preparó, no de la junta — cuelga del documento, no de la reunión.
+   * Nullable por ahora: se rellena en 0022 y se vuelve NOT NULL en la Tarea 8.
+   */
+  documentoId: text('documento_id').references(() => documentos.id),
   orden: integer('orden').notNull(),
   tipo: text('tipo').notNull(),
   /** Lo que escribió el equipo: cifras, textos, imágenes, nota a la IA. */
@@ -276,6 +282,12 @@ export const acuerdos = pgTable('acuerdos', {
   estatus: estatusAcuerdoEnum('estatus').notNull().default('abierto'),
   /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
   sesionOrigenId: text('sesion_origen_id').references(() => sesiones.id),
+  /**
+   * Reunión donde nació el acuerdo (ronda 10, tarea 3). Copia de
+   * `sesionOrigenId` — mismo id, porque la reunión heredó el de su sesión.
+   * Nullable por ahora: se rellena en 0022 y se vuelve NOT NULL en la Tarea 8.
+   */
+  reunionOrigenId: text('reunion_origen_id').references(() => reuniones.id),
   /**
    * El elemento de Monday que le corresponde, si está sincronizado.
    *
@@ -328,6 +340,12 @@ export const minutas = pgTable('minutas', {
   sesionId: text('sesion_id')
     .notNull()
     .references(() => sesiones.id),
+  /**
+   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` — mismo id,
+   * porque la reunión heredó el de su sesión. Nullable por ahora: se rellena
+   * en 0022 y se vuelve NOT NULL en la Tarea 8.
+   */
+  reunionId: text('reunion_id').references(() => reuniones.id),
   transcripcion: text('transcripcion'),
   textoFinal: text('texto_final'),
   /** Lista de destinatarios (nombres o emails); el shell hoy solo muestra el conteo. */
@@ -369,6 +387,14 @@ export const archivos = pgTable('archivos', {
    * que no son de ninguna.
    */
   sesionId: text('sesion_id').references(() => sesiones.id),
+  /**
+   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` — mismo id,
+   * porque la reunión heredó el de su sesión. Nullable por ahora: se rellena
+   * en 0022 y se vuelve NOT NULL en la Tarea 8. Además, todo archivo de
+   * presentación huérfano (sala + fecha, sin sesión) gana aquí una reunión
+   * nueva creada para él — ver 0022.
+   */
+  reunionId: text('reunion_id').references(() => reuniones.id),
   categoria: categoriaArchivoEnum('categoria').notNull(),
   /** Cómo se llama en la lista. Lo escribe quien sube, no el nombre del fichero. */
   titulo: text('titulo').notNull(),
@@ -479,6 +505,14 @@ export const personas = pgTable('personas', {
 // persona, no cada toque por separado.
 export const participacion = pgTable('participacion', {
   sesionId: text('sesion_id').notNull().references(() => sesiones.id),
+  /**
+   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` — mismo id,
+   * porque la reunión heredó el de su sesión. Nullable por ahora: se rellena
+   * en 0022 y se vuelve NOT NULL en la Tarea 8. No forma parte de la clave
+   * primaria: esa sigue siendo (sesionId, correo) hasta que la Tarea 8 decida
+   * qué hacer con ella.
+   */
+  reunionId: text('reunion_id').references(() => reuniones.id),
   correo: text('correo').notNull(),
   primeraEdicion: timestamp('primera_edicion', { withTimezone: true }).notNull().defaultNow(),
   ultimaEdicion: timestamp('ultima_edicion', { withTimezone: true }).notNull().defaultNow(),

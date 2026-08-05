@@ -148,6 +148,20 @@
       "when": 1785879468505,
       "tag": "0020_partir_sesiones",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785890007680,
+      "tag": "0021_ambiguous_sage",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1785890232432,
+      "tag": "0022_rellenar_reunion_id",
+      "breakpoints": true
     }
   ]
 }
