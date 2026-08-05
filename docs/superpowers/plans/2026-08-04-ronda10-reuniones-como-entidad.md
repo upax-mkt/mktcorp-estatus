@@ -296,29 +296,43 @@ SELECT
   s.updated_at
 FROM sesiones s;
 
--- El documento solo nace si la sesión llegó a tener vida de documento.
--- 'agendada' es una fecha en el calendario y nada más: no genera documento.
+-- El documento nace si la sesión llegó a tener vida de documento: estructura
+-- o items. NO se filtra por `estado <> 'agendada'`.
+--
+-- CORREGIDO EL 4-AGO CONTRA LA BASE REAL. El plan asumía que 'agendada' era
+-- "una fecha en el calendario y nada más". Es falso: `/agenda` agenda con
+-- `crearSesionConEstructura`, así que las 7 sesiones 'agendada' de hoy tienen
+-- su plantilla de 8 secciones y 56 items entre todas. Filtrarlas dejaba esos
+-- 56 items sin documento, y el `SET NOT NULL` de la Tarea 8 habría fallado.
 INSERT INTO documentos (id, reunion_id, estado, estructura, plantilla, created_at, updated_at)
 SELECT
   gen_random_uuid()::text,
   s.id,
-  CASE WHEN s.estado = 'borrador' THEN 'borrador' ELSE 'listo' END::estado_documento,
+  -- Solo 'lista' y 'minutada' son un documento terminado. 'agendada' y
+  -- 'borrador' son trabajo en curso, por muy poblada que esté la plantilla.
+  CASE WHEN s.estado IN ('lista', 'minutada') THEN 'listo' ELSE 'borrador' END::estado_documento,
   s.estructura,
   s.plantilla,
   s.created_at,
   s.updated_at
 FROM sesiones s
-WHERE s.estado <> 'agendada';
+WHERE s.estructura IS NOT NULL
+   OR EXISTS (SELECT 1 FROM items i WHERE i.sesion_id = s.id);
 ```
 
 - [ ] **Step 3: Aplicar en la rama de ensayo y verificar leyendo**
 
 ```bash
-ENV_FILE=.env.ensayo npm run db:migrate   # con DATABASE_URL de la rama
+# OJO: `drizzle.config.ts` NO lee ENV_FILE — carga `.env.local` y usa
+# DATABASE_URL del entorno. Como `process.loadEnvFile` no pisa lo que ya
+# viene del entorno, la ÚNICA forma segura de apuntar al ensayo es
+# exportar DATABASE_URL en la propia línea. Con `ENV_FILE=...` la
+# migración se aplicaría a PRODUCCIÓN sin avisar.
+DATABASE_URL="$(node -e "process.loadEnvFile('.env.ensayo');process.stdout.write(process.env.DATABASE_URL)")" npm run db:migrate
 ENV_FILE=.env.ensayo node scripts/verificar-migracion.mjs despues
 ```
 
-Expected, contra los números de hoy: `reuniones 10` · `documentos 9` (las 10 menos la única `agendada`) · `documentos sin reunión 0`. Si `documentos` sale 10, la condición `<> 'agendada'` no se aplicó.
+Expected, contra los números de hoy: `reuniones 10` · `documentos 10` (las 10 tienen estructura) · `documentos sin reunión 0` · `items 82`, todos con documento.
 
 - [ ] **Step 4: Comprobar los títulos a ojo**
 
@@ -417,7 +431,8 @@ WHERE a.categoria = 'presentacion' AND a.reunion_id IS NULL
 - [ ] **Step 4: Aplicar en la rama de ensayo y verificar leyendo**
 
 ```bash
-ENV_FILE=.env.ensayo npm run db:migrate
+# `ENV_FILE` NO lo lee drizzle.config.ts — ver Tarea 2 paso 3.
+DATABASE_URL="$(node -e "process.loadEnvFile('.env.ensayo');process.stdout.write(process.env.DATABASE_URL)")" npm run db:migrate
 ENV_FILE=.env.ensayo node scripts/verificar-migracion.mjs despues
 ```
 
@@ -675,6 +690,14 @@ git commit -m "El documento y sus secciones salen a su propio módulo; sesiones.
     id: string; fecha: string; titulo: string; tipo: TipoReunion
     estado: EstadoReunion; noDadaEn: string | null
     documentoId?: string
+    /**
+     * CORREGIDO EL 4-AGO. Hace falta aparte de `documentoId` porque en los
+     * datos reales CASI TODA reunión tiene documento: `/agenda` agenda con
+     * `crearSesionConEstructura`, así que la plantilla nace con la junta.
+     * `Boolean(documentoId)` no distingue nada; el equivalente del viejo
+     * estado `lista` es este: el documento está terminado.
+     */
+    documentoListo: boolean
     archivos: CaraArchivo[]
     minuta?: Minuta                    // el tipo que ya existe en dominio/salas.ts
     acuerdos: AcuerdoDeReunion[]
@@ -700,7 +723,7 @@ git commit -m "El documento y sus secciones salen a su propio módulo; sesiones.
 const hoy = '2026-08-04'
 const base = { id: 'r1', fecha: '2026-08-03T19:00:00Z', titulo: 'Quincenal Comercial',
                tipo: 'quincenal' as const, estado: 'agendada' as const, noDadaEn: null,
-               archivos: [], acuerdos: [] }
+               documentoListo: false, archivos: [], acuerdos: [] }
 
 describe('fueDada', () => {
   it('una reunión con archivo y el día pasado se da por dada, aunque no tenga documento', () => {
@@ -718,11 +741,20 @@ describe('fueDada', () => {
   })
 
   it('hoy nunca es "ya pasado", pase lo que pase con el reloj', () => {
-    expect(fueDada({ ...base, fecha: '2026-08-04T09:00:00Z', documentoId: 'd1' }, hoy)).toBe(false)
+    expect(fueDada({ ...base, fecha: '2026-08-04T09:00:00Z', documentoListo: true }, hoy)).toBe(false)
   })
 
   it('una reunión vacía con el día pasado no se da por dada: no hay nada que lo respalde', () => {
     expect(fueDada(base, hoy)).toBe(false)
+  })
+
+  it('tener documento no es respaldo: la plantilla nace al agendar, no al reunirse', () => {
+    // EL CASO QUE ROMPÍA. `Boolean(documentoId)` daba true para toda reunión
+    // agendada desde `/agenda` —las 7 de la base real llevan su plantilla de
+    // 8 secciones vacías—, así que cualquier junta pasada se daba por dada
+    // sola. El umbral es el documento TERMINADO, igual que el viejo `lista`.
+    expect(fueDada({ ...base, documentoId: 'd1', documentoListo: false }, hoy)).toBe(false)
+    expect(fueDada({ ...base, documentoId: 'd1', documentoListo: true }, hoy)).toBe(true)
   })
 })
 
@@ -807,9 +839,27 @@ export function fueDada(r: Reunion, hoyCivil: string): boolean {
   return diaCivil(r.fecha) < hoyCivil           // por DÍA, nunca por instante
 }
 
-/** Documento listo, un archivo, o una minuta: cualquiera prueba que la junta ocurrió. */
+/**
+ * Documento TERMINADO, un archivo, o una minuta: cualquiera prueba que la
+ * junta ocurrió.
+ *
+ * `documentoListo`, no `documentoId`: casi toda reunión tiene documento desde
+ * que se agenda (la plantilla nace con ella), así que su mera existencia no
+ * prueba nada. Es el mismo umbral que hoy usa el estado `lista` en
+ * `salas.ts:fueDada` — no uno inventado aparte.
+ */
 function tieneRespaldo(r: Reunion): boolean {
-  return Boolean(r.documentoId) || r.archivos.length > 0 || Boolean(r.minuta)
+  return r.documentoListo || r.archivos.length > 0 || Boolean(r.minuta)
+}
+
+/**
+ * ¿Hay algo que enseñarle a la UDN como "la presentación de esa junta"? Un
+ * documento a medio maquetar todavía no lo es — por eso `documentoListo` y no
+ * `documentoId`, igual que arriba. De esto depende que la Tarea 9 pinte el
+ * botón "Subir presentación" o el enlace a lo que ya hay.
+ */
+export function tienePresentacion(r: Reunion): boolean {
+  return r.documentoListo || r.archivos.length > 0
 }
 ```
 
@@ -928,10 +978,16 @@ Pegar la salida. Debe cuadrar con la tabla del spec §2 paso 5. **Si no cuadra, 
 - [ ] **Step 3: Aplicar a la rama de ensayo, verificar, y solo entonces a la real**
 
 ```bash
-ENV_FILE=.env.ensayo npm run db:migrate && ENV_FILE=.env.ensayo node scripts/verificar-migracion.mjs despues
-# Verde y solo verde:
+# PRIMERO el ensayo. `ENV_FILE` NO lo lee drizzle.config.ts: sin exportar
+# DATABASE_URL en la línea, este DROP TABLE caería sobre PRODUCCIÓN.
+ENSAYO="$(node -e "process.loadEnvFile('.env.ensayo');process.stdout.write(process.env.DATABASE_URL)")"
+DATABASE_URL="$ENSAYO" npm run db:migrate
+ENV_FILE=.env.ensayo node scripts/verificar-migracion.mjs despues
+
+# Verde y solo verde. Y antes de tocar la real, confirmar a qué host se apunta:
+node -e "process.loadEnvFile('.env.local');console.log('VOY A MIGRAR:', process.env.DATABASE_URL.split('@')[1].split('/')[0])"
 node scripts/verificar-migracion.mjs antes    # foto de la real ANTES
-npm run db:migrate
+npm run db:migrate                            # ← el único paso destructivo
 node scripts/verificar-migracion.mjs despues  # foto de la real DESPUÉS
 ```
 

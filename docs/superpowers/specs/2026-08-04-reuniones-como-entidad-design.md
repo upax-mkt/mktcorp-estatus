@@ -143,11 +143,24 @@ Correspondencia con lo de hoy, que es como se migra:
 
 | estado de sesión hoy | reunión | documento |
 |---|---|---|
-| `agendada` | agendada | *(no se crea documento)* |
+| `agendada` | agendada | **borrador** — ver la nota |
 | `borrador` | agendada | borrador |
 | `lista` | agendada | listo |
 | `presentada` | **dada** | listo |
 | `minutada` | **dada** | listo |
+
+> **Corregido el 4-ago contra la base real.** Esta tabla decía antes que una
+> sesión `agendada` no genera documento, porque "agendar es poner una fecha en
+> el calendario". En los datos no es así: `/agenda` agenda llamando a
+> `crearSesionConEstructura`, o sea que **la plantilla nace con la junta**. Las
+> 7 sesiones `agendada` de hoy llevan sus 8 secciones y 56 items entre todas;
+> dejarlas sin documento habría dejado esos items sin padre.
+>
+> Consecuencia en el dominio: **la existencia de un documento no prueba que la
+> junta se dio.** El umbral es el documento TERMINADO (`listo`), que es el
+> equivalente exacto del viejo estado `lista` que usa hoy `fueDada`. Por eso
+> `Reunion` lleva `documentoListo` además de `documentoId`, y tanto
+> `tieneRespaldo` como `tienePresentacion` miran el primero.
 
 ### Qué se conserva de la deducción actual
 
