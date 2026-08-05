@@ -862,6 +862,20 @@ git commit -m "El documento y sus secciones salen a su propio módulo; sesiones.
   export function reunionesPorConfirmar(rs: Reunion[], hoyCivil: string): Reunion[]
   ```
 
+> **`reunionesPorConfirmar` necesita saber si la sala está en pausa.** Su
+> antecesora `sesionesPorConfirmar` (`salas.ts:435`) filtra por
+> `salaActiva !== false`, y no es un detalle: se arregló el **3-ago, el día antes
+> de empezar esta ronda** (commit `f51ef38`), cuando Franco pausó Zeus y el hueco
+> dejó de ser teórico. Se cerró en tres niveles a la vez — la función filtra, las
+> dos pantallas lo conectan, y las dos acciones de servidor comprueban el freeze
+> antes de escribir.
+>
+> El `Reunion` de esta tarea no lleva `salaActiva`, así que la T6 no puede
+> aplicarlo. **La T7 tiene que reconectarlo al armar los datos reales**, y el
+> filtro va DENTRO de la función compartida, no en cada pantalla: el comentario
+> original (`salas.ts:415`) dice por qué — *"si cada pantalla se acordara de
+> filtrar, bastaría con que UNA se olvidara"*. Con test que lo fije.
+
 - [ ] **Step 1: Escribir los tests que fallan**
 
 ```ts
