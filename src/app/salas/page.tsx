@@ -51,16 +51,29 @@ export default async function PagSalas({
   // la pantalla, solo no abrir ningún formulario de edición.
   const editarSlug = editar && slugs.includes(editar) ? editar : null
 
-  // logoUrl/logoRelacionDeTinta no viven en `Tema` (cargarTemas() no las trae
-  // — no formaban parte del tipo antes de esta tarea, ver su cabecera en
-  // src/temas/tipos.ts) así que se piden aparte, y SOLO para la sala que se
-  // está editando: la lista no enseña miniatura de logo, no hace falta
-  // traerlas las nueve.
-  const logoDeLaEditada =
+  // logoUrl/logoRelacionDeTinta/cadencia no viven en `Tema` (cargarTemas()
+  // no las trae — logoUrl/logoRelacionDeTinta no formaban parte del tipo
+  // antes de la tarea 6, y cadencia nunca formó parte de él porque es
+  // freeze/config operativa, no marca; ver src/temas/tipos.ts) así que se
+  // piden aparte, y SOLO para la sala que se está editando: la lista no
+  // enseña miniatura de logo ni cadencia, no hace falta traerlas las nueve.
+  //
+  // CADENCIA SUMADA EN LA TAREA 15: hasta aquí esta consulta solo traía las
+  // dos columnas de logo, y el `sala={{...}}` de más abajo no pasaba
+  // `cadencia` en absoluto — así que `FormularioSala` (que la T16 ya sabía
+  // pintar) siempre arrancaba en su valor por defecto ('mensual'), nunca en
+  // la cadencia real de la sala que se estaba editando. Mismo defecto que
+  // `editarSalaAction` tenía del lado de la escritura (ver acciones.ts), solo
+  // que este era del lado de la lectura.
+  const extraDeLaEditada =
     editarSlug && hayDB()
       ? (
           await db()
-            .select({ logoUrl: esquema.salas.logoUrl, logoRelacionDeTinta: esquema.salas.logoRelacionDeTinta })
+            .select({
+              logoUrl: esquema.salas.logoUrl,
+              logoRelacionDeTinta: esquema.salas.logoRelacionDeTinta,
+              cadencia: esquema.salas.cadencia,
+            })
             .from(esquema.salas)
             .where(eq(esquema.salas.slug, editarSlug))
         )[0]
@@ -165,8 +178,9 @@ export default async function PagSalas({
                           primario: tema.primario,
                           familiaDisplay: tema.familiaDisplay,
                           familiaTexto: tema.familiaTexto,
-                          logoUrl: logoDeLaEditada?.logoUrl ?? null,
-                          logoRelacionDeTinta: logoDeLaEditada?.logoRelacionDeTinta ?? null,
+                          logoUrl: extraDeLaEditada?.logoUrl ?? null,
+                          logoRelacionDeTinta: extraDeLaEditada?.logoRelacionDeTinta ?? null,
+                          cadencia: extraDeLaEditada?.cadencia ?? 'mensual',
                         }}
                       />
                     </div>

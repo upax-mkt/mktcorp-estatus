@@ -38,6 +38,9 @@ interface FilaFalsa {
   primario: string
   familiaDisplay?: string
   familiaTexto?: string
+  // Tarea 15: solo la necesitan las nuevas describe() de más abajo, que
+  // comprueban que crear/editar leen y escriben la cadencia de verdad.
+  cadencia?: string
   // Los ocho campos derivados (revisión final de la rama, punto 1): solo los
   // necesitan las nuevas describe() de más abajo, que comprueban que
   // `editarSalaAction` los deja intactos y que `recalcularPaletaAction` es
@@ -385,13 +388,14 @@ describe('editarSalaAction — el guardado normal NO toca los ocho campos deriva
     }
   })
 
-  it('el .set() SÍ incluye exactamente los seis campos que el formulario edita de verdad', async () => {
+  it('el .set() SÍ incluye exactamente los siete campos que el formulario edita de verdad (más updatedAt) — cadencia sumada en la tarea 15', async () => {
     await editarSalaAction('zeus', {
       nombre: 'Zeus Nuevo', slug: 'zeus', primario: '#00ff00',
       familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: 'https://blob/x.png', logoRelacionDeTinta: 0.4,
+      cadencia: 'quincenal',
     })
     expect(Object.keys(setCapturado.ultimo!).sort()).toEqual(
-      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'updatedAt'].sort(),
+      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'cadencia', 'updatedAt'].sort(),
     )
   })
 
@@ -459,5 +463,77 @@ describe('recalcularPaletaAction (revisión final de la rama, punto 1)', () => {
     const r = await recalcularPaletaAction('sala-fantasma', '#00ff00')
     expect(r.error).toContain('sala-fantasma')
     expect(filas.has('sala-fantasma')).toBe(false)
+  })
+})
+
+// ---- CADENCIA (ronda 10, tarea 15) ----
+//
+// La T16 ya construyó la mitad de arriba: el <select> de FormularioSala, el
+// tipo `Cadencia` y el payload que manda `guardar()`. Pero hasta esta tarea
+// NI crearSalaAction NI editarSalaAction leían o escribían `datos.cadencia`
+// — comprobado con grep antes de empezar: cero apariciones de "cadencia" en
+// todo este archivo. Elegir "quincenal" en el formulario y guardar no
+// cambiaba nada en la base: el peor tipo de defecto, el que no avisa. Estos
+// tests cierran esa mitad.
+describe('cadencia — se lee del formulario y se escribe de verdad (tarea 15)', () => {
+  it('crearSalaAction guarda la cadencia elegida, no siempre "mensual"', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+      cadencia: 'quincenal',
+    })
+    expect(r.error).toBeUndefined()
+    expect(insertMock).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ cadencia: 'quincenal' }))
+  })
+
+  it('crearSalaAction sin cadencia en el payload cae a "mensual" — el mismo default que la columna en la base', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toBeUndefined()
+    expect(insertMock).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ cadencia: 'mensual' }))
+  })
+
+  it('editarSalaAction guarda la cadencia elegida — el defecto exacto que destapó la T16: elegir "quincenal" y guardar antes no cambiaba nada', async () => {
+    const r = await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+      cadencia: 'quincenal',
+    })
+    expect(r.error).toBeUndefined()
+    expect(setCapturado.ultimo).toMatchObject({ cadencia: 'quincenal' })
+    expect(filas.get('zeus')!.cadencia).toBe('quincenal')
+  })
+
+  it('editarSalaAction sin cadencia en el payload (callers viejos) cae a "mensual", sin romper', async () => {
+    const r = await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+    })
+    expect(r.error).toBeUndefined()
+    expect(filas.get('zeus')!.cadencia).toBe('mensual')
+  })
+
+  it('editarSalaAction rechaza una cadencia que no es ninguna de las tres válidas, sin escribir nada — es un endpoint, no hay que fiarse del tipo TS del llamador', async () => {
+    const r = await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+      cadencia: 'diaria' as unknown as 'semanal',
+    })
+    expect(r.error).toContain('diaria')
+    expect(setCapturado.ultimo).toBeNull()
+    // El resto de la edición tampoco se coló a medias.
+    expect(filas.get('zeus')!.nombre).toBe('Zeus')
+  })
+
+  it('crearSalaAction rechaza igual una cadencia inventada, sin insertar', async () => {
+    const r = await crearSalaAction({
+      nombre: 'Sala Nueva', slug: 'sala-nueva', primario: '#614aca',
+      familiaDisplay: 'outfit', familiaTexto: 'outfit', logoUrl: null, logoRelacionDeTinta: null,
+      cadencia: 'diaria' as unknown as 'semanal',
+    })
+    expect(r.error).toContain('diaria')
+    expect(insertMock).not.toHaveBeenCalled()
   })
 })

@@ -10,6 +10,7 @@ import { generarEnlaceDeAgenda, revocarEnlaceDeAgenda } from '@/db/enlace-agenda
 import type { DatosSala } from '@/componentes/salas/FormularioSala'
 import { esFamiliaConocida } from '@/temas/fuentes'
 import { urlBase } from '@/lib/url-base'
+import type { Cadencia } from '@/dominio/reunion'
 
 /**
  * LAS ACCIONES DE `/salas`: crear y editar salas, y generar/revocar el
@@ -56,6 +57,23 @@ const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
 const LONGITUD_MAXIMA_NOMBRE = 60
 
 /**
+ * CADENCIA (tarea 15, cerrando lo que dejó abierto la T16): mismos tres
+ * valores que `cadenciaEnum` (`src/db/esquema.ts`) y que la constante local
+ * `CADENCIAS` de `FormularioSala.tsx` — no se importa de ninguna de las dos
+ * (una es una tabla Drizzle, la otra vive en un componente `'use client'` que
+ * esta tarea no edita), así que se repite aquí, igual que `HEX_VALIDO` de
+ * arriba ya es una validación local y no compartida.
+ *
+ * `CADENCIA_POR_DEFECTO` es el mismo valor que el `.default('mensual')` de la
+ * columna: no hace falta que coincida (`crearSalaAction` podría, en teoría,
+ * omitir la columna entera y dejar que Postgres decida), pero escribirlo
+ * explícito aquí evita que el doble de `db()` en los tests (que no simula
+ * defaults de columna) diverja del comportamiento real.
+ */
+const CADENCIAS_VALIDAS: readonly Cadencia[] = ['semanal', 'quincenal', 'mensual']
+const CADENCIA_POR_DEFECTO: Cadencia = 'mensual'
+
+/**
  * Validación compartida por crear y editar, sobre un slug YA NORMALIZADO
  * (quien llama decide cómo se llegó a él — ver los dos comentarios de más
  * abajo, que difieren entre crear y editar). La unicidad NO se comprueba
@@ -80,6 +98,7 @@ function validarDatosComunes(datos: {
   primario: string
   familiaDisplay: string
   familiaTexto: string
+  cadencia?: Cadencia
 }): string | null {
   if (datos.nombre.trim().length === 0) return 'Escribe un nombre para la sala.'
   if (datos.nombre.trim().length > LONGITUD_MAXIMA_NOMBRE) {
@@ -99,6 +118,13 @@ function validarDatosComunes(datos: {
   }
   if (!esFamiliaConocida(datos.familiaTexto)) {
     return `"${datos.familiaTexto}" no es una familia tipográfica reconocida para texto.`
+  }
+  // OPCIONAL en el tipo (mismo motivo que en `DatosSala`, ver su comentario
+  // en FormularioSala.tsx): solo se valida cuando SÍ viaja algo. Un Server
+  // Action es un endpoint — no hay que fiarse de que quien la llame respete
+  // el tipo `Cadencia` de TypeScript, que se borra al compilar.
+  if (datos.cadencia !== undefined && !CADENCIAS_VALIDAS.includes(datos.cadencia)) {
+    return `"${datos.cadencia}" no es una cadencia reconocida (semanal, quincenal o mensual).`
   }
   return null
 }
@@ -142,6 +168,12 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
     await db().insert(esquema.salas).values({
       slug,
       nombre: marca.nombre,
+      // Tarea 15: antes esta columna ni se leía ni se escribía aquí, así que
+      // toda sala nueva nacía "mensual" pase lo que eligiera el formulario
+      // (el default de la propia columna, `cadenciaEnum(...).default('mensual')`,
+      // ganaba en silencio). `?? CADENCIA_POR_DEFECTO` cubre además al
+      // llamador que no manda el campo (`DatosSala.cadencia` es opcional).
+      cadencia: datos.cadencia ?? CADENCIA_POR_DEFECTO,
       primario: marca.primario,
       secundario: marca.secundario,
       acento: marca.acento,
@@ -175,14 +207,15 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
  * slug ya es el de esta fila.
  *
  * SOLO ESCRIBE LO QUE EL FORMULARIO EDITA DE VERDAD (revisión final de la
- * rama, punto 1): `nombre`, `primario`, `familiaDisplay`, `familiaTexto`,
- * `logoUrl`, `logoRelacionDeTinta`. Los ocho campos derivados —secundario,
- * acento, las dos superficies, los dos textos legibles y el degradado— NO
- * entran en este `.set()`: `FormularioSala` no expone ningún campo para
- * ellos, así que no hay forma de que quien edita los revise antes de
- * guardar, y sobrescribirlos con lo que produce `derivarMarca` tiraba en
- * silencio la paleta certificada de la sala en el primer "Guardar cambios"
- * — el mismo clic que hace falta para cambiar solo la tipografía.
+ * rama, punto 1, y tarea 15 para `cadencia`): `nombre`, `primario`,
+ * `familiaDisplay`, `familiaTexto`, `logoUrl`, `logoRelacionDeTinta`,
+ * `cadencia`. Los ocho campos derivados —secundario, acento, las dos
+ * superficies, los dos textos legibles y el degradado— NO entran en este
+ * `.set()`: `FormularioSala` no expone ningún campo para ellos, así que no
+ * hay forma de que quien edita los revise antes de guardar, y
+ * sobrescribirlos con lo que produce `derivarMarca` tiraba en silencio la
+ * paleta certificada de la sala en el primer "Guardar cambios" — el mismo
+ * clic que hace falta para cambiar solo la tipografía o la cadencia.
  *
  * Esto deja abierto, a propósito, un caso: si `primario` cambia aquí, la
  * paleta derivada que se queda en la fila sigue calculada del color VIEJO.
@@ -222,6 +255,15 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         // arriba igual que el resto de campos.
         familiaDisplay: datos.familiaDisplay,
         familiaTexto: datos.familiaTexto,
+        // Tarea 15: EL DEFECTO QUE DESTAPÓ LA T16. Hasta aquí este UPDATE no
+        // tocaba `cadencia` en absoluto —el <select> de FormularioSala ya
+        // existía, pero elegir "quincenal" y guardar no cambiaba nada en la
+        // base—, y es justo la cadencia la que `temperatura()`
+        // (src/dominio/salas.ts) usa para decidir cuándo una sala se enfría.
+        // No es un campo derivado como los ocho de abajo: se guarda el valor
+        // que trae el formulario, tal cual, con el mismo fallback que
+        // `crearSalaAction` para un llamador que no lo mande.
+        cadencia: datos.cadencia ?? CADENCIA_POR_DEFECTO,
         logoUrl: datos.logoUrl,
         logoRelacionDeTinta: datos.logoRelacionDeTinta,
         updatedAt: new Date(),
