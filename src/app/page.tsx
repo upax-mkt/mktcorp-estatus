@@ -10,7 +10,8 @@ import {
   estadoDeSalas, ordenarPorProximaReunion, temperatura, acuerdosAbiertos,
   acuerdosVencidos, todosLosAcuerdos, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
-import { sesionesMinutables, sesionesPorConfirmar, type SesionMinutable, type SesionPorConfirmar } from '@/dominio/salas'
+import { sesionesMinutables, type SesionMinutable, type SesionPorConfirmar } from '@/dominio/salas'
+import { reunionesPorConfirmar } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { destacarAction } from '@/app/acuerdos/acciones'
@@ -90,7 +91,7 @@ export default async function Hub() {
    * PUNTO 2 del encargo: el botón de marcar presentada existía pero estaba
    * enterrado —solo se llegaba entrando al editor y abriendo el documento—,
    * así que de siete reuniones dadas solo una se marcó. Vive aquí, junto al
-   * "por confirmar" que arma más abajo (`sesionesPorConfirmar`).
+   * "por confirmar" que arma más abajo (`reunionesPorConfirmar`).
    *
    * PUNTO 3: junto al "sí" vive el "no" —la reunión se canceló o se pospuso—,
    * porque las dos son la misma pregunta y las dos tienen que poder
@@ -164,16 +165,18 @@ export default async function Hub() {
   // Las minutas de todas las salas en una sola lista, la más reciente arriba.
   const minutas: MinutaEnHome[] = salasCrudas
     .flatMap((s) =>
-      s.minutas.map((m) => ({
-        id: m.sesionId ?? `${s.slug}-${m.fecha}`,
-        titulo: m.titulo,
-        fecha: m.fecha,
-        salaSlug: s.slug,
-        salaNombre: s.nombre,
-        salaColor: s.color,
-        texto: m.texto,
-        sesionId: m.sesionId,
-      })),
+      s.reuniones
+        .filter((r) => r.minuta)
+        .map((r) => ({
+          id: r.id,
+          titulo: r.minuta!.titulo,
+          fecha: r.minuta!.fecha,
+          salaSlug: s.slug,
+          salaNombre: s.nombre,
+          salaColor: s.color,
+          texto: r.minuta!.texto,
+          sesionId: r.id,
+        })),
     )
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
@@ -187,36 +190,46 @@ export default async function Hub() {
   // igual contra `EstadoReunion` (ronda 10): su exclusión `!== 'borrador' &&
   // !== 'agendada'` sigue significando "excluye las agendadas" con solo dos
   // valores posibles.
-  const conMinuta = new Set(
-    salasCrudas.flatMap((s) => s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x))),
-  )
+  const conMinuta = new Set(salasCrudas.flatMap((s) => s.reuniones.filter((r) => r.minuta).map((r) => r.id)))
   const hoyCivil = diaCivil(hoy.toISOString())
   const sinMinuta: SesionMinutable[] = sesionesMinutables(reuniones, conMinuta, hoyCivil)
 
   /**
-   * REUNIONES POR CONFIRMAR (punto 2/3): `lista`, con el día civil ya pasado —
-   * el mismo conjunto sobre el que actúa `fueDada` para darlas por ocurridas
-   * sola, sin que nadie marque nada. Aquí se ofrecen las dos respuestas: que
-   * sí se dio (de un clic, hoy enterrado en el editor) o que no (nueva).
+   * REUNIONES POR CONFIRMAR (punto 2/3): las que la deducción automática de
+   * `fueDada` (`dominio/reunion.ts`) ya cuenta como dadas —tienen respaldo y
+   * su día ya pasó— sin que nadie lo haya dicho. Aquí se ofrecen las dos
+   * respuestas: que sí se dio (de un clic, hoy enterrado en el editor) o que
+   * no (nueva).
    *
-   * Con el `activa` de CADA reunión (revisión: una sala en pausa no admite
-   * "gestión", y confirmar/negar lo es — mismo criterio que `crearReunion`).
-   * El Home cruza NUEVE salas a la vez, así que hace falta resolverlo por
-   * reunión, no un único `{sala.activa && ...}` como en la vista de sala
-   * (donde todas las reuniones son de la MISMA sala). Ya no hace falta el
-   * `?:` de antes para `salaSlug` — toda reunión es de una sala desde la
-   * Tarea 4.
-   *
-   * NOTA (ver el reporte de la Tarea 5b): `sesionesPorConfirmar` solo
-   * mantiene algo cuando `estado === 'lista'`, valor que `EstadoReunion` ya
-   * no tiene — con datos de `listarReuniones()` esto da SIEMPRE vacío,
-   * honesto hasta que la Tarea 6 traiga la deducción automática.
+   * MIGRADO EN LA TAREA 7 de `sesionesPorConfirmar` (dominio/salas.ts, ahora
+   * retirada) a `reunionesPorConfirmar` (dominio/reunion.ts): la vieja
+   * función leía `listarReuniones()` (`ReunionResumen[]`, sin
+   * `documentoListo`/`archivos`/`minuta`) y exigía `estado === 'lista'` —
+   * valor que `EstadoReunion` ya no tiene, así que daba SIEMPRE vacío. La
+   * nueva opera sobre `EstadoSala.reuniones` de CADA sala (`salasCrudas`,
+   * abajo — ahí sí vive el respaldo completo), sala por sala: con el
+   * `activa` DE ESA sala pasado en cada reunión (confirmar/negar es
+   * "gestión", y una sala en pausa no la admite — mismo criterio que
+   * `crearReunion`). El Home cruza NUEVE salas a la vez, así que no basta un
+   * único `{sala.activa && ...}` como en la vista de sala (donde todas las
+   * reuniones ya son de la MISMA sala).
    */
-  const activaPorSala = new Map(salasCrudas.map((sl) => [sl.slug, sl.activa] as const))
-  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(
-    reuniones.map((s) => ({ ...s, salaActiva: activaPorSala.get(s.salaSlug) })),
-    hoyCivil,
-  )
+  const porConfirmar: SesionPorConfirmar[] = salasCrudas
+    .flatMap((sl) =>
+      reunionesPorConfirmar(
+        sl.reuniones.map((r) => ({ ...r, salaActiva: sl.activa })),
+        hoyCivil,
+      ).map((r) => ({
+        id: r.id,
+        titulo: r.titulo,
+        fecha: r.fecha,
+        salaSlug: sl.slug,
+        salaNombre: sl.nombre,
+        salaColor: sl.color,
+        noDadaEn: r.noDadaEn,
+      })),
+    )
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
   const paraCalendario = reuniones.map((s) => ({
     id: s.id,
@@ -381,7 +394,7 @@ export default async function Hub() {
               const t = temperatura(s)
               const abiertos = acuerdosAbiertos(s)
               const vencidos = acuerdosVencidos(s)
-              const dias = s.proximaSesion ? diasHasta(s.proximaSesion, hoy) : null
+              const dias = s.proximaReunion ? diasHasta(s.proximaReunion, hoy) : null
               return (
                 <Link
                   key={s.slug}
@@ -416,9 +429,9 @@ export default async function Hub() {
                       <span className="micro" data-sinpunto>última</span>
                     </span>
                     <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoV} data-pendiente={s.proximaSesion ? undefined : 'true'}>
-                        {s.proximaSesion
-                          ? `${fechaBreve(s.proximaSesion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
+                      <span className={estilos.salaDatoV} data-pendiente={s.proximaReunion ? undefined : 'true'}>
+                        {s.proximaReunion
+                          ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
                           : 'por agendar'}
                       </span>
                       <span className="micro" data-sinpunto>próxima</span>

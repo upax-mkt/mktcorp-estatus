@@ -10,8 +10,9 @@ import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
 import {
-  sesionesMinutables, reunionesDeSala, sesionesPorConfirmar, type SesionPorConfirmar,
+  sesionesMinutables, type SesionPorConfirmar,
 } from '@/dominio/salas'
+import { reunionesPorConfirmar } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
@@ -303,7 +304,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // El botón de marcar presentada existía (`MarcarPresentada`) pero estaba
   // enterrado —solo se llegaba entrando al editor y abriendo el documento—,
   // así que de siete reuniones dadas solo una se marcó. Vive aquí, junto a
-  // "por confirmar" (`sesionesPorConfirmar`, más abajo). Las tres escriben
+  // "por confirmar" (`reunionesPorConfirmar`, más abajo). Las tres escriben
   // una sesión: exigen editor primero y quedan enganchadas a
   // `registrarEdicion`, que nunca propaga un fallo suyo.
 
@@ -449,9 +450,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   const abiertos = acuerdosAbiertos(s)
   const vencidos = acuerdosVencidos(s)
-  // Una reunión = la presentación y su minuta, unidas por la sesión de la que
-  // salieron. Ver `reunionesDeSala`.
-  const reuniones = reunionesDeSala(s.presentaciones, s.minutas)
+  // La reunión ya llega cosida —presentación, minuta y acuerdos juntos— desde
+  // `estadoDeSalaDB` (Tarea 7). Ver `EstadoSala.reuniones`, `dominio/salas.ts`.
+  const reuniones = s.reuniones
   /**
    * QUIÉN PREPARÓ Y QUIÉN PRESENTÓ CADA REUNIÓN, junto a cada una en la sala
    * (ronda 10) — SOLO EQUIPO, con el mismo `equipo` de arriba (`esLector()`).
@@ -464,12 +465,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * equipo, `participantesDe` NI SIQUIERA SE LLAMA: los nombres de Mkt Corp
    * no llegan a existir en este cierre, así que no hay nada que viajar al
    * navegador del director.
+   *
+   * `r.id`, no `r.sesionId` (Tarea 7): el `Reunion` nuevo siempre lo trae —no
+   * hace falta el filtro `Boolean(...)` que exigía el viejo campo opcional.
    */
-  const idsDeSesion = reuniones.map((r) => r.sesionId).filter((x): x is string => Boolean(x))
-  const participacionPorSesion: Record<string, Participante[]> = {}
+  const idsDeReunion = reuniones.map((r) => r.id)
+  const participacionPorReunion: Record<string, Participante[]> = {}
   if (equipo) {
-    const listas = await Promise.all(idsDeSesion.map((id) => participantesDe(id)))
-    idsDeSesion.forEach((id, i) => { participacionPorSesion[id] = listas[i] })
+    const listas = await Promise.all(idsDeReunion.map((id) => participantesDe(id)))
+    idsDeReunion.forEach((id, i) => { participacionPorReunion[id] = listas[i] })
   }
   // Toda reunión de ESTA sala cuyo día ya llegó y siga sin minuta, sea
   // agendada o dada. Ver `sesionesMinutables`.
@@ -479,35 +483,45 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // solo dos valores posibles (`'agendada'` | `'dada'`), eso sigue
   // significando exactamente "excluye las agendadas", que es lo mismo que
   // significaba antes.
-  const conMinuta = new Set(s.minutas.map((m) => m.sesionId).filter((x): x is string => Boolean(x)))
+  const conMinuta = new Set(reuniones.filter((r) => r.minuta).map((r) => r.id))
   const pendientesDeMinuta = sesionesMinutables(
     reunionesDeLaSala.map((x) => ({ ...x, salaSlug: slug })),
     conMinuta,
     hoyCivil,
   )
   /**
-   * POR CONFIRMAR (punto 2/3): `lista`, con el día ya pasado — el mismo
-   * conjunto que `fueDada` ya cuenta como dada en el contador y en
-   * "Reuniones" arriba, pero que nadie ha confirmado ni negado todavía.
+   * POR CONFIRMAR (punto 2/3): reuniones que la deducción automática de
+   * `fueDada` (`dominio/reunion.ts`) ya cuenta como dadas —tienen respaldo y
+   * su día ya pasó— pero que nadie ha confirmado ni negado todavía.
    *
-   * `salaActiva: s.activa` en las tres (revisión: confirmar/negar es
-   * "gestión", y una sala en pausa no la admite — mismo criterio que
-   * `crearSesion`). Aquí basta CON EL `activa` DE ESTA SALA para todas: a
-   * diferencia del Home, `reunionesDeLaSala` es siempre de la MISMA sala.
+   * MIGRADO EN LA TAREA 7 de `sesionesPorConfirmar` (dominio/salas.ts, ahora
+   * retirada) a `reunionesPorConfirmar` (dominio/reunion.ts): la vieja
+   * función leía `listarReuniones()` (`ReunionResumen[]`, sin
+   * `documentoListo`/`archivos`/`minuta`) y su filtro exigía `estado ===
+   * 'lista'` — un valor que `EstadoReunion` ya no tiene, así que daba
+   * SIEMPRE vacío. La nueva opera sobre `reuniones` (arriba, ya trae el
+   * respaldo completo) y de verdad detecta lo que quedó dado sin que nadie
+   * lo confirmara — cerrando el hueco que dejó la T5b.
    *
-   * NOTA (ver el reporte de la Tarea 5b): `sesionesPorConfirmar` solo
-   * mantiene algo cuando `estado === 'lista'`, un valor que `EstadoReunion`
-   * ya no tiene (era la mitad DOCUMENTO del viejo estado fundido). Con datos
-   * de `listarReuniones()` esto da SIEMPRE vacío — honesto, no un error: sin
-   * la deducción automática de la Tarea 6 (`dominio/reunion.ts`), no hay
-   * nada que "ya se dio solo, sin que nadie lo dijera" que ofrecer a
-   * confirmar. Cuando la Tarea 6 la traiga, este llamado deja de estar
-   * vacío sin que haga falta tocar esta línea.
+   * `salaActiva: s.activa` (revisión: confirmar/negar es "gestión", y una
+   * sala en pausa no la admite — mismo criterio que `crearReunion`). Basta
+   * con el `activa` DE ESTA SALA para todas: a diferencia del Home, `reuniones`
+   * es siempre de la MISMA sala. El resultado —`Reunion[]`, sin nombre ni
+   * color de sala— se reempaqueta en `SesionPorConfirmar` con la identidad
+   * que esta página ya conoce, para lo que espera `ReunionesPorConfirmar`.
    */
-  const porConfirmar: SesionPorConfirmar[] = sesionesPorConfirmar(
-    reunionesDeLaSala.map((x) => ({ ...x, salaActiva: s.activa })),
+  const porConfirmar: SesionPorConfirmar[] = reunionesPorConfirmar(
+    reuniones.map((r) => ({ ...r, salaActiva: s.activa })),
     hoyCivil,
-  )
+  ).map((r) => ({
+    id: r.id,
+    titulo: r.titulo,
+    fecha: r.fecha,
+    salaSlug: slug,
+    salaNombre: s.nombre,
+    salaColor: s.color,
+    noDadaEn: r.noDadaEn,
+  }))
 
   return (
     <div className={estilos.app} style={estiloMarca}>
@@ -574,7 +588,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             </div>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>
-                {s.proximaSesion ? fechaCompleta(s.proximaSesion) : 'por agendar'}
+                {s.proximaReunion ? fechaCompleta(s.proximaReunion) : 'por agendar'}
               </span>
               <span className={estilos.heroMetaL}>próxima reunión</span>
             </div>
@@ -730,7 +744,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             </div>
           )}
 
-          <ReunionesSala reuniones={reuniones} equipo={equipo} participacionPorSesion={participacionPorSesion} />
+          <ReunionesSala reuniones={reuniones} equipo={equipo} participacionPorReunion={participacionPorReunion} />
 
           {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya
               pasado que la deducción automática de `fueDada` ya cuenta como

@@ -35,26 +35,27 @@ const SALA_BASE: EstadoSala = {
   logoUrl: null,
   diasDesdeUltima: null,
   ultimaSesion: null,
-  proximaSesion: null,
+  proximaReunion: null,
   enPreparacion: false,
   acuerdos: [],
-  presentaciones: [],
-  minutas: [],
+  reuniones: [],
   cadencia: 'mensual',
   activa: true,
   pausadaDesde: null,
-  sesiones: [],
 }
 
-// Una sala con dos reuniones reales —presentación con `sesionId`, sin
-// minuta— para el bloque de participación más abajo: `SALA_BASE` a propósito
-// no tiene ninguna, así que con ella `reuniones` sale `[]` y la pregunta
-// "¿se llamó participantesDe?" nunca se ejercitaría de verdad.
+// Una sala con dos reuniones reales —dadas, sin minuta— para el bloque de
+// participación más abajo: `SALA_BASE` a propósito no tiene ninguna, así que
+// con ella `reuniones` sale `[]` y la pregunta "¿se llamó participantesDe?"
+// nunca se ejercitaría de verdad.
+const REUNION_BASE = {
+  tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: true, archivos: [], acuerdos: [],
+}
 const SALA_CON_REUNIONES: EstadoSala = {
   ...SALA_BASE,
-  presentaciones: [
-    { fecha: '2026-07-15T10:00:00.000Z', titulo: 'Julio', tipo: 'mensual', sesionId: 'sesion-jul' },
-    { fecha: '2026-06-15T10:00:00.000Z', titulo: 'Junio', tipo: 'mensual', sesionId: 'sesion-jun' },
+  reuniones: [
+    { ...REUNION_BASE, id: 'sesion-jul', fecha: '2026-07-15T10:00:00.000Z', titulo: 'Julio' },
+    { ...REUNION_BASE, id: 'sesion-jun', fecha: '2026-06-15T10:00:00.000Z', titulo: 'Junio' },
   ],
 }
 

@@ -6,6 +6,7 @@ import estilos from '../deck.module.css'
 import { obtenerReunion } from '@/db/reuniones'
 import {
   documentoDeReunion,
+  crearDocumento,
   moverItem,
   reordenarItems,
   entradasCrudasDeDocumento,
@@ -67,14 +68,24 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // El id de la URL es el de la REUNIÓN (heredado de la vieja sesión: las
   // dos comparten id). El documento es una fila aparte, ligada 1:1 — puede
   // no existir todavía (una reunión registrada solo con minuta, sin pasar
-  // por "preparar", ver publicarMinutaAction). Sin documento, esta página
-  // se ve como una reunión recién creada sin ninguna sección: mismo caso
-  // que ya toleraba `crearSesion` sin plantilla. Crear el documento a
-  // demanda si no existe es trabajo de la Tarea 7 (ver su brief, "abre el
-  // documento de esa reunión, y lo crea si aún no tiene") — aquí solo se
-  // evita que la página reviente.
-  const [reunion, documento] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
+  // por "preparar", ver publicarMinutaAction; o creada a secas con
+  // `crearReunion`). `documentoDeReunion` (lectura pública) devuelve `null`
+  // ahí con normalidad — es el mismo caso que ya toleraba `crearSesion` sin
+  // plantilla.
+  //
+  // ESTE EDITOR, A DIFERENCIA DE ESA lectura, NECESITA UN DOCUMENTO DE
+  // VERDAD (Tarea 7, ver su brief: "abre el documento de esa reunión, y lo
+  // crea si aún no tiene"): sus Server Actions —`guardarSeccionAction`,
+  // `anadirSeccionAction`...— escriben contra `documentoId`, y sin uno real
+  // escribirían contra la cadena vacía. Se crea A DEMANDA, sin plantilla
+  // (`crearDocumento` a secas): quien llega aquí sin haber pasado por
+  // `crearReunionConDocumento` no pidió ninguna estructura en particular, y
+  // el editor ya sabe presentarse con cero secciones (`AnadirSeccion` sigue
+  // ahí para armarlo a mano).
+  const [reunion, documentoPrevio] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
   if (!reunion) notFound()
+  if (!documentoPrevio) await crearDocumento(id)
+  const documento = documentoPrevio ?? (await documentoDeReunion(id))
   const documentoId = documento?.id ?? ''
   const items = documento?.items ?? []
   const documentoEstado = documento?.estado ?? 'borrador'

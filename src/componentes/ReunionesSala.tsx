@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import type { Reunion } from '@/dominio/salas'
+import { tienePresentacion, type Reunion } from '@/dominio/reunion'
 import type { Participante } from '@/db/participacion'
 import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
@@ -32,16 +32,21 @@ interface Props {
   /** El equipo puede corregir la minuta; el director solo la lee. */
   equipo: boolean
   /**
-   * Quién preparó y quién presentó cada reunión, por `sesionId` — SOLO llega
-   * poblado cuando quien mira es equipo (ver el comentario junto a donde se
-   * arma, en `src/app/cliente/[slug]/page.tsx`). Con un director de UDN
-   * mirando, este objeto llega vacío: no hay nombres que ocultar al pintar
-   * porque no hay nombres que hayan viajado hasta aquí.
+   * Quién preparó y quién presentó cada reunión, por `id` de reunión — SOLO
+   * llega poblado cuando quien mira es equipo (ver el comentario junto a
+   * donde se arma, en `src/app/cliente/[slug]/page.tsx`). Con un director de
+   * UDN mirando, este objeto llega vacío: no hay nombres que ocultar al
+   * pintar porque no hay nombres que hayan viajado hasta aquí.
+   *
+   * RENOMBRADO EN LA TAREA 7 (`participacionPorSesion` → `participacionPorReunion`):
+   * mismo dato, misma regla de privacidad — solo cambia que la clave es el id
+   * de la reunión (`Reunion.id`, siempre presente) y no el de una sesión que
+   * ya no existe como concepto en pantalla.
    */
-  participacionPorSesion?: Record<string, Participante[]>
+  participacionPorReunion?: Record<string, Participante[]>
 }
 
-export function ReunionesSala({ reuniones, equipo, participacionPorSesion = {} }: Props) {
+export function ReunionesSala({ reuniones, equipo, participacionPorReunion = {} }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -73,7 +78,7 @@ export function ReunionesSala({ reuniones, equipo, participacionPorSesion = {} }
    * pintaría aunque llegara poblado — `equipo` se comprueba también aquí.
    */
   const participantesDeReunion = (r: Reunion): Participante[] | undefined =>
-    equipo && r.sesionId ? participacionPorSesion[r.sesionId] : undefined
+    equipo ? participacionPorReunion[r.id] : undefined
   const participantesUltima = participantesDeReunion(ultima)
 
   return (
@@ -95,7 +100,7 @@ export function ReunionesSala({ reuniones, equipo, participacionPorSesion = {} }
           {anteriores.map((r) => {
             const participantes = participantesDeReunion(r)
             return (
-              <div key={r.sesionId ?? r.fecha} className={estilos.reunionFila}>
+              <div key={r.id} className={estilos.reunionFila}>
                 <div className={estilos.reunionFilaTexto}>
                   <span className={estilos.presFilaTitulo}>{r.titulo}</span>
                   <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
@@ -158,13 +163,13 @@ export function ReunionesSala({ reuniones, equipo, participacionPorSesion = {} }
               )}
               {/* Desde la minuta se llega al documento de SU reunión: es la
                   pregunta que sigue a leer un acuerdo — "¿qué se presentó?". */}
-              {abierta.presentacion?.sesionId && (
-                <Link href={`/reunion/${abierta.presentacion.sesionId}`} className={estilos.lightboxEnlace}>
+              {tienePresentacion(abierta) && (
+                <Link href={`/reunion/${abierta.id}`} className={estilos.lightboxEnlace}>
                   Ver la presentación →
                 </Link>
               )}
-              {equipo && abierta.sesionId && (
-                <Link href={`/deck/${abierta.sesionId}/minuta`} className={estilos.lightboxEnlace}>
+              {equipo && (
+                <Link href={`/deck/${abierta.id}/minuta`} className={estilos.lightboxEnlace}>
                   Corregir el texto →
                 </Link>
               )}
@@ -182,6 +187,14 @@ export function ReunionesSala({ reuniones, equipo, participacionPorSesion = {} }
  * Que falte se DICE, no se omite: una reunión presentada sin minuta es
  * trabajo pendiente, y una fila que simplemente no enseña el botón de minuta
  * no se distingue de una que sí la tiene.
+ *
+ * SIN TOCAR EN LA TAREA 7 más que lo que exige compilar contra el modelo
+ * nuevo (su brief, punto 7): sustituirla por huecos accionables es la Tarea
+ * 9. `reunion.presentacion?.sesionId` (el viejo) equivale hoy a
+ * `tienePresentacion(reunion)` — mismo umbral (documento LISTO o algún
+ * archivo, ver `dominio/reunion.ts`) — y el enlace usa `reunion.id`
+ * directamente: `/reunion/[id]` ya recibe el id de la REUNIÓN, no el de un
+ * documento aparte.
  */
 function Caras({
   reunion,
@@ -192,11 +205,10 @@ function Caras({
   onLeerMinuta: () => void
   compacta?: boolean
 }) {
-  const idDoc = reunion.presentacion?.sesionId
   return (
     <div className={compacta ? estilos.carasCompactas : estilos.caras}>
-      {idDoc ? (
-        <Link href={`/reunion/${idDoc}`} className={estilos.cara}>
+      {tienePresentacion(reunion) ? (
+        <Link href={`/reunion/${reunion.id}`} className={estilos.cara}>
           <span aria-hidden>▤</span> Presentación
         </Link>
       ) : (
