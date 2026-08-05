@@ -30,7 +30,20 @@ export interface FilaSesionMemoria {
 
 export interface FilaItemMemoria {
   id: string
-  sesionId: string
+  /**
+   * De qué sesión (el modelo VIEJO) es. Opcional desde la ronda 10, tarea 5:
+   * un item que nace de `documentos.ts` no tiene sesión de la que colgar —
+   * mismo motivo por el que `esquema.items.sesionId` dejó de ser `NOT NULL`
+   * (ver su comentario en src/db/esquema.ts). `sesiones.ts` lo sigue
+   * escribiendo siempre; `documentos.ts` lo omite.
+   */
+  sesionId?: string | null
+  /**
+   * De qué documento es (ronda 10, tarea 5) — mismo campo que
+   * `esquema.items.documentoId`. `documentos.ts` lo escribe siempre;
+   * `sesiones.ts` lo omite.
+   */
+  documentoId?: string | null
   orden: number
   tipo: string
   contenidoCrudo: unknown
@@ -58,6 +71,22 @@ export interface FilaReunionMemoria {
   lugar: string | null
   alcance: string
   participantes: unknown[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Lo que se prepara PARA una reunión (ronda 10, tarea 5) — separado de la
+ * junta misma, que vive en `FilaReunionMemoria`. Mismo patrón y misma forma
+ * que `esquema.documentos` (src/db/esquema.ts), menos los defaults de
+ * Postgres, que se ponen a mano igual que en las demás filas de este store.
+ */
+export interface FilaDocumentoMemoria {
+  id: string
+  reunionId: string
+  estado: 'borrador' | 'listo'
+  estructura: unknown
+  plantilla: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -124,6 +153,7 @@ export interface FilaArchivoMemoria {
 
 const sesiones = new Map<string, FilaSesionMemoria>()
 const reuniones = new Map<string, FilaReunionMemoria>()
+const documentos = new Map<string, FilaDocumentoMemoria>()
 const items = new Map<string, FilaItemMemoria>()
 const acuerdos = new Map<string, FilaAcuerdoMemoria>()
 const minutas = new Map<string, FilaMinutaMemoria>()
@@ -132,6 +162,7 @@ const archivos = new Map<string, FilaArchivoMemoria>()
 export function reiniciarStoreMemoria(): void {
   sesiones.clear()
   reuniones.clear()
+  documentos.clear()
   items.clear()
   acuerdos.clear()
   minutas.clear()
@@ -242,6 +273,56 @@ export function eliminarReunionMemoria(reunionId: string): void {
   reuniones.delete(reunionId)
 }
 
+// ---- Documentos (ronda 10, tarea 5) ----
+// Lo que se prepara PARA una reunión. Mismo patrón que `reuniones` arriba.
+
+/**
+ * Espejo en memoria de la restricción `documentos.reunion_id UNIQUE` (ver
+ * src/db/esquema.ts): contra Postgres, un segundo INSERT para la misma
+ * reunión revienta contra esa restricción sin que el código tenga que
+ * preguntar antes — "la base lo impide, no el código". Sin DB real hay que
+ * reproducir el mismo rechazo a mano, o el store dejaría crear dos documentos
+ * para la misma reunión sin que nada se quejara.
+ */
+export function insertarDocumentoMemoria(fila: FilaDocumentoMemoria): void {
+  const existente = Array.from(documentos.values()).find((d) => d.reunionId === fila.reunionId)
+  if (existente) {
+    throw new Error(
+      `La reunión "${fila.reunionId}" ya tiene un documento ("${existente.id}"): una reunión tiene como mucho uno.`,
+    )
+  }
+  documentos.set(fila.id, fila)
+}
+
+export function obtenerDocumentoMemoria(id: string): FilaDocumentoMemoria | undefined {
+  return documentos.get(id)
+}
+
+/** Un documento cuelga de una reunión 1:1 — a lo más una fila por `reunionId`. */
+export function obtenerDocumentoDeReunionMemoria(reunionId: string): FilaDocumentoMemoria | undefined {
+  return Array.from(documentos.values()).find((d) => d.reunionId === reunionId)
+}
+
+export function actualizarEstructuraDocumentoMemoria(documentoId: string, estructura: unknown): void {
+  const fila = documentos.get(documentoId)
+  if (!fila) return
+  fila.estructura = estructura
+  fila.updatedAt = new Date()
+}
+
+/** Espejo en memoria de `marcarListo` (ver src/db/documentos.ts). */
+export function actualizarEstadoDocumentoMemoria(documentoId: string, estado: FilaDocumentoMemoria['estado']): void {
+  const fila = documentos.get(documentoId)
+  if (!fila) return
+  fila.estado = estado
+  fila.updatedAt = new Date()
+}
+
+/** Espejo en memoria del borrado de un documento (ver `eliminarDocumentoDeReunion`, src/db/documentos.ts). */
+export function eliminarDocumentoMemoria(documentoId: string): void {
+  documentos.delete(documentoId)
+}
+
 export function insertarItemsMemoria(filas: FilaItemMemoria[]): void {
   for (const fila of filas) items.set(fila.id, fila)
 }
@@ -250,6 +331,20 @@ export function obtenerItemsDeSesionMemoria(sesionId: string): FilaItemMemoria[]
   return Array.from(items.values())
     .filter((i) => i.sesionId === sesionId)
     .sort((a, b) => a.orden - b.orden)
+}
+
+/** Los items de un documento — mismo patrón que `obtenerItemsDeSesionMemoria`. */
+export function obtenerItemsDeDocumentoMemoria(documentoId: string): FilaItemMemoria[] {
+  return Array.from(items.values())
+    .filter((i) => i.documentoId === documentoId)
+    .sort((a, b) => a.orden - b.orden)
+}
+
+/** Espejo en memoria del borrado en cascada de los items de un documento (ver `eliminarDocumentoDeReunion`). */
+export function eliminarItemsDeDocumentoMemoria(documentoId: string): void {
+  for (const [id, fila] of items) {
+    if (fila.documentoId === documentoId) items.delete(id)
+  }
 }
 
 export function actualizarContenidoItemMemoria(itemId: string, contenidoCrudo: unknown): void {

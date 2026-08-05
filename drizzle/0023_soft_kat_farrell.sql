@@ -1,0 +1,1 @@
+ALTER TABLE "items" ALTER COLUMN "sesion_id" DROP NOT NULL;

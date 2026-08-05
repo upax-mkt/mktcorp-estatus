@@ -247,9 +247,18 @@ export const sesiones = pgTable('sesiones', {
 // motor de maquetación (se puede recalcular sin recapturar).
 export const items = pgTable('items', {
   id: text('id').primaryKey(),
-  sesionId: text('sesion_id')
-    .notNull()
-    .references(() => sesiones.id),
+  /**
+   * De qué sesión (el modelo VIEJO) es. Deja de ser `NOT NULL` en la Tarea 5:
+   * un item que nace de `documentos.ts` no tiene fila de `sesiones` de la que
+   * colgar —el modelo nuevo no la crea— así que exigirla aquí habría hecho
+   * imposible escribir un documento nuevo contra Postgres (`crearDocumento`/
+   * `anadirSeccion` solo conocen `documentoId`). Un item viejo (el que crea
+   * `sesiones.ts`, vivo hasta que la Tarea 8 lo retire) la sigue trayendo
+   * siempre; nunca se le quita a una fila existente, solo deja de exigirse en
+   * las nuevas. Se DROPEA del todo en la Tarea 8, junto con la tabla
+   * `sesiones` (0023/0024 planeadas, ver el plan de la ronda 10).
+   */
+  sesionId: text('sesion_id').references(() => sesiones.id),
   /**
    * De qué documento es (ronda 10, tarea 3): un item es contenido de lo que
    * se preparó, no de la junta — cuelga del documento, no de la reunión.

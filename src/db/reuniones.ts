@@ -375,15 +375,25 @@ export async function desmarcarNoDada(id: string): Promise<void> {
  * impediría — mismo criterio, íntegro, que `eliminarSesion` con
  * `sesionOrigenId` (src/db/sesiones.ts).
  *
- * NOTA para la Tarea 5: si esta reunión tiene un documento,
- * `esquema.documentos.reunionId` es `NOT NULL` + `UNIQUE` — este DELETE
- * fallará por violación de clave foránea hasta que `documentos.ts` sepa
- * borrar o desvincular su documento (y los items que cuelgan de él) primero.
- * Fuera del alcance de esta tarea: `documentos.ts` no existe todavía y
- * reuniones.ts no puede depender de él sin invertir la dirección de
- * dependencia que fija el plan (documentos.ts → reuniones.ts).
+ * RESUELTO EN LA TAREA 5 (herencia de la T4): si esta reunión tiene un
+ * documento, `esquema.documentos.reunionId` es `NOT NULL` + `UNIQUE` — el
+ * DELETE de más abajo revienta por violación de clave foránea a menos que el
+ * documento (y los items que cuelgan de él) se borre antes. Este módulo no
+ * puede importar `src/db/documentos.ts` sin invertir la dirección de
+ * dependencia que fija el plan (documentos.ts → reuniones.ts, nunca al
+ * revés), así que la solución es inyección: quien SÍ conoce los dos módulos
+ * —el llamador, hoy `documentos.ts` mismo a través de
+ * `eliminarDocumentoDeReunion`, mañana una Server Action— pasa aquí la
+ * función que sabe borrar el documento. Sin `eliminarDocumento` (el caso de
+ * hoy en `reuniones.test.ts`, y el de cualquier reunión que nunca llegó a
+ * tener documento) el comportamiento es EXACTAMENTE el de antes.
  */
-export async function eliminarReunion(id: string): Promise<void> {
+export async function eliminarReunion(
+  id: string,
+  eliminarDocumento?: (reunionId: string) => Promise<void>,
+): Promise<void> {
+  if (eliminarDocumento) await eliminarDocumento(id)
+
   if (hayDB()) {
     const conexion = db()
     await conexion
