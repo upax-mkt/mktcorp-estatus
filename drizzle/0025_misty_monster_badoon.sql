@@ -1,0 +1,1 @@
+ALTER TABLE "reuniones" ALTER COLUMN "sala_slug" DROP NOT NULL;

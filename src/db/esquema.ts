@@ -127,7 +127,21 @@ export const salas = pgTable('salas', {
 // se mudan aquí en una tarea posterior. Ver spec §1.
 export const reuniones = pgTable('reuniones', {
   id: text('id').primaryKey(),
-  salaSlug: text('sala_slug').notNull().references(() => salas.slug),
+  /**
+   * De qué sala es. NULO para una reunión que no pertenece a ninguna: un
+   * comité, un arranque de campaña, una interna de Mkt Corp.
+   *
+   * Volvió a ser opcional en la Tarea 8b (5-ago), pedido de Franco:
+   * "necesito poder utilizar el componente para crear minutas de otras
+   * reuniones". Había dejado de serlo en la Tarea 4 (ronda 10) al mudar esta
+   * tabla desde `sesiones` —donde SÍ era nula, ver esa columna más abajo—,
+   * perdiendo sin querer una capacidad que ya existía. La referencia a
+   * `salas.slug` se queda: una reunión CON sala sigue teniendo que apuntar a
+   * una que exista. Una reunión sin sala se viste con la identidad de
+   * Marketing Corp (`identidadDe`, src/db/reuniones.ts) y no aparece en
+   * ninguna de las diez.
+   */
+  salaSlug: text('sala_slug').references(() => salas.slug),
   /** Instante, anclado a CDMX al escribir (`instanteEnCDMX`). */
   fecha: timestamp('fecha', { withTimezone: true }).notNull(),
   titulo: text('titulo').notNull(),

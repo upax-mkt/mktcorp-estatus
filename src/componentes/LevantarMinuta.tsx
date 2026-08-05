@@ -113,12 +113,10 @@ export function LevantarMinuta({
   const [error, setError] = useState<string | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
 
-  // Campos de "otra reunión". `DatosDeReunion.salaSlug` es obligatorio desde
-  // la Tarea 4 (ronda 10): ya no hay "Ninguna" — ver el comentario junto al
-  // <select> más abajo. Sin sala fija, arranca en la primera de la lista.
+  // Campos de "otra reunión".
   const [titulo, setTitulo] = useState('')
   const [fecha, setFecha] = useState(hoyCivil())
-  const [sala, setSala] = useState(salaFija ?? salas[0]?.slug ?? '')
+  const [sala, setSala] = useState(salaFija ?? '')
 
   useEffect(() => {
     const n = dialogo.current
@@ -137,11 +135,15 @@ export function LevantarMinuta({
    * Pasar a la transcripción. NO REGISTRA NADA: la descripción se guarda aquí
    * y viaja al servidor con la transcripción; la reunión nace al publicar.
    *
-   * SIEMPRE con sala (ronda 10, tarea 5b): `DatosDeReunion.salaSlug` es
-   * obligatorio desde la Tarea 4 — antes "Ninguna" cubría un comité o una
-   * junta interna sin UDN, con sus acuerdos quedando solo en el texto de la
-   * minuta. Esa vía ya no existe del lado de la escritura (`crearReunion`
-   * la rechazaría); ver el reporte de esta tarea.
+   * LA OPCIÓN "NINGUNA" VUELVE (Tarea 8b, 5-ago), pedido de Franco: "necesito
+   * poder utilizar el componente para crear minutas de otras reuniones".
+   * Cubre un comité o una junta interna sin UDN, con sus acuerdos quedando
+   * solo en el texto de la minuta (ver el texto junto al `<select>`, más
+   * abajo). Había desaparecido en la Tarea 5b, cuando `DatosDeReunion.salaSlug`
+   * se volvió obligatorio (Tarea 4) y `crearReunion` rechazaba un `salaSlug`
+   * nulo — restaurado tal cual el original
+   * (`git show d5396be:src/componentes/LevantarMinuta.tsx`): `sala || null`,
+   * no un `if (!sala)` que bloquee seguir.
    */
   function seguir() {
     setError(null)
@@ -150,15 +152,11 @@ export function LevantarMinuta({
       setError('Ponle un nombre a la reunión: es como se va a encontrar después.')
       return
     }
-    if (!sala) {
-      setError('Elige a qué sala pertenece esta reunión.')
-      return
-    }
     // Mediodía y no medianoche: una fecha a las 00:00 UTC se corre de día al
     // leerla en la zona de México.
     const cuando = `${fecha}T12:00:00.000Z`
     setElegida({
-      de: { nueva: { titulo: nombre, fecha: cuando, salaSlug: sala } },
+      de: { nueva: { titulo: nombre, fecha: cuando, salaSlug: sala || null } },
       titulo: nombre,
       fecha: cuando,
     })
@@ -290,8 +288,9 @@ export function LevantarMinuta({
                       </label>
                       {salas.length > 0 && (
                         <label className={estilos.campo}>
-                          <span className="micro">Sala</span>
+                          <span className="micro">Sala, si es de alguna</span>
                           <select value={sala} onChange={(e) => setSala(e.target.value)}>
+                            <option value="">Ninguna</option>
                             {salas.map((s) => (
                               <option key={s.slug} value={s.slug}>{s.nombre}</option>
                             ))}
@@ -309,7 +308,8 @@ export function LevantarMinuta({
 
                     <p className={estilos.vacio} style={{ marginTop: '0.9rem' }}>
                       La reunión se registra al publicar la minuta, no ahora: si lo dejas a medias,
-                      no queda nada. Su minuta y sus acuerdos quedan en la sala que elijas.
+                      no queda nada. Si la asignas a una sala, su minuta y sus acuerdos quedan ahí;
+                      sin sala, la minuta existe igual y sus acuerdos se quedan en el texto.
                     </p>
                   </>
                 )}

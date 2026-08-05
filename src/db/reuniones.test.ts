@@ -108,6 +108,36 @@ describe('crearReunion', () => {
     expect(r.alcance).toBe('campaña de fin de año')
     expect(r.fecha).toBe('2026-08-19T16:00:00.000Z')
   })
+
+  /**
+   * RESTAURADO EN LA TAREA 8b (5-ago), pedido de Franco: "necesito poder
+   * utilizar el componente para crear minutas de otras reuniones". La
+   * capacidad existía en el modelo viejo (`DatosDeSesion.salaSlug: string |
+   * null`, `src/db/sesiones.ts`) y se perdió en la Tarea 4 al volver
+   * `DatosDeReunion.salaSlug` obligatorio — recuperable con `git show
+   * d5396be:src/db/sesiones.ts`. Los tres tests son verbatim los del brief.
+   */
+  it('una reunión puede no ser de ninguna sala: un comité no es una UDN', async () => {
+    const { id } = await crearReunion({
+      salaSlug: null, fecha: new Date(), titulo: 'Comité de marca', tipo: 'mensual',
+    })
+    expect((await obtenerReunion(id))!.salaSlug).toBeNull()
+  })
+
+  it('sin sala lleva la identidad de quien la convoca: Marketing Corp', async () => {
+    const { id } = await crearReunion({
+      salaSlug: null, fecha: new Date(), titulo: 'Comité de marca', tipo: 'mensual',
+    })
+    const r = (await obtenerReunion(id))!
+    expect(r.salaNombre).toBe('Marketing Corp')
+    expect(r.salaColor).toBe('#E34714')
+  })
+
+  it('sin sala no hay freeze que comprobar: nadie pausa un comité', async () => {
+    // `salaEstaActiva` ni se llama — no hay sala de la que preguntar.
+    await crearReunion({ salaSlug: null, fecha: new Date(), titulo: 'x', tipo: 'mensual' })
+    expect(salaEstaActivaMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('marcarNoDada', () => {
@@ -143,6 +173,14 @@ describe('marcarNoDada', () => {
     const { id } = await crearReunion({ salaSlug: 'neracode', fecha: new Date(), titulo: 'Mensual', tipo: 'mensual' })
     salaEstaActivaMock.mockResolvedValue(false)
     await expect(marcarNoDada(id)).rejects.toThrow(/reactívala antes de marcar esta reunión/)
+  })
+
+  /** Mismo guardián y mismo motivo que su equivalente en `describe('marcarDada')` — ver ese comentario. */
+  it('sin sala tampoco hay freeze que comprobar en marcarNoDada', async () => {
+    const { id } = await crearReunion({ salaSlug: null, fecha: new Date(), titulo: 'Comité de marca', tipo: 'mensual' })
+    await marcarNoDada(id)
+    expect((await obtenerReunion(id))!.noDadaEn).not.toBeNull()
+    expect(salaEstaActivaMock).not.toHaveBeenCalled()
   })
 
   /** Mudado de `ciclo-sesion.test.ts`: no revienta si nunca se había marcado — no-op honesto. */
@@ -185,6 +223,23 @@ describe('marcarDada', () => {
     const { id } = await crearReunion({ salaSlug: 'research-land', fecha: new Date(), titulo: 'Quincenal Comercial', tipo: 'quincenal' })
     salaEstaActivaMock.mockResolvedValue(false)
     await expect(marcarDada(id)).rejects.toThrow(/^Research Land está pausada/)
+  })
+
+  /**
+   * TAREA 8b: `reunion.salaSlug` ahora puede ser `null`, y `salaEstaActiva`
+   * sigue exigiendo un slug real — el mismo guardián de `crearReunion` hace
+   * falta aquí. El original (`marcarPresentada`, `sesiones.ts`, commit
+   * `d5396be`) ya lo resolvía así, con esta misma frase: "sin sala... no hay
+   * freeze que preguntar". Nace `agendada` (sin `estado`) a propósito: si
+   * naciera `dada`, `marcarDada` volvería sin tocar el freeze por el propio
+   * `if (reunion.estado === 'dada') return` de arriba, y el test no probaría
+   * nada.
+   */
+  it('sin sala tampoco hay freeze que comprobar en marcarDada', async () => {
+    const { id } = await crearReunion({ salaSlug: null, fecha: new Date(), titulo: 'Comité de marca', tipo: 'mensual' })
+    await marcarDada(id)
+    expect((await obtenerReunion(id))!.estado).toBe('dada')
+    expect(salaEstaActivaMock).not.toHaveBeenCalled()
   })
 
   /**

@@ -176,6 +176,13 @@
       "when": 1785960424710,
       "tag": "0024_lucky_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785968973192,
+      "tag": "0025_misty_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

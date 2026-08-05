@@ -37,7 +37,8 @@ export type EstadoReunion = 'agendada' | 'dada'
 
 export interface ReunionResumen {
   id: string
-  salaSlug: string
+  /** `null` para una reunión que no es de ninguna sala — ver `DatosDeReunion.salaSlug`. */
+  salaSlug: string | null
   salaNombre: string
   salaColor: string
   fecha: string // ISO
@@ -69,12 +70,20 @@ export interface ReunionResumen {
 
 export interface DatosDeReunion {
   /**
-   * De qué sala es. A diferencia de la vieja `DatosDeSesion`, NO es nulo: el
-   * esquema nuevo (`esquema.reuniones.salaSlug`) es `NOT NULL` — ver spec §1
-   * y la ficha de la Tarea 4. Una reunión sin sala (comité, arranque de
-   * campaña) queda fuera de este modelo por ahora.
+   * De qué sala es. NULO para una reunión que no pertenece a ninguna: un
+   * comité, un arranque de campaña, una interna de Mkt Corp — mismo
+   * significado que tenía en la vieja `DatosDeSesion.salaSlug`
+   * (`src/db/sesiones.ts`, recuperable con `git show
+   * d5396be:src/db/sesiones.ts`).
+   *
+   * Volvió a ser nulo en la Tarea 8b (5-ago), pedido de Franco: "necesito
+   * poder utilizar el componente para crear minutas de otras reuniones".
+   * Había dejado de serlo en la Tarea 4 (ronda 10) al mudar esta tabla desde
+   * `sesiones` —perdiendo, sin que nadie lo pidiera, una capacidad que ya
+   * existía—. Una reunión sin sala se viste con la identidad de Marketing
+   * Corp (`identidadDe`, más abajo) y no aparece en ninguna de las diez.
    */
-  salaSlug: string
+  salaSlug: string | null
   fecha: Date
   titulo: string
   tipo: TipoReunion
@@ -108,22 +117,35 @@ export interface DatosDeReunion {
 }
 
 /**
+ * Con qué se viste una reunión.
+ *
+ * Una que no pertenece a ninguna sala —un comité, un arranque de campaña—
+ * lleva la identidad de Marketing Corp: es de quien la convoca. Restaurado
+ * en la Tarea 8b (5-ago): el original vivía en `src/db/sesiones.ts` como
+ * `identidadDe` —recuperable con `git show d5396be:src/db/sesiones.ts`— y
+ * esta función (entonces `identidadDeSala`, sin la rama "sin sala") se
+ * había quedado sin ella en la Tarea 4, cuando `salaSlug` se volvió
+ * obligatorio y ya no había nada que ramificar.
+ */
+const MARKETING_CORP = { nombre: 'Marketing Corp', primario: '#E34714' }
+
+/**
  * Con qué nombre y color se etiqueta una reunión, dado el registro de temas
  * YA CARGADO — función pura, no vuelve a consultar la base por su cuenta.
- * Sin la rama "sin sala" de `identidadDe` (src/db/sesiones.ts): `salaSlug`
- * siempre está aquí.
  */
-function identidadDeSala(salaSlug: string, registro: Record<string, Tema>): { nombre: string; color: string } {
+function identidadDe(salaSlug: string | null, registro: Record<string, Tema>): { nombre: string; color: string } {
+  if (!salaSlug) return { nombre: MARKETING_CORP.nombre, color: MARKETING_CORP.primario }
   const tema = registro[salaSlug]
   // Defensivo: no debería pasar (la FK de esquema.reuniones.salaSlug exige
-  // que la sala exista), pero un texto de más es más barato que reventar la
-  // reunión entera. Mismo criterio que `temaDeSalaSeguro` en src/db/acuerdos.ts.
+  // que la sala exista SI hay sala), pero un texto de más es más barato que
+  // reventar la reunión entera. Mismo criterio que `temaDeSalaSeguro` en
+  // src/db/acuerdos.ts.
   return tema ? { nombre: tema.nombre, color: tema.primario } : { nombre: salaSlug, color: '#666666' }
 }
 
 interface FilaReunionComun {
   id: string
-  salaSlug: string
+  salaSlug: string | null
   fecha: Date
   titulo: string
   tipo: TipoReunion
@@ -141,7 +163,7 @@ function resumenDeFilaReunion(
   tieneMinuta: boolean,
   archivos: number,
 ): ReunionResumen {
-  const identidad = identidadDeSala(fila.salaSlug, registro)
+  const identidad = identidadDe(fila.salaSlug, registro)
   return {
     id: fila.id,
     salaSlug: fila.salaSlug,
@@ -167,7 +189,10 @@ function resumenDeFilaReunion(
 // ---- Escritura ----
 
 export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string }> {
-  if (!(await slugsDeSalas()).includes(datos.salaSlug)) {
+  // Sin sala no hay nada que buscar (Tarea 8b, 5-ago) — mismo guardián
+  // `datos.salaSlug &&` que usaba `crearSesion` (`sesiones.ts`, commit
+  // `d5396be`) para esta misma comprobación.
+  if (datos.salaSlug && !(await slugsDeSalas()).includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
   }
   /**
@@ -180,12 +205,17 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
    * arriba). Completar el acta de una reunión que YA OCURRIÓ no es trabajo
    * nuevo, así que el freeze deja pasar `estado: 'dada'` y bloquea el resto
    * (`'agendada'`, el valor por defecto).
+   *
+   * SIN SALA NO HAY NADA QUE PREGUNTAR (Tarea 8b): ni si existe (comprobación
+   * de arriba) ni si está en pausa (esta) — un comité no tiene freeze que
+   * respetar. Mismo `datos.salaSlug &&` que el original `crearSesion` ya
+   * usaba aquí.
    */
   const esTrabajoNuevo = (datos.estado ?? 'agendada') !== 'dada'
-  if (esTrabajoNuevo && !(await salaEstaActiva(datos.salaSlug))) {
+  if (datos.salaSlug && esTrabajoNuevo && !(await salaEstaActiva(datos.salaSlug))) {
     const registro = await cargarTemas()
     throw new Error(
-      `${identidadDeSala(datos.salaSlug, registro).nombre} está pausada: reactívala antes de crear una reunión nueva.`,
+      `${identidadDe(datos.salaSlug, registro).nombre} está pausada: reactívala antes de crear una reunión nueva.`,
     )
   }
 
@@ -376,8 +406,11 @@ export async function marcarDada(id: string): Promise<void> {
 
   // FREEZE DE LA SALA: confirmar que una reunión se dio es gestión, y una
   // sala en pausa no admite gestión — mismo guardián que `crearReunion`
-  // cuando SÍ es trabajo nuevo (ver el comentario de arriba).
-  if (!(await salaEstaActiva(reunion.salaSlug))) {
+  // cuando SÍ es trabajo nuevo (ver el comentario de arriba). Sin sala
+  // (`salaSlug` nulo, una reunión de comité — Tarea 8b) no hay freeze que
+  // preguntar: mismo `reunion.salaSlug &&` que ya usaba el `marcarPresentada`
+  // original (`sesiones.ts`, commit `d5396be`).
+  if (reunion.salaSlug && !(await salaEstaActiva(reunion.salaSlug))) {
     throw new Error(`${reunion.salaNombre} está pausada: reactívala antes de confirmar esta reunión.`)
   }
 
@@ -406,8 +439,9 @@ export async function marcarNoDada(id: string): Promise<void> {
   if (reunion.estado === 'dada') {
     throw new Error('Esta reunión ya se marcó como dada: no se puede decir que no se dio.')
   }
-  // Mismo freeze que `marcarDada`: negar también es gestión.
-  if (!(await salaEstaActiva(reunion.salaSlug))) {
+  // Mismo freeze que `marcarDada`: negar también es gestión. Sin sala,
+  // tampoco hay freeze que preguntar — ver el comentario de `marcarDada`.
+  if (reunion.salaSlug && !(await salaEstaActiva(reunion.salaSlug))) {
     throw new Error(`${reunion.salaNombre} está pausada: reactívala antes de marcar esta reunión.`)
   }
 
@@ -572,11 +606,16 @@ export async function reunionesPublicasDelMes(anio: number, mes: number): Promis
 
   // GRUPO UPAX NO ES UNA UDN: NO SE ANUNCIA AQUÍ — misma exclusión, íntegra,
   // que `sesionesPublicasDelMes` (ver su comentario en src/db/sesiones.ts).
-  // A diferencia de esa función, no hace falta filtrar `salaSlug !== null`
-  // primero: `esquema.reuniones.salaSlug` es `NOT NULL`.
+  // UNA REUNIÓN SIN SALA (comité, Marketing Corp — Tarea 8b) TAMPOCO: el
+  // propio INNER JOIN de arriba ya la excluye en SQL (NULL nunca iguala nada
+  // contra `esquema.salas.slug`), pero `esquema.reuniones.salaSlug` volvió a
+  // ser nullable en el TIPO — este filtro se lo confirma a TypeScript sin
+  // mentirle con un `!`, y de paso documenta la intención.
   const slugsReales = await slugsDeSalas()
   return filas
-    .filter((fila) => slugsReales.includes(fila.salaSlug))
+    .filter((fila): fila is typeof fila & { salaSlug: string } =>
+      fila.salaSlug !== null && slugsReales.includes(fila.salaSlug),
+    )
     .map((fila) => {
       const iso = fila.fecha.toISOString()
       return {
