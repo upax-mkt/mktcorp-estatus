@@ -133,9 +133,23 @@ vi.mock('@/auth/sesion', () => ({
   exigirEdicionDeAcuerdos: vi.fn(),
 }))
 
-vi.mock('@/db/sesiones', () => ({
-  crearSesionConEstructura: vi.fn(),
-  listarSesiones: vi.fn().mockResolvedValue([]),
+// Migrado de @/db/sesiones (ronda 10, tarea 5b): `listarSesiones` ->
+// `listarReuniones` (@/db/reuniones); `crearSesionConEstructura` ->
+// `crearReunionConDocumento` (@/db/documentos). Con `listarReuniones` en
+// `[]`, `enPreparacion` sale vacío y `documentoDeReunion` (que la página
+// también importa ahora, para resolver itemsLlenados/totalItems por
+// reunión) nunca llega a invocarse — se mockea igual, mínimo defensivo,
+// mismo criterio que el resto de este archivo.
+vi.mock('@/db/reuniones', () => ({
+  listarReuniones: vi.fn().mockResolvedValue([]),
+  marcarDada: vi.fn(),
+  marcarNoDada: vi.fn(),
+  desmarcarNoDada: vi.fn(),
+}))
+
+vi.mock('@/db/documentos', () => ({
+  crearReunionConDocumento: vi.fn(),
+  documentoDeReunion: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock('@/app/acuerdos/acciones', () => ({

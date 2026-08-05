@@ -1,49 +1,33 @@
 /**
- * Store efímero en memoria del proceso servidor, usado por `src/db/sesiones.ts`
- * cuando `!hayDB()`: permite crear/llenar/maquetar una sesión en dev sin
- * DATABASE_URL. Un `Map` por tabla, con la misma forma de fila que
- * `src/db/esquema.ts` (menos los defaults de Postgres, que se ponen a mano).
+ * Store efímero en memoria del proceso servidor, usado por `src/db/reuniones.ts`
+ * y `src/db/documentos.ts` cuando `!hayDB()`: permite crear/llenar/maquetar una
+ * reunión en dev sin DATABASE_URL. Un `Map` por tabla, con la misma forma de
+ * fila que `src/db/esquema.ts` (menos los defaults de Postgres, que se ponen
+ * a mano).
  *
  * ADVERTENCIA — no persiste entre reinicios del servidor de dev (`npm run
  * dev`) ni entre invocaciones serverless en producción: vive solo mientras el
  * proceso Node sigue arriba. Suficiente para probar el flujo end-to-end en
  * dev; en producción real se necesita DATABASE_URL.
+ *
+ * SIN `sesiones`/`FilaSesionMemoria` desde la ronda 10, tarea 5b: el modelo
+ * viejo (`src/db/sesiones.ts`) desapareció y con él su doble en memoria. El
+ * `Map` y sus funciones vivieron aquí hasta ese momento — ver el historial de
+ * git si hace falta consultar la forma que tenían.
  */
-
-export interface FilaSesionMemoria {
-  id: string
-  /** Nulo en una reunión que no pertenece a ninguna sala. */
-  salaSlug: string | null
-  plantilla: string
-  fecha: Date
-  tipo: 'semanal' | 'mensual'
-  alcance: string
-  estado: 'agendada' | 'borrador' | 'lista' | 'presentada' | 'minutada'
-  /** Ver la columna homónima en src/db/esquema.ts y `fueDada` en src/dominio/salas.ts. */
-  noDadaEn: Date | null
-  estructura: unknown
-  participantes: string[]
-  lugar: string | null
-  createdAt: Date
-  updatedAt: Date
-}
 
 export interface FilaItemMemoria {
   id: string
   /**
-   * De qué sesión (el modelo VIEJO) es. Opcional desde la ronda 10, tarea 5:
-   * un item que nace de `documentos.ts` no tiene sesión de la que colgar —
-   * mismo motivo por el que `esquema.items.sesionId` dejó de ser `NOT NULL`
-   * (ver su comentario en src/db/esquema.ts). `sesiones.ts` lo sigue
-   * escribiendo siempre; `documentos.ts` lo omite.
-   */
-  sesionId?: string | null
-  /**
    * De qué documento es (ronda 10, tarea 5) — mismo campo que
-   * `esquema.items.documentoId`. `documentos.ts` lo escribe siempre;
-   * `sesiones.ts` lo omite.
+   * `esquema.items.documentoId`. Siempre presente: desde que `sesiones.ts`
+   * desapareció (tarea 5b), todo item nace por `documentos.ts`, que lo
+   * escribe siempre. `esquema.items.documentoId` sigue siendo nullable en
+   * Postgres (una fila vieja, de antes de esta ronda, puede no tenerlo — se
+   * vuelve `NOT NULL` en la Tarea 8), pero el store en memoria nunca modela
+   * esas filas históricas: arranca vacío en cada proceso.
    */
-  documentoId?: string | null
+  documentoId: string
   orden: number
   tipo: string
   contenidoCrudo: unknown
@@ -53,11 +37,9 @@ export interface FilaItemMemoria {
 }
 
 /**
- * La junta como entidad propia (ronda 10, tarea 4) — separada de lo que se
- * prepara para ella, que sigue viviendo en `FilaSesionMemoria`/`FilaItemMemoria`
- * hasta que la Tarea 5 le añada su propio `FilaDocumentoMemoria`. Misma forma
- * de fila que `esquema.reuniones` (src/db/esquema.ts), menos los defaults de
- * Postgres, que se ponen a mano igual que en `FilaSesionMemoria`.
+ * La junta como entidad propia (ronda 10, tarea 4). Misma forma de fila que
+ * `esquema.reuniones` (src/db/esquema.ts), menos los defaults de Postgres,
+ * que se ponen a mano.
  */
 export interface FilaReunionMemoria {
   id: string
@@ -159,7 +141,6 @@ export interface FilaArchivoMemoria {
   updatedAt: Date
 }
 
-const sesiones = new Map<string, FilaSesionMemoria>()
 const reuniones = new Map<string, FilaReunionMemoria>()
 const documentos = new Map<string, FilaDocumentoMemoria>()
 const items = new Map<string, FilaItemMemoria>()
@@ -168,7 +149,6 @@ const minutas = new Map<string, FilaMinutaMemoria>()
 const archivos = new Map<string, FilaArchivoMemoria>()
 /** Sólo para tests: vuelve el store a estado vacío. */
 export function reiniciarStoreMemoria(): void {
-  sesiones.clear()
   reuniones.clear()
   documentos.clear()
   items.clear()
@@ -177,62 +157,8 @@ export function reiniciarStoreMemoria(): void {
   archivos.clear()
 }
 
-export function insertarSesionMemoria(fila: FilaSesionMemoria): void {
-  sesiones.set(fila.id, fila)
-}
-
-/** Espejo en memoria de `editarSesion` (ver src/db/sesiones.ts). */
-export function actualizarDatosSesionMemoria(
-  sesionId: string,
-  cambios: Partial<Pick<FilaSesionMemoria, 'fecha' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>,
-): void {
-  const fila = sesiones.get(sesionId)
-  if (!fila) return
-  sesiones.set(sesionId, { ...fila, ...cambios, updatedAt: new Date() })
-}
-
-export function actualizarEstructuraSesionMemoria(sesionId: string, estructura: unknown): void {
-  const fila = sesiones.get(sesionId)
-  if (!fila) return
-  fila.estructura = estructura
-  fila.updatedAt = new Date()
-}
-
-export function actualizarEstadoSesionMemoria(
-  sesionId: string,
-  estado: FilaSesionMemoria['estado'],
-): void {
-  const fila = sesiones.get(sesionId)
-  if (!fila) return
-  fila.estado = estado
-  // Cualquier transición de estado es trabajo activo sobre la sesión, y eso
-  // pesa más que una marca "no se dio" puesta antes de ese trabajo — mismo
-  // razonamiento que en el camino de Postgres (marcarPresentada,
-  // guardarMinuta, y el re-maquetado en src/db/sesiones.ts).
-  fila.noDadaEn = null
-  fila.updatedAt = new Date()
-}
-
-/** Espejo en memoria de `marcarNoDada`/`desmarcarNoDada` (ver src/db/sesiones.ts). */
-export function actualizarNoDadaSesionMemoria(sesionId: string, valor: Date | null): void {
-  const fila = sesiones.get(sesionId)
-  if (!fila) return
-  fila.noDadaEn = valor
-  fila.updatedAt = new Date()
-}
-
-export function obtenerSesionMemoria(id: string): FilaSesionMemoria | undefined {
-  return sesiones.get(id)
-}
-
-/** Más recientes primero — mismo orden que la consulta Drizzle equivalente. */
-export function listarSesionesMemoria(): FilaSesionMemoria[] {
-  return Array.from(sesiones.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-}
-
 // ---- Reuniones (ronda 10, tarea 4) ----
-// La junta como entidad propia. Mismo patrón que `sesiones` arriba: un Map,
-// una función por operación.
+// La junta como entidad propia. Un Map, una función por operación.
 
 export function insertarReunionMemoria(fila: FilaReunionMemoria): void {
   reuniones.set(fila.id, fila)
@@ -262,8 +188,9 @@ export function actualizarEstadoReunionMemoria(reunionId: string, estado: FilaRe
   const fila = reuniones.get(reunionId)
   if (!fila) return
   fila.estado = estado
-  // Mismo razonamiento que `actualizarEstadoSesionMemoria`: confirmar que la
-  // reunión se dio es más fuerte que una marca "no se dio" puesta antes.
+  // Confirmar que la reunión se dio es más fuerte que una marca "no se dio"
+  // puesta antes — mismo razonamiento que el camino de Postgres (`marcarDada`,
+  // `guardarMinuta`, y el re-maquetado en src/db/documentos.ts).
   fila.noDadaEn = null
   fila.updatedAt = new Date()
 }
@@ -335,13 +262,6 @@ export function insertarItemsMemoria(filas: FilaItemMemoria[]): void {
   for (const fila of filas) items.set(fila.id, fila)
 }
 
-export function obtenerItemsDeSesionMemoria(sesionId: string): FilaItemMemoria[] {
-  return Array.from(items.values())
-    .filter((i) => i.sesionId === sesionId)
-    .sort((a, b) => a.orden - b.orden)
-}
-
-/** Los items de un documento — mismo patrón que `obtenerItemsDeSesionMemoria`. */
 export function obtenerItemsDeDocumentoMemoria(documentoId: string): FilaItemMemoria[] {
   return Array.from(items.values())
     .filter((i) => i.documentoId === documentoId)
@@ -430,16 +350,6 @@ export function obtenerMinutaDeReunionMemoria(reunionId: string): FilaMinutaMemo
   return Array.from(minutas.values()).find((m) => m.reunionId === reunionId)
 }
 
-/**
- * TEMPORAL: alias del nombre viejo, solo mientras `src/db/sesiones.ts` (que
- * todavía llama a esta función con su nombre de antes de la ronda 10, tarea
- * 5b) sigue existiendo. Se retira en el mismo commit que borra `sesiones.ts`
- * — no queda nadie más que la llame.
- */
-export function obtenerMinutaDeSesionMemoria(sesionId: string): FilaMinutaMemoria | undefined {
-  return obtenerMinutaDeReunionMemoria(sesionId)
-}
-
 /** Espejo en memoria del borrado real de un acuerdo (ver src/db/acuerdos.ts). */
 export function eliminarAcuerdoMemoria(id: string): void {
   acuerdos.delete(id)
@@ -450,11 +360,6 @@ export function eliminarMinutaDeReunionMemoria(reunionId: string): void {
   for (const [id, fila] of minutas) {
     if (fila.reunionId === reunionId) minutas.delete(id)
   }
-}
-
-/** TEMPORAL: mismo motivo que `obtenerMinutaDeSesionMemoria` — se retira junto con `sesiones.ts`. */
-export function eliminarMinutaDeSesionMemoria(sesionId: string): void {
-  eliminarMinutaDeReunionMemoria(sesionId)
 }
 
 // ---- Archivos de sala (ver src/db/archivos.ts) ----
@@ -482,12 +387,4 @@ export function actualizarArchivoMemoria(
 
 export function eliminarArchivoMemoria(id: string): void {
   archivos.delete(id)
-}
-
-/** Espejo en memoria del borrado de una sesión con sus items (ver src/db/sesiones.ts). */
-export function eliminarSesionMemoria(sesionId: string): void {
-  sesiones.delete(sesionId)
-  for (const [id, fila] of items) {
-    if (fila.sesionId === sesionId) items.delete(id)
-  }
 }
