@@ -37,3 +37,33 @@ describe('pausarSala / reactivarSala — validación de slug', () => {
     await expect(reactivarSala('zeus')).resolves.toBeUndefined()
   })
 })
+
+/**
+ * `grupo-upax` SE PUEDE PAUSAR (ronda 10, tarea 15b) — "¿existe esta sala?"
+ * ya no es "¿es una de las nueve salas de cliente?" (`slugsDeSalas()`, que
+ * EXCLUYE a `grupo-upax` a propósito desde el 24-jul, ver `src/db/temas.ts`).
+ * `grupo-upax` es una fila real y activa en `salas` — sigue en `cargarTemas()`
+ * aunque no sea una de las nueve — así que validarSala ya no debe rechazarla.
+ *
+ * Sin DB (el caso de vitest), `cargarTemas()` cae a `SEMILLA_DE_TEMAS`, que
+ * trae las DIEZ marcas de siempre —`grupo-upax` incluida, ver
+ * `src/temas/semilla.ts`— así que esta validación se comporta igual con o
+ * sin base: no hace falta mockear Postgres para probar la distinción.
+ */
+describe('validarSala — "existe" ya no es "es una de las nueve" (ronda 10, tarea 15b)', () => {
+  it('pausarSala YA NO rechaza grupo-upax: la fila existe, aunque no sea una sala de cliente', async () => {
+    await expect(pausarSala('grupo-upax')).resolves.toBeUndefined()
+  })
+
+  it('reactivarSala tampoco rechaza grupo-upax, por el mismo motivo', async () => {
+    await expect(reactivarSala('grupo-upax')).resolves.toBeUndefined()
+  })
+
+  it('un slug inventado sigue rechazado: aflojar "existe" no es dejar pasar cualquier cosa', async () => {
+    await expect(pausarSala('udn-inventada')).rejects.toThrow('Sala desconocida: "udn-inventada"')
+  })
+
+  it('un slug que coincide con una propiedad heredada de Object (constructor) también se rechaza — la comprobación mira las llaves propias del registro, no la cadena de prototipos', async () => {
+    await expect(pausarSala('constructor')).rejects.toThrow('Sala desconocida: "constructor"')
+  })
+})

@@ -111,13 +111,27 @@ interface Props {
    * todavía.
    */
   recalcularPaleta?: (primario: string) => Promise<{ error?: string }>
+  /**
+   * A DÓNDE VUELVEN "Cancelar" y, tras guardar, "Volver a la lista →" (ronda
+   * 10, tarea 15b). POR DEFECTO "/salas" —la pantalla global de crear/listar
+   * salas, de donde salió este formulario hasta ahora— para que ningún
+   * llamador existente (src/app/salas/page.tsx, que no pasa esta prop) tenga
+   * que cambiar.
+   *
+   * `/cliente/[slug]/ajustes` (tarea 15) le pasa `/cliente/<slug>`: esa
+   * pantalla vive DENTRO de una sala, y "Cancelar"/"Volver a la lista" con el
+   * valor por defecto sacarían de esa sala hacia el listado completo —lo
+   * contrario de lo que pide estar ajustando una sala desde dentro de sí
+   * misma.
+   */
+  volverA?: string
 }
 
 const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
 /** Mismo tope que valida `validarDatosComunes` en acciones.ts (revisión final de la rama, punto 4) — aquí solo evita que se escriba de más, la validación que de verdad manda es la del servidor. */
 const LONGITUD_MAXIMA_NOMBRE = 60
 
-export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }: Props) {
+export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, volverA = '/salas' }: Props) {
   const editando = Boolean(sala)
 
   const [nombre, setNombre] = useState(sala?.nombre ?? '')
@@ -487,7 +501,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
       {error && <p className={estilos.formularioError}>{error}</p>}
       {guardado && (
         <p className={estilos.formularioOk}>
-          {editando ? 'Cambios guardados.' : 'Sala creada.'} <a href="/salas">Volver a la lista →</a>
+          {editando ? 'Cambios guardados.' : 'Sala creada.'} <a href={volverA}>Volver a la lista →</a>
         </p>
       )}
 
@@ -495,7 +509,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta }:
         <button type="submit" className="boton" disabled={pendiente || !listo}>
           {pendiente ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear sala'}
         </button>
-        <a href="/salas" className="boton" data-tono="fantasma">
+        <a href={volverA} className="boton" data-tono="fantasma">
           Cancelar
         </a>
       </div>

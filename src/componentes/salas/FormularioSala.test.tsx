@@ -209,3 +209,34 @@ describe('FormularioSala — cadencia (ronda 10, tarea 16: quincenal en la inter
     expect(recalcularPaleta).not.toHaveBeenCalled()
   })
 })
+
+// DESTINO DE "VOLVER" CONFIGURABLE (ronda 10, tarea 15b): "Cancelar" y
+// "Volver a la lista →" estaban cableados a `/salas` sin importar quién
+// montara el formulario. Desde `/cliente/[slug]/ajustes` (tarea 15) eso saca
+// de la sala que se estaba ajustando hacia la lista completa — no es lo que
+// pide esa pantalla. `volverA` es opcional, con `/salas` de valor por
+// defecto, para que `src/app/salas/page.tsx` (fuera de esta tarea) no tenga
+// que cambiar ni una línea.
+describe('FormularioSala — destino de "volver" (ronda 10, tarea 15b)', () => {
+  it('sin la prop volverA, "Cancelar" apunta a /salas — la pantalla global de crear/listar salas no cambia', () => {
+    render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} />)
+    expect(screen.getByRole('link', { name: /cancelar/i })).toHaveAttribute('href', '/salas')
+  })
+
+  it('con volverA, "Cancelar" y —tras guardar— "Volver a la lista" apuntan ahí: de los ajustes de una sala se vuelve a la sala, no a la lista', async () => {
+    const guardar = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSala
+        guardar={guardar}
+        slugsUsados={[]}
+        sala={{ slug: 'zeus', nombre: 'Zeus', primario: '#614ACA' }}
+        volverA="/cliente/zeus"
+      />,
+    )
+    expect(screen.getByRole('link', { name: /cancelar/i })).toHaveAttribute('href', '/cliente/zeus')
+
+    await usuario.click(screen.getByRole('button', { name: /guardar cambios/i }))
+    expect(await screen.findByRole('link', { name: /volver a la lista/i })).toHaveAttribute('href', '/cliente/zeus')
+  })
+})

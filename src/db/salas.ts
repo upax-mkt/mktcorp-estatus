@@ -13,10 +13,48 @@
 import { and, eq } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
-import { slugsDeSalas } from './temas'
+import { cargarTemas } from './temas'
 
+/**
+ * ¿EXISTE esta sala? — no "¿es una de las nueve salas de cliente?" (ronda 10,
+ * tarea 15b). Hasta el 5-ago esta función hacía la segunda pregunta por la
+ * primera: comprobaba contra `slugsDeSalas()` (src/db/temas.ts), la lista
+ * CURADA de las 8 UDNs + Ceci que sirve para LISTAR, SELECCIONAR y ADMITIR
+ * sesiones/acuerdos/archivos/claves NUEVAS — y esa lista excluye a
+ * `grupo-upax` a propósito desde el 24-jul (ver su comentario en temas.ts).
+ * Efecto colateral: `grupo-upax`, una fila real y activa en `salas`, no se
+ * podía pausar ni reactivar — reventaba con "Sala desconocida" — porque la
+ * pregunta que de verdad hace falta aquí ("¿la fila está en la tabla?") se
+ * respondía con la lista equivocada.
+ *
+ * `pausarSala`/`reactivarSala` no necesitan saber si el slug es una de las
+ * nueve navegables para un director; necesitan saber si hay una FILA sobre la
+ * que escribir. `cargarTemas()` es la lectura completa de `salas` —las diez
+ * filas, `grupo-upax` incluida— así que preguntarle a su registro es
+ * preguntar exactamente eso. Que la fila siga además ACTIVA es una pregunta
+ * distinta (`salaEstaActiva`, abajo) que ya se resuelve fresca, dentro del
+ * propio UPDATE, cada vez que se pausa o reactiva.
+ *
+ * `Object.keys(registro)` y no `slug in registro`: `registro` es un objeto
+ * plano y `in` recorre también la cadena de prototipos (`'constructor' in {}`
+ * da `true`), lo que dejaría pasar un slug inventado que coincida con una
+ * propiedad heredada de `Object`. `Object.keys()` solo trae las llaves
+ * PROPIAS del registro — ninguna sala se llama así, pero un slug inventado
+ * sigue sin poder colarse (ver el test correspondiente).
+ *
+ * Si mañana hace falta otra sala nueva de verdad (no `grupo-upax`, que ya
+ * existe): sigue sin poder crearse desde aquí — esto solo valida sobre lo que
+ * YA está en la tabla, no da de alta nada. Alta de salas sigue siendo
+ * `crearSalaAction` (src/app/salas/acciones.ts).
+ *
+ * Sin DB, `cargarTemas()` cae a `SEMILLA_DE_TEMAS` (src/temas/semilla.ts):
+ * las diez marcas tal como estaban en código, `grupo-upax` incluida — así que
+ * esta validación se comporta igual con o sin base, sin mockear Postgres
+ * (ver src/db/salas.test.ts).
+ */
 async function validarSala(slug: string): Promise<void> {
-  if (!(await slugsDeSalas()).includes(slug)) {
+  const registro = await cargarTemas()
+  if (!Object.keys(registro).includes(slug)) {
     throw new Error(`Sala desconocida: "${slug}"`)
   }
 }
