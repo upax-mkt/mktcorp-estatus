@@ -1178,6 +1178,22 @@ it('sin minuta, el equipo la puede levantar desde la propia fila', () => {
 
 - [ ] **Step 3: Implementar el componente.** Cada hueco es la acción que lo llena, y cada acción exige editor **también en el servidor** (la Server Action que recibe el archivo y la que abre el flujo de minuta).
 
+> **La acción de subir necesita saber a qué reunión va, y hoy no lo sabe.**
+> Medido el 5-ago: `registrarArchivoAction`
+> (`src/app/cliente/[slug]/page.tsx:376-396`) recibe `categoria`, `titulo`,
+> `fecha`, `ruta`, `nombreOriginal`, `tipoContenido` y `tamanoBytes`, y llama a
+> `registrarArchivo({ salaSlug: slug, … })`. **No hay ningún `reunionId` en toda
+> la cadena** — es exactamente la razón de que hoy un PDF caiga en el limbo de
+> "Antes de esta herramienta" en vez de dentro de su junta.
+>
+> Esta tarea añade `reunionId` a la acción y a `registrarArchivo`
+> (`src/db/archivos.ts`), y `ArchivosSala` lo pasa cuando la subida nace dentro
+> de una reunión. **Sigue siendo opcional**: un archivo de categoría `interes` no
+> pertenece a ninguna junta y se queda sin él.
+>
+> `exigirEditor()` ya está en la acción (línea 386) y **no se toca**: se hereda
+> tal cual. Esconder el botón de subir no protege el endpoint.
+
 - [ ] **Step 4: Correr los tests.** Expected: PASS.
 
 - [ ] **Step 5: Commit**
