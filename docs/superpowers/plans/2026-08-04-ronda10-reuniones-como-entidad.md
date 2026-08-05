@@ -546,6 +546,22 @@ git commit -m "Minutas, acuerdos, archivos y participación cuelgan de la reuni�
   export interface DatosDeReunion {
     salaSlug: string; fecha: Date; titulo: string; tipo: TipoReunion
     lugar?: string | null; alcance?: string; participantes?: unknown[]
+    /**
+     * AÑADIDO EL 5-AGO. Sin este campo no había forma de registrar una junta
+     * que YA OCURRIÓ, y con ello se perdía una regla que Franco dejó explícita
+     * en el original (`sesiones.ts`, el bloque de `esTrabajoNuevo`):
+     *
+     *   "consultar su historia sí; empezar trabajo nuevo no"
+     *
+     * El freeze de una sala en pausa bloquea preparar algo nuevo, pero **deja
+     * pasar el registro de lo ya sucedido**: completar la historia no es
+     * empezar trabajo. El original lo resolvía dejando pasar `presentada` y
+     * bloqueando `agendada`/`borrador`. El equivalente aquí es `'dada'`.
+     *
+     * Es además el caso de uso central de la ronda: cargar una junta que ya
+     * pasó con lo que sea que se tenga de ella.
+     */
+    estado?: EstadoReunion
   }
   export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string }>
   export async function listarReuniones(): Promise<ReunionResumen[]>
@@ -566,6 +582,17 @@ describe('crearReunion', () => {
   it('una sala en pausa no admite reuniones nuevas', async () => {
     await expect(crearReunion({ salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual' }))
       .rejects.toThrow(/pausada/i)
+  })
+
+  it('...pero sí admite registrar una que YA SE DIO: eso es historia, no trabajo nuevo', async () => {
+    // La regla que Franco dejó explícita: "consultar su historia sí; empezar
+    // trabajo nuevo no". Sin esto, pausar una sala impide para siempre
+    // registrar las juntas que se tuvieron con ella antes de la pausa.
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', fecha: new Date(), titulo: 'La última antes de la pausa',
+      tipo: 'mensual', estado: 'dada',
+    })
+    expect((await obtenerReunion(id))!.estado).toBe('dada')
   })
 
   it('nace agendada, no dada: agendar no es haber ocurrido', async () => {
@@ -1111,7 +1138,26 @@ Pegar la salida. Debe cuadrar con la tabla del spec §2 paso 5. **Si no cuadra, 
 
 - [ ] **Step 2: Volver `notNull` las columnas nuevas y borrar las viejas**
 
-`0023`: `ALTER COLUMN ... SET NOT NULL` en las cinco. `0024`: `DROP COLUMN sesion_id` (y `sesion_origen_id`) y `DROP TABLE sesiones`.
+`0024`: `ALTER COLUMN ... SET NOT NULL` en las cinco. `0025`: `DROP COLUMN sesion_id` (y `sesion_origen_id`) y `DROP TABLE sesiones`.
+
+> **`participacion` necesita además rehacer su clave primaria, y esto ya está
+> roto hoy.** Su PK es `(sesion_id, correo)` y `sesion_id` es
+> `notNull().references(() => sesiones.id)` (`esquema.ts:528,543`). Una reunión
+> creada **después** de la migración no tiene fila en `sesiones`, así que
+> insertar su participación viola la clave ajena — y como `registrarEdicion`
+> traga sus propios errores a propósito (`participacion.ts:100`, para no tumbar
+> la página por un fallo de telemetría), **falla en silencio**: el registro de
+> quién preparó y quién presentó deja de guardarse sin que nadie se entere.
+>
+> La migración `0025` tiene que, para esta tabla y en este orden: soltar la PK
+> vieja, poner la nueva sobre `(reunion_id, correo)`, y solo entonces borrar
+> `sesion_id`. Y `participacion.ts` pasa a escribir y leer por `reunionId` — su
+> `onConflictDoUpdate` apunta hoy a las columnas de la PK vieja
+> (`participacion.ts:97,117`) y dejaría de funcionar.
+>
+> Verificar leyendo, después: crear una reunión nueva, tocarla, y comprobar que
+> aparece su fila en `participacion`. Es lo único que prueba que el silencio se
+> acabó — los tests no lo atrapan porque el error nunca sube.
 
 - [ ] **Step 3: Aplicar a la rama de ensayo, verificar, y solo entonces a la real**
 
