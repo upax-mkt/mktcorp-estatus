@@ -115,7 +115,7 @@ export function AcuerdosArrastrables({ acuerdos, alArrastrar, hayDestino }: Prop
         <p className={estilos.vacio}>No hay acuerdos abiertos que retomar.</p>
       ) : (
         <>
-          <p className={estilos.pista}>Arrástralos a la sesión, o añádelos con el botón.</p>
+          <p className={estilos.pista}>Arrástralos a la reunión, o añádelos con el botón.</p>
           {error && (
             <p className={estilos.error} role="alert">
               {error}
@@ -163,7 +163,7 @@ export function AcuerdosArrastrables({ acuerdos, alArrastrar, hayDestino }: Prop
                   className={estilos.botonAnadir}
                   disabled={enCurso === acuerdo.id}
                   onClick={() => retomar(acuerdo.id)}
-                  aria-label={`Añadir «${acuerdo.que}» a esta sesión`}
+                  aria-label={`Añadir «${acuerdo.que}» a esta reunión`}
                 >
                   Añadir
                 </button>

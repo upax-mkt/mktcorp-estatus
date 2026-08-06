@@ -117,7 +117,7 @@ export function DocumentoSesion({
               >
                 <h2 className={estilos.titulo}>Acuerdos</h2>
                 <p className={estilos.subtitulo}>
-                  Estado de hoy, no del día de la sesión: si alguien mueve un acuerdo, esta página
+                  Estado de hoy, no del día de la reunión: si alguien mueve un acuerdo, esta página
                   cambia sola.
                 </p>
 

@@ -63,7 +63,7 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
         </div>
       </header>
 
-      <div className={estilos.rejillaMes} role="grid" aria-label={`Sesiones de ${mesLargo(anio, mes)}`}>
+      <div className={estilos.rejillaMes} role="grid" aria-label={`Reuniones de ${mesLargo(anio, mes)}`}>
         {NOMBRES_DE_DIA.map((n) => (
           <span key={n} className={estilos.diaCabecera}>{n}</span>
         ))}
@@ -80,7 +80,7 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
               data-abierto={celda.dia === diaAbierto ? 'true' : undefined}
               data-ocupado={delDia.length > 0 ? 'true' : undefined}
               onClick={() => setDiaAbierto(celda.dia === diaAbierto ? null : celda.dia)}
-              aria-label={`${celda.numero}${delDia.length ? `, ${delDia.length} sesión(es)` : ''}`}
+              aria-label={`${celda.numero}${delDia.length ? `, ${delDia.length} ${delDia.length === 1 ? 'reunión' : 'reuniones'}` : ''}`}
             >
               <span className={estilos.diaNumero}>{celda.numero}</span>
               {/* Puntos del color de cada marca. No caben nombres aquí, y un

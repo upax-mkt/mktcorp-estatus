@@ -82,7 +82,7 @@ export function Calendario({ sesiones, hoy, mesInicial, alElegirDia }: Props) {
         </div>
       </div>
 
-      <div className={estilos.rejilla} role="grid" aria-label={`Sesiones de ${mesLargo(anio, mes)}`}>
+      <div className={estilos.rejilla} role="grid" aria-label={`Reuniones de ${mesLargo(anio, mes)}`}>
         {NOMBRES_DE_DIA.map((nombre) => (
           <div key={nombre} className={estilos.cabeceraDia}>
             {nombre}

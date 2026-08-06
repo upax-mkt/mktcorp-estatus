@@ -50,7 +50,7 @@ export function ZonaSoltarAcuerdo({ acuerdos, alSoltar }: Props) {
     <div
       className={estilos.zona}
       role="group"
-      aria-label="Suelta aquí un acuerdo para retomarlo en esta sesión"
+      aria-label="Suelta aquí un acuerdo para retomarlo en esta reunión"
       data-sobrevolando={sobrevolando ? 'true' : undefined}
       onDragOver={(evento) => {
         evento.preventDefault() // Sin esto el navegador nunca ofrece soltar aquí.
@@ -68,7 +68,7 @@ export function ZonaSoltarAcuerdo({ acuerdos, alSoltar }: Props) {
       <span className={estilos.icono} aria-hidden="true">⬇</span>
       <p className={estilos.texto}>
         {acuerdos.length === 0
-          ? 'Suelta aquí un acuerdo de la columna de arriba para retomarlo en esta sesión.'
+          ? 'Suelta aquí un acuerdo de la columna de arriba para retomarlo en esta reunión.'
           : `${acuerdos.length} ${acuerdos.length === 1 ? 'acuerdo retomado' : 'acuerdos retomados'} de la sala — se ven en la vista previa de abajo. Suelta otro aquí para añadirlo.`}
       </p>
     </div>

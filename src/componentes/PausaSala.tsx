@@ -101,7 +101,7 @@ export function PausaSala({ nombreSala, activa, pausadaDesde, pausarAction, reac
         <p className={estilos.accesoNota}>
           {pausadaDesde ? `Desde el ${fechaCompleta(pausadaDesde)}. ` : ''}
           No se piden reuniones ni se cuentan vencimientos. Su historia se sigue consultando igual;
-          lo que no se puede es preparar una sesión nueva sin reactivarla primero.
+          lo que no se puede es preparar una reunión nueva sin reactivarla primero.
         </p>
         {error && <p className={estilos.subirError}>{error}</p>}
       </div>

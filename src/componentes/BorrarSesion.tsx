@@ -20,7 +20,7 @@ export function BorrarSesion({ borrarAction }: { borrarAction: () => Promise<voi
       <p className={estilos.zonaPeligroTexto}>
         {confirmando
           ? 'Se borran el cuestionario, su contenido y el documento maquetado. Los acuerdos ya publicados en el espacio del cliente se quedan.'
-          : '¿Creaste esta sesión por error?'}
+          : '¿Creaste esta reunión por error?'}
       </p>
       {confirmando ? (
         <div className={estilos.minutaAcciones}>
@@ -30,7 +30,7 @@ export function BorrarSesion({ borrarAction }: { borrarAction: () => Promise<voi
             disabled={pendiente}
             onClick={() => empezar(() => borrarAction())}
           >
-            {pendiente ? 'Borrando…' : 'Sí, borrar la sesión'}
+            {pendiente ? 'Borrando…' : 'Sí, borrar la reunión'}
           </button>
           <button
             type="button"
@@ -46,7 +46,7 @@ export function BorrarSesion({ borrarAction }: { borrarAction: () => Promise<voi
           className={`${estilos.boton} ${estilos.botonSecundario} ${estilos.botonChico}`}
           onClick={() => setConfirmando(true)}
         >
-          Eliminar sesión
+          Eliminar reunión
         </button>
       )}
     </div>

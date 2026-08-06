@@ -51,7 +51,7 @@ export function VistaEditor({ formularios, secciones, tema, reordenarAction }: P
 
   return (
     <>
-      <div className={estilos.conmutador} role="tablist" aria-label="Cómo mirar la sesión">
+      <div className={estilos.conmutador} role="tablist" aria-label="Cómo mirar la reunión">
         <button
           type="button"
           role="tab"

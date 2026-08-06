@@ -339,7 +339,7 @@ function SubirArchivo({
         </label>
         {pideFecha && (
           <label className={estilos.subirCampo}>
-            <span className={estilos.subirEtiqueta}>Fecha de la sesión</span>
+            <span className={estilos.subirEtiqueta}>Fecha de la reunión</span>
             <input
               type="date"
               className={estilos.archivoFechaInput}

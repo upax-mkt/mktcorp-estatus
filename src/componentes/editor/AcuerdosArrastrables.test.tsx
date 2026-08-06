@@ -30,6 +30,16 @@ describe('AcuerdosArrastrables', () => {
     expect(screen.getByRole('button', { name: /añadir/i })).toBeInTheDocument()
   })
 
+  // EN PANTALLA TODO SE LLAMA REUNIÓN (regla dura del proyecto): la pista y
+  // el aria-label del botón «Añadir» decían «sesión» — vocabulario viejo que
+  // se le había colado a esta pieza sola.
+  it('la pista y el botón «Añadir» hablan de reunión, no de sesión', () => {
+    render(<AcuerdosArrastrables acuerdos={[A('1', 'algo pendiente', '2026-12-01')]} alArrastrar={vi.fn()} hayDestino />)
+    expect(screen.getByText(/arrástralos a la reunión/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /añadir «algo pendiente» a esta reunión/i })).toBeInTheDocument()
+    expect(screen.queryByText(/sesión/i)).toBeNull()
+  })
+
   /**
    * REVISIÓN FINAL DE LA RAMA, PUNTO 5: las plantillas «en blanco» y
    * «comité» no tienen una sección de Acuerdos y Pendientes donde soltar un

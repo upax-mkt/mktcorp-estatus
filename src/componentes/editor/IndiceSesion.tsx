@@ -30,7 +30,7 @@ interface Props {
 
 export function IndiceSesion({ entradas, llenadas, total }: Props) {
   return (
-    <nav className={estilos.indice} aria-label="Secciones de la sesión">
+    <nav className={estilos.indice} aria-label="Secciones de la reunión">
       <div className={estilos.indiceCabecera}>
         <span className={estilos.indiceTitulo}>Secciones</span>
         <span className={estilos.indiceConteo}>
