@@ -285,7 +285,15 @@ async function resolverAcuerdosRetomados(ids: string[], salaSlug: string | null)
   const mapa = new Map<string, Acuerdo>()
   if (ids.length === 0 || !salaSlug || !hayDB()) return mapa
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  // `diaCivil`, no `.toISOString().slice(0, 10)` (hallazgo 1 de la revisión
+  // final de la ronda 10): ese slice lee el día en UTC crudo, y "ahora" es
+  // un instante real —en Vercel (UTC), a partir de las 18:00 CDMX ya cae en
+  // el día siguiente—, así que un acuerdo retomado con vencimiento HOY se
+  // marcaba `vencido` hasta seis horas antes de tiempo. Mismo bug, mismo
+  // arreglo, que `hoyCivil` en `src/db/consultas.ts` (`estadoDeSalaDB`,
+  // `acuerdosArrastrablesDe`, `todosLosAcuerdos`) — este es el cuarto call
+  // site independiente.
+  const hoyCivil = diaCivil(new Date().toISOString())
   const filas = await db()
     .select({
       id: esquema.acuerdos.id,
@@ -302,6 +310,13 @@ async function resolverAcuerdosRetomados(ids: string[], salaSlug: string | null)
     .where(inArray(esquema.acuerdos.id, ids))
 
   for (const f of filas) {
+    // Este `.toISOString().slice(0, 10)` SÍ se queda tal cual — a propósito,
+    // no por descuido: `fechaCompromiso` nace de un `<input type="date">`
+    // vía `new Date('YYYY-MM-DD')`, medianoche UTC (verificado contra la
+    // base real: cada fila cae en `00:00:00.000Z`), así que su día EN UTC
+    // ES el día civil que se escogió. Convertirlo con `diaCivil` lo
+    // correría un día hacia atrás en vez de arreglarlo — mismo caso que
+    // documenta `isoFecha` en `src/db/consultas.ts`.
     const fechaCompromiso = f.fechaCompromiso ? f.fechaCompromiso.toISOString().slice(0, 10) : null
     mapa.set(f.id, {
       id: f.id,
@@ -309,7 +324,7 @@ async function resolverAcuerdosRetomados(ids: string[], salaSlug: string | null)
       responsable: f.responsable,
       squad: f.squad ?? undefined,
       fechaCompromiso,
-      estatus: estatusEfectivo({ estatus: f.estatus as EstatusAcuerdo, fechaCompromiso }, f.salaActiva, hoy),
+      estatus: estatusEfectivo({ estatus: f.estatus as EstatusAcuerdo, fechaCompromiso }, f.salaActiva, hoyCivil),
       destacado: f.destacado,
     })
   }

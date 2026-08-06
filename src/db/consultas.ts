@@ -54,6 +54,37 @@ function diasEntre(desde: Date, hasta: Date): number {
   return Math.round((hasta.getTime() - desde.getTime()) / MS_POR_DIA)
 }
 
+/**
+ * El día, en crudo, de un instante EN UTC — sin anclar a ninguna zona.
+ *
+ * SOLO para un valor que YA nació anclado a UTC y donde ese anclaje es
+ * justo lo que hay que leer de vuelta. Hoy el único caso así en este
+ * archivo es `Acuerdo.fechaCompromiso`: nace de un `<input type="date">`
+ * vía `new Date('YYYY-MM-DD')` (`src/app/acuerdos/acciones.ts`,
+ * `src/app/cliente/[slug]/page.tsx`, `src/componentes/NuevoAcuerdoForm.tsx`,
+ * `src/componentes/acuerdos/FilaBandeja.tsx`) — JS interpreta esa forma
+ * como medianoche UTC, así que su día EN UTC es, por construcción, el día
+ * civil que la persona escogió en el calendario (verificado contra la base
+ * real: cada `fecha_compromiso` cae en `00:00:00.000Z`, sin excepción).
+ * `isoFecha` sobre ese valor recupera exactamente ese día — es el MISMO
+ * patrón que usan `isoDia` (`src/db/acuerdos.ts`) y el slice a mano de
+ * `src/app/acuerdos/acciones.ts:113`; las tres lecturas tienen que seguir
+ * de acuerdo, así que esta función no desaparece mientras esas otras dos
+ * sigan vivas.
+ *
+ * NUNCA para un INSTANTE real —una fecha de reunión, "ahora", cuándo se
+ * pausó una sala—: esos SÍ tienen una hora del reloj con sentido (una junta
+ * a las 18:00 CDMX es, de verdad, la 01:00 UTC del día siguiente) y
+ * `isoFecha` les corta el día equivocado desde las 18:00 CDMX en adelante,
+ * todas las tardes, porque Vercel corre en UTC. ESE fue el hallazgo 1/2 de
+ * la revisión final de la ronda 10: dos "hoy" distintos convivían en este
+ * archivo —`isoFecha(ahora)` aquí y `diaCivil(ahora.toISOString())` en
+ * `hoyCivil`, unas líneas más abajo— y solo el segundo es correcto para un
+ * instante real. Para esos casos, `diaCivil` (`src/lib/fecha.ts`, anclado a
+ * America/Mexico_City) es la única función que se usa en este archivo desde
+ * ese arreglo: ver `hoyCivil`, y las conversiones de
+ * `ultimaSesion`/`proximaReunion`/`Minuta.fecha`/`pausadaDesde` más abajo.
+ */
 function isoFecha(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
@@ -203,8 +234,16 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   }))
 
   const minutas: Array<Minuta & { reunionId: string }> = minutasRows.map((m) => ({
-    reunionId: m.reunionId!, // mismo motivo que en `archivos`, arriba
-    fecha: isoFecha(m.fecha),
+    // Sin `!`: `minutas.reunion_id` es NOT NULL desde el hallazgo 3 de la
+    // revisión final de la ronda 10 (ver esquema.ts) — ya no hace falta
+    // fingir contra el tipo lo que la base garantiza de verdad.
+    reunionId: m.reunionId,
+    // `diaCivil`, no `isoFecha`: `m.fecha` es `reuniones.fecha` —un instante
+    // real, anclado a CDMX al escribirse (`instanteEnCDMX`)—, no un valor
+    // congelado en UTC. Hallazgo 2 de la revisión final de la ronda 10:
+    // verificado contra la base, Marketing United dio su junta el 22-jul a
+    // las 18:00 CDMX, la 00:00 UTC del 23-jul — `isoFecha` leía "23-jul".
+    fecha: diaCivil(m.fecha.toISOString()),
     titulo: m.titulo,
     enviadaA: Array.isArray(m.enviadaA) ? m.enviadaA.length : 0,
     texto: m.textoFinal ?? undefined,
@@ -245,8 +284,16 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
      * si ya pasó de fecha—, y es la MISMA función la que, en cuanto la sala
      * se reactiva, vuelve a aplicar `estatusVigente` sobre ese acuerdo sin
      * que nadie lo tenga que recalcular a mano.
+     *
+     * `hoyCivil`, no `isoFecha(ahora)` (hallazgo 1 de la revisión final de
+     * la ronda 10): en Vercel (UTC), a partir de las 18:00 CDMX
+     * `isoFecha(ahora)` ya devuelve el día siguiente, así que un acuerdo con
+     * `fechaCompromiso` de HOY se marcaba `vencido` hasta seis horas antes
+     * de tiempo, todas las tardes. `hoyCivil` ya se calculó arriba, para
+     * `fueDada` — antes de este arreglo convivían dos "hoy" distintos en
+     * esta misma función.
      */
-    .map((a) => ({ ...a, estatus: fallback.estatusEfectivo(a, activa, isoFecha(ahora)) }))
+    .map((a) => ({ ...a, estatus: fallback.estatusEfectivo(a, activa, hoyCivil) }))
 
   /**
    * LOS ACUERDOS AGRUPADOS POR REUNIÓN (tarea 10): se derivan de `acuerdos`
@@ -319,8 +366,16 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     nombre: tema.nombre,
     color: tema.primario,
     diasDesdeUltima: ultima ? diasEntre(new Date(ultima.fecha), ahora) : null,
-    ultimaSesion: ultima ? isoFecha(new Date(ultima.fecha)) : null,
-    proximaReunion: proxima ? isoFecha(new Date(proxima.fecha)) : null,
+    // `diaCivil(ultima.fecha)`/`diaCivil(proxima.fecha)`, no
+    // `isoFecha(new Date(...))` (hallazgo 2 de la revisión final de la
+    // ronda 10, EL SÍNTOMA VERIFICADO): Mexa Creativa dio su reunión el
+    // 15-jul a las 18:00 CDMX —la 00:00 UTC del 16-jul—, y la tarjeta del
+    // hub decía "última reunión: 16 de julio". `ultima.fecha`/`proxima.fecha`
+    // ya son el ISO completo del instante (`reunionesBase`, arriba: `r.fecha
+    // .toISOString()`), así que `diaCivil` se les aplica directo, sin el
+    // `new Date(...)` intermedio que solo repetía el mismo valor.
+    ultimaSesion: ultima ? diaCivil(ultima.fecha) : null,
+    proximaReunion: proxima ? diaCivil(proxima.fecha) : null,
     enPreparacion: enPreparacionRows.length > 0,
     avancePreparacion: enPreparacion ? avanceDeItems(enPreparacion.documentoListo, llenados, total) : undefined,
     documentoEnPreparacionId: enPreparacion?.id,
@@ -330,7 +385,10 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     reuniones,
     cadencia: salaRow?.cadencia ?? 'mensual',
     activa,
-    pausadaDesde: salaRow?.pausadaDesde ? isoFecha(salaRow.pausadaDesde) : null,
+    // `salaRow.pausadaDesde` es `new Date()` al momento del clic
+    // (`src/db/salas.ts`) — un instante real, mismo caso que
+    // `ultimaSesion`/`proximaReunion`: `diaCivil`, no `isoFecha`.
+    pausadaDesde: salaRow?.pausadaDesde ? diaCivil(salaRow.pausadaDesde.toISOString()) : null,
     // Revisión final de la rama, punto 3: de la fila cruda, no de `tema`
     // (`Tema`/`cargarTemas()` no la traen a propósito — el logo nunca formó
     // parte de ese tipo, ver esquema.ts). `archivoDeLogo` cae al archivo
@@ -509,15 +567,20 @@ export async function acuerdosArrastrablesDe(salaSlug: string, reunionId: string
   ])
 
   const yaRetomados = new Set((documento?.items ?? []).flatMap((i) => i.acuerdosRetomados.map((a) => a.id)))
-  const hoy = isoFecha(new Date())
+  // `diaCivil`, no `isoFecha(new Date())` (hallazgo 1 de la revisión final
+  // de la ronda 10): "ahora" es un instante real, no un valor congelado en
+  // UTC — ver el comentario de cabecera de `isoFecha`, arriba.
+  const hoyCivil = diaCivil(new Date().toISOString())
 
   return filas
     .map((f) => {
+      // `fechaCompromiso` SÍ sigue usando `isoFecha` — es la excepción que
+      // documenta su comentario de cabecera, no un descuido.
       const fechaCompromiso = f.fechaCompromiso ? isoFecha(f.fechaCompromiso) : null
       const estatus = fallback.estatusEfectivo(
         { estatus: f.estatus as fallback.EstatusAcuerdo, fechaCompromiso },
         f.salaActiva,
-        hoy,
+        hoyCivil,
       )
       return {
         id: f.id,
@@ -616,7 +679,10 @@ function temaDeSalaSeguro(slug: string, registro: Record<string, Tema>): { nombr
 export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
   if (!hayDB()) return []
 
-  const hoy = isoFecha(new Date())
+  // `diaCivil`, no `isoFecha(new Date())` (hallazgo 1 de la revisión final
+  // de la ronda 10) — mismo motivo que en `acuerdosArrastrablesDe`, arriba:
+  // este es el TERCER call site independiente del mismo bug en este archivo.
+  const hoyCivil = diaCivil(new Date().toISOString())
   const registro = await cargarTemas()
   const filas = await db()
     .select({
@@ -645,9 +711,11 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
     .filter((f) => f.estatus !== 'cancelado')
     .map((f) => {
       const tema = temaDeSalaSeguro(f.salaSlug, registro)
+      // `fechaCompromiso` SÍ sigue usando `isoFecha` — ver su comentario de
+      // cabecera: es la excepción, no un descuido.
       const fechaCompromiso = f.fechaCompromiso ? isoFecha(f.fechaCompromiso) : null
       const estatusGuardado = f.estatus as fallback.EstatusAcuerdo
-      const estatus = fallback.estatusEfectivo({ estatus: estatusGuardado, fechaCompromiso }, f.salaActiva, hoy)
+      const estatus = fallback.estatusEfectivo({ estatus: estatusGuardado, fechaCompromiso }, f.salaActiva, hoyCivil)
       return {
         id: f.id,
         que: f.que,
