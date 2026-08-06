@@ -37,6 +37,13 @@ export interface ReunionDadaConFaltantes {
 export interface GrupoDeSalaDadas {
   salaNombre: string
   salaColor: string
+  /**
+   * Nulo en el grupo de las reuniones que no son de ninguna sala (un comité,
+   * una interna de Mkt Corp). Con slug, lo que le falta a una reunión se
+   * enlaza a su sala, que es donde vive la acción que lo llena — ver el
+   * comentario de `faltantes` más abajo.
+   */
+  salaSlug: string | null
   reuniones: ReunionDadaConFaltantes[]
 }
 
@@ -113,7 +120,12 @@ export function reunionesDadasEsteMesPorSala(
     if (!esDelMismoMes(r.fecha, hoyCivil)) return
 
     if (!grupos.has(r.salaNombre)) {
-      grupos.set(r.salaNombre, { salaNombre: r.salaNombre, salaColor: r.salaColor, reuniones: [] })
+      grupos.set(r.salaNombre, {
+        salaNombre: r.salaNombre,
+        salaColor: r.salaColor,
+        salaSlug: r.salaSlug,
+        reuniones: [],
+      })
     }
     grupos.get(r.salaNombre)!.reuniones.push({
       id: r.id,
@@ -237,18 +249,46 @@ export default async function PagReuniones() {
                             {fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}
                           </span>
                         </div>
+                        {/*
+                          Lo que falta ENLAZA a la sala, que es donde vive la
+                          acción que lo llena (`CarasDeReunion`). Esta vista es
+                          un panorama del mes: meter aquí el flujo de subida
+                          entero sería un segundo camino que divergiría del
+                          primero. Pero un texto muerto que no lleva a ninguna
+                          parte es justo lo que esta ronda vino a quitar, así
+                          que como mínimo lleva a donde se arregla.
+
+                          Sin sala (un comité) no hay a dónde ir todavía: se
+                          queda como texto.
+                        */}
                         {(r.sinPresentacion || r.faltaMinuta) && (
                           <div className={estilos.faltantes}>
-                            {r.sinPresentacion && (
-                              <span className={`${estilos.faltante} ${estilos.sinPresentacion}`}>
-                                Sin presentación
-                              </span>
-                            )}
-                            {r.faltaMinuta && (
-                              <span className={`${estilos.faltante} ${estilos.faltaMinuta}`}>
-                                Falta la minuta
-                              </span>
-                            )}
+                            {r.sinPresentacion &&
+                              (grupo.salaSlug ? (
+                                <Link
+                                  href={`/cliente/${grupo.salaSlug}`}
+                                  className={`${estilos.faltante} ${estilos.sinPresentacion}`}
+                                >
+                                  Sin presentación
+                                </Link>
+                              ) : (
+                                <span className={`${estilos.faltante} ${estilos.sinPresentacion}`}>
+                                  Sin presentación
+                                </span>
+                              ))}
+                            {r.faltaMinuta &&
+                              (grupo.salaSlug ? (
+                                <Link
+                                  href={`/cliente/${grupo.salaSlug}`}
+                                  className={`${estilos.faltante} ${estilos.faltaMinuta}`}
+                                >
+                                  Falta la minuta
+                                </Link>
+                              ) : (
+                                <span className={`${estilos.faltante} ${estilos.faltaMinuta}`}>
+                                  Falta la minuta
+                                </span>
+                              ))}
                           </div>
                         )}
                       </li>

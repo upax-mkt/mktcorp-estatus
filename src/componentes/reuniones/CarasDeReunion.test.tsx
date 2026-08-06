@@ -52,7 +52,7 @@ const conMinuta = REUNION({
 
 describe('CarasDeReunion — presentación ausente', () => {
   it('sin presentación, el equipo ve un botón para subirla — no un lamento', () => {
-    render(<CarasDeReunion reunion={sinNada} equipo onLeerMinuta={() => {}} />)
+    render(<CarasDeReunion reunion={sinNada} equipo onLeerMinuta={() => {}} onSubirPresentacion={() => {}} />)
     expect(screen.getByRole('button', { name: /subir presentación/i })).toBeInTheDocument()
   })
 
@@ -72,13 +72,20 @@ describe('CarasDeReunion — presentación ausente', () => {
     expect(alSubir).toHaveBeenCalledTimes(1)
   })
 
-  it('sin onSubirPresentacion todavía cableada (pendiente de la T11), el botón existe y no revienta al pulsarlo', async () => {
-    const usuario = userEvent.setup()
+  it('sin manejador no hay botón: un botón que no hace nada es peor que el lamento que sustituye', () => {
+    // Antes había aquí un test que comprobaba lo contrario —que el botón se
+    // pintaba igual sin manejador y "no reventaba al pulsarlo"— porque la
+    // tarea 9 construyó el botón y la 11 tenía que cablearlo. Entre las dos
+    // se quedó sin cablear y llegó así a producción: se veía, se pulsaba, y
+    // no pasaba nada. Aquel test bendecía el defecto.
+    //
+    // La regla es la contraria: sin manejador, ese hueco no se ofrece como
+    // acción. Es lo que ya hace el camino del director de UDN, que ve la
+    // píldora informativa y ningún botón.
     render(<CarasDeReunion reunion={sinNada} equipo onLeerMinuta={() => {}} />)
 
-    await usuario.click(screen.getByRole('button', { name: /subir presentación/i }))
-
-    expect(screen.getByRole('button', { name: /subir presentación/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /subir presentación/i })).toBeNull()
+    expect(screen.getByText(/sin presentación/i)).toBeInTheDocument()
   })
 })
 

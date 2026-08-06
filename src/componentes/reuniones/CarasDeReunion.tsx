@@ -23,16 +23,17 @@ import estilos from './CarasDeReunion.module.css'
  * ORIGINAL, no un genérico "presentación": es lo que deja saber qué se va a
  * descargar antes de hacer clic.
  *
- * "+ SUBIR PRESENTACIÓN" es un hueco de INTEGRACIÓN, todavía no una función
- * completa: la subida en sí —elegir archivo, mandarlo a Blob, registrar la
- * fila con el `reunionId` que hoy no viaja por ninguna parte de
- * `registrarArchivoAction`— vive fuera de este componente (hoy en
- * `ArchivosSala`/`cliente/[slug]/page.tsx`). Por eso `onSubirPresentacion` es
- * OPCIONAL: sin ella el botón se ve y se puede pulsar igual —el equipo ve la
- * acción disponible, nunca un lamento— pero no hace nada todavía, a la
- * espera de que quien monte este componente la cablee. Ver el reporte de la
- * Tarea 9 (`task-9-report.md`) para la firma exacta que necesita
- * `cliente/[slug]/page.tsx` vía `ReunionesSala`.
+ * "+ SUBIR PRESENTACIÓN" ESTÁ CABLEADO DE VERDAD desde la tarea 9b: la subida
+ * —elegir archivo, mandarlo a Blob, registrar la fila con su `reunionId`—
+ * vive en `ReunionesSala`, que comparte un solo `<input type="file">` entre
+ * todas las filas y reutiliza `subirArchivoDirecto` de `ArchivosSala` en vez
+ * de abrir un segundo camino de subida.
+ *
+ * `onSubirPresentacion` es opcional PORQUE SOLO SE LE DA AL EQUIPO: un
+ * director de UDN recibe el componente sin ella y ve la píldora informativa
+ * en vez del botón. **Si eres equipo y la omites, pintas un botón que no
+ * hace nada** — que es peor que el "Sin presentación" que vino a sustituir, y
+ * es exactamente el defecto que tuvo esta ronda entre las tareas 9 y 9b.
  *
  * "+ LEVANTAR MINUTA" SÍ es autosuficiente: navega a `/deck/{id}/minuta`, la
  * pantalla que YA sabe generar el acta de una reunión existente a partir de
@@ -89,9 +90,13 @@ function CaraPresentacion({
   onSubirPresentacion?: () => void
 }) {
   if (!tienePresentacion(reunion)) {
-    if (!equipo) return <span className="pildora">Sin presentación</span>
+    // Sin manejador no se ofrece la acción, aunque quien mire sea equipo: un
+    // botón que no hace nada es peor que este texto. Es el defecto que tuvo
+    // esta ronda entre las tareas 9 y 9b, y esta línea es lo que impide que
+    // vuelva sin que ningún test se entere.
+    if (!equipo || !onSubirPresentacion) return <span className="pildora">Sin presentación</span>
     return (
-      <button type="button" className={estilos.caraAccion} onClick={() => onSubirPresentacion?.()}>
+      <button type="button" className={estilos.caraAccion} onClick={onSubirPresentacion}>
         <span aria-hidden>+</span> Subir presentación
       </button>
     )

@@ -16,7 +16,7 @@
  * Este módulo es una implementación nueva e independiente contra el esquema
  * nuevo (`esquema.reuniones`), no un refactor de la vieja.
  */
-import { and, asc, desc, eq, gte, lt } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, lt } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -519,16 +519,46 @@ export async function eliminarReunion(
 
   if (hayDB()) {
     const conexion = db()
+    // ORDEN: de lo más barato de perder a lo más caro. Sin transacciones
+    // (`neon-http`), si el proceso muere a media lo que ya se fue es lo que
+    // menos duele. La telemetría de participación antes que la minuta.
+    await conexion.delete(esquema.participacion).where(eq(esquema.participacion.reunionId, id))
     await conexion
       .update(esquema.acuerdos)
       .set({ reunionOrigenId: null })
       .where(eq(esquema.acuerdos.reunionOrigenId, id))
     await conexion.delete(esquema.minutas).where(eq(esquema.minutas.reunionId, id))
-    await conexion.delete(esquema.participacion).where(eq(esquema.participacion.reunionId, id))
+    // LOS ARCHIVOS TAMBIÉN APUNTAN A LA REUNIÓN, y su clave ajena no lleva
+    // `ON DELETE` — ninguna del esquema lo lleva. Sin soltarlos, borrar una
+    // reunión cuyo deck tenga una imagen reventaba con 23503 DESPUÉS de haber
+    // borrado ya el documento, sus items y la minuta: Franco veía un error, la
+    // reunión seguía ahí, y su presentación entera había desaparecido.
+    //
+    // Las dos categorías se tratan distinto porque son cosas distintas:
+    // - `presentacion` es un entregable de la sala. Sobrevive sin su reunión,
+    //   igual que un acuerdo: se le anula la referencia y sigue descargable.
+    // - `imagen`/`video` son contenido INCRUSTADO en el documento que se acaba
+    //   de borrar. Sin él no tienen dónde verse ni quién los gobierne, así que
+    //   se van con él.
+    await conexion
+      .update(esquema.archivos)
+      .set({ reunionId: null })
+      .where(and(eq(esquema.archivos.reunionId, id), eq(esquema.archivos.categoria, 'presentacion')))
+    await conexion
+      .delete(esquema.archivos)
+      .where(
+        and(
+          eq(esquema.archivos.reunionId, id),
+          inArray(esquema.archivos.categoria, ['imagen', 'video']),
+        ),
+      )
     await conexion.delete(esquema.reuniones).where(eq(esquema.reuniones.id, id))
     return
   }
   memoria.anularReunionOrigenDeAcuerdosMemoria(id)
+  // El doble tiene que decir lo mismo que Postgres o los tests mienten: el
+  // `eliminarSesion` viejo sí borraba la minuta en memoria y se perdió al mudar.
+  memoria.eliminarMinutaDeReunionMemoria(id)
   memoria.eliminarReunionMemoria(id)
 }
 

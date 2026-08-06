@@ -35,15 +35,14 @@ const FAMILIA_POR_DEFECTO = 'outfit'
  * orden que ese enum, de más frecuente a menos — fuente única para las
  * `<option>` de abajo.
  *
- * OJO — LO QUE ESTE ARCHIVO TODAVÍA NO CIERRA: `crearSalaAction` y
- * `editarSalaAction` (`src/app/salas/acciones.ts`) hoy no leen ni escriben
- * `datos.cadencia`, y `src/app/salas/page.tsx` todavía no pasa la cadencia
- * real de la sala en el prop `sala` — los dos quedan fuera de la lista de
- * archivos de esta tarea (T16; ver su reporte). Este formulario ya recoge
- * el valor elegido y lo manda dentro de `guardar()` para que conectar esos
- * dos archivos sea trivial después, pero hasta que eso pase, elegir
- * "quincenal" aquí y guardar NO cambia todavía la cadencia de verdad en la
- * base — hace falta ese trabajo aparte.
+ * LA CADENCIA SE GUARDA DE VERDAD desde la tarea 15. Hasta entonces la
+ * columna `salas.cadencia` existía, `consultas.ts` la leía y `temperatura()`
+ * decidía con ella cuándo una sala se marca como enfriada en el Home — pero
+ * **ningún formulario la escribía**, así que todas las salas arrastraban el
+ * valor por defecto. El cable completo hoy: este `<select>` → `guardar()` →
+ * `crearSalaAction`/`editarSalaAction` (`src/app/salas/acciones.ts`) → la
+ * fila; y de vuelta por el prop `sala`, que rellenan `salas/page.tsx` y
+ * `cliente/[slug]/ajustes/page.tsx`.
  */
 const CADENCIA_POR_DEFECTO: Cadencia = 'mensual'
 const CADENCIAS: Cadencia[] = ['semanal', 'quincenal', 'mensual']

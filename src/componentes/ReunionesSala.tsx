@@ -10,6 +10,7 @@ import { TAMANO_MAXIMO, pesoLegible } from '@/lib/blob'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
 import { CarasDeReunion } from './reuniones/CarasDeReunion'
+import { AcuerdosDeReunion } from './reuniones/AcuerdosDeReunion'
 import { subirArchivoDirecto } from './ArchivosSala'
 import estilos from '@/app/cliente/cliente.module.css'
 
@@ -217,6 +218,7 @@ export function ReunionesSala({
         />
         {subiendoReunionId === ultima.id && <p className={estilos.subirPista}>Subiendo…</p>}
         {errorSubida?.reunionId === ultima.id && <p className={estilos.subirError}>{errorSubida.mensaje}</p>}
+        <AcuerdosDeReunion acuerdos={ultima.acuerdos} />
         {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
       </div>
 
@@ -239,6 +241,7 @@ export function ReunionesSala({
                 />
                 {subiendoReunionId === r.id && <p className={estilos.subirPista}>Subiendo…</p>}
                 {errorSubida?.reunionId === r.id && <p className={estilos.subirError}>{errorSubida.mensaje}</p>}
+                <AcuerdosDeReunion acuerdos={r.acuerdos} />
                 {participantes && (
                   <div className={estilos.reunionFilaParticipacion}>
                     <ParticipantesSesion participantes={participantes} />

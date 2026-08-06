@@ -232,3 +232,84 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
     expect(await screen.findByText('No se pudo registrar el archivo.')).toBeInTheDocument()
   })
 })
+
+/**
+ * LOS ACUERDOS DE UNA REUNIÓN SE VEN EN SU FILA.
+ *
+ * Franco lo pidió con estas palabras: "la minuta con un link a ver los
+ * acuerdos de esa reu, se puede desplegar ahí mismo".
+ *
+ * `AcuerdosDeReunion` se escribió y se probó en la tarea 10 — y se quedó sin
+ * montar en ninguna pantalla hasta la revisión final. Estaba completo, tenía
+ * su CSS y sus tests en verde, y los datos ya le llegaban: solo faltaba que
+ * alguien lo llamara. Es el segundo caso de la misma ronda en que dos tareas
+ * construyen cada extremo de un puente y nadie lo une.
+ *
+ * Estos tests son la costura, no el componente: comprueban que ESTÁ montado,
+ * en la destacada y en las anteriores. Sus propias reglas —el vacío que no
+ * pinta nada, el singular, el "por definir"— viven en AcuerdosDeReunion.test.
+ */
+describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
+  const ACUERDO = {
+    id: 'a1',
+    que: 'Cruce de paid media con el equipo de César',
+    responsable: 'Fernando',
+    estatus: 'abierto' as const,
+    fechaCompromiso: '2026-08-08',
+  }
+
+  it('la reunión destacada despliega los suyos', () => {
+    render(
+      <ReunionesSala
+        reuniones={[{ ...ULTIMA, acuerdos: [ACUERDO] }]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    expect(screen.getByText(/1 acuerdo/)).toBeInTheDocument()
+    expect(screen.getByText(/Cruce de paid media/)).toBeInTheDocument()
+  })
+
+  it('una reunión anterior también, no solo la última', () => {
+    render(
+      <ReunionesSala
+        reuniones={[ULTIMA, { ...ANTERIOR, acuerdos: [ACUERDO] }]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    expect(screen.getByText(/Cruce de paid media/)).toBeInTheDocument()
+  })
+
+  it('los acuerdos de una reunión no se cuelan en otra', () => {
+    render(
+      <ReunionesSala
+        reuniones={[{ ...ULTIMA, acuerdos: [ACUERDO] }, ANTERIOR]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    // Uno solo: si el desplegable se pintara con la lista entera en vez de
+    // con la de su reunión, saldría dos veces.
+    expect(screen.getAllByText(/Cruce de paid media/)).toHaveLength(1)
+  })
+
+  it('el director de UDN también los ve: son suyos, no del equipo', () => {
+    render(
+      <ReunionesSala
+        reuniones={[{ ...ULTIMA, acuerdos: [ACUERDO] }]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    expect(screen.getByText(/Cruce de paid media/)).toBeInTheDocument()
+  })
+})

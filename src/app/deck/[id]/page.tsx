@@ -24,7 +24,7 @@ import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { esEditor, exigirEditor, exigirLectura } from '@/auth/roles'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
@@ -84,7 +84,12 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // ahí para armarlo a mano).
   const [reunion, documentoPrevio] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])
   if (!reunion) notFound()
-  if (!documentoPrevio) await crearDocumento(id)
+  // SOLO EL EDITOR CREA. Esta página pasa con `exigirLectura()`, que también
+  // deja entrar a un viewer — y un viewer abriendo una URL no debe escribir en
+  // la base: es un GET con efecto, justo lo que la doctrina de `auth/roles.ts`
+  // prohíbe. Sin documento, el viewer ve el editor vacío, que es inofensivo:
+  // las trece acciones de escritura de abajo exigen editor por su cuenta.
+  if (!documentoPrevio && (await esEditor())) await crearDocumento(id)
   const documento = documentoPrevio ?? (await documentoDeReunion(id))
   const documentoId = documento?.id ?? ''
   const items = documento?.items ?? []
