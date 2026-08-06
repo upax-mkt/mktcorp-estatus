@@ -44,9 +44,20 @@ import estilos from './CarasDeReunion.module.css'
  * bajo Testing Library sin ese contexto —probado en caliente antes de
  * escribir esto—, y además esta pieza se renderiza en cada fila de
  * `ReunionesSala`, cuyo propio test la monta con `render()` a secas.
- * `window.location.href` es la navegación real sin esa dependencia, y deja
- * el elemento como `<button>` de verdad —rol, teclado (Enter Y Espacio),
- * foco— en vez de un enlace disfrazado con `role="button"`.
+ *
+ * CORREGIDO EN LA REVISIÓN FINAL DE LA RONDA 10: la conclusión de arriba era
+ * correcta —evitar `useRouter()`— pero la alternativa que se eligió,
+ * `window.location.href` en el `onClick` de un `<button>`, nunca fue la
+ * única salida. `<Link>` de `next/link` navega sin `useRouter()` y sin
+ * árbol de Next real: es justo lo que ya usa `CaraPresentacion`, arriba en
+ * este mismo archivo, para "Documento" —y lo que su propio test verifica
+ * (`CarasDeReunion.test.tsx`) sin ningún mock de router—. Una recarga dura
+ * tira el shell entero de la app, pierde el scroll de una sala larga y, al
+ * ser `<button>` y no `<a>`, se lleva por delante el clic-medio, el
+ * ctrl-clic, "copiar dirección del enlace" y la vista previa del destino al
+ * pasar el ratón. El mismo destino ya se alcanza con `<Link>` desde
+ * `ReunionesSala.tsx` ("Corregir el texto →"): esto solo alinea esta pieza
+ * con el resto de la app.
  */
 
 interface Props {
@@ -139,14 +150,8 @@ function CaraMinuta({
   if (!equipo) return <span className="pildora" data-tono="ojo">Falta la minuta</span>
 
   return (
-    <button
-      type="button"
-      className={estilos.caraAccion}
-      onClick={() => {
-        window.location.href = `/deck/${reunion.id}/minuta`
-      }}
-    >
+    <Link href={`/deck/${reunion.id}/minuta`} className={estilos.caraAccion}>
       <span aria-hidden>+</span> Levantar minuta
-    </button>
+    </Link>
   )
 }

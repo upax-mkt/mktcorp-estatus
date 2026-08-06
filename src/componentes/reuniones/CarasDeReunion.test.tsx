@@ -125,14 +125,21 @@ describe('CarasDeReunion — presentación presente', () => {
 })
 
 describe('CarasDeReunion — minuta ausente', () => {
-  it('sin minuta, el equipo la puede levantar desde la propia fila', () => {
+  // ES UN <Link>, NO UN <button> CON window.location.href (revisión final de
+  // la ronda 10): recarga dura, se pierde el scroll, y como <button> no hay
+  // clic-medio, ctrl-clic, "copiar dirección del enlace" ni vista previa del
+  // destino al pasar el ratón. `getByRole('link', …)` con su `href` es lo que
+  // distingue un enlace de verdad de un botón que solo se le parece.
+  it('sin minuta, el equipo la puede levantar desde la propia fila — con un enlace de verdad, no un botón con recarga dura', () => {
     render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} />)
-    expect(screen.getByRole('button', { name: /levantar minuta/i })).toBeInTheDocument()
+    const enlace = screen.getByRole('link', { name: /levantar minuta/i })
+    expect(enlace).toBeInTheDocument()
+    expect(enlace).toHaveAttribute('href', `/deck/${conPdf.id}/minuta`)
   })
 
   it('sin minuta, el director ve que falta pero no puede levantarla', () => {
     render(<CarasDeReunion reunion={conPdf} equipo={false} onLeerMinuta={() => {}} />)
-    expect(screen.queryByRole('button', { name: /levantar minuta/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /levantar minuta/i })).toBeNull()
     expect(screen.getByText(/falta la minuta/i)).toBeInTheDocument()
   })
 })
