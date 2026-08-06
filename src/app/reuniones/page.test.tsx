@@ -4,10 +4,14 @@ import type { ReunionResumen } from '@/db/reuniones'
 import type { DocumentoCompleto } from '@/db/documentos'
 
 /**
- * `/reuniones` (Tarea 13, ronda 10): el ciclo entero de una reunión en una
- * sola pestaña — el calendario y "agendar", mudados TAL CUAL desde
- * `/agenda` (siguen siendo `PanelAgenda`, sin tocar), y lo nuevo: "Ya dadas
- * este mes", con lo que le falta a cada una.
+ * `/reuniones` (Tarea 13, ronda 10 — "el ciclo de vida entero" desde la tarea
+ * 18): el calendario y "agendar" (`PanelAgenda`, mudado TAL CUAL desde
+ * `/agenda`, sin tocar) más las cuatro preguntas del ciclo de una reunión que
+ * ya pasó su día — "Próximas" ya vive DENTRO de `PanelAgenda` ("Lo que
+ * viene"), así que esta pestaña añade "Por confirmar", "Se dieron, falta su
+ * minuta" y "Cerradas". Reemplaza al viejo bloque único "Ya dadas este mes"
+ * (con sus etiquetas "Sin presentación"/"Falta la minuta"), absorbido por los
+ * tres módulos nuevos — Tarea 18, brief §2.
  *
  * `PanelAgenda` SE MOCKEA en este archivo — no porque no se use de verdad en
  * `page.tsx` (se usa, tal cual, sin rediseñar), sino porque:
@@ -20,13 +24,20 @@ import type { DocumentoCompleto } from '@/db/documentos'
  *      verdad aquí ataría este test al estado de un archivo ajeno en pleno
  *      vuelo.
  *
+ * `ReunionesPorConfirmar` (tarea 18) se mockea por el mismo motivo 1: es
+ * Client Component, y ya tiene su propia suite — aquí solo importa que esta
+ * página la monte con los datos y las acciones correctas.
+ *
  * Mismo criterio que ya usa este repo para mockear un componente hermano
  * (`ModoPresentar.test.tsx`: `vi.mock('./GrabarReunion', ...)`) — no es una
  * técnica nueva.
  *
- * Lo que SÍ corre de verdad: `fueDada`/`tienePresentacion` (`dominio/reunion`)
- * y `diaCivil` (`lib/fecha`) — es la lógica nueva de esta tarea, y mockearla
- * sería no probar nada.
+ * Lo que SÍ corre de verdad: `fueDada`/`reunionesPorConfirmar`/
+ * `reunionesMinutables` (`dominio/reunion`) y `diaCivil` (`lib/fecha`) — es
+ * la lógica de esta tarea, y mockearla sería no probar nada. La pieza más
+ * importante de esta suite es `cicloDeReuniones` (más abajo), exportada con
+ * nombre para probarla directo, sin montar React: es donde vive LA REGLA
+ * DURA — ninguna reunión sale en dos módulos a la vez.
  */
 
 const exigirLecturaMock = vi.fn()
@@ -66,6 +77,17 @@ vi.mock('@/db/temas', () => ({
 vi.mock('./acciones', () => ({
   agendarReunionAction: vi.fn(),
   editarReunionAction: vi.fn(),
+  marcarPresentadaAction: vi.fn(),
+  marcarNoDadaAction: vi.fn(),
+  desmarcarNoDadaAction: vi.fn(),
+}))
+
+// `slugsDeSalasPausadas` (tarea 18): "Por confirmar" respeta el freeze de
+// sala (`reunionesPorConfirmar`, dominio/reunion.ts) — sin esto no hay cómo
+// saber qué sala está en pausa desde esta pantalla.
+const slugsDeSalasPausadasMock = vi.fn()
+vi.mock('@/db/salas', () => ({
+  slugsDeSalasPausadas: () => slugsDeSalasPausadasMock(),
 }))
 
 const panelAgendaPropsMock = vi.fn()
@@ -76,7 +98,20 @@ vi.mock('@/componentes/agenda/PanelAgenda', () => ({
   },
 }))
 
-const { default: PagReuniones, reunionesDadasEsteMesPorSala } = await import('./page')
+// `ReunionesPorConfirmar` (tarea 18) SE MOCKEA aquí por el mismo motivo que
+// `PanelAgenda`: es un Client Component con `useState`/`useTransition` propio,
+// y ya tiene su propia suite (`ReunionesPorConfirmar.test.tsx`) que cubre su
+// UI — aquí solo importa que `/reuniones` la monte con las reuniones y las
+// acciones correctas.
+const reunionesPorConfirmarPropsMock = vi.fn()
+vi.mock('@/componentes/ReunionesPorConfirmar', () => ({
+  ReunionesPorConfirmar: (props: unknown) => {
+    reunionesPorConfirmarPropsMock(props)
+    return <div data-testid="reuniones-por-confirmar-stub">por confirmar (stub)</div>
+  },
+}))
+
+const { default: PagReuniones, cicloDeReuniones } = await import('./page')
 
 // ---- fixtures ----
 
@@ -167,7 +202,9 @@ beforeEach(() => {
   documentoDeReunionMock.mockReset().mockImplementation((id: string) =>
     Promise.resolve(DOCUMENTOS_POR_ID[id] ?? null),
   )
+  slugsDeSalasPausadasMock.mockReset().mockResolvedValue(new Set())
   panelAgendaPropsMock.mockClear()
+  reunionesPorConfirmarPropsMock.mockClear()
   vi.useFakeTimers()
   vi.setSystemTime(HOY)
 })
@@ -217,131 +254,252 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
   })
 })
 
-describe('PagReuniones (/reuniones) — "Ya dadas este mes"', () => {
-  it('cuenta y agrupa solo lo que fueDada() Y es de este mes — ni lo futuro, ni lo de otro mes, ni lo sin respaldo, ni lo cancelado', async () => {
-    render(await PagReuniones())
+/**
+ * `cicloDeReuniones` — la función pura detrás de las tres secciones nuevas
+ * (tarea 18), exportada con nombre para probarla sin montar React. Recibe
+ * `hoyCivil` como parámetro (no lee `new Date()` por su cuenta) — mismo
+ * criterio que `fueDada`/`reunionesPorConfirmar` (`dominio/reunion.ts`):
+ * quien necesita fijar "ahora" en un test lo pasa, no pelea con
+ * temporizadores falsos.
+ *
+ * ESTA ES LA PIEZA QUE FIJA LA REGLA DURA: ninguna reunión puede salir en dos
+ * de los tres módulos a la vez — exactamente el defecto que la revisión
+ * final de la ronda 10 ya arregló una vez, entre "En preparación" y "Por
+ * confirmar" en `/deck`. `reunionesPorConfirmar` y `reunionesMinutables`
+ * (`dominio/reunion.ts`) NO son, por sí solas, mutuamente excluyentes: una
+ * reunión `agendada`, con respaldo y el día ya pasado, cumple el criterio de
+ * las dos —`reunionesPorConfirmar` porque nadie dijo si se dio, y
+ * `reunionesMinutables` porque `tienePresentacion` ya es cierto— y
+ * `guardarMinuta` (`src/db/minutas.ts`) NO toca `estado` a propósito, así
+ * que hasta una reunión YA MINUTADA puede seguir sin confirmar. Por eso
+ * "falta su minuta" y "cerradas" excluyen explícitamente lo que "por
+ * confirmar" ya se quedó: la pregunta "¿se dio?" manda mientras siga
+ * abierta.
+ */
+describe('cicloDeReuniones — la regla dura: ninguna reunión en dos módulos a la vez', () => {
+  const HOY_CIVIL = '2026-08-19' // mismo día que HOY, más abajo (12:00 CDMX)
 
-    expect(screen.getByText(/ya dadas este mes/i)).toBeInTheDocument()
-    // Las 4 que sí cuentan: completa, sin-minuta, sin-presentación, sin-sala.
-    expect(within(screen.getByText(/ya dadas este mes/i).closest('section')!).getByText('4')).toBeInTheDocument()
+  it('deducida como dada (respaldo + día pasado) pero SIN confirmar: "por confirmar", NUNCA "falta su minuta" — aunque reunionesMinutables también la aceptaría', () => {
+    const r = reunion({ id: 'r1', titulo: 'Deducida sin minutar', fecha: '2026-08-10T18:00:00.000Z', estado: 'agendada' })
 
-    for (const titulo of [R_COMPLETA.titulo, R_SIN_MINUTA.titulo, R_SIN_PRESENTACION.titulo, R_SIN_SALA.titulo]) {
-      expect(screen.getByText(titulo)).toBeInTheDocument()
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(), HOY_CIVIL)
+
+    expect(ciclo.porConfirmar.map((x) => x.id)).toEqual(['r1'])
+    expect(ciclo.faltaMinuta.map((x) => x.id)).not.toContain('r1')
+    expect(ciclo.cerradas.map((x) => x.id)).not.toContain('r1')
+  })
+
+  it('YA MINUTADA pero sin confirmar (guardarMinuta no toca `estado`): "por confirmar", NUNCA "cerradas"', () => {
+    const r = reunion({
+      id: 'r2', titulo: 'Minutada sin confirmar', fecha: '2026-08-11T18:00:00.000Z',
+      estado: 'agendada', tieneMinuta: true,
+    })
+
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(), HOY_CIVIL)
+
+    expect(ciclo.porConfirmar.map((x) => x.id)).toEqual(['r2'])
+    expect(ciclo.cerradas.map((x) => x.id)).not.toContain('r2')
+    expect(ciclo.faltaMinuta.map((x) => x.id)).not.toContain('r2')
+  })
+
+  it('una vez CONFIRMADA (estado dada) sin minuta: pasa a "falta su minuta" y sale de "por confirmar"', () => {
+    const r = reunion({
+      id: 'r3', titulo: 'Confirmada, sin minuta', fecha: '2026-08-10T18:00:00.000Z',
+      estado: 'dada', tieneMinuta: false,
+    })
+
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(), HOY_CIVIL)
+
+    expect(ciclo.faltaMinuta.map((x) => x.id)).toEqual(['r3'])
+    expect(ciclo.porConfirmar.map((x) => x.id)).not.toContain('r3')
+    expect(ciclo.cerradas.map((x) => x.id)).not.toContain('r3')
+  })
+
+  it('CONFIRMADA y MINUTADA: "cerradas", nada más', () => {
+    const r = reunion({
+      id: 'r4', titulo: 'Cerrada', fecha: '2026-08-10T18:00:00.000Z',
+      estado: 'dada', tieneMinuta: true,
+    })
+
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(), HOY_CIVIL)
+
+    expect(ciclo.cerradas.map((x) => x.id)).toEqual(['r4'])
+    expect(ciclo.porConfirmar.map((x) => x.id)).not.toContain('r4')
+    expect(ciclo.faltaMinuta.map((x) => x.id)).not.toContain('r4')
+  })
+
+  it('una sala en pausa no ofrece confirmar/negar (freeze — mismo criterio que crearReunion), pero la reunión sigue contando en "falta su minuta"', () => {
+    const r = reunion({
+      id: 'r5', titulo: 'Sala en pausa', fecha: '2026-08-10T18:00:00.000Z',
+      estado: 'agendada', salaSlug: 'uix', salaNombre: 'UiX',
+    })
+
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(['uix']), HOY_CIVIL)
+
+    expect(ciclo.porConfirmar.map((x) => x.id)).not.toContain('r5')
+    expect(ciclo.faltaMinuta.map((x) => x.id)).toEqual(['r5'])
+  })
+
+  it('noDadaEn sigue en "por confirmar" para poder deshacerse — no desaparece al negarla, y su marca viaja con ella', () => {
+    const r = reunion({
+      id: 'r6', titulo: 'Negada', fecha: '2026-08-10T18:00:00.000Z',
+      estado: 'agendada', noDadaEn: '2026-08-11T00:00:00.000Z',
+    })
+
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(), HOY_CIVIL)
+
+    expect(ciclo.porConfirmar).toEqual([
+      expect.objectContaining({ id: 'r6', noDadaEn: '2026-08-11T00:00:00.000Z' }),
+    ])
+    expect(ciclo.faltaMinuta.map((x) => x.id)).not.toContain('r6')
+  })
+
+  it('"cerradas" se ordena por fecha, la más reciente primero', () => {
+    const vieja = reunion({ id: 'r-vieja', fecha: '2026-06-10T18:00:00.000Z', estado: 'dada', tieneMinuta: true })
+    const nueva = reunion({ id: 'r-nueva', fecha: '2026-08-05T18:00:00.000Z', estado: 'dada', tieneMinuta: true })
+
+    const ciclo = cicloDeReuniones(
+      [vieja, nueva],
+      [documento('listo', 1, 1), documento('listo', 1, 1)],
+      new Set(),
+      HOY_CIVIL,
+    )
+
+    expect(ciclo.cerradas.map((x) => x.id)).toEqual(['r-nueva', 'r-vieja'])
+  })
+
+  /**
+   * NADA SE PIERDE (brief §2, Step 4): "cada reunión que hoy sale [en 'Ya
+   * dadas este mes'] y mañana no salga en ninguno" es el defecto a evitar.
+   * Las cuatro que esa sección ya contaba (mismas fixtures que su suite
+   * vieja) siguen apareciendo, cada una en exactamente un módulo — y la de
+   * OTRO MES, que el viejo filtro por mes excluía, ahora también aparece: el
+   * filtro de mes desaparece con la sección que lo aplicaba, a propósito
+   * (ninguno de los tres módulos nuevos lo pide).
+   */
+  it('nada se pierde: las que "Ya dadas este mes" ya contaba siguen apareciendo, cada una en un único módulo — y las de fuera del mes también, ahora que ese filtro desaparece', () => {
+    const docs = TODAS.map((r) => DOCUMENTOS_POR_ID[r.id] ?? null)
+
+    const ciclo = cicloDeReuniones(TODAS, docs, new Set(), HOY_CIVIL)
+
+    const idsPorConfirmar = new Set(ciclo.porConfirmar.map((x) => x.id))
+    const idsFaltaMinuta = new Set(ciclo.faltaMinuta.map((x) => x.id))
+    const idsCerradas = new Set(ciclo.cerradas.map((x) => x.id))
+
+    // Sin solaparse entre sí — ninguna de las tres comparte un id con otra.
+    for (const id of idsPorConfirmar) {
+      expect(idsFaltaMinuta.has(id)).toBe(false)
+      expect(idsCerradas.has(id)).toBe(false)
     }
-    // Las 4 que NO: futura (no pasó), mes pasado (fueDada pero no es agosto),
-    // sin respaldo (nada que la respalde, aunque el día ya pasó), cancelada
-    // (noDadaEn manda sobre el respaldo que sí tiene).
-    for (const titulo of [R_FUTURA.titulo, R_MES_PASADO.titulo, R_SIN_RESPALDO.titulo, R_CANCELADA.titulo]) {
-      expect(screen.queryByText(titulo)).not.toBeInTheDocument()
+    for (const id of idsFaltaMinuta) expect(idsCerradas.has(id)).toBe(false)
+
+    // Las cuatro que "Ya dadas este mes" ya contaba, cada una en su módulo:
+    expect(idsCerradas.has(R_COMPLETA.id)).toBe(true) // dada + minuta
+    expect(idsFaltaMinuta.has(R_SIN_MINUTA.id)).toBe(true) // dada, sin minuta
+    expect(idsCerradas.has(R_SIN_PRESENTACION.id)).toBe(true) // dada + minuta (sin presentación ya no separa)
+    expect(idsFaltaMinuta.has(R_SIN_SALA.id)).toBe(true) // dada, sin minuta, sin sala
+
+    // La de otro mes: "Ya dadas este mes" la excluía por fecha; sin ese
+    // filtro, ahora sí aparece (dada + minuta → cerradas).
+    expect(idsCerradas.has(R_MES_PASADO.id)).toBe(true)
+
+    // Las que de verdad no tienen nada que mostrar siguen sin aparecer en
+    // ninguno de los tres (correcto: "Próximas" y "sin nada" no son de este
+    // módulo — la futura la sigue mostrando PanelAgenda, "sin respaldo" no
+    // tiene nada que este ciclo pueda contar).
+    for (const id of [R_FUTURA.id, R_SIN_RESPALDO.id]) {
+      expect(idsPorConfirmar.has(id) || idsFaltaMinuta.has(id) || idsCerradas.has(id)).toBe(false)
     }
-  })
 
-  it('dice lo que le falta a cada una: "Falta la minuta" (sin minuta) y "Sin presentación" (sin documento listo ni archivos)', async () => {
-    render(await PagReuniones())
-
-    // Exactamente 2 con minuta pendiente (sin-minuta, sin-sala) y 2 sin
-    // presentación (sin-presentación, sin-sala) — sin-sala lleva las dos.
-    expect(screen.getAllByText('Falta la minuta')).toHaveLength(2)
-    expect(screen.getAllByText('Sin presentación')).toHaveLength(2)
-  })
-
-  it('una reunión completa (documento listo Y minuta) no lleva ninguna etiqueta de faltante', async () => {
-    render(await PagReuniones())
-
-    const fila = screen.getByText(R_COMPLETA.titulo).closest('li')!
-    expect(within(fila).queryByText('Falta la minuta')).not.toBeInTheDocument()
-    expect(within(fila).queryByText('Sin presentación')).not.toBeInTheDocument()
-  })
-
-  it('una reunión SIN SALA (comité, Tarea 8b) aparece agrupada bajo "Marketing Corp" — no rompe el agrupado ni sale sin nombre', async () => {
-    render(await PagReuniones())
-
-    expect(screen.getByText('Marketing Corp')).toBeInTheDocument()
-    const grupo = screen.getByText('Marketing Corp').closest('div')!
-    expect(within(grupo).getByText(R_SIN_SALA.titulo)).toBeInTheDocument()
-  })
-
-  it('sin ninguna reunión dada este mes, se lee un vacío explícito en vez de una sección en blanco', async () => {
-    listarReunionesMock.mockResolvedValue([R_FUTURA, R_MES_PASADO])
-
-    render(await PagReuniones())
-
-    expect(screen.getByText(/ya dadas este mes/i)).toBeInTheDocument()
-    expect(screen.getByText(/ninguna reuni.n.*se ha dado/i)).toBeInTheDocument()
+    // La cancelada sigue ofreciéndose para deshacerse, en "por confirmar".
+    expect(idsPorConfirmar.has(R_CANCELADA.id)).toBe(true)
   })
 })
 
-/**
- * `reunionesDadasEsteMesPorSala` — la función pura detrás del bloque de
- * arriba, exportada con nombre para probarla sin montar React. Recibe `hoy`
- * como parámetro (no lee `new Date()` por su cuenta) — mismo criterio que
- * `fueDada`/`textoProxima` (`dominio/reunion.ts`, `lib/fecha.ts`): quien
- * necesita fijar "ahora" en un test lo pasa, no pelea con temporizadores
- * falsos.
- */
-describe('reunionesDadasEsteMesPorSala — el mes se ancla a America/Mexico_City, no a UTC', () => {
-  it('una reunión a las 22:00 CDMX del día 30 (=04:00 UTC del día 1) cuenta en el mes de JUNIO, no julio', async () => {
-    // "hoy": 2026-07-01T02:00 UTC = 2026-06-30T20:00 CDMX → hoyCivil
-    // '2026-06-30', mes '2026-06'. Mismo instante que usa
-    // `agenda/[token]/page.test.ts` para fijar esta misma regla.
-    const hoy = new Date('2026-07-01T02:00:00.000Z')
-    // 2026-07-01T04:00 UTC = 2026-06-30T22:00 CDMX: por el RELOJ (UTC) ya es
-    // julio; por el DÍA CIVIL en México sigue siendo el 30 de junio. Si el
-    // agrupador comparara `fecha.slice(0, 7)` a pelo (sin `diaCivil`), esta
-    // reunión caería en "2026-07" y el test de abajo fallaría.
-    const trampa = reunion({
-      id: 'r-trampa', titulo: 'Trampa de huso horario', fecha: '2026-07-01T04:00:00.000Z', estado: 'dada',
-    })
+describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', () => {
+  it('"Por confirmar" monta ReunionesPorConfirmar con las reuniones que corresponde y las tres acciones de ./acciones', async () => {
+    // Mismo patrón que el test de agendarAction/editarAction, más abajo:
+    // se importa el módulo (mockeado) y se compara contra ESE binding, no
+    // contra el mock interno — `./acciones` exporta un wrapper alrededor de
+    // cada mock (ver el `vi.mock` de arriba), así que son dos funciones
+    // distintas aunque delegen a la misma.
+    const { marcarPresentadaAction, marcarNoDadaAction, desmarcarNoDadaAction } = await import('./acciones')
+    listarReunionesMock.mockResolvedValue([R_CANCELADA])
 
-    const grupos = reunionesDadasEsteMesPorSala([trampa], [documento('listo', 1, 1)], hoy)
+    render(await PagReuniones())
 
-    expect(grupos.flatMap((g) => g.reuniones).map((r) => r.id)).toEqual(['r-trampa'])
+    expect(screen.getByText('Por confirmar')).toBeInTheDocument()
+    expect(reunionesPorConfirmarPropsMock).toHaveBeenCalledTimes(1)
+    const props = reunionesPorConfirmarPropsMock.mock.calls[0][0] as {
+      sesiones: Array<{ id: string }>
+      marcarPresentadaAction: unknown
+      marcarNoDadaAction: unknown
+      desmarcarNoDadaAction: unknown
+    }
+    expect(props.sesiones.map((s) => s.id)).toEqual([R_CANCELADA.id])
+    expect(props.marcarPresentadaAction).toBe(marcarPresentadaAction)
+    expect(props.marcarNoDadaAction).toBe(marcarNoDadaAction)
+    expect(props.desmarcarNoDadaAction).toBe(desmarcarNoDadaAction)
   })
 
-  it('"hoy" nunca cuenta como "ya pasado" para la deducción automática (mismo criterio que fueDada)', () => {
-    const hoy = new Date('2026-08-19T18:00:00.000Z') // 12:00 CDMX
-    const deHoy = reunion({
-      id: 'r-de-hoy', titulo: 'Reunión de esta misma tarde', fecha: '2026-08-19T20:00:00.000Z', estado: 'agendada',
-    })
+  it('sin nada por confirmar, la sección ni se monta (mismo criterio que el Home)', async () => {
+    listarReunionesMock.mockResolvedValue([])
 
-    const grupos = reunionesDadasEsteMesPorSala([deHoy], [documento('listo', 1, 1)], hoy)
+    render(await PagReuniones())
 
-    expect(grupos).toEqual([])
+    expect(screen.queryByText('Por confirmar')).not.toBeInTheDocument()
+    expect(reunionesPorConfirmarPropsMock).not.toHaveBeenCalled()
   })
 
-  it('con respaldo Y el día ya estrictamente pasado, se deduce dada aunque nadie la haya confirmado a mano', () => {
-    const hoy = new Date('2026-08-19T18:00:00.000Z')
-    const ayer = reunion({
-      id: 'r-ayer', titulo: 'Reunión de ayer, nunca confirmada', fecha: '2026-08-18T18:00:00.000Z', estado: 'agendada',
-    })
+  it('"Se dieron, falta su minuta" pinta cada fila enlazada a /deck/{id}/minuta', async () => {
+    listarReunionesMock.mockResolvedValue([R_SIN_MINUTA])
 
-    const grupos = reunionesDadasEsteMesPorSala([ayer], [documento('listo', 1, 1)], hoy)
+    render(await PagReuniones())
 
-    expect(grupos.flatMap((g) => g.reuniones).map((r) => r.id)).toEqual(['r-ayer'])
+    const seccion = screen.getByText('Se dieron, falta su minuta').closest('section')!
+    const link = within(seccion).getByText(R_SIN_MINUTA.titulo).closest('a')
+    expect(link).toHaveAttribute('href', `/deck/${R_SIN_MINUTA.id}/minuta`)
   })
 
-  it('agrupa alfabéticamente por nombre de sala (es), y dentro de cada grupo, la más reciente primero', () => {
-    const hoy = new Date('2026-08-19T18:00:00.000Z')
-    const uixVieja = reunion({
-      id: 'uix-vieja', fecha: '2026-08-02T18:00:00.000Z', estado: 'dada',
-      salaSlug: 'uix', salaNombre: 'UiX', salaColor: '#2b6cc0',
-    })
-    const uixNueva = reunion({
-      id: 'uix-nueva', fecha: '2026-08-16T18:00:00.000Z', estado: 'dada',
-      salaSlug: 'uix', salaNombre: 'UiX', salaColor: '#2b6cc0',
-    })
-    const marketingCorp = reunion({
-      id: 'mc', fecha: '2026-08-04T18:00:00.000Z', estado: 'dada',
-      salaSlug: null, salaNombre: 'Marketing Corp', salaColor: '#E34714',
-    })
+  it('"Cerradas" pinta cada fila, enlazada a su cliente cuando tiene sala', async () => {
+    listarReunionesMock.mockResolvedValue([R_COMPLETA])
 
-    const grupos = reunionesDadasEsteMesPorSala(
-      [uixVieja, uixNueva, marketingCorp],
-      [documento('listo', 1, 1), documento('listo', 1, 1), documento('listo', 1, 1)],
-      hoy,
-    )
+    render(await PagReuniones())
 
-    expect(grupos.map((g) => g.salaNombre)).toEqual(['Marketing Corp', 'UiX'])
-    expect(grupos.find((g) => g.salaNombre === 'UiX')!.reuniones.map((r) => r.id)).toEqual(['uix-nueva', 'uix-vieja'])
+    const seccion = screen.getByText('Cerradas').closest('section')!
+    const link = within(seccion).getByText(R_COMPLETA.titulo).closest('a')
+    expect(link).toHaveAttribute('href', `/cliente/${R_COMPLETA.salaSlug}`)
+  })
+
+  it('una reunión CERRADA sin sala (comité) se lee igual, sin enlace roto', async () => {
+    const cerradaSinSala = reunion({
+      id: 'r-cerrada-sin-sala', titulo: 'Comité cerrado', fecha: '2026-08-05T18:00:00.000Z',
+      estado: 'dada', tieneMinuta: true, salaSlug: null, salaNombre: 'Marketing Corp',
+    })
+    listarReunionesMock.mockResolvedValue([cerradaSinSala])
+
+    render(await PagReuniones())
+
+    const seccion = screen.getByText('Cerradas').closest('section')!
+    expect(within(seccion).getByText('Comité cerrado')).toBeInTheDocument()
+    expect(within(seccion).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('las etiquetas viejas —"Ya dadas este mes", "Sin presentación"— ya no existen', async () => {
+    render(await PagReuniones())
+
+    expect(screen.queryByText(/ya dadas este mes/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Sin presentación')).not.toBeInTheDocument()
+  })
+
+  it('sin nada pendiente, "falta su minuta" y "cerradas" leen un vacío explícito, no una sección en blanco', async () => {
+    listarReunionesMock.mockResolvedValue([])
+
+    render(await PagReuniones())
+
+    expect(screen.getByText('Se dieron, falta su minuta')).toBeInTheDocument()
+    expect(screen.getByText(/nada pendiente de minutar/i)).toBeInTheDocument()
+    expect(screen.getByText('Cerradas')).toBeInTheDocument()
+    expect(screen.getByText(/ninguna reuni.n cerrada/i)).toBeInTheDocument()
   })
 })

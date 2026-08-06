@@ -15,6 +15,15 @@ import type { DatosFormulario } from '@/componentes/agenda/FormularioSesion'
  * guarda (`exigirEditor`) se comprueba ANTES de tocar la base — si alguien
  * reordenara la guarda después de la llamada a `crearReunionConDocumento`/
  * `editarReunion`, estos tests se caen.
+ *
+ * TAREA 18 suma tres acciones más: `marcarPresentadaAction`/
+ * `marcarNoDadaAction`/`desmarcarNoDadaAction`, para el módulo "Por
+ * confirmar" que se muda aquí desde el Home. MISMA IMPLEMENTACIÓN que
+ * `src/app/page.tsx` (Home) — no una reescrita: exigir editor, escribir,
+ * registrar la edición (sin propagar su fallo), revalidar. Viven en este
+ * archivo (y no inline en `page.tsx`, como en el Home) porque
+ * `ReunionesPorConfirmar` es un Client Component que las recibe como prop —
+ * mismo motivo, mismo patrón, que ya obligó a mudar agendar/editar aquí.
  */
 
 const exigirEditorMock = vi.fn()
@@ -28,8 +37,19 @@ vi.mock('@/db/documentos', () => ({
 }))
 
 const editarReunionMock = vi.fn()
+const marcarDadaMock = vi.fn()
+const marcarNoDadaMock = vi.fn()
+const desmarcarNoDadaMock = vi.fn()
 vi.mock('@/db/reuniones', () => ({
   editarReunion: (...args: unknown[]) => editarReunionMock(...args),
+  marcarDada: (...args: unknown[]) => marcarDadaMock(...args),
+  marcarNoDada: (...args: unknown[]) => marcarNoDadaMock(...args),
+  desmarcarNoDada: (...args: unknown[]) => desmarcarNoDadaMock(...args),
+}))
+
+const registrarEdicionMock = vi.fn()
+vi.mock('@/db/participacion', () => ({
+  registrarEdicion: (...args: unknown[]) => registrarEdicionMock(...args),
 }))
 
 const revalidatePathMock = vi.fn()
@@ -46,7 +66,10 @@ vi.mock('@/db/temas', () => ({
   slugsDeSalas: () => slugsDeSalasMock(),
 }))
 
-const { agendarReunionAction, editarReunionAction } = await import('./acciones')
+const {
+  agendarReunionAction, editarReunionAction,
+  marcarPresentadaAction, marcarNoDadaAction, desmarcarNoDadaAction,
+} = await import('./acciones')
 
 const DATOS_BASE: DatosFormulario = {
   salaSlug: 'neracode',
@@ -66,6 +89,10 @@ beforeEach(() => {
   exigirEditorMock.mockReset().mockResolvedValue({ rol: 'equipo', rolApp: 'editor', sub: 'equipo-mkt-corp' })
   crearReunionConDocumentoMock.mockReset().mockResolvedValue({ reunionId: 'r1', documentoId: 'd1' })
   editarReunionMock.mockReset().mockResolvedValue(undefined)
+  marcarDadaMock.mockReset().mockResolvedValue(undefined)
+  marcarNoDadaMock.mockReset().mockResolvedValue(undefined)
+  desmarcarNoDadaMock.mockReset().mockResolvedValue(undefined)
+  registrarEdicionMock.mockReset().mockResolvedValue(undefined)
   revalidatePathMock.mockReset()
   slugsDeSalasMock.mockReset().mockResolvedValue(['neracode', 'mexa-creativa', 'uix'])
 })
@@ -219,5 +246,86 @@ describe('editarReunionAction', () => {
     const resultado = await editarReunionAction('r1', DATOS_BASE)
 
     expect(resultado).toEqual({ error: 'Reunión no encontrada: "r1"' })
+  })
+})
+
+/**
+ * TAREA 18 — "Por confirmar" (hasta ahora solo en el Home) suma `/reuniones`
+ * como segunda pantalla: mismas tres acciones, misma implementación que
+ * `src/app/page.tsx`, copiadas aquí (no importadas: cada `page.tsx` sigue
+ * declarando las suyas, mismo criterio que ya usan `agendarReunionAction`/
+ * `editarReunionAction` en este archivo frente a las de `/agenda`). Los tests
+ * cubren lo mismo que ya cubre `src/app/page.test.ts` para el Home: la
+ * guarda antes de escribir y la llamada de escritura correcta.
+ */
+describe('marcarPresentadaAction', () => {
+  it('exige edición ANTES de marcar la reunión: sin permiso, no llega a la base', async () => {
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
+    )
+
+    await expect(marcarPresentadaAction('r1')).rejects.toThrow('permiso de edición')
+
+    expect(marcarDadaMock).not.toHaveBeenCalled()
+  })
+
+  it('marca la reunión dada, registra la edición de quien la marcó, y revalida /reuniones y /', async () => {
+    await marcarPresentadaAction('r1')
+
+    expect(marcarDadaMock).toHaveBeenCalledWith('r1')
+    expect(registrarEdicionMock).toHaveBeenCalledWith('r1', 'equipo-mkt-corp')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/reuniones')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/')
+  })
+
+  it('sin `sub` en la sesión (portillo de emergencia), no llama a registrarEdicion pero sí marca la reunión', async () => {
+    exigirEditorMock.mockResolvedValue({ rol: 'equipo', rolApp: 'editor', sub: null })
+
+    await marcarPresentadaAction('r1')
+
+    expect(marcarDadaMock).toHaveBeenCalledWith('r1')
+    expect(registrarEdicionMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('marcarNoDadaAction', () => {
+  it('exige edición ANTES de marcar: sin permiso, no llega a la base', async () => {
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
+    )
+
+    await expect(marcarNoDadaAction('r1')).rejects.toThrow('permiso de edición')
+
+    expect(marcarNoDadaMock).not.toHaveBeenCalled()
+  })
+
+  it('marca la reunión como no dada, registra la edición, y revalida /reuniones y /', async () => {
+    await marcarNoDadaAction('r1')
+
+    expect(marcarNoDadaMock).toHaveBeenCalledWith('r1')
+    expect(registrarEdicionMock).toHaveBeenCalledWith('r1', 'equipo-mkt-corp')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/reuniones')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/')
+  })
+})
+
+describe('desmarcarNoDadaAction', () => {
+  it('exige edición ANTES de deshacer: sin permiso, no llega a la base', async () => {
+    exigirEditorMock.mockRejectedValueOnce(
+      new Error('Esta acción requiere permiso de edición en Marketing Corporativo.'),
+    )
+
+    await expect(desmarcarNoDadaAction('r1')).rejects.toThrow('permiso de edición')
+
+    expect(desmarcarNoDadaMock).not.toHaveBeenCalled()
+  })
+
+  it('deshace la marca de "no dada", registra la edición, y revalida /reuniones y /', async () => {
+    await desmarcarNoDadaAction('r1')
+
+    expect(desmarcarNoDadaMock).toHaveBeenCalledWith('r1')
+    expect(registrarEdicionMock).toHaveBeenCalledWith('r1', 'equipo-mkt-corp')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/reuniones')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/')
   })
 })

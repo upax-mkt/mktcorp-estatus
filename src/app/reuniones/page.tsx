@@ -4,47 +4,59 @@ import estilos from './reuniones.module.css'
 import { listarReuniones, type ReunionResumen } from '@/db/reuniones'
 import { documentoDeReunion, type DocumentoCompleto } from '@/db/documentos'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
+import { slugsDeSalasPausadas } from '@/db/salas'
 import { exigirLectura } from '@/auth/roles'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
-import { fueDada, tienePresentacion, type Reunion } from '@/dominio/reunion'
+import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
+import type { SesionPorConfirmar } from '@/dominio/salas'
+import { reunionesPorConfirmar, reunionesMinutables, type Reunion } from '@/dominio/reunion'
 import { fechaLarga, fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
-import { agendarReunionAction, editarReunionAction } from './acciones'
+import {
+  agendarReunionAction, editarReunionAction,
+  marcarPresentadaAction, marcarNoDadaAction, desmarcarNoDadaAction,
+} from './acciones'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * El ciclo entero de una reunión, en una sola pestaña (Tarea 13, ronda 10):
- * el calendario del mes y "agendar" —`PanelAgenda`, MUDADO TAL CUAL desde
- * `/agenda`, sin rediseñar— más lo nuevo, "Ya dadas este mes" con lo que le
- * falta a cada una. `/agenda` (la pantalla del equipo) ahora solo redirige
- * aquí — ver `src/app/agenda/page.tsx`. `/agenda/[token]` (la agenda
- * pública, ya compartida fuera de la empresa) no se toca ni tiene nada que
- * ver con esta migración.
+ * EL CICLO DE VIDA ENTERO DE UNA REUNIÓN, en una sola pestaña (Tarea 13,
+ * ronda 10; ampliada en la Tarea 18). El calendario del mes y "agendar" —
+ * `PanelAgenda`, MUDADO TAL CUAL desde `/agenda`, sin rediseñar, que ya
+ * resuelve "Próximas" por su cuenta ("Lo que viene", en su propio panel
+ * lateral) — más las tres preguntas que le tocan a esta pestaña una vez que
+ * el día de la reunión ya llegó: "Por confirmar" (¿se dio?), "Se dieron,
+ * falta su minuta" (ocurrió y no está el acta) y "Cerradas" (dada y
+ * minutada). `/agenda` (la pantalla del equipo) ahora solo redirige aquí —
+ * ver `src/app/agenda/page.tsx`. `/agenda/[token]` (la agenda pública, ya
+ * compartida fuera de la empresa) no se toca ni tiene nada que ver con esta
+ * migración.
+ *
+ * TAREA 18 — "CADA COSA EN SU PESTAÑA": los tres módulos nuevos reemplazan
+ * al viejo bloque único "Ya dadas este mes" (con sus etiquetas "Sin
+ * presentación"/"Falta la minuta"), que mezclaba el ciclo de vida de la
+ * JUNTA con el de su documento. Franco, el 6-ago: "en la pestaña Reuniones
+ * ahí debe vivir el módulo Se dieron pero falta su minuta, reuniones
+ * cerradas, reuniones pendientes...". `/deck` (Presentaciones) se queda solo
+ * con "En preparación" y "Anteriores" — ver `src/app/deck/page.tsx`.
  *
  * "Agenda" desaparece como nombre de sección: en pantalla todo se llama
  * "reunión".
  */
 
-/** Lo que le falta a UNA reunión ya dada, para pintar sus etiquetas. */
-export interface ReunionDadaConFaltantes {
+/** Una reunión ya resuelta (confirmada o deducida), lista para "falta su minuta" o "cerradas". */
+export interface ReunionEnCiclo {
   id: string
   titulo: string
   fecha: string // ISO
-  sinPresentacion: boolean
-  faltaMinuta: boolean
-}
-
-export interface GrupoDeSalaDadas {
+  salaSlug: string | null
   salaNombre: string
   salaColor: string
-  /**
-   * Nulo en el grupo de las reuniones que no son de ninguna sala (un comité,
-   * una interna de Mkt Corp). Con slug, lo que le falta a una reunión se
-   * enlaza a su sala, que es donde vive la acción que lo llena — ver el
-   * comentario de `faltantes` más abajo.
-   */
-  salaSlug: string | null
-  reuniones: ReunionDadaConFaltantes[]
+}
+
+export interface CicloDeReuniones {
+  porConfirmar: SesionPorConfirmar[]
+  faltaMinuta: ReunionEnCiclo[]
+  cerradas: ReunionEnCiclo[]
 }
 
 /**
@@ -83,62 +95,90 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
   }
 }
 
-/** true si `fecha` (ISO) cae en el mismo mes civil, visto desde CDMX, que `hoyCivil`. */
-function esDelMismoMes(fecha: string, hoyCivil: string): boolean {
-  return diaCivil(fecha).slice(0, 7) === hoyCivil.slice(0, 7)
-}
-
 /**
- * "Ya dadas este mes", agrupadas por sala — Marketing Corp incluida (Tarea
- * 8b: una reunión sin sala —un comité, una interna— se viste con esa
- * identidad y no aparece en ninguna de las diez salas; esta vista global es
- * la única donde SÍ se ve). Se agrupa por `salaNombre`, nunca por
- * `salaSlug` —que es `null` justo en ese caso—: así "sin sala" no rompe el
- * agrupado ni sale sin nombre, porque `identidadDe` (`db/reuniones.ts`) ya
- * resolvió ese nombre antes de que esta función reciba el dato.
+ * LAS TRES PREGUNTAS DEL CICLO, una vez que el día de la reunión ya llegó
+ * (Tarea 18). "Próximas" no está aquí: ya la resuelve `PanelAgenda` por su
+ * cuenta ("Lo que viene"), sin tocar.
  *
- * `fueDada`, no `estado === 'dada'` a pelo: una reunión puede haber ocurrido
- * sin que nadie la haya confirmado a mano —tiene respaldo (documento listo,
- * un archivo, o minuta) y su día ya pasó— y esa deducción (Tarea 6) es
- * justo lo que esta vista quiere contar, no solo lo explícito.
+ * LA REGLA DURA: NINGUNA REUNIÓN EN DOS MÓDULOS A LA VEZ. Es exactamente el
+ * defecto que la revisión final de la ronda 10 ya arregló una vez, entre "En
+ * preparación" y "Por confirmar" en `/deck` — volver a introducirlo aquí
+ * sería peor que no haber tocado nada.
  *
- * `hoy` es un PARÁMETRO, no `new Date()` leído aquí adentro — mismo criterio
- * que `fueDada`/`textoProxima` (`dominio/reunion.ts`, `lib/fecha.ts`): quien
- * necesita fijar "ahora" en un test lo pasa, no pelea con temporizadores.
+ * `reunionesPorConfirmar` y `reunionesMinutables` (`dominio/reunion.ts`) son
+ * la fuente —no se reescribe su criterio a mano— pero NO son, cada una por
+ * su cuenta, mutuamente excluyentes entre sí: una reunión `agendada`, con
+ * respaldo y el día ya pasado, cumple las dos a la vez —`reunionesPorConfirmar`
+ * porque nadie ha dicho si se dio, `reunionesMinutables` porque
+ * `tienePresentacion` ya es cierto—, y `guardarMinuta` (`src/db/minutas.ts`)
+ * NO toca `estado` a propósito, así que hasta una reunión YA MINUTADA puede
+ * seguir sin confirmar. Por eso "falta su minuta" y "cerradas" EXCLUYEN
+ * explícitamente lo que "por confirmar" ya se quedó (`idsPorConfirmar`,
+ * abajo): la pregunta "¿se dio?" manda mientras siga abierta — el resto de
+ * la pantalla espera su respuesta antes de contar la reunión como algo más.
+ *
+ * `hoyCivil` es un PARÁMETRO, no `new Date()` leído aquí adentro — mismo
+ * criterio que `fueDada` (`dominio/reunion.ts`): quien necesita fijar "ahora"
+ * en un test lo pasa, no pelea con temporizadores.
  */
-export function reunionesDadasEsteMesPorSala(
+export function cicloDeReuniones(
   reuniones: ReunionResumen[],
   documentos: Array<DocumentoCompleto | null>,
-  hoy: Date,
-): GrupoDeSalaDadas[] {
-  const hoyCivil = diaCivil(hoy.toISOString())
+  pausadas: Set<string>,
+  hoyCivil: string,
+): CicloDeReuniones {
+  const adaptadas = reuniones.map((r, i) => comoReunionDeDominio(r, documentos[i] ?? null))
+  const porId = new Map(reuniones.map((r, i) => [r.id, { r, adaptada: adaptadas[i] }]))
 
-  const grupos = new Map<string, GrupoDeSalaDadas>()
-  reuniones.forEach((r, i) => {
-    const adaptada = comoReunionDeDominio(r, documentos[i] ?? null)
-    if (!fueDada(adaptada, hoyCivil)) return
-    if (!esDelMismoMes(r.fecha, hoyCivil)) return
+  // `salaActiva` solo se pega para lo que `reunionesPorConfirmar` necesita
+  // (confirmar/negar es "gestión", y una sala en pausa no la admite — mismo
+  // criterio que `crearReunion`); `undefined` cuando la reunión no es de
+  // ninguna sala (un comité), que es "no hay freeze que preguntar", no
+  // "pausada".
+  const conActiva = reuniones.map((r, i) => ({
+    ...adaptadas[i],
+    salaActiva: r.salaSlug ? !pausadas.has(r.salaSlug) : undefined,
+  }))
 
-    if (!grupos.has(r.salaNombre)) {
-      grupos.set(r.salaNombre, {
-        salaNombre: r.salaNombre,
-        salaColor: r.salaColor,
-        salaSlug: r.salaSlug,
-        reuniones: [],
-      })
-    }
-    grupos.get(r.salaNombre)!.reuniones.push({
+  const porConfirmarCrudo = reunionesPorConfirmar(conActiva, hoyCivil)
+  const idsPorConfirmar = new Set(porConfirmarCrudo.map((r) => r.id))
+
+  const porConfirmar: SesionPorConfirmar[] = porConfirmarCrudo.map((r) => {
+    const { r: original } = porId.get(r.id)!
+    return {
       id: r.id,
       titulo: r.titulo,
       fecha: r.fecha,
-      sinPresentacion: !tienePresentacion(adaptada),
-      faltaMinuta: !r.tieneMinuta,
-    })
+      salaSlug: original.salaSlug,
+      salaNombre: original.salaNombre,
+      salaColor: original.salaColor,
+      noDadaEn: r.noDadaEn,
+    }
   })
 
-  return [...grupos.values()]
-    .map((g) => ({ ...g, reuniones: g.reuniones.sort((a, b) => b.fecha.localeCompare(a.fecha)) }))
-    .sort((a, b) => a.salaNombre.localeCompare(b.salaNombre, 'es'))
+  const faltaMinuta: ReunionEnCiclo[] = reunionesMinutables(adaptadas, hoyCivil)
+    .filter((r) => !idsPorConfirmar.has(r.id))
+    .map((r) => {
+      const { r: original } = porId.get(r.id)!
+      return {
+        id: r.id, titulo: r.titulo, fecha: r.fecha,
+        salaSlug: original.salaSlug, salaNombre: original.salaNombre, salaColor: original.salaColor,
+      }
+    })
+
+  const cerradas: ReunionEnCiclo[] = adaptadas
+    .filter((r) => Boolean(r.minuta))
+    .filter((r) => !idsPorConfirmar.has(r.id))
+    .map((r) => {
+      const { r: original } = porId.get(r.id)!
+      return {
+        id: r.id, titulo: r.titulo, fecha: r.fecha,
+        salaSlug: original.salaSlug, salaNombre: original.salaNombre, salaColor: original.salaColor,
+      }
+    })
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+
+  return { porConfirmar, faltaMinuta, cerradas }
 }
 
 export default async function PagReuniones() {
@@ -152,10 +192,15 @@ export default async function PagReuniones() {
   await connection()
   const hoy = new Date()
 
-  const [reuniones, slugsReales, registro] = await Promise.all([
+  const [reuniones, slugsReales, registro, pausadas] = await Promise.all([
     listarReuniones(),
     slugsDeSalas(),
     cargarTemas(),
+    // Para que "Por confirmar" respete el freeze de sala (tarea 18) — mismo
+    // criterio que ya usa el Home (`estadoDeSalas()[].activa`) y la vista de
+    // sala (`s.activa`), aquí resuelto aparte porque esta pantalla parte de
+    // `listarReuniones()` (una lista plana), no de `estadoDeSalas()`.
+    slugsDeSalasPausadas(),
   ])
 
   const salas = slugsReales.map((slug) => {
@@ -168,7 +213,7 @@ export default async function PagReuniones() {
    * documento, no de la reunión — spec §1): se resuelven aquí, una consulta
    * por reunión en paralelo. La lista de reuniones es de decenas, no miles,
    * así que esto no es el problema de N+1 que sería en una lista sin cota.
-   * El mismo `documentos` sirve también para "Ya dadas este mes" (abajo) —
+   * El mismo `documentos` sirve también para `cicloDeReuniones` (abajo) —
    * una sola pasada, no dos.
    */
   const documentos = await Promise.all(reuniones.map((r) => documentoDeReunion(r.id)))
@@ -192,8 +237,8 @@ export default async function PagReuniones() {
     }
   })
 
-  const gruposDadas = reunionesDadasEsteMesPorSala(reuniones, documentos, hoy)
-  const totalDadas = gruposDadas.reduce((n, g) => n + g.reuniones.length, 0)
+  const hoyCivil = diaCivil(hoy.toISOString())
+  const ciclo = cicloDeReuniones(reuniones, documentos, pausadas, hoyCivil)
 
   return (
     <div className={estilos.app}>
@@ -212,8 +257,8 @@ export default async function PagReuniones() {
         <div className={estilos.encabezado}>
           <h1 className={estilos.titulo}>Reuniones</h1>
           <p className={estilos.subtitulo}>
-            El calendario del mes, agendar rápido, y las próximas — más lo ya dado, con lo que le falta a
-            cada una.
+            El calendario del mes, agendar rápido, y las próximas — más el ciclo completo de las que ya
+            pasaron su día: por confirmar, con la minuta pendiente, y cerradas.
           </p>
         </div>
 
@@ -225,79 +270,99 @@ export default async function PagReuniones() {
           editarAction={editarReunionAction}
         />
 
-        <section className={estilos.dadasSeccion}>
-          <h2 className={estilos.dadasTitulo}>
-            Ya dadas este mes
-            <span className={estilos.conteo}>{totalDadas}</span>
+        {/* POR CONFIRMAR (tarea 18): la pregunta más básica del ciclo — "¿se
+            dio?" — antes solo en el Home y en cada sala, ahora también aquí.
+            Mismo componente, mismas tres acciones. Oculta cuando está vacía,
+            mismo criterio que el Home. */}
+        {ciclo.porConfirmar.length > 0 && (
+          <section className={estilos.cicloSeccion}>
+            <h2 className={estilos.cicloTitulo}>
+              Por confirmar
+              <span className={estilos.conteo}>{ciclo.porConfirmar.length}</span>
+            </h2>
+            <ReunionesPorConfirmar
+              sesiones={ciclo.porConfirmar}
+              marcarPresentadaAction={marcarPresentadaAction}
+              marcarNoDadaAction={marcarNoDadaAction}
+              desmarcarNoDadaAction={desmarcarNoDadaAction}
+            />
+          </section>
+        )}
+
+        {/* SE DIERON, FALTA SU MINUTA: ocurrió (confirmada, o con
+            presentación y día pasado) y todavía no tiene acta. Mudada de
+            `/deck` (tarea 18) — antes vivía ahí por herencia, de cuando la
+            reunión no existía como entidad aparte de su documento. SIEMPRE
+            visible, con vacío explícito: mismo criterio que "Cerradas", justo
+            abajo. */}
+        <section className={estilos.cicloSeccion}>
+          <h2 className={estilos.cicloTitulo}>
+            Se dieron, falta su minuta
+            <span className={estilos.conteo}>{ciclo.faltaMinuta.length}</span>
           </h2>
-
-          {totalDadas === 0 ? (
-            <p className={estilos.vacio}>Ninguna reunión de este mes se ha dado todavía.</p>
+          {ciclo.faltaMinuta.length === 0 ? (
+            <p className={estilos.vacio}>Nada pendiente de minutar.</p>
           ) : (
-            <div className={estilos.dadasGrupos}>
-              {gruposDadas.map((grupo) => (
-                <div
-                  key={grupo.salaNombre}
-                  className={estilos.grupoSala}
-                  style={{ '--sala': grupo.salaColor } as React.CSSProperties}
+            <div className={estilos.listaCiclo}>
+              {ciclo.faltaMinuta.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/deck/${r.id}/minuta`}
+                  className={estilos.filaCiclo}
+                  style={{ '--sala': r.salaColor } as React.CSSProperties}
                 >
-                  <h3 className={estilos.grupoTitulo}>{grupo.salaNombre}</h3>
-                  <ul className={estilos.listaDadas}>
-                    {grupo.reuniones.map((r) => (
-                      <li key={r.id} className={estilos.reunionDada}>
-                        <div className={estilos.reunionDadaCabecera}>
-                          <span className={estilos.reunionDadaTitulo}>{r.titulo}</span>
-                          <span className={estilos.reunionDadaFecha}>
-                            {fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}
-                          </span>
-                        </div>
-                        {/*
-                          Lo que falta ENLAZA a la sala, que es donde vive la
-                          acción que lo llena (`CarasDeReunion`). Esta vista es
-                          un panorama del mes: meter aquí el flujo de subida
-                          entero sería un segundo camino que divergiría del
-                          primero. Pero un texto muerto que no lleva a ninguna
-                          parte es justo lo que esta ronda vino a quitar, así
-                          que como mínimo lleva a donde se arregla.
-
-                          Sin sala (un comité) no hay a dónde ir todavía: se
-                          queda como texto.
-                        */}
-                        {(r.sinPresentacion || r.faltaMinuta) && (
-                          <div className={estilos.faltantes}>
-                            {r.sinPresentacion &&
-                              (grupo.salaSlug ? (
-                                <Link
-                                  href={`/cliente/${grupo.salaSlug}`}
-                                  className={`${estilos.faltante} ${estilos.sinPresentacion}`}
-                                >
-                                  Sin presentación
-                                </Link>
-                              ) : (
-                                <span className={`${estilos.faltante} ${estilos.sinPresentacion}`}>
-                                  Sin presentación
-                                </span>
-                              ))}
-                            {r.faltaMinuta &&
-                              (grupo.salaSlug ? (
-                                <Link
-                                  href={`/cliente/${grupo.salaSlug}`}
-                                  className={`${estilos.faltante} ${estilos.faltaMinuta}`}
-                                >
-                                  Falta la minuta
-                                </Link>
-                              ) : (
-                                <span className={`${estilos.faltante} ${estilos.faltaMinuta}`}>
-                                  Falta la minuta
-                                </span>
-                              ))}
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                  <span className={estilos.filaCicloMeta}>
+                    <span>{r.salaNombre}</span>
+                    <span className={estilos.sep}>·</span>
+                    <span>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                  </span>
+                  <span className={estilos.filaCicloAccion}>Generar su minuta →</span>
+                </Link>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* CERRADAS: dada y minutada, nada pendiente. Mudada de `/deck`
+            (tarea 18), misma razón que la anterior. Sin sala (un comité) no
+            hay a dónde ir todavía: se queda como texto, mismo criterio que ya
+            usaba el bloque viejo para "lo que falta". */}
+        <section className={estilos.cicloSeccion}>
+          <h2 className={estilos.cicloTitulo}>
+            Cerradas
+            <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
+          </h2>
+          {ciclo.cerradas.length === 0 ? (
+            <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
+          ) : (
+            <div className={estilos.listaCiclo}>
+              {ciclo.cerradas.map((r) => {
+                const contenido = (
+                  <>
+                    <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                    <span className={estilos.filaCicloMeta}>
+                      <span>{r.salaNombre}</span>
+                      <span className={estilos.sep}>·</span>
+                      <span>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                    </span>
+                  </>
+                )
+                return r.salaSlug ? (
+                  <Link
+                    key={r.id}
+                    href={`/cliente/${r.salaSlug}`}
+                    className={estilos.filaCiclo}
+                    style={{ '--sala': r.salaColor } as React.CSSProperties}
+                  >
+                    {contenido}
+                  </Link>
+                ) : (
+                  <div key={r.id} className={estilos.filaCiclo} style={{ '--sala': r.salaColor } as React.CSSProperties}>
+                    {contenido}
+                  </div>
+                )
+              })}
             </div>
           )}
         </section>

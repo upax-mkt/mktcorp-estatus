@@ -1,25 +1,34 @@
 'use server'
 
 /**
- * Server Actions de `/reuniones`: agendar y editar.
+ * Server Actions de `/reuniones`: agendar, editar, y (tarea 18) el ciclo de
+ * confirmación — marcar una reunión dada, marcarla no dada, deshacer esa
+ * marca.
  *
- * MUDADAS TAL CUAL desde `src/app/agenda/page.tsx` (Tarea 13, ronda 10) a su
- * propio archivo `'use server'` — no reescritas. Viven aparte porque
- * `PanelAgenda` (`@/componentes/agenda/PanelAgenda`) es un Client Component
- * que las recibe como prop: declaradas dentro del cuerpo de una página,
- * React intenta serializar la función al cliente y revienta con "Functions
- * cannot be passed directly to Client Components" — el build no lo detecta,
- * solo se ve al usar la página. Un archivo `'use server'` aparte es la forma
- * que da la propia documentación de Next para este caso exacto (ver
+ * agendar/editar MUDADAS TAL CUAL desde `src/app/agenda/page.tsx` (Tarea 13,
+ * ronda 10) a su propio archivo `'use server'` — no reescritas. Las tres de
+ * la tarea 18 son la MISMA implementación que ya usa `src/app/page.tsx`
+ * (Home) para su propio módulo "Por confirmar" — copiada, no importada:
+ * cada `page.tsx` sigue declarando las suyas, mismo criterio de este archivo
+ * frente a las acciones (distintas) de `/agenda`.
+ *
+ * Todas viven aparte porque `PanelAgenda`/`ReunionesPorConfirmar` son Client
+ * Components que las reciben como prop: declaradas dentro del cuerpo de una
+ * página, React intenta serializar la función al cliente y revienta con
+ * "Functions cannot be passed directly to Client Components" — el build no
+ * lo detecta, solo se ve al usar la página. Un archivo `'use server'` aparte
+ * es la forma que da la propia documentación de Next para este caso exacto
+ * (ver
  * node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-server.md,
  * sección "Using Server Functions in a Client Component").
  */
 import { revalidatePath } from 'next/cache'
 import { crearReunionConDocumento } from '@/db/documentos'
-import { editarReunion } from '@/db/reuniones'
+import { editarReunion, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
 import { slugsDeSalas } from '@/db/temas'
 import { exigirEditor } from '@/auth/roles'
 import { instanteEnCDMX } from '@/lib/fecha'
+import { registrarEdicion } from '@/db/participacion'
 import type { DatosFormulario } from '@/componentes/agenda/FormularioSesion'
 
 /**
@@ -89,4 +98,44 @@ export async function editarReunionAction(id: string, datos: DatosFormulario): P
   revalidatePath('/reuniones')
   revalidatePath('/')
   return {}
+}
+
+/**
+ * EL MÓDULO "POR CONFIRMAR" (tarea 18), copiado del Home (`src/app/page.tsx`)
+ * sin cambios de comportamiento: el botón de marcar presentada estaba
+ * enterrado —solo se llegaba entrando al editor y abriendo el documento—, así
+ * que de siete reuniones dadas solo una se marcó a mano. Vive donde SE VE la
+ * reunión: el Home, la vista de sala, y ahora también aquí, la pestaña del
+ * ciclo de vida entero.
+ *
+ * Junto al "sí" vive el "no" (`marcarNoDadaAction`) — la reunión se canceló o
+ * se pospuso — porque son la misma pregunta en las dos direcciones.
+ *
+ * Las tres exigen editor primero y quedan enganchadas a `registrarEdicion`
+ * (`src/db/participacion.ts`), que NUNCA propaga un fallo suyo — mismo patrón
+ * que el Home y que `marcarPresentadaAction` en
+ * `src/app/deck/[id]/documento/page.tsx`.
+ */
+export async function marcarPresentadaAction(reunionId: string): Promise<void> {
+  const quien = await exigirEditor()
+  await marcarDada(reunionId)
+  if (quien.sub) await registrarEdicion(reunionId, quien.sub)
+  revalidatePath('/reuniones')
+  revalidatePath('/')
+}
+
+export async function marcarNoDadaAction(reunionId: string): Promise<void> {
+  const quien = await exigirEditor()
+  await marcarNoDada(reunionId)
+  if (quien.sub) await registrarEdicion(reunionId, quien.sub)
+  revalidatePath('/reuniones')
+  revalidatePath('/')
+}
+
+export async function desmarcarNoDadaAction(reunionId: string): Promise<void> {
+  const quien = await exigirEditor()
+  await desmarcarNoDada(reunionId)
+  if (quien.sub) await registrarEdicion(reunionId, quien.sub)
+  revalidatePath('/reuniones')
+  revalidatePath('/')
 }

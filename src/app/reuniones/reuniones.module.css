@@ -1,8 +1,11 @@
 /* Reuniones — mismos neutros OKLCH cálidos y barra oscura que el hub, la
    vista de sala y la vieja agenda, para que se lea como parte del mismo
-   sistema. Es el CASCARÓN de la página (barra/main/encabezado) más el
-   bloque nuevo, "Ya dadas este mes"; el calendario y "agendar" (PanelAgenda,
-   mudado tal cual) traen sus propias clases de agenda.module.css. */
+   sistema. Es el CASCARÓN de la página (barra/main/encabezado) más el ciclo
+   de vida de la reunión (tarea 18: "Por confirmar", "Se dieron, falta su
+   minuta", "Cerradas" — reemplaza al viejo bloque único "Ya dadas este
+   mes"); el calendario y "agendar" (PanelAgenda, mudado tal cual) traen sus
+   propias clases de agenda.module.css, y "Por confirmar" las suyas
+   (ReunionesPorConfirmar.module.css). */
 
 .app {
   /* MISMO bloque de alias que agenda.module.css, letra por letra — no es un
@@ -68,12 +71,15 @@
 .titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
 .subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 52ch; }
 
-/* ---- Ya dadas este mes ----
-   Mismo lenguaje visual que "Lo que viene" en agenda.module.css
-   (tarjeta con filo de color de sala) y que `.caraPendiente`/`.caraAusente`
-   en cliente.module.css para "lo que le falta" — no una escala nueva. */
-.dadasSeccion { margin-top: clamp(2rem, 4vw, 3rem); }
-.dadasTitulo {
+/* ---- el ciclo (tarea 18): "Por confirmar" / "Se dieron, falta su minuta" /
+   "Cerradas" ----
+   Mismo lenguaje visual que "Lo que viene" en agenda.module.css (tarjeta con
+   filo de color de sala) — no una escala nueva. "Por confirmar" reusa el
+   componente `ReunionesPorConfirmar` con su propia hoja; estas clases son
+   para las otras dos, listas planas sin agrupar por sala (a diferencia del
+   viejo bloque único, que sí agrupaba). */
+.cicloSeccion { margin-top: clamp(2rem, 4vw, 3rem); }
+.cicloTitulo {
   display: flex; align-items: baseline; gap: 0.6rem;
   font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em;
   margin: 0 0 1.1rem;
@@ -83,41 +89,23 @@
 }
 .vacio { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 
-.dadasGrupos { display: grid; gap: 1.5rem; }
-.grupoSala { display: grid; gap: 0.7rem; }
-.grupoTitulo {
-  font-size: 0.76rem; letter-spacing: 0.1em; text-transform: uppercase;
-  font-weight: 700; color: var(--sala, var(--tx-3)); margin: 0;
-}
-
-.listaDadas {
-  list-style: none; margin: 0; padding: 0;
+.listaCiclo {
   display: grid; gap: 0.7rem;
   grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
 }
-.reunionDada {
+/* Puede ser un `<a>` (con sala/minuta a la que ir) o un `<div>` (comité, sin
+   sala) — mismas reglas para las dos, `text-decoration`/`color` explícitos
+   para que un `<a>` no se pinte distinto de su vecino `<div>`. */
+.filaCiclo {
   padding: 0.85rem 1rem; border-radius: var(--r-4);
   border-left: 3px solid var(--sala, var(--tx-3));
   background: var(--superficie);
   box-shadow: var(--e-1);
-  display: grid; gap: 0.5rem;
+  display: grid; gap: 0.4rem;
+  color: inherit; text-decoration: none;
 }
-.reunionDadaCabecera { display: grid; gap: 0.2rem; }
-.reunionDadaTitulo { font-size: 0.95rem; font-weight: 600; }
-.reunionDadaFecha { font-size: 0.8rem; color: var(--tx-3); }
-
-.faltantes { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-/* Lo que falta se DICE, no se omite (mismo criterio que
-   ReunionesSala/cliente.module.css: una tarjeta que solo omite el botón no
-   se distingue de una que sí tiene la pieza). */
-.faltante {
-  display: inline-flex; align-items: center;
-  padding: 0.3rem 0.6rem; border-radius: var(--r-lleno);
-  font-size: 0.76rem; font-weight: 500;
-}
-/* "Falta la minuta": algo pendiente de hacer — tono tibia/ojo, igual que
-   `.caraPendiente` en cliente.module.css. */
-.faltaMinuta { color: var(--tibia); background: var(--tibia-suave); }
-/* "Sin presentación": neutro, igual que `.caraAusente` — todavía no hay
-   nada que mostrar, no es necesariamente un pendiente urgente. */
-.sinPresentacion { color: var(--tx-3); background: var(--hundido); }
+a.filaCiclo:hover { border-left-color: var(--acento); }
+.filaCicloTitulo { font-size: 0.95rem; font-weight: 600; }
+.filaCicloMeta { font-size: 0.8rem; color: var(--tx-3); display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.filaCicloMeta .sep { color: var(--borde-fuerte); }
+.filaCicloAccion { justify-self: start; font-size: 0.82rem; font-weight: 600; color: var(--acento); }
