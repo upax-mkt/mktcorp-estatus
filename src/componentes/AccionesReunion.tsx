@@ -28,7 +28,7 @@ import estilos from '@/app/deck/deck.module.css'
  */
 
 interface Props {
-  sesionId: string
+  reunionId: string
   titulo: string
   /** El texto de la minuta, si la hay. Sin él no hay nada que descargar. */
   textoMinuta?: string | null
@@ -48,7 +48,7 @@ function comoArchivo(titulo: string): string {
 }
 
 export function AccionesReunion({
-  sesionId, titulo, textoMinuta, hayDocumento, eliminarAction,
+  reunionId, titulo, textoMinuta, hayDocumento, eliminarAction,
 }: Props) {
   const [confirmando, setConfirmando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +78,7 @@ export function AccionesReunion({
           className={`${estilos.boton} ${estilos.botonPeligro} ${estilos.botonChico}`}
           disabled={pendiente}
           onClick={() => empezar(async () => {
-            const r = await eliminarAction(sesionId)
+            const r = await eliminarAction(reunionId)
             if (r.error) { setError(r.error); setConfirmando(false) }
           })}
         >
@@ -102,7 +102,7 @@ export function AccionesReunion({
 
       {hayDocumento && (
         <a
-          href={`/deck/${sesionId}/documento?imprimir=1`}
+          href={`/deck/${reunionId}/documento?imprimir=1`}
           target="_blank"
           rel="noopener"
           className={estilos.accionEnlace}

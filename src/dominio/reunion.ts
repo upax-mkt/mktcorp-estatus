@@ -49,8 +49,6 @@ export interface Minuta {
   fecha: string // ISO
   titulo: string
   enviadaA: number // # de participantes
-  /** Sesión de la que salió: es lo que permite abrirla desde la sala. */
-  sesionId?: string
   /**
    * El texto de la minuta, para leerla SIN salir de la sala.
    *

@@ -37,18 +37,6 @@ export const tipoReunionEnum = pgEnum('tipo_reunion', ['semanal', 'quincenal', '
 export const estadoReunionEnum = pgEnum('estado_reunion', ['agendada', 'dada'])
 export const estadoDocumentoEnum = pgEnum('estado_documento', ['borrador', 'listo'])
 
-export const tipoSesionEnum = pgEnum('tipo_sesion', ['semanal', 'mensual'])
-// 'agendada' es una sesión con fecha en el calendario que nadie ha empezado a
-// llenar todavía. Sin ella no se puede distinguir "la próxima sesión es el 19
-// de agosto" de "estamos preparando la sesión", que son cosas distintas para
-// el hub: la primera es una fecha, la segunda es trabajo en curso.
-export const estadoSesionEnum = pgEnum('estado_sesion', [
-  'agendada',
-  'borrador',
-  'lista',
-  'presentada',
-  'minutada',
-])
 export const estatusAcuerdoEnum = pgEnum('estatus_acuerdo', [
   'abierto',
   'cumplido',
@@ -123,8 +111,9 @@ export const salas = pgTable('salas', {
 
 // ---- Reunión (ronda 10, tarea 1) ----
 // La junta como entidad, separada de lo que se prepara para ella (ver
-// `documentos` más abajo). Nace vacía: los datos que hoy viven en `sesiones`
-// se mudan aquí en una tarea posterior. Ver spec §1.
+// `documentos` más abajo). Nació vacía: los datos que entonces vivían en
+// `sesiones` se mudaron aquí en una tarea posterior (Tarea 2) y `sesiones`
+// se retiró del todo en la Tarea 8. Ver spec §1.
 export const reuniones = pgTable('reuniones', {
   id: text('id').primaryKey(),
   /**
@@ -134,8 +123,8 @@ export const reuniones = pgTable('reuniones', {
    * Volvió a ser opcional en la Tarea 8b (5-ago), pedido de Franco:
    * "necesito poder utilizar el componente para crear minutas de otras
    * reuniones". Había dejado de serlo en la Tarea 4 (ronda 10) al mudar esta
-   * tabla desde `sesiones` —donde SÍ era nula, ver esa columna más abajo—,
-   * perdiendo sin querer una capacidad que ya existía. La referencia a
+   * tabla desde `sesiones` —donde SÍ era nula—, perdiendo sin querer una
+   * capacidad que ya existía. La referencia a
    * `salas.slug` se queda: una reunión CON sala sigue teniendo que apuntar a
    * una que exista. Una reunión sin sala se viste con la identidad de
    * Marketing Corp (`identidadDe`, src/db/reuniones.ts) y no aparece en
@@ -178,107 +167,21 @@ export const documentos = pgTable('documentos', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-// ---- Sesión ----
-// Una reunión concreta: sala + fecha + tipo + alcance + copia congelada de
-// la estructura (jsonb — la Estructura como tal, versionada, es trabajo de
-// una fase posterior; aquí solo se guarda el snapshot que usó esta sesión).
-export const sesiones = pgTable('sesiones', {
-  id: text('id').primaryKey(),
-  /**
-   * De qué sala es. NULO para una reunión que no pertenece a ninguna: un
-   * comité, un arranque de campaña, una junta de squad.
-   *
-   * Dejó de ser obligatorio cuando la herramienta dejó de ser solo para el
-   * estatus de las UDNs (Franco, 28-jul). Una reunión sin sala se viste con
-   * la identidad de Marketing Corp y no aparece en ninguna de las diez.
-   */
-  salaSlug: text('sala_slug').references(() => salas.slug),
-  /**
-   * Con qué plantilla nació: "estatus-udn", "comite", "en-blanco"…
-   * Ver src/secciones/plantillas.ts. Se guarda —y no se deduce de las
-   * secciones— porque decide qué se puede borrar: en un estatus los ocho
-   * bloques son el acuerdo con la UDN; en una reunión libre no hay nada
-   * intocable.
-   */
-  plantilla: text('plantilla').notNull().default('estatus-udn'),
-  fecha: timestamp('fecha', { withTimezone: true }).notNull(),
-  tipo: tipoSesionEnum('tipo').notNull(),
-  /** 'todos los squads' / squads específicos / tema puntual — texto libre, ver §4/§6. */
-  alcance: text('alcance').notNull().default('todos'),
-  estado: estadoSesionEnum('estado').notNull().default('borrador'),
-  /**
-   * ALGUIEN DIJO EXPLÍCITAMENTE QUE ESTA REUNIÓN NO SE DIO (se canceló, se
-   * pospuso). `null` = nadie lo ha dicho; con fecha, el momento en que se
-   * marcó así.
-   *
-   * Por qué un campo aparte y no un estado nuevo en `estadoSesionEnum`: desde
-   * la ronda "contador y presentadas" (2026-08-03) una sesión `lista` cuyo
-   * día civil ya pasó se considera dada SIN que nadie pulse nada (ver
-   * `fueDada`, src/dominio/salas.ts) — es la deducción automática que
-   * reemplaza el papeleo de "marcar como presentada". Ese "no se dio" tiene
-   * que poder DESHACER esa deducción para un caso concreto, y un estado
-   * nuevo lo habría hecho mal en dos frentes: (1) habría que enseñarle el
-   * valor nuevo a cada uno de los sitios que hoy hacen `switch`/comparan
-   * contra los cinco estados fijos (mapas de etiqueta en deck, agenda,
-   * calendario; los filtros de "en preparación"; el propio tipo
-   * `EstadoSesion`) para no dejar una sexta rama sin manejar en ninguno; y
-   * (2) perdería la fecha original de la reunión y su progreso de
-   * preparación, que hoy siguen vivos en `estado`/`fecha`/`estructura` — con
-   * un campo aparte, "no se dio" es una ETIQUETA sobre la sesión, no un
-   * reemplazo de lo que ya se sabía de ella.
-   *
-   * Por qué timestamp y no boolean: mismo patrón que `pausadaDesde` o
-   * `claveCreadaEn` en `salas` — nace en `null`, se pone en el momento, y de
-   * paso queda un rastro de CUÁNDO se marcó sin una columna extra.
-   *
-   * Manda sobre la deducción automática (si tiene fecha, `fueDada` da falso
-   * pase lo que pase con el día o el contenido) pero nunca sobre lo
-   * explícito: `marcarPresentada` la limpia a `null` al pasar a `presentada`
-   * — las dos cosas a la vez ("se dio" y "se marcó que no se dio") serían una
-   * contradicción que nadie pidió poder guardar.
-   */
-  noDadaEn: timestamp('no_dada_en', { withTimezone: true }),
-  /** Copia congelada de la estructura (agenda de items) al momento de crear la sesión. */
-  estructura: jsonb('estructura').$type<unknown>().notNull(),
-  /**
-   * Quién va a la reunión. Nombres, tal como los escribe quien la agenda.
-   *
-   * No referencia a ninguna tabla de personas porque no la hay, y no la va a
-   * haber por esto: a la sesión de una UDN va su director, que no tiene
-   * cuenta en la app. El día que entre Outlook, esto es lo que se rellena
-   * desde el evento — por eso es una lista y no un texto libre.
-   */
-  participantes: jsonb('participantes').$type<string[]>().notNull().default([]),
-  /** Dónde se da: sala física, link de Teams, "por definir". Texto libre. */
-  lugar: text('lugar'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
-
 // ---- Item ----
-// Un slide contestado dentro de una sesión. Dos capas separadas a propósito
+// Un slide contestado dentro de un documento. Dos capas separadas a propósito
 // (§4): lo que cargó el equipo (nunca se modifica) vs. lo que resolvió el
 // motor de maquetación (se puede recalcular sin recapturar).
 export const items = pgTable('items', {
   id: text('id').primaryKey(),
   /**
-   * De qué sesión (el modelo VIEJO) es. Deja de ser `NOT NULL` en la Tarea 5:
-   * un item que nace de `documentos.ts` no tiene fila de `sesiones` de la que
-   * colgar —el modelo nuevo no la crea— así que exigirla aquí habría hecho
-   * imposible escribir un documento nuevo contra Postgres (`crearDocumento`/
-   * `anadirSeccion` solo conocen `documentoId`). Un item viejo (el que crea
-   * `sesiones.ts`, vivo hasta que la Tarea 8 lo retire) la sigue trayendo
-   * siempre; nunca se le quita a una fila existente, solo deja de exigirse en
-   * las nuevas. Se DROPEA del todo en la Tarea 8, junto con la tabla
-   * `sesiones` (0023/0024 planeadas, ver el plan de la ronda 10).
-   */
-  sesionId: text('sesion_id').references(() => sesiones.id),
-  /**
    * De qué documento es (ronda 10, tarea 3): un item es contenido de lo que
    * se preparó, no de la junta — cuelga del documento, no de la reunión.
-   * Nullable por ahora: se rellena en 0022 y se vuelve NOT NULL en la Tarea 8.
+   * NOT NULL desde la Tarea 8 (`0027_columnas_nuevas_obligatorias.sql`): el
+   * modelo viejo (`sesiones.ts`) que permitía un item sin documento —colgado
+   * directo de una sesión— ya no existe, así que todo item cuelga de un
+   * documento sin excepción.
    */
-  documentoId: text('documento_id').references(() => documentos.id),
+  documentoId: text('documento_id').notNull().references(() => documentos.id),
   orden: integer('orden').notNull(),
   tipo: text('tipo').notNull(),
   /** Lo que escribió el equipo: cifras, textos, imágenes, nota a la IA. */
@@ -290,8 +193,8 @@ export const items = pgTable('items', {
 })
 
 // ---- Acuerdo ----
-// Cuelga de la SALA, no de la sesión (decisión estructural del spec §4):
-// nace en una sesión pero sobrevive a todas las siguientes.
+// Cuelga de la SALA, no de la reunión (decisión estructural del spec §4):
+// nace en una reunión pero sobrevive a todas las siguientes.
 export const acuerdos = pgTable('acuerdos', {
   id: text('id').primaryKey(),
   salaSlug: text('sala_slug')
@@ -303,12 +206,14 @@ export const acuerdos = pgTable('acuerdos', {
   prioridad: text('prioridad'),
   fechaCompromiso: timestamp('fecha_compromiso', { withTimezone: true }),
   estatus: estatusAcuerdoEnum('estatus').notNull().default('abierto'),
-  /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
-  sesionOrigenId: text('sesion_origen_id').references(() => sesiones.id),
   /**
-   * Reunión donde nació el acuerdo (ronda 10, tarea 3). Copia de
-   * `sesionOrigenId` — mismo id, porque la reunión heredó el de su sesión.
-   * Nullable por ahora: se rellena en 0022 y se vuelve NOT NULL en la Tarea 8.
+   * Reunión donde nació el acuerdo (ronda 10, tarea 3). Nulo si se dio de
+   * alta fuera de una reunión, o si la reunión que lo originó se borró
+   * después: la clave se anula, no cascada (`eliminarReunion`,
+   * src/db/reuniones.ts) — un acuerdo SOBREVIVE al borrado de su reunión.
+   * NULLABLE PERMANENTE por eso mismo: no pasa a NOT NULL en la Tarea 8
+   * (corrección del plan, 5-ago — ver `0027_columnas_nuevas_obligatorias.sql`),
+   * a diferencia de `items.documentoId`, que sí se volvió obligatoria.
    */
   reunionOrigenId: text('reunion_origen_id').references(() => reuniones.id),
   /**
@@ -356,29 +261,20 @@ export const acuerdos = pgTable('acuerdos', {
 })
 
 // ---- Minuta ----
-// Ligada a una sesión. Guarda transcripción original, texto final editado y
+// Ligada a una reunión. Guarda transcripción original, texto final editado y
 // a quién se envió.
 export const minutas = pgTable('minutas', {
   id: text('id').primaryKey(),
   /**
-   * Deja de ser `NOT NULL` en la Tarea 5b: una minuta que nace de
-   * `src/db/minutas.ts` DESPUÉS de que `sesiones.ts` desaparece no tiene fila
-   * de `sesiones` de la que colgar —el modelo nuevo no la crea—, así que
-   * exigirla aquí habría hecho imposible guardar la minuta de una reunión
-   * nueva contra Postgres (`guardarMinuta`/`cargarMinutaExterna` solo conocen
-   * `reunionId`). Mismo motivo, mismo tratamiento y mismo comentario que
-   * `items.sesionId`, un poco más abajo. Una minuta vieja (guardada antes de
-   * la Tarea 5b) la sigue trayendo siempre; nunca se le quita a una fila
-   * existente. Se DROPEA del todo en la Tarea 8, junto con la tabla
-   * `sesiones`.
-   */
-  sesionId: text('sesion_id').references(() => sesiones.id),
-  /**
-   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` en las
-   * filas migradas —mismo id, porque la reunión heredó el de su sesión—, y
-   * ÚNICO id en las minutas nuevas desde la Tarea 5b (`sesionId: null`).
-   * Nullable por ahora: se rellena en 0022 y se vuelve NOT NULL en la
-   * Tarea 8.
+   * Reunión de la que es (ronda 10, tarea 3) — único id desde la Tarea 5b,
+   * que retiró el modelo viejo (`sesiones.ts`) y con él la columna
+   * `sesion_id` de la que ésta era copia. NULLABLE PERMANENTE: no pasa a
+   * NOT NULL en la Tarea 8 (corrección del plan, 5-ago — ver
+   * `0027_columnas_nuevas_obligatorias.sql`) porque desde la Tarea 8c una
+   * minuta puede ser de una junta sin sala, y el único camino que la
+   * escribe (`guardarMinuta`/`cargarMinutaExterna`, src/db/minutas.ts) ya la
+   * rellena siempre — un NOT NULL en la base no añadiría ninguna garantía
+   * real.
    */
   reunionId: text('reunion_id').references(() => reuniones.id),
   transcripcion: text('transcripcion'),
@@ -404,30 +300,26 @@ export const minutas = pgTable('minutas', {
 // que es justo lo que se quiere: un deck comercial no se sirve por enlace
 // abierto y adivinable.
 // 'imagen' es la que se inserta DENTRO de una presentación. No cuelga de una
-// sala sino de la sesión: quien puede ver el documento puede ver su imagen, y
+// sala sino de la reunión: quien puede ver el documento puede ver su imagen, y
 // una reunión sin sala también lleva imágenes.
 // 'video' (ronda 9, tarea 7) es lo mismo que 'imagen' pero para el vídeo de
-// una sección: tampoco cuelga de una sala, cuelga de la sesión.
+// una sección: tampoco cuelga de una sala, cuelga de la reunión.
 export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen', 'video'])
 
 export const archivos = pgTable('archivos', {
   id: text('id').primaryKey(),
-  /** Nulo en una imagen de presentación: esa cuelga de la sesión. */
+  /** Nulo en una imagen de presentación: esa cuelga de la reunión. */
   salaSlug: text('sala_slug').references(() => salas.slug),
   /**
-   * La sesión de la que es, si es una imagen de presentación.
+   * La reunión de la que es, si es una imagen de presentación.
    *
    * Es lo que decide quién puede verla: el permiso de una imagen incrustada
    * en un documento es el del documento, no el de una sala — y hay reuniones
-   * que no son de ninguna.
-   */
-  sesionId: text('sesion_id').references(() => sesiones.id),
-  /**
-   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` — mismo id,
-   * porque la reunión heredó el de su sesión. Nullable por ahora: se rellena
-   * en 0022 y se vuelve NOT NULL en la Tarea 8. Además, todo archivo de
-   * presentación huérfano (sala + fecha, sin sesión) gana aquí una reunión
-   * nueva creada para él — ver 0022.
+   * que no son de ninguna. NULLABLE PERMANENTE: no pasa a NOT NULL en la
+   * Tarea 8 (corrección del plan, 5-ago — ver
+   * `0027_columnas_nuevas_obligatorias.sql`) porque un archivo de categoría
+   * `interes` no pertenece a ninguna junta, es material de la sala — por eso
+   * `RegistroDeArchivo.reunionId` (src/db/archivos.ts) es opcional.
    */
   reunionId: text('reunion_id').references(() => reuniones.id),
   categoria: categoriaArchivoEnum('categoria').notNull(),
@@ -452,7 +344,7 @@ export const archivos = pgTable('archivos', {
 
 // ---- Benchmark ----
 // Estructura preliminar (§5, pendiente de la referencia real de Franco).
-// Pertenece a la sala, se nutre en el tiempo, no es contenido de una sesión.
+// Pertenece a la sala, se nutre en el tiempo, no es contenido de una reunión.
 export const benchmarks = pgTable('benchmarks', {
   id: text('id').primaryKey(),
   salaSlug: text('sala_slug')
@@ -527,7 +419,7 @@ export const personas = pgTable('personas', {
 })
 
 // ---- Participación (ronda 9, tarea 4) ----
-// Quién preparó cada sesión y quién la presentó. Ver src/db/participacion.ts
+// Quién preparó cada reunión y quién la presentó. Ver src/db/participacion.ts
 // para las tres funciones que la escriben y la leen, y por qué la escritura
 // es SIEMPRE una sola sentencia con ON CONFLICT: sin ella, sumar una edición
 // exigiría leer la fila, sumar en memoria y volver a escribir — el patrón
@@ -535,26 +427,27 @@ export const personas = pgTable('personas', {
 // rondas anteriores (misma lección que `enlaceAgenda`, más abajo, y que
 // `generarEnlaceDeAgenda` en src/db/enlace-agenda.ts).
 //
-// Clave compuesta (sesión, correo): UNA fila por persona y sesión, no una
-// fila por toque — lo que se cuenta es CUÁNTAS veces tocó esta sesión esa
+// Clave compuesta (reunión, correo): UNA fila por persona y reunión, no una
+// fila por toque — lo que se cuenta es CUÁNTAS veces tocó esta reunión esa
 // persona, no cada toque por separado.
+//
+// LA CLAVE SE MUDÓ EN LA TAREA 8 (`0026_participacion_por_reunion.sql`): era
+// `(sesionId, correo)`, con `sesionId` apuntando a `sesiones`. Una reunión
+// creada DESPUÉS de la ronda 10 no tenía fila en `sesiones`, así que insertar
+// su participación violaba la clave ajena — y como `registrarEdicion` traga
+// sus propios errores a propósito (`participacion.ts`, para no tumbar una
+// página por un fallo de telemetría), fallaba EN SILENCIO: la participación
+// llevaba fallando para toda reunión nueva sin que nadie se enterara. Ahora
+// `reunionId` ES la clave, NOT NULL, y `sesiones`/`sesionId` ya no existen.
 export const participacion = pgTable('participacion', {
-  sesionId: text('sesion_id').notNull().references(() => sesiones.id),
-  /**
-   * Reunión de la que es (ronda 10, tarea 3). Copia de `sesionId` — mismo id,
-   * porque la reunión heredó el de su sesión. Nullable por ahora: se rellena
-   * en 0022 y se vuelve NOT NULL en la Tarea 8. No forma parte de la clave
-   * primaria: esa sigue siendo (sesionId, correo) hasta que la Tarea 8 decida
-   * qué hacer con ella.
-   */
-  reunionId: text('reunion_id').references(() => reuniones.id),
+  reunionId: text('reunion_id').notNull().references(() => reuniones.id),
   correo: text('correo').notNull(),
   primeraEdicion: timestamp('primera_edicion', { withTimezone: true }).notNull().defaultNow(),
   ultimaEdicion: timestamp('ultima_edicion', { withTimezone: true }).notNull().defaultNow(),
   ediciones: integer('ediciones').notNull().default(0),
-  /** true en cuanto abrió el modo presentación de esta sesión — ver `registrarPresentacion`. */
+  /** true en cuanto abrió el modo presentación de esta reunión — ver `registrarPresentacion`. */
   presento: boolean('presento').notNull().default(false),
-}, (t) => [primaryKey({ columns: [t.sesionId, t.correo] })])
+}, (t) => [primaryKey({ columns: [t.reunionId, t.correo] })])
 
 // ---- Enlace público de la agenda ----
 // UNA sola fila (id = 1). El token no lleva nada dentro —a diferencia del

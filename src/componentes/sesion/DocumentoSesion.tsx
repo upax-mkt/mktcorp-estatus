@@ -26,14 +26,14 @@ interface Props {
    */
   acuerdos: Acuerdo[]
   encabezado?: React.ReactNode
-  /** De qué sesión es. Lo necesita el modo presentación para poder minutarla. */
-  sesionId?: string
+  /** De qué reunión es. Lo necesita el modo presentación para poder minutarla. */
+  reunionId?: string
   /** Si quien mira es del equipo: solo el equipo levanta el acta. */
   equipo?: boolean
   /** La gente viva de Mkt Corp, para el selector de responsable del modo presentación. */
   personas: PersonaMonday[]
   /** Ver `ModoPresentar` — registra quién abrió el modo presentación (ronda 9, tarea 4). */
-  registrarPresentacionAction?: (sesionId: string) => Promise<void>
+  registrarPresentacionAction?: (reunionId: string) => Promise<void>
   /**
    * El logo de la sala subido desde `/salas` (revisión final de la rama,
    * punto 3) — se pasa a `ProveedorTema` para la portada. `undefined`/`null`
@@ -50,7 +50,7 @@ const ETIQUETA: Record<Acuerdo['estatus'], string> = {
 }
 
 export function DocumentoSesion({
-  tema, secciones, acuerdos, encabezado, sesionId, equipo, personas, logoUrl, registrarPresentacionAction,
+  tema, secciones, acuerdos, encabezado, reunionId, equipo, personas, logoUrl, registrarPresentacionAction,
 }: Props) {
   // El índice se arma con las secciones que tienen entidad propia: la portada
   // es el encabezado del documento, el cierre es el final —no un destino al
@@ -81,7 +81,7 @@ export function DocumentoSesion({
   return (
     <ProveedorTema tema={tema} superficie="clara" logoUrl={logoUrl}>
       <ModoPresentar
-        sesionId={sesionId}
+        reunionId={reunionId}
         equipo={equipo}
         personas={personas}
         registrarPresentacionAction={registrarPresentacionAction}

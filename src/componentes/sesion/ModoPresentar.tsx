@@ -22,18 +22,18 @@ import estilos from './presentar.module.css'
 interface Props {
   children: ReactNode
   /**
-   * De qué sesión es. Sin ella no se puede minutar lo grabado —la minuta
-   * cuelga de una sesión— y las herramientas de grabar no se ofrecen.
+   * De qué reunión es. Sin ella no se puede minutar lo grabado —la minuta
+   * cuelga de una reunión— y las herramientas de grabar no se ofrecen.
    */
-  sesionId?: string
+  reunionId?: string
   /** Solo el equipo minuta. Un director presenta y señala; no levanta el acta. */
   equipo?: boolean
-  /** La gente viva de Mkt Corp, para el selector de responsable — solo se usa si sesionId && equipo llegan a mostrar MinutaCliente. */
+  /** La gente viva de Mkt Corp, para el selector de responsable — solo se usa si reunionId && equipo llegan a mostrar MinutaCliente. */
   personas: PersonaMonday[]
   /**
    * Deja constancia de que alguien abrió el modo presentación (ronda 9,
    * tarea 4 — «quiénes están en vivo interactuando»). Opcional por el mismo
-   * motivo que `sesionId`: sin sesión no hay nada que registrar.
+   * motivo que `reunionId`: sin reunión no hay nada que registrar.
    *
    * Se llama SIN esperar su resultado y tragándose cualquier error: es una
    * bitácora, y un director en vivo delante de un cliente no puede quedarse
@@ -42,10 +42,10 @@ interface Props {
    * correo que registrar — la Server Action que se pase aquí decide eso, no
    * este componente.
    */
-  registrarPresentacionAction?: (sesionId: string) => Promise<void>
+  registrarPresentacionAction?: (reunionId: string) => Promise<void>
 }
 
-export function ModoPresentar({ children, sesionId, equipo, personas, registrarPresentacionAction }: Props) {
+export function ModoPresentar({ children, reunionId, equipo, personas, registrarPresentacionAction }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
   const [actual, setActual] = useState(0)
@@ -137,8 +137,8 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
 
     // Sin esperar y tragándose el error: ver el comentario de la prop. Entrar
     // en vivo no puede depender de que esta bitácora responda.
-    if (sesionId && registrarPresentacionAction) {
-      registrarPresentacionAction(sesionId).catch(() => {})
+    if (reunionId && registrarPresentacionAction) {
+      registrarPresentacionAction(reunionId).catch(() => {})
     }
   }
 
@@ -328,8 +328,8 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
               Láser
             </button>
 
-            {/* Grabar solo si hay sesión y quien presenta puede minutar. */}
-            {sesionId && equipo && (
+            {/* Grabar solo si hay reunión y quien presenta puede minutar. */}
+            {reunionId && equipo && (
               <GrabarReunion alTerminar={alTerminarGrabacion} alAcumular={alAcumularGrabacion} />
             )}
 
@@ -370,7 +370,7 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
         // diálogo — ver `cerrarRevision`, arriba.
         onClose={cerrarRevision}
       >
-        {transcripcion !== null && sesionId && (
+        {transcripcion !== null && reunionId && (
           <div className={estilos.cajaMinuta}>
             <header className={estilos.cabeceraMinuta}>
               <div>
@@ -404,10 +404,7 @@ export function ModoPresentar({ children, sesionId, equipo, personas, registrarP
               </div>
             </header>
             <MinutaCliente
-              // `sesionId` es el prop propio de ModoPresentar (heredado de
-              // antes de la ronda 10; en runtime siempre fue el id de la
-              // reunión, ids compartidos) — `DeQueReunion` pide `reunionId`.
-              de={{ reunionId: sesionId }}
+              de={{ reunionId }}
               transcripcionInicial={transcripcion}
               alPublicar={limpiarTranscripcion}
               personas={personas}

@@ -496,7 +496,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                   proponerAction={proponerAction}
                   eliminarSeccionAction={base.esBase ? undefined : eliminarSeccionAction}
                   tema={tema}
-                  sesionId={id}
+                  reunionId={id}
                   subirImagenAction={subirImagenAction}
                   subirVideoAction={subirVideoAction}
                   zonaDeAcuerdos={
@@ -520,7 +520,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
                       eliminarSeccionAction={eliminarSeccionAction}
                       esSub
                       tema={tema}
-                      sesionId={id}
+                      reunionId={id}
                       subirImagenAction={subirImagenAction}
                       subirVideoAction={subirVideoAction}
                       // Caso raro pero posible: una "Pendientes con semáforo"

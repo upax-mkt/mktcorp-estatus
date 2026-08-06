@@ -153,10 +153,6 @@ export async function registrarArchivo(datos: {
     await db().insert(esquema.archivos).values({
       id,
       salaSlug: datos.salaSlug,
-      // `sesionId` queda siempre null en un archivo nuevo (ronda 10, tarea
-      // 5b): la columna sigue viva solo para las imágenes/vídeos que ya
-      // colgaban de una sesión antes de esta tarea.
-      sesionId: null,
       reunionId: datos.reunionId ?? null,
       categoria: datos.categoria,
       titulo,

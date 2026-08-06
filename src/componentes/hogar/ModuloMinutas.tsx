@@ -38,7 +38,7 @@ export interface MinutaEnHome {
   salaNombre: string
   salaColor: string
   texto?: string
-  sesionId?: string
+  reunionId?: string
 }
 
 interface Props {

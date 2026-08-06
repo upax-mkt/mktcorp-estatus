@@ -120,7 +120,6 @@ export async function guardarMinuta(
   if (hayDB()) {
     await db().insert(esquema.minutas).values({
       id,
-      sesionId: null,
       reunionId,
       transcripcion,
       textoFinal,
@@ -222,7 +221,7 @@ export async function cargarMinutaExterna(reunionId: string, textoFinal: string)
   if (hayDB()) {
     await db()
       .insert(esquema.minutas)
-      .values({ id, sesionId: null, reunionId, transcripcion: null, textoFinal, enviadaA: [] })
+      .values({ id, reunionId, transcripcion: null, textoFinal, enviadaA: [] })
     return
   }
   memoria.insertarMinutaMemoria({

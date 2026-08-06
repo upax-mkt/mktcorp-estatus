@@ -150,7 +150,7 @@ export default async function PagPreparar() {
                         en el selector de «Generar una minuta», donde no hay
                         forma de limpiarlas. */}
                     <BorrarBorrador
-                      sesionId={s.id}
+                      reunionId={s.id}
                       titulo={`${s.salaNombre} · ${s.titulo}`}
                       eliminarAction={eliminarAction}
                     />
@@ -188,7 +188,7 @@ export default async function PagPreparar() {
                         nunca la va a tener —se canceló, se registró de más—
                         se quedaba pidiéndola para siempre. */}
                     <BorrarBorrador
-                      sesionId={s.id}
+                      reunionId={s.id}
                       titulo={`${s.salaNombre} · ${s.titulo}`}
                       eliminarAction={eliminarAction}
                       aviso="Se borra la reunión y su documento. No llegó a tener minuta."
@@ -222,7 +222,7 @@ export default async function PagPreparar() {
                   </Link>
                   <div className={estilos.filaDcha}>
                     <AccionesReunion
-                      sesionId={s.id}
+                      reunionId={s.id}
                       titulo={`${s.salaNombre} · ${s.titulo}`}
                       textoMinuta={textos.get(s.id)}
                       hayDocumento={s.tieneDocumento}

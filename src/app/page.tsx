@@ -123,27 +123,27 @@ export default async function Hub() {
    * fallo suyo — mismo patrón que `marcarPresentadaAction` en
    * src/app/deck/[id]/documento/page.tsx, de donde sale esta misma acción.
    */
-  async function marcarPresentadaAction(sesionId: string) {
+  async function marcarPresentadaAction(reunionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await marcarDada(sesionId)
-    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    await marcarDada(reunionId)
+    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
     revalidatePath('/')
   }
 
-  async function marcarNoDadaAction(sesionId: string) {
+  async function marcarNoDadaAction(reunionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await marcarNoDada(sesionId)
-    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    await marcarNoDada(reunionId)
+    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
     revalidatePath('/')
   }
 
-  async function desmarcarNoDadaAction(sesionId: string) {
+  async function desmarcarNoDadaAction(reunionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await desmarcarNoDada(sesionId)
-    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    await desmarcarNoDada(reunionId)
+    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
     revalidatePath('/')
   }
 
@@ -239,7 +239,7 @@ export default async function Hub() {
           salaNombre: s.nombre,
           salaColor: s.color,
           texto: r.minuta!.texto,
-          sesionId: r.id,
+          reunionId: r.id,
         })),
     )
     .sort((a, b) => b.fecha.localeCompare(a.fecha))

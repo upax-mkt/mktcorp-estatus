@@ -67,8 +67,8 @@ export function resumirParticipacion(participantes: Participante[]): ResumenPart
 }
 
 /**
- * Deja constancia de que `correo` tocó el CONTENIDO de `sesionId`. Una sola
- * sentencia: inserta la fila en 1 edición, o si ya existe (misma sesión,
+ * Deja constancia de que `correo` tocó el CONTENIDO de `reunionId`. Una sola
+ * sentencia: inserta la fila en 1 edición, o si ya existe (misma reunión,
  * mismo correo) suma uno y mueve `ultimaEdicion` — nunca lee antes de
  * escribir.
  *
@@ -86,51 +86,51 @@ export function resumirParticipacion(participantes: Participante[]): ResumenPart
  * en el propio `src/app/deck/[id]/page.tsx`, se sumó en la tarea 6).
  * `console.error` es el único rastro que queda.
  */
-export async function registrarEdicion(sesionId: string, correo: string): Promise<void> {
+export async function registrarEdicion(reunionId: string, correo: string): Promise<void> {
   if (!hayDB()) return
   const ahora = new Date()
   try {
     await db()
       .insert(esquema.participacion)
-      .values({ sesionId, correo, primeraEdicion: ahora, ultimaEdicion: ahora, ediciones: 1, presento: false })
+      .values({ reunionId, correo, primeraEdicion: ahora, ultimaEdicion: ahora, ediciones: 1, presento: false })
       .onConflictDoUpdate({
-        target: [esquema.participacion.sesionId, esquema.participacion.correo],
+        target: [esquema.participacion.reunionId, esquema.participacion.correo],
         set: { ultimaEdicion: ahora, ediciones: sql`${esquema.participacion.ediciones} + 1` },
       })
   } catch (error) {
-    console.error(`[registrarEdicion] no se pudo registrar la edición de "${correo}" en "${sesionId}":`, error)
+    console.error(`[registrarEdicion] no se pudo registrar la edición de "${correo}" en "${reunionId}":`, error)
   }
 }
 
 /**
- * Deja constancia de que `correo` abrió el modo presentación de `sesionId`.
+ * Deja constancia de que `correo` abrió el modo presentación de `reunionId`.
  * Misma sentencia atómica; a propósito NO toca `ediciones` ni `ultimaEdicion`
  * en el conflicto — presentar no es editar, aunque sea la misma fila.
  */
-export async function registrarPresentacion(sesionId: string, correo: string): Promise<void> {
+export async function registrarPresentacion(reunionId: string, correo: string): Promise<void> {
   if (!hayDB()) return
   const ahora = new Date()
   await db()
     .insert(esquema.participacion)
-    .values({ sesionId, correo, primeraEdicion: ahora, ultimaEdicion: ahora, ediciones: 0, presento: true })
+    .values({ reunionId, correo, primeraEdicion: ahora, ultimaEdicion: ahora, ediciones: 0, presento: true })
     .onConflictDoUpdate({
-      target: [esquema.participacion.sesionId, esquema.participacion.correo],
+      target: [esquema.participacion.reunionId, esquema.participacion.correo],
       set: { presento: true },
     })
 }
 
 /**
- * Quién ha tocado `sesionId`, con su nombre resuelto contra el directorio de
+ * Quién ha tocado `reunionId`, con su nombre resuelto contra el directorio de
  * personas (`src/db/directorio.ts`). Sin base de datos, lista vacía.
  *
  * Si alguien editó y luego se dio de baja del directorio, no desaparece de
  * la lista: se enseña su correo. Perdería el sentido "quién preparó esto" si
  * se borrara a la primera baja.
  */
-export async function participantesDe(sesionId: string): Promise<Participante[]> {
+export async function participantesDe(reunionId: string): Promise<Participante[]> {
   if (!hayDB()) return []
   const [filas, personas] = await Promise.all([
-    db().select().from(esquema.participacion).where(eq(esquema.participacion.sesionId, sesionId)),
+    db().select().from(esquema.participacion).where(eq(esquema.participacion.reunionId, reunionId)),
     listarPersonas(),
   ])
   const nombreDe = new Map(personas.map((p) => [p.correo, p.nombre] as const))

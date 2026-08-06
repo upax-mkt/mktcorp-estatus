@@ -307,29 +307,29 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // una sesión: exigen editor primero y quedan enganchadas a
   // `registrarEdicion`, que nunca propaga un fallo suyo.
 
-  async function marcarPresentadaAction(sesionId: string) {
+  async function marcarPresentadaAction(reunionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await marcarDada(sesionId)
-    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    await marcarDada(reunionId)
+    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
 
-  async function marcarNoDadaAction(sesionId: string) {
+  async function marcarNoDadaAction(reunionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await marcarNoDada(sesionId)
-    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    await marcarNoDada(reunionId)
+    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
 
-  async function desmarcarNoDadaAction(sesionId: string) {
+  async function desmarcarNoDadaAction(reunionId: string) {
     'use server'
     const quien = await exigirEditor()
-    await desmarcarNoDada(sesionId)
-    if (quien.sub) await registrarEdicion(sesionId, quien.sub)
+    await desmarcarNoDada(reunionId)
+    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }

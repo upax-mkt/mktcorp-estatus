@@ -31,14 +31,13 @@ export interface NuevoAcuerdo {
   squad?: string
   prioridad?: string
   fechaCompromiso: Date | null
-  /** Sesión donde nació el acuerdo. Omitir si se da de alta fuera de una sesión. */
-  sesionOrigenId?: string | null
   /**
-   * Reunión donde nació el acuerdo (ronda 10, tarea 4) — campo aparte de
-   * `sesionOrigenId`, no un reemplazo: mientras conviven los dos modelos, una
-   * reunión creada con `crearReunion` (src/db/reuniones.ts) no tiene fila en
-   * `sesiones`, así que no hay un `sesionOrigenId` que darle. Omitir si se da
-   * de alta fuera de una reunión.
+   * Reunión donde nació el acuerdo. Omitir si se da de alta fuera de una
+   * reunión. Hasta la Tarea 8 convivía con `sesionOrigenId` (campo aparte,
+   * columna aparte) mientras convivían los dos modelos; se retiró junto con
+   * `sesiones` sin que nadie hubiera llegado a usarlo — desde que
+   * `sesiones.ts` desapareció (Tarea 5b) nada da de alta un acuerdo colgado
+   * de una fila de `sesiones`.
    */
   reunionOrigenId?: string | null
   /**
@@ -145,7 +144,6 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
         prioridad: datos.prioridad ?? null,
         fechaCompromiso: datos.fechaCompromiso,
         estatus: 'abierto',
-        sesionOrigenId: datos.sesionOrigenId ?? null,
         reunionOrigenId: datos.reunionOrigenId ?? null,
         responsableMondayId,
         bandeja,
@@ -161,7 +159,6 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
       prioridad: datos.prioridad,
       fechaCompromiso: datos.fechaCompromiso,
       estatus: 'abierto',
-      sesionOrigenId: datos.sesionOrigenId ?? null,
       reunionOrigenId: datos.reunionOrigenId ?? null,
       responsableMondayId,
       bandeja,
@@ -279,8 +276,8 @@ export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcu
 }
 
 /**
- * Deja constancia de que `sesionId` RETOMA `acuerdoId` — ronda 9, tarea 6.
- * Franco pidió poder "arrastrar" un acuerdo abierto de la sala a la sesión
+ * Deja constancia de que `reunionId` RETOMA `acuerdoId` — ronda 9, tarea 6.
+ * Franco pidió poder "arrastrar" un acuerdo abierto de la sala a la reunión
  * que se está preparando. NO CREA UN ACUERDO NUEVO: darlo de alta otra vez
  * con el mismo `que` daría dos compromisos donde antes había uno —el
  * original seguiría colgando de la sala sin que cerrar el nuevo lo cerrara a
@@ -291,14 +288,20 @@ export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcu
  * estatus ni una edición de campos.
  *
  * Es la fuente que lee `acuerdosArrastrablesDe` (src/db/consultas.ts) para
- * dejar de ofrecer un acuerdo que esta sesión ya retomó.
+ * dejar de ofrecer un acuerdo que esta reunión ya retomó.
  *
  * NO toca `estatus` (retomar no es cerrar) ni sincroniza con Monday: no
  * cambió ningún dato que le importe al tablero.
  */
-export async function retomarAcuerdo(acuerdoId: string, sesionId: string): Promise<void> {
+export async function retomarAcuerdo(acuerdoId: string, reunionId: string): Promise<void> {
   const ahora = new Date()
-  const entrada: EntradaHistoria = { en: ahora.toISOString(), cambios: { retomadoEnSesion: sesionId } }
+  // La clave `retomadoEnSesion` se queda tal cual dentro de `cambios` (bolsa
+  // libre, sin tipar) aunque el parámetro ya se llame `reunionId`: es dato ya
+  // persistido en la historia de acuerdos existentes, y `acuerdos.test.ts` la
+  // comprueba tal cual. Renombrarla mezclaría dos formas de la misma entrada
+  // en la misma columna sin necesidad — nadie lee esta clave para decidir nada,
+  // solo queda como bitácora.
+  const entrada: EntradaHistoria = { en: ahora.toISOString(), cambios: { retomadoEnSesion: reunionId } }
 
   if (hayDB()) {
     const conexion = db()

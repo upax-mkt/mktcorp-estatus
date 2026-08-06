@@ -48,7 +48,7 @@ vi.mock('@/app/deck/[id]/minuta/MinutaCliente', () => ({
 
 function montar() {
   return render(
-    <ModoPresentar sesionId="sesion-1" equipo personas={[]}>
+    <ModoPresentar reunionId="reunion-1" equipo personas={[]}>
       <div data-layout="portada">hola</div>
     </ModoPresentar>,
   )

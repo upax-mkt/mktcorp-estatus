@@ -31,14 +31,14 @@ interface Props {
   esSub?: boolean
   /** El tema de la sala, para que la vista previa se pinte con sus colores. */
   tema: Tema
-  sesionId: string
+  reunionId: string
   subirImagenAction: SubirImagen
   subirVideoAction: SubirVideo
   /**
    * La zona donde soltar un acuerdo arrastrado desde `AcuerdosArrastrables`
    * (ronda 9, tarea 6). Ausente en cualquier tarjeta que no sea la sección de
-   * Acuerdos y Pendientes de la sesión — ver `itemDeAcuerdosPendientes`,
-   * src/db/sesiones.ts. Se pinta ANTES de `SeccionPlegable`, a propósito: una
+   * Acuerdos y Pendientes del documento — ver `itemDeAcuerdosPendientes`,
+   * src/db/documentos.ts. Se pinta ANTES de `SeccionPlegable`, a propósito: una
    * sección recién creada empieza plegada, y una zona de destino que solo
    * existiera dentro de un acordeón cerrado no se podría alcanzar sin abrirlo
    * primero.
@@ -55,7 +55,7 @@ function resumen(llenado: boolean, faltas: string[]): string {
 export function TarjetaSeccion({
   item, primera, ultima, subirAction, bajarAction,
   guardarSeccionAction, proponerAction, eliminarSeccionAction, esSub, tema,
-  sesionId, subirImagenAction, subirVideoAction, zonaDeAcuerdos,
+  reunionId, subirImagenAction, subirVideoAction, zonaDeAcuerdos,
 }: Props) {
   const borrador: BorradorSeccion = item.contenido.seccion ?? { layout: 'kpis-fila-dos-columnas' }
   const tipo = tipoDeSeccion(borrador.layout)
@@ -122,7 +122,7 @@ export function TarjetaSeccion({
           borrador={borrador}
           tituloDeRespaldo={item.titulo}
           tema={tema}
-          sesionId={sesionId}
+          reunionId={reunionId}
           subirImagenAction={subirImagenAction}
           subirVideoAction={subirVideoAction}
           guardarAction={guardarSeccionAction.bind(null, item.id)}

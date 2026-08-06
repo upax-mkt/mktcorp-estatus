@@ -101,11 +101,11 @@ export default async function PagSesionMaquetada({
    * registrar, y de todos modos esto no puede tumbar el modo presentación si
    * algo falla (mismo criterio que documenta `ModoPresentar.tsx`).
    */
-  async function registrarPresentacionAction(sesionId: string): Promise<void> {
+  async function registrarPresentacionAction(reunionId: string): Promise<void> {
     'use server'
     try {
       const quien = await exigirLectura()
-      if (quien.sub) await registrarPresentacion(sesionId, quien.sub)
+      if (quien.sub) await registrarPresentacion(reunionId, quien.sub)
     } catch {
       // Sesión de sala (el director presentando en su propia sala) u otro
       // rechazo: nada que registrar.
@@ -164,7 +164,7 @@ export default async function PagSesionMaquetada({
           tema={tema}
           secciones={secciones}
           acuerdos={sala?.acuerdos ?? []}
-          sesionId={id}
+          reunionId={id}
           equipo
           personas={personas}
           // Revisión final de la rama, punto 3: `sala` (estadoDeSala, arriba)

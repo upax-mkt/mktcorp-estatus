@@ -46,8 +46,8 @@ interface Props {
   proponerAction?: (texto: string) => Promise<BorradorSeccion | { error: string }>
   /** El tema de la sala: la vista previa se pinta con SUS colores. */
   tema: Tema
-  /** De qué sesión es. Lo necesita la subida de imágenes y de vídeo. */
-  sesionId?: string
+  /** De qué reunión es. Lo necesita la subida de imágenes y de vídeo. */
+  reunionId?: string
   subirImagenAction?: SubirImagen
   subirVideoAction?: SubirVideo
   /** Acuerdos retomados de la sala en este item, ya resueltos (ronda 9, tarea 6). */
@@ -164,7 +164,7 @@ const ESPERA_AUTOGUARDADO = 1200
 
 export function EditorSeccion({
   borrador: inicial, tituloDeRespaldo, guardarAction, textoCrudo, proponerAction, tema,
-  sesionId, subirImagenAction, subirVideoAction, acuerdosRetomados,
+  reunionId, subirImagenAction, subirVideoAction, acuerdosRetomados,
 }: Props) {
   const idBase = useId()
   const [borrador, setBorrador] = useState<BorradorSeccion>(inicial)
@@ -315,7 +315,7 @@ export function EditorSeccion({
             campo={campo}
             borrador={borrador}
             cambiar={cambiar}
-            sesionId={sesionId}
+            reunionId={reunionId}
             subirImagenAction={subirImagenAction}
             subirVideoAction={subirVideoAction}
           />
@@ -386,14 +386,14 @@ function Campo({
   campo,
   borrador,
   cambiar,
-  sesionId,
+  reunionId,
   subirImagenAction,
   subirVideoAction,
 }: {
   campo: CampoSeccion
   borrador: BorradorSeccion
   cambiar: (parcial: Partial<BorradorSeccion>) => void
-  sesionId?: string
+  reunionId?: string
   subirImagenAction?: SubirImagen
   subirVideoAction?: SubirVideo
 }) {
@@ -441,7 +441,7 @@ function Campo({
         <CampoImagen
           valor={borrador.imagen}
           onChange={(imagen) => cambiar({ imagen })}
-          sesionId={sesionId}
+          reunionId={reunionId}
           subirImagenAction={subirImagenAction}
         />
       )
@@ -454,7 +454,7 @@ function Campo({
           // esquema. El puente entre las dos convenciones vive aquí.
           valor={borrador.video ?? null}
           alCambiar={(video) => cambiar({ video: video ?? undefined })}
-          sesionId={sesionId}
+          reunionId={reunionId}
           subirVideoAction={subirVideoAction}
         />
       )

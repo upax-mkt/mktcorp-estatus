@@ -19,12 +19,12 @@ import estilos from '@/app/deck/deck.module.css'
  * eso el aviso es más corto que el de una reunión cerrada.
  */
 export function BorrarBorrador({
-  sesionId,
+  reunionId,
   titulo,
   eliminarAction,
   aviso = 'Se borra con todo lo escrito.',
 }: {
-  sesionId: string
+  reunionId: string
   titulo: string
   eliminarAction: (id: string) => Promise<{ error?: string }>
   /** Qué se lleva por delante. Cambia según de qué lista se borre. */
@@ -59,7 +59,7 @@ export function BorrarBorrador({
         className={`${estilos.boton} ${estilos.botonPeligro} ${estilos.botonChico}`}
         disabled={pendiente}
         onClick={() => empezar(async () => {
-          const r = await eliminarAction(sesionId)
+          const r = await eliminarAction(reunionId)
           if (r.error) { setError(r.error); setConfirmando(false) }
         })}
       >

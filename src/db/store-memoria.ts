@@ -98,14 +98,11 @@ export interface FilaAcuerdoMemoria {
   prioridad?: string
   fechaCompromiso: Date | null
   estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
-  /** Sesión donde nació el acuerdo. Nulo si se dio de alta fuera de una sesión. */
-  sesionOrigenId: string | null
   /**
-   * Reunión donde nació el acuerdo (ronda 10, tarea 4) — mismo id que
-   * `sesionOrigenId` cuando ambos aplican, porque la reunión heredó el de su
-   * sesión (ver src/db/esquema.ts). Nulo si se dio de alta fuera de una
-   * reunión, o si la reunión que lo originó ya se borró (ver
-   * `anularReunionOrigenDeAcuerdosMemoria`: la clave se anula, no cascada).
+   * Reunión donde nació el acuerdo (ronda 10, tarea 4). Nulo si se dio de
+   * alta fuera de una reunión, o si la reunión que lo originó ya se borró
+   * (ver `anularReunionOrigenDeAcuerdosMemoria`: la clave se anula, no
+   * cascada).
    */
   reunionOrigenId: string | null
   /** El id de usuario de Monday del responsable, si es alguien de Mkt Corp — ver src/monday/bandeja.ts. */
@@ -336,8 +333,9 @@ export function actualizarAcuerdoMemoria(
  * — espejo en memoria de la parte de `eliminarReunion` (ver
  * src/db/reuniones.ts) que suelta la referencia ANTES de borrar la reunión:
  * un compromiso no desaparece porque se borre la junta que lo originó. Mismo
- * criterio que ya aplica `eliminarSesion` con `sesionOrigenId` en el camino
- * de Postgres — la clave se anula, no cascada.
+ * criterio que ya aplica Postgres sobre `acuerdos.reunion_origen_id` (columna
+ * NULLABLE a propósito, ver src/db/esquema.ts) — la clave se anula, no
+ * cascada.
  */
 export function anularReunionOrigenDeAcuerdosMemoria(reunionId: string): void {
   for (const fila of acuerdos.values()) {

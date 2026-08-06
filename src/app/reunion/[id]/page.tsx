@@ -111,7 +111,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
         tema={temaDeSala(reunion.salaSlug, await cargarTemas())}
         secciones={secciones}
         acuerdos={sala?.acuerdos ?? []}
-        sesionId={id}
+        reunionId={id}
         equipo={equipo}
         personas={personas}
         // Revisión final de la rama, punto 3: mismo motivo que en

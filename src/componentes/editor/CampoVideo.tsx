@@ -28,7 +28,7 @@ export { TIPOS_VIDEO, TOPE_VIDEO_MB }
  * trae de fábrica.
  *
  * Va del navegador DIRECTO a Blob, igual que la imagen, y cuelga de LA
- * SESIÓN: quien puede ver el documento puede ver su vídeo, incluso si la
+ * REUNIÓN: quien puede ver el documento puede ver su vídeo, incluso si la
  * reunión no es de ninguna sala.
  */
 
@@ -48,12 +48,12 @@ export type SubirVideo = (datos: {
 interface Props {
   valor: ValorVideo | null
   alCambiar: (video: ValorVideo | null) => void
-  /** Dónde colgar el vídeo subido. Sin sesión, no se puede subir nada. */
-  sesionId?: string
+  /** Dónde colgar el vídeo subido. Sin reunión, no se puede subir nada. */
+  reunionId?: string
   subirVideoAction?: SubirVideo
 }
 
-export function CampoVideo({ valor, alCambiar, sesionId, subirVideoAction }: Props) {
+export function CampoVideo({ valor, alCambiar, reunionId, subirVideoAction }: Props) {
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const entrada = useRef<HTMLInputElement>(null)
@@ -71,14 +71,17 @@ export function CampoVideo({ valor, alCambiar, sesionId, subirVideoAction }: Pro
       )
       return
     }
-    if (!subirVideoAction || !sesionId) {
+    if (!subirVideoAction || !reunionId) {
       setError('Esta sección todavía no se puede guardar. Recarga la página.')
       return
     }
 
     setSubiendo(true)
     try {
-      const subido = await upload(rutaDeArchivo(`sesion-${sesionId}`, 'video', archivo.name), archivo, {
+      // El prefijo `sesion-` del primer argumento es namespacing de storage,
+      // no el identificador que se retira en esta tarea: sigue igual a
+      // propósito, para no cambiar la forma de las rutas de Blob ya escritas.
+      const subido = await upload(rutaDeArchivo(`sesion-${reunionId}`, 'video', archivo.name), archivo, {
         access: 'private',
         handleUploadUrl: '/api/archivos/subir',
         contentType: archivo.type || undefined,

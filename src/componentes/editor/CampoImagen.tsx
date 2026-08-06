@@ -15,7 +15,7 @@ import estilos from './editor.module.css'
  * que el campo funcionaba en teoría y fallaba en la práctica casi siempre.
  *
  * Va del navegador DIRECTO a Blob, igual que los archivos de sala, y se
- * registra colgando de LA SESIÓN: quien puede ver el documento puede ver su
+ * registra colgando de LA REUNIÓN: quien puede ver el documento puede ver su
  * imagen, incluso si la reunión no es de ninguna sala.
  *
  * El campo de texto sigue existiendo, plegado: una imagen que ya vive en el
@@ -45,8 +45,8 @@ const ETIQUETA_ALINEACION: Record<AlineacionImagen, string> = {
 interface Props {
   valor: ImagenSeccion | undefined
   onChange: (imagen: ImagenSeccion | undefined) => void
-  /** Dónde colgar la imagen subida. Sin sesión, solo queda pegar una ruta. */
-  sesionId?: string
+  /** Dónde colgar la imagen subida. Sin reunión, solo queda pegar una ruta. */
+  reunionId?: string
   subirImagenAction?: (datos: {
     ruta: string
     nombreOriginal: string
@@ -55,7 +55,7 @@ interface Props {
   }) => Promise<{ url?: string; error?: string }>
 }
 
-export function CampoImagen({ valor, onChange, sesionId, subirImagenAction }: Props) {
+export function CampoImagen({ valor, onChange, reunionId, subirImagenAction }: Props) {
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pegarRuta, setPegarRuta] = useState(false)
@@ -71,14 +71,17 @@ export function CampoImagen({ valor, onChange, sesionId, subirImagenAction }: Pr
       setError(`Pesa ${pesoLegible(archivo.size)} y el máximo son 100 MB.`)
       return
     }
-    if (!subirImagenAction || !sesionId) {
+    if (!subirImagenAction || !reunionId) {
       setError('Esta sección todavía no se puede guardar. Recarga la página.')
       return
     }
 
     setSubiendo(true)
     try {
-      const subido = await upload(rutaDeArchivo(`sesion-${sesionId}`, 'imagen', archivo.name), archivo, {
+      // El prefijo `sesion-` del primer argumento es namespacing de storage,
+      // no el identificador que se retira en esta tarea: sigue igual a
+      // propósito, para no cambiar la forma de las rutas de Blob ya escritas.
+      const subido = await upload(rutaDeArchivo(`sesion-${reunionId}`, 'imagen', archivo.name), archivo, {
         access: 'private',
         handleUploadUrl: '/api/archivos/subir',
         contentType: archivo.type || undefined,

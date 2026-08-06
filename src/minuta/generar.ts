@@ -56,12 +56,12 @@ function formatearFechaTabla(fechaIso: string | null): string {
  * A dónde apunta la minuta.
  *
  * A la sala, si la reunión es de una. Una que no pertenece a ninguna —un
- * comité, un arranque— apunta al documento de la propia sesión: es lo único
+ * comité, un arranque— apunta al documento de la propia reunión: es lo único
  * que hay que enseñar.
  */
-function urlSesion(salaSlug: string | null, sesionId?: string): string {
+function urlSesion(salaSlug: string | null, reunionId?: string): string {
   if (salaSlug) return `/cliente/${salaSlug}`
-  return sesionId ? `/reunion/${sesionId}` : '/'
+  return reunionId ? `/reunion/${reunionId}` : '/'
 }
 
 /**
@@ -97,7 +97,7 @@ export function ensamblarCorreo(
   bloques: string[],
   acuerdos: AcuerdoPropuesto[],
   molde: MoldeMinuta = MOLDE_POR_DEFECTO,
-  sesionId?: string,
+  reunionId?: string,
   /** De qué reunión y de cuándo, para la entradilla. */
   contexto?: { reunion: string; fecha: string },
 ): string {
@@ -132,7 +132,7 @@ export function ensamblarCorreo(
   })
 
   if (molde.cierre?.trim()) lineas.push(molde.cierre, '')
-  if (molde.conEnlace) lineas.push(urlSesion(salaSlug, sesionId))
+  if (molde.conEnlace) lineas.push(urlSesion(salaSlug, reunionId))
   return lineas.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 

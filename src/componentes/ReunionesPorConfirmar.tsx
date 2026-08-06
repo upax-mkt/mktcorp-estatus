@@ -40,9 +40,9 @@ import estilos from './ReunionesPorConfirmar.module.css'
 
 interface Props {
   sesiones: SesionPorConfirmar[]
-  marcarPresentadaAction: (sesionId: string) => Promise<void>
-  marcarNoDadaAction: (sesionId: string) => Promise<void>
-  desmarcarNoDadaAction: (sesionId: string) => Promise<void>
+  marcarPresentadaAction: (reunionId: string) => Promise<void>
+  marcarNoDadaAction: (reunionId: string) => Promise<void>
+  desmarcarNoDadaAction: (reunionId: string) => Promise<void>
 }
 
 export function ReunionesPorConfirmar({
