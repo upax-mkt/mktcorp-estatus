@@ -204,6 +204,13 @@
       "when": 1785968976192,
       "tag": "0028_se_retira_sesiones",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786035457921,
+      "tag": "0029_purple_black_panther",
+      "breakpoints": true
     }
   ]
 }

@@ -28,9 +28,27 @@ vi.mock('./acuerdos', () => ({
   crearAcuerdo: (...args: unknown[]) => crearAcuerdoMock(...args),
 }))
 
+/**
+ * `hayDB`/`db` MOCKEABLES (hallazgo 3, revisión final de la ronda 10): por
+ * defecto delegan a la implementación real de `./cliente` —`hayDB() ===
+ * false` en vitest, sin `DATABASE_URL`—, así que TODOS los tests de arriba y
+ * de abajo que ya existían siguen ejercitando el store en memoria exactamente
+ * igual que antes. Solo el describe "ON CONFLICT" (al final de este archivo)
+ * los reconfigura para simular Postgres: es la ÚNICA forma de probar la rama
+ * `if (hayDB())` de `guardarMinuta` — el store en memoria no modela la
+ * restricción UNIQUE que esta tarea le agrega a la tabla real.
+ */
+const hayDBMock = vi.fn<() => boolean>()
+const dbMock = vi.fn()
+vi.mock('./cliente', async (importarOriginal) => {
+  const real = await importarOriginal<typeof import('./cliente')>()
+  return { ...real, hayDB: () => hayDBMock(), db: () => dbMock() }
+})
+
 const { crearReunion, obtenerReunion } = await import('./reuniones')
 const { guardarMinuta, obtenerMinuta } = await import('./minutas')
 const { reiniciarStoreMemoria } = await import('./store-memoria')
+const esquema = await import('./esquema')
 
 /** Un acuerdo confirmado cualquiera — la forma que produce MinutaCliente al revisar la propuesta de la IA. */
 const ACUERDO_CONFIRMADO = {
@@ -43,6 +61,10 @@ const ACUERDO_CONFIRMADO = {
 beforeEach(() => {
   reiniciarStoreMemoria()
   crearAcuerdoMock.mockReset().mockResolvedValue({ id: 'acuerdo-1' })
+  // Sin esto, `hayDBMock()` no devuelve nada (undefined) y toda esta
+  // suite —memoria, la de arriba— caería por la rama de Postgres sin querer.
+  hayDBMock.mockReset().mockReturnValue(false)
+  dbMock.mockReset()
 })
 
 describe('guardarMinuta', () => {
@@ -105,5 +127,104 @@ describe('guardarMinuta', () => {
     expect(crearAcuerdoMock).not.toHaveBeenCalled()
     const minuta = await obtenerMinuta(reunionId)
     expect(minuta?.textoFinal).toBe('texto final')
+  })
+})
+
+/**
+ * HALLAZGO 3 DE LA REVISIÓN FINAL DE LA RONDA 10: contra Postgres, el INSERT
+ * de `guardarMinuta` escribía a ciegas — sin `minutas_reunion_id_unique`
+ * (esquema.test.ts) nada impedía dos filas para la misma reunión, y
+ * `obtenerMinuta` (`:164`) leía `[0]` de un select sin orden: un doble clic o
+ * un reintento de red dejaba dos minutas, cada una con sus propios acuerdos
+ * confirmados ya publicados en la sala — la misma «reunión fantasma» que
+ * documenta `participacion.ts:75-88`.
+ *
+ * El store en memoria (arriba) no puede probar esto: no modela la
+ * restricción UNIQUE de la tabla real, así que el INSERT ciego nunca fallaba
+ * ahí. Este describe simula Postgres lo justo para probar la sentencia real
+ * — `INSERT ... ON CONFLICT (reunion_id) DO UPDATE`, el mismo patrón que ya
+ * usa `participacion.ts:93-99` — sin pegarle a una base de verdad.
+ */
+describe('guardarMinuta — ON CONFLICT (reunion_id) DO UPDATE, contra Postgres (hallazgo 3)', () => {
+  const REUNION_ID = 'reunion-fija-para-el-upsert'
+
+  /** Una "tabla" minutas de juguete: Map por id, para simular UNIQUE(reunion_id) + upsert. */
+  let tablaMinutas: Map<
+    string,
+    { id: string; reunionId: string; transcripcion: string | null; textoFinal: string | null; enviadaA: string[] | null; createdAt: Date }
+  >
+
+  beforeEach(() => {
+    hayDBMock.mockReturnValue(true)
+    tablaMinutas = new Map()
+    dbMock.mockReturnValue({
+      // `salaDeReunion` (minutas.ts) consulta `reuniones` antes de escribir
+      // — `salaSlug: null` mantiene el test enfocado en la minuta misma, sin
+      // arrastrar el loop de `crearAcuerdo` (ya cubierto arriba, en memoria).
+      select: () => ({
+        from: (tabla: unknown) => ({
+          where: () => {
+            if (tabla === esquema.reuniones) return Promise.resolve([{ salaSlug: null }])
+            if (tabla === esquema.minutas) return Promise.resolve([...tablaMinutas.values()])
+            throw new Error(`select inesperado en el test: ${String(tabla)}`)
+          },
+        }),
+      }),
+      insert: (tabla: unknown) => {
+        if (tabla !== esquema.minutas) throw new Error(`insert inesperado en el test: ${String(tabla)}`)
+        return {
+          values: (vals: { id: string; reunionId: string; transcripcion: string | null; textoFinal: string | null; enviadaA: string[] | null }) => ({
+            onConflictDoUpdate: ({ target, set }: { target: unknown; set: Record<string, unknown> }) => {
+              // EL CONFLICTO SE RESUELVE POR reunionId, no por id — es la
+              // columna con la restricción UNIQUE nueva, la misma que
+              // esquema.test.ts comprueba.
+              expect(target).toBe(esquema.minutas.reunionId)
+              const existente = [...tablaMinutas.values()].find((f) => f.reunionId === vals.reunionId)
+              // `createdAt` nunca entra en `set` (mismo criterio que el
+              // código real: no se toca en el conflicto) — solo se pone al
+              // crear la fila, con el default de la base (`defaultNow()`).
+              if (existente) tablaMinutas.set(existente.id, { ...existente, ...set })
+              else tablaMinutas.set(vals.id, { ...vals, createdAt: new Date() })
+              return Promise.resolve()
+            },
+          }),
+        }
+      },
+    })
+  })
+
+  it('llamar guardarMinuta dos veces para la misma reunión deja UNA sola fila, con el contenido de la SEGUNDA llamada', async () => {
+    await guardarMinuta(REUNION_ID, 'transcripción v1', 'texto final v1', [])
+    expect(tablaMinutas.size).toBe(1)
+
+    await guardarMinuta(REUNION_ID, 'transcripción v2', 'texto final v2', [])
+
+    // LA PRUEBA: sigue habiendo UNA sola fila —la restricción UNIQUE + ON
+    // CONFLICT hacen lo que antes solo prometía la disciplina del código— y
+    // su contenido es el de la ÚLTIMA llamada, no dos filas peleando por
+    // cuál gana en `obtenerMinuta`.
+    expect(tablaMinutas.size).toBe(1)
+    const fila = [...tablaMinutas.values()][0]
+    expect(fila.textoFinal).toBe('texto final v2')
+    expect(fila.transcripcion).toBe('transcripción v2')
+
+    const minuta = await obtenerMinuta(REUNION_ID)
+    expect(minuta?.textoFinal).toBe('texto final v2')
+  })
+
+  it('el id de la fila no cambia entre la primera y la segunda llamada: es una actualización, no una fila nueva', async () => {
+    await guardarMinuta(REUNION_ID, 't1', 'v1', [])
+    const idOriginal = [...tablaMinutas.values()][0].id
+
+    await guardarMinuta(REUNION_ID, 't2', 'v2', [])
+
+    expect([...tablaMinutas.values()][0].id).toBe(idOriginal)
+  })
+
+  it('dos reuniones distintas SÍ dejan dos filas: el UNIQUE es por reunión, no global', async () => {
+    await guardarMinuta(REUNION_ID, 't1', 'v1', [])
+    await guardarMinuta('otra-reunion', 't2', 'v2', [])
+
+    expect(tablaMinutas.size).toBe(2)
   })
 })

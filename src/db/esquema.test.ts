@@ -70,3 +70,19 @@ describe('el modelo de reuniones', () => {
     expect(documentos.reunionId.isUnique).toBe(true)
   })
 })
+
+/**
+ * HALLAZGO 3 DE LA REVISIÓN FINAL DE LA RONDA 10: `minutas.reunionId` no
+ * tenía ni UNIQUE ni NOT NULL, así que la tabla dependía por completo de que
+ * `guardarMinuta` (`src/db/minutas.ts`) se comportara — un doble clic o un
+ * reintento de red podían dejar dos minutas para la misma reunión. Mismo
+ * criterio que ya exige `documentos.reunionId` (arriba): la garantía la da
+ * la BASE, no la disciplina de quien escribe.
+ */
+describe('la minuta — hallazgo 3 de la revisión final de la ronda 10', () => {
+  it('reunionId es NOT NULL y UNIQUE: la base impide dos minutas para la misma reunión', () => {
+    const columnas = getTableColumns(esquema.minutas)
+    expect(columnas.reunionId.notNull).toBe(true)
+    expect(columnas.reunionId.isUnique).toBe(true)
+  })
+})

@@ -268,15 +268,34 @@ export const minutas = pgTable('minutas', {
   /**
    * Reunión de la que es (ronda 10, tarea 3) — único id desde la Tarea 5b,
    * que retiró el modelo viejo (`sesiones.ts`) y con él la columna
-   * `sesion_id` de la que ésta era copia. NULLABLE PERMANENTE: no pasa a
-   * NOT NULL en la Tarea 8 (corrección del plan, 5-ago — ver
-   * `0027_columnas_nuevas_obligatorias.sql`) porque desde la Tarea 8c una
-   * minuta puede ser de una junta sin sala, y el único camino que la
-   * escribe (`guardarMinuta`/`cargarMinutaExterna`, src/db/minutas.ts) ya la
-   * rellena siempre — un NOT NULL en la base no añadiría ninguna garantía
-   * real.
+   * `sesion_id` de la que ésta era copia.
+   *
+   * NOT NULL + UNIQUE desde la revisión final de la ronda 10 (hallazgo 3).
+   * El comentario que estuvo aquí decía que NOT NULL no hacía falta "porque
+   * el único camino que la escribe ya la rellena siempre" — el razonamiento
+   * estaba AL REVÉS: que hoy solo dos funciones escriban esta columna y que
+   * las dos la rellenen siempre no es una propiedad de la TABLA, es una
+   * promesa sobre el código de HOY. Una restricción de base existe
+   * precisamente como garantía frente al PRÓXIMO escritor, el que todavía no
+   * se ha escrito — igual que ya exige `documentos.reunionId`, arriba, con
+   * el mismo comentario de fondo ("es lo único que impide que dos pestañas
+   * abiertas creen dos documentos para la misma reunión").
+   *
+   * Sin UNIQUE, un doble clic o un reintento tras un hipo de red dejaba dos
+   * minutas para la misma reunión —cada una con sus propios acuerdos
+   * confirmados, ya publicados en la sala— y `obtenerMinuta` (`src/db/minutas.ts`)
+   * devolvía `[0]` de un select sin orden: cuál de las dos "era" la minuta
+   * pasaba a ser una lotería. `guardarMinuta` ahora escribe con
+   * `INSERT ... ON CONFLICT (reunion_id) DO UPDATE` —mismo patrón que
+   * `src/db/participacion.ts` y `src/db/enlace-agenda.ts`— precisamente
+   * porque esta columna ya no admite dos filas por reunión: la unicidad la
+   * impone la BASE, no la disciplina de quien llama.
+   *
+   * Sigue pudiendo ser de una junta sin sala (Tarea 8c: comité, interna de
+   * Mkt Corp) — NOT NULL no es "toda minuta tiene sala", es "toda minuta
+   * tiene reunión", que ya era cierto siempre.
    */
-  reunionId: text('reunion_id').references(() => reuniones.id),
+  reunionId: text('reunion_id').notNull().unique().references(() => reuniones.id),
   transcripcion: text('transcripcion'),
   textoFinal: text('texto_final'),
   /** Lista de destinatarios (nombres o emails); el shell hoy solo muestra el conteo. */

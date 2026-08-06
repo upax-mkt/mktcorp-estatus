@@ -118,13 +118,29 @@ export async function guardarMinuta(
   const ahora = new Date()
 
   if (hayDB()) {
-    await db().insert(esquema.minutas).values({
-      id,
-      reunionId,
-      transcripcion,
-      textoFinal,
-      enviadaA: null,
-    })
+    // ON CONFLICT (reunion_id) DO UPDATE, no un INSERT a ciegas (hallazgo 3
+    // de la revisión final de la ronda 10) — mismo patrón que ya usan
+    // `src/db/participacion.ts:93-99` y `src/db/enlace-agenda.ts`. Un doble
+    // clic o un reintento tras un hipo de red vuelven a llamar a
+    // `guardarMinuta` para la MISMA reunión; sin esto, el segundo INSERT
+    // chocaba con nada (la tabla no tenía más restricción que la clave
+    // primaria) y dejaba dos filas — la «reunión fantasma» que documenta
+    // `participacion.ts:75-88`, aquí aplicada a la minuta. `neon-http` no
+    // soporta transacciones ni `SELECT FOR UPDATE`: la condición tiene que
+    // ir DENTRO de la sentencia, y una sola sentencia atómica es justo lo
+    // que Postgres garantiza aquí.
+    //
+    // El `SET` deja la fila en el mismo estado que dejaría un INSERT
+    // fresco —transcripción y texto de ESTA llamada, `enviadaA` de nuevo en
+    // `null`— sin tocar `id` ni `createdAt`: la fila conserva su identidad
+    // y su fecha de creación real, solo se actualiza su contenido.
+    await db()
+      .insert(esquema.minutas)
+      .values({ id, reunionId, transcripcion, textoFinal, enviadaA: null })
+      .onConflictDoUpdate({
+        target: esquema.minutas.reunionId,
+        set: { transcripcion, textoFinal, enviadaA: null },
+      })
   } else {
     memoria.insertarMinutaMemoria({ id, reunionId, transcripcion, textoFinal, enviadaA: null, createdAt: ahora })
   }
@@ -165,7 +181,10 @@ export async function obtenerMinuta(reunionId: string): Promise<MinutaGuardada |
   if (!fila) return null
   return {
     id: fila.id,
-    reunionId: fila.reunionId ?? reunionId,
+    // Sin `?? reunionId`: `minutas.reunion_id` es NOT NULL desde el
+    // hallazgo 3 de la revisión final de la ronda 10 (ver esquema.ts) — el
+    // respaldo ya no hace falta, la base lo garantiza.
+    reunionId: fila.reunionId,
     transcripcion: fila.transcripcion,
     textoFinal: fila.textoFinal,
     enviadaA: fila.enviadaA,
