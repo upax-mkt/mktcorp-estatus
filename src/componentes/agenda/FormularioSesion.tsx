@@ -40,6 +40,13 @@ export interface DatosFormulario {
    * `inicial.tipo` pudiera recibir, sin reventar, la de una reunión que ya
    * es quincenal (Research Land) al abrir su formulario de edición; solo
    * faltaba poder escogerla aquí.
+   *
+   * CORREGIDO EN LA REVISIÓN FINAL DE LA RONDA 10: el `<select>` de abajo
+   * etiquetaba este campo "Cadencia" —el nombre del OTRO eje, el de la
+   * sala— contradiciendo el párrafo de arriba en su propio archivo. Ahora
+   * dice "Tipo de reunión", igual que ya decía `AgendarRapido.tsx` para
+   * este mismo campo: un solo nombre para un solo dato, sin importar por
+   * dónde se agende o se corrija.
    */
   tipo: 'semanal' | 'quincenal' | 'mensual'
   alcance: string
@@ -67,6 +74,11 @@ const HORA_POR_DEFECTO = '10:00'
  * un `<option>` suelto desincronizado.
  */
 const TIPOS_REUNION: DatosFormulario['tipo'][] = ['semanal', 'quincenal', 'mensual']
+
+/** "semanal" → "Semanal": el enum se escribe en minúsculas; lo que se lee en pantalla, no. */
+function capitalizar(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
 
 export function FormularioSesion({
   salas,
@@ -149,7 +161,7 @@ export function FormularioSesion({
         </label>
 
         <label className={estilos.campo}>
-          <span className={estilos.etiqueta}>Cadencia</span>
+          <span className={estilos.etiqueta}>Tipo de reunión</span>
           <select
             className={estilos.entrada}
             value={datos.tipo}
@@ -157,7 +169,7 @@ export function FormularioSesion({
           >
             {TIPOS_REUNION.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {capitalizar(t)}
               </option>
             ))}
           </select>
