@@ -1,0 +1,27 @@
+-- Las columnas nuevas que SÍ pueden dejar de admitir nulos.
+--
+-- Este es el paso que COMPRUEBA la migración: si algún item se quedó sin su
+-- documento, el `SET NOT NULL` falla aquí y la 0028 —la que borra— nunca
+-- llega a correr. Por eso van en migraciones separadas y en este orden.
+--
+-- CORREGIDO EL 5-AGO. El plan decía "SET NOT NULL en las cinco". Son TRES las
+-- que quedan fuera, y cada una por una razón de negocio, no por descuido:
+--
+--   · `acuerdos.reunion_origen_id` — un acuerdo SOBREVIVE al borrado de su
+--     reunión: la clave se anula, no cascada (`reuniones.ts`, `eliminarReunion`
+--     pone `reunionOrigenId: null` antes de borrar). Un compromiso no
+--     desaparece porque se borre la junta. Y uno levantado a mano nunca tuvo
+--     reunión de origen.
+--
+--   · `archivos.reunion_id` — un archivo de categoría `interes` no pertenece a
+--     ninguna junta: es material de la sala. Por eso `RegistroDeArchivo.reunionId`
+--     es opcional (`archivos.ts`).
+--
+--   · `participacion.reunion_id` — ya se volvió obligatoria en la 0026, al
+--     entrar en la clave primaria.
+--
+-- `minutas.reunion_id` tampoco entra: desde la tarea 8c una minuta puede ser de
+-- una junta sin sala, y el camino que las guarda usa `reunion_id`, pero las
+-- minutas viejas migradas conviven con ambas columnas hasta la 0028.
+
+ALTER TABLE "items" ALTER COLUMN "documento_id" SET NOT NULL;
