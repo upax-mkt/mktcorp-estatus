@@ -61,19 +61,21 @@ export interface CicloDeReuniones {
 
 /**
  * Adaptador: `ReunionResumen` (`db/reuniones.ts`) → `Reunion`
- * (`dominio/reunion.ts`), que es lo que piden `fueDada`/`tienePresentacion`.
+ * (`dominio/reunion.ts`), que es lo que piden `reunionesPorConfirmar`/
+ * `reunionesMinutables` (usadas por `cicloDeReuniones`, más abajo — las dos
+ * llaman por dentro a `fueDada`/`tienePresentacion`, aunque este archivo ya
+ * no las llame por su nombre directamente).
  *
  * `listarReuniones()` a propósito NO hidrata documentos/archivos/minutas
  * enteros (evitar un N+1 en una lista de decenas de reuniones — ver su
  * comentario) — solo da booleans/conteos (`tieneMinuta`, `archivos: number`)
  * y el documento se resuelve aparte, una vez por reunión, igual que ya hacía
  * `/agenda` para `itemsLlenados`/`totalItems`. `archivos`/`minuta` se
- * rellenan aquí con placeholders del tamaño/presencia justos: `fueDada` y
- * `tienePresentacion` SOLO miran `archivos.length > 0` y `Boolean(minuta)`
+ * rellenan aquí con placeholders del tamaño/presencia justos: lo que de
+ * verdad se mira aguas abajo es `archivos.length > 0` y `Boolean(minuta)`
  * —nunca el contenido de un archivo ni el texto de una minuta—, así que un
- * placeholder no les miente. `acuerdos: []` por el mismo motivo: ninguna de
- * las dos lo toca (está en `Reunion` porque `ReunionesSala` sí lo usa; esta
- * vista no).
+ * placeholder no miente. `acuerdos: []` por el mismo motivo: nada de esta
+ * página lo toca (está en `Reunion` porque `ReunionesSala` sí lo usa).
  */
 function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | null): Reunion {
   return {
@@ -182,10 +184,11 @@ export function cicloDeReuniones(
 }
 
 export default async function PagReuniones() {
-  // Esta página SOLO MUESTRA el mes, "agendar" y "ya dadas"; agendar/editar
-  // son Server Actions aparte (src/app/reuniones/acciones.ts), cada una con
-  // su propia exigencia (`exigirEditor`) — heredada de `/agenda`, no
-  // reinventada.
+  // Esta página SOLO MUESTRA el mes, "agendar" y el ciclo de vida; escribir
+  // (agendar/editar/marcar dada/marcar no dada/desmarcar) son Server Actions
+  // aparte (src/app/reuniones/acciones.ts), cada una con su propia exigencia
+  // (`exigirEditor`) — heredada de `/agenda` para las dos primeras, sumada en
+  // la tarea 18 para las otras tres.
   await exigirLectura()
   // Sin esto Next la prerenderiza y el calendario se queda anclado al día
   // del build: "hoy" sería la fecha del despliegue para siempre.

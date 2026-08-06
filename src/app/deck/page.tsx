@@ -89,13 +89,15 @@ export default async function PagPreparar() {
    * LO QUE ESTÁ POR DELANTE contra lo que ya pasó.
    *
    * CORREGIDO (revisión final de la ronda 10, hallazgo 2 — mismo sesgo que
-   * `faltaMinuta`, abajo): `estado === 'agendada'` a secas dejaba en "En
-   * preparación" una reunión que `fueDada` (`dominio/reunion.ts`, escrita en
-   * esta misma ronda) ya deduce como dada —con respaldo y el día pasado—,
-   * duplicándola con "Por confirmar" en `/` y `/cliente/[slug]`, y con "Ya
-   * dadas este mes" en `/reuniones`. `!fueDada(adaptadas[i], hoyCivil)` es la
-   * mitad que faltaba: una agendada sigue aquí hasta que O ALGUIEN LA
-   * CONFIRMA A MANO, O queda deducible como dada por su cuenta.
+   * tenía la vieja `faltaMinuta`, fusionada en `anteriores` desde la tarea
+   * 18): `estado === 'agendada'` a secas dejaba en "En preparación" una
+   * reunión que `fueDada` (`dominio/reunion.ts`, escrita en esta misma
+   * ronda) ya deduce como dada —con respaldo y el día pasado—, duplicándola
+   * con "Por confirmar" en `/` y `/cliente/[slug]`. `!fueDada(adaptadas[i],
+   * hoyCivil)` es la mitad que faltaba: una agendada sigue aquí hasta que O
+   * ALGUIEN LA CONFIRMA A MANO, O queda deducible como dada por su cuenta —
+   * momento en el que pasa a `anteriores`, más abajo (la otra mitad exacta
+   * de este mismo `fueDada`).
    */
   const enPreparacion = reuniones.filter((r, i) => r.estado === 'agendada' && !fueDada(adaptadas[i], hoyCivil))
   /**
