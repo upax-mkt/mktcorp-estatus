@@ -83,7 +83,10 @@ export default async function PagSalas({
     <div className={estilos.app}>
       <header className={estilos.barra}>
         <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        <div className={estilos.barraTitulo}>Salas</div>
+        {/* Salas → Clientes (tarea 18): solo el nombre visible, la ruta sigue
+            siendo /salas — hay enlaces compartidos y esto no es una
+            migración de URLs. */}
+        <div className={estilos.barraTitulo}>Clientes</div>
       </header>
 
       <main className={estilos.main}>
@@ -110,7 +113,7 @@ export default async function PagSalas({
         )}
 
         <div className={estilos.encabezado}>
-          <h1 className={estilos.titulo}>Salas</h1>
+          <h1 className={estilos.titulo}>Clientes</h1>
           <p className={estilos.subtitulo}>
             Las nueve unidades de negocio, con su marca y su logo. Crear una sala pide nombre, logo y
             color; todo lo demás —secundario, acento, superficies, textos legibles y el degradado— se

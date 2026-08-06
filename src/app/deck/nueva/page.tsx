@@ -68,7 +68,8 @@ export default async function PagNuevaSesion() {
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href="/deck" className={estilos.volver}>← Deck Designer</Link>
+        {/* Deck Designer → Presentaciones (tarea 18): solo el nombre visible. */}
+        <Link href="/deck" className={estilos.volver}>← Presentaciones</Link>
         <div className={estilos.barraTitulo}>Nueva reunión</div>
       </header>
 

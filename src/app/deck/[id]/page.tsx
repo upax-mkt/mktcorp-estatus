@@ -391,7 +391,8 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   return (
     <div className={estilos.app} style={{ '--sala': reunion.salaColor } as CSSProperties}>
       <header className={estilos.barra}>
-        <Link href="/deck" className={estilos.volver}>← Deck Designer</Link>
+        {/* Deck Designer → Presentaciones (tarea 18): solo el nombre visible. */}
+        <Link href="/deck" className={estilos.volver}>← Presentaciones</Link>
         <div className={estilos.barraTitulo}>{reunion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {documentoEstado === 'listo' && (

@@ -356,6 +356,22 @@ export default async function Hub() {
           />
         </Link>
         <nav className={estilos.barraDcha}>
+          {/* EL ORDEN (tarea 18) sigue el ciclo de trabajo real —agendar →
+              preparar → dar → minutar → seguir acuerdos—, confirmado por
+              Franco: Reuniones, Presentaciones, Acuerdos; Clientes y Personas
+              van al final porque son configuración, no trabajo diario (y a
+              un cliente se llega desde el Home, no desde esta barra). Antes
+              empezaba por Acuerdos, que es el ÚLTIMO paso del ciclo. */}
+          {/* → /reuniones, no /agenda (tarea 14): la tarea 13 la absorbe
+              — /agenda queda como redirección, y apuntar la barra a la
+              redirección es un salto extra que no aporta nada. Si al
+              desplegar /reuniones todavía no existiera, sigue resolviendo
+              vía esa redirección. */}
+          <Link href="/reuniones" className={estilos.barraLink}>Reuniones</Link>
+          {/* Deck Designer → Presentaciones (tarea 18): solo el nombre
+              visible: la ruta sigue siendo /deck — hay enlaces compartidos y
+              esto no es una migración de URLs. */}
+          <Link href="/deck" className={estilos.barraLink}>Presentaciones</Link>
           {/* Enlace FIJO (revisión final de la ronda 7, punto 5): antes la
               única puerta a /acuerdos vivía dentro del vacío "Nada destacado
               todavía" de ModuloAcuerdos — en cuanto alguien destacaba un
@@ -363,21 +379,15 @@ export default async function Hub() {
               a media rama de esta ronda. Aquí no depende de que algo esté
               vacío o lleno. */}
           <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
-          {/* → /reuniones, no /agenda (tarea 14): la tarea 13 la absorbe
-              — /agenda queda como redirección, y apuntar la barra a la
-              redirección es un salto extra que no aporta nada. Si al
-              desplegar /reuniones todavía no existiera, sigue resolviendo
-              vía esa redirección. */}
-          <Link href="/reuniones" className={estilos.barraLink}>Reuniones</Link>
-          <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
           {/* /salas y /personas son las dos únicas secciones solo-admin
               (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
               mismo gate aquí (revisión del coordinador a la tarea 3): las dos
               pantallas ya exigen `exigirAdmin()` por dentro, así que esto no
               es la protección real, pero un editor o viewer que hace clic y
               rebota al login sin explicación es una interfaz que promete algo
-              que no puede cumplir. */}
-          {admin && <Link href="/salas" className={estilos.barraLink}>Salas</Link>}
+              que no puede cumplir. Salas → Clientes (tarea 18): mismo
+              criterio de solo-nombre que Presentaciones, arriba. */}
+          {admin && <Link href="/salas" className={estilos.barraLink}>Clientes</Link>}
           {admin && <Link href="/personas" className={estilos.barraLink}>Personas</Link>}
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
           <form action={salir}>

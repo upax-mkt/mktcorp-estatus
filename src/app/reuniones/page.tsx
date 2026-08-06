@@ -201,7 +201,9 @@ export default async function PagReuniones() {
         <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
         <div className={estilos.barraTitulo}>Reuniones</div>
         <nav className={estilos.barraDcha}>
-          <Link href="/deck" className={estilos.barraLink}>Deck Designer</Link>
+          {/* Deck Designer → Presentaciones (tarea 18): solo el nombre
+              visible, la ruta sigue siendo /deck. */}
+          <Link href="/deck" className={estilos.barraLink}>Presentaciones</Link>
           <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
         </nav>
       </header>

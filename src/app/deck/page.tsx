@@ -145,13 +145,15 @@ export default async function PagPreparar() {
     <div className={estilos.app}>
       <header className={estilos.barra}>
         <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        <div className={estilos.barraTitulo}>Deck Designer</div>
+        {/* Deck Designer → Presentaciones (tarea 18): solo el nombre
+            visible, la ruta sigue siendo /deck. */}
+        <div className={estilos.barraTitulo}>Presentaciones</div>
       </header>
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>
           <div>
-            <h1 className={estilos.titulo}>Deck Designer</h1>
+            <h1 className={estilos.titulo}>Presentaciones</h1>
             {/* Ya no hay decks: el resultado es un documento web que se lee con
                 scroll y se proyecta. Prometer un deck es prometer otra cosa. */}
             <p className={estilos.subtitulo}>Crear → llenar → maquetar → presentar.</p>
