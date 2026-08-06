@@ -216,8 +216,12 @@ export function ReunionesSala({
           onLeerMinuta={() => setAbierta(ultima)}
           onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(ultima) : undefined}
         />
-        {subiendoReunionId === ultima.id && <p className={estilos.subirPista}>Subiendo…</p>}
-        {errorSubida?.reunionId === ultima.id && <p className={estilos.subirError}>{errorSubida.mensaje}</p>}
+        {subiendoReunionId === ultima.id && (
+          <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
+        )}
+        {errorSubida?.reunionId === ultima.id && (
+          <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
+        )}
         <AcuerdosDeReunion acuerdos={ultima.acuerdos} />
         {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
       </div>
@@ -239,8 +243,12 @@ export function ReunionesSala({
                   onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
                   compacta
                 />
-                {subiendoReunionId === r.id && <p className={estilos.subirPista}>Subiendo…</p>}
-                {errorSubida?.reunionId === r.id && <p className={estilos.subirError}>{errorSubida.mensaje}</p>}
+                {subiendoReunionId === r.id && (
+                  <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
+                )}
+                {errorSubida?.reunionId === r.id && (
+                  <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
+                )}
                 <AcuerdosDeReunion acuerdos={r.acuerdos} />
                 {participantes && (
                   <div className={estilos.reunionFilaParticipacion}>

@@ -231,6 +231,64 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
 
     expect(await screen.findByText('No se pudo registrar el archivo.')).toBeInTheDocument()
   })
+
+  /**
+   * REVISIÓN FINAL DE LA RONDA 10: "Subiendo…" y el error de subida eran
+   * `<p>` sin región viva — un lector de pantalla no se enteraba de que algo
+   * estaba pasando, ni de que algo salió mal, a menos que fuera a buscarlo.
+   * Mismo patrón que ya usa el resto de la app: `role="alert"` para el error
+   * (ReunionesPorConfirmar, Estrella) y `aria-live="polite"` para el estado
+   * de progreso (EditorSeccion.estadoGuardado).
+   */
+  it('el error de subida es una región viva (role="alert"), no un <p> mudo', async () => {
+    const usuario = userEvent.setup()
+    const registrarArchivoAction = vi.fn().mockResolvedValue({ error: 'No se pudo registrar el archivo.' })
+
+    render(
+      <ReunionesSala
+        reuniones={[SIN_PRESENTACION_ULTIMA]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoAction}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /subir presentación/i }))
+    const entradaArchivo = document.querySelector('input[type="file"]')
+    if (!(entradaArchivo instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    await usuario.upload(entradaArchivo, new File(['contenido'], 'deck.pdf', { type: 'application/pdf' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo registrar el archivo.')
+  })
+
+  it('mientras sube, "Subiendo…" es una región viva (aria-live="polite"), no un <p> mudo', async () => {
+    const usuario = userEvent.setup()
+    let liberar: (valor: { error?: string }) => void = () => {}
+    const registrarArchivoAction = vi.fn(
+      () => new Promise<{ error?: string }>((resolve) => { liberar = resolve }),
+    )
+
+    render(
+      <ReunionesSala
+        reuniones={[SIN_PRESENTACION_ULTIMA]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoAction}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /subir presentación/i }))
+    const entradaArchivo = document.querySelector('input[type="file"]')
+    if (!(entradaArchivo instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    await usuario.upload(entradaArchivo, new File(['contenido'], 'deck.pdf', { type: 'application/pdf' }))
+
+    const aviso = await screen.findByText('Subiendo…')
+    expect(aviso).toHaveAttribute('aria-live', 'polite')
+
+    // Se libera para no dejar una promesa colgando entre tests.
+    liberar({})
+    await waitFor(() => expect(screen.queryByText('Subiendo…')).toBeNull())
+  })
 })
 
 /**
