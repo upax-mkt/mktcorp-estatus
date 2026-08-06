@@ -44,6 +44,8 @@
 .campo input:focus, .campo select:focus { outline: none; border-color: var(--tinta); }
 
 .aviso { font-size: 0.85rem; color: var(--mal); margin: 1rem 0 0; }
+/* Todas las salas en pausa: por qué el formulario no se ofrece — neutro, no es un error. */
+.vacio { font-size: 0.85rem; color: var(--tinta-3); margin: 0; }
 
 .acciones { display: flex; align-items: center; gap: 0.6rem; margin-top: 1.2rem; }
 .cancelar {

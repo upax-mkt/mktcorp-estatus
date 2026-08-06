@@ -27,6 +27,13 @@ import estilos from './AgendarRapido.module.css'
  * hace `crearReunion` (ver el comentario de `agendarRapidoAction`,
  * `app/page.tsx`). Filtrar aquí evita el viaje al servidor para el caso
  * común, pero el freeze real vive en un solo sitio.
+ *
+ * CON TODAS EN PAUSA (revisión final de la ronda 10), `salasActivas` queda
+ * vacío: el `<select>` no tendría ninguna `<option>` y "Agendar" se quedaría
+ * deshabilitado para siempre sin que nadie supiera por qué. En vez de ese
+ * formulario muerto, se enseña por qué no hay nada que agendar — mismo
+ * criterio de "un vacío que lo explica" que ya usan `ReunionesSala`,
+ * `PanelAgenda` y `AcuerdosArrastrables`.
  */
 
 export interface SalaParaAgendar {
@@ -60,6 +67,11 @@ const HORA_POR_DEFECTO = '10:00'
  * desincronizado.
  */
 const TIPOS_REUNION: DatosAgendarRapido['tipo'][] = ['semanal', 'quincenal', 'mensual']
+
+/** "semanal" → "Semanal": el enum se escribe en minúsculas; lo que se lee en pantalla, no. */
+function capitalizar(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
 
 export function AgendarRapido({ salas, agendar }: Props) {
   const salasActivas = salas.filter((s) => s.activa)
@@ -115,74 +127,95 @@ export function AgendarRapido({ salas, agendar }: Props) {
               </button>
             </header>
 
-            <form
-              className={estilos.cuerpo}
-              onSubmit={(e) => {
-                e.preventDefault()
-                setError(null)
-                empezar(async () => {
-                  const r = await agendar(datos)
-                  if (r.error) {
-                    setError(r.error)
-                    return
-                  }
-                  cerrar()
-                })
-              }}
-            >
-              <div className={estilos.campos}>
-                <label className={estilos.campo}>
-                  <span className="micro">Sala</span>
-                  <select value={datos.salaSlug} onChange={(e) => campo('salaSlug', e.target.value)}>
-                    {salasActivas.map((s) => (
-                      <option key={s.slug} value={s.slug}>
-                        {s.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className={estilos.campo}>
-                  <span className="micro">Día</span>
-                  <input
-                    type="date"
-                    value={datos.dia}
-                    onChange={(e) => campo('dia', e.target.value)}
-                    required
-                  />
-                </label>
-
-                <label className={estilos.campo}>
-                  <span className="micro">Hora</span>
-                  <input type="time" value={datos.hora} onChange={(e) => campo('hora', e.target.value)} />
-                </label>
-
-                <label className={estilos.campo}>
-                  <span className="micro">Tipo de reunión</span>
-                  <select
-                    value={datos.tipo}
-                    onChange={(e) => campo('tipo', e.target.value as DatosAgendarRapido['tipo'])}
-                  >
-                    {TIPOS_REUNION.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            {salasActivas.length === 0 ? (
+              // TODAS LAS SALAS EN PAUSA: sin ninguna que ofrecer, el <select>
+              // saldría vacío y "Agendar" quedaría deshabilitado para siempre
+              // sin que nadie supiera por qué — mismo criterio de "un vacío que
+              // lo explica" que ya usan ReunionesSala/PanelAgenda/AcuerdosArrastrables
+              // en vez de una lista o un formulario mudos.
+              <div className={estilos.cuerpo}>
+                <p className={estilos.vacio}>
+                  {salas.length === 0
+                    ? 'No hay ninguna sala configurada todavía.'
+                    : `No hay ninguna sala activa: las ${salas.length} están en pausa. Reactiva alguna ` +
+                      'desde sus ajustes para poder agendarle una reunión.'}
+                </p>
+                <div className={estilos.acciones}>
+                  <button type="button" className={estilos.cancelar} onClick={cerrar}>
+                    Cerrar
+                  </button>
+                </div>
               </div>
+            ) : (
+              <form
+                className={estilos.cuerpo}
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setError(null)
+                  empezar(async () => {
+                    const r = await agendar(datos)
+                    if (r.error) {
+                      setError(r.error)
+                      return
+                    }
+                    cerrar()
+                  })
+                }}
+              >
+                <div className={estilos.campos}>
+                  <label className={estilos.campo}>
+                    <span className="micro">Sala</span>
+                    <select value={datos.salaSlug} onChange={(e) => campo('salaSlug', e.target.value)}>
+                      {salasActivas.map((s) => (
+                        <option key={s.slug} value={s.slug}>
+                          {s.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-              {error && <p className={estilos.aviso}>{error}</p>}
+                  <label className={estilos.campo}>
+                    <span className="micro">Día</span>
+                    <input
+                      type="date"
+                      value={datos.dia}
+                      onChange={(e) => campo('dia', e.target.value)}
+                      required
+                    />
+                  </label>
 
-              <div className={estilos.acciones}>
-                <button type="submit" className="boton" disabled={pendiente || !listo}>
-                  {pendiente ? 'Agendando…' : 'Agendar'}
-                </button>
-                <button type="button" className={estilos.cancelar} onClick={cerrar} disabled={pendiente}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
+                  <label className={estilos.campo}>
+                    <span className="micro">Hora</span>
+                    <input type="time" value={datos.hora} onChange={(e) => campo('hora', e.target.value)} />
+                  </label>
+
+                  <label className={estilos.campo}>
+                    <span className="micro">Tipo de reunión</span>
+                    <select
+                      value={datos.tipo}
+                      onChange={(e) => campo('tipo', e.target.value as DatosAgendarRapido['tipo'])}
+                    >
+                      {TIPOS_REUNION.map((t) => (
+                        <option key={t} value={t}>
+                          {capitalizar(t)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {error && <p className={estilos.aviso}>{error}</p>}
+
+                <div className={estilos.acciones}>
+                  <button type="submit" className="boton" disabled={pendiente || !listo}>
+                    {pendiente ? 'Agendando…' : 'Agendar'}
+                  </button>
+                  <button type="button" className={estilos.cancelar} onClick={cerrar} disabled={pendiente}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </dialog>

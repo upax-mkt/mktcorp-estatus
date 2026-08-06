@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgendarRapido, type SalaParaAgendar } from './AgendarRapido'
 
@@ -57,6 +57,30 @@ describe('AgendarRapido', () => {
       hora: '10:00',
       tipo: 'quincenal',
     })
+  })
+
+  it('ofrece las tres frecuencias con mayúscula inicial, no el valor crudo del enum', async () => {
+    const usuario = userEvent.setup()
+    render(<AgendarRapido salas={salas} agendar={vi.fn()} />)
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+    const opciones = within(screen.getByLabelText(/tipo/i))
+      .getAllByRole('option')
+      .map((o) => o.textContent)
+    expect(opciones).toEqual(['Semanal', 'Quincenal', 'Mensual'])
+  })
+
+  // CON TODAS LAS SALAS EN PAUSA (revisión final de la ronda 10): antes
+  // `salasActivas` quedaba vacío en silencio — el <select> sin opciones y
+  // "Agendar" deshabilitado para siempre, sin decir por qué. Ahora se explica
+  // en vez de ofrecer un formulario muerto.
+  it('con todas las salas en pausa, no ofrece un formulario muerto: explica por qué', async () => {
+    const usuario = userEvent.setup()
+    render(<AgendarRapido salas={[zeusPausada]} agendar={vi.fn()} />)
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+
+    expect(screen.getByText(/no hay ninguna sala activa/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/sala/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^agendar$/i })).toBeNull()
   })
 
   it('si el servidor rechaza la reunión, muestra el error sin cerrar el formulario', async () => {
