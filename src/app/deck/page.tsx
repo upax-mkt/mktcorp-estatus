@@ -99,32 +99,41 @@ export default async function PagPreparar() {
    */
   const enPreparacion = reuniones.filter((r, i) => r.estado === 'agendada' && !fueDada(adaptadas[i], hoyCivil))
   /**
-   * QUÉ ES CADA LISTA, que antes no se sabía.
+   * ANTERIORES (tarea 18) — reemplaza a "Reuniones cerradas" + "Se dieron,
+   * falta su minuta". Franco, el 6-ago, mirando la app desplegada: "el deck
+   * designer solo debe tener las presentaciones en preparación y
+   * presentaciones anteriores ligadas o no a una reunión". Esas dos listas
+   * hablaban del ciclo de vida de la JUNTA (¿tiene ya su acta?), no del
+   * documento — herencia de cuando la reunión no existía como entidad
+   * aparte; ahora viven en `/reuniones` ("Se dieron, falta su minuta" y
+   * "Cerradas"), y aquí ya no se separa por eso.
    *
-   * Franco: «hay una lista que dice "Presentadas y minutadas" y no sé qué
-   * son». Con razón: metía en el mismo saco dos cosas distintas —una reunión
-   * que se dio y otra que además tiene su acta— y el nombre las enumeraba sin
-   * separarlas.
+   * `fueDada` es la otra mitad exacta de "En preparación" (arriba usa
+   * `!fueDada` sobre el mismo `adaptadas[i]`): las dos son la partición
+   * completa de `reuniones`, así que ninguna reunión puede faltar de las dos
+   * a la vez ni sobrar en las dos a la vez — la regla dura de esta tarea.
    *
-   * Ahora son dos, y la diferencia es accionable: las CERRADAS ya no piden
-   * nada; las que están a medias piden exactamente una cosa, su minuta.
+   * "Se ordena por la presentación", el matiz que Franco subrayó: hoy
+   * `documentos.reunion_id` es `NOT NULL`, así que en la práctica cada
+   * presentación cuelga de exactamente una reunión y no hay una fecha propia
+   * de "presentación" que ordenar aparte de la de su reunión — no se inventa
+   * un modelo nuevo para esto. Se ordena por esa fecha, la más reciente
+   * primero, mismo criterio que el resto de listas de este tipo en la app
+   * (`reunionesDeSala`, `reunionesMinutables`...).
    */
-  const cerradas = reuniones.filter((r) => r.tieneMinuta)
-  /**
-   * CORREGIDO (revisión final de la ronda 10, hallazgo 1 — mismo sesgo que
-   * "Levantar minuta"): `r.estado === 'dada'` a secas dejaba fuera una
-   * reunión `agendada` pero YA maquetada (documento listo) con el día
-   * pasado — `/reuniones` (`reunionesDadasEsteMesPorSala`, tarea de esta
-   * misma ronda) ya deduce con `fueDada`; esta lista se había quedado con el
-   * criterio viejo. Toda reunión con `fueDada` verdadero y sin minuta
-   * "falta su minuta", la haya confirmado alguien a mano o no.
-   */
-  const faltaMinuta = reuniones.filter((r, i) => !r.tieneMinuta && fueDada(adaptadas[i], hoyCivil))
+  const anteriores = reuniones
+    .filter((r, i) => fueDada(adaptadas[i], hoyCivil))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  // El texto de cada minuta, para poder descargarla desde la lista sin entrar.
+  // El texto de cada minuta, para poder descargarla desde la lista sin
+  // entrar — solo para las que de verdad tienen una: `AccionesReunion` ya
+  // pinta "Sin minuta" cuando `textoMinuta` llega `undefined`, así que
+  // pedirla para las que no tienen sería una consulta desperdiciada.
   const textos = new Map(
     await Promise.all(
-      cerradas.map(async (r) => [r.id, (await obtenerMinuta(r.id))?.textoFinal ?? null] as const),
+      anteriores
+        .filter((r) => r.tieneMinuta)
+        .map(async (r) => [r.id, (await obtenerMinuta(r.id))?.textoFinal ?? null] as const),
     ),
   )
 
@@ -217,52 +226,22 @@ export default async function PagPreparar() {
           )}
         </section>
 
-        {faltaMinuta.length > 0 && (
-          <section style={{ marginBottom: '2.5rem' }}>
-            <h2 className={estilos.rotuloSeccion}>Se dieron, falta su minuta</h2>
+        {/* ANTERIORES (tarea 18): las presentaciones ya dadas, con o sin
+            minuta — esa pregunta vive en Reuniones ahora. SIEMPRE visible,
+            con vacío explícito cuando no hay ninguna todavía: mismo criterio
+            que "En preparación", arriba — las dos son la partición completa
+            de `reuniones` (`fueDada`/`!fueDada`), así que tiene sentido que
+            las dos se comporten igual en vez de que una se esconda. */}
+        <section>
+          <h2 className={estilos.rotuloSeccion}>Anteriores</h2>
+          <p className={estilos.rotuloNota}>
+            Ya se dieron — con o sin minuta todavía. Desde aquí se descargan o se eliminan.
+          </p>
+          {anteriores.length === 0 ? (
+            <p className={estilos.vacio}>Ninguna presentación anterior todavía.</p>
+          ) : (
             <div className={estilos.lista}>
-              {faltaMinuta.map((s) => (
-                <div key={s.id} className={estilos.fila}>
-                  <Link href={`/deck/${s.id}`} className={estilos.filaIzq}>
-                    <div className={estilos.filaNombre}>
-                      <span className={estilos.filaPunto} style={{ background: s.salaColor }} />
-                      {s.titulo}
-                    </div>
-                    <div className={estilos.filaMeta}>
-                      <span>{s.salaNombre}</span>
-                      <span className={estilos.sep}>·</span>
-                      <span>{fechaBreveConAnio(s.fecha)}</span>
-                    </div>
-                  </Link>
-                  <div className={estilos.filaDcha}>
-                    <Link href={`/deck/${s.id}/minuta`} className={estilos.accionEnlace}>
-                      Generar su minuta →
-                    </Link>
-                    {/* Poder borrarla también desde aquí. Esta lista solo
-                        ofrecía "generar su minuta", así que una reunión que
-                        nunca la va a tener —se canceló, se registró de más—
-                        se quedaba pidiéndola para siempre. */}
-                    <BorrarBorrador
-                      reunionId={s.id}
-                      titulo={`${s.salaNombre} · ${s.titulo}`}
-                      eliminarAction={eliminarAction}
-                      aviso="Se borra la reunión y su documento. No llegó a tener minuta."
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {cerradas.length > 0 && (
-          <section>
-            <h2 className={estilos.rotuloSeccion}>Reuniones cerradas</h2>
-            <p className={estilos.rotuloNota}>
-              Se presentaron y tienen su minuta. Desde aquí se descargan o se eliminan.
-            </p>
-            <div className={estilos.lista}>
-              {cerradas.map((s) => (
+              {anteriores.map((s) => (
                 <div key={s.id} className={estilos.fila}>
                   <Link href={`/deck/${s.id}`} className={estilos.filaIzq}>
                     <div className={estilos.filaNombre}>
@@ -287,8 +266,8 @@ export default async function PagPreparar() {
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </main>
     </div>
   )
