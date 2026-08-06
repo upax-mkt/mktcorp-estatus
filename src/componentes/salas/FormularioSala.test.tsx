@@ -148,12 +148,12 @@ describe('FormularioSala — cadencia (ronda 10, tarea 16: quincenal en la inter
     expect(screen.getByRole('option', { name: /quincenal/i })).toBeInTheDocument()
   })
 
-  it('ofrece las tres cadencias en orden de más a menos frecuente: semanal, quincenal, mensual', () => {
+  it('ofrece las tres cadencias en orden de más a menos frecuente: Semanal, Quincenal, Mensual', () => {
     render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} />)
     const opciones = within(screen.getByLabelText(/cadencia/i))
       .getAllByRole('option')
       .map((o) => o.textContent)
-    expect(opciones).toEqual(['semanal', 'quincenal', 'mensual'])
+    expect(opciones).toEqual(['Semanal', 'Quincenal', 'Mensual'])
   })
 
   it('al crear, arranca en "mensual" — el mismo default que la columna en la base', () => {

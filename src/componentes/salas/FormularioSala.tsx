@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { upload } from '@vercel/blob/client'
 import { slugDesdeNombre } from '@/lib/marca'
 import { medirTinta } from '@/lib/tinta'
@@ -46,6 +47,11 @@ const FAMILIA_POR_DEFECTO = 'outfit'
  */
 const CADENCIA_POR_DEFECTO: Cadencia = 'mensual'
 const CADENCIAS: Cadencia[] = ['semanal', 'quincenal', 'mensual']
+
+/** "semanal" → "Semanal": el enum se escribe en minúsculas; lo que se lee en pantalla, no. */
+function capitalizar(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
 
 /** Lo que este formulario le manda a `guardar` — ya validado del lado del cliente. */
 export interface DatosSala {
@@ -377,7 +383,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
             >
               {CADENCIAS.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {capitalizar(c)}
                 </option>
               ))}
             </select>
@@ -500,7 +506,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
       {error && <p className={estilos.formularioError}>{error}</p>}
       {guardado && (
         <p className={estilos.formularioOk}>
-          {editando ? 'Cambios guardados.' : 'Sala creada.'} <a href={volverA}>Volver a la lista →</a>
+          {editando ? 'Cambios guardados.' : 'Sala creada.'} <Link href={volverA}>Volver a la lista →</Link>
         </p>
       )}
 
@@ -508,9 +514,9 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
         <button type="submit" className="boton" disabled={pendiente || !listo}>
           {pendiente ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear sala'}
         </button>
-        <a href={volverA} className="boton" data-tono="fantasma">
+        <Link href={volverA} className="boton" data-tono="fantasma">
           Cancelar
-        </a>
+        </Link>
       </div>
     </form>
   )
