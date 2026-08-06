@@ -87,8 +87,8 @@ export default async function PagNuevaSesion() {
             </p>
             <p className={estilos.subtitulo}>
               Si lo que quieres es <strong>apuntar una fecha</strong> sin empezar a redactar,
-              agéndala en <Link href="/agenda">la agenda</Link>: aparecerá en el hub como próxima
-              reunión y se podrá llenar después.
+              agéndala desde <Link href="/reuniones">Reuniones</Link>: aparecerá en el hub como
+              próxima reunión y se podrá llenar después.
             </p>
           </div>
         </div>

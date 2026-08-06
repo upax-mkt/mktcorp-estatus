@@ -8,13 +8,13 @@
  * define QUÉ es el estado de una sala y cómo se calculan sus derivados
  * (temperatura, urgencia, pulso del mes).
  *
- * Única excepción a "sin datos": `fueDada` importa `diaCivil` de
- * `src/lib/fecha.ts`. No es una excepción real — `lib/fecha.ts` tampoco toca
- * la base ni depende de nada externo, es la misma clase de función pura que
- * vive aquí — pero SÍ es la fuente única para "a qué día civil pertenece un
- * instante" (ver la cabecera de ese archivo: esta app ya tuvo un bug de
- * fechas corridas un día por no anclarlas ahí), así que se importa en vez de
- * repetir el cálculo a mano.
+ * SIN NINGUNA DEPENDENCIA EXTERNA (revisión final de la ronda 10): hasta esa
+ * revisión este módulo importaba `diaCivil` de `src/lib/fecha.ts` para
+ * `sesionesMinutables`, la única función de aquí que comparaba fechas. Con
+ * `sesionesMinutables` retirada (sustituida por `reunionesMinutables`,
+ * `dominio/reunion.ts` — ver el comentario donde vivía, más abajo), ya no
+ * queda nada en este archivo que necesite "a qué día civil pertenece un
+ * instante": el import se fue con ella.
  *
  * Hasta el 30-jul las diez salas SÍ eran configuración de código
  * (`src/temas/`) y `estadoDeSalas()` podía enumerarlas sin tocar la base: era
@@ -22,7 +22,6 @@
  * desde la app, esa lista dejó de ser algo que este módulo —puro, sin
  * `async`— pueda ofrecer por su cuenta: ver `estadoDeSalas()` más abajo.
  */
-import { diaCivil } from '@/lib/fecha'
 import type { Cadencia, Reunion } from './reunion'
 
 export type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido'
@@ -252,86 +251,20 @@ export interface SesionMinutable {
   salaColor?: string
 }
 
-/**
- * QUÉ REUNIONES SE PUEDEN MINUTAR.
- *
- * Franco: "a la minuta le falta el motor para cargar una transcripción de la
- * reunión y que precargue la minuta con IA".
- *
- * El motor estaba —`generarMinuta`, con Claude, desde la primera versión— pero
- * ENTERRADO: solo se ofrecía para sesiones ya marcadas como «presentada», y
- * marcar una sesión como presentada es papeleo. La reunión ocurrió la marque
- * alguien o no, y obligar a hacer el papeleo antes de poder hacer el trabajo
- * es la forma más segura de que nadie encuentre la herramienta.
- *
- * Ahora se puede minutar cualquier sesión cuyo día ya llegó y que no tenga
- * minuta todavía, sea borrador, lista o presentada. Lo que NO se puede es
- * minutar algo que aún no ha pasado: no hay nada que transcribir.
- *
- * Se compara por DÍA CIVIL y no por instante: una sesión creada hoy a las
- * 17:00 se puede minutar a las 16:50 si la reunión se adelantó, y afinar al
- * minuto convertiría "hoy" en una lotería.
- */
-export function sesionesMinutables(
-  sesiones: Array<{
-    id: string
-    titulo: string
-    fecha: string
-    salaSlug: string | null
-    salaNombre?: string
-    salaColor?: string
-    estado: string
-    /** Ver `fueDada`, `dominio/reunion.ts`. Ausente = nunca se marcó así. */
-    noDadaEn?: string | null
-  }>,
-  /** Ids de sesión que YA tienen minuta. */
-  conMinuta: Set<string>,
-  hoyCivil: string,
-): SesionMinutable[] {
-  return sesiones
-    .filter((s) => !conMinuta.has(s.id))
-    /**
-     * UN BORRADOR NO ES UNA REUNIÓN QUE OCURRIÓ.
-     *
-     * Franco: «quedó una lista de "borradores" en el modal de minutas». El
-     * filtro solo miraba la fecha, así que un borrador con fecha pasada
-     * —trabajo de preparación abandonado— aparecía como reunión minutable, y
-     * desde ahí no había forma de quitarlo.
-     *
-     * `borrador` es algo que se está preparando y todavía no tiene nada
-     * escrito; `agendada`, algo que ni siquiera empezó. Ninguna de las dos es
-     * una junta que se dio. Desde `lista` en adelante sí: está maquetada, y
-     * una reunión puede darse sin que a nadie le dé tiempo de marcarla como
-     * presentada.
-     */
-    .filter((s) => s.estado !== 'borrador' && s.estado !== 'agendada')
-    /**
-     * TAMPOCO UNA MARCADA "NO SE DIO" (ronda "contador y presentadas",
-     * 2026-08-03): se canceló o se pospuso — no hay nada que transcribir de
-     * una reunión que no ocurrió. Mismo criterio que aplica `fueDada`
-     * (`dominio/reunion.ts`) para "¿ya pasó de verdad?".
-     */
-    .filter((s) => !s.noDadaEn)
-    /**
-     * CORRECCIÓN (revisión de la ronda "contador y presentadas"): comparaba
-     * `s.fecha.slice(0, 10)` —el día en UTC— contra `hoyCivil` —el día en
-     * CDMX—. Una reunión de esta noche entre las 18:00 y medianoche en México
-     * cae entre las 00:00 y las 06:00 UTC del día SIGUIENTE, así que
-     * `slice(0, 10)` la leía un día por delante y la excluía de "pendiente de
-     * minuta" hasta pasada la medianoche UTC — el mismo bug de fechas
-     * corridas que motivó `src/lib/fecha.ts` en primer lugar, colado aquí
-     * porque esta función no lo usaba. `diaCivil` es la fuente única.
-     */
-    .filter((s) => diaCivil(s.fecha) <= hoyCivil)
-    .sort((a, b) => b.fecha.localeCompare(a.fecha))
-    .map((s) => ({
-      id: s.id,
-      titulo: s.titulo,
-      fecha: s.fecha,
-      salaNombre: s.salaNombre,
-      salaColor: s.salaColor,
-    }))
-}
+// `sesionesMinutables` vivió aquí hasta la revisión final de la ronda 10
+// (retirada, comprobado con grep: sin más llamador que su propio test —
+// `dominio/reuniones.test.ts`, retirado con ella). Escrita para el modelo
+// viejo de cinco estados (`estado !== 'borrador' && estado !== 'agendada'`
+// dejaba pasar `lista`/`presentada`/`minutada`), con `EstadoReunion =
+// 'agendada' | 'dada'` (ronda 10) ese mismo filtro pasó a significar SOLO
+// 'dada' — el papeleo que la función existía para evitar, de vuelta (Home y
+// `/cliente/[slug]` seguían llamándola, sin que nadie lo notara: una
+// regresión de la lección de la ronda 4). Su sucesora, `reunionesMinutables`
+// (`dominio/reunion.ts`, escrita en esta misma ronda), usa el criterio
+// correcto —`estado === 'dada' || tienePresentacion(r)`— sobre `Reunion[]`
+// (con su respaldo ya cosido), no sobre el resumen plano que recibía esta.
+// `SesionMinutable`, el tipo que ambas devuelven, se queda: sigue siendo lo
+// que esperan `LevantarMinuta`/`ModuloMinutas`.
 
 /**
  * Una reunión con el día civil ya pasado, deducida como dada sin que nadie lo

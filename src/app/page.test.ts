@@ -1,0 +1,210 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render } from '@testing-library/react'
+import type { EstadoSala } from '@/dominio/salas'
+import type { Reunion } from '@/dominio/reunion'
+
+/**
+ * El Home (`/`). SIN TEST HASTA AHORA — esta suite es DELIBERADAMENTE
+ * ACOTADA: fija solo el hallazgo 1 de la revisión final de la ronda 10
+ * ("Levantar minuta" volvía a exigir papeleo), no intenta cubrir el resto de
+ * esta página (acuerdos, calendario, agendar rápido, salir...). Mismo
+ * criterio de mocking que `reuniones/page.test.tsx`: los componentes hijos
+ * se sustituyen por dobles que capturan sus props — no hace falta un App
+ * Router real montado ni abrir ningún `<dialog>` para comprobar QUÉ LE LLEGA
+ * a `ModuloMinutas`.
+ */
+
+const exigirLecturaMock = vi.fn()
+vi.mock('@/auth/roles', () => ({
+  exigirLectura: () => exigirLecturaMock(),
+  exigirEditor: vi.fn(),
+  esAdmin: vi.fn().mockResolvedValue(false),
+}))
+
+// `connection()` (next/server), llamado FUERA de cualquier render real de
+// Next, revienta con "invariant expected a request store" — mismo motivo por
+// el que `reuniones/page.test.tsx` la mockea.
+vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+
+const estadoDeSalasMock = vi.fn()
+vi.mock('@/db/consultas', () => ({
+  estadoDeSalas: () => estadoDeSalasMock(),
+  ordenarPorProximaReunion: (salas: EstadoSala[]) => salas,
+  temperatura: vi.fn().mockReturnValue('reciente'),
+  acuerdosAbiertos: vi.fn().mockReturnValue(0),
+  acuerdosVencidos: vi.fn().mockReturnValue(0),
+  todosLosAcuerdos: vi.fn().mockResolvedValue([]),
+  pulsoDelMes: vi.fn().mockResolvedValue({
+    salas: 0, reunionesEsteMes: 0, reunionesDadas: 0, acuerdosAbiertos: 0, acuerdosVencidos: 0,
+    salaMasDesatendida: null,
+  }),
+}))
+
+vi.mock('@/db/acuerdos', () => ({
+  moverEstatus: vi.fn(),
+  editarAcuerdo: vi.fn(),
+}))
+
+vi.mock('@/app/acuerdos/acciones', () => ({
+  destacarAction: vi.fn(),
+}))
+
+vi.mock('@/db/reuniones', () => ({
+  listarReuniones: vi.fn().mockResolvedValue([]),
+  marcarDada: vi.fn(),
+  marcarNoDada: vi.fn(),
+  desmarcarNoDada: vi.fn(),
+}))
+
+vi.mock('@/db/documentos', () => ({
+  crearReunionConDocumento: vi.fn(),
+}))
+
+vi.mock('@/db/participacion', () => ({
+  registrarEdicion: vi.fn(),
+}))
+
+vi.mock('@/db/personas', () => ({
+  directorio: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('@/db/plantillas', () => ({
+  moldeDeMinuta: vi.fn().mockResolvedValue({}),
+  guardarMoldeDeMinuta: vi.fn(),
+}))
+
+vi.mock('@/auth/sesion', () => ({
+  cerrarSesion: vi.fn(),
+}))
+
+vi.mock('@/db/cliente', () => ({
+  hayDB: vi.fn().mockReturnValue(true),
+}))
+
+// Componentes hijos: dobles mudos — nada de este archivo necesita verlos
+// pintados, solo saber qué prop les llegó. Mismo patrón que `PanelAgenda` en
+// `reuniones/page.test.tsx`.
+vi.mock('@/componentes/hogar/ModuloAcuerdos', () => ({ ModuloAcuerdos: () => null }))
+vi.mock('@/componentes/hogar/ModuloCalendario', () => ({ ModuloCalendario: () => null }))
+vi.mock('@/componentes/hogar/AgendarRapido', () => ({ AgendarRapido: () => null }))
+vi.mock('@/componentes/ReunionesPorConfirmar', () => ({ ReunionesPorConfirmar: () => null }))
+
+const moduloMinutasPropsMock = vi.fn()
+vi.mock('@/componentes/hogar/ModuloMinutas', () => ({
+  ModuloMinutas: (props: unknown) => {
+    moduloMinutasPropsMock(props)
+    return null
+  },
+}))
+
+const { default: Hub } = await import('./page')
+
+const REUNION_BASE: Reunion = {
+  id: 'r1',
+  fecha: '2026-07-15T10:00:00.000Z',
+  titulo: 'Quincenal julio',
+  tipo: 'mensual',
+  estado: 'agendada',
+  noDadaEn: null,
+  documentoListo: false,
+  archivos: [],
+  acuerdos: [],
+}
+
+const SALA_BASE: EstadoSala = {
+  slug: 'neracode',
+  nombre: 'NeraCode',
+  color: '#101010',
+  logoUrl: null,
+  diasDesdeUltima: null,
+  ultimaSesion: null,
+  proximaReunion: null,
+  enPreparacion: false,
+  acuerdos: [],
+  reuniones: [],
+  cadencia: 'mensual',
+  activa: true,
+  pausadaDesde: null,
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  exigirLecturaMock.mockResolvedValue({ rol: 'equipo', rolApp: 'viewer', sub: 'equipo-mkt-corp' })
+  estadoDeSalasMock.mockResolvedValue([])
+})
+
+/**
+ * HALLAZGO 1 DE LA REVISIÓN FINAL (ronda 10) — "Levantar minuta" volvió a
+ * exigir papeleo, Y ES UNA REGRESIÓN DE LA LECCIÓN DE LA RONDA 4.
+ *
+ * `sinMinuta` (lo que llega a `ModuloMinutas` como `pendientes`) llamaba a
+ * `sesionesMinutables` (dominio/salas.ts) sobre `reuniones` —el
+ * `ReunionResumen[]` plano de `listarReuniones()`—, cuyo filtro `estado !==
+ * 'borrador' && estado !== 'agendada'` se escribió para el modelo viejo de
+ * cinco estados. Con `EstadoReunion = 'agendada' | 'dada'` (ronda 10) ese
+ * filtro pasó a significar SOLO 'dada': una reunión maquetada (con su
+ * documento LISTO) pero sin confirmar a mano no aparecía como pendiente de
+ * minutar, pese a que el propio comentario de la función dice lo contrario.
+ *
+ * El reemplazo, `reunionesMinutables` (dominio/reunion.ts, escrita en esta
+ * misma ronda), opera sobre las `Reunion[]` de CADA sala
+ * (`salasCrudas[].reuniones`, con su respaldo completo ya cosido) y usa el
+ * criterio correcto: `estado === 'dada' || tienePresentacion(r)`.
+ */
+describe('Hub (/) — "Levantar minuta" no exige confirmar a mano (hallazgo 1)', () => {
+  it('una reunión maquetada (agendada, documento listo) cuyo día ya pasó llega a ModuloMinutas como pendiente', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, reuniones: [{ ...REUNION_BASE, id: 'r-maquetada', documentoListo: true }] },
+    ])
+
+    render(await Hub())
+
+    const props = moduloMinutasPropsMock.mock.calls[0][0] as { pendientes: Array<{ id: string }> }
+    expect(props.pendientes.map((p) => p.id)).toContain('r-maquetada')
+  })
+
+  it('una agendada SIN ningún respaldo no aparece como pendiente: no hay nada que transcribir', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, reuniones: [{ ...REUNION_BASE, id: 'r-sin-respaldo', documentoListo: false }] },
+    ])
+
+    render(await Hub())
+
+    const props = moduloMinutasPropsMock.mock.calls[0][0] as { pendientes: Array<{ id: string }> }
+    expect(props.pendientes.map((p) => p.id)).not.toContain('r-sin-respaldo')
+  })
+
+  it('una ya explícitamente dada, sin minuta, sigue apareciendo (lo explícito nunca se pierde)', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, reuniones: [{ ...REUNION_BASE, id: 'r-dada', estado: 'dada' }] },
+    ])
+
+    render(await Hub())
+
+    const props = moduloMinutasPropsMock.mock.calls[0][0] as { pendientes: Array<{ id: string }> }
+    expect(props.pendientes.map((p) => p.id)).toContain('r-dada')
+  })
+
+  it('cruza dos salas y ordena de la más reciente a la más antigua, con el nombre/color de SU sala', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      {
+        ...SALA_BASE, slug: 'neracode', nombre: 'NeraCode', color: '#101010',
+        reuniones: [{ ...REUNION_BASE, id: 'r-vieja', fecha: '2026-06-01T10:00:00.000Z', documentoListo: true }],
+      },
+      {
+        ...SALA_BASE, slug: 'uix', nombre: 'UiX', color: '#2b6cc0',
+        reuniones: [{ ...REUNION_BASE, id: 'r-nueva', fecha: '2026-07-20T10:00:00.000Z', documentoListo: true }],
+      },
+    ])
+
+    render(await Hub())
+
+    const props = moduloMinutasPropsMock.mock.calls[0][0] as {
+      pendientes: Array<{ id: string; salaNombre?: string }>
+    }
+    expect(props.pendientes.map((p) => p.id)).toEqual(['r-nueva', 'r-vieja'])
+    expect(props.pendientes.find((p) => p.id === 'r-nueva')?.salaNombre).toBe('UiX')
+    expect(props.pendientes.find((p) => p.id === 'r-vieja')?.salaNombre).toBe('NeraCode')
+  })
+})

@@ -10,8 +10,8 @@ import {
   estadoDeSalas, ordenarPorProximaReunion, temperatura, acuerdosAbiertos,
   acuerdosVencidos, todosLosAcuerdos, pulsoDelMes, type EstatusAcuerdo,
 } from '@/db/consultas'
-import { sesionesMinutables, type SesionMinutable, type SesionPorConfirmar } from '@/dominio/salas'
-import { reunionesPorConfirmar } from '@/dominio/reunion'
+import { type SesionMinutable, type SesionPorConfirmar } from '@/dominio/salas'
+import { reunionesMinutables, reunionesPorConfirmar } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { destacarAction } from '@/app/acuerdos/acciones'
@@ -244,19 +244,45 @@ export default async function Hub() {
     )
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  // TODA reunión cuyo día ya llegó y que no tenga minuta, sea agendada o
-  // dada. Antes solo se ofrecían las marcadas como «presentada», y marcar
-  // una reunión como presentada es papeleo: la reunión ocurrió igual. Obligar
-  // al papeleo antes de poder minutar es la forma más segura de que nadie
-  // encuentre el motor de transcripción.
-  //
-  // `sesionesMinutables` (dominio/salas.ts, sin tocar) sigue funcionando
-  // igual contra `EstadoReunion` (ronda 10): su exclusión `!== 'borrador' &&
-  // !== 'agendada'` sigue significando "excluye las agendadas" con solo dos
-  // valores posibles.
-  const conMinuta = new Set(salasCrudas.flatMap((s) => s.reuniones.filter((r) => r.minuta).map((r) => r.id)))
+  /**
+   * TODA REUNIÓN CUYO DÍA YA LLEGÓ Y QUE NO TENGA MINUTA, sea agendada o
+   * dada. Antes solo se ofrecían las marcadas como «presentada», y marcar
+   * una reunión como presentada es papeleo: la reunión ocurrió igual. Obligar
+   * al papeleo antes de poder minutar es la forma más segura de que nadie
+   * encuentre el motor de transcripción.
+   *
+   * CORREGIDO (revisión final de la ronda 10, hallazgo 1 — Y ES UNA
+   * REGRESIÓN DE ESTA MISMA LECCIÓN): esto llamaba a `sesionesMinutables`
+   * (`dominio/salas.ts`, retirada en esta misma revisión) sobre `reuniones`
+   * —el `ReunionResumen[]` plano de `listarReuniones()`—, cuyo filtro
+   * `estado !== 'borrador' && estado !== 'agendada'` se escribió para el
+   * modelo viejo de cinco estados, donde dejaba pasar `lista`/`presentada`/
+   * `minutada`. Con `EstadoReunion = 'agendada' | 'dada'` ese mismo filtro
+   * pasó a significar SOLO 'dada' — el papeleo de vuelta. De siete reuniones
+   * dadas en la base real solo una se había marcado a mano.
+   *
+   * `reunionesMinutables` (`dominio/reunion.ts`, escrita en esta misma
+   * ronda) opera sobre las `Reunion[]` de CADA sala (`salasCrudas[].reuniones`,
+   * con su respaldo completo ya cosido — `documentoListo`/`archivos`/
+   * `minuta`), no sobre el resumen plano: es lo que le permite usar el
+   * criterio correcto, `estado === 'dada' || tienePresentacion(r)`. El Home
+   * cruza nueve salas a la vez, así que cada resultado se reempaqueta con la
+   * identidad de SU sala (`salaNombre`/`salaColor`, que `Reunion` no lleva
+   * por su cuenta) antes de unir y reordenar por fecha — mismo patrón que
+   * `porConfirmar`, más abajo.
+   */
   const hoyCivil = diaCivil(hoy.toISOString())
-  const sinMinuta: SesionMinutable[] = sesionesMinutables(reuniones, conMinuta, hoyCivil)
+  const sinMinuta: SesionMinutable[] = salasCrudas
+    .flatMap((sl) =>
+      reunionesMinutables(sl.reuniones, hoyCivil).map((r) => ({
+        id: r.id,
+        titulo: r.titulo,
+        fecha: r.fecha,
+        salaNombre: sl.nombre,
+        salaColor: sl.color,
+      })),
+    )
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
   /**
    * REUNIONES POR CONFIRMAR (punto 2/3): las que la deducción automática de

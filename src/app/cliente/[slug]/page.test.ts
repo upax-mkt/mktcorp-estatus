@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createElement } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
@@ -146,7 +147,10 @@ vi.mock('@/db/archivos', () => ({
 }))
 
 vi.mock('@vercel/blob', () => ({
-  del: vi.fn(),
+  // `.mockResolvedValue` (no un `vi.fn()` a secas): la real es async, y el
+  // código de la página encadena `.catch(...)` sobre su resultado — tanto en
+  // el catch de siempre como en el rechazo cruzado de sala del hallazgo 4a.
+  del: vi.fn().mockResolvedValue(undefined),
 }))
 
 // La subida de `ArchivosSala` (SubirArchivo) va del navegador DIRECTO a Blob
@@ -182,11 +186,17 @@ vi.mock('@/auth/sesion', () => ({
 // también importa ahora, para resolver itemsLlenados/totalItems por
 // reunión) nunca llega a invocarse — se mockea igual, mínimo defensivo,
 // mismo criterio que el resto de este archivo.
+// `obtenerReunion` con nombre (hallazgo 4a, revisión final ronda 10):
+// `registrarArchivoAction` lo necesita para comprobar que un `reunionId` que
+// llega del cliente es de ESTA sala antes de registrar el archivo — ver el
+// describe dedicado, más abajo.
+const obtenerReunionMock = vi.fn()
 vi.mock('@/db/reuniones', () => ({
   listarReuniones: vi.fn().mockResolvedValue([]),
   marcarDada: vi.fn(),
   marcarNoDada: vi.fn(),
   desmarcarNoDada: vi.fn(),
+  obtenerReunion: (...args: unknown[]) => obtenerReunionMock(...args),
 }))
 
 vi.mock('@/db/documentos', () => ({
@@ -198,6 +208,42 @@ vi.mock('@/app/acuerdos/acciones', () => ({
   pausarSalaAction: vi.fn(),
   reactivarSalaAction: vi.fn(),
   destacarAction: vi.fn(),
+}))
+
+/**
+ * `ReunionesSala` SIGUE RENDERIZANDO DE VERDAD (los tests de "Tarea 9b"/"Tarea
+ * 11" más abajo dependen de eso: clic real, input de archivo real) — este
+ * doble solo ENVUELVE al componente real (`importOriginal`) para poder
+ * espiar con qué `registrarArchivoAction` lo llama la página, sin tocar su
+ * comportamiento. Hace falta para el describe de "hallazgo 4a" (más abajo):
+ * la validación cruzada de sala solo se puede ejercitar con un `reunionId`
+ * que la UI real de esta sala JAMÁS ofrecería (la UI no cruza salas — lo dice
+ * el propio hallazgo), así que hay que invocar la acción directo con un dato
+ * fabricado.
+ */
+const reunionesSalaPropsMock = vi.fn()
+vi.mock('@/componentes/ReunionesSala', async (importarOriginal) => {
+  const real = await importarOriginal<typeof import('@/componentes/ReunionesSala')>()
+  return {
+    ...real,
+    ReunionesSala: (props: Parameters<typeof real.ReunionesSala>[0]) => {
+      reunionesSalaPropsMock(props)
+      return createElement(real.ReunionesSala, props)
+    },
+  }
+})
+
+// `LevantarMinuta`, en cambio, se sustituye por un doble MUDO: ningún test de
+// este archivo interactúa con su UI real (abrir el diálogo, elegir una
+// reunión) — el describe de "hallazgo 1" (más abajo) solo necesita saber QUÉ
+// `sesiones` le llegó de prop, no verlo pintado. Evita además depender del
+// polyfill de `<dialog>`/`useRouter()` para algo que este archivo no ejercita.
+const levantarMinutaPropsMock = vi.fn()
+vi.mock('@/componentes/LevantarMinuta', () => ({
+  LevantarMinuta: (props: unknown) => {
+    levantarMinutaPropsMock(props)
+    return null
+  },
 }))
 
 // Los dos predicados de la ronda 9 bajo control directo — son el eje del
@@ -225,6 +271,11 @@ beforeEach(() => {
   // participación lo pisa puntualmente con `mockResolvedValueOnce`.
   estadoDeSalaMock.mockResolvedValue(SALA_BASE)
   participantesDeMock.mockResolvedValue([])
+  // Default: cualquier reunionId que llegue a `registrarArchivoAction` se
+  // resuelve como de ESTA sala ('neracode', el slug fijo de `invocar()`) —
+  // mismo slug que toda fixture de este archivo. El describe de "hallazgo 4a"
+  // lo pisa con un slug distinto para probar el rechazo cruzado.
+  obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
 })
 
 async function invocar() {
@@ -491,5 +542,202 @@ describe('VistaSala (/cliente/[slug]) — el enlace ⚙ a los ajustes de la sala
     render(await invocar())
 
     expect(screen.queryByRole('link', { name: /ajustes/i })).toBeNull()
+  })
+})
+
+/**
+ * HALLAZGO 1 DE LA REVISIÓN FINAL (ronda 10) — "Levantar minuta" volvió a
+ * exigir papeleo, Y ES UNA REGRESIÓN DE LA LECCIÓN DE LA RONDA 4.
+ *
+ * `pendientesDeMinuta` llamaba a `sesionesMinutables` (dominio/salas.ts), cuyo
+ * filtro `estado !== 'borrador' && estado !== 'agendada'` se escribió para el
+ * viejo modelo de cinco estados (donde dejaba pasar `lista`/`presentada`/
+ * `minutada`). Con `EstadoReunion = 'agendada' | 'dada'` (ronda 10) ese mismo
+ * filtro pasó a significar SOLO 'dada' — justo lo contrario de lo que dice el
+ * comentario de la función: "ahora se puede minutar cualquier sesión cuyo día
+ * ya llegó... sea borrador, lista o presentada. Lo que NO se puede es minutar
+ * algo que aún no ha pasado". De siete reuniones dadas en la base real solo
+ * una se marcó a mano — exactamente el escenario que este test fija.
+ *
+ * El reemplazo, `reunionesMinutables` (dominio/reunion.ts, escrita en esta
+ * misma ronda), usa el criterio correcto: `estado === 'dada' ||
+ * tienePresentacion(r)` — una reunión maquetada (documento LISTO) cuenta,
+ * aunque nadie la haya confirmado a mano.
+ */
+describe('VistaSala (/cliente/[slug]) — "Levantar minuta" no exige confirmar a mano (hallazgo 1)', () => {
+  const REUNION_AGENDADA_MAQUETADA = {
+    id: 'reunion-maquetada', titulo: 'Quincenal julio', fecha: '2026-07-15T10:00:00.000Z',
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    documentoListo: true, archivos: [], acuerdos: [],
+  }
+  const REUNION_AGENDADA_SIN_RESPALDO = {
+    id: 'reunion-sin-respaldo', titulo: 'Standup sin nada encima', fecha: '2026-07-10T10:00:00.000Z',
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    documentoListo: false, archivos: [], acuerdos: [],
+  }
+  const SALA_CON_MAQUETADA_SIN_CONFIRMAR: EstadoSala = {
+    ...SALA_BASE,
+    reuniones: [REUNION_AGENDADA_MAQUETADA, REUNION_AGENDADA_SIN_RESPALDO],
+  }
+
+  it('una reunión maquetada (agendada, documento listo) cuyo día ya pasó SE PUEDE minutar sin confirmarla a mano', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_CON_MAQUETADA_SIN_CONFIRMAR)
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    const props = levantarMinutaPropsMock.mock.calls[0][0] as { sesiones: Array<{ id: string }> }
+    expect(props.sesiones.map((s) => s.id)).toContain('reunion-maquetada')
+  })
+
+  it('una agendada SIN ningún respaldo no aparece: no hay nada que transcribir todavía', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_CON_MAQUETADA_SIN_CONFIRMAR)
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    const props = levantarMinutaPropsMock.mock.calls[0][0] as { sesiones: Array<{ id: string }> }
+    expect(props.sesiones.map((s) => s.id)).not.toContain('reunion-sin-respaldo')
+  })
+})
+
+/**
+ * HALLAZGO 2 DE LA REVISIÓN FINAL (ronda 10) — la misma reunión salía a la
+ * vez en "En preparación" (arriba, "Seguir editando →") y en "Por confirmar"
+ * (abajo, "¿se dio?"). El filtro de `enPreparacion` perdió su segunda mitad
+ * al migrar de sesión a reunión: antes excluía lo que la deducción de
+ * `fueDada` ya contaba como dado; ahora es `estado === 'agendada'` a secas.
+ *
+ * Este test fija la mitad que faltaba: `estado === 'agendada' && !fueDada(...)`.
+ */
+describe('VistaSala (/cliente/[slug]) — "En preparación" no duplica lo que ya se cuenta como dado (hallazgo 2)', () => {
+  const REUNION_AGENDADA_MAQUETADA = {
+    id: 'reunion-maquetada', titulo: 'Quincenal julio', fecha: '2026-07-15T10:00:00.000Z',
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    documentoListo: true, archivos: [], acuerdos: [],
+  }
+  const REUNION_AGENDADA_SIN_RESPALDO = {
+    id: 'reunion-sin-respaldo', titulo: 'Standup sin nada encima', fecha: '2026-07-10T10:00:00.000Z',
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    documentoListo: false, archivos: [], acuerdos: [],
+  }
+  const SALA_MIXTA: EstadoSala = {
+    ...SALA_BASE,
+    reuniones: [REUNION_AGENDADA_MAQUETADA, REUNION_AGENDADA_SIN_RESPALDO],
+  }
+
+  it('una agendada ya deducible como dada (con respaldo, día pasado) NO sale en "en preparación"', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_MIXTA)
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(
+      screen.queryByRole('link', { name: /Quincenal julio[\s\S]*Seguir editando/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('una agendada SIN respaldo todavía sigue en "en preparación": de esa sí falta todo', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_MIXTA)
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(
+      screen.getByRole('link', { name: /Standup sin nada encima[\s\S]*Seguir editando/i }),
+    ).toBeInTheDocument()
+  })
+})
+
+/**
+ * HALLAZGO 4a DE LA REVISIÓN FINAL (ronda 10) — `registrarArchivoAction`
+ * aceptaba `datos.reunionId` crudo del cliente sin comprobar que esa reunión
+ * fuera de ESTA sala. `puedeVerlo` (`src/app/api/archivo/[id]/route.ts`) da
+ * prioridad a `reunionId` sobre `salaSlug` al decidir quién puede LEER el
+ * archivo después: un archivo registrado bajo la sala A pero apuntando a una
+ * reunión de la sala B lo leería el director de B. Hoy no es explotable por
+ * la UI (que nunca cruza salas — de ahí que este test invoque la acción
+ * DIRECTO, con un dato que la UI real jamás produciría), pero el endpoint
+ * tiene que rechazarlo por su cuenta: esconder el botón no protege la acción.
+ */
+describe('VistaSala (/cliente/[slug]) — registrarArchivoAction valida que la reunión sea de ESTA sala (hallazgo 4a)', () => {
+  async function accionCapturada() {
+    render(await invocar())
+    const props = reunionesSalaPropsMock.mock.calls[0][0] as {
+      registrarArchivoAction: (datos: {
+        categoria: 'presentacion'
+        titulo: string
+        fecha: string | null
+        ruta: string
+        nombreOriginal: string
+        tipoContenido: string | null
+        tamanoBytes: number | null
+        reunionId?: string | null
+      }) => Promise<{ error?: string }>
+    }
+    return props.registrarArchivoAction
+  }
+
+  const DATOS_ARCHIVO = {
+    categoria: 'presentacion' as const,
+    titulo: 'Estatus de otra sala',
+    fecha: null,
+    ruta: 'salas/mexa-creativa/presentacion/archivo.pdf',
+    nombreOriginal: 'archivo.pdf',
+    tipoContenido: 'application/pdf',
+    tamanoBytes: 100,
+  }
+
+  it('un reunionId de OTRA sala se rechaza: no se registra el archivo', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    obtenerReunionMock.mockResolvedValue({ salaSlug: 'mexa-creativa' })
+
+    const registrarArchivoAction = await accionCapturada()
+    const resultado = await registrarArchivoAction({ ...DATOS_ARCHIVO, reunionId: 'reunion-de-mexa-creativa' })
+
+    expect(resultado.error).toBeTruthy()
+    expect(registrarArchivoMock).not.toHaveBeenCalled()
+  })
+
+  it('una reunión que ya no existe (obtenerReunion → null) también se rechaza', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    obtenerReunionMock.mockResolvedValue(null)
+
+    const registrarArchivoAction = await accionCapturada()
+    const resultado = await registrarArchivoAction({ ...DATOS_ARCHIVO, reunionId: 'reunion-borrada' })
+
+    expect(resultado.error).toBeTruthy()
+    expect(registrarArchivoMock).not.toHaveBeenCalled()
+  })
+
+  it('un reunionId de ESTA MISMA sala se acepta con normalidad', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
+
+    const registrarArchivoAction = await accionCapturada()
+    const resultado = await registrarArchivoAction({ ...DATOS_ARCHIVO, reunionId: 'reunion-de-neracode' })
+
+    expect(resultado.error).toBeUndefined()
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ salaSlug: 'neracode', reunionId: 'reunion-de-neracode' }),
+    )
+  })
+
+  it('sin reunionId (archivo de sala, no de una reunión) no llama a obtenerReunion: no hay nada que validar', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const registrarArchivoAction = await accionCapturada()
+    await registrarArchivoAction({ ...DATOS_ARCHIVO, reunionId: null })
+
+    expect(obtenerReunionMock).not.toHaveBeenCalled()
+    expect(registrarArchivoMock).toHaveBeenCalled()
   })
 })

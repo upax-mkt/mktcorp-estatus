@@ -98,7 +98,16 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
   return (
     <div className={estilos.app}>
       <header className={estilos.barra}>
-        <Link href={`/cliente/${reunion.salaSlug}`} className={estilos.volver}>← {reunion.salaNombre}</Link>
+        {/* SIN SALA (comité, interna de Mkt Corp — Tarea 8b) no hay
+            `/cliente/{slug}` al que volver: `reunion.salaSlug` es `null` y
+            ese `href` producía literalmente `/cliente/null` (hallazgo 3,
+            revisión final de la ronda 10). El título ya resolvía bien
+            ("Marketing Corp", `identidadDe`, `db/reuniones.ts`) — solo el
+            destino estaba mal. `/reuniones` es lo más parecido a "la casa"
+            de una reunión que no es de ninguna sala. */}
+        <Link href={reunion.salaSlug ? `/cliente/${reunion.salaSlug}` : '/reuniones'} className={estilos.volver}>
+          ← {reunion.salaNombre}
+        </Link>
         <div className={estilos.barraTitulo}>{reunion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {equipo && (

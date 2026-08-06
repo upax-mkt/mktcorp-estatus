@@ -17,6 +17,7 @@
 import { revalidatePath } from 'next/cache'
 import { crearReunionConDocumento } from '@/db/documentos'
 import { editarReunion } from '@/db/reuniones'
+import { slugsDeSalas } from '@/db/temas'
 import { exigirEditor } from '@/auth/roles'
 import { instanteEnCDMX } from '@/lib/fecha'
 import type { DatosFormulario } from '@/componentes/agenda/FormularioSesion'
@@ -39,6 +40,18 @@ function instanteDe(dia: string, hora: string): Date {
 
 export async function agendarReunionAction(datos: DatosFormulario): Promise<{ error?: string }> {
   await exigirEditor()
+  /**
+   * `salaSlug` LLEGA CRUDO DEL FORMULARIO (hallazgo 4b, revisión final de la
+   * ronda 10): `crearReunion` (`src/db/reuniones.ts`) solo lo comprueba SI
+   * ES TRUTHY (`datos.salaSlug &&`) — una cadena vacía se cuela hasta ahí,
+   * revienta contra la clave ajena de Postgres, y el `catch` de aquí abajo
+   * devolvía ese mensaje crudo a la pantalla. `src/app/deck/nueva/page.tsx`
+   * ya valida así (`!salaSlug || !slugsDeSalas().includes(salaSlug)`) —
+   * misma línea, copiada aquí.
+   */
+  if (!datos.salaSlug || !(await slugsDeSalas()).includes(datos.salaSlug)) {
+    return { error: `Elige una sala válida (recibido: "${datos.salaSlug}")` }
+  }
   try {
     await crearReunionConDocumento({
       salaSlug: datos.salaSlug,

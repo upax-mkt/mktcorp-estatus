@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
 
 /**
  * FUGA DE DATOS (corrección de revisión): esta página la puede abrir el rol
@@ -68,6 +69,14 @@ vi.mock('@/db/personas', () => ({
 // usa `registrarPresentacionAction`, que ningún test de aquí invoca.
 vi.mock('@/db/participacion', () => ({
   registrarPresentacion: vi.fn(),
+}))
+
+// `DocumentoSesion` (fuera de mi lista de archivos de esta tarea) se
+// sustituye por un doble mudo: el describe de "hallazgo 3" (más abajo) solo
+// necesita el `<header>` de ESTA página, no el documento entero — y evita
+// arrastrar cualquier dependencia propia del componente real a este archivo.
+vi.mock('@/componentes/sesion/DocumentoSesion', () => ({
+  DocumentoSesion: () => null,
 }))
 
 const { default: PagSesionPublicada } = await import('./page')
@@ -164,5 +173,41 @@ describe('PagSesionPublicada (/reunion/[id]) — sin sala (comité, Tarea 8c)', 
     await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
 
     expect(estadoDeSalaMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * HALLAZGO 3 DE LA REVISIÓN FINAL (ronda 10) — ENLACE ROTO EN UNA REUNIÓN
+ * SIN SALA.
+ *
+ * El link "← {reunion.salaNombre}" de la cabecera apuntaba SIEMPRE a
+ * `/cliente/${reunion.salaSlug}`: con una reunión de comité (sin sala,
+ * `salaSlug: null`), eso produce `/cliente/null`. El título sí resuelve bien
+ * ("Marketing Corp", `identidadDe`, `db/reuniones.ts`) — es solo el `href` el
+ * que está mal. `deck/[id]/documento/page.tsx:129-135` sí condiciona su
+ * enlace equivalente ("Presentada · ver en la sala →"); esta pantalla era la
+ * única de las tres hermanas que no lo hacía.
+ */
+describe('PagSesionPublicada (/reunion/[id]) — el link de la cabecera no produce /cliente/null (hallazgo 3)', () => {
+  it('con sala: el link "← {sala}" va a /cliente/{slug}, como siempre', async () => {
+    esLectorMock.mockResolvedValue(true)
+
+    render(await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) }))
+
+    expect(screen.getByRole('link', { name: /NeraCode/ })).toHaveAttribute('href', '/cliente/neracode')
+  })
+
+  it('SIN sala (comité, Tarea 8b): el link "← {salaNombre}" NUNCA apunta a /cliente/null', async () => {
+    obtenerReunionMock.mockResolvedValue({ ...REUNION_BASE, salaSlug: null, salaNombre: 'Marketing Corp' })
+    esLectorMock.mockResolvedValue(true)
+
+    render(await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) }))
+
+    const enlace = screen.getByRole('link', { name: /Marketing Corp/ })
+    expect(enlace).not.toHaveAttribute('href', '/cliente/null')
+    // `/reuniones`, el destino que ofrece el hallazgo para "lo que no es de
+    // ninguna sala" — ver el reporte de esta tarea para la otra opción
+    // (condicionar a un `<span>`, como `deck/[id]/documento/page.tsx`).
+    expect(enlace).toHaveAttribute('href', '/reuniones')
   })
 })

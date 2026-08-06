@@ -10,9 +10,9 @@ import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
 } from '@/db/consultas'
 import {
-  sesionesMinutables, type SesionPorConfirmar,
+  type SesionPorConfirmar,
 } from '@/dominio/salas'
-import { reunionesPorConfirmar } from '@/dominio/reunion'
+import { fueDada, reunionesMinutables, reunionesPorConfirmar } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
@@ -40,7 +40,7 @@ import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { secretoConfigurado } from '@/auth/sesion'
 import {
-  listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada,
+  marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion,
 } from '@/db/reuniones'
 import { crearReunionConDocumento, documentoDeReunion } from '@/db/documentos'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
@@ -131,10 +131,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // directorio interno), nunca una escritura — para eso, más abajo, cada
   // Server Action exige lo suyo por su cuenta.
   const equipo = await esLector()
-  const [benchmark, archivosDeInteres, todasLasReuniones, personas] = await Promise.all([
+  const [benchmark, archivosDeInteres, personas] = await Promise.all([
     obtenerBenchmark(slug),
     listarArchivos(slug, 'interes'),
-    listarReuniones(),
     /**
      * Para el selector de responsable de NuevoAcuerdoForm/LevantarMinuta —
      * SOLO SI ES EQUIPO (corrección de la revisión final de la ronda 7,
@@ -156,22 +155,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      */
     equipo ? directorio() : Promise.resolve([]),
   ])
-  const reunionesDeLaSala = todasLasReuniones.filter((x) => x.salaSlug === slug)
   // Fuente única de "qué día es hoy" (src/lib/fecha.ts) — la reutilizan
   // `enPreparacion` (aquí abajo), `pendientesDeMinuta` y `porConfirmar`, más
   // adelante: las tres necesitan la MISMA respuesta a "¿ya pasó el día?".
   const hoyCivil = diaCivil(new Date().toISOString())
-  // Lo que está a medio armar para este cliente. No es una reunión todavía —
-  // no se ha dado— así que no entra en la lista de reuniones: es trabajo
-  // abierto. `EstadoReunion` es 'agendada' | 'dada' (ronda 10): a diferencia
-  // de la vieja sesión, ya no hace falta `fueDada` para distinguir una
-  // "lista" cuyo día pasó (esa era la mitad DOCUMENTO del viejo estado
-  // fundido) — `'agendada'` es exactamente "todavía no confirmada como
-  // dada", sin ambigüedad. La deducción automática por fecha pasada
-  // (`fueDada`) no tiene hoy equivalente para reuniones — es trabajo de la
-  // Tarea 6 (`dominio/reunion.ts`); hasta entonces, una reunión con el día ya
-  // pasado sigue aquí, en preparación, hasta que alguien la confirme dada.
-  const enPreparacion = reunionesDeLaSala.filter((x) => x.estado === 'agendada')
+  /**
+   * LO QUE ESTÁ A MEDIO ARMAR PARA ESTE CLIENTE.
+   *
+   * CORREGIDO (revisión final de la ronda 10, hallazgo 2): el filtro perdió
+   * su segunda mitad al migrar de sesión a reunión. `EstadoReunion` es
+   * 'agendada' | 'dada' — `'agendada'` sola ya no basta, porque `fueDada`
+   * (`dominio/reunion.ts`, escrita en esta misma ronda) puede deducir una
+   * reunión como dada SIN que nadie la haya confirmado a mano (con respaldo
+   * y el día ya pasado). Sin el `!fueDada` de aquí, esa misma reunión salía
+   * DOS VECES en pantalla: aquí arriba con "Seguir editando →" y más abajo,
+   * en "Por confirmar" (`reunionesPorConfirmar`, que sí aplica ese mismo
+   * criterio), con "¿se dio?" — la misma pregunta respondida en dos sitios
+   * que no se enteran uno del otro.
+   *
+   * `s.reuniones`, no la vieja `reunionesDeLaSala` (derivada de
+   * `listarReuniones()`, un `ReunionResumen[]` sin `documentoListo`/
+   * `archivos`/`minuta`): `fueDada` necesita ese respaldo completo, y
+   * `EstadoSala.reuniones` (`estadoDeSalaDB`, Tarea 7) ya lo trae cosido —
+   * la misma fuente que usa `pendientesDeMinuta`, más abajo.
+   */
+  const enPreparacion = s.reuniones.filter((r) => r.estado === 'agendada' && !fueDada(r, hoyCivil))
   /**
    * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
    * documento, no de la reunión) — se resuelven aquí, solo si hay equipo
@@ -407,6 +415,26 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
+    /**
+     * LA REUNIÓN, SI SE MANDA UNA, TIENE QUE SER DE ESTA SALA (revisión
+     * final de la ronda 10, hallazgo 4a). `puedeVerlo`
+     * (`src/app/api/archivo/[id]/route.ts`) da prioridad a `reunionId` sobre
+     * `salaSlug` al decidir quién puede LEER el archivo después: un archivo
+     * registrado bajo la sala A pero apuntando a una reunión de la sala B lo
+     * leería el director de B. Hoy no es explotable —solo editores llaman
+     * esta acción y la UI nunca cruza salas— pero esconder el botón no
+     * protege el endpoint: la comprobación va aquí, no solo en la interfaz.
+     */
+    if (datos.reunionId) {
+      const reunionDelArchivo = await obtenerReunion(datos.reunionId)
+      if (!reunionDelArchivo || reunionDelArchivo.salaSlug !== slug) {
+        // El binario ya pudo haber subido antes de llegar aquí (la subida es
+        // navegador → Blob directo — ver el comentario de `ArchivosSala`):
+        // sin fila que lo registre, es basura invisible que se sigue pagando.
+        await del(datos.ruta).catch(() => {})
+        return { error: 'Esa reunión no es de esta sala.' }
+      }
+    }
     try {
       await registrarArchivo({
         salaSlug: slug,
@@ -484,20 +512,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     const listas = await Promise.all(idsDeReunion.map((id) => participantesDe(id)))
     idsDeReunion.forEach((id, i) => { participacionPorReunion[id] = listas[i] })
   }
-  // Toda reunión de ESTA sala cuyo día ya llegó y siga sin minuta, sea
-  // agendada o dada. Ver `sesionesMinutables`.
-  //
-  // Sigue funcionando sin cambios contra `EstadoReunion` (ronda 10): su
-  // filtro excluye `estado !== 'borrador' && estado !== 'agendada'` — con
-  // solo dos valores posibles (`'agendada'` | `'dada'`), eso sigue
-  // significando exactamente "excluye las agendadas", que es lo mismo que
-  // significaba antes.
-  const conMinuta = new Set(reuniones.filter((r) => r.minuta).map((r) => r.id))
-  const pendientesDeMinuta = sesionesMinutables(
-    reunionesDeLaSala.map((x) => ({ ...x, salaSlug: slug })),
-    conMinuta,
-    hoyCivil,
-  )
+  /**
+   * TODA REUNIÓN DE ESTA SALA CUYO DÍA YA LLEGÓ Y SIGA SIN MINUTA, sea
+   * agendada o dada.
+   *
+   * CORREGIDO (revisión final de la ronda 10, hallazgo 1 — Y ES UNA
+   * REGRESIÓN DE UNA LECCIÓN VIEJA): esto llamaba a `sesionesMinutables`
+   * (`dominio/salas.ts`, retirada en esta misma revisión), cuyo filtro
+   * `estado !== 'borrador' && estado !== 'agendada'` se escribió para el
+   * modelo viejo de cinco estados, donde dejaba pasar `lista`/`presentada`/
+   * `minutada`. Con `EstadoReunion = 'agendada' | 'dada'` ese mismo filtro
+   * pasó a significar SOLO 'dada' — obligando a confirmar a mano antes de
+   * poder minutar, justo el papeleo que esta misma función existía para
+   * evitar (ver su comentario original: "obligar al papeleo... es la forma
+   * más segura de que nadie encuentre el motor de transcripción"). De siete
+   * reuniones dadas en la base real solo una se había marcado a mano.
+   *
+   * `reunionesMinutables` (`dominio/reunion.ts`, escrita en esta misma
+   * ronda) es el reemplazo correcto: `estado === 'dada' || tienePresentacion(r)`
+   * — una reunión maquetada cuenta aunque nadie la haya confirmado. Opera
+   * sobre `reuniones` (= `s.reuniones`, arriba), que ya trae el respaldo
+   * completo (`documentoListo`/`archivos`/`minuta`) que necesita para
+   * decidir — la vieja `reunionesDeLaSala` (un `ReunionResumen[]` plano, sin
+   * ese respaldo) ya no hace falta.
+   */
+  const pendientesDeMinuta = reunionesMinutables(reuniones, hoyCivil)
   /**
    * POR CONFIRMAR (punto 2/3): reuniones que la deducción automática de
    * `fueDada` (`dominio/reunion.ts`) ya cuenta como dadas —tienen respaldo y

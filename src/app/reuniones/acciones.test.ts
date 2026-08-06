@@ -37,6 +37,15 @@ vi.mock('next/cache', () => ({
   revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
 }))
 
+// `slugsDeSalas` (hallazgo 4b, revisión final ronda 10): `agendarReunionAction`
+// recibía `datos.salaSlug` crudo del formulario y solo lo comprobaba —vía
+// `crearReunion`, `src/db/reuniones.ts`— si era truthy; una cadena vacía se
+// colaba hasta la base. Ver el describe dedicado, más abajo.
+const slugsDeSalasMock = vi.fn()
+vi.mock('@/db/temas', () => ({
+  slugsDeSalas: () => slugsDeSalasMock(),
+}))
+
 const { agendarReunionAction, editarReunionAction } = await import('./acciones')
 
 const DATOS_BASE: DatosFormulario = {
@@ -58,6 +67,7 @@ beforeEach(() => {
   crearReunionConDocumentoMock.mockReset().mockResolvedValue({ reunionId: 'r1', documentoId: 'd1' })
   editarReunionMock.mockReset().mockResolvedValue(undefined)
   revalidatePathMock.mockReset()
+  slugsDeSalasMock.mockReset().mockResolvedValue(['neracode', 'mexa-creativa', 'uix'])
 })
 
 describe('agendarReunionAction', () => {
@@ -137,6 +147,38 @@ describe('agendarReunionAction', () => {
     const resultado = await agendarReunionAction(DATOS_BASE)
 
     expect(resultado).toEqual({ error: 'No se pudo agendar la reunión.' })
+  })
+
+  /**
+   * HALLAZGO 4b DE LA REVISIÓN FINAL (ronda 10) — `salaSlug` llegaba crudo
+   * del formulario y `crearReunion` (`src/db/reuniones.ts`) solo lo
+   * comprobaba SI ERA TRUTHY (`datos.salaSlug &&`): una cadena vacía se
+   * colaba hasta ahí, revienta contra la clave ajena de Postgres, y el
+   * `catch` de esta acción devolvía ese mensaje crudo a la pantalla.
+   * `src/app/deck/nueva/page.tsx` sí valida (`!salaSlug ||
+   * !slugsDeSalas().includes(salaSlug)`) — mismo criterio, copiado aquí.
+   */
+  describe('salaSlug se valida ANTES de crear (hallazgo 4b)', () => {
+    it('salaSlug vacío se rechaza sin llegar a crearReunionConDocumento', async () => {
+      const resultado = await agendarReunionAction({ ...DATOS_BASE, salaSlug: '' })
+
+      expect(resultado.error).toBeTruthy()
+      expect(crearReunionConDocumentoMock).not.toHaveBeenCalled()
+    })
+
+    it('salaSlug desconocido (no está en slugsDeSalas()) también se rechaza', async () => {
+      const resultado = await agendarReunionAction({ ...DATOS_BASE, salaSlug: 'sala-que-no-existe' })
+
+      expect(resultado.error).toContain('sala-que-no-existe')
+      expect(crearReunionConDocumentoMock).not.toHaveBeenCalled()
+    })
+
+    it('con una sala real, sigue funcionando con normalidad', async () => {
+      const resultado = await agendarReunionAction(DATOS_BASE)
+
+      expect(resultado).toEqual({})
+      expect(crearReunionConDocumentoMock).toHaveBeenCalled()
+    })
   })
 })
 
