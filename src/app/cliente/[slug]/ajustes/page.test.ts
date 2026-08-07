@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import type { Cadencia } from '@/dominio/reunion'
 
@@ -46,6 +47,14 @@ function encontrarPorTipo(nodo: unknown, tipo: unknown): ElementoReact | null {
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
+// `connection()` (Crítico B de la auditoría UX/UI, ronda 11 tarea 4):
+// BarraNavegacion se monta aquí también, así que esta página necesita el
+// mismo mecanismo que `cliente/[slug]/page.test.ts` y `deck/page.test.ts`
+// para que pinte la fecha de HOY, no la del build. Llamado fuera de un
+// request real de Next revienta con "connection was called outside a
+// request scope".
+vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }))
+
 // El registro COMPLETO (las diez filas, grupo-upax incluido) — ver el
 // comentario en page.tsx sobre por qué esta página no usa slugsDeSalas().
 const REGISTRO_TEMAS = {
@@ -72,8 +81,18 @@ vi.mock('@/db/temas', () => ({
 }))
 
 const exigirAdminMock = vi.fn()
+// `esAdmin` (Crítico B): `BarraNavegacion` la necesita DE VERDAD, no un
+// `true` fijo — a diferencia de `/salas` y `/personas`, que sí lo hardcodean
+// (con su propio razonamiento: si `exigirAdmin()` no lanzó, ya es admin). El
+// brief de esta tarea pide explícitamente lo contrario aquí: "si mañana
+// cambia el gate, el hardcodeo miente". TRAMPA CONOCIDA (ya mordió a otro
+// agente, ver `deck/page.test.ts`): si este mock no incluye `esAdmin`, la
+// llamada real revienta con "esAdmin is not a function" y se lleva entre las
+// patas cualquier `await`/`Promise.all` que la rodee.
+const esAdminMock = vi.fn()
 vi.mock('@/auth/roles', () => ({
   exigirAdmin: (...args: unknown[]) => exigirAdminMock(...args),
+  esAdmin: () => esAdminMock(),
 }))
 
 // La consulta directa a `esquema.salas` para lo que `Tema` no trae
@@ -123,23 +142,34 @@ vi.mock('@/db/claves', () => ({
 
 // `secretoConfigurado` ya vivía aquí. Desde la tarea 4 (Crítico A: el link
 // firmado de 30 días se fusiona con la clave, bajo un solo "Acceso del
-// director") se suma `generarTokenDeSala` —el colaborador bajo prueba del
+// director") se suman `generarTokenDeSala` —el colaborador bajo prueba del
 // describe dedicado, más abajo, con nombre para comprobar CON QUÉ se
-// llama. Se sigue mockeando el módulo entero —igual que
-// `cliente/[slug]/page.test.ts`— para no cargar el real, que importa
+// llama— y `cerrarSesion`, que hace falta para `salirAction` de
+// `BarraNavegacion` (Crítico B). Se sigue mockeando el módulo entero —igual
+// que `cliente/[slug]/page.test.ts`— para no cargar el real, que importa
 // `next/headers` a nivel de módulo.
 const secretoConfiguradoMock = vi.fn()
 const generarTokenDeSalaMock = vi.fn()
+const cerrarSesionMock = vi.fn()
 vi.mock('@/auth/sesion', () => ({
   secretoConfigurado: () => secretoConfiguradoMock(),
   generarTokenDeSala: (...args: unknown[]) => generarTokenDeSalaMock(...args),
+  cerrarSesion: () => cerrarSesionMock(),
 }))
 
 const notFoundMock = vi.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
 })
+// `redirect` (Crítico B): la Server Action `salir` que esta página arma para
+// `BarraNavegacion` la llama tras `cerrarSesion()`, igual que en las otras
+// diez pantallas que ya montan la barra. Lanza, como la real: interrumpe la
+// función justo donde se llama, nunca devuelve.
+const redirectMock = vi.fn((..._args: unknown[]) => {
+  throw new Error('NEXT_REDIRECT')
+})
 vi.mock('next/navigation', () => ({
   notFound: () => notFoundMock(),
+  redirect: (...args: unknown[]) => redirectMock(...args),
 }))
 
 const { default: PaginaAjustesSala } = await import('./page')
@@ -149,6 +179,7 @@ beforeEach(() => {
   hayDBMock.mockReturnValue(true)
   cargarTemasMock.mockResolvedValue(REGISTRO_TEMAS)
   exigirAdminMock.mockResolvedValue({ rol: 'equipo', rolApp: 'admin', sub: 'equipo-mkt-corp' })
+  esAdminMock.mockResolvedValue(true)
   filaExtraMock.mockResolvedValue([
     { logoUrl: null, logoRelacionDeTinta: null, cadencia: 'mensual', activa: true, pausadaDesde: null },
   ])
@@ -438,6 +469,50 @@ describe('PaginaAjustesSala — el link firmado de 30 días se fusiona con la cl
 
     expect(encontrarPorTipo(arbol, CopiarBoton)).toBeNull()
     expect(encontrarPorTipo(arbol, ClaveDeSala)).not.toBeNull()
+  })
+})
+
+/**
+ * BARRANAVEGACION (Crítico B de la auditoría UX/UI, ronda 11 tarea 4):
+ * ajustes nació en la ronda 10 y quedó fuera de la lista de la ronda 11 tarea
+ * 2, que la montó en las otras diez pantallas de equipo — era la única
+ * pantalla real de la app sin el menú global; su única salida era "←
+ * <sala>". Mismo contrato que las diez, fijado en `BarraNavegacion.test.tsx`.
+ */
+describe('PaginaAjustesSala — BarraNavegacion (Crítico B)', () => {
+  it('se monta con seccionActiva undefined: los ajustes de una sala no son ninguna de las cinco pestañas, mismo caso que el Home', async () => {
+    const arbol = await invocar('research-land')
+    const barra = encontrarPorTipo(arbol, BarraNavegacion)
+
+    expect(barra).not.toBeNull()
+    expect(barra!.props.seccionActiva).toBeUndefined()
+  })
+
+  it('admin viaja de esAdmin() de verdad, no hardcodeado: si el gate cambiara mañana esto lo reflejaría', async () => {
+    esAdminMock.mockResolvedValue(false)
+
+    const arbol = await invocar('research-land')
+    const barra = encontrarPorTipo(arbol, BarraNavegacion)
+
+    expect(barra!.props.admin).toBe(false)
+  })
+
+  it('hoy es la fecha real del request, no un valor fijo', async () => {
+    const arbol = await invocar('research-land')
+    const barra = encontrarPorTipo(arbol, BarraNavegacion)
+
+    expect(barra!.props.hoy).toBeInstanceOf(Date)
+  })
+
+  it('salirAction: cierra sesión y redirige a /entrar, igual que en las otras diez pantallas', async () => {
+    const arbol = await invocar('research-land')
+    const barra = encontrarPorTipo(arbol, BarraNavegacion)
+    const salir = barra!.props.salirAction as () => Promise<void>
+
+    await expect(salir()).rejects.toThrow('NEXT_REDIRECT')
+
+    expect(cerrarSesionMock).toHaveBeenCalledTimes(1)
+    expect(redirectMock).toHaveBeenCalledWith('/entrar')
   })
 })
 

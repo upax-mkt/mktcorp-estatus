@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { connection } from 'next/server'
 import { eq } from 'drizzle-orm'
 import type { CSSProperties } from 'react'
 import estilos from '../../cliente.module.css'
@@ -8,11 +9,12 @@ import { colorDeTextoDeMarca } from '@/temas'
 import { cargarTemas } from '@/db/temas'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
-import { exigirAdmin } from '@/auth/roles'
-import { secretoConfigurado, generarTokenDeSala } from '@/auth/sesion'
+import { esAdmin, exigirAdmin } from '@/auth/roles'
+import { secretoConfigurado, generarTokenDeSala, cerrarSesion } from '@/auth/sesion'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { editarSalaAction } from '@/app/salas/acciones'
 import { pausarSalaAction, reactivarSalaAction } from '@/app/acuerdos/acciones'
@@ -70,9 +72,40 @@ export const dynamic = 'force-dynamic'
  * sala, `tokenDeAcceso` YA solo salía no-nulo para `admin`
  * (`admin ? await generarTokenDeSala(slug) : null`); no había ahí un
  * `equipo` más amplio que esta mudanza le quite a nadie.
+ *
+ * MONTA `BarraNavegacion` (Crítico B de la misma auditoría, mismo commit de
+ * cierre): esta página nació en la ronda 10 y quedó fuera de la lista de la
+ * ronda 11 tarea 2, que la montó en las otras diez pantallas de equipo — era
+ * la única sin el menú global; su única salida era "← {tema.nombre}". Ver el
+ * comentario junto a su JSX, más abajo, para el porqué de cada prop.
  */
 export default async function PaginaAjustesSala({ params }: { params: Promise<{ slug: string }> }) {
   await exigirAdmin()
+  // `connection()`/`hoy` (Crítico B, mismo mecanismo que las otras diez
+  // pantallas de la ronda 11, tarea 2) para que `BarraNavegacion` pinte la
+  // fecha de HOY, no la del build. `dynamic = 'force-dynamic'` (abajo) ya
+  // vuelve dinámica esta página por otro motivo, pero se deja explícito por
+  // el mismo criterio que el resto de las pantallas de esta ronda: no
+  // depender de un efecto colateral para algo que se puede pedir
+  // directamente.
+  await connection()
+  const hoy = new Date()
+  // `esAdmin()` DE VERDAD, no un `true` fijo — a diferencia de `/salas` y
+  // `/personas`, que sí lo hardcodean (con su propio razonamiento: si
+  // `exigirAdmin()` no lanzó arriba, la sesión YA administra). Aquí se pide
+  // otra vez a propósito: si mañana cambia el gate de esta página, un
+  // hardcodeo aquí mentiría sobre quién mira.
+  const admin = await esAdmin()
+
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/salas/page.tsx`
+  // / `src/app/personas/page.tsx`: repetido a propósito en cada pantalla que
+  // monta `BarraNavegacion`, no centralizado entre archivos.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
+
   const { slug } = await params
 
   /**
@@ -216,6 +249,25 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
 
   return (
     <div className={estilos.app} style={estiloMarca}>
+      {/* LA BARRA (Crítico B de la auditoría UX/UI, ronda 11 tarea 4): ajustes
+          nació en la ronda 10 y quedó fuera de la lista de la tarea 2, que la
+          montó en las otras diez pantallas de equipo — era la única sin el
+          menú global; su única salida era "← {tema.nombre}", de abajo.
+
+          Sin envolver en `{admin && ...}` (a diferencia de
+          `cliente/[slug]/page.tsx`, que sí la envuelve porque esa pantalla
+          también la ve el director de la UDN): esta página entera ya exige
+          admin desde su primera línea (`exigirAdmin()`), así que no hay
+          ningún otro rol que pueda llegar a este render.
+
+          `seccionActiva` explícitamente `undefined`: los ajustes de una sala
+          no son ninguna de las cinco pestañas del ciclo — mismo caso que el
+          Home. `admin` sale de `esAdmin()` de verdad (arriba), no
+          hardcodeado. `salirAction={salir}`: la Server Action que esta
+          misma función define arriba, repetida a propósito en cada pantalla
+          que monta la barra (mismo criterio que el resto de la app). */}
+      <BarraNavegacion seccionActiva={undefined} hoy={hoy} admin={admin} salirAction={salir} />
+
       <header className={estilos.barra}>
         <Link href={`/cliente/${slug}`} className={estilos.volver}>← {tema.nombre}</Link>
         <div className={estilos.barraSala}>
