@@ -473,6 +473,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     '--marca': tema.primario,
     '--marca-texto': colorDeTextoDeMarca(tema.primario),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
+    // El sólido validado del hero (auditoría UX/UI, hallazgo 4) — ver el
+    // comentario de `.hero`/`.heroSolida` en cliente.module.css.
+    '--hero-superficie': tema.superficieOscura,
+    '--hero-texto': tema.textoSobreOscura,
   } as CSSProperties
 
   const abiertos = acuerdosAbiertos(s)
@@ -646,7 +650,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           está pensada para ir sobre color. */}
       <div className={estilos.hero}>
         <div className={estilos.heroInner}>
-          <div className={estilos.heroKicker}>Cliente · Marketing Corp</div>
           <Image
             // logoUrl de la fila, y solo si es null cae al archivo estático
             // (revisión final de la rama, punto 3) — `s` ya trae la columna
@@ -667,6 +670,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               logotipo lleva `alt`, pero un h1 real es lo que da a la página su
               encabezado. */}
           <h1 className={estilos.heroNombreOculto}>{s.nombre}</h1>
+        </div>
+      </div>
+      {/* EL KICKER Y LAS CIFRAS VAN AQUÍ, NO DENTRO DEL DEGRADADO (auditoría
+          UX/UI, hallazgo 4): ver el comentario de `.hero`/`.heroSolida` en
+          cliente.module.css. */}
+      <div className={estilos.heroSolida}>
+        <div className={estilos.heroInner}>
+          <div className={estilos.heroKicker}>Cliente · Marketing Corp</div>
           <div className={estilos.heroMeta}>
             <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{textoDiasDesde(s.diasDesdeUltima)}</span>

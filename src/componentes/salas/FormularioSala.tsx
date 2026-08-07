@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { upload } from '@vercel/blob/client'
 import { slugDesdeNombre } from '@/lib/marca'
@@ -160,6 +160,13 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
   const [error, setError] = useState<string | null>(null)
   const [guardado, setGuardado] = useState(false)
   const [pendiente, empezar] = useTransition()
+  /**
+   * EL INPUT DE ARCHIVO DEL LOGOTIPO, OCULTO (auditoría UX/UI, hallazgo 2):
+   * se dispara con `.click()` desde el botón "Elegir logotipo", más abajo —
+   * mismo patrón que el input compartido de "+ Subir presentación" en
+   * `ReunionesSala.tsx`.
+   */
+  const entradaLogo = useRef<HTMLInputElement>(null)
 
   // RECALCULAR PALETA (revisión final de la rama, punto 1): estado propio,
   // separado del guardado normal de arriba — son dos acciones distintas que
@@ -464,16 +471,38 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
 
           <div className={estilos.campo}>
             <span className={estilos.etiqueta}>Logotipo</span>
+            {/* EL INPUT NATIVO SE ESCONDE (auditoría UX/UI, hallazgo 2): su
+                texto —"Seleccionar archivo | Sin archivo…leccionados"— lo
+                pinta el navegador, no nosotros, y se cortaba dentro del ancho
+                de esta columna. Oculto de verdad pero interactivo
+                (`.entradaOculta`, salas.module.css): nunca `display:none`,
+                que también saca el campo de la interacción en algunos
+                navegadores. Se dispara desde el botón de abajo. */}
             <input
+              ref={entradaLogo}
               type="file"
-              className={estilos.entrada}
+              className={estilos.entradaOculta}
+              aria-hidden="true"
+              tabIndex={-1}
               accept="image/png,image/svg+xml,image/webp"
               disabled={subiendoLogo}
               onChange={(e) => {
                 const archivo = e.target.files?.[0]
+                // Permite volver a elegir el mismo archivo si algo falló —
+                // mismo criterio que el input compartido de ReunionesSala.
+                e.target.value = ''
                 if (archivo) void alElegirLogo(archivo)
               }}
             />
+            <button
+              type="button"
+              className="boton"
+              data-tono="suave"
+              disabled={subiendoLogo}
+              onClick={() => entradaLogo.current?.click()}
+            >
+              Elegir logotipo
+            </button>
             <p className={estilos.pista}>PNG o SVG con fondo transparente — así se mide bien su tinta.</p>
             {subiendoLogo && <p className={estilos.pista}>Midiendo y subiendo…</p>}
             {avisoLogo && <p className={estilos.avisoTexto}>{avisoLogo}</p>}
@@ -503,13 +532,15 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
         </div>
       </div>
 
-      {error && <p className={estilos.formularioError}>{error}</p>}
-      {guardado && (
-        <p className={estilos.formularioOk}>
-          {editando ? 'Cambios guardados.' : 'Sala creada.'} <Link href={volverA}>Volver a la lista →</Link>
-        </p>
-      )}
-
+      {/* PEGAJOSA AL FONDO (auditoría UX/UI, hallazgo 3): con cuarenta
+          tipografías arriba, llegar hasta aquí costaba un scroll entero —
+          cambiar solo la cadencia, que está al principio del todo, obligaba a
+          bajar hasta el final para guardar. `.formularioAcciones`
+          (salas.module.css) se pega al fondo del viewport al desplazarse;
+          error/éxito viven AQUÍ DENTRO, no arriba, para que el resultado de
+          guardar se lea sin desplazarse otra vez. Detalle de por qué esto no
+          se "pega" de verdad dentro de /salas —y por qué eso no rompe nada
+          ahí— en el comentario de la clase. */}
       <div className={estilos.formularioAcciones}>
         <button type="submit" className="boton" disabled={pendiente || !listo}>
           {pendiente ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear sala'}
@@ -517,6 +548,12 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
         <Link href={volverA} className="boton" data-tono="fantasma">
           Cancelar
         </Link>
+        {error && <p className={estilos.formularioError}>{error}</p>}
+        {guardado && (
+          <p className={estilos.formularioOk}>
+            {editando ? 'Cambios guardados.' : 'Sala creada.'} <Link href={volverA}>Volver a la lista →</Link>
+          </p>
+        )}
       </div>
     </form>
   )

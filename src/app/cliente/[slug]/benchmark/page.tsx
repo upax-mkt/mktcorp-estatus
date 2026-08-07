@@ -48,6 +48,10 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
     '--marca': tema.primario,
     '--marca-texto': colorDeTextoDeMarca(tema.primario),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
+    // El sólido validado del hero (auditoría UX/UI, hallazgo 4) — ver el
+    // comentario de `.hero`/`.heroSolida` en cliente.module.css.
+    '--hero-superficie': tema.superficieOscura,
+    '--hero-texto': tema.textoSobreOscura,
   } as CSSProperties
 
   return (
@@ -60,9 +64,16 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         </div>
       </header>
 
-      {/* El degradado de la marca, exacto y SIN texto encima: la regla de
-          marca vale igual aquí que en la portada de una presentación. */}
-      <div className={estilos.hero}>
+      {/* El degradado de la marca, exacto y SIN texto encima —de verdad esta
+          vez (auditoría UX/UI, hallazgo 4): este comentario ya lo decía, pero
+          el kicker/nombre/cifras vivían dentro de `.hero`, heredando su
+          `color:#fff` fijo pintado directo sobre el degradado — 3.9:1 contra
+          el magenta de Zeus, por debajo del mínimo legible. Ahora son dos
+          bandas: el degradado, vacío, y `.heroSolida` justo debajo con el
+          texto sobre superficie validada (ver el comentario de
+          `.hero`/`.heroSolida` en cliente.module.css). */}
+      <div className={estilos.hero} aria-hidden="true" />
+      <div className={estilos.heroSolida}>
         <div className={estilos.heroInner}>
           <div className={estilos.heroKicker}>Benchmark competitivo</div>
           <h1 className={estilos.heroNombre}>{tema.nombre}</h1>

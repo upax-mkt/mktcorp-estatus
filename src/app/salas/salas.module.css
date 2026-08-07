@@ -123,6 +123,17 @@
   border: 1px solid var(--borde-fuerte); border-radius: 0.45rem; background: var(--superficie); cursor: pointer;
 }
 .pista { font-size: 0.78rem; color: var(--tx-3); margin: 0; }
+/* El input de archivo del logotipo, oculto de verdad pero interactivo — se
+   dispara con `.click()` desde el botón "Elegir logotipo" (auditoría UX/UI,
+   hallazgo 2: el texto nativo del input lo pinta el navegador y se cortaba
+   dentro de esta columna angosta). Mismo recorte que `.entradaOculta` en
+   cliente.module.css, repetido aquí a propósito —cada hoja de este sistema
+   es local a su pantalla—: `display:none` también saca el campo de la
+   interacción en algunos navegadores, esto no. */
+.entradaOculta {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 /* Aviso que NO bloquea guardar (el logo sin transparencia: se guarda igual y
    se puede corregir después) — fondo con tinte para que el texto sobre
    `--ojo` cumpla contraste; a pelo sobre el papel blanco no llegaba. Mismo
@@ -137,7 +148,28 @@
    que uno se detecta antes de enviar. */
 .formularioError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
 .formularioOk { font-size: 0.85rem; color: var(--ok); margin: 0; }
-.formularioAcciones { display: flex; align-items: center; gap: 0.75rem; }
+/* PEGAJOSA AL FONDO (auditoría UX/UI, hallazgo 3): con dos rejillas de veinte
+   tipografías arriba, "Guardar cambios" quedaba a un scroll entero de
+   cualquier campo que no fuera el último. Mismo mecanismo que `.panelMaquetar`
+   en el editor de una reunión (deck.module.css) — "un panel pegajoso tiene
+   que ser opaco": sin el fondo sólido, la sombra y el borde, flotaría
+   transparente y se leería encima de lo que sigue desplazándose debajo,
+   lección ya pagada ahí. El error/éxito de guardar viven DENTRO de esta
+   barra (ver FormularioSala.tsx), no arriba de ella, para que el resultado
+   se vea sin desplazarse otra vez.
+
+   EN /salas, FormularioSala también vive dentro de `.filaSala` — que declara
+   `overflow:hidden` para recortar sus esquinas redondeadas. Ese overflow
+   corta a cualquier descendiente `position:sticky` (deja de "pegarse" de
+   verdad, se comporta como estático): en esa pantalla esto se ve como una
+   barra de acciones normal, ni mejor ni peor que hoy — nunca rota. */
+.formularioAcciones {
+  position: sticky; bottom: 1rem;
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  margin-top: 0.5rem; padding: 0.85rem 1rem;
+  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--r-3);
+  box-shadow: 0 8px 30px oklch(0 0 0 / 0.12);
+}
 
 /* ---- vista previa de la marca ---- */
 .previa { padding: 0; overflow: hidden; display: grid; }
@@ -182,9 +214,22 @@
   gap: 0.6rem;
   max-height: 23rem;
   overflow-y: auto;
-  padding: 0.2rem;
+  /* Colchón vacío al fondo, del mismo alto que la máscara de abajo: así, al
+     llegar al final del scroll, lo que se atenúa es este relleno vacío y
+     nunca la última tarjeta real. */
+  padding: 0.2rem 0.2rem 2.5rem;
   border-radius: 0.6rem;
   background: var(--hundido);
+  /* LA ÚLTIMA FILA VISIBLE SE CORTABA A MEDIA ALTURA (auditoría UX/UI,
+     hallazgo 1): con `max-height` fijo y veinte tarjetas que no dividen
+     exacto en filas completas, la de hasta abajo quedaba partida —medios
+     nombres de tipografía, "Inter"/"Manrope"/"DM Sans" cortados— y leía como
+     un fallo de render, no como un contenedor con scroll. La máscara apaga el
+     borde hacia el propio fondo del contenedor en vez de cortarlo en seco: lo
+     último que se ve antes del límite es un desvanecido, nunca un texto
+     tajado — la señal de "hay más abajo" que antes faltaba. */
+  mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent 100%);
 }
 
 .opcionFuente {

@@ -240,3 +240,44 @@ describe('FormularioSala — destino de "volver" (ronda 10, tarea 15b)', () => {
     expect(await screen.findByRole('link', { name: /volver a la lista/i })).toHaveAttribute('href', '/cliente/zeus')
   })
 })
+
+// LOGOTIPO: EL INPUT NATIVO SE ESCONDE (auditoría UX/UI, hallazgo 2). Su
+// texto —"Seleccionar archivo | Sin archivo…leccionados"— lo pinta el
+// navegador, no nosotros, y se cortaba feo dentro de la columna angosta del
+// formulario. Se cambia por un botón propio que dispara el mismo input,
+// ahora oculto (mismo patrón que "+ Subir presentación" en
+// `ReunionesSala.tsx`: oculto de verdad pero interactivo, nunca
+// `display:none`). Estos tests fijan que el cambio de disparador no rompe
+// nada: elegir un archivo a través del input oculto tiene que seguir
+// llegando a `alElegirLogo` igual que antes.
+describe('FormularioSala — el logotipo se elige con un botón, no con el input nativo (auditoría UX/UI, hallazgo 2)', () => {
+  it('ofrece un botón "Elegir logotipo"; el input de archivo deja de ser el control visible', () => {
+    render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} />)
+    expect(screen.getByRole('button', { name: /elegir logotipo/i })).toBeInTheDocument()
+    // El input sigue en el DOM —es lo que de verdad recibe el archivo— pero
+    // ya no es un control con el que alguien tropiece directo: sin nombre
+    // accesible propio, fuera del orden de tabulación.
+    const entrada = document.querySelector('input[type="file"]')
+    expect(entrada).toHaveAttribute('aria-hidden', 'true')
+    expect(entrada).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('el botón dispara el input oculto: elegir un logo demasiado pesado sigue avisando igual que antes', async () => {
+    const usuario = userEvent.setup()
+    render(<FormularioSala guardar={vi.fn()} slugsUsados={[]} />)
+
+    await usuario.click(screen.getByRole('button', { name: /elegir logotipo/i }))
+    const entrada = document.querySelector('input[type="file"]')
+    if (!(entrada instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    // Tipo real (`image/png`) para que el propio `accept` del input no lo
+    // filtre antes de llegar a `alElegirLogo` — el peso es lo que se fuerza
+    // (Object.defineProperty: escribir 100 MB de verdad no hace falta) para
+    // disparar la validación SÍNCRONA de tamaño, sin tocar el camino
+    // asíncrono de medir/subir (fuera del propósito de este test).
+    const archivo = new File(['contenido'], 'logo.png', { type: 'image/png' })
+    Object.defineProperty(archivo, 'size', { value: 200 * 1024 * 1024 })
+    await usuario.upload(entrada, archivo)
+
+    expect(await screen.findByText(/el máximo son 100 mb/i)).toBeInTheDocument()
+  })
+})

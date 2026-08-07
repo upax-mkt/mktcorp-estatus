@@ -60,13 +60,44 @@
 .barraSala + form { margin-left: 1.2rem; }
 .barraPunto { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--marca); }
 
-/* ---- encabezado vestido de marca ---- */
+/* ---- encabezado vestido de marca ----
+   DOS BANDAS, NO UNA (auditoría UX/UI, hallazgo 4 — regla dura de marca del
+   24-jul: "el degradado de marca se muestra EXACTO del brandbook y NUNCA
+   lleva texto encima; el texto va sobre superficie sólida validada").
+   `.hero` era una sola banda con el degradado de fondo y el texto pintado
+   directo en blanco fijo encima — 3.9:1 contra el magenta de Zeus (#FF004F,
+   la segunda parada de su degradado), por debajo del mínimo legible (4.5:1).
+   Aclarar u oscurecer el degradado para compensar viola la regla —la tomó
+   Franco tras ver que ajustarlo por legibilidad lo descoloraba—, así que la
+   corrección no toca el degradado en absoluto: `.hero` se queda como banda
+   PURAMENTE decorativa (el degradado exacto y, en la sala, el logotipo en
+   blanco — un logotipo es una marca gráfica, no texto, y no tiene requisito
+   de contraste) y todo lo que sí es texto —kicker, nombre, cifras— se muda a
+   `.heroSolida`, la superficie sólida justo debajo. Mismo patrón que ya usa
+   el documento de una reunión para su portada (`.portada`/`.portada::before`
+   en sesion/documento.module.css): banda de marca arriba sin texto,
+   contenido legible debajo.
+
+   --hero-superficie/--hero-texto son tema.superficieOscura/
+   tema.textoSobreOscura (ver estiloMarca en page.tsx, ajustes/page.tsx y
+   benchmark/page.tsx) — el mismo par "fondo oscuro de portadas y divisores"
+   que ya usa ProveedorTema con superficie='oscura', validado ≥4.5:1 para las
+   diez marcas por src/lib/marca.test.ts. Las diez guardan textoSobreOscura en
+   blanco, así que lo que ve un director cambia poco: sigue viendo su nombre
+   y sus cifras en blanco — ahora sobre un sólido de marca validado, no sobre
+   el degradado crudo. */
 .hero {
   background: var(--gradiente);
-  color: #fff;
-  padding: clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem);
+  padding: clamp(1.5rem, 4vw, 2.25rem) clamp(1rem, 4vw, 2.5rem);
+  display: flex;
+  align-items: center;
 }
-.heroInner { max-width: 1080px; margin: 0 auto; }
+.heroInner { max-width: 1080px; margin: 0 auto; width: 100%; }
+.heroSolida {
+  background: var(--hero-superficie);
+  color: var(--hero-texto);
+  padding: 1.1rem clamp(1rem, 4vw, 2.5rem) 1.35rem;
+}
 .heroKicker { font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.85; font-weight: 600; margin-bottom: 0.6rem; }
 .heroNombre { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 800; letter-spacing: -0.03em; margin: 0; line-height: 1; }
 .heroMeta { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1.5rem; }

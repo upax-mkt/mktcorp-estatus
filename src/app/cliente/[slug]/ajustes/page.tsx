@@ -245,6 +245,10 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
     '--marca': tema.primario,
     '--marca-texto': colorDeTextoDeMarca(tema.primario),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
+    // El sólido validado del hero (auditoría UX/UI, hallazgo 4) — ver el
+    // comentario de `.hero`/`.heroSolida` en cliente.module.css.
+    '--hero-superficie': tema.superficieOscura,
+    '--hero-texto': tema.textoSobreOscura,
   } as CSSProperties
 
   return (
@@ -276,7 +280,11 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
         </div>
       </header>
 
-      <div className={estilos.hero}>
+      {/* El degradado, exacto y sin texto encima (auditoría UX/UI, hallazgo
+          4): banda puramente decorativa, ver el comentario de
+          `.hero`/`.heroSolida` en cliente.module.css. */}
+      <div className={estilos.hero} aria-hidden="true" />
+      <div className={estilos.heroSolida}>
         <div className={estilos.heroInner}>
           <div className={estilos.heroKicker}>Ajustes de sala</div>
           <h1 className={estilos.heroNombre}>{tema.nombre}</h1>
