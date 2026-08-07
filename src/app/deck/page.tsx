@@ -16,10 +16,19 @@ import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 
 export const dynamic = 'force-dynamic'
 
-/** Dos valores, no cinco (ronda 10): `EstadoReunion` es `'agendada' | 'dada'`. */
-const ETIQUETA_ESTADO: Record<string, string> = {
-  agendada: 'agendada',
-  dada: 'dada',
+/**
+ * Dos estados, no cinco (ronda 10): `EstadoDocumento` es `'borrador' |
+ * 'listo'`. AQUÍ ES EL DOCUMENTO, no la reunión (`EstadoReunion`, `'agendada'
+ * | 'dada'`) — auditoría UX/UI 7-ago, importante 6: "En preparación"
+ * etiquetaba cada fila con el estado de la JUNTA, que en esta sección es
+ * SIEMPRE `agendada` (es el propio filtro de `enPreparacion`, más abajo) y
+ * por tanto no distinguía nada entre filas. Mismo eje y mismas palabras que
+ * ya usa `/deck/[id]/page.tsx` (`ETIQUETA_ESTADO`/`documentoEstado`) —no se
+ * inventa un vocabulario nuevo para lo mismo.
+ */
+const ETIQUETA_ESTADO_DOCUMENTO: Record<string, string> = {
+  borrador: 'borrador',
+  listo: 'listo',
 }
 
 function etiquetaAlcance(alcance: string): string {
@@ -134,8 +143,8 @@ export default async function PagPreparar() {
 
   // El texto de cada minuta, para poder descargarla desde la lista sin
   // entrar — solo para las que de verdad tienen una: `AccionesReunion` ya
-  // pinta "Sin minuta" cuando `textoMinuta` llega `undefined`, así que
-  // pedirla para las que no tienen sería una consulta desperdiciada.
+  // ofrece "+ Levantar minuta" cuando `textoMinuta` llega `undefined`, así
+  // que pedirla para las que no tienen sería una consulta desperdiciada.
   const textos = new Map(
     await Promise.all(
       anteriores
@@ -197,14 +206,30 @@ export default async function PagPreparar() {
                 const doc = documentosPorId.get(s.id)
                 const totalItems = doc?.items.length ?? 0
                 const itemsLlenados = doc?.items.filter((i) => i.llenado).length ?? 0
+                /**
+                 * Auditoría UX/UI 7-ago, importante 6: el estado que se
+                 * enseña aquí es del DOCUMENTO (`doc?.estado`), no de la
+                 * reunión (`s.estado`, que en esta sección es siempre
+                 * `agendada`). Sin documento, `'borrador'` — mismo criterio
+                 * de "nada maquetado todavía" que ya usa `documentoEstado`
+                 * en `/deck/[id]/page.tsx`.
+                 */
+                const estadoDocumento = doc?.estado ?? 'borrador'
                 return (
                 <div key={s.id} className={estilos.fila}>
                   <Link href={`/deck/${s.id}`} className={estilos.filaIzq}>
+                    {/* Título de la reunión arriba, sala abajo: paridad con
+                        "Anteriores" (auditoría UX/UI 7-ago, importante 6 —
+                        "las dos mitades de Presentaciones no hablan igual").
+                        Antes titulaba con `s.salaNombre` y el título de la
+                        reunión no se mostraba en ningún sitio de esta fila. */}
                     <div className={estilos.filaNombre}>
                       <span className={estilos.filaPunto} style={{ background: s.salaColor }} />
-                      {s.salaNombre}
+                      {s.titulo}
                     </div>
                     <div className={estilos.filaMeta}>
+                      <span>{s.salaNombre}</span>
+                      <span className={estilos.sep}>·</span>
                       <span>{s.tipo}</span>
                       <span className={estilos.sep}>·</span>
                       <span>{etiquetaAlcance(s.alcance)}</span>
@@ -222,7 +247,7 @@ export default async function PagPreparar() {
                       </div>
                       <span className={estilos.avanceTexto}>{itemsLlenados}/{totalItems}</span>
                     </div>
-                    <span className={`${estilos.chip} ${estilos[s.estado]}`}>{ETIQUETA_ESTADO[s.estado]}</span>
+                    <span className={`${estilos.chip} ${estilos[estadoDocumento]}`}>{ETIQUETA_ESTADO_DOCUMENTO[estadoDocumento]}</span>
                     {/* Una reunión que ya no va a ninguna parte tiene que
                         poder borrarse desde donde se ve. Sin esto, la lista
                         solo crece — y esas mismas reuniones reaparecían luego
