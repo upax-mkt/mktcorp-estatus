@@ -34,6 +34,23 @@ import estilos from './AgendarRapido.module.css'
  * formulario muerto, se enseña por qué no hay nada que agendar — mismo
  * criterio de "un vacío que lo explica" que ya usan `ReunionesSala`,
  * `PanelAgenda` y `AcuerdosArrastrables`.
+ *
+ * TÍTULO, OPCIONAL (auditoría UX/UI, ronda 11 — "el título de una reunión no
+ * dice de qué es"): hasta ahora este atajo pedía sala/día/hora/tipo y NADA
+ * más, así que toda reunión creada aquí nacía con el título derivado de
+ * `tituloPorDefecto` (`src/db/documentos.ts`) — que describe la CADENCIA, no
+ * el CONTENIDO. Caso real que lo disparó: Research Land tiene dos
+ * quincenales en la MISMA sala, Comercial y Digital, indistinguibles en
+ * cualquier lista con solo la cadencia como título. El campo se suma, pero
+ * OPCIONAL, a propósito: este formulario sigue siendo el atajo "rápido" que
+ * Franco pidió, y obligarlo aquí metería fricción justo donde el diseño la
+ * evita a propósito — quien tiene prisa lo deja en blanco y
+ * `crearReunionConDocumento` resuelve un título legible por su cuenta; quien
+ * ya sabe si es la Comercial o la Digital lo escribe en dos segundos. Alcance,
+ * lugar y participantes SIGUEN sin pedirse aquí: eso se completa después, ya
+ * con la reunión creada, como antes. Mismo nombre de campo ("Título") que
+ * `FormularioSesion.tsx` (`DatosFormulario.titulo`) — un solo vocabulario
+ * entre los dos formularios, aunque resuelvan obligatorio/opcional distinto.
  */
 
 export interface SalaParaAgendar {
@@ -50,6 +67,15 @@ export interface DatosAgendarRapido {
   /** HH:MM */
   hora: string
   tipo: 'semanal' | 'quincenal' | 'mensual'
+  /**
+   * OPCIONAL: en blanco, `crearReunionConDocumento` cae a `tituloPorDefecto`
+   * (ver el comentario de arriba). Mismo criterio de tipo que
+   * `DatosFormulario.titulo` (`FormularioSesion.tsx`) — `string`, nunca
+   * `string | undefined`: "sin título" se representa con `''`, no con la
+   * ausencia de la clave, para que las dos formas de agendar compartan una
+   * sola forma de decir "no lo llenaron".
+   */
+  titulo: string
 }
 
 interface Props {
@@ -82,6 +108,7 @@ export function AgendarRapido({ salas, agendar }: Props) {
     dia: '',
     hora: HORA_POR_DEFECTO,
     tipo: 'mensual',
+    titulo: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
@@ -203,6 +230,20 @@ export function AgendarRapido({ salas, agendar }: Props) {
                     </select>
                   </label>
                 </div>
+
+                {/* OPCIONAL (ver el comentario del archivo): fuera de la rejilla
+                    2x2 de arriba, a todo lo ancho — mismo criterio visual que
+                    `FormularioSesion.tsx` separa su "Título" del resto de los
+                    campos. */}
+                <label className={estilos.campo}>
+                  <span className="micro">Título</span>
+                  <input
+                    type="text"
+                    value={datos.titulo}
+                    onChange={(e) => campo('titulo', e.target.value)}
+                    placeholder="Si lo dejas vacío, se pone uno solo"
+                  />
+                </label>
 
                 {error && <p className={estilos.aviso}>{error}</p>}
 

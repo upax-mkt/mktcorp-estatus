@@ -105,24 +105,26 @@ describe('crearReunionConDocumento', () => {
    * mudarlo: sin fijar `timeZone`, `toLocaleDateString` usa la zona del
    * PROCESO. En Vercel eso es UTC, así que una junta creada un día 31 a las
    * 19:00 CDMX —que ya es la 01:00 UTC del día 1 siguiente— recibía el mes
-   * SIGUIENTE en su título. Aquí se ancla con `diaCivil`/`mesLargo`
-   * (src/lib/fecha.ts), así que el resultado no depende de en qué zona
-   * corra el proceso que ejecuta este test.
+   * SIGUIENTE en su título. Aquí se ancla con `fechaCompleta`
+   * (src/lib/fecha.ts, misma familia de helpers que `diaCivil`), así que el
+   * resultado no depende de en qué zona corra el proceso que ejecuta este
+   * test — ahora a nivel de DÍA, no solo de mes (ver el describe de abajo,
+   * "dos reuniones... el día las distingue").
    */
-  it('ancla el mes por defecto a CDMX, no al proceso: el 31 a las 19:00 CDMX no cruza a agosto', async () => {
+  it('ancla el día por defecto a CDMX, no al proceso: el 31 a las 19:00 CDMX no cruza a agosto', async () => {
     // 31-jul-2026 19:00 CDMX (UTC-6) = 01:00 UTC del 1-ago-2026.
     const fecha = new Date('2026-08-01T01:00:00.000Z')
     const { reunionId } = await crearReunionConDocumento({
       salaSlug: 'neracode', fecha, titulo: '', tipo: 'mensual',
     })
-    expect((await obtenerReunion(reunionId))!.titulo).toBe('Estatus mensual · Julio de 2026')
+    expect((await obtenerReunion(reunionId))!.titulo).toBe('Estatus mensual · 31 de julio de 2026')
   })
 
   it('un título en blanco (solo espacios) también cae en el título por defecto', async () => {
     const { reunionId } = await crearReunionConDocumento({
       salaSlug: 'neracode', fecha: new Date('2026-08-01T01:00:00.000Z'), titulo: '   ', tipo: 'mensual',
     })
-    expect((await obtenerReunion(reunionId))!.titulo).toBe('Estatus mensual · Julio de 2026')
+    expect((await obtenerReunion(reunionId))!.titulo).toBe('Estatus mensual · 31 de julio de 2026')
   })
 
   it('una sala en pausa no admite crear la reunión (el freeze de crearReunion se respeta)', async () => {
@@ -130,6 +132,42 @@ describe('crearReunionConDocumento', () => {
     await expect(
       crearReunionConDocumento({ salaSlug: 'neracode', fecha: new Date(), titulo: 'x', tipo: 'mensual' }),
     ).rejects.toThrow(/pausada/i)
+  })
+
+  /**
+   * HALLAZGO DE LA AUDITORÍA UX/UI (ronda 11): "el título de una reunión no
+   * dice de qué es". Caso real — Research Land tiene dos quincenales
+   * distintas en la MISMA sala, Comercial y Digital; con el título por
+   * defecto viejo ("Estatus {tipo} · {Mes}") las dos nacían IDÉNTICAS
+   * ("Estatus quincenal · Agosto de 2026") en cualquier lista. Estos dos
+   * tests son el contrato de la corrección: uno prueba que un título escrito
+   * a mano SOBREVIVE sin que el derivado lo pise; el otro, que el derivado ya
+   * no colisiona para el caso real que motivó el arreglo.
+   */
+  it('un título escrito a mano sobrevive: el derivado no lo pisa', async () => {
+    const { reunionId } = await crearReunionConDocumento({
+      salaSlug: 'research-land',
+      fecha: new Date('2026-08-03T16:00:00Z'),
+      titulo: 'Estatus Comercial Quincenal',
+      tipo: 'quincenal',
+    })
+    expect((await obtenerReunion(reunionId))!.titulo).toBe('Estatus Comercial Quincenal')
+  })
+
+  it('dos reuniones de la misma sala y tipo en el mismo mes ya no comparten título por defecto — el día las distingue (caso real: Comercial vs. Digital de Research Land)', async () => {
+    const { reunionId: comercial } = await crearReunionConDocumento({
+      salaSlug: 'research-land', fecha: new Date('2026-08-03T16:00:00Z'), titulo: '', tipo: 'quincenal',
+    })
+    const { reunionId: digital } = await crearReunionConDocumento({
+      salaSlug: 'research-land', fecha: new Date('2026-08-17T16:00:00Z'), titulo: '', tipo: 'quincenal',
+    })
+
+    const tituloComercial = (await obtenerReunion(comercial))!.titulo
+    const tituloDigital = (await obtenerReunion(digital))!.titulo
+
+    expect(tituloComercial).not.toBe(tituloDigital)
+    expect(tituloComercial).toBe('Estatus quincenal · 3 de agosto de 2026')
+    expect(tituloDigital).toBe('Estatus quincenal · 17 de agosto de 2026')
   })
 })
 

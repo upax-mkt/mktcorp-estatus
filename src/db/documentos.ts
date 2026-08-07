@@ -33,7 +33,7 @@ import {
   obtenerPlantilla, tiposFijosDe, type DefinicionItem,
 } from '@/secciones/plantillas'
 import type { ResultadoMaquetacion } from '@/motor/maquetar'
-import { diaCivil, mesLargo } from '@/lib/fecha'
+import { diaCivil, fechaCompleta } from '@/lib/fecha'
 
 export type { DefinicionItem } from '@/secciones/plantillas'
 
@@ -140,26 +140,43 @@ function leerEstructura(bruto: unknown): EstructuraDocumento {
 
 /**
  * El título por defecto de una reunión que no trae uno propio: "Estatus
- * {tipo} · {Mes} de {año}". Mudado de `tituloPorDefecto` (`sesiones.ts:186`,
+ * {tipo} · {día completo}". Mudado de `tituloPorDefecto` (`sesiones.ts:186`,
  * tal cual el nombre) — lo usa `crearReunionConDocumento` cuando
  * `datos.titulo` llega vacío, igual que `crearSesionConEstructura` lo usaba
  * para su `estructura.titulo`.
  *
- * ARREGLADO AL MUDAR (bug preexistente, ver progress.md de la ronda 10): la
- * versión vieja llamaba `fecha.toLocaleDateString('es-MX', {...})` SIN fijar
- * `timeZone`, así que usaba la zona del PROCESO — en Vercel, UTC — y no la de
- * la operación. Una junta creada un día 31 a las 19:00 CDMX es la 01:00 UTC
- * del día 1: sin anclar, el título saltaba al mes siguiente. Aquí se deriva
- * el año/mes CIVIL con `diaCivil` (src/lib/fecha.ts, la fuente única de
- * "fechas ancladas a America/Mexico_City") y se formatea con `mesLargo`, que
- * también ancla — el mismo constraint global que ya cumple el resto de la
- * app, nunca un `timeZone` repetido a mano aquí.
+ * GRANULARIDAD DE DÍA, NO DE MES (auditoría UX/UI, ronda 11, "el título de
+ * una reunión no dice de qué es"): el título es lo único que distingue dos
+ * reuniones en una lista, y la versión anterior formateaba solo "{tipo} ·
+ * {Mes}" — exactamente lo que NO distingue nada cuando dos reuniones
+ * comparten sala, tipo y mes. Caso real: Research Land tiene dos quincenales
+ * en la MISMA sala, Comercial y Digital, y las dos nacían "Estatus quincenal
+ * · Agosto de 2026" — indistinguibles. `fecha` (el día EXACTO de la reunión)
+ * ya llegaba como parámetro y no se usaba para nada más que extraer el mes:
+ * es el dato "a mano" que sí distingue casi cualquier par de reuniones (dos
+ * quincenales de la misma sala caen, por definición, en días distintos). No
+ * es una solución perfecta —no dice "Comercial" ni "Digital", porque eso
+ * ningún default puede inventarlo—, es la que deja menos mal parado a quien
+ * no escribe un título a mano (ver `crearReunionConDocumento`, que SIEMPRE
+ * prefiere el título escrito sobre este).
+ *
+ * ARREGLADO AL MUDAR, y sigue arreglado (bug preexistente, ver progress.md de
+ * la ronda 10): la versión vieja de `sesiones.ts` llamaba
+ * `fecha.toLocaleDateString('es-MX', {...})` SIN fijar `timeZone`, así que
+ * usaba la zona del PROCESO — en Vercel, UTC — y no la de la operación. Una
+ * junta creada un día 31 a las 19:00 CDMX es la 01:00 UTC del día 1: sin
+ * anclar, el título saltaba al mes siguiente. Aquí se usa `fechaCompleta`
+ * (src/lib/fecha.ts, la fuente única de "fechas ancladas a
+ * America/Mexico_City" — misma familia que `diaCivil`, que este módulo sigue
+ * usando más abajo para resolver acuerdos retomados) — mismo anclaje que ya
+ * usa el resto de la app para mostrar una fecha completa en texto corrido
+ * (`fechaCompleta(reunion.fecha)`, en una decena de pantallas), así que esto
+ * no reinventa formato: reusa el que ya existe para esta forma exacta de
+ * fecha ("3 de agosto de 2026") en vez de construirlo a mano con `mesLargo`
+ * (pensado para encabezados de calendario, no para texto corrido).
  */
 function tituloPorDefecto(tipo: TipoReunion, fecha: Date): string {
-  const [anioCivil, mesCivil] = diaCivil(fecha.toISOString()).split('-').map(Number)
-  // mesLargo espera el mes 0-indexado (como Date.getMonth()); diaCivil da
-  // "YYYY-MM" con el mes en 1-12 ("como se dice en voz alta").
-  return `Estatus ${tipo} · ${mesLargo(anioCivil, mesCivil - 1)}`
+  return `Estatus ${tipo} · ${fechaCompleta(fecha.toISOString())}`
 }
 
 /** Si un item tiene algo escrito. Lo usa también el hub, para el avance real. Mudado tal cual de `sesiones.ts`. */

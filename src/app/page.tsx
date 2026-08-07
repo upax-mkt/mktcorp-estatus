@@ -153,16 +153,28 @@ export default async function Hub() {
    * `crearReunion` de bajo nivel — y no por casualidad, sino por lo mismo que
    * usa `/agenda` (`agendarAction`, src/app/agenda/page.tsx): hoy TODA
    * reunión agendada desde la app nace con su documento —es lo que hace
-   * `/agenda`, y por qué las diez reuniones migradas lo tienen todas—, y ESTE
-   * formulario, a propósito minimalista (sala/día/hora/tipo, nada más), no
-   * pide título. `crearReunionConDocumento` ya sabe qué hacer con uno vacío
-   * (cae a `tituloPorDefecto`, src/db/documentos.ts); la `crearReunion` de
-   * bajo nivel no tiene esa lógica y hubiera guardado un título en blanco —
+   * `/agenda`, y por qué las diez reuniones migradas lo tienen todas.
+   * `crearReunionConDocumento` ya sabe qué hacer con un título vacío (cae a
+   * `tituloPorDefecto`, src/db/documentos.ts); la `crearReunion` de bajo
+   * nivel no tiene esa lógica y hubiera guardado un título en blanco —
    * visible luego en el calendario, en /agenda y en el propio deck. Ser
    * coherente con "toda reunión agendada tiene documento" también evita
    * abrir, desde el atajo del Home, el único camino de la app hacia una
    * reunión sin documento (`documentoDeReunion` lo tolera — devuelve `null` —
    * pero hoy ningún flujo real lo produce).
+   *
+   * `datos.titulo` SE REENVÍA TAL CUAL (auditoría UX/UI, ronda 11 — "el
+   * título de una reunión no dice de qué es"): `AgendarRapido.tsx` sigue
+   * siendo a propósito minimalista (sala/día/hora/tipo), pero ahora suma un
+   * quinto campo, OPCIONAL, para el título — sin él, dos reuniones de la
+   * misma sala y cadencia (el caso real: Research Land, Comercial vs.
+   * Digital, las dos quincenales) nacían con el MISMO título derivado,
+   * indistinguibles en cualquier lista. ANTES de este arreglo, esta acción
+   * mandaba `titulo: ''` FIJO sin mirar `datos.titulo` en absoluto — un
+   * campo que el formulario recogiera se habría perdido aquí mismo, el
+   * defecto exacto de "se construyó, se probó, y nadie lo montó en pantalla"
+   * que este proyecto ya sufrió antes. Vacío o lleno, `datos.titulo` viaja
+   * sin tocar: `crearReunionConDocumento` decide qué hacer con cada caso.
    *
    * ESCONDER EL BOTÓN NO PROTEGE EL ENDPOINT: `exigirEditor()` primero, igual
    * que cualquier otra acción de escritura de esta página. Y "una sala en
@@ -182,7 +194,7 @@ export default async function Hub() {
         salaSlug: datos.salaSlug,
         tipo: datos.tipo,
         fecha: instanteDe(datos.dia, datos.hora),
-        titulo: '',
+        titulo: datos.titulo,
       })
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo agendar la reunión.' }

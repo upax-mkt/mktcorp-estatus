@@ -58,8 +58,9 @@ vi.mock('@/db/reuniones', () => ({
   desmarcarNoDada: vi.fn(),
 }))
 
+const crearReunionConDocumentoMock = vi.fn()
 vi.mock('@/db/documentos', () => ({
-  crearReunionConDocumento: vi.fn(),
+  crearReunionConDocumento: (...args: unknown[]) => crearReunionConDocumentoMock(...args),
 }))
 
 vi.mock('@/db/participacion', () => ({
@@ -88,7 +89,17 @@ vi.mock('@/db/cliente', () => ({
 // `reuniones/page.test.tsx`.
 vi.mock('@/componentes/hogar/ModuloAcuerdos', () => ({ ModuloAcuerdos: () => null }))
 vi.mock('@/componentes/hogar/ModuloCalendario', () => ({ ModuloCalendario: () => null }))
-vi.mock('@/componentes/hogar/AgendarRapido', () => ({ AgendarRapido: () => null }))
+// Captura props (mismo patrón que `moduloMinutasPropsMock`, más abajo): hace
+// falta para poder invocar `agendar` (el cierre de `agendarRapidoAction`)
+// desde fuera y comprobar qué le llega a `crearReunionConDocumento` — ver el
+// describe "Agendar rápido" (auditoría UX/UI, ronda 11).
+const agendarRapidoPropsMock = vi.fn()
+vi.mock('@/componentes/hogar/AgendarRapido', () => ({
+  AgendarRapido: (props: unknown) => {
+    agendarRapidoPropsMock(props)
+    return null
+  },
+}))
 vi.mock('@/componentes/ReunionesPorConfirmar', () => ({ ReunionesPorConfirmar: () => null }))
 
 const moduloMinutasPropsMock = vi.fn()
@@ -279,5 +290,50 @@ describe('Hub (/) — singular/plural del pulso y género de "Los clientes" (ext
 
     expect(screen.getByText('ordenados por próxima reunión')).toBeInTheDocument()
     expect(screen.queryByText('ordenadas por próxima reunión')).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * AGENDAR RÁPIDO: EL TÍTULO LLEGA HASTA LA BASE (auditoría UX/UI, ronda 11).
+ *
+ * `AgendarRapido.tsx` gana un campo de Título opcional en esta misma ronda —
+ * pero un campo que el componente recoge y nadie reenvía es exactamente el
+ * defecto de rondas pasadas que el brief pide no repetir ("se construyó, se
+ * probó, y nadie lo montó en pantalla"): `agendarRapidoAction`, AQUÍ, mandaba
+ * `titulo: ''` FIJO a `crearReunionConDocumento` sin mirar `datos.titulo` —
+ * cualquier cosa que el formulario recogiera se perdía en este único punto de
+ * paso. Este describe es la prueba de que ya no: lo que llega en `datos`
+ * viaja tal cual hasta la llamada a la base.
+ */
+describe('Hub (/) — "Agendar rápido" manda el título hasta la base (auditoría UX/UI, ronda 11)', () => {
+  it('un título escrito viaja de agendar() a crearReunionConDocumento, sin quedarse fijo en una cadena vacía', async () => {
+    render(await Hub())
+
+    const { agendar } = agendarRapidoPropsMock.mock.calls[0][0] as {
+      agendar: (datos: {
+        salaSlug: string; dia: string; hora: string; tipo: string; titulo: string
+      }) => Promise<{ error?: string }>
+    }
+    await agendar({
+      salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual',
+      titulo: 'Estatus Comercial Quincenal',
+    })
+
+    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Estatus Comercial Quincenal' }),
+    )
+  })
+
+  it('sin título, manda cadena vacía — crearReunionConDocumento es quien sabe convertirla en un título por defecto legible', async () => {
+    render(await Hub())
+
+    const { agendar } = agendarRapidoPropsMock.mock.calls[0][0] as {
+      agendar: (datos: {
+        salaSlug: string; dia: string; hora: string; tipo: string; titulo: string
+      }) => Promise<{ error?: string }>
+    }
+    await agendar({ salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual', titulo: '' })
+
+    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(expect.objectContaining({ titulo: '' }))
   })
 })

@@ -56,6 +56,7 @@ describe('AgendarRapido', () => {
       dia: '2026-08-19',
       hora: '10:00',
       tipo: 'quincenal',
+      titulo: '',
     })
   })
 
@@ -101,5 +102,52 @@ describe('AgendarRapido', () => {
     expect(await screen.findByText(/está pausada/i)).toBeInTheDocument()
     // Sigue abierto: el formulario no se cierra sobre un error del servidor.
     expect(screen.getByLabelText(/día/i)).toBeInTheDocument()
+  })
+})
+
+/**
+ * TÍTULO OPCIONAL (auditoría UX/UI, ronda 11 — "el título de una reunión no
+ * dice de qué es"): antes este formulario ni siquiera ofrecía el campo, así
+ * que TODA reunión creada desde este atajo nacía con el título derivado de
+ * `tituloPorDefecto` (src/db/documentos.ts) — que describe la CADENCIA, no el
+ * CONTENIDO. Caso real: Research Land tiene dos quincenales en la MISMA
+ * sala, Comercial y Digital, indistinguibles en cualquier lista con solo la
+ * cadencia como título.
+ *
+ * SIGUE SIENDO OPCIONAL, A PROPÓSITO: este atajo pide lo MÍNIMO (Franco:
+ * "agendar rápidamente"), y obligar el título aquí metería fricción justo
+ * donde el diseño la evita a propósito (ver el comentario del componente).
+ * Mismo nombre de campo ("Título") que `FormularioSesion.tsx`
+ * (`DatosFormulario.titulo`) — un solo vocabulario entre los dos formularios,
+ * aunque resuelvan obligatorio/opcional distinto.
+ */
+describe('AgendarRapido — título opcional (auditoría UX/UI, ronda 11)', () => {
+  it('ofrece un campo de Título que no bloquea "Agendar" si se deja vacío', async () => {
+    const usuario = userEvent.setup()
+    const agendar = vi.fn().mockResolvedValue({})
+    render(<AgendarRapido salas={salas} agendar={agendar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+    expect(screen.getByLabelText(/título/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/día/i), { target: { value: '2026-08-19' } })
+    await usuario.click(screen.getByRole('button', { name: /^agendar$/i }))
+
+    expect(agendar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ titulo: '' }))
+  })
+
+  it('un título escrito a mano viaja tal cual a agendar() — nada lo recorta ni lo sustituye en el cliente', async () => {
+    const usuario = userEvent.setup()
+    const agendar = vi.fn().mockResolvedValue({})
+    render(<AgendarRapido salas={salas} agendar={agendar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+    fireEvent.change(screen.getByLabelText(/día/i), { target: { value: '2026-08-19' } })
+    fireEvent.change(screen.getByLabelText(/título/i), { target: { value: 'Estatus Comercial Quincenal' } })
+    await usuario.click(screen.getByRole('button', { name: /^agendar$/i }))
+
+    expect(agendar).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ titulo: 'Estatus Comercial Quincenal' }),
+    )
   })
 })

@@ -62,3 +62,63 @@ describe('FormularioSesion — tipo de reunión (ronda 10, tarea 16: quincenal e
     expect(enviarAction).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ tipo: 'quincenal' }))
   })
 })
+
+/**
+ * TÍTULO (auditoría UX/UI, ronda 11 — "el título de una reunión no dice de
+ * qué es"): a diferencia de `AgendarRapido.tsx` (el atajo del Home, que hasta
+ * esta ronda no ofrecía el campo), este formulario completo YA tenía "Título"
+ * desde antes — pero sin un test propio que lo demostrara: nada en esta
+ * suite lo ejercitaba. Estos tests fijan el comportamiento que la auditoría
+ * dio por sentado que faltaba aquí (no faltaba el campo; faltaba la prueba
+ * de que sobrevive hasta `enviarAction` sin que nada lo recorte ni lo pise) y
+ * cierran el mismo vocabulario que ahora también ofrece `AgendarRapido.tsx`:
+ * el campo se llama "Título" en los dos formularios.
+ */
+describe('FormularioSesion — título (auditoría UX/UI, ronda 11)', () => {
+  it('ofrece un campo de Título, y no bloquea "Agendar" si se deja vacío (opcional también aquí)', () => {
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Agendar"
+        enviarAction={vi.fn()}
+        inicial={{ dia: '2026-08-17' }}
+      />,
+    )
+    const campo = screen.getByLabelText(/título/i)
+    expect(campo).toBeInTheDocument()
+    expect(campo).not.toBeRequired()
+    expect(screen.getByRole('button', { name: /agendar/i })).not.toBeDisabled()
+  })
+
+  it('un título escrito a mano viaja tal cual a enviarAction() — nada lo recorta ni lo sustituye en el cliente', async () => {
+    const enviarAction = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Agendar"
+        enviarAction={enviarAction}
+        inicial={{ dia: '2026-08-17' }}
+      />,
+    )
+
+    await usuario.type(screen.getByLabelText(/título/i), 'Estatus Comercial Quincenal')
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+
+    expect(enviarAction).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ titulo: 'Estatus Comercial Quincenal' }),
+    )
+  })
+
+  it('al editar, arranca con el título que ya tenía la reunión — no en blanco', () => {
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Guardar cambios"
+        enviarAction={vi.fn()}
+        inicial={{ salaSlug: 'research-land', dia: '2026-08-03', titulo: 'Estatus Comercial Quincenal' }}
+      />,
+    )
+    expect(screen.getByLabelText(/título/i)).toHaveValue('Estatus Comercial Quincenal')
+  })
+})
