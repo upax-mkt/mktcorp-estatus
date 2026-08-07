@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { CopiarBoton } from '@/componentes/CopiarBoton'
 import type { Cadencia } from '@/dominio/reunion'
 
 /**
@@ -120,13 +121,18 @@ vi.mock('@/db/claves', () => ({
   quitarClave: (...args: unknown[]) => quitarClaveMock(...args),
 }))
 
-// Solo `secretoConfigurado` (síncrona, sin cookies): el resto de
-// `@/auth/sesion` no lo usa esta página. Se mockea el módulo entero —igual
-// que hace `cliente/[slug]/page.test.ts`— para no cargar el real, que importa
+// `secretoConfigurado` ya vivía aquí. Desde la tarea 4 (Crítico A: el link
+// firmado de 30 días se fusiona con la clave, bajo un solo "Acceso del
+// director") se suma `generarTokenDeSala` —el colaborador bajo prueba del
+// describe dedicado, más abajo, con nombre para comprobar CON QUÉ se
+// llama. Se sigue mockeando el módulo entero —igual que
+// `cliente/[slug]/page.test.ts`— para no cargar el real, que importa
 // `next/headers` a nivel de módulo.
 const secretoConfiguradoMock = vi.fn()
+const generarTokenDeSalaMock = vi.fn()
 vi.mock('@/auth/sesion', () => ({
   secretoConfigurado: () => secretoConfiguradoMock(),
+  generarTokenDeSala: (...args: unknown[]) => generarTokenDeSalaMock(...args),
 }))
 
 const notFoundMock = vi.fn(() => {
@@ -153,6 +159,12 @@ beforeEach(() => {
   estadoDeClaveMock.mockResolvedValue({ tiene: false, creadaEn: null })
   regenerarClaveMock.mockResolvedValue('faro-arena-3971')
   quitarClaveMock.mockResolvedValue(undefined)
+  // `urlBase()` (real, sin mockear) resuelve sin tocar `next/headers` en
+  // cuanto `APP_URL` está definida — mismo patrón que
+  // `cliente/[slug]/page.test.ts`: hace falta para el link firmado, que arma
+  // su texto con `await urlBase()`.
+  process.env.APP_URL = 'https://mktcorp-estatus.example'
+  generarTokenDeSalaMock.mockResolvedValue('token-firmado-de-prueba')
 })
 
 function invocar(slug = 'research-land') {
@@ -387,6 +399,45 @@ describe('PaginaAjustesSala — el acceso del director se mudó aquí desde la s
 
     await expect(quitar()).rejects.toThrow(/admin/i)
     expect(quitarClaveMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * EL LINK FIRMADO DE 30 DÍAS SE FUSIONA AQUÍ CON LA CLAVE (Crítico A de la
+ * auditoría UX/UI, ronda 11 tarea 4). Hasta esta tarea, "Acceso del
+ * director" existía en DOS pantallas con el MISMO título y mecanismos
+ * distintos: aquí solo la clave (tarea 3) y en `cliente/[slug]/page.tsx` el
+ * link firmado, en su propia tarjeta, también titulada "Acceso del
+ * director" — peor que el problema original que la tarea 3 quiso resolver.
+ * Ahora los dos mecanismos viven bajo el mismo encabezado, en esta página.
+ *
+ * NO SE DEBILITA AL MUDARSE: `generarTokenDeSala` ya traía su propia guarda
+ * (`secretoConfigurado()` adentro, `src/auth/sesion.ts` — sin
+ * SESSION_SECRET, `null`, nunca lanza) y esta página entera ya exige admin
+ * desde su primera línea (`exigirAdmin()`). Ver el reporte de la tarea sobre
+ * el alcance exacto: en la sala, `tokenDeAcceso` YA solo salía no-nulo para
+ * `admin` (`admin ? await generarTokenDeSala(slug) : null`) — no había ahí
+ * un `equipo` más amplio que perder.
+ */
+describe('PaginaAjustesSala — el link firmado de 30 días se fusiona con la clave, bajo un solo "Acceso del director" (Crítico A)', () => {
+  it('genera el token para ESTA sala y arma el link con urlBase() real + el slug + el token', async () => {
+    const arbol = await invocar('research-land')
+    const boton = encontrarPorTipo(arbol, CopiarBoton)
+
+    expect(generarTokenDeSalaMock).toHaveBeenCalledWith('research-land')
+    expect(boton).not.toBeNull()
+    expect(boton!.props.texto).toBe(
+      'https://mktcorp-estatus.example/cliente/research-land?acceso=token-firmado-de-prueba',
+    )
+  })
+
+  it('sin SESSION_SECRET (generarTokenDeSala devuelve null) el link no se ofrece, pero la clave sigue ahí', async () => {
+    generarTokenDeSalaMock.mockResolvedValue(null)
+
+    const arbol = await invocar('research-land')
+
+    expect(encontrarPorTipo(arbol, CopiarBoton)).toBeNull()
+    expect(encontrarPorTipo(arbol, ClaveDeSala)).not.toBeNull()
   })
 })
 

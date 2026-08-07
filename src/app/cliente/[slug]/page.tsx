@@ -46,12 +46,10 @@ import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import {
   exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
-  generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
+  puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
 import { esAdmin, esLector, exigirEditor } from '@/auth/roles'
 import { BarraNavegacion } from '@/componentes/BarraNavegacion'
-import { CopiarBoton } from '@/componentes/CopiarBoton'
-import { urlBase } from '@/lib/url-base'
 
 // La vista de equipo ahora escribe (cambiar estatus, editar fecha) — se
 // necesita fresca en cada carga, no la copia estática que generateStaticParams
@@ -139,7 +137,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      * punto 7).
      *
      * Esta página se comparte con el cliente interno por un enlace firmado
-     * de 30 días (`generarTokenDeSala`, ver más abajo). Antes `directorio()`
+     * de 30 días: se redime aquí (`puedeVerEstaSala`, arriba, y
+     * `src/proxy.ts`, que canjea `?acceso=<token>` por la cookie de sesión)
+     * aunque se GENERE en `cliente/[slug]/ajustes/page.tsx` desde la ronda
+     * 11, tarea 4 — las dos mitades son independientes: dónde se firma un
+     * token no cambia cómo se verifica. Antes `directorio()`
      * —los nombres Y CORREOS de las 24 personas de Mkt Corp— se pedía
      * siempre, sin condicionar a quién mira, y viajaba entero al HTML/RSC de
      * la página en cuanto algo lo renderizaba (`editaAcuerdos` es cierto
@@ -206,20 +208,22 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
 
   /**
-   * ADMIN, no `equipo` (corrección post-revisión de la ronda 9: agujero
-   * crítico).
+   * ADMIN, no `equipo` — `esAdmin()`, no un hardcodeo, por el mismo criterio
+   * que el resto de la app: si el gate cambiara, un valor fijo mentiría.
    *
-   * `generarTokenDeSala` no es una vista previa: firma, en el momento,
-   * un link real de 30 días que da acceso de lectura a esta sala desde
-   * fuera del equipo — el mismo tipo de secreto que `regenerarClaveAction`/
-   * `quitarClaveAction` (más abajo), que ya son de admin. Con `equipo` como
-   * guarda, CUALQUIER viewer que abriera esta página se llevaba un link
-   * válido servido en el propio HTML, con su botón de copiar, sin pedir
-   * nada más: no era un botón que no debía ver, era el secreto ya
-   * entregado. Mismo razonamiento, misma exigencia.
+   * YA NO DECIDE UN TOKEN AQUÍ. Hasta la ronda 11 tarea 4, `admin` también
+   * gateaba `generarTokenDeSala` (el link firmado de 30 días) directamente
+   * en esta pantalla — corrección post-revisión de la ronda 9, "agujero
+   * crítico": con `equipo` como guarda, CUALQUIER viewer que abriera esta
+   * página se llevaba un link válido servido en el propio HTML. Ese
+   * mecanismo se mudó ENTERO a `cliente/[slug]/ajustes/page.tsx` (Crítico A
+   * de la auditoría UX/UI: dos secciones "Acceso del director" con el mismo
+   * nombre y mecanismos distintos, fusionadas en una sola, allá). Lo que
+   * sigue dependiendo de `admin` en ESTA página es el enlace ⚙ hacia esa
+   * pantalla (más abajo) y el gate de Clientes/Personas dentro de
+   * `BarraNavegacion`.
    */
   const admin = await esAdmin()
-  const tokenDeAcceso = admin ? await generarTokenDeSala(slug) : null
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
   const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
@@ -903,36 +907,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </section>
         )}
 
-        {/* Compartir la sala con su director. Solo lo ve el equipo.
-            LA CLAVE SE MUDÓ A AJUSTES (ronda 11, tarea 3, paso 1): Franco,
-            "el módulo de acceso al director no debería vivir allí, debería
-            estar en los ajustes de cada sala". `ClaveDeSala` y sus dos
-            acciones viven ahora en `cliente/[slug]/ajustes/page.tsx` —el
-            enlace ⚙ de la cabecera (arriba) es la puerta hacia ellas. Lo que
-            queda aquí es el OTRO mecanismo, el link firmado de 30 días: es
-            distinto (un token, no una credencial persistente) y Franco no
-            pidió moverlo. */}
-        {equipo && tokenDeAcceso && (
-          <section className={estilos.seccion}>
-            <h2 className={estilos.seccionTitulo}>
-              <IconoSeccion nombre="clave" />
-              Acceso del director
-            </h2>
-            <div className={estilos.acceso}>
-              <div className={estilos.accesoTexto}>
-                <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>
-                <p className={estilos.accesoNota}>
-                  Quien tenga este link entra a este espacio —y solo a este— sin clave: compártelo por
-                  canal privado. Caduca en 30 días y no permite mover acuerdos.
-                </p>
-              </div>
-              <CopiarBoton
-                texto={`${await urlBase()}/cliente/${slug}?acceso=${tokenDeAcceso}`}
-                className={estilos.accesoBoton}
-              />
-            </div>
-          </section>
-        )}
+        {/* ACCESO DEL DIRECTOR (clave + link firmado): SE MUDÓ ENTERO A
+            AJUSTES (ronda 11, tarea 4 — cierra el Crítico A de la auditoría
+            UX/UI). Hasta esta tarea, la tarea 3 solo había mudado la clave
+            (`ClaveDeSala`); el link firmado de 30 días se quedó aquí, en su
+            propia tarjeta, TAMBIÉN titulada "Acceso del director" — dos
+            secciones iguales de nombre y mecanismos distintos, en dos
+            pantallas, que es justo lo que reportó la auditoría (peor que el
+            problema que Franco había señalado en la ronda 11). Ahora las dos
+            viven juntas en `cliente/[slug]/ajustes/page.tsx`, bajo un solo
+            encabezado que explica la diferencia entre ambas. El enlace ⚙ de
+            la cabecera (arriba) es la ÚNICA puerta hacia ellas — en la sala
+            no queda nada de esto. */}
       </main>
     </div>
   )

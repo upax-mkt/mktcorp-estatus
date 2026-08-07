@@ -9,13 +9,15 @@ import { cargarTemas } from '@/db/temas'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin } from '@/auth/roles'
-import { secretoConfigurado } from '@/auth/sesion'
+import { secretoConfigurado, generarTokenDeSala } from '@/auth/sesion'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
+import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { editarSalaAction } from '@/app/salas/acciones'
 import { pausarSalaAction, reactivarSalaAction } from '@/app/acuerdos/acciones'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
+import { urlBase } from '@/lib/url-base'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,21 +45,31 @@ export const dynamic = 'force-dynamic'
  * interfaz — esconder un botón no protege un endpoint, lección pagada en la
  * ronda del 27-jul. Esta línea es lo que de verdad protege.
  *
- * `ClaveDeSala` SE MUDÓ AQUÍ DESDE LA SALA (ronda 11, tarea 3, paso 1).
- * Franco: "dentro de un cliente (sala) el módulo de acceso al director no
- * debería vivir allí, debería estar en los ajustes de cada sala". Coherente
- * con el permiso: `regenerarClaveAction`/`quitarClaveAction` (más abajo) ya
- * exigían admin en su sitio viejo, y esta página entera ya lo exige desde su
- * primera línea. Las dos acciones viajan CON su propio `exigirAdmin()`
- * intacto —no se debilitan ni se duplican—: la página ya gatea el render,
- * pero una Server Action sigue siendo un endpoint propio, alcanzable con su
- * id aunque nadie pase por esta pantalla.
+ * "ACCESO DEL DIRECTOR" VIVE ENTERO AQUÍ (ronda 11, tarea 3 + tarea 4).
  *
- * SOLO SE MUEVE `ClaveDeSala` — no el link firmado de 30 días
- * (`generarTokenDeSala`/`tokenDeAcceso`), que se queda en la sala
- * (`cliente/[slug]/page.tsx`): es un mecanismo distinto (un token que se
- * firma de nuevo en cada carga de la sala, no una credencial persistente) y
- * el encargo de Franco nombra específicamente la clave.
+ * La tarea 3 mudó `ClaveDeSala` desde la sala: Franco, "dentro de un cliente
+ * (sala) el módulo de acceso al director no debería vivir allí, debería
+ * estar en los ajustes de cada sala". Pero el link firmado de 30 días
+ * (`generarTokenDeSala`) se quedó en `cliente/[slug]/page.tsx`, en su propia
+ * tarjeta, TAMBIÉN titulada "Acceso del director" — dos secciones con el
+ * mismo nombre y mecanismos distintos, en dos pantallas: peor que el
+ * problema que Franco había señalado. La tarea 4 (Crítico A de la auditoría
+ * UX/UI) termina la mudanza: la clave y el link firmado viven ahora los dos
+ * aquí, bajo un solo encabezado que explica la diferencia entre los dos —
+ * una clave persistente que se teclea, un link firmado que caduca solo. En
+ * la sala no queda nada de esto.
+ *
+ * NINGUNO DE LOS DOS SE DEBILITA AL MUDARSE: `regenerarClaveAction`/
+ * `quitarClaveAction` (más abajo) viajan CON su propio `exigirAdmin()`
+ * intacto —la página ya gatea el render, pero una Server Action sigue siendo
+ * un endpoint propio, alcanzable con su id aunque nadie pase por esta
+ * pantalla—; `generarTokenDeSala` no es una Server Action (es una función
+ * de servidor normal, llamada durante el propio render de esta página, sin
+ * `'use server'`), así que su única puerta es esta función, y `exigirAdmin()`
+ * ya la cerró arriba. CAMBIO DE ALCANCE: ver el reporte de la tarea — en la
+ * sala, `tokenDeAcceso` YA solo salía no-nulo para `admin`
+ * (`admin ? await generarTokenDeSala(slug) : null`); no había ahí un
+ * `equipo` más amplio que esta mudanza le quite a nadie.
  */
 export default async function PaginaAjustesSala({ params }: { params: Promise<{ slug: string }> }) {
   await exigirAdmin()
@@ -138,6 +150,16 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
   const clave = secreto
     ? await estadoDeClave(slug, secreto)
     : { tiene: false, creadaEn: null }
+
+  /**
+   * EL LINK FIRMADO DE 30 DÍAS (mudado desde `cliente/[slug]/page.tsx`,
+   * ronda 11, tarea 4 — Crítico A). `generarTokenDeSala` trae su propia
+   * guarda (`secretoConfigurado()` adentro): sin `SESSION_SECRET` devuelve
+   * `null` sin lanzar, igual que antes en la sala. No hace falta el
+   * ternario `admin ? ... : null` que usaba la sala: `exigirAdmin()`, arriba
+   * del todo, ya garantiza admin antes de llegar aquí.
+   */
+  const tokenDeAcceso = await generarTokenDeSala(slug)
 
   // ---- Server actions: ligadas a ESTA sala, delegando en las de siempre ----
   // Mismo patrón que `pausarEstaSalaAction`/`reactivarEstaSalaAction`, más
@@ -249,15 +271,53 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
           />
         </section>
 
+        {/* ACCESO DEL DIRECTOR — LOS DOS MECANISMOS JUNTOS (Crítico A de la
+            auditoría UX/UI, ronda 11 tarea 4). Antes de esta tarea esta
+            sección solo traía la clave (tarea 3); el link firmado de 30 días
+            vivía en la sala, en su propia tarjeta, TAMBIÉN titulada "Acceso
+            del director" — dos secciones iguales de nombre, mecanismos
+            distintos, en dos pantallas. Ahora son un solo encabezado con una
+            intro que explica la diferencia, y los dos mecanismos debajo. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
-          <ClaveDeSala
-            nombreSala={tema.nombre}
-            tiene={clave.tiene}
-            creadaEn={clave.creadaEn}
-            regenerarAction={regenerarClaveAction}
-            quitarAction={quitarClaveAction}
-          />
+          <p className={estilos.accesoIntro}>
+            Dos formas de dejar entrar al director de {tema.nombre} sin darle cuenta de equipo:
+            una clave que teclea cada vez que entra, o un link ya firmado que caduca solo a los
+            30 días.
+          </p>
+
+          <div className={estilos.subseccion}>
+            <h3 className={estilos.subseccionTitulo}>Clave</h3>
+            <ClaveDeSala
+              nombreSala={tema.nombre}
+              tiene={clave.tiene}
+              creadaEn={clave.creadaEn}
+              regenerarAction={regenerarClaveAction}
+              quitarAction={quitarClaveAction}
+            />
+          </div>
+
+          {/* Sin SESSION_SECRET, `tokenDeAcceso` sale `null` (ver su
+              cómputo, arriba): el bloque desaparece en vez de ofrecer un
+              link roto, mismo criterio defensivo que ya usaba la sala. */}
+          {tokenDeAcceso && (
+            <div className={estilos.subseccion}>
+              <h3 className={estilos.subseccionTitulo}>Link firmado (30 días)</h3>
+              <div className={estilos.acceso}>
+                <div className={estilos.accesoTexto}>
+                  <div className={estilos.accesoTitulo}>Link de solo lectura para {tema.nombre}</div>
+                  <p className={estilos.accesoNota}>
+                    Quien tenga este link entra a este espacio —y solo a este— sin clave:
+                    compártelo por canal privado. Caduca en 30 días y no permite mover acuerdos.
+                  </p>
+                </div>
+                <CopiarBoton
+                  texto={`${await urlBase()}/cliente/${slug}?acceso=${tokenDeAcceso}`}
+                  className={estilos.accesoBoton}
+                />
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </div>

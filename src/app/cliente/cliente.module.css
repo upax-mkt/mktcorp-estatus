@@ -511,7 +511,14 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   box-shadow: var(--e-1);
 }
 
-/* ---- Acceso del director: el link firmado de esta sala (solo lo ve el equipo) ---- */
+/* ---- Acceso del director: clave + link firmado, en los ajustes de la sala
+   (ronda 11, tarea 4 — solo lo ve admin: la página entera exige exigirAdmin()).
+   Estas clases también las usa ClaveDeSala.tsx para su propio estado "sin
+   clave todavía", así que .acceso no es exclusiva del bloque del link. ---- */
+.accesoIntro {
+  font-size: 0.88rem; line-height: 1.55; color: var(--tx-2);
+  max-width: 60ch; margin: 0 0 1.1rem;
+}
 .acceso {
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
   padding: 1.1rem 1.25rem;

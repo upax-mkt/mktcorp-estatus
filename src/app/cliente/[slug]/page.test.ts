@@ -172,16 +172,21 @@ vi.mock('@vercel/blob/client', () => ({
   upload: vi.fn().mockResolvedValue({ pathname: 'salas/neracode/interes/archivo-de-prueba.pdf' }),
 }))
 
-// El colaborador bajo prueba: `generarTokenDeSala`. El resto de
 // `@/auth/sesion` que usa esta página, mockeado con lo mínimo para que el
 // camino de lectura llegue completo sin lanzar — `puedeVerEstaSala` en
 // `true` (si no, `notFound()` corta antes de llegar a la línea que importa).
-const generarTokenDeSalaMock = vi.fn()
+//
+// `generarTokenDeSala` YA NO SE MOCKEA AQUÍ (Crítico A de la auditoría UX/UI,
+// ronda 11 tarea 4): la página dejó de importarla — el link firmado de 30
+// días se fusionó con la clave en `cliente/[slug]/ajustes/page.tsx` (su
+// propio `page.test.ts` es quien ahora prueba ese colaborador). Si `page.tsx`
+// alguna vez volviera a importarla, este módulo no la expondría y el test
+// fallaría al intentar llamar algo que no es función — la propia ausencia
+// del mock es la guarda contra una regresión silenciosa.
 vi.mock('@/auth/sesion', () => ({
   secretoConfigurado: vi.fn().mockReturnValue(null),
   puedeEditarAcuerdosDe: vi.fn().mockResolvedValue(false),
   puedeVerEstaSala: vi.fn().mockResolvedValue(true),
-  generarTokenDeSala: (...args: unknown[]) => generarTokenDeSalaMock(...args),
   cerrarSesion: vi.fn(),
   exigirEdicionDeAcuerdos: vi.fn(),
 }))
@@ -273,11 +278,6 @@ const { default: VistaSala } = await import('./page')
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // `urlBase()` (real, sin mockear) resuelve sin tocar `next/headers` en
-  // cuanto `APP_URL` está definida — hace falta para el caso admin, donde
-  // `tokenDeAcceso` sale verdadero y la JSX arma el link con `await urlBase()`.
-  process.env.APP_URL = 'https://mktcorp-estatus.example'
-  generarTokenDeSalaMock.mockResolvedValue('token-firmado-de-prueba')
   // Default para todo el archivo: la sala sin reuniones. El bloque de
   // participación lo pisa puntualmente con `mockResolvedValueOnce`.
   estadoDeSalaMock.mockResolvedValue(SALA_BASE)
@@ -292,47 +292,6 @@ beforeEach(() => {
 async function invocar() {
   return VistaSala({ params: Promise.resolve({ slug: 'neracode' }) })
 }
-
-describe('VistaSala (/cliente/[slug]) — el token de acceso es solo de admin', () => {
-  it('viewer: NO se genera el token de acceso de la sala', async () => {
-    esLectorMock.mockResolvedValue(true)
-    esAdminMock.mockResolvedValue(false)
-
-    await invocar()
-
-    expect(generarTokenDeSalaMock).not.toHaveBeenCalled()
-  })
-
-  it('editor: TAMPOCO se genera — la exigencia es admin, no "cualquier equipo"', async () => {
-    esLectorMock.mockResolvedValue(true)
-    esAdminMock.mockResolvedValue(false)
-
-    await invocar()
-
-    expect(generarTokenDeSalaMock).not.toHaveBeenCalled()
-  })
-
-  it('admin: sí se genera el token, para esta sala', async () => {
-    esLectorMock.mockResolvedValue(true)
-    esAdminMock.mockResolvedValue(true)
-
-    await invocar()
-
-    expect(generarTokenDeSalaMock).toHaveBeenCalledWith('neracode')
-  })
-
-  it('sin sesión de equipo en absoluto (esLector false): tampoco se genera', async () => {
-    // Caso límite real: un director de UDN con el link de su propia sala.
-    // `esLector()` en `false` ya haría que el resto de la pantalla se pinte
-    // en modo "director" — el token, con más razón, no se genera.
-    esLectorMock.mockResolvedValue(false)
-    esAdminMock.mockResolvedValue(false)
-
-    await invocar()
-
-    expect(generarTokenDeSalaMock).not.toHaveBeenCalled()
-  })
-})
 
 /**
  * LA PARTICIPACIÓN DE CADA REUNIÓN (quién preparó, quién presentó) ES SOLO DE
@@ -596,21 +555,30 @@ describe('VistaSala (/cliente/[slug]) — BarraNavegacion es SOLO EQUIPO (ronda 
 })
 
 /**
- * EL ACCESO DEL DIRECTOR (CLAVE) SE MUDÓ A AJUSTES (ronda 11, tarea 3, paso
- * 1). Franco: "dentro de un cliente (sala) el módulo de acceso al director
- * no debería vivir allí, debería estar en los ajustes de cada sala".
- * `ClaveDeSala` y sus dos acciones (`regenerarClaveAction`/
- * `quitarClaveAction`) se van enteras a `cliente/[slug]/ajustes/page.tsx`
- * (ver su propio `page.test.ts`, describe "el acceso del director se mudó
- * aquí"): no queda nada de la clave en esta página, ni su import de
- * `@/db/claves`.
+ * EL ACCESO DEL DIRECTOR (CLAVE + LINK FIRMADO) SE MUDÓ ENTERO A AJUSTES
+ * (ronda 11, tarea 3 y tarea 4 — tarea 4 cierra el Crítico A de la auditoría
+ * UX/UI). Franco, tarea 3: "dentro de un cliente (sala) el módulo de acceso
+ * al director no debería vivir allí, debería estar en los ajustes de cada
+ * sala".
+ *
+ * La tarea 3 solo mudó `ClaveDeSala` — el link firmado de 30 días
+ * (`generarTokenDeSala`) se quedó aquí, en su propia tarjeta, TAMBIÉN
+ * titulada "Acceso del director": dos secciones con el mismo nombre y
+ * mecanismos distintos, en dos pantallas, que es justo lo que reportó la
+ * auditoría (peor que el problema original). La tarea 4 termina la mudanza:
+ * las DOS viven ahora juntas en `cliente/[slug]/ajustes/page.tsx`, bajo un
+ * solo "Acceso del director" (ver su propio `page.test.ts`, describe "el
+ * link firmado... se fusiona"). Aquí no queda nada de ninguna de las dos, ni
+ * el import de `@/db/claves` (ya fuera desde la tarea 3) ni el de
+ * `generarTokenDeSala`/`CopiarBoton`/`urlBase` (@/auth/sesion ya no expone
+ * `generarTokenDeSala` en el mock de arriba — si esta página la importara de
+ * nuevo, fallaría al llamarla, no en silencio).
  *
  * La sala NO se queda sin ninguna puerta al acceso del director: el enlace ⚙
- * a ajustes (describe de arriba) es la nueva, y el link firmado de 30 días
- * (`generarTokenDeSala`) —un mecanismo DISTINTO, que Franco no pidió mover—
- * se queda aquí mismo, en su propia tarjeta.
+ * a ajustes (describe de arriba) es la ÚNICA, y es intencional — Franco pidió
+ * la sección entera adentro, no una copia repartida entre las dos pantallas.
  */
-describe('VistaSala (/cliente/[slug]) — el acceso del director (clave) se mudó a ajustes (ronda 11, tarea 3)', () => {
+describe('VistaSala (/cliente/[slug]) — el acceso del director (clave + link firmado) se mudó ENTERO a ajustes (ronda 11, tarea 4)', () => {
   it('ya no ofrece generar ni quitar la clave desde la sala', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(true)
@@ -622,13 +590,22 @@ describe('VistaSala (/cliente/[slug]) — el acceso del director (clave) se mud�
     expect(screen.queryByText(/no tiene clave todavía/i)).toBeNull()
   })
 
-  it('el link firmado de solo lectura se queda en la sala: es un mecanismo distinto, no se mudó', async () => {
+  it('ya NO ofrece el link firmado de solo lectura: se fusionó con la clave en ajustes, no se quedó aquí', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(true)
 
     render(await invocar())
 
-    expect(screen.getByText(/link de solo lectura/i)).toBeInTheDocument()
+    expect(screen.queryByText(/link de solo lectura/i)).toBeNull()
+  })
+
+  it('no queda ningún rastro de la sección "Acceso del director" en la sala, para ningún rol', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.queryByText('Acceso del director')).toBeNull()
   })
 })
 
