@@ -122,7 +122,11 @@ export default async function PagSesionMaquetada({
           MISMO render que se proyecta. */}
       {imprimir && <AlImprimir />}
       <header className={estilos.barra}>
-        <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
+        {/* "Cuestionario" era el nombre de esta pantalla hasta la ronda 10, y
+            sobrevivió aquí a las dos limpiezas de vocabulario. Mismo destino y
+            mismo rótulo que usa la minuta (`deck/[id]/minuta/page.tsx`): las
+            dos vuelven al editor del documento de esta reunión. */}
+        <Link href={`/deck/${id}`} className={estilos.volver}>← Editar documento</Link>
         <div className={estilos.barraTitulo}>{reunion.salaNombre}</div>
         <div className={estilos.barraDcha}>
           {secciones.length > 0 &&
