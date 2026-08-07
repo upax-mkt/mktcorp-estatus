@@ -6,39 +6,33 @@ interface Props {
 }
 
 /**
- * «Prepararon: Iris, César · Presentó: Iris» — y lo que este dato NO sabe.
+ * «Cargada por: Iris, César» — un crédito simple, no un reporte de asistencia.
  *
- * Franco: «así puedo ver quién de mis gerentes participó en el desarrollo de
- * la presentación». Pero lo que hay detrás es un contador de toques a la
- * base, no un pase de lista: no distingue quién habló, cuánto participó, ni
- * si estuvo atento — solo quién tocó el contenido y quién abrió el modo
- * presentación (ver `src/db/participacion.ts`). Decirlo aquí, en letra
- * pequeña y siempre que se pinta algo, es lo que separa esto de vender más de
- * lo que el dato sabe.
+ * Franco, sobre el mensaje que vivía aquí ("Registra quién tocó la
+ * presentación y quién abrió el modo presentación — no quién habló, cuánto
+ * participó ni si estuvo atento"): "ELIMÍNALO, solo deja una leyenda 'Cargada
+ * por: PERSONA'" — explicaba una preocupación que nadie tenía (ronda 11,
+ * tarea 3, paso 2). Se fue el aviso Y la distinción "Preparó/Prepararon ·
+ * Presentó/Presentaron": queda una sola línea de autoría, sin conjugar verbo
+ * alguno (por eso "Cargada por" sirve igual para uno que para varios).
  *
- * Sin nadie que haya tocado la sesión todavía —una recién agendada, o una en
- * borrador que nadie ha guardado— no pinta nada: no hay de qué presumir ni
- * nada que aclarar.
+ * `prepararon`, no `presentaron`: quien tocó el CONTENIDO (`ediciones > 0` en
+ * `resumirParticipacion`, `src/db/participacion.ts`) es quien de verdad
+ * "cargó" la presentación. Presentar —abrir el modo presentación— no es
+ * cargar, aunque lo haga la misma persona: mismo criterio que ya separaba
+ * `resumirParticipacion`, ahora también en lo que se pinta.
+ *
+ * Sin nadie que haya tocado el contenido todavía —una recién agendada, o una
+ * en borrador que nadie ha guardado— no pinta nada: no hay de quién dar
+ * crédito.
  */
 export function ParticipantesSesion({ participantes }: Props) {
-  const { prepararon, presentaron } = resumirParticipacion(participantes)
-  if (prepararon.length === 0 && presentaron.length === 0) return null
-
-  const partes: string[] = []
-  if (prepararon.length > 0) {
-    partes.push(`${prepararon.length === 1 ? 'Preparó' : 'Prepararon'}: ${prepararon.join(', ')}`)
-  }
-  if (presentaron.length > 0) {
-    partes.push(`${presentaron.length === 1 ? 'Presentó' : 'Presentaron'}: ${presentaron.join(', ')}`)
-  }
+  const { prepararon } = resumirParticipacion(participantes)
+  if (prepararon.length === 0) return null
 
   return (
     <div className={estilos.participacion}>
-      <p className={estilos.participacionLinea}>{partes.join(' · ')}</p>
-      <p className={estilos.participacionAviso}>
-        Registra quién tocó la presentación y quién abrió el modo presentación — no quién habló,
-        cuánto participó ni si estuvo atento.
-      </p>
+      <p className={estilos.participacionLinea}>Cargada por: {prepararon.join(', ')}</p>
     </div>
   )
 }

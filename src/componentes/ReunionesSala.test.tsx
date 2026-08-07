@@ -61,7 +61,7 @@ describe('ReunionesSala — participación de equipo', () => {
         registrarArchivoAction={registrarArchivoActionNoop}
       />,
     )
-    expect(screen.getByText('Preparó: Iris · Presentó: Iris')).toBeInTheDocument()
+    expect(screen.getByText('Cargada por: Iris')).toBeInTheDocument()
   })
 
   it('equipo, con datos: también la pinta en una reunión anterior (fila compacta)', () => {
@@ -76,7 +76,7 @@ describe('ReunionesSala — participación de equipo', () => {
     )
     // s1 (la destacada) no tiene entrada en el mapa: no debe pintar nada de
     // más para ella, solo para s0.
-    expect(screen.getByText('Preparó: César · Presentó: César')).toBeInTheDocument()
+    expect(screen.getByText('Cargada por: César')).toBeInTheDocument()
   })
 
   it('director (equipo=false): NO se pinta, aunque el mapa traiga nombres', () => {
@@ -92,7 +92,7 @@ describe('ReunionesSala — participación de equipo', () => {
         registrarArchivoAction={registrarArchivoActionNoop}
       />,
     )
-    expect(screen.queryByText(/Prepar/)).toBeNull()
+    expect(screen.queryByText(/Cargada por/)).toBeNull()
     expect(screen.queryByText(/Iris/)).toBeNull()
   })
 
@@ -106,7 +106,7 @@ describe('ReunionesSala — participación de equipo', () => {
         registrarArchivoAction={registrarArchivoActionNoop}
       />,
     )
-    expect(screen.queryByText(/Prepar/)).toBeNull()
+    expect(screen.queryByText(/Cargada por/)).toBeNull()
   })
 
   it('equipo, sin el prop siquiera (default): no revienta y no pinta nada', () => {
@@ -118,7 +118,7 @@ describe('ReunionesSala — participación de equipo', () => {
         registrarArchivoAction={registrarArchivoActionNoop}
       />,
     )
-    expect(screen.queryByText(/Prepar/)).toBeNull()
+    expect(screen.queryByText(/Cargada por/)).toBeNull()
   })
 })
 
