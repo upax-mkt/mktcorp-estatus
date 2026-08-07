@@ -284,9 +284,14 @@
    vista: quedaba una caja enorme y ninguna acción visible. Una transcripción
    se PEGA, no se escribe a mano, así que el alto útil es el que deja ver que
    hay algo pegado — no el que la muestra entera. */
+/* SIN `font-family` monoespaciada (auditoría UX/UI, 7-ago): era la única caja
+   de texto de la app con esa fuente, y no hay prosa cruda que justifique el
+   cambio — lo que se pega aquí es la transcripción de una reunión, texto
+   corrido igual que cualquier otro campo. Sin declarar `font-family` cae al
+   `inherit` de `.textarea` (arriba), la misma tipografía del resto. */
 .textareaGrande {
   min-height: 16rem; max-height: 22rem;
-  font-family: ui-monospace, monospace; font-size: 0.86rem; line-height: 1.55;
+  font-size: 0.86rem; line-height: 1.55;
 }
 
 .avisoError {
