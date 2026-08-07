@@ -20,24 +20,45 @@ export const dynamic = 'force-dynamic'
 
 /**
  * EL CICLO DE VIDA ENTERO DE UNA REUNIÓN, en una sola pestaña (Tarea 13,
- * ronda 10; ampliada en la Tarea 18). El calendario del mes y "agendar" —
- * `PanelAgenda`, MUDADO TAL CUAL desde `/agenda`, sin rediseñar, que ya
- * resuelve "Próximas" por su cuenta ("Lo que viene", en su propio panel
- * lateral) — más las tres preguntas que le tocan a esta pestaña una vez que
- * el día de la reunión ya llegó: "Por confirmar" (¿se dio?), "Se dieron,
- * falta su minuta" (ocurrió y no está el acta) y "Cerradas" (dada y
- * minutada). `/agenda` (la pantalla del equipo) ahora solo redirige aquí —
- * ver `src/app/agenda/page.tsx`. `/agenda/[token]` (la agenda pública, ya
- * compartida fuera de la empresa) no se toca ni tiene nada que ver con esta
- * migración.
+ * ronda 10; ampliada en la Tarea 18; "Próximas" bajó al flujo en la ronda 11,
+ * tarea 4). El calendario del mes y "agendar" — `PanelAgenda`, MUDADO TAL
+ * CUAL desde `/agenda` en la ronda 10 (su calendario no se ha vuelto a
+ * tocar) — más las CUATRO preguntas de esta pantalla: "Próximas" (¿qué
+ * sigue?) y, una vez que el día de la reunión ya llegó, "Por confirmar"
+ * (¿se dio?), "Se dieron, falta su minuta" (ocurrió y no está el acta) y
+ * "Cerradas" (dada y minutada). `/agenda` (la pantalla del equipo) ahora
+ * solo redirige aquí — ver `src/app/agenda/page.tsx`. `/agenda/[token]` (la
+ * agenda pública, ya compartida fuera de la empresa) no se toca ni tiene
+ * nada que ver con esta migración.
  *
- * TAREA 18 — "CADA COSA EN SU PESTAÑA": los tres módulos nuevos reemplazan
- * al viejo bloque único "Ya dadas este mes" (con sus etiquetas "Sin
+ * TAREA 18 — "CADA COSA EN SU PESTAÑA": tres módulos nuevos reemplazan al
+ * viejo bloque único "Ya dadas este mes" (con sus etiquetas "Sin
  * presentación"/"Falta la minuta"), que mezclaba el ciclo de vida de la
  * JUNTA con el de su documento. Franco, el 6-ago: "en la pestaña Reuniones
  * ahí debe vivir el módulo Se dieron pero falta su minuta, reuniones
  * cerradas, reuniones pendientes...". `/deck` (Presentaciones) se queda solo
  * con "En preparación" y "Anteriores" — ver `src/app/deck/page.tsx`.
+ *
+ * RONDA 11, TAREA 4 — "PRÓXIMAS" BAJA DEL PANEL AL FLUJO: hasta esta tarea,
+ * "Lo que viene" vivía DENTRO de `PanelAgenda`, en un panel lateral de
+ * 22rem junto al calendario. Franco, el 6-ago: "en la pestaña Reuniones 'lo
+ * que viene' déjalo abajo del calendario al igual que las otras listas, se
+ * desarma todo cuando hay muchas" — sintomático de volumen (una columna
+ * angosta que solo crece verticalmente, no de una preferencia estética.
+ * "Próximas" SIGUE viviendo dentro de `PanelAgenda` (ahí es donde vive
+ * "editar" una reunión ya agendada, y sacarla de ahí habría exigido un
+ * componente cliente nuevo solo para conservar esa capacidad — fuera del
+ * par de archivos de esta tarea); lo que se mudó AQUÍ es el CÁLCULO de qué
+ * reuniones le tocan: `cicloDeReuniones` ahora resuelve "próximas" como un
+ * cuarto módulo (mismo criterio que ya tenía `PanelAgenda`: no dada, día
+ * de hoy o después), EXCLUYENDO lo que ya se quedó en los otros tres — ver
+ * el comentario completo más abajo, en la función. Sin esa exclusión, una
+ * reunión de HOY con presentación lista pero sin confirmar salía a la vez
+ * en "Próximas" y en "Falta su minuta" (el solape que encontró el intento
+ * anterior de esta tarea). `page.tsx` le pasa la lista de ids ya resuelta
+ * (`idsProximas`) a `PanelAgenda`, que la cruza contra su propio `sesiones`
+ * (la lista completa, sin filtrar — la sigue necesitando el calendario)
+ * para pintar cada fila con sus datos completos.
  *
  * "Agenda" desaparece como nombre de sección: en pantalla todo se llama
  * "reunión".
@@ -54,6 +75,8 @@ export interface ReunionEnCiclo {
 }
 
 export interface CicloDeReuniones {
+  /** "Lo que viene" (ronda 11, tarea 4) — no dada, día de hoy o después. Ver el comentario de `cicloDeReuniones` para el porqué vive aquí y no solo en `PanelAgenda`. */
+  proximas: ReunionEnCiclo[]
   porConfirmar: SesionPorConfirmar[]
   faltaMinuta: ReunionEnCiclo[]
   cerradas: ReunionEnCiclo[]
@@ -98,9 +121,9 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
 }
 
 /**
- * LAS TRES PREGUNTAS DEL CICLO, una vez que el día de la reunión ya llegó
- * (Tarea 18). "Próximas" no está aquí: ya la resuelve `PanelAgenda` por su
- * cuenta ("Lo que viene"), sin tocar.
+ * LAS CUATRO PREGUNTAS DEL CICLO (Tarea 18 para las tres primeras; "próximas"
+ * se sumó en la ronda 11, tarea 4): "¿qué sigue?" y, una vez que el día de
+ * la reunión ya llegó, "¿se dio?", "¿falta su minuta?" y "¿ya cerró?".
  *
  * LA REGLA DURA: NINGUNA REUNIÓN EN DOS MÓDULOS A LA VEZ. Es exactamente el
  * defecto que la revisión final de la ronda 10 ya arregló una vez, entre "En
@@ -118,6 +141,22 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
  * explícitamente lo que "por confirmar" ya se quedó (`idsPorConfirmar`,
  * abajo): la pregunta "¿se dio?" manda mientras siga abierta — el resto de
  * la pantalla espera su respuesta antes de contar la reunión como algo más.
+ *
+ * "PRÓXIMAS" (ronda 11, tarea 4): mismo criterio que ya usaba `PanelAgenda`
+ * en su panel lateral —`estado !== 'dada' && diaCivil(fecha) >= hoyCivil`—,
+ * calculado aquí ahora para poder EXCLUIR lo que ya resolvieron los otros
+ * tres módulos. Hace falta: `reunionesMinutables` acepta el día de HOY
+ * (`<=`, no `<` — "minutar no espera al día siguiente", ver su comentario en
+ * `dominio/reunion.ts`), así que una reunión DE HOY, todavía `agendada` pero
+ * con presentación lista, cumplía el criterio de "próximas" (su día es hoy,
+ * `>= hoyCivil`) Y el de "falta su minuta" (`tienePresentacion`) a la vez —
+ * el mismo patrón de solape que ya resolvían los otros tres entre sí, ahora
+ * extendido a un cuarto módulo. Por construcción, "próximas" nunca podía
+ * solaparse con `porConfirmar` (esa exige día ANTES de hoy, `<`; "próximas"
+ * exige día de hoy o después, `>=` — rangos disjuntos), pero se excluye
+ * igual: así el invariante depende de la exclusión explícita, no de que dos
+ * comparaciones de fecha mantenidas por separado seguirán siendo disjuntas
+ * para siempre.
  *
  * `hoyCivil` es un PARÁMETRO, no `new Date()` leído aquí adentro — mismo
  * criterio que `fueDada` (`dominio/reunion.ts`): quien necesita fijar "ahora"
@@ -180,7 +219,32 @@ export function cicloDeReuniones(
     })
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
-  return { porConfirmar, faltaMinuta, cerradas }
+  // "Próximas" (ronda 11, tarea 4) — ver el comentario de la función para el
+  // porqué de las tres exclusiones. `idsFaltaMinuta`/`idsCerradas` cierran el
+  // solape real (una reunión de HOY con presentación lista y sin confirmar);
+  // `idsPorConfirmar` es estructuralmente redundante (rangos de fecha ya
+  // disjuntos, `<` contra `>=`) pero se deja explícita a propósito.
+  const idsFaltaMinuta = new Set(faltaMinuta.map((r) => r.id))
+  const idsCerradas = new Set(cerradas.map((r) => r.id))
+  const proximas: ReunionEnCiclo[] = adaptadas
+    .filter((r) => r.estado !== 'dada')
+    .filter((r) => diaCivil(r.fecha) >= hoyCivil)
+    .filter((r) => !idsPorConfirmar.has(r.id))
+    .filter((r) => !idsFaltaMinuta.has(r.id))
+    .filter((r) => !idsCerradas.has(r.id))
+    .map((r) => {
+      const { r: original } = porId.get(r.id)!
+      return {
+        id: r.id, titulo: r.titulo, fecha: r.fecha,
+        salaSlug: original.salaSlug, salaNombre: original.salaNombre, salaColor: original.salaColor,
+      }
+    })
+    // Ascendente —la más próxima primero—, al revés que los otros tres: ahí
+    // lo urgente es lo más RECIENTE (mirar atrás); aquí es lo más CERCANO
+    // (mirar adelante). Mismo orden que ya usaba `PanelAgenda`.
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+
+  return { proximas, porConfirmar, faltaMinuta, cerradas }
 }
 
 export default async function PagReuniones() {
@@ -242,6 +306,11 @@ export default async function PagReuniones() {
 
   const hoyCivil = diaCivil(hoy.toISOString())
   const ciclo = cicloDeReuniones(reuniones, documentos, pausadas, hoyCivil)
+  // Solo los ids, ya deduplicados y en orden (la más próxima primero) —
+  // `PanelAgenda` los cruza contra su propio `sesiones` (sin filtrar, con
+  // TODOS los campos) para pintar cada fila. Ver el comentario de arriba
+  // ("RONDA 11, TAREA 4") para el porqué de este reparto.
+  const idsProximas = ciclo.proximas.map((r) => r.id)
 
   return (
     <div className={estilos.app}>
@@ -269,6 +338,7 @@ export default async function PagReuniones() {
           sesiones={paraElPanel}
           salas={salas}
           hoy={hoy.toISOString()}
+          idsProximas={idsProximas}
           agendarAction={agendarReunionAction}
           editarAction={editarReunionAction}
         />

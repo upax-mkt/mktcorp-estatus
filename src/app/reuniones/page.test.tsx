@@ -5,16 +5,38 @@ import type { DocumentoCompleto } from '@/db/documentos'
 
 /**
  * `/reuniones` (Tarea 13, ronda 10 — "el ciclo de vida entero" desde la tarea
- * 18): el calendario y "agendar" (`PanelAgenda`, mudado TAL CUAL desde
- * `/agenda`, sin tocar) más las cuatro preguntas del ciclo de una reunión que
- * ya pasó su día — "Próximas" ya vive DENTRO de `PanelAgenda` ("Lo que
- * viene"), así que esta pestaña añade "Por confirmar", "Se dieron, falta su
- * minuta" y "Cerradas". Reemplaza al viejo bloque único "Ya dadas este mes"
- * (con sus etiquetas "Sin presentación"/"Falta la minuta"), absorbido por los
- * tres módulos nuevos — Tarea 18, brief §2.
+ * 18; "Próximas" bajó del panel lateral al flujo en la ronda 11, tarea 4): el
+ * calendario y "agendar" (`PanelAgenda`, mudado TAL CUAL desde `/agenda` en
+ * la ronda 10, RESTRUCTURADO por dentro en la ronda 11 pero sin tocar el
+ * calendario) más las CUATRO preguntas del ciclo de una reunión — "Próximas"
+ * (¿qué sigue?), "Por confirmar", "Se dieron, falta su minuta" y "Cerradas"
+ * (las tres últimas, una vez que el día ya llegó). Reemplaza al viejo bloque
+ * único "Ya dadas este mes" (con sus etiquetas "Sin presentación"/"Falta la
+ * minuta"), absorbido por los tres módulos de la tarea 18 — Tarea 18, brief
+ * §2.
+ *
+ * RONDA 11, TAREA 4: "Próximas" seguía viviendo DENTRO de `PanelAgenda` ("Lo
+ * que viene"), en un panel lateral de 22rem que se rompía con muchas
+ * reuniones (Franco, el 6-ago: "se desarma todo cuando hay muchas"). Bajó al
+ * flujo, con el mismo tratamiento visual que las otras tres — pero SIGUE
+ * viviendo dentro de `PanelAgenda` (mudada su posición interna, no su
+ * responsabilidad): ahí es donde vive "editar", y moverla fuera de
+ * `PanelAgenda` habría exigido un componente cliente nuevo solo para
+ * conservarla, fuera del par de archivos de esta tarea. Lo que SÍ se mudó
+ * aquí es LA LISTA DE IDS que le corresponde a "Próximas" — `cicloDeReuniones`
+ * ahora la calcula como un cuarto módulo, EXCLUYENDO lo que ya se quedó en
+ * "por confirmar"/"falta su minuta"/"cerradas" (ver su comentario, más abajo,
+ * para el porqué: el mismo solape que ya resolvían esos tres entre sí
+ * alcanzaba también a "próximas" — una reunión de HOY con presentación lista
+ * pero sin confirmar salía a la vez en "Lo que viene" y en "falta su
+ * minuta"). `page.tsx` le pasa esa lista de ids a `PanelAgenda`
+ * (`idsProximas`), que la cruza contra su propio `sesiones` (la lista
+ * completa, sin filtrar — la sigue necesitando el calendario) para pintar
+ * cada fila con sus datos completos.
  *
  * `PanelAgenda` SE MOCKEA en este archivo — no porque no se use de verdad en
- * `page.tsx` (se usa, tal cual, sin rediseñar), sino porque:
+ * `page.tsx` (se usa, tal cual en su calendario, restructurada por dentro),
+ * sino porque:
  *
  *   1. Es un Client Component con `useRouter()` (`next/navigation`): montarlo
  *      de verdad exige un contexto de App Router que Vitest no arma solo.
@@ -23,6 +45,9 @@ import type { DocumentoCompleto } from '@/db/documentos'
  *      "Otros agentes tienen: ... FormularioSesion.tsx"). Renderizarlo de
  *      verdad aquí ataría este test al estado de un archivo ajeno en pleno
  *      vuelo.
+ *
+ * (Su propia suite, `PanelAgenda.test.tsx`, SÍ la monta de verdad y prueba
+ * "próximas"/"editar"/"agendar" en su forma final.)
  *
  * `ReunionesPorConfirmar` (tarea 18) se mockea por el mismo motivo 1: es
  * Client Component, y ya tiene su propia suite — aquí solo importa que esta
@@ -37,7 +62,8 @@ import type { DocumentoCompleto } from '@/db/documentos'
  * la lógica de esta tarea, y mockearla sería no probar nada. La pieza más
  * importante de esta suite es `cicloDeReuniones` (más abajo), exportada con
  * nombre para probarla directo, sin montar React: es donde vive LA REGLA
- * DURA — ninguna reunión sale en dos módulos a la vez.
+ * DURA — ninguna reunión sale en dos módulos a la vez, ahora con CUATRO
+ * módulos en vez de tres.
  */
 
 const exigirLecturaMock = vi.fn()
@@ -224,12 +250,14 @@ describe('PagReuniones (/reuniones) — la lectura se exige antes de listar nada
 })
 
 describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) se mudan tal cual', () => {
-  it('renderiza PanelAgenda con TODAS las reuniones (la vista de "próximas" filtra del lado del panel, no aquí)', async () => {
+  it('renderiza PanelAgenda con TODAS las reuniones sin filtrar (el calendario las necesita todas) MÁS idsProximas ya deduplicados', async () => {
     render(await PagReuniones())
 
     expect(screen.getByTestId('panel-agenda-stub')).toBeInTheDocument()
     expect(panelAgendaPropsMock).toHaveBeenCalledTimes(1)
-    const props = panelAgendaPropsMock.mock.calls[0][0] as { sesiones: unknown[]; salas: unknown[]; hoy: string }
+    const props = panelAgendaPropsMock.mock.calls[0][0] as {
+      sesiones: unknown[]; salas: unknown[]; hoy: string; idsProximas: string[]
+    }
     expect(props.sesiones).toHaveLength(TODAS.length)
     expect(props.salas).toEqual([
       { slug: 'neracode', nombre: 'NeraCode', color: '#101010' },
@@ -238,6 +266,11 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
       { slug: 'hof', nombre: 'House of Films', color: '#111827' },
     ])
     expect(props.hoy).toBe(HOY.toISOString())
+    // De TODAS, la única "próxima" (no dada, día >= hoy) es R_FUTURA — las
+    // otras siete son del pasado o ya están dadas. Mismo cálculo que prueba
+    // `cicloDeReuniones` más abajo, aquí solo se confirma que LLEGA a
+    // PanelAgenda con ese nombre de prop.
+    expect(props.idsProximas).toEqual(['r-futura'])
   })
 
   it('agendarAction/editarAction que recibe PanelAgenda son las de ./acciones (mudadas a su propio archivo)', async () => {
@@ -255,15 +288,16 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
 })
 
 /**
- * `cicloDeReuniones` — la función pura detrás de las tres secciones nuevas
- * (tarea 18), exportada con nombre para probarla sin montar React. Recibe
+ * `cicloDeReuniones` — la función pura detrás de las CUATRO secciones de
+ * `/reuniones` (las tres de la tarea 18, más "próximas" desde la ronda 11
+ * tarea 4), exportada con nombre para probarla sin montar React. Recibe
  * `hoyCivil` como parámetro (no lee `new Date()` por su cuenta) — mismo
  * criterio que `fueDada`/`reunionesPorConfirmar` (`dominio/reunion.ts`):
  * quien necesita fijar "ahora" en un test lo pasa, no pelea con
  * temporizadores falsos.
  *
  * ESTA ES LA PIEZA QUE FIJA LA REGLA DURA: ninguna reunión puede salir en dos
- * de los tres módulos a la vez — exactamente el defecto que la revisión
+ * de los cuatro módulos a la vez — exactamente el defecto que la revisión
  * final de la ronda 10 ya arregló una vez, entre "En preparación" y "Por
  * confirmar" en `/deck`. `reunionesPorConfirmar` y `reunionesMinutables`
  * (`dominio/reunion.ts`) NO son, por sí solas, mutuamente excluyentes: una
@@ -275,6 +309,20 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
  * "falta su minuta" y "cerradas" excluyen explícitamente lo que "por
  * confirmar" ya se quedó: la pregunta "¿se dio?" manda mientras siga
  * abierta.
+ *
+ * RONDA 11, TAREA 4 — EL MISMO SOLAPE ALCANZABA A "PRÓXIMAS": antes de esta
+ * tarea, "Próximas" se calculaba del lado de `PanelAgenda` (`estado !==
+ * 'dada' && diaCivil(fecha) >= hoyCivil`), sin saber nada de los otros tres
+ * módulos. `reunionesMinutables` acepta el día de HOY (`<=`, no `<` —
+ * "minutar no espera al día siguiente", ver su comentario en
+ * `dominio/reunion.ts`), así que una reunión DE HOY, todavía `agendada`
+ * (nadie confirmó que se dio) pero con presentación lista, cumplía las DOS
+ * preguntas a la vez: "¿qué sigue?" (próximas, porque su día es HOY, que
+ * cuenta como `>= hoyCivil`) y "¿falta su minuta?" (porque `tienePresentacion`
+ * ya es cierto). Salía en las dos listas. Por eso "próximas" ahora EXCLUYE
+ * explícitamente lo que ya se quedó en `porConfirmar`/`faltaMinuta`/
+ * `cerradas` — mismo patrón que ya usaban esas tres entre sí, extendido al
+ * cuarto módulo.
  */
 describe('cicloDeReuniones — la regla dura: ninguna reunión en dos módulos a la vez', () => {
   const HOY_CIVIL = '2026-08-19' // mismo día que HOY, más abajo (12:00 CDMX)
@@ -354,6 +402,20 @@ describe('cicloDeReuniones — la regla dura: ninguna reunión en dos módulos a
     expect(ciclo.faltaMinuta.map((x) => x.id)).not.toContain('r6')
   })
 
+  it('EL SOLAPE CERRADO (ronda 11, tarea 4): reunión de HOY, agendada (sin confirmar) y con presentación lista: "falta su minuta", NUNCA "próximas" — aunque su fecha (hoy) también cumpliría el criterio de "próximas"', () => {
+    const r = reunion({
+      id: 'r-hoy-lista-sin-confirmar', titulo: 'Reunión de hoy con deck listo', fecha: '2026-08-19T18:00:00.000Z',
+      estado: 'agendada',
+    })
+
+    const ciclo = cicloDeReuniones([r], [documento('listo', 5, 5)], new Set(), HOY_CIVIL)
+
+    expect(ciclo.faltaMinuta.map((x) => x.id)).toEqual(['r-hoy-lista-sin-confirmar'])
+    expect(ciclo.proximas.map((x) => x.id)).not.toContain('r-hoy-lista-sin-confirmar')
+    expect(ciclo.porConfirmar.map((x) => x.id)).not.toContain('r-hoy-lista-sin-confirmar')
+    expect(ciclo.cerradas.map((x) => x.id)).not.toContain('r-hoy-lista-sin-confirmar')
+  })
+
   it('"cerradas" se ordena por fecha, la más reciente primero', () => {
     const vieja = reunion({ id: 'r-vieja', fecha: '2026-06-10T18:00:00.000Z', estado: 'dada', tieneMinuta: true })
     const nueva = reunion({ id: 'r-nueva', fecha: '2026-08-05T18:00:00.000Z', estado: 'dada', tieneMinuta: true })
@@ -376,17 +438,27 @@ describe('cicloDeReuniones — la regla dura: ninguna reunión en dos módulos a
    * OTRO MES, que el viejo filtro por mes excluía, ahora también aparece: el
    * filtro de mes desaparece con la sección que lo aplicaba, a propósito
    * (ninguno de los tres módulos nuevos lo pide).
+   *
+   * RONDA 11, TAREA 4: ahora también cubre "próximas" (el cuarto módulo, que
+   * se mudó aquí desde `PanelAgenda`) en la misma matriz de exclusión mutua.
    */
   it('nada se pierde: las que "Ya dadas este mes" ya contaba siguen apareciendo, cada una en un único módulo — y las de fuera del mes también, ahora que ese filtro desaparece', () => {
     const docs = TODAS.map((r) => DOCUMENTOS_POR_ID[r.id] ?? null)
 
     const ciclo = cicloDeReuniones(TODAS, docs, new Set(), HOY_CIVIL)
 
+    const idsProximas = new Set(ciclo.proximas.map((x) => x.id))
     const idsPorConfirmar = new Set(ciclo.porConfirmar.map((x) => x.id))
     const idsFaltaMinuta = new Set(ciclo.faltaMinuta.map((x) => x.id))
     const idsCerradas = new Set(ciclo.cerradas.map((x) => x.id))
 
-    // Sin solaparse entre sí — ninguna de las tres comparte un id con otra.
+    // Sin solaparse entre sí — ninguno de los cuatro módulos comparte un id
+    // con otro (las 6 parejas posibles entre los cuatro).
+    for (const id of idsProximas) {
+      expect(idsPorConfirmar.has(id)).toBe(false)
+      expect(idsFaltaMinuta.has(id)).toBe(false)
+      expect(idsCerradas.has(id)).toBe(false)
+    }
     for (const id of idsPorConfirmar) {
       expect(idsFaltaMinuta.has(id)).toBe(false)
       expect(idsCerradas.has(id)).toBe(false)
@@ -403,16 +475,207 @@ describe('cicloDeReuniones — la regla dura: ninguna reunión en dos módulos a
     // filtro, ahora sí aparece (dada + minuta → cerradas).
     expect(idsCerradas.has(R_MES_PASADO.id)).toBe(true)
 
-    // Las que de verdad no tienen nada que mostrar siguen sin aparecer en
-    // ninguno de los tres (correcto: "Próximas" y "sin nada" no son de este
-    // módulo — la futura la sigue mostrando PanelAgenda, "sin respaldo" no
-    // tiene nada que este ciclo pueda contar).
-    for (const id of [R_FUTURA.id, R_SIN_RESPALDO.id]) {
-      expect(idsPorConfirmar.has(id) || idsFaltaMinuta.has(id) || idsCerradas.has(id)).toBe(false)
-    }
+    // La futura (agendada, día después de hoy) ahora aparece en "próximas"
+    // —calculada aquí mismo, ya no del lado de PanelAgenda—, y en ningún
+    // otro módulo.
+    expect(idsProximas.has(R_FUTURA.id)).toBe(true)
+    expect(idsPorConfirmar.has(R_FUTURA.id) || idsFaltaMinuta.has(R_FUTURA.id) || idsCerradas.has(R_FUTURA.id)).toBe(false)
+
+    // La que de verdad no tiene nada que mostrar sigue sin aparecer en
+    // ninguno de los cuatro ("sin respaldo" no tiene nada que este ciclo
+    // pueda contar, y su día ya pasó — tampoco es "próxima").
+    expect(
+      idsProximas.has(R_SIN_RESPALDO.id) ||
+        idsPorConfirmar.has(R_SIN_RESPALDO.id) ||
+        idsFaltaMinuta.has(R_SIN_RESPALDO.id) ||
+        idsCerradas.has(R_SIN_RESPALDO.id),
+    ).toBe(false)
 
     // La cancelada sigue ofreciéndose para deshacerse, en "por confirmar".
     expect(idsPorConfirmar.has(R_CANCELADA.id)).toBe(true)
+  })
+})
+
+/**
+ * "PRÓXIMAS" EN SÍ (ronda 11, tarea 4): además de la regla dura de arriba
+ * (no solaparse con los otros tres), el cuarto módulo tiene su propio
+ * criterio — idéntico al que tenía `PanelAgenda` antes de esta tarea
+ * (`estado !== 'dada' && diaCivil(fecha) >= hoyCivil`), solo que ahora
+ * calculado aquí para poder excluir lo que ya resolvieron los otros tres.
+ */
+describe('cicloDeReuniones — "próximas" (bajó de PanelAgenda a este ciclo, ronda 11 tarea 4)', () => {
+  const HOY_CIVIL = '2026-08-19'
+
+  it('una reunión futura y agendada aparece en "próximas", con sus datos completos', () => {
+    const r = reunion({
+      id: 'r-futura-simple', titulo: 'Planeación Q4', fecha: '2026-09-01T18:00:00.000Z',
+      estado: 'agendada', salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa', salaColor: '#c0392b',
+    })
+
+    const ciclo = cicloDeReuniones([r], [null], new Set(), HOY_CIVIL)
+
+    expect(ciclo.proximas).toEqual([
+      { id: 'r-futura-simple', titulo: 'Planeación Q4', fecha: '2026-09-01T18:00:00.000Z', salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa', salaColor: '#c0392b' },
+    ])
+  })
+
+  it('una reunión de HOY, agendada y SIN nada encima todavía, cuenta como "próxima" (su día no ha pasado)', () => {
+    const r = reunion({ id: 'r-hoy-sin-nada', fecha: '2026-08-19T12:00:00.000Z', estado: 'agendada' })
+
+    const ciclo = cicloDeReuniones([r], [null], new Set(), HOY_CIVIL)
+
+    expect(ciclo.proximas.map((x) => x.id)).toEqual(['r-hoy-sin-nada'])
+  })
+
+  it('una reunión YA DADA no es "próxima" aunque su fecha sea futura (dato inconsistente, pero lo explícito manda)', () => {
+    const r = reunion({ id: 'r-dada-futura', fecha: '2026-09-10T18:00:00.000Z', estado: 'dada' })
+
+    const ciclo = cicloDeReuniones([r], [null], new Set(), HOY_CIVIL)
+
+    expect(ciclo.proximas.map((x) => x.id)).not.toContain('r-dada-futura')
+  })
+
+  it('una reunión con el día ya pasado no es "próxima", esté o no confirmada', () => {
+    const r = reunion({ id: 'r-pasada', fecha: '2026-08-18T18:00:00.000Z', estado: 'agendada' })
+
+    const ciclo = cicloDeReuniones([r], [null], new Set(), HOY_CIVIL)
+
+    expect(ciclo.proximas.map((x) => x.id)).not.toContain('r-pasada')
+  })
+
+  it('sin ninguna reunión futura, "próximas" es un arreglo vacío, no undefined', () => {
+    const ciclo = cicloDeReuniones([], [], new Set(), HOY_CIVIL)
+    expect(ciclo.proximas).toEqual([])
+  })
+
+  it('"próximas" se ordena de la más próxima a la más lejana (ascendente) — al revés que los otros tres', () => {
+    const lejana = reunion({ id: 'r-lejana', fecha: '2026-10-01T18:00:00.000Z', estado: 'agendada' })
+    const cercana = reunion({ id: 'r-cercana', fecha: '2026-08-20T18:00:00.000Z', estado: 'agendada' })
+    const media = reunion({ id: 'r-media', fecha: '2026-09-01T18:00:00.000Z', estado: 'agendada' })
+
+    // A propósito en desorden de entrada, para probar que SÍ se ordena.
+    const ciclo = cicloDeReuniones([lejana, cercana, media], [null, null, null], new Set(), HOY_CIVIL)
+
+    expect(ciclo.proximas.map((x) => x.id)).toEqual(['r-cercana', 'r-media', 'r-lejana'])
+  })
+})
+
+/**
+ * VOLUMEN (brief §2, Step 2 — "que aguante el volumen... comprobarlo con
+ * muchas reuniones, no con tres: es lo que se rompía"). El síntoma que
+ * reportó Franco es de LAYOUT (CSS, no lógica — ese lado se comprueba con un
+ * print, ver el reporte de la tarea), pero el riesgo real de tocar
+ * `cicloDeReuniones` es que la regla dura se sostenga solo "a mano" para
+ * pocos casos y se agriete con datos reales. La base real tiene 12
+ * reuniones hoy; este lote es deliberadamente mucho mayor y cruza
+ * día(pasado/hoy/futuro) × estado × presentación × minuta — la matriz
+ * completa que puede separar a los cuatro módulos entre sí.
+ */
+describe('cicloDeReuniones — aguanta volumen (muchas reuniones, no tres)', () => {
+  const HOY_CIVIL = '2026-08-19'
+
+  const DIAS = ['2026-07-01', '2026-08-01', '2026-08-18', '2026-08-19', '2026-08-20', '2026-09-15']
+  const SALAS_LOTE = [
+    { slug: 'neracode', nombre: 'NeraCode', color: '#101010' },
+    { slug: 'mexa-creativa', nombre: 'Mexa Creativa', color: '#c0392b' },
+    { slug: 'uix', nombre: 'UiX', color: '#2b6cc0' },
+    { slug: null, nombre: 'Marketing Corp', color: '#E34714' },
+  ]
+
+  function loteGrande(): { reuniones: ReunionResumen[]; documentos: Array<DocumentoCompleto | null> } {
+    const reuniones: ReunionResumen[] = []
+    const documentos: Array<DocumentoCompleto | null> = []
+    let i = 0
+    for (const dia of DIAS) {
+      for (const estado of ['agendada', 'dada'] as const) {
+        for (const presentacionLista of [true, false]) {
+          for (const tieneMinuta of [true, false]) {
+            const sala = SALAS_LOTE[i % SALAS_LOTE.length]
+            reuniones.push(reunion({
+              id: `vol-${i}`, titulo: `Reunión de volumen ${i}`, fecha: `${dia}T18:00:00.000Z`,
+              estado, tieneMinuta,
+              salaSlug: sala.slug, salaNombre: sala.nombre, salaColor: sala.color,
+            }))
+            documentos.push(presentacionLista ? documento('listo', 3, 3) : documento('borrador', 0, 3))
+            i++
+          }
+        }
+      }
+    }
+    return { reuniones, documentos }
+  }
+
+  it('con un lote de más de 40 reuniones (muy por encima de las 12 reales), ninguna sale en dos módulos a la vez', () => {
+    const { reuniones, documentos } = loteGrande()
+    expect(reuniones.length).toBeGreaterThan(40)
+
+    const ciclo = cicloDeReuniones(reuniones, documentos, new Set(), HOY_CIVIL)
+
+    const bolsas = [
+      ciclo.proximas.map((x) => x.id),
+      ciclo.porConfirmar.map((x) => x.id),
+      ciclo.faltaMinuta.map((x) => x.id),
+      ciclo.cerradas.map((x) => x.id),
+    ]
+
+    const contador = new Map<string, number>()
+    for (const ids of bolsas) {
+      for (const id of ids) contador.set(id, (contador.get(id) ?? 0) + 1)
+    }
+    const enDosOMasModulos = [...contador.entries()].filter(([, veces]) => veces > 1)
+    expect(enDosOMasModulos).toEqual([])
+  })
+
+  it('con el mismo lote grande, el orden se mantiene: "próximas" de la más próxima a la más lejana; "por confirmar"/"falta su minuta"/"cerradas" de la más reciente a la más vieja', () => {
+    const { reuniones, documentos } = loteGrande()
+    const ciclo = cicloDeReuniones(reuniones, documentos, new Set(), HOY_CIVIL)
+
+    // Ninguna de las cuatro listas puede quedar vacía en este lote —si
+    // alguna lo está, el test de orden de abajo estaría comprobando un
+    // arreglo vacío contra sí mismo, sin decir nada.
+    expect(ciclo.proximas.length).toBeGreaterThan(0)
+    expect(ciclo.porConfirmar.length).toBeGreaterThan(0)
+    expect(ciclo.faltaMinuta.length).toBeGreaterThan(0)
+    expect(ciclo.cerradas.length).toBeGreaterThan(0)
+
+    const fechasProximas = ciclo.proximas.map((x) => x.fecha)
+    expect(fechasProximas).toEqual([...fechasProximas].sort())
+
+    const fechasPorConfirmar = ciclo.porConfirmar.map((x) => x.fecha)
+    expect(fechasPorConfirmar).toEqual([...fechasPorConfirmar].sort().reverse())
+
+    const fechasFaltaMinuta = ciclo.faltaMinuta.map((x) => x.fecha)
+    expect(fechasFaltaMinuta).toEqual([...fechasFaltaMinuta].sort().reverse())
+
+    const fechasCerradas = ciclo.cerradas.map((x) => x.fecha)
+    expect(fechasCerradas).toEqual([...fechasCerradas].sort().reverse())
+  })
+
+  it('el solape puntual sigue cerrado también dentro del lote grande: toda reunión de HOY, agendada y con presentación lista cae en "falta su minuta", nunca en "próximas"', () => {
+    const { reuniones, documentos } = loteGrande()
+    const ciclo = cicloDeReuniones(reuniones, documentos, new Set(), HOY_CIVIL)
+
+    const idsProximas = new Set(ciclo.proximas.map((x) => x.id))
+    const idsFaltaMinuta = new Set(ciclo.faltaMinuta.map((x) => x.id))
+
+    // `reunionesMinutables` también exige `!r.minuta` — un caso de HOY con
+    // presentación lista pero YA MINUTADO no es "falta su minuta", es
+    // "cerradas" (mismo criterio que la fixture r2 de la regla dura, más
+    // arriba). El solape que este test vigila es específicamente el que
+    // deja SIN minuta.
+    const casosDeSolape = reuniones
+      .map((r, idx) => ({ r, doc: documentos[idx] }))
+      .filter(({ r }) => r.fecha.startsWith(HOY_CIVIL) && r.estado === 'agendada' && !r.tieneMinuta)
+      .filter(({ doc }) => doc?.estado === 'listo')
+
+    // El lote sí genera el caso de solape — si esto fallara, el resto de la
+    // prueba estaría comprobando un conjunto vacío.
+    expect(casosDeSolape.length).toBeGreaterThan(0)
+
+    for (const { r } of casosDeSolape) {
+      expect(idsFaltaMinuta.has(r.id)).toBe(true)
+      expect(idsProximas.has(r.id)).toBe(false)
+    }
   })
 })
 
