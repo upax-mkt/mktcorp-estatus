@@ -1,16 +1,19 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import estilos from './reuniones.module.css'
 import { listarReuniones, type ReunionResumen } from '@/db/reuniones'
 import { documentoDeReunion, type DocumentoCompleto } from '@/db/documentos'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { slugsDeSalasPausadas } from '@/db/salas'
-import { exigirLectura } from '@/auth/roles'
+import { exigirLectura, esAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import type { SesionPorConfirmar } from '@/dominio/salas'
 import { reunionesPorConfirmar, reunionesMinutables, type Reunion } from '@/dominio/reunion'
-import { fechaLarga, fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
+import { fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
 import {
   agendarReunionAction, editarReunionAction,
   marcarPresentadaAction, marcarNoDadaAction, desmarcarNoDadaAction,
@@ -259,7 +262,7 @@ export default async function PagReuniones() {
   await connection()
   const hoy = new Date()
 
-  const [reuniones, slugsReales, registro, pausadas] = await Promise.all([
+  const [reuniones, slugsReales, registro, pausadas, admin] = await Promise.all([
     listarReuniones(),
     slugsDeSalas(),
     cargarTemas(),
@@ -268,6 +271,10 @@ export default async function PagReuniones() {
     // sala (`s.activa`), aquí resuelto aparte porque esta pantalla parte de
     // `listarReuniones()` (una lista plana), no de `estadoDeSalas()`.
     slugsDeSalasPausadas(),
+    // `esAdmin()` (ronda 11, enganche de la tarea 2): el gate de Clientes/
+    // Personas que pinta `BarraNavegacion`, que esta pantalla no montaba
+    // hasta ahora.
+    esAdmin(),
   ])
 
   const salas = slugsReales.map((slug) => {
@@ -312,18 +319,29 @@ export default async function PagReuniones() {
   // ("RONDA 11, TAREA 4") para el porqué de este reparto.
   const idsProximas = ciclo.proximas.map((r) => r.id)
 
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
+
   return (
     <div className={estilos.app}>
-      <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        <div className={estilos.barraTitulo}>Reuniones</div>
-        <nav className={estilos.barraDcha}>
-          {/* Deck Designer → Presentaciones (tarea 18): solo el nombre
-              visible, la ruta sigue siendo /deck. */}
-          <Link href="/deck" className={estilos.barraLink}>Presentaciones</Link>
-          <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
-        </nav>
-      </header>
+      {/* LA BARRA (ronda 11, enganche de la tarea 2) SUSTITUYE A LA CABECERA
+          ENTERA, no solo a su `<nav>`: el viejo `<header>` traía "← Meeting
+          Hub" (mismo destino que ya cubre el logo de `BarraNavegacion`) y un
+          `barraTitulo` "Reuniones" que ya duplicaba el `<h1>` de
+          `.encabezado`, un poco más abajo. `/reuniones` es una de las cinco
+          pestañas del ciclo, no una pantalla de detalle —mismo caso que
+          `/deck`, `/acuerdos`, `/salas` y `/personas`, ninguna de las cuales
+          conserva un "← volver" propio junto a la barra—, así que aquí no
+          aplica "las pantallas de detalle conservan su volver": ese "←
+          Meeting Hub" era justo la copia divergida que esta ronda vino a
+          unificar (ver la cabecera de `BarraNavegacion.tsx`), no un nivel de
+          jerarquía distinto que deba sobrevivir aparte. */}
+      <BarraNavegacion seccionActiva="reuniones" hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>

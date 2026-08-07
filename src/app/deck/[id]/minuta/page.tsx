@@ -1,11 +1,14 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import type { CSSProperties } from 'react'
 import estilos from '../../deck.module.css'
 import { obtenerReunion } from '@/db/reuniones'
 import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
-import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
@@ -22,11 +25,30 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   // Página de equipo que faltaba exigir a nivel de página (corrección
   // post-revisión de la ronda 9) — la comprobación de sesión va primero.
   await exigirLectura()
+  // `connection()`/`hoy`/`admin` (ronda 11, enganche de la tarea 2): mismo
+  // mecanismo que `/` y `/deck` — la fecha y el gate de Clientes/Personas
+  // que pinta `BarraNavegacion`, que esta pantalla no montaba hasta ahora.
+  // Resueltos aquí arriba, antes de los DOS `return` de esta función: el
+  // early return de "todavía no se dio" (más abajo) también monta la barra,
+  // así que los dos caminos necesitan `hoy`/`admin`/`salir` ya listos.
+  await connection()
+  const hoy = new Date()
+  const admin = await esAdmin()
   const { id } = await params
   const reunion = await obtenerReunion(id)
   if (!reunion) notFound()
 
   const estiloSala = { '--sala': reunion.salaColor } as CSSProperties
+
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion`. Se
+  // define aquí arriba —antes de los DOS `return` de la función— porque el
+  // early return de "todavía no se dio", justo abajo, también la necesita.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
 
   /**
    * LO QUE DECIDE ES SI LA REUNIÓN YA OCURRIÓ, no si alguien alcanzó a
@@ -43,10 +65,18 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
    * Lo único que sigue sin tener sentido es minutar algo que aún no ha
    * pasado: no hay nada que transcribir.
    */
-  const yaOcurrio = diaCivil(reunion.fecha) <= diaCivil(new Date().toISOString())
+  const yaOcurrio = diaCivil(reunion.fecha) <= diaCivil(hoy.toISOString())
   if (!yaOcurrio) {
     return (
       <div className={estilos.app} style={estiloSala}>
+        {/* LA BARRA (ronda 11, enganche de la tarea 2), arriba del todo — no
+            sustituye al "← Cuestionario" de abajo: volver al cuestionario de
+            ESTA reunión y saltar a otra sección son cosas distintas (mismo
+            criterio que `deck/[id]/page.tsx`). `seccionActiva="deck"`, no
+            "presentaciones": `SeccionBarra` solo tiene esa clave — el nombre
+            visible de la pestaña es "Presentaciones" (tarea 18), pero la
+            ruta y la clave del ciclo siguen siendo `deck`. */}
+        <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
         <header className={estilos.barra}>
           <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
           <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>
@@ -97,6 +127,10 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
 
   return (
     <div className={estilos.app} style={estiloSala}>
+      {/* LA BARRA: mismo montaje que en el early return de arriba — ver su
+          comentario ("todavía no se dio") para el porqué de `seccionActiva`
+          y de por qué no sustituye al "← Cuestionario". */}
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
       <header className={estilos.barra}>
         <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
         <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>

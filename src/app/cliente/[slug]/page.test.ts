@@ -24,6 +24,14 @@ import type { EstadoSala } from '@/dominio/salas'
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
+// `connection()` (ronda 11, enganche de la tarea 2): la página ahora lo
+// llama para que `BarraNavegacion` pinte la fecha de HOY, no la del build
+// (ver su comentario). Llamado FUERA de cualquier render real de Next,
+// revienta con "connection was called outside a request scope" — mismo
+// motivo por el que `next/cache` (arriba) se mockea, y mismo mock exacto
+// que ya usa `reuniones/page.test.tsx` para el mismo cableado.
+vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }))
+
 // SOLO PARA LOS TESTS QUE RENDERIZAN DE VERDAD (Tarea 11, más abajo):
 // `LevantarMinuta` (fuera de mi lista de archivos de esta tarea) llama a
 // `useRouter()` — sin un App Router real montado, la implementación real
@@ -545,6 +553,45 @@ describe('VistaSala (/cliente/[slug]) — el enlace ⚙ a los ajustes de la sala
     render(await invocar())
 
     expect(screen.queryByRole('link', { name: /ajustes/i })).toBeNull()
+  })
+})
+
+/**
+ * LA BARRA GLOBAL (`BarraNavegacion`) ES SOLO EQUIPO (ronda 11, enganche de
+ * la tarea 2) — EL RIESGO CENTRAL DE ENGANCHARLA AQUÍ: a diferencia de las
+ * otras siete pantallas que ya la montan, esta sala también la ve el
+ * DIRECTOR de una UDN (sesión `rol: 'sala'`, `esLector()` → `false`).
+ * `BarraNavegacion` no sabe de roles —nada en su contrato distingue equipo
+ * de director, solo recibe `admin` para el gate de Clientes/Personas—, así
+ * que sin el `{equipo && ...}` de `page.tsx` un director vería el menú
+ * global entero: cinco enlaces que `puedeVerRuta` (lista blanca estricta,
+ * `src/auth/politica.ts`) le va a negar a TODOS, más la insinuación de que
+ * hay más app de la que le toca ver.
+ *
+ * Se detecta por el `aria-label` único del `<nav>` interno de
+ * `BarraNavegacion` ("Secciones de Marketing Corp", ver
+ * `BarraNavegacion.tsx`) — NO por el texto "Salir": esta misma pantalla ya
+ * pinta un botón con ese nombre para el director (`salirDeLaSala`, línea
+ * arriba), así que buscar por ese texto daría un falso positivo tanto si la
+ * barra se monta como si no.
+ */
+describe('VistaSala (/cliente/[slug]) — BarraNavegacion es SOLO EQUIPO (ronda 11, enganche de la tarea 2)', () => {
+  it('director de UDN (esLector false): NO ve el menú global — ninguna de las cinco pestañas, ni el resto de la app que no le toca', async () => {
+    esLectorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.queryByRole('navigation', { name: 'Secciones de Marketing Corp' })).not.toBeInTheDocument()
+  })
+
+  it('equipo (esLector true, cualquier rolApp): SÍ ve el menú global', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.getByRole('navigation', { name: 'Secciones de Marketing Corp' })).toBeInTheDocument()
   })
 })
 

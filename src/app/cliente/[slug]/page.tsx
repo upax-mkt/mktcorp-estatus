@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { connection } from 'next/server'
 import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
@@ -48,6 +49,7 @@ import {
   generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
 import { esAdmin, esLector, exigirEditor } from '@/auth/roles'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
 
@@ -155,7 +157,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // Fuente única de "qué día es hoy" (src/lib/fecha.ts) — la reutilizan
   // `enPreparacion` (aquí abajo), `pendientesDeMinuta` y `porConfirmar`, más
   // adelante: las tres necesitan la MISMA respuesta a "¿ya pasó el día?".
-  const hoyCivil = diaCivil(new Date().toISOString())
+  // `connection()`/`hoy` (ronda 11, enganche de la tarea 2): mismo mecanismo
+  // que las demás pantallas de esta ronda, para que `BarraNavegacion` pinte
+  // la fecha de HOY, no la del build. `dynamic = 'force-dynamic'` (arriba)
+  // ya vuelve dinámica esta página por otro motivo (necesita datos frescos
+  // en cada carga — ver su comentario), pero se deja explícito por el mismo
+  // motivo que en las demás pantallas de esta ronda: no depender de un
+  // efecto colateral para algo que se puede pedir directamente. `hoyCivil`
+  // se deriva de este mismo `hoy`, no de un `new Date()` aparte: un solo
+  // instante para toda la función.
+  await connection()
+  const hoy = new Date()
+  const hoyCivil = diaCivil(hoy.toISOString())
   /**
    * LO QUE ESTÁ A MEDIO ARMAR PARA ESTE CLIENTE.
    *
@@ -546,6 +559,40 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   return (
     <div className={estilos.app} style={estiloMarca}>
+      {/* LA BARRA (ronda 11, enganche de la tarea 2) — SOLO EQUIPO, es el
+          punto central de esta tarea: a diferencia de las otras siete
+          pantallas que ya la montan, esta sala también la ve el DIRECTOR de
+          la UDN (sesión `rol: 'sala'`, sin `equipo`). `BarraNavegacion` no
+          sabe de roles —recibe `admin` para el gate de Clientes/Personas,
+          pero nada que distinga equipo de director—, así que montada a
+          secas un director vería el menú global entero: cinco enlaces que
+          `puedeVerRuta` (`src/auth/politica.ts`, lista blanca estricta) le
+          va a negar a TODOS, más la insinuación de que hay más app de la
+          que le toca ver. `equipo` (= `esLector()`, línea arriba) es la
+          MISMA variable que ya condiciona el resto de esta pantalla para el
+          director — fijado con test en `page.test.ts` ("BarraNavegacion es
+          SOLO EQUIPO"): director no la ve, equipo sí. Esto es cortesía de
+          interfaz, no la protección real —esa sigue siendo `puedeVerRuta`
+          en el proxy y cada `exigir*()`/`puedeVer*()` de página, sin
+          tocar—, pero es la que evita prometerle al director una app que no
+          puede usar.
+
+          Sin `seccionActiva`: la sala no es ninguna de las cinco pestañas
+          del ciclo, mismo motivo que el Home.
+
+          `salirAction={salirDeLaSala}`: reutiliza la Server Action que esta
+          pantalla ya define más abajo (idéntica a `salir` de las otras
+          siete: `cerrarSesion()` + `redirect('/entrar')`) en vez de declarar
+          una segunda copia byte-a-byte en el mismo archivo. El criterio de
+          "repetir `salir` a propósito en cada pantalla" (ver `deck/page.tsx`)
+          es para no CENTRALIZARLA entre archivos —evitar tocar
+          `auth/sesion.ts` a media ronda—; dentro de un mismo archivo sigue
+          siendo la misma función, ahora con dos disparadores: el botón
+          "Salir" de abajo para el director, y esta barra para el equipo. */}
+      {equipo && (
+        <BarraNavegacion hoy={hoy} admin={admin} salirAction={salirDeLaSala} />
+      )}
+
       <header className={estilos.barra}>
         {/* El director solo tiene acceso a esta sala: mandarlo al hub sería
             ofrecerle una puerta que el proxy le cierra en la cara. */}

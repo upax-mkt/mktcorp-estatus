@@ -67,9 +67,23 @@ import type { DocumentoCompleto } from '@/db/documentos'
  */
 
 const exigirLecturaMock = vi.fn()
+// `esAdmin` (ronda 11, enganche de la tarea 2): `PagReuniones` ahora la llama
+// dentro del `Promise.all` para alimentar a `BarraNavegacion` — sin
+// mockearla aquí, `esAdmin()` es `undefined()` y el `Promise.all` entero
+// rechaza, tumbando cada test del archivo. Mismo defecto (y mismo arreglo)
+// que ya documentó `deck/page.test.ts` para el mismo cableado.
+const esAdminMock = vi.fn()
 vi.mock('@/auth/roles', () => ({
   exigirLectura: () => exigirLecturaMock(),
+  esAdmin: () => esAdminMock(),
 }))
+
+// `cerrarSesion`/`redirect` (ronda 11, enganche de la tarea 2): `salir`
+// —la Server Action que ahora recibe `BarraNavegacion`— los usa, pero
+// ningún test de este archivo la invoca (nadie envía el form "Salir"): se
+// referencia sin mockear, mismo criterio que ya usa `deck/page.test.ts` para
+// el mismo patrón — solo haría falta un doble si algún test la disparara de
+// verdad.
 
 // `connection()` (next/server), llamado FUERA de cualquier render real de
 // Next, revienta con "invariant expected a request store" — se comprobó
@@ -224,6 +238,7 @@ const DOCUMENTOS_POR_ID: Record<string, DocumentoCompleto | null> = {
 
 beforeEach(() => {
   exigirLecturaMock.mockReset().mockResolvedValue({ rol: 'equipo', rolApp: 'viewer', sub: 'equipo-mkt-corp' })
+  esAdminMock.mockReset().mockResolvedValue(false)
   listarReunionesMock.mockReset().mockResolvedValue(TODAS)
   documentoDeReunionMock.mockReset().mockImplementation((id: string) =>
     Promise.resolve(DOCUMENTOS_POR_ID[id] ?? null),
