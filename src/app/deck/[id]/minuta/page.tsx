@@ -70,23 +70,48 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
     return (
       <div className={estilos.app} style={estiloSala}>
         {/* LA BARRA (ronda 11, enganche de la tarea 2), arriba del todo — no
-            sustituye al "← Cuestionario" de abajo: volver al cuestionario de
-            ESTA reunión y saltar a otra sección son cosas distintas (mismo
-            criterio que `deck/[id]/page.tsx`). `seccionActiva="deck"`, no
-            "presentaciones": `SeccionBarra` solo tiene esa clave — el nombre
-            visible de la pestaña es "Presentaciones" (tarea 18), pero la
-            ruta y la clave del ciclo siguen siendo `deck`. */}
+            sustituye al "← Editar documento" de abajo: volver a editar el
+            documento de ESTA reunión y saltar a otra sección son cosas
+            distintas (mismo criterio que `deck/[id]/page.tsx`).
+            `seccionActiva="deck"`, no "presentaciones": `SeccionBarra` solo
+            tiene esa clave — el nombre visible de la pestaña es
+            "Presentaciones" (tarea 18), pero la ruta y la clave del ciclo
+            siguen siendo `deck`. */}
         <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
         <header className={estilos.barra}>
-          <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
+          {/* "Cuestionario" no es el nombre de `/deck/{id}` desde hace dos
+              rondas (auditoría UX/UI, 7-ago): hoy es el editor del documento
+              de la reunión, y así se refieren a él las otras pantallas que
+              enlazan aquí — "Editar →" en `/reunion/[id]`, "Seguir
+              editando →" en la sala. */}
+          <Link href={`/deck/${id}`} className={estilos.volver}>← Editar documento</Link>
           <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>
         </header>
         <main className={estilos.main}>
-          <p className={estilos.panelMaquetarAviso}>
-            Esta reunión está agendada para el {fechaCompleta(reunion.fecha)}. La minuta se levanta
-            cuando ya se dio: se pega su transcripción y la IA propone el acta y los acuerdos.{' '}
-            <Link href={`/deck/${id}`}>Volver al cuestionario</Link>.
-          </p>
+          {/* EL VACÍO DE UNA REUNIÓN FUTURA (auditoría UX/UI, 7-ago): antes
+              era una franja de texto en una página en blanco, con un único
+              "Volver al cuestionario" sin estilo —técnicamente un enlace,
+              pero sin `className` hereda el reset global de `<a>`
+              (`color: inherit; text-decoration: none`, `globals.css`) y en
+              pantalla se lee como texto suelto—. Mismo tono que los otros
+              vacíos de la app (`BenchmarkSala`, `ReunionesSala`): explica qué
+              va a aparecer aquí, y ahora además ofrece las DOS salidas reales
+              en vez de una sola casi invisible — preparar el documento de
+              esta reunión, o volver a la lista. */}
+          <div className={estilos.panelMaquetarAviso}>
+            <p>
+              Esta reunión está agendada para el {fechaCompleta(reunion.fecha)}. La minuta se levanta
+              cuando ya se dio: se pega su transcripción y la IA propone el acta y los acuerdos.
+            </p>
+            <div className={estilos.generarFila}>
+              <Link href={`/deck/${id}`} className={`${estilos.boton} ${estilos.botonAcento}`}>
+                Preparar el documento →
+              </Link>
+              <Link href="/deck" className={`${estilos.boton} ${estilos.botonSecundario}`}>
+                ← Presentaciones
+              </Link>
+            </div>
+          </div>
         </main>
       </div>
     )
@@ -129,10 +154,10 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
     <div className={estilos.app} style={estiloSala}>
       {/* LA BARRA: mismo montaje que en el early return de arriba — ver su
           comentario ("todavía no se dio") para el porqué de `seccionActiva`
-          y de por qué no sustituye al "← Cuestionario". */}
+          y de por qué no sustituye al "← Editar documento". */}
       <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
       <header className={estilos.barra}>
-        <Link href={`/deck/${id}`} className={estilos.volver}>← Cuestionario</Link>
+        <Link href={`/deck/${id}`} className={estilos.volver}>← Editar documento</Link>
         <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>
       </header>
 
