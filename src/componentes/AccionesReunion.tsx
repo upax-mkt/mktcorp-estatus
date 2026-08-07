@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import estilos from '@/app/deck/deck.module.css'
 
 /**
@@ -9,7 +10,7 @@ import estilos from '@/app/deck/deck.module.css'
  * Franco: "la lista debería poder desde allí eliminar o descargar la minuta o
  * la presentación en pdf".
  *
- * TRES DECISIONES:
+ * CUATRO DECISIONES:
  *
  * 1. **La minuta se descarga como `.txt`.** Es un texto de correo: se pega en
  *    Gmail y se manda. Envolverlo en un PDF lo convertiría en un adjunto que
@@ -25,6 +26,15 @@ import estilos from '@/app/deck/deck.module.css'
  * 3. **Eliminar pide confirmación y dice qué se lleva.** Borra la reunión, su
  *    documento y su minuta; los acuerdos ya publicados NO se van, porque
  *    cuelgan del cliente y llevan semanas moviéndose.
+ *
+ * 4. **Sin minuta, un enlace de verdad a levantarla — no un "Sin minuta"
+ *    muerto** (auditoría UX/UI 7-ago, importante 8). La sala ya resolvía este
+ *    mismo hueco (`CarasDeReunion`, "+ Levantar minuta" → `/deck/{id}/minuta`,
+ *    solo para equipo — aquí no hace falta repetir ese gate porque TODA esta
+ *    pantalla ya exige sesión de equipo, `exigirLectura()` en `page.tsx`);
+ *    en Presentaciones sobrevivía el texto plano que la ronda 10 vino a matar
+ *    en la sala. Mismo destino, mismo copy: no un segundo patrón para el
+ *    mismo hueco.
  */
 
 interface Props {
@@ -117,7 +127,13 @@ export function AccionesReunion({
           Minuta .txt
         </button>
       ) : (
-        <span className={estilos.accionAusente}>Sin minuta</span>
+        // Enlace de verdad, no un botón con recarga dura: mismo criterio que
+        // CarasDeReunion (ver su test "un enlace de verdad, no un botón con
+        // recarga dura") — clic-medio, ctrl-clic y "copiar dirección del
+        // enlace" tienen que funcionar igual que en cualquier otro <a>.
+        <Link href={`/deck/${reunionId}/minuta`} className={estilos.accionEnlace}>
+          <span aria-hidden>+</span> Levantar minuta
+        </Link>
       )}
 
       <button
