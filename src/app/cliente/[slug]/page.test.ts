@@ -159,12 +159,6 @@ vi.mock('@vercel/blob/client', () => ({
   upload: vi.fn().mockResolvedValue({ pathname: 'salas/neracode/interes/archivo-de-prueba.pdf' }),
 }))
 
-vi.mock('@/db/claves', () => ({
-  estadoDeClave: vi.fn(),
-  regenerarClave: vi.fn(),
-  quitarClave: vi.fn(),
-}))
-
 // El colaborador bajo prueba: `generarTokenDeSala`. El resto de
 // `@/auth/sesion` que usa esta página, mockeado con lo mínimo para que el
 // camino de lectura llegue completo sin lanzar — `puedeVerEstaSala` en
@@ -542,6 +536,43 @@ describe('VistaSala (/cliente/[slug]) — el enlace ⚙ a los ajustes de la sala
     render(await invocar())
 
     expect(screen.queryByRole('link', { name: /ajustes/i })).toBeNull()
+  })
+})
+
+/**
+ * EL ACCESO DEL DIRECTOR (CLAVE) SE MUDÓ A AJUSTES (ronda 11, tarea 3, paso
+ * 1). Franco: "dentro de un cliente (sala) el módulo de acceso al director
+ * no debería vivir allí, debería estar en los ajustes de cada sala".
+ * `ClaveDeSala` y sus dos acciones (`regenerarClaveAction`/
+ * `quitarClaveAction`) se van enteras a `cliente/[slug]/ajustes/page.tsx`
+ * (ver su propio `page.test.ts`, describe "el acceso del director se mudó
+ * aquí"): no queda nada de la clave en esta página, ni su import de
+ * `@/db/claves`.
+ *
+ * La sala NO se queda sin ninguna puerta al acceso del director: el enlace ⚙
+ * a ajustes (describe de arriba) es la nueva, y el link firmado de 30 días
+ * (`generarTokenDeSala`) —un mecanismo DISTINTO, que Franco no pidió mover—
+ * se queda aquí mismo, en su propia tarjeta.
+ */
+describe('VistaSala (/cliente/[slug]) — el acceso del director (clave) se mudó a ajustes (ronda 11, tarea 3)', () => {
+  it('ya no ofrece generar ni quitar la clave desde la sala', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.queryByRole('button', { name: /generar clave/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /quitar el acceso/i })).toBeNull()
+    expect(screen.queryByText(/no tiene clave todavía/i)).toBeNull()
+  })
+
+  it('el link firmado de solo lectura se queda en la sala: es un mecanismo distinto, no se mudó', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.getByText(/link de solo lectura/i)).toBeInTheDocument()
   })
 })
 

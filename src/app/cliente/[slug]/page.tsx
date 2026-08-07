@@ -34,11 +34,8 @@ import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { LevantarMinuta } from '@/componentes/LevantarMinuta'
 import { ArchivosSala } from '@/componentes/ArchivosSala'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
-import { ClaveDeSala } from '@/componentes/ClaveDeSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
-import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
-import { secretoConfigurado } from '@/auth/sesion'
 import {
   marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion,
 } from '@/db/reuniones'
@@ -50,7 +47,7 @@ import {
   exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
   generarTokenDeSala, puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
-import { esAdmin, esLector, exigirAdmin, exigirEditor } from '@/auth/roles'
+import { esAdmin, esLector, exigirEditor } from '@/auth/roles'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { urlBase } from '@/lib/url-base'
 
@@ -213,10 +210,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
   const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
-  const secreto = secretoConfigurado()
-  const clave = equipo && secreto
-    ? await estadoDeClave(slug, secreto)
-    : { tiene: false, creadaEn: null }
 
   // ---- Server actions: acuerdos editables (spec §4/§6) ----
   // "Solo el equipo Mkt Corp mueve el estatus": cada acción lo exige por su
@@ -359,38 +352,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function reactivarEstaSalaAction(): Promise<void> {
     'use server'
     await reactivarSalaAction(slug)
-  }
-
-  /**
-   * Pone una clave nueva y la devuelve EN CLARO, una sola vez.
-   *
-   * Se guarda su hash, así que esta es la única oportunidad de leerla. El
-   * componente la enseña con un "cópiala ahora".
-   */
-  async function regenerarClaveAction(): Promise<{ clave?: string; error?: string }> {
-    'use server'
-    // ADMIN, no editor: generar/revocar la clave decide QUIÉN puede entrar a
-    // esta sala desde fuera del equipo — el mismo nivel que el enlace de
-    // agenda (`generarEnlaceAction`/`revocarEnlaceAction`, src/app/salas/acciones.ts).
-    await exigirAdmin()
-    const s = secretoConfigurado()
-    if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
-    try {
-      const nueva = await regenerarClave(slug, s)
-      revalidatePath(`/cliente/${slug}`)
-      return { clave: nueva }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo generar la clave.' }
-    }
-  }
-
-  async function quitarClaveAction() {
-    'use server'
-    // Misma exigencia que regenerarClaveAction: es la otra mitad del acceso
-    // externo de esta sala.
-    await exigirAdmin()
-    await quitarClave(slug)
-    revalidatePath(`/cliente/${slug}`)
   }
 
   // ---- Server actions: archivos colgados en la sala ----
@@ -882,26 +843,22 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </section>
         )}
 
-        {/* Compartir la sala con su director. Solo lo ve el equipo. */}
-        {equipo && (
+        {/* Compartir la sala con su director. Solo lo ve el equipo.
+            LA CLAVE SE MUDÓ A AJUSTES (ronda 11, tarea 3, paso 1): Franco,
+            "el módulo de acceso al director no debería vivir allí, debería
+            estar en los ajustes de cada sala". `ClaveDeSala` y sus dos
+            acciones viven ahora en `cliente/[slug]/ajustes/page.tsx` —el
+            enlace ⚙ de la cabecera (arriba) es la puerta hacia ellas. Lo que
+            queda aquí es el OTRO mecanismo, el link firmado de 30 días: es
+            distinto (un token, no una credencial persistente) y Franco no
+            pidió moverlo. */}
+        {equipo && tokenDeAcceso && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
               <IconoSeccion nombre="clave" />
               Acceso del director
             </h2>
-            <ClaveDeSala
-              nombreSala={s.nombre}
-              tiene={clave.tiene}
-              creadaEn={clave.creadaEn}
-              regenerarAction={regenerarClaveAction}
-              quitarAction={quitarClaveAction}
-            />
-
-            {/* El link firmado sigue existiendo, DENTRO de la misma tarjeta:
-                las dos son la misma pregunta —cómo entra el director— y
-                separarlas en dos secciones las hacía parecer dos temas. */}
-            {tokenDeAcceso && (
-            <div className={estilos.acceso} style={{ marginTop: '0.9rem' }}>
+            <div className={estilos.acceso}>
               <div className={estilos.accesoTexto}>
                 <div className={estilos.accesoTitulo}>Link de solo lectura para {s.nombre}</div>
                 <p className={estilos.accesoNota}>
@@ -914,7 +871,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 className={estilos.accesoBoton}
               />
             </div>
-            )}
           </section>
         )}
       </main>

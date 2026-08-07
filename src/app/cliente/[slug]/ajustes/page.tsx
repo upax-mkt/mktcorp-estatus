@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import type { CSSProperties } from 'react'
 import estilos from '../../cliente.module.css'
@@ -8,10 +9,13 @@ import { cargarTemas } from '@/db/temas'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin } from '@/auth/roles'
+import { secretoConfigurado } from '@/auth/sesion'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
+import { ClaveDeSala } from '@/componentes/ClaveDeSala'
 import { editarSalaAction } from '@/app/salas/acciones'
 import { pausarSalaAction, reactivarSalaAction } from '@/app/acuerdos/acciones'
+import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +42,22 @@ export const dynamic = 'force-dynamic'
  * sala (que vive en `cliente/[slug]/page.tsx`, tarea 11) es cortesía de
  * interfaz — esconder un botón no protege un endpoint, lección pagada en la
  * ronda del 27-jul. Esta línea es lo que de verdad protege.
+ *
+ * `ClaveDeSala` SE MUDÓ AQUÍ DESDE LA SALA (ronda 11, tarea 3, paso 1).
+ * Franco: "dentro de un cliente (sala) el módulo de acceso al director no
+ * debería vivir allí, debería estar en los ajustes de cada sala". Coherente
+ * con el permiso: `regenerarClaveAction`/`quitarClaveAction` (más abajo) ya
+ * exigían admin en su sitio viejo, y esta página entera ya lo exige desde su
+ * primera línea. Las dos acciones viajan CON su propio `exigirAdmin()`
+ * intacto —no se debilitan ni se duplican—: la página ya gatea el render,
+ * pero una Server Action sigue siendo un endpoint propio, alcanzable con su
+ * id aunque nadie pase por esta pantalla.
+ *
+ * SOLO SE MUEVE `ClaveDeSala` — no el link firmado de 30 días
+ * (`generarTokenDeSala`/`tokenDeAcceso`), que se queda en la sala
+ * (`cliente/[slug]/page.tsx`): es un mecanismo distinto (un token que se
+ * firma de nuevo en cada carga de la sala, no una credencial persistente) y
+ * el encargo de Franco nombra específicamente la clave.
  */
 export default async function PaginaAjustesSala({ params }: { params: Promise<{ slug: string }> }) {
   await exigirAdmin()
@@ -108,11 +128,22 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
   // correcta si algún día deja de estarlo.
   const slugsUsados = Object.keys(registro).filter((s) => s !== slug)
 
+  /**
+   * EL ESTADO DE LA CLAVE (mudado desde `cliente/[slug]/page.tsx`). Ahí el
+   * cálculo se guardaba tras `equipo && secreto` —esta página no lo necesita:
+   * `exigirAdmin()`, arriba, ya es más estricto que `equipo` (admin implica
+   * lector), así que si se llegó hasta aquí ya hay equipo de sobra.
+   */
+  const secreto = secretoConfigurado()
+  const clave = secreto
+    ? await estadoDeClave(slug, secreto)
+    : { tiene: false, creadaEn: null }
+
   // ---- Server actions: ligadas a ESTA sala, delegando en las de siempre ----
-  // Mismo patrón que `pausarEstaSalaAction`/`reactivarEstaSalaAction` en
-  // `cliente/[slug]/page.tsx`: un cierre fino sobre las acciones de
-  // `@/app/acuerdos/acciones` (ya exigen admin por su cuenta) para que
-  // `PausaSala` no tenga que conocer el slug.
+  // Mismo patrón que `pausarEstaSalaAction`/`reactivarEstaSalaAction`, más
+  // abajo: un cierre fino sobre las acciones de `@/app/acuerdos/acciones` (ya
+  // exigen admin por su cuenta) para que `PausaSala` no tenga que conocer el
+  // slug.
   async function pausarEstaSalaAction(): Promise<void> {
     'use server'
     await pausarSalaAction(slug)
@@ -121,6 +152,38 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
   async function reactivarEstaSalaAction(): Promise<void> {
     'use server'
     await reactivarSalaAction(slug)
+  }
+
+  /**
+   * Pone una clave nueva y la devuelve EN CLARO, una sola vez (mudada TAL
+   * CUAL desde `cliente/[slug]/page.tsx`, ronda 11, tarea 3). Se guarda su
+   * hash, así que esta es la única oportunidad de leerla — el componente la
+   * enseña con un "cópiala ahora".
+   */
+  async function regenerarClaveAction(): Promise<{ clave?: string; error?: string }> {
+    'use server'
+    // ADMIN, no equipo: generar/revocar la clave decide QUIÉN puede entrar a
+    // esta sala desde fuera del equipo. Intacto tal como vivía en la sala:
+    // esta línea, no el render de la página, es lo que de verdad protege.
+    await exigirAdmin()
+    const s = secretoConfigurado()
+    if (!s) return { error: 'Falta SESSION_SECRET en el despliegue: sin él no se pueden firmar claves.' }
+    try {
+      const nueva = await regenerarClave(slug, s)
+      revalidatePath(`/cliente/${slug}/ajustes`)
+      return { clave: nueva }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo generar la clave.' }
+    }
+  }
+
+  async function quitarClaveAction() {
+    'use server'
+    // Misma exigencia que regenerarClaveAction: es la otra mitad del acceso
+    // externo de esta sala.
+    await exigirAdmin()
+    await quitarClave(slug)
+    revalidatePath(`/cliente/${slug}/ajustes`)
   }
 
   const estiloMarca = {
@@ -183,6 +246,17 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
             pausadaDesde={extra?.pausadaDesde ? extra.pausadaDesde.toISOString().slice(0, 10) : null}
             pausarAction={pausarEstaSalaAction}
             reactivarAction={reactivarEstaSalaAction}
+          />
+        </section>
+
+        <section className={estilos.seccion}>
+          <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
+          <ClaveDeSala
+            nombreSala={tema.nombre}
+            tiene={clave.tiene}
+            creadaEn={clave.creadaEn}
+            regenerarAction={regenerarClaveAction}
+            quitarAction={quitarClaveAction}
           />
         </section>
       </main>

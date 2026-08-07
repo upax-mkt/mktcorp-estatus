@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
+import { ClaveDeSala } from '@/componentes/ClaveDeSala'
 import type { Cadencia } from '@/dominio/reunion'
 
 /**
@@ -104,6 +105,30 @@ vi.mock('@/app/acuerdos/acciones', () => ({
   reactivarSalaAction: (...args: unknown[]) => reactivarSalaActionMock(...args),
 }))
 
+// EL ACCESO DEL DIRECTOR, MUDADO AQUÍ DESDE `cliente/[slug]/page.tsx` (ronda
+// 11, tarea 3): `ClaveDeSala` y las dos acciones que la respaldan
+// (`regenerarClaveAction`/`quitarClaveAction`, definidas EN esta página, más
+// abajo). `estadoDeClave`/`regenerarClave`/`quitarClave` con nombre (no
+// anónimos): el describe dedicado necesita comprobar CON QUÉ se llaman —el
+// slug de esta sala, y el secreto de firma— no solo que se hayan llamado.
+const estadoDeClaveMock = vi.fn()
+const regenerarClaveMock = vi.fn()
+const quitarClaveMock = vi.fn()
+vi.mock('@/db/claves', () => ({
+  estadoDeClave: (...args: unknown[]) => estadoDeClaveMock(...args),
+  regenerarClave: (...args: unknown[]) => regenerarClaveMock(...args),
+  quitarClave: (...args: unknown[]) => quitarClaveMock(...args),
+}))
+
+// Solo `secretoConfigurado` (síncrona, sin cookies): el resto de
+// `@/auth/sesion` no lo usa esta página. Se mockea el módulo entero —igual
+// que hace `cliente/[slug]/page.test.ts`— para no cargar el real, que importa
+// `next/headers` a nivel de módulo.
+const secretoConfiguradoMock = vi.fn()
+vi.mock('@/auth/sesion', () => ({
+  secretoConfigurado: () => secretoConfiguradoMock(),
+}))
+
 const notFoundMock = vi.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
 })
@@ -124,6 +149,10 @@ beforeEach(() => {
   editarSalaActionMock.mockResolvedValue({})
   pausarSalaActionMock.mockResolvedValue(undefined)
   reactivarSalaActionMock.mockResolvedValue(undefined)
+  secretoConfiguradoMock.mockReturnValue('secreto-de-prueba')
+  estadoDeClaveMock.mockResolvedValue({ tiene: false, creadaEn: null })
+  regenerarClaveMock.mockResolvedValue('faro-arena-3971')
+  quitarClaveMock.mockResolvedValue(undefined)
 })
 
 function invocar(slug = 'research-land') {
@@ -257,6 +286,107 @@ describe('PaginaAjustesSala — pausar funciona desde esta página (lo necesita 
     await pausarAction()
 
     expect(pausarSalaActionMock).toHaveBeenCalledWith('grupo-upax')
+  })
+})
+
+/**
+ * EL ACCESO DEL DIRECTOR SE MUDÓ AQUÍ (ronda 11, tarea 3, paso 1). Franco:
+ * "dentro de un cliente (sala) el módulo de acceso al director no debería
+ * vivir allí, debería estar en los ajustes de cada sala". `ClaveDeSala` vivía
+ * en `cliente/[slug]/page.tsx` junto a `regenerarClaveAction`/
+ * `quitarClaveAction`; las tres se mudan juntas.
+ *
+ * NO SE DEBILITAN AL MUDARSE: las dos acciones siguen abriendo con
+ * `exigirAdmin()`, exactamente igual que en su sitio viejo — una Server
+ * Action es un endpoint propio, alcanzable con su id aunque la página que la
+ * define ya haya gateado el render. Los tests de "regenerarAction"/
+ * "quitarAction" limpian `exigirAdminMock` DESPUÉS de `invocar()` (que ya lo
+ * llamó una vez, al cargar la página) para contar solo la llamada que hace la
+ * ACCIÓN al ejecutarse — la prueba de que no se apoya solo en el gate de la
+ * página.
+ */
+describe('PaginaAjustesSala — el acceso del director se mudó aquí desde la sala (ronda 11, tarea 3)', () => {
+  it('monta ClaveDeSala con el estado real de la clave de esta sala', async () => {
+    estadoDeClaveMock.mockResolvedValue({ tiene: true, creadaEn: '2026-07-01T00:00:00.000Z' })
+
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+
+    expect(clave).not.toBeNull()
+    expect(clave!.props.nombreSala).toBe('Research Land')
+    expect(clave!.props.tiene).toBe(true)
+    expect(clave!.props.creadaEn).toBe('2026-07-01T00:00:00.000Z')
+    expect(estadoDeClaveMock).toHaveBeenCalledWith('research-land', 'secreto-de-prueba')
+  })
+
+  it('sin SESSION_SECRET configurado, ClaveDeSala recibe "sin clave" en vez de reventar — ni se consulta la base', async () => {
+    secretoConfiguradoMock.mockReturnValue(null)
+
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+
+    expect(clave!.props.tiene).toBe(false)
+    expect(clave!.props.creadaEn).toBeNull()
+    expect(estadoDeClaveMock).not.toHaveBeenCalled()
+  })
+
+  it('regenerarAction: exige admin POR SU CUENTA (no solo el gate de la página) y llama a regenerarClave con el slug y el secreto', async () => {
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+    const regenerar = clave!.props.regenerarAction as () => Promise<{ clave?: string; error?: string }>
+
+    exigirAdminMock.mockClear()
+    const resultado = await regenerar()
+
+    expect(exigirAdminMock).toHaveBeenCalledTimes(1)
+    expect(regenerarClaveMock).toHaveBeenCalledWith('research-land', 'secreto-de-prueba')
+    expect(resultado.clave).toBe('faro-arena-3971')
+  })
+
+  it('regenerarAction rebota si quien la llama no es admin, aunque haya llegado hasta aquí', async () => {
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+    const regenerar = clave!.props.regenerarAction as () => Promise<{ clave?: string; error?: string }>
+
+    exigirAdminMock.mockRejectedValueOnce(new Error('Esta acción es solo para administradores de Marketing Corporativo.'))
+
+    await expect(regenerar()).rejects.toThrow(/admin/i)
+    expect(regenerarClaveMock).not.toHaveBeenCalled()
+  })
+
+  it('regenerarAction sin SESSION_SECRET: error explícito, nunca llama a regenerarClave', async () => {
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+    const regenerar = clave!.props.regenerarAction as () => Promise<{ clave?: string; error?: string }>
+
+    secretoConfiguradoMock.mockReturnValue(null)
+    const resultado = await regenerar()
+
+    expect(resultado.error).toBeTruthy()
+    expect(regenerarClaveMock).not.toHaveBeenCalled()
+  })
+
+  it('quitarAction: exige admin POR SU CUENTA y llama a quitarClave con el slug', async () => {
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+    const quitar = clave!.props.quitarAction as () => Promise<void>
+
+    exigirAdminMock.mockClear()
+    await quitar()
+
+    expect(exigirAdminMock).toHaveBeenCalledTimes(1)
+    expect(quitarClaveMock).toHaveBeenCalledWith('research-land')
+  })
+
+  it('quitarAction rebota si quien la llama no es admin', async () => {
+    const arbol = await invocar('research-land')
+    const clave = encontrarPorTipo(arbol, ClaveDeSala)
+    const quitar = clave!.props.quitarAction as () => Promise<void>
+
+    exigirAdminMock.mockRejectedValueOnce(new Error('Esta acción es solo para administradores de Marketing Corporativo.'))
+
+    await expect(quitar()).rejects.toThrow(/admin/i)
+    expect(quitarClaveMock).not.toHaveBeenCalled()
   })
 })
 
