@@ -67,9 +67,30 @@
 .barraFecha { font-size: 0.82rem; color: var(--tinta-4); }
 
 .main { max-width: 84rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
-.encabezado { margin-bottom: 1.75rem; }
+
+/* Fila título + "agendar" (auditoría UX/UI, ronda 11 — arreglo del hueco
+   muerto): mismo patrón que "+ Nueva reunión" en /deck (deck.module.css
+   .encabezado/.boton/.botonAcento, copiadas letra por letra) — el botón ya
+   no vive en el <aside> del calendario, ver el comentario de `.panel` en
+   `src/app/agenda/agenda.module.css` y el de la cabecera en
+   `PanelAgenda.tsx` para el porqué. */
+.encabezado {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  flex-wrap: wrap; margin-bottom: 1.75rem;
+}
 .titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
 .subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 52ch; }
+
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.6rem 1.15rem; border-radius: var(--r-lleno); border: none;
+  background: var(--tinta); color: var(--papel);
+  font-family: inherit; font-size: 0.88rem; font-weight: 600;
+  letter-spacing: var(--track-normal); cursor: pointer; text-decoration: none;
+  transition: transform var(--rapido) var(--muelle), box-shadow var(--rapido) var(--suave);
+}
+.boton:hover { transform: translateY(-1px); box-shadow: var(--e-1); }
+.botonAcento { background: var(--acento); color: var(--papel); }
 
 /* ---- el ciclo (tarea 18): "Por confirmar" / "Se dieron, falta su minuta" /
    "Cerradas" ----

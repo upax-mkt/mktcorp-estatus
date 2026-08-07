@@ -30,6 +30,16 @@ import type { SalaElegible } from './FormularioSesion'
  * `next/navigation` sí se mockea (`useRouter`), igual que ya hace
  * `MinutaCliente.test.tsx`: montarlo de verdad exige un contexto de App
  * Router que Vitest no arma solo.
+ *
+ * AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO: con "Próximas" ya en el
+ * flujo (arriba), el `<aside>` que compartía fila con el calendario se quedó
+ * con un solo botón y el resto vacío. El arreglo mueve "+ Agendar una
+ * reunión" a la cabecera (título/subtítulo incluidos, ahora pintados por
+ * este componente — ver su comentario de archivo) y hace que el `<aside>`
+ * SOLO exista mientras haya un formulario que mostrar (`agendando`/
+ * `editando`, reflejado en `data-activo` sobre `.panel`). Los tests de más
+ * abajo que antes comprobaban "el botón vive dentro del `<aside>`" ahora
+ * comprueban lo contrario a propósito: en reposo el `<aside>` NI SE MONTA.
  */
 
 const refreshMock = vi.fn()
@@ -74,21 +84,30 @@ beforeEach(() => {
   refreshMock.mockReset()
 })
 
-describe('PanelAgenda — "agendar" sigue alcanzable tras bajar "Lo que viene" (brief, ambigüedad 1)', () => {
-  it('sin nada agendando, el botón "+ Agendar una reunión" está visible y dentro del panel lateral (junto al calendario)', () => {
+describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreglo del hueco muerto)', () => {
+  it('sin nada agendando, "+ Agendar una reunión" está en la cabecera junto al título — y el <aside> del calendario ni se monta (ahí vivía el hueco)', () => {
     const { container } = render(
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />,
     )
 
+    expect(screen.getByRole('heading', { name: 'Reuniones', level: 1 })).toBeInTheDocument()
     const boton = screen.getByRole('button', { name: '+ Agendar una reunión' })
     expect(boton).toBeInTheDocument()
-    const aside = container.querySelector('aside')!
-    expect(aside.contains(boton)).toBe(true)
+    // Antes vivía DENTRO del <aside>, junto al calendario (brief, ambigüedad
+    // 1, ronda 11 tarea 4). Ese <aside>, una vez que "Próximas" bajó al
+    // flujo, se quedaba con ese único botón y el resto vacío — el hueco
+    // muerto que encontró la auditoría UX/UI. Subir el botón a la cabecera
+    // solo tapa el síntoma si el <aside> además deja de montarse en reposo:
+    // por eso ninguno de los dos existe aquí, no solo el botón se movió.
+    expect(container.querySelector('aside')).toBeNull()
+    expect(container.querySelector('[data-activo]')).toBeNull()
   })
 
-  it('al hacer clic en "+ Agendar una reunión", el formulario aparece con sus campos reales (FormularioSesion sin mockear)', async () => {
+  it('al hacer clic en "+ Agendar una reunión", el formulario aparece con sus campos reales (FormularioSesion sin mockear), y el <aside> vuelve —ahora con algo que mostrar—', async () => {
     const usuario = userEvent.setup()
-    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+    const { container } = render(
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />,
+    )
 
     await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
 
@@ -96,9 +115,11 @@ describe('PanelAgenda — "agendar" sigue alcanzable tras bajar "Lo que viene" (
     expect(screen.getByLabelText('Sala')).toBeInTheDocument()
     expect(screen.getByLabelText('Día')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Agendar' })).toBeInTheDocument()
+    expect(container.querySelector('aside')).not.toBeNull()
+    expect(container.querySelector('[data-activo="true"]')).not.toBeNull()
   })
 
-  it('agendar sigue alcanzable con MUCHAS reuniones en "Próximas" (el botón no queda enterrado ni huérfano)', async () => {
+  it('agendar sigue alcanzable con MUCHAS reuniones en "Próximas" (el botón, en la cabecera, no depende del tamaño de la lista)', async () => {
     const muchas = Array.from({ length: 60 }, (_, i) => sesion({
       id: `vol-${i}`, titulo: `Reunión de volumen ${i}`,
       fecha: `2026-09-${String((i % 28) + 1).padStart(2, '0')}T18:00:00.000Z`,
@@ -121,13 +142,21 @@ describe('PanelAgenda — "agendar" sigue alcanzable tras bajar "Lo que viene" (
 })
 
 describe('PanelAgenda — "Próximas" bajó del panel lateral al flujo, debajo del calendario', () => {
-  it('la sección "Próximas" NO está dentro del <aside> (ya no es un panel lateral)', () => {
+  it('la sección "Próximas" NO está dentro del <aside> (ya no es un panel lateral) — ni siquiera con el formulario abierto', async () => {
+    const usuario = userEvent.setup()
     const s = sesion({ id: 's1', titulo: 'Estatus de septiembre' })
     const { container } = render(
       <PanelAgenda sesiones={[s]} salas={SALAS} hoy={HOY} idsProximas={['s1']} {...acciones()} />,
     )
 
+    // El <aside> es condicional desde el arreglo del hueco muerto (auditoría
+    // UX/UI): sin abrir el formulario no existe, así que la pregunta de este
+    // test ("¿'Próximas' está dentro?") no se puede hacer todavía — se abre
+    // a propósito para que la comprobación sea real.
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
     const aside = container.querySelector('aside')!
+    expect(aside).not.toBeNull()
     const encabezadoProximas = screen.getByText('Próximas')
     expect(aside.contains(encabezadoProximas)).toBe(false)
   })

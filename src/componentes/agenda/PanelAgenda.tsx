@@ -7,10 +7,13 @@ import { Calendario, type SesionEnCalendario } from './Calendario'
 import { FormularioSesion, type DatosFormulario, type SalaElegible } from './FormularioSesion'
 import { fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
 import estilos from '@/app/agenda/agenda.module.css'
-// Solo para "Próximas" (ronda 11, tarea 4) — las mismas clases que ya usan
-// "Por confirmar"/"Falta su minuta"/"Cerradas" en `/reuniones`, para el
-// "mismo tratamiento" que pidió Franco. `agenda.module.css` (arriba) se
-// queda para el calendario y "agendar", que no se tocan.
+// Para "Próximas" (ronda 11, tarea 4) — las mismas clases que ya usan "Por
+// confirmar"/"Falta su minuta"/"Cerradas" en `/reuniones`, para el "mismo
+// tratamiento" que pidió Franco — Y para la cabecera (título/subtítulo/
+// "agendar"), subida aquí en el arreglo del hueco muerto de la auditoría
+// UX/UI (ronda 11: ver el comentario de archivo, más abajo). `agenda.
+// module.css` (arriba) se queda con el calendario y el formulario en sí,
+// que no se tocan.
 import estilosCiclo from '@/app/reuniones/reuniones.module.css'
 
 /**
@@ -40,6 +43,32 @@ import estilosCiclo from '@/app/reuniones/reuniones.module.css'
  * propio `sesiones` (que sigue llegando COMPLETO, sin filtrar: el calendario
  * necesita verlas todas) para pintar cada fila con sus datos completos —no
  * vuelve a decidir quién es "próxima", solo la pinta.
+ *
+ * AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO Y POR QUÉ LA CABECERA VIVE
+ * AQUÍ: con "Próximas" ya en el flujo (arriba), el <aside> de 22rem junto al
+ * calendario se quedó con un solo botón —"+ Agendar una reunión"— y el
+ * resto vacío: un tercio de la pantalla reservado para nada. El botón subió
+ * a la cabecera de `/reuniones` (mismo sitio y misma pinta que "+ Nueva
+ * reunión" en `/deck` — ver `.encabezado`/`.boton`/`.botonAcento` en
+ * `reuniones.module.css`, copiadas letra por letra de `deck.module.css`).
+ * Esa cabecera —título, subtítulo y el botón— la pinta ESTE componente y no
+ * `page.tsx` (que sigue siendo Server Component, sin hooks): el botón y el
+ * calendario comparten el mismo estado (`agendando`/`editando`), así que los
+ * dos tienen que vivir del mismo lado del límite cliente/servidor —
+ * separarlos habría exigido duplicar ese estado en dos componentes, con el
+ * riesgo de que se desincronicen. `titulo`/`subtitulo` llegan como prop
+ * opcionales con la copia real de `/reuniones` como default (este componente
+ * es de un solo uso): así seguía habiendo un solo lugar con el texto, sin
+ * forzar a cada test de este archivo a repetirlo.
+ *
+ * El <aside> de 22rem (calendario + formulario lado a lado) SOLO existe
+ * mientras `agendando`/`editando` sea verdad — `data-activo` en `.panel`,
+ * ver su comentario en `agenda.module.css`. En reposo el panel es de una
+ * sola columna, con el calendario capado a su ancho de siempre (56rem):
+ * nunca se estiró a los 79rem completos de `.main` —eso hubiera dejado
+ * celdas de calendario enormes y vacías la mayoría de los días del mes, el
+ * mismo defecto que el hueco muerto, solo que adentro— y por eso el arreglo
+ * fue soltar la columna vacía, no ensanchar el cuadro.
  */
 
 export interface SesionAgendada extends SesionEnCalendario {
@@ -73,9 +102,25 @@ interface Props {
   idsProximas: string[]
   agendarAction: (datos: DatosFormulario) => Promise<{ error?: string }>
   editarAction: (id: string, datos: DatosFormulario) => Promise<{ error?: string }>
+  /**
+   * Título y subtítulo de la cabecera (auditoría UX/UI, ronda 11) —
+   * opcionales, con la copia real de `/reuniones` como default: ver el
+   * comentario de archivo, arriba, para el porqué la cabecera se pinta aquí
+   * y no en `page.tsx`. Quedan como prop (no texto fijo) para que
+   * `PanelAgenda.test.tsx` no tenga que repetirlos en cada `render(...)`.
+   */
+  titulo?: string
+  subtitulo?: string
 }
 
-export function PanelAgenda({ sesiones, salas, hoy, idsProximas, agendarAction, editarAction }: Props) {
+const TITULO_POR_DEFECTO = 'Reuniones'
+const SUBTITULO_POR_DEFECTO =
+  'El calendario del mes, agendar rápido, y las próximas — más el ciclo completo de las que ya pasaron su día: por confirmar, con la minuta pendiente, y cerradas.'
+
+export function PanelAgenda({
+  sesiones, salas, hoy, idsProximas, agendarAction, editarAction,
+  titulo = TITULO_POR_DEFECTO, subtitulo = SUBTITULO_POR_DEFECTO,
+}: Props) {
   const router = useRouter()
   const [agendando, setAgendando] = useState<{ dia?: string } | null>(null)
   const [editando, setEditando] = useState<SesionAgendada | null>(null)
@@ -103,9 +148,36 @@ export function PanelAgenda({ sesiones, salas, hoy, idsProximas, agendarAction, 
     router.refresh()
   }
 
+  // Un solo booleano para las dos cosas que dependen de "¿hay formulario
+  // abierto?": el atributo `data-activo` de `.panel` (agenda.module.css,
+  // decide si el calendario comparte fila con el lateral) y si el <aside>
+  // existe siquiera. `agendando`/`editando` no bastan cada uno por su cuenta
+  // porque son mutuamente excluyentes, no una OR ya calculada.
+  const formularioAbierto = Boolean(agendando || editando)
+
   return (
     <>
-      <div className={estilos.panel}>
+      {/* CABECERA: ver el comentario de archivo, arriba, para el porqué vive
+          aquí (mismo estado que el calendario/formulario) y no en
+          `page.tsx`. */}
+      <div className={estilosCiclo.encabezado}>
+        <div>
+          <h1 className={estilosCiclo.titulo}>{titulo}</h1>
+          <p className={estilosCiclo.subtitulo}>{subtitulo}</p>
+        </div>
+        <button
+          type="button"
+          className={`${estilosCiclo.boton} ${estilosCiclo.botonAcento}`}
+          onClick={() => {
+            setEditando(null)
+            setAgendando({})
+          }}
+        >
+          + Agendar una reunión
+        </button>
+      </div>
+
+      <div className={estilos.panel} data-activo={formularioAbierto ? 'true' : undefined}>
         <Calendario
           key={mesFoco ?? 'hoy'}
           sesiones={sesiones}
@@ -117,8 +189,12 @@ export function PanelAgenda({ sesiones, salas, hoy, idsProximas, agendarAction, 
           }}
         />
 
-        <aside className={estilos.lateral}>
-          {agendando || editando ? (
+        {/* El <aside> SOLO existe con formulario abierto (ver el comentario
+            de archivo): sin él, esta columna no tiene nada que mostrar —el
+            botón que solía vivir aquí subió a la cabecera— y reservarle
+            22rem vacíos es justo el hueco que esta ronda vino a cerrar. */}
+        {formularioAbierto && (
+          <aside className={estilos.lateral}>
             <section className={estilos.tarjetaFormulario}>
               <h2 className={estilos.lateralTitulo}>
                 {editando ? 'Corregir la reunión' : 'Agendar una reunión'}
@@ -160,16 +236,8 @@ export function PanelAgenda({ sesiones, salas, hoy, idsProximas, agendarAction, 
                 />
               )}
             </section>
-          ) : (
-            <button
-              type="button"
-              className={estilos.botonAgendar}
-              onClick={() => setAgendando({})}
-            >
-              + Agendar una reunión
-            </button>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* PRÓXIMAS (ronda 11, tarea 4): antes "Lo que viene", dentro del

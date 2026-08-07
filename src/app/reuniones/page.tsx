@@ -63,6 +63,19 @@ export const dynamic = 'force-dynamic'
  * (la lista completa, sin filtrar — la sigue necesitando el calendario)
  * para pintar cada fila con sus datos completos.
  *
+ * AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO: la tarea 4 (arriba) bajó
+ * "Próximas" del `<aside>` de `PanelAgenda` al flujo, y con eso ese `<aside>`
+ * de 22rem se quedó con un solo botón —"+ Agendar una reunión"— y el resto
+ * vacío: un tercio de la pantalla reservado para nada. El arreglo subió el
+ * botón a la cabecera de ESTA pantalla (mismo sitio que "+ Nueva reunión" en
+ * `/deck`) y por eso esta página YA NO PINTA su propia cabecera —título y
+ * subtítulo, antes un `<div className={estilos.encabezado}>` aquí mismo—:
+ * la pinta `PanelAgenda`, que es quien tiene el estado (`agendando`/
+ * `editando`) que el botón necesita compartir con el calendario. Ver el
+ * comentario de archivo de `PanelAgenda.tsx` para el resto (por qué el
+ * `<aside>` de 22rem ahora es condicional, y por qué el calendario en reposo
+ * se queda capado a su ancho de siempre en vez de estirarse).
+ *
  * "Agenda" desaparece como nombre de sección: en pantalla todo se llama
  * "reunión".
  */
@@ -333,9 +346,10 @@ export default async function PagReuniones() {
           ENTERA, no solo a su `<nav>`: el viejo `<header>` traía "← Meeting
           Hub" (mismo destino que ya cubre el logo de `BarraNavegacion`) y un
           `barraTitulo` "Reuniones" que ya duplicaba el `<h1>` de
-          `.encabezado`, un poco más abajo. `/reuniones` es una de las cinco
-          pestañas del ciclo, no una pantalla de detalle —mismo caso que
-          `/deck`, `/acuerdos`, `/salas` y `/personas`, ninguna de las cuales
+          `.encabezado` (hoy pintado por `PanelAgenda`, no por este archivo —
+          ver el arreglo del hueco muerto, más arriba). `/reuniones` es una de
+          las cinco pestañas del ciclo, no una pantalla de detalle —mismo caso
+          que `/deck`, `/acuerdos`, `/salas` y `/personas`, ninguna de las cuales
           conserva un "← volver" propio junto a la barra—, así que aquí no
           aplica "las pantallas de detalle conservan su volver": ese "←
           Meeting Hub" era justo la copia divergida que esta ronda vino a
@@ -344,14 +358,14 @@ export default async function PagReuniones() {
       <BarraNavegacion seccionActiva="reuniones" hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
-        <div className={estilos.encabezado}>
-          <h1 className={estilos.titulo}>Reuniones</h1>
-          <p className={estilos.subtitulo}>
-            El calendario del mes, agendar rápido, y las próximas — más el ciclo completo de las que ya
-            pasaron su día: por confirmar, con la minuta pendiente, y cerradas.
-          </p>
-        </div>
-
+        {/* Título + "agendar" ya no se pintan aquí (auditoría UX/UI, ronda 11
+            — arreglo del hueco muerto que dejaba el <aside> del calendario
+            una vez que "Próximas" bajó al flujo): los pinta `PanelAgenda`,
+            que es quien tiene el estado que el botón necesita compartir con
+            el calendario — ver su comentario de archivo para el porqué. Sin
+            `titulo`/`subtitulo` aquí: su default YA ES la copia real de esta
+            pantalla (PanelAgenda es de un solo uso), así que repetirla en
+            los dos archivos no sumaría nada. */}
         <PanelAgenda
           sesiones={paraElPanel}
           salas={salas}

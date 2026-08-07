@@ -62,10 +62,37 @@
 .titulo { font-size: clamp(1.7rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -0.03em; margin: 0 0 0.35rem; }
 .subtitulo { color: var(--tx-2); font-size: 0.95rem; margin: 0; max-width: 46ch; }
 
-/* El cuadro manda y la lista acompaña: la pregunta principal de esta pantalla
-   es "¿cómo viene el mes?". Por debajo de 62rem se apilan. */
-.panel { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 1.75rem; align-items: start; }
-@media (max-width: 62rem) { .panel { grid-template-columns: minmax(0, 1fr); } }
+/* AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO: con "Lo que viene" ya en el
+   flujo (tarea 4, más abajo) y "agendar" subido a la cabecera de /reuniones
+   (ver PanelAgenda.tsx), este panel dejó de tener una lista que poner en la
+   columna lateral EN REPOSO — se quedó reservando 22rem para nada, con el
+   calendario entero de alto (~47rem) vacíos al lado.
+
+   La solución NO es estirar el calendario a los 79rem completos de `.main`:
+   un mes son seis filas de siete días, y a esa anchura cada celda vacía —la
+   mayoría de los días del mes no tienen sesión— se vuelve una losa de más de
+   11rem de ancho por 6.5 de alto: el mismo vacío, solo que ahora DENTRO del
+   calendario en vez de al lado. En su lugar, el panel es de una sola columna
+   en reposo, con el calendario capado a 56rem — 8rem por celda, prácticamente
+   el mismo tamaño que ya tenía compartiendo fila con el lateral (55.25rem /
+   7 ≈ 7.89rem): el calendario no estaba mal, sobraba la columna vacía a su
+   lado.
+
+   La columna lateral de 22rem SOLO reaparece cuando de verdad hay algo que
+   poner en ella —agendar o corregir una reunión, `data-activo`, puesto por
+   PanelAgenda.tsx—, que es justo cuando volver a compartir fila con el
+   calendario tiene sentido. Por debajo de 62rem se apilan igual que antes. */
+.panel {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.75rem; align-items: start;
+  max-width: 56rem;
+}
+.panel[data-activo='true'] {
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  max-width: none;
+}
+@media (max-width: 62rem) {
+  .panel[data-activo='true'] { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---- calendario ---- */
 .calendario { border-radius: var(--r-4); background: var(--superficie); overflow: hidden; }
@@ -162,15 +189,11 @@
 .conteo { font-size: 0.75rem; letter-spacing: 0; text-transform: none; color: var(--tx-3); font-weight: 500; }
 .vacio { color: var(--tx-3); font-size: 0.88rem; margin: 0; }
 
-.botonAgendar {
-  font: inherit; font-size: 0.9rem; font-weight: 600; width: 100%;
-  padding: 0.75rem 1rem; border-radius: var(--r-4); cursor: pointer;
-  color: var(--tx); background: var(--superficie);
-  transition: border-color 140ms ease, color 140ms ease;
-  box-shadow: var(--e-1);
-}
-.botonAgendar:hover { border-color: var(--acento); color: var(--acento); border-style: solid; }
-
+/* `.botonAgendar` (el botón de "+ Agendar una reunión" dentro del lateral)
+   se retiró en el arreglo del hueco muerto (auditoría UX/UI, ronda 11): el
+   botón subió a la cabecera de /reuniones — ver `.boton`/`.botonAcento` en
+   `reuniones.module.css` — y ya no queda ningún estado en el que el lateral
+   muestre un botón en vez de un formulario. */
 .tarjetaFormulario {
   padding: 1.1rem; border-radius: var(--r-4); background: var(--superficie);
   box-shadow: var(--e-1);
