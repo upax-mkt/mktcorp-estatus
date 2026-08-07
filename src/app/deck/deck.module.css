@@ -515,12 +515,29 @@
   transition: border-color var(--rapido) linear, color var(--rapido) linear;
 }
 .accionEnlace:hover { border-color: var(--tx); color: var(--tx); }
-.accionAusente { font-size: 0.8rem; color: var(--tx-4); }
+/* EL BORRADO, DISTINTO A PROPÓSITO (auditoría UX/UI 7-ago, crítico 4: "Eliminar"
+   tenía el mismo peso visual que "Descargar"). Antes era tinta apagada sin
+   borde ni fondo (--tx-3, más liviano incluso que .accionEnlace) — la acción
+   que borra la reunión ENTERA se leía como la MENOS importante de la fila.
+   Mismo tamaño de píldora que .accionEnlace (mismo padding/radio/borde de
+   1px, para que las alturas sigan alineadas en la fila) pero con el par
+   --alerta/--alerta-suave — el mismo que ya usa .botonPeligro para el "Sí,
+   borrar" real, no un rojo inventado aparte —, y un margen extra que la
+   separa un poco del resto en vez de hacerla competir hombro con hombro.
+   Tenue en reposo (mismo criterio que .pildora[data-tono='mal'] en
+   sistema.css: "una señal se lee, no grita") y sólida —como .botonPeligro—
+   solo al pasar el ratón: la escala de severidad ya existía en los tokens,
+   esto la usa dos veces en vez de inventar una tercera.
+   La confirmación en dos tiempos sigue en AccionesReunion/BorrarBorrador, sin
+   tocar: esto es la SEÑAL de que ese paso existe, no un sustituto suyo. */
 .accionBorrar {
-  font: inherit; font-size: 0.8rem; color: var(--tx-3);
-  background: none; border: none; cursor: pointer; padding: 0.3rem 0.2rem;
+  font: inherit; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+  color: var(--alerta); cursor: pointer; margin-left: 0.4rem;
+  padding: 0.3rem 0.65rem; border-radius: var(--r-lleno);
+  border: 1px solid transparent; background: var(--alerta-suave);
+  transition: background var(--rapido) linear, color var(--rapido) linear;
 }
-.accionBorrar:hover { color: var(--alerta); }
+.accionBorrar:hover { background: var(--alerta); color: #fff; }
 .accionesAviso { font-size: 0.78rem; color: var(--tx-2); max-width: 22rem; line-height: 1.4; }
 
 /* Al imprimir, fuera el cromo: barras, botones y flotantes no son documento. */
