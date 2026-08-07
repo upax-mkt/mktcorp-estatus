@@ -12,12 +12,31 @@ import { crearClientePorDefecto, type ClienteDecision } from '@/motor/decidir'
 import { EsquemaMinuta, parsearMinuta, type AcuerdoPropuesto } from './esquema'
 import { construirPromptMinuta, type SesionParaMinuta } from './prompt'
 import { MOLDE_POR_DEFECTO, type MoldeMinuta } from './molde'
+import { ensamblarCorreo } from './ensamblar'
+import type { InsumosCorreo } from './ensamblar'
 
 export type { SesionParaMinuta, AcuerdoPropuesto }
+// Re-exportada: `ensamblarCorreo` vive ahora en su propio módulo (ronda 11,
+// tarea 1, ver el comentario de cabecera de ensamblar.ts) para que un Client
+// Component pueda importarla sin arrastrar el SDK de Anthropic al bundle del
+// navegador. Se re-exporta aquí para que quien ya la importaba desde
+// `./generar` (`correo-html.test.ts`, `molde.test.ts`) siga funcionando.
+export { ensamblarCorreo }
+export type { InsumosCorreo }
 
 export interface ResultadoMinuta {
   textoCorreo: string
+  /**
+   * El texto por bloque, EN CRUDO, tal como lo devolvió el modelo — sin la
+   * tabla de acuerdos (que no es un bloque redactado, ver `ensamblarCorreo`).
+   * Junto con `insumosCorreo`, es lo que el cliente necesita para volver a
+   * llamar a `ensamblarCorreo` cada vez que cambian los acuerdos o se edita
+   * un bloque a mano, sin llamar de nuevo al modelo (ronda 11, tarea 1).
+   */
+  bloques: string[]
   acuerdosPropuestos: AcuerdoPropuesto[]
+  /** Todo lo demás que usó `ensamblarCorreo` para producir `textoCorreo`. */
+  insumosCorreo: InsumosCorreo
 }
 
 /**
@@ -36,106 +55,6 @@ function resumirRechazo(mensaje: string): string {
     : `${donde} no cumple el contrato.`
 }
 
-/** "por definir" es el rótulo que el spec exige mostrar antes de enviar el correo (§9). */
-function formatearFechaTabla(fechaIso: string | null): string {
-  if (!fechaIso) return 'por definir'
-  const [anio, mes, dia] = fechaIso.split('-').map(Number)
-  return new Date(anio, mes - 1, dia).toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-/**
- * La ruta congelada por sesión (spec §10, `/cliente/{slug}/{fecha}?t={token}`)
- * es trabajo de la tarea pendiente de tokens/SSO: mientras no exista, se
- * enlaza al link permanente de la sala, que ya existe y funciona hoy.
- */
-/**
- * A dónde apunta la minuta.
- *
- * A la sala, si la reunión es de una. Una que no pertenece a ninguna —un
- * comité, un arranque— apunta al documento de la propia reunión: es lo único
- * que hay que enseñar.
- */
-function urlSesion(salaSlug: string | null, reunionId?: string): string {
-  if (salaSlug) return `/cliente/${salaSlug}`
-  return reunionId ? `/reunion/${reunionId}` : '/'
-}
-
-/**
- * La tabla del correo: TRES columnas, no cinco.
- *
- * Squad y prioridad siguen viajando en los datos —los necesita el acuerdo que
- * nace en el espacio del cliente, con su dueño y su seguimiento— pero en el
- * correo eran dos columnas donde casi todas las filas decían "—" y "media".
- * Una columna que casi siempre dice lo mismo no informa: ocupa.
- */
-function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {
-  if (acuerdos.length === 0) {
-    return '(sin acuerdos accionables identificados en la transcripción)'
-  }
-  const encabezado = 'Acción | Owner | Fecha'
-  const filas = acuerdos.map((a) =>
-    [a.que, a.responsable, formatearFechaTabla(a.fechaCompromiso)].join(' | '),
-  )
-  return [encabezado, ...filas].join('\n')
-}
-
-/**
- * Arma el correo SEGÚN EL MOLDE, no según una forma incrustada aquí.
- *
- * El modelo devuelve un texto por bloque, en el mismo orden que el molde. El
- * bloque marcado con `conTabla` recibe además la tabla de acuerdos, que NO la
- * redacta el modelo: se arma con los compromisos que se van a publicar en la
- * sala, con su dueño y su fecha. Dejarla al modelo sería dejarle inventar
- * compromisos.
- */
-export function ensamblarCorreo(
-  salaSlug: string | null,
-  bloques: string[],
-  acuerdos: AcuerdoPropuesto[],
-  molde: MoldeMinuta = MOLDE_POR_DEFECTO,
-  reunionId?: string,
-  /** De qué reunión y de cuándo, para la entradilla. */
-  contexto?: { reunion: string; fecha: string },
-): string {
-  const lineas: string[] = [molde.saludo, '']
-
-  // La entradilla dice DE QUÉ es esta minuta. Sin ella, el correo abre con
-  // "Objetivo de la reunión" a secas y quien lo abre tres semanas después no
-  // sabe de qué reunión le hablan.
-  if (molde.entradilla?.trim()) {
-    lineas.push(
-      molde.entradilla
-        .replace('{reunion}', contexto?.reunion ?? 'la reunión')
-        .replace('{fecha}', contexto?.fecha ?? ''),
-      '',
-    )
-  }
-
-  // El modelo devuelve un texto por bloque REDACTABLE; el de la tabla no se le
-  // pide (ver `construirPromptMinuta`). Por eso el índice avanza solo con
-  // esos: si se recorriera `molde.bloques` a secas, el bloque de la tabla se
-  // comería el texto del siguiente y todo saldría corrido una posición.
-  let siguiente = 0
-  molde.bloques.forEach((b) => {
-    lineas.push(b.titulo)
-    if (b.conTabla) {
-      lineas.push(tablaAcuerdos(acuerdos))
-    } else {
-      const texto = (bloques[siguiente++] ?? '').trim()
-      if (texto) lineas.push(texto)
-    }
-    lineas.push('')
-  })
-
-  if (molde.cierre?.trim()) lineas.push(molde.cierre, '')
-  if (molde.conEnlace) lineas.push(urlSesion(salaSlug, reunionId))
-  return lineas.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
-}
-
 /**
  * `sesion` acepta cualquier objeto con al menos estos campos (p. ej. la
  * `SesionCompleta` de src/db/sesiones.ts, que los incluye todos) — solo se
@@ -147,6 +66,13 @@ export async function generarMinuta(
   transcripcion: string,
   cliente?: ClienteDecision,
   molde: MoldeMinuta = MOLDE_POR_DEFECTO,
+  /**
+   * Lo que el equipo escribió en el cuadro "¿qué entendió mal?" antes de
+   * pedir Regenerar (ronda 11, tarea 1). Viaja tal cual hasta
+   * `construirPromptMinuta`, que la añade a `user` marcada y aparte — ver ahí
+   * el porqué (el SYSTEM es el prompt de Franco, literal, y esto no lo toca).
+   */
+  correccion?: string,
 ): Promise<ResultadoMinuta> {
   const texto = transcripcion.trim()
   if (texto.length === 0) {
@@ -154,7 +80,7 @@ export async function generarMinuta(
   }
 
   const clienteFinal = cliente ?? crearClientePorDefecto()
-  const { system, user } = construirPromptMinuta(sesion, texto, molde)
+  const { system, user } = construirPromptMinuta(sesion, texto, molde, correccion)
 
   /**
    * UN REINTENTO, con el motivo del rechazo delante.
@@ -226,23 +152,32 @@ export async function generarMinuta(
   }
 
   const minuta = parsearMinuta(resp.parsed_output) // candado: revalida contra el esquema estricto
-  return {
-    textoCorreo: ensamblarCorreo(
-      sesion.salaSlug, minuta.bloques, minuta.acuerdosPropuestos, molde, sesion.id,
-      {
-        // "Marketing United y Mkt Corp": las dos partes. La reunión no es de
-        // la unidad sola — es la que Marketing Corporativo le da.
-        reunion: `la reunión ${sesion.tipo} de ${sesion.salaNombre} y Mkt Corp`,
-        // UNA REUNIÓN MENSUAL SE NOMBRA POR SU MES, no por el día en que se
-        // dio: "correspondiente a junio de 2026", no "del 23 de julio". El día
-        // exacto solo importa en una semanal.
-        fecha: new Date(sesion.fecha).toLocaleDateString('es-MX',
-          sesion.tipo === 'mensual'
-            ? { month: 'long', year: 'numeric' }
-            : { day: 'numeric', month: 'long', year: 'numeric' },
-        ),
-      },
+
+  // Calculado UNA vez y compartido entre `textoCorreo` (abajo) y
+  // `insumosCorreo` (lo que el cliente recibe para poder rearmar el mismo
+  // correo después) — las dos tienen que nacer del mismo contexto, o el
+  // primer rearmado en el navegador se leería distinto del que se generó aquí.
+  const contexto = {
+    // "Marketing United y Mkt Corp": las dos partes. La reunión no es de
+    // la unidad sola — es la que Marketing Corporativo le da.
+    reunion: `la reunión ${sesion.tipo} de ${sesion.salaNombre} y Mkt Corp`,
+    // UNA REUNIÓN MENSUAL SE NOMBRA POR SU MES, no por el día en que se
+    // dio: "correspondiente a junio de 2026", no "del 23 de julio". El día
+    // exacto solo importa en una semanal.
+    fecha: new Date(sesion.fecha).toLocaleDateString('es-MX',
+      sesion.tipo === 'mensual'
+        ? { month: 'long', year: 'numeric' }
+        : { day: 'numeric', month: 'long', year: 'numeric' },
     ),
+  }
+
+  return {
+    textoCorreo: ensamblarCorreo(sesion.salaSlug, minuta.bloques, minuta.acuerdosPropuestos, molde, sesion.id, contexto),
+    bloques: minuta.bloques,
     acuerdosPropuestos: minuta.acuerdosPropuestos,
+    // `molde` tal cual (no una copia): con el molde de siempre es igual A
+    // `MOLDE_POR_DEFECTO`; con uno propio, el cliente necesita ESE mismo
+    // objeto para que `ensamblarCorreo` reproduzca el mismo correo.
+    insumosCorreo: { salaSlug: sesion.salaSlug, molde, reunionId: sesion.id, contexto },
   }
 }

@@ -17,12 +17,23 @@ import { moldeDeMinuta } from '@/db/plantillas'
 import { guardarMinuta, type AcuerdoConfirmado } from '@/db/minutas'
 import { registrarEdicion } from '@/db/participacion'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
+import type { InsumosCorreo } from '@/minuta/ensamblar'
 
 export interface EstadoGeneracion {
   ok: boolean
   error?: string
   textoCorreo?: string
+  /**
+   * El texto por bloque, en crudo, y los insumos con los que el servidor
+   * armó `textoCorreo` — lo que `MinutaCliente.tsx` necesita para volver a
+   * llamar a `ensamblarCorreo` EN EL NAVEGADOR cada vez que cambian los
+   * acuerdos o se edita un bloque a mano, sin pedirle al servidor que
+   * regenere nada (ronda 11, tarea 1 — el arreglo del bug de "quito un
+   * acuerdo y la minuta no cambia").
+   */
+  bloques?: string[]
   acuerdosPropuestos?: AcuerdoPropuesto[]
+  insumosCorreo?: InsumosCorreo
 }
 
 /**
@@ -93,7 +104,12 @@ async function contextoDe(de: DeQueReunion) {
   }
 }
 
-export async function generarMinutaAction(de: DeQueReunion, transcripcion: string): Promise<EstadoGeneracion> {
+export async function generarMinutaAction(
+  de: DeQueReunion,
+  transcripcion: string,
+  /** Lo que se escribió en "¿qué entendió mal?" antes de pedir Regenerar — ver `EstadoGeneracion`. */
+  correccion?: string,
+): Promise<EstadoGeneracion> {
   try {
     if (!(await esEditor())) return { ok: false, error: SOLO_EDITOR }
     const reunion = await contextoDe(de)
@@ -115,8 +131,15 @@ export async function generarMinutaAction(de: DeQueReunion, transcripcion: strin
       transcripcion,
       undefined,
       molde,
+      correccion,
     )
-    return { ok: true, textoCorreo: resultado.textoCorreo, acuerdosPropuestos: resultado.acuerdosPropuestos }
+    return {
+      ok: true,
+      textoCorreo: resultado.textoCorreo,
+      bloques: resultado.bloques,
+      acuerdosPropuestos: resultado.acuerdosPropuestos,
+      insumosCorreo: resultado.insumosCorreo,
+    }
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : String(error)
     return { ok: false, error: mensaje }

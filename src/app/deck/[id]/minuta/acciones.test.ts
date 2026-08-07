@@ -88,7 +88,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   obtenerReunionMock.mockResolvedValue(REUNION_FALSA)
   moldeDeMinutaMock.mockResolvedValue(null)
-  generarMinutaMock.mockResolvedValue({ textoCorreo: 'Correo generado', acuerdosPropuestos: [] })
+  generarMinutaMock.mockResolvedValue({
+    textoCorreo: 'Correo generado',
+    bloques: ['bloque uno', 'bloque dos'],
+    acuerdosPropuestos: [],
+    insumosCorreo: { salaSlug: 'neracode', molde: null, reunionId: 'reu-1', contexto: { reunion: 'x', fecha: 'y' } },
+  })
   guardarMinutaMock.mockResolvedValue(undefined)
   marcarDadaMock.mockResolvedValue(undefined)
   sesionActualMock.mockResolvedValue({
@@ -120,6 +125,46 @@ describe('generarMinutaAction', () => {
 
     expect(resultado.ok).toBe(true)
     expect(generarMinutaMock).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * EL HALLAZGO (ronda 11, tarea 1): además del texto ya ensamblado, esta
+   * acción también devuelve los `bloques` crudos y los `insumosCorreo` — lo
+   * que `MinutaCliente.tsx` necesita para volver a llamar a `ensamblarCorreo`
+   * EN EL CLIENTE cada vez que cambian los acuerdos, sin pedirle al servidor
+   * que regenere nada.
+   */
+  it('con editor: devuelve también los bloques y los insumos para rearmar el correo en el cliente', async () => {
+    esEditorMock.mockResolvedValue(true)
+
+    const resultado = await generarMinutaAction({ reunionId: 'reu-1' }, 'transcripción cruda')
+
+    expect(resultado.bloques).toEqual(['bloque uno', 'bloque dos'])
+    expect(resultado.insumosCorreo).toEqual({
+      salaSlug: 'neracode', molde: null, reunionId: 'reu-1', contexto: { reunion: 'x', fecha: 'y' },
+    })
+  })
+
+  /**
+   * EL CUADRO DE FEEDBACK PARA LA IA (ronda 11, tarea 1): lo que se escribe en
+   * "¿qué entendió mal?" viaja como quinto argumento hasta `generarMinuta`,
+   * que lo añade al prompt como corrección — ver prompt.test.ts para la
+   * prueba de que ahí se marca aparte y nunca toca el SYSTEM de Franco.
+   */
+  it('manda la corrección del equipo a generarMinuta cuando se pide regenerar con feedback', async () => {
+    esEditorMock.mockResolvedValue(true)
+
+    await generarMinutaAction({ reunionId: 'reu-1' }, 'transcripción cruda', 'Fernando no Fernanda, fue Iris')
+
+    expect(generarMinutaMock.mock.calls[0][4]).toBe('Fernando no Fernanda, fue Iris')
+  })
+
+  it('sin corrección (generación normal): no manda nada de más a generarMinuta', async () => {
+    esEditorMock.mockResolvedValue(true)
+
+    await generarMinutaAction({ reunionId: 'reu-1' }, 'transcripción cruda')
+
+    expect(generarMinutaMock.mock.calls[0][4]).toBeUndefined()
   })
 })
 

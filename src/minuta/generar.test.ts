@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { generarMinuta } from './generar'
+import { MOLDE_POR_DEFECTO } from './molde'
 
 const sesion = {
   salaSlug: 'neracode',
@@ -83,5 +84,65 @@ describe('generarMinuta', () => {
     const r = await generarMinuta(sesion, 'x', clienteQueDevuelve(MINUTA_VALIDA))
     expect(r.acuerdosPropuestos[0].que).toBe('Presentar nuevas palabras clave y segmentos')
     expect(r.acuerdosPropuestos[0].responsable).toBe('Fernando Borges')
+  })
+})
+
+/**
+ * EL HALLAZGO (ronda 11, tarea 1): `ensamblarCorreo` ya arma el correo con dos
+ * piezas separadas — la prosa (`bloques`) y la tabla (derivada de los
+ * acuerdos). Hoy `MinutaCliente.tsx` solo recibía el texto YA ENSAMBLADO y
+ * guardaba los acuerdos aparte: desmarcar uno no volvía a armar el texto.
+ *
+ * El arreglo: `generarMinuta` (y `generarMinutaAction`, que lo envuelve)
+ * también devuelve los `bloques` crudos y los INSUMOS con los que se armó el
+ * correo (`salaSlug`, `molde`, `reunionId`, `contexto`) — todo lo que
+ * `ensamblarCorreo` necesita para que el CLIENTE pueda volver a llamarlo cada
+ * vez que cambian los acuerdos o se edita un bloque, sin volver a llamar al
+ * modelo.
+ */
+describe('generarMinuta — lo que necesita el cliente para rearmar el correo sin llamar al modelo', () => {
+  it('devuelve los bloques crudos, en el mismo orden que los escribió el modelo', async () => {
+    const r = await generarMinuta(sesion, 'x', clienteQueDevuelve(MINUTA_VALIDA))
+    expect(r.bloques).toEqual(MINUTA_VALIDA.bloques)
+  })
+
+  it('devuelve los insumos —salaSlug, molde, contexto— con los que se armó el textoCorreo', async () => {
+    const r = await generarMinuta(sesion, 'x', clienteQueDevuelve(MINUTA_VALIDA))
+    expect(r.insumosCorreo.salaSlug).toBe('neracode')
+    expect(r.insumosCorreo.molde).toEqual(MOLDE_POR_DEFECTO)
+    expect(r.insumosCorreo.reunionId).toBeUndefined() // esta `sesion` de prueba no trae `id`
+    expect(r.insumosCorreo.contexto.reunion).toContain('NeraCode')
+  })
+
+  it('con un id de reunión, lo devuelve en los insumos (para el enlace de la sala)', async () => {
+    const r = await generarMinuta({ ...sesion, id: 'reu-123' }, 'x', clienteQueDevuelve(MINUTA_VALIDA))
+    expect(r.insumosCorreo.reunionId).toBe('reu-123')
+  })
+
+  it('con un molde propio, los insumos traen ESE molde, no el de siempre', async () => {
+    const moldePropio = {
+      saludo: 'Estimados,', entradilla: '', cierre: '', conEnlace: false,
+      bloques: [{ titulo: 'Qué se decidió', guia: '' }, { titulo: 'Compromisos', guia: '', conTabla: true }],
+    }
+    const minutaDeUnBloque = { ...MINUTA_VALIDA, bloques: ['Se aprobó el presupuesto.'] }
+    const r = await generarMinuta(sesion, 'x', clienteQueDevuelve(minutaDeUnBloque), moldePropio)
+    expect(r.insumosCorreo.molde).toBe(moldePropio)
+  })
+})
+
+describe('generarMinuta — corrección del equipo, al regenerar', () => {
+  it('cuando se pasa una corrección, viaja al modelo junto con la transcripción', async () => {
+    const cliente = clienteQueDevuelve(MINUTA_VALIDA)
+    await generarMinuta(sesion, 'transcripción original', cliente, undefined, 'Fernando no Fernanda, fue Iris quien se comprometió')
+    const llamada = cliente.messages.parse.mock.calls[0][0] as { messages: Array<{ content: string }> }
+    expect(llamada.messages[0].content).toContain('Fernando no Fernanda, fue Iris quien se comprometió')
+    expect(llamada.messages[0].content).toContain('transcripción original')
+  })
+
+  it('sin corrección, el mensaje al modelo es idéntico al de siempre (no se le añade nada de más)', async () => {
+    const cliente = clienteQueDevuelve(MINUTA_VALIDA)
+    await generarMinuta(sesion, 'x', cliente)
+    const llamada = cliente.messages.parse.mock.calls[0][0] as { messages: Array<{ content: string }> }
+    expect(llamada.messages[0].content.toUpperCase()).not.toContain('CORRECCIÓN')
   })
 })
