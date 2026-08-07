@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReunionResumen } from '@/db/reuniones'
 import type { DocumentoCompleto } from '@/db/documentos'
 
@@ -30,9 +31,14 @@ vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined)
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 const listarReunionesMock = vi.fn()
+// Handle propio para `eliminarReunion` (antes `vi.fn()` inline, sin forma de
+// comprobar desde un test si se llegó a llamar): lo exige el crítico 4 de la
+// auditoría 7-ago — probar que borrar exige el paso deliberado significa
+// poder afirmar que NO se llamó tras un solo clic, y que SÍ tras el segundo.
+const eliminarReunionMock = vi.fn()
 vi.mock('@/db/reuniones', () => ({
   listarReuniones: () => listarReunionesMock(),
-  eliminarReunion: vi.fn(),
+  eliminarReunion: (...args: unknown[]) => eliminarReunionMock(...args),
 }))
 
 const documentoDeReunionMock = vi.fn()
@@ -81,6 +87,7 @@ beforeEach(() => {
   exigirLecturaMock.mockReset().mockResolvedValue({ rol: 'equipo', rolApp: 'viewer', sub: 'equipo-mkt-corp' })
   listarReunionesMock.mockReset().mockResolvedValue([])
   documentoDeReunionMock.mockReset().mockResolvedValue(null)
+  eliminarReunionMock.mockReset().mockResolvedValue(undefined)
 })
 
 /**
@@ -119,8 +126,14 @@ describe('PagPreparar (/deck) — "Anteriores" también cuenta lo deducido (hall
 
     render(await PagPreparar())
 
-    expect(screen.queryByText('Quincenal julio')).not.toBeInTheDocument()
-    expect(screen.queryByText('Standup sin nada')).not.toBeInTheDocument()
+    // Acotado a "Anteriores" (antes se comprobaba en todo el documento):
+    // desde el arreglo del crítico 4 (auditoría 7-ago) "En preparación"
+    // TAMBIÉN titula con el título de la reunión, así que "Standup sin nada"
+    // ahora aparece ahí de forma legítima — lo que este test siempre quiso
+    // decir es que no aparece en "Anteriores".
+    const anteriores = screen.getByText('Anteriores').closest('section')!
+    expect(within(anteriores).queryByText('Quincenal julio')).not.toBeInTheDocument()
+    expect(within(anteriores).queryByText('Standup sin nada')).not.toBeInTheDocument()
   })
 })
 
@@ -185,7 +198,12 @@ describe('PagPreparar (/deck) — "Anteriores" absorbe "cerradas" y "falta minut
     expect(titulos).toEqual(['Estatus de julio', 'Estatus de junio'])
   })
 
-  it('una reunión sin minuta muestra "Sin minuta" en vez de un botón de descarga roto (AccionesReunion, reusado sin cambios)', async () => {
+  // CORREGIDO (auditoría UX/UI 7-ago, importante 8): "Sin minuta" era texto
+  // muerto — exactamente el patrón que la ronda 10 vino a matar en la sala
+  // (ver CarasDeReunion.test.tsx, "minuta ausente"), sobreviviendo aquí. Este
+  // test antes fijaba el defecto ("AccionesReunion, reusado sin cambios");
+  // ahora fija el arreglo: el mismo enlace de verdad que ya usa la sala.
+  it('una reunión sin minuta ofrece "+ Levantar minuta" — un enlace de verdad a /deck/{id}/minuta, no texto muerto', async () => {
     listarReunionesMock.mockResolvedValue([
       reunion({ id: 'r-sin-minuta', titulo: 'Kickoff campaña Q3', fecha: '2026-07-08T18:00:00.000Z', estado: 'dada', tieneMinuta: false, tieneDocumento: true }),
     ])
@@ -194,7 +212,9 @@ describe('PagPreparar (/deck) — "Anteriores" absorbe "cerradas" y "falta minut
     render(await PagPreparar())
 
     const seccion = screen.getByText('Anteriores').closest('section')!
-    expect(within(seccion).getByText('Sin minuta')).toBeInTheDocument()
+    const enlace = within(seccion).getByRole('link', { name: /levantar minuta/i })
+    expect(enlace).toHaveAttribute('href', '/deck/r-sin-minuta/minuta')
+    expect(within(seccion).queryByText('Sin minuta')).not.toBeInTheDocument()
   })
 
   /**
@@ -215,10 +235,12 @@ describe('PagPreparar (/deck) — "Anteriores" absorbe "cerradas" y "falta minut
 
     render(await PagPreparar())
 
-    // Por HREF, no por texto: "En preparación" pinta el nombre de la SALA
-    // como texto principal (ver `hrefsEnPreparacion`, hallazgo 2 arriba), no
-    // el título — el `/deck/{id}` de cada fila es el único identificador que
-    // sirve en las dos secciones por igual.
+    // Por HREF, no por texto: aunque desde el arreglo del crítico 4
+    // (auditoría 7-ago) las dos secciones titulan con el nombre de la
+    // reunión — antes "En preparación" solo mostraba la sala, ver
+    // `hrefsEnPreparacion` más abajo —, dos fixtures de este archivo pueden
+    // compartir texto. El `/deck/{id}` de cada fila es el único
+    // identificador que nunca colisiona entre las dos secciones.
     function hrefsDe(tituloSeccion: string): string[] {
       const seccion = screen.getByText(tituloSeccion).closest('section')!
       return within(seccion)
@@ -249,11 +271,12 @@ describe('PagPreparar (/deck) — "Anteriores" absorbe "cerradas" y "falta minut
  */
 describe('PagPreparar (/deck) — "En preparación" no incluye lo que ya se cuenta como dado (hallazgo 2)', () => {
   /**
-   * Cada fila de "En preparación" muestra el NOMBRE DE LA SALA como texto
-   * principal (`s.salaNombre`), no el título de la reunión —a diferencia de
-   * "falta su minuta"/"cerradas", que sí muestran `s.titulo`—, así que la
-   * única forma fiable de identificar UNA fila concreta es por el `href`
-   * de su link (`/deck/{id}`, único por reunión).
+   * Identificar cada fila por su `href` (`/deck/{id}`, único por reunión),
+   * no por texto: desde el arreglo del crítico 4 (auditoría 7-ago) "En
+   * preparación" también titula con el nombre de la reunión —antes mostraba
+   * solo `s.salaNombre`, ver el describe de más abajo—, así que dos
+   * fixtures de este archivo podrían compartir título sin que eso sea un
+   * error. El `href` nunca colisiona.
    */
   function hrefsEnPreparacion(): string[] {
     const seccion = screen.getByText('En preparación').closest('section')!
@@ -298,5 +321,146 @@ describe('PagPreparar (/deck) — "En preparación" no incluye lo que ya se cuen
     render(await PagPreparar())
 
     expect(hrefsEnPreparacion()).toContain('/deck/r-futura')
+  })
+})
+
+/**
+ * AUDITORÍA UX/UI — 7 de agosto de 2026
+ * (`docs/superpowers/specs/2026-08-07-auditoria-ux-ui.md`). Los describe de
+ * aquí abajo fijan el crítico 4 y la parte del importante 6 que le toca a
+ * esta página.
+ */
+
+/**
+ * CRÍTICO 4 — "Eliminar" tenía el mismo peso visual que "Descargar": las
+ * tres acciones de una fila de "Anteriores" compartían tono y tamaño, sin
+ * nada que marcara cuál de las tres borra la reunión ENTERA. El arreglo real
+ * es visual (`.accionBorrar` pasa a los tokens `--alerta`/`--alerta-suave`
+ * de `deck.module.css` — los mismos que ya usa `.botonPeligro`, no un rojo
+ * inventado aparte) y no hay forma honesta de afirmar eso con un test de
+ * jsdom, que no calcula estilos reales.
+ *
+ * Lo que SÍ se puede fijar con un test —y es la otra mitad del hallazgo,
+ * "está a un clic"— es que borrar de verdad exige el paso deliberado que ya
+ * ofrecían `AccionesReunion` y `BorrarBorrador` (dos tiempos: "Eliminar"
+ * arma la confirmación con lo que se pierde escrito, "Sí, borrar" ejecuta).
+ * Ninguno de los dos tenía test propio hasta ahora — así que esta suite
+ * también sirvió para confirmar, ya en rojo-antes-de-tocar-nada, que el gate
+ * de dos pasos existía de verdad y no solo en apariencia.
+ */
+describe('PagPreparar (/deck) — borrar exige un paso deliberado, no un clic suelto (auditoría 7-ago, crítico 4)', () => {
+  it('"Anteriores": un clic en "Eliminar" NO borra — arma la confirmación; hace falta "Sí, borrar"', async () => {
+    const usuario = userEvent.setup()
+    listarReunionesMock.mockResolvedValue([
+      reunion({ id: 'r-cerrada', titulo: 'Estatus de julio', fecha: '2026-07-05T18:00:00.000Z', estado: 'dada', tieneMinuta: true, tieneDocumento: true }),
+    ])
+    documentoDeReunionMock.mockResolvedValue(documentoListo())
+
+    render(await PagPreparar())
+    const seccion = screen.getByText('Anteriores').closest('section')!
+
+    await usuario.click(within(seccion).getByRole('button', { name: /eliminar/i }))
+
+    // El primer clic solo arma la confirmación: todavía no se llamó.
+    expect(eliminarReunionMock).not.toHaveBeenCalled()
+    expect(within(seccion).getByText(/se borran la reunión, su documento y su minuta/i)).toBeInTheDocument()
+
+    await usuario.click(within(seccion).getByRole('button', { name: /^sí, borrar$/i }))
+
+    await waitFor(() => expect(eliminarReunionMock).toHaveBeenCalledWith('r-cerrada', expect.any(Function)))
+  })
+
+  it('"Anteriores": "Cancelar" vuelve atrás sin borrar nada', async () => {
+    const usuario = userEvent.setup()
+    listarReunionesMock.mockResolvedValue([
+      reunion({ id: 'r-cerrada', titulo: 'Estatus de julio', fecha: '2026-07-05T18:00:00.000Z', estado: 'dada', tieneMinuta: true, tieneDocumento: true }),
+    ])
+    documentoDeReunionMock.mockResolvedValue(documentoListo())
+
+    render(await PagPreparar())
+    const seccion = screen.getByText('Anteriores').closest('section')!
+
+    await usuario.click(within(seccion).getByRole('button', { name: /eliminar/i }))
+    await usuario.click(within(seccion).getByRole('button', { name: /cancelar/i }))
+
+    expect(eliminarReunionMock).not.toHaveBeenCalled()
+    expect(within(seccion).getByRole('button', { name: /eliminar/i })).toBeInTheDocument()
+  })
+
+  it('"En preparación" (BorrarBorrador): el mismo gate de dos tiempos', async () => {
+    const usuario = userEvent.setup()
+    listarReunionesMock.mockResolvedValue([
+      reunion({ id: 'r-borrador', salaNombre: 'UiX', titulo: 'Quincenal UiX', fecha: '2026-07-10T18:00:00.000Z', estado: 'agendada' }),
+    ])
+    documentoDeReunionMock.mockResolvedValue(null)
+
+    render(await PagPreparar())
+    const seccion = screen.getByText('En preparación').closest('section')!
+
+    await usuario.click(within(seccion).getByRole('button', { name: /eliminar/i }))
+    expect(eliminarReunionMock).not.toHaveBeenCalled()
+
+    await usuario.click(within(seccion).getByRole('button', { name: /^sí, borrar$/i }))
+    await waitFor(() => expect(eliminarReunionMock).toHaveBeenCalledWith('r-borrador', expect.any(Function)))
+  })
+})
+
+/**
+ * IMPORTANTE 6 (mitad 1) — "Las dos mitades de Presentaciones no hablan
+ * igual": "En preparación" titulaba con el nombre de la SALA y dejaba el
+ * título de la reunión sin mostrar en ningún sitio; "Anteriores" siempre
+ * tituló con el título de la reunión. Es la misma pantalla — ahora titulan
+ * igual, y la sala pasa a ser el dato secundario (no desaparece).
+ */
+describe('PagPreparar (/deck) — "En preparación" titula con el nombre de la reunión (auditoría 7-ago, importante 6)', () => {
+  it('muestra el título de la reunión como texto principal; antes solo mostraba el nombre de la sala', async () => {
+    listarReunionesMock.mockResolvedValue([
+      reunion({ id: 'r-1', salaNombre: 'UiX', titulo: 'Quincenal UiX · Agosto', fecha: '2026-07-10T18:00:00.000Z', estado: 'agendada' }),
+    ])
+    documentoDeReunionMock.mockResolvedValue(null)
+
+    render(await PagPreparar())
+
+    const seccion = screen.getByText('En preparación').closest('section')!
+    expect(within(seccion).getByText('Quincenal UiX · Agosto')).toBeInTheDocument()
+    // La sala no desaparece: pasa a dato secundario, no se pierde información.
+    expect(within(seccion).getByText('UiX')).toBeInTheDocument()
+  })
+})
+
+/**
+ * IMPORTANTE 6 (mitad 2) — "En preparación" etiquetaba cada fila como
+ * "agendada": el estado de la JUNTA, no del documento. Como esta sección es
+ * por definición solo reuniones `agendada` (ver el filtro de
+ * `enPreparacion` en `page.tsx`), esa etiqueta era CONSTANTE en el 100% de
+ * las filas — cero información, y encima el eje equivocado. Lo que importa
+ * en Presentaciones es si el documento está en borrador o listo: mismo eje
+ * y mismas palabras que ya usa `/deck/[id]/page.tsx`.
+ */
+describe('PagPreparar (/deck) — "En preparación" etiqueta el DOCUMENTO, no la junta (auditoría 7-ago, importante 6)', () => {
+  it('sin nada maquetado, la etiqueta es "borrador"', async () => {
+    listarReunionesMock.mockResolvedValue([
+      reunion({ id: 'r-vacia', titulo: 'Sin nada aún', fecha: '2026-07-10T18:00:00.000Z', estado: 'agendada' }),
+    ])
+    documentoDeReunionMock.mockResolvedValue(null)
+
+    render(await PagPreparar())
+
+    const seccion = screen.getByText('En preparación').closest('section')!
+    expect(within(seccion).getByText('borrador')).toBeInTheDocument()
+    expect(within(seccion).queryByText('agendada')).not.toBeInTheDocument()
+  })
+
+  it('maquetada (documento listo, aún sin pasar su día) se etiqueta "listo"', async () => {
+    listarReunionesMock.mockResolvedValue([
+      reunion({ id: 'r-futura-lista', titulo: 'Ya maquetada', fecha: '2030-01-15T18:00:00.000Z', estado: 'agendada', tieneDocumento: true }),
+    ])
+    documentoDeReunionMock.mockResolvedValue(documentoListo())
+
+    render(await PagPreparar())
+
+    const seccion = screen.getByText('En preparación').closest('section')!
+    expect(within(seccion).getByText('listo')).toBeInTheDocument()
+    expect(within(seccion).queryByText('agendada')).not.toBeInTheDocument()
   })
 })
