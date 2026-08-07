@@ -79,10 +79,14 @@ export default async function PagNuevaSesion() {
 
     // Sin campo de fecha en este formulario (igual que el flujo viejo): nace
     // "ahora", mismo default que aplicaba `crearSesionConEstructura` cuando
-    // no se le pasaba `fecha`. Título en blanco: `crearReunionConDocumento`
-    // pone uno legible por defecto.
+    // no se le pasaba `fecha`.
+    //
+    // EL TÍTULO SÍ VIAJA desde la auditoría UX/UI: antes iba `titulo: ''`
+    // fijo y toda reunión creada aquí caía a `tituloPorDefecto`. Vacío sigue
+    // siendo válido —el default lo cubre— pero ya no es lo único posible.
+    const titulo = String(formData.get('titulo') ?? '').trim()
     const { reunionId } = await crearReunionConDocumento({
-      salaSlug, plantilla, tipo, alcance, titulo: '', fecha: new Date(),
+      salaSlug, plantilla, tipo, alcance, titulo, fecha: new Date(),
     })
     redirect(`/deck/${reunionId}`)
   }
@@ -196,6 +200,27 @@ export default async function PagNuevaSesion() {
               name="alcanceTema"
               placeholder="Si elegiste “tema puntual”, especifica cuál (ej. campaña de fin de año)"
               className={estilos.inputTexto}
+            />
+          </div>
+
+          {/* EL TÍTULO, que hasta ahora este formulario no pedía y mandaba en
+              blanco (ronda 11, auditoría UX/UI). Sin él toda reunión creada
+              desde aquí caía a `tituloPorDefecto`, que describe la CADENCIA y
+              no el contenido — y con eso se perdía lo único que distingue dos
+              reuniones de la misma sala el mismo mes: la "Comercial" y la
+              "Digital" de Research Land eran indistinguibles.
+
+              OPCIONAL y con el mismo vocabulario que `AgendarRapido` y
+              `FormularioSesion`: quien tenga prisa sigue pudiendo crear sin
+              nombrarla, y el defecto ya no colisiona porque lleva el día. */}
+          <div className={estilos.campo}>
+            <span className={estilos.campoTitulo}>Título</span>
+            <input
+              type="text"
+              name="titulo"
+              placeholder="Si lo dejas vacío, se pone uno solo"
+              className={estilos.inputTexto}
+              maxLength={120}
             />
           </div>
 
