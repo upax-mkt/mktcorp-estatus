@@ -1,15 +1,18 @@
 import Link from 'next/link'
 import { connection } from 'next/server'
+import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import estilos from './deck.module.css'
 import { listarReuniones, eliminarReunion, type ReunionResumen } from '@/db/reuniones'
 import { documentoDeReunion, eliminarDocumentoDeReunion, type DocumentoCompleto } from '@/db/documentos'
 import { obtenerMinuta } from '@/db/minutas'
-import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
 import { fueDada, type Reunion } from '@/dominio/reunion'
 import { diaCivil, fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,7 +71,9 @@ export default async function PagPreparar() {
   // — mismo mecanismo, mismo comentario, que `/reuniones` (`app/reuniones/page.tsx`).
   await connection()
   const hoy = new Date()
-  const reuniones = await listarReuniones()
+  // `esAdmin()` (ronda 11, tarea 2): esta pantalla no lo necesitaba hasta
+  // ahora — llega con `BarraNavegacion`, que condiciona Clientes/Personas.
+  const [reuniones, admin] = await Promise.all([listarReuniones(), esAdmin()])
   const hoyCivil = diaCivil(hoy.toISOString())
 
   /**
@@ -152,14 +157,22 @@ export default async function PagPreparar() {
     }
   }
 
+  // Mismo patrón que `salir` en `src/app/page.tsx` (Home): repetido a
+  // propósito en cada pantalla que monta `BarraNavegacion`, no centralizado
+  // en `@/auth/sesion` — esta ronda reparte los archivos entre cuatro
+  // agentes por RUTA EXACTA, y `auth/sesion.ts` no está en la lista de
+  // ninguno; tocarlo a media ronda es más riesgo del que vale evitar cuatro
+  // líneas repetidas (mismo criterio que ya documenta
+  // `comoReunionDeDominio`, más arriba, para el mismo problema).
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
+
   return (
     <div className={estilos.app}>
-      <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        {/* Deck Designer → Presentaciones (tarea 18): solo el nombre
-            visible, la ruta sigue siendo /deck. */}
-        <div className={estilos.barraTitulo}>Presentaciones</div>
-      </header>
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>

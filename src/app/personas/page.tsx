@@ -1,10 +1,13 @@
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import estilos from './personas.module.css'
 import { hayDB } from '@/db/cliente'
 import { listarPersonas, normalizarCorreo } from '@/db/directorio'
 import { exigirAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
 import { FilaPersona } from '@/componentes/personas/FilaPersona'
 import { FormularioAlta } from '@/componentes/personas/FormularioAlta'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { altaPersonaAction, cambiarRolAction, activarPersonaAction } from './acciones'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +33,22 @@ export const dynamic = 'force-dynamic'
  */
 export default async function PagPersonas() {
   const sesion = await exigirAdmin()
+  // `connection()`/`hoy` (ronda 11, tarea 2): mismo mecanismo que `/` y
+  // `/deck` para que `BarraNavegacion` pinte la fecha de HOY, no la del
+  // build.
+  await connection()
+  const hoy = new Date()
+  // `admin` para `BarraNavegacion`: siempre `true` — si `exigirAdmin()` no
+  // lanzó arriba, la sesión YA administra Marketing Corporativo.
+  const admin = true
+
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
 
   const personas = await listarPersonas()
 
@@ -43,10 +62,7 @@ export default async function PagPersonas() {
 
   return (
     <div className={estilos.app}>
-      <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        <div className={estilos.barraTitulo}>Personas</div>
-      </header>
+      <BarraNavegacion seccionActiva="personas" hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL: mismo aviso que /salas — sin base no hay contra

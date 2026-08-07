@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import type { CSSProperties } from 'react'
 import estilos from '../deck.module.css'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
@@ -7,7 +8,9 @@ import { crearReunionConDocumento } from '@/db/documentos'
 import type { TipoReunion } from '@/db/reuniones'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
-import { exigirEditor, exigirLectura } from '@/auth/roles'
+import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,11 +33,30 @@ export default async function PagNuevaSesion() {
   // Página de equipo que faltaba exigir a nivel de página (corrección
   // post-revisión de la ronda 9) — la comprobación de sesión va primero.
   await exigirLectura()
-  const [pausadas, registro, salas] = await Promise.all([
+  // `connection()`/`hoy` (ronda 11, tarea 2): sin esto Next la prerenderiza y
+  // "hoy" queda anclado a la fecha del build — mismo mecanismo, mismo
+  // comentario, que `/` y `/deck` (src/app/page.tsx, src/app/deck/page.tsx).
+  // Ambos alimentan a `BarraNavegacion`, que esta pantalla no montaba hasta
+  // ahora.
+  await connection()
+  const hoy = new Date()
+  const [pausadas, registro, salas, admin] = await Promise.all([
     slugsDeSalasPausadas(),
     cargarTemas(),
     slugsDeSalas(),
+    esAdmin(),
   ])
+
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion`, no
+  // centralizado en `@/auth/sesion` — ver el comentario de
+  // `comoReunionDeDominio` en `src/app/deck/page.tsx` para el porqué de no
+  // tocar un archivo sin dueño a media ronda.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
 
   async function crear(formData: FormData) {
     'use server'
@@ -67,6 +89,12 @@ export default async function PagNuevaSesion() {
 
   return (
     <div className={estilos.app}>
+      {/* LA BARRA (ronda 11, tarea 2), arriba del todo — y el "← Presentaciones"
+          local se CONSERVA debajo, sin excepción: son dos cosas distintas
+          (saltar de sección vs. volver a la lista de la que salió esta
+          reunión nueva), mismo criterio que /deck/[id]. */}
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+
       <header className={estilos.barra}>
         {/* Deck Designer → Presentaciones (tarea 18): solo el nombre visible. */}
         <Link href="/deck" className={estilos.volver}>← Presentaciones</Link>

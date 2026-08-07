@@ -1,9 +1,13 @@
 import Link from 'next/link'
-import { exigirLectura } from '@/auth/roles'
+import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
+import { exigirLectura, esAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
 import { todosLosAcuerdos } from '@/db/consultas'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import { ErrorMonday } from '@/monday/cliente'
 import { TablaAcuerdos } from '@/componentes/acuerdos/TablaAcuerdos'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { destacarAction } from './acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
 
@@ -50,20 +54,32 @@ async function refrescarDesdeMondaySeguro(): Promise<void> {
  */
 export default async function PagAcuerdos() {
   await exigirLectura()
+  // `connection()`/`hoy`/`admin` (ronda 11, tarea 2): igual que `/` y `/deck`
+  // — la fecha y el gate de Clientes/Personas que pinta `BarraNavegacion`,
+  // que esta pantalla no montaba hasta ahora. Sin `connection()`, Next
+  // prerenderiza y "hoy" queda anclado a la fecha del build.
+  await connection()
+  const hoy = new Date()
 
   await refrescarDesdeMondaySeguro()
 
-  const [acuerdos, pendientes] = await Promise.all([
+  const [acuerdos, pendientes, admin] = await Promise.all([
     todosLosAcuerdos(),
     acuerdosPendientesDeSubir(),
+    esAdmin(),
   ])
+
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
 
   return (
     <div className={estilos.app}>
-      <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        <div className={estilos.barraTitulo}>Acuerdos</div>
-      </header>
+      <BarraNavegacion seccionActiva="acuerdos" hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>

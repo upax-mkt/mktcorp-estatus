@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { connection } from 'next/server'
 import type { CSSProperties } from 'react'
 import estilos from '../deck.module.css'
 import { obtenerReunion } from '@/db/reuniones'
@@ -24,7 +25,9 @@ import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
-import { esEditor, exigirEditor, exigirLectura } from '@/auth/roles'
+import { esEditor, exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { BorrarSesion } from '@/componentes/BorrarSesion'
@@ -64,6 +67,13 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // post-revisión de la ronda 9) — la comprobación de sesión va primero,
   // antes incluso de mirar si el id existe.
   await exigirLectura()
+  // `connection()`/`hoy`/`admin` (ronda 11, tarea 2): igual que `/` y `/deck`
+  // — la fecha y el gate de Clientes/Personas que pinta `BarraNavegacion`,
+  // que esta pantalla no montaba hasta ahora. Sin `connection()`, Next
+  // prerenderiza y "hoy" queda anclado a la fecha del build.
+  await connection()
+  const hoy = new Date()
+  const admin = await esAdmin()
   const { id } = await params
   // El id de la URL es el de la REUNIÓN (heredado de la vieja sesión: las
   // dos comparten id). El documento es una fila aparte, ligada 1:1 — puede
@@ -331,6 +341,16 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     redirect('/deck')
   }
 
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion` — ver
+  // el comentario de `comoReunionDeDominio` en `src/app/deck/page.tsx` para
+  // el porqué de no centralizarlo a media ronda.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
+
   // ---- Vista ----
 
   const total = items.length
@@ -390,6 +410,12 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
   return (
     <div className={estilos.app} style={{ '--sala': reunion.salaColor } as CSSProperties}>
+      {/* LA BARRA (ronda 11, tarea 2), arriba del todo — no sustituye al
+          "← Presentaciones"/"Ver documento"/"Minuta con IA" de abajo: volver
+          al cuestionario de ESTA reunión y saltar a otra sección son cosas
+          distintas (brief, "que no se pierda el volver"). */}
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+
       <header className={estilos.barra}>
         {/* Deck Designer → Presentaciones (tarea 18): solo el nombre visible. */}
         <Link href="/deck" className={estilos.volver}>← Presentaciones</Link>

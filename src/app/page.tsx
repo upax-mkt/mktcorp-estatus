@@ -21,7 +21,7 @@ import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
-import { fechaLarga, fechaBreve, textoDiasDesde, diasHasta, diaCivil, instanteEnCDMX } from '@/lib/fecha'
+import { fechaBreve, textoDiasDesde, diasHasta, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import { cerrarSesion } from '@/auth/sesion'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
@@ -29,6 +29,7 @@ import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
 import { AgendarRapido, type SalaParaAgendar, type DatosAgendarRapido } from '@/componentes/hogar/AgendarRapido'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { colorDeTextoDeMarca } from '@/temas'
 
 /**
@@ -344,57 +345,13 @@ export default async function Hub() {
 
   return (
     <div className={estilos.app}>
-      <header className={estilos.barra}>
-        <Link href="/" className={estilos.marca}>
-          <Image
-            src="/logos/marketing-corp-blanco.png"
-            alt="Marketing Corp"
-            width={140}
-            height={33}
-            className={estilos.marcaLogo}
-            priority
-          />
-        </Link>
-        <nav className={estilos.barraDcha}>
-          {/* EL ORDEN (tarea 18) sigue el ciclo de trabajo real —agendar →
-              preparar → dar → minutar → seguir acuerdos—, confirmado por
-              Franco: Reuniones, Presentaciones, Acuerdos; Clientes y Personas
-              van al final porque son configuración, no trabajo diario (y a
-              un cliente se llega desde el Home, no desde esta barra). Antes
-              empezaba por Acuerdos, que es el ÚLTIMO paso del ciclo. */}
-          {/* → /reuniones, no /agenda (tarea 14): la tarea 13 la absorbe
-              — /agenda queda como redirección, y apuntar la barra a la
-              redirección es un salto extra que no aporta nada. Si al
-              desplegar /reuniones todavía no existiera, sigue resolviendo
-              vía esa redirección. */}
-          <Link href="/reuniones" className={estilos.barraLink}>Reuniones</Link>
-          {/* Deck Designer → Presentaciones (tarea 18): solo el nombre
-              visible: la ruta sigue siendo /deck — hay enlaces compartidos y
-              esto no es una migración de URLs. */}
-          <Link href="/deck" className={estilos.barraLink}>Presentaciones</Link>
-          {/* Enlace FIJO (revisión final de la ronda 7, punto 5): antes la
-              única puerta a /acuerdos vivía dentro del vacío "Nada destacado
-              todavía" de ModuloAcuerdos — en cuanto alguien destacaba un
-              acuerdo, ese vacío dejaba de pintarse y con él la única entrada
-              a media rama de esta ronda. Aquí no depende de que algo esté
-              vacío o lleno. */}
-          <Link href="/acuerdos" className={estilos.barraLink}>Acuerdos</Link>
-          {/* /salas y /personas son las dos únicas secciones solo-admin
-              (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
-              mismo gate aquí (revisión del coordinador a la tarea 3): las dos
-              pantallas ya exigen `exigirAdmin()` por dentro, así que esto no
-              es la protección real, pero un editor o viewer que hace clic y
-              rebota al login sin explicación es una interfaz que promete algo
-              que no puede cumplir. Salas → Clientes (tarea 18): mismo
-              criterio de solo-nombre que Presentaciones, arriba. */}
-          {admin && <Link href="/salas" className={estilos.barraLink}>Clientes</Link>}
-          {admin && <Link href="/personas" className={estilos.barraLink}>Personas</Link>}
-          <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
-          <form action={salir}>
-            <button type="submit" className={estilos.barraSalir}>Salir</button>
-          </form>
-        </nav>
-      </header>
+      {/* LA BARRA (ronda 11, tarea 2): extraída a `@/componentes/BarraNavegacion`
+          — el Home era el original completo (orden, `admin &&`, fecha,
+          Salir) y ahora es la fuente que las otras seis pantallas de equipo
+          comparten, en vez de cada una inventando (o divergiendo) la suya.
+          Sin `seccionActiva`: el Home no es ninguna de las cinco pestañas del
+          ciclo — a él se llega por el logo. */}
+      <BarraNavegacion hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL (revisión final de la rama, punto 5): antes esta

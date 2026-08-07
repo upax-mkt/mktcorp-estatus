@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { eq } from 'drizzle-orm'
 import estilos from './salas.module.css'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
@@ -7,9 +9,11 @@ import { tokenDeAgenda } from '@/db/enlace-agenda'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin } from '@/auth/roles'
+import { cerrarSesion } from '@/auth/sesion'
 import { urlBase } from '@/lib/url-base'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { BloqueEnlaceAgenda } from '@/componentes/salas/BloqueEnlaceAgenda'
+import { BarraNavegacion } from '@/componentes/BarraNavegacion'
 import { crearSalaAction, editarSalaAction, recalcularPaletaAction, generarEnlaceAction, revocarEnlaceAction } from './acciones'
 
 export const dynamic = 'force-dynamic'
@@ -34,6 +38,27 @@ export default async function PagSalas({
   searchParams: Promise<{ editar?: string; nueva?: string }>
 }) {
   await exigirAdmin()
+  // `connection()`/`hoy` (ronda 11, tarea 2): mismo mecanismo que `/` y
+  // `/deck` para que `BarraNavegacion` pinte la fecha de HOY, no la del
+  // build — aunque `searchParams`, más abajo, ya vuelve dinámica esta
+  // página por su cuenta (ver la guía de Next, "Rendering with search
+  // params"), se deja explícito por el mismo motivo que en las demás
+  // pantallas de esta ronda: no depender de un efecto colateral para algo
+  // que se puede pedir directamente.
+  await connection()
+  const hoy = new Date()
+  // `admin` para `BarraNavegacion`: siempre `true` aquí — si `exigirAdmin()`
+  // no lanzó arriba, la sesión YA administra Marketing Corporativo. Llamar a
+  // `esAdmin()` sería preguntarle lo mismo a la sesión dos veces.
+  const admin = true
+
+  // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
+  // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
+  async function salir() {
+    'use server'
+    await cerrarSesion()
+    redirect('/entrar')
+  }
 
   const { editar, nueva } = await searchParams
 
@@ -81,13 +106,7 @@ export default async function PagSalas({
 
   return (
     <div className={estilos.app}>
-      <header className={estilos.barra}>
-        <Link href="/" className={estilos.volver}>← Meeting Hub</Link>
-        {/* Salas → Clientes (tarea 18): solo el nombre visible, la ruta sigue
-            siendo /salas — hay enlaces compartidos y esto no es una
-            migración de URLs. */}
-        <div className={estilos.barraTitulo}>Clientes</div>
-      </header>
+      <BarraNavegacion seccionActiva="salas" hoy={hoy} admin={admin} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL (revisión final de la rama, punto 5): sin esta

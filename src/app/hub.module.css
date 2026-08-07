@@ -10,34 +10,11 @@
 }
 
 /* ---- barra ----
-   Flota sobre el lienzo con material translúcido en vez de un bloque oscuro:
-   la barra deja de ser una franja que corta la página. */
-.barra {
-  position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
-  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
-}
-.marca { display: flex; align-items: center; }
-/* El logotipo de Marketing Corp en su variante blanca, invertido: la de color
-   trae el rayo en degradado y a 26px de alto se ensucia. La blanca invertida
-   queda nítida. */
-.marcaLogo { height: 26px; width: auto; filter: invert(1); opacity: 0.88; }
-.barraDcha { margin-left: auto; display: flex; align-items: center; gap: 1.4rem; }
-.barraLink {
-  font-size: 0.86rem; font-weight: 550; color: var(--tinta-2); text-decoration: none;
-  transition: color var(--rapido) linear;
-}
-.barraLink:hover { color: var(--tinta); }
-.barraFecha { font-size: 0.8rem; color: var(--tinta-4); }
-.barraSalir {
-  font: inherit; font-size: 0.82rem; color: var(--tinta-3);
-  background: none; border: none; cursor: pointer; padding: 0.2rem;
-}
-.barraSalir:hover { color: var(--tinta); }
+   Ronda 11, tarea 2: la barra se extrajo a `@/componentes/BarraNavegacion`
+   —el Home era el original completo, ahora la comparten siete pantallas—,
+   así que sus clases (`.barra`, `.marca`, `.marcaLogo`, `.barraDcha`,
+   `.barraLink`, `.barraFecha`, `.barraSalir`) viven en
+   `BarraNavegacion.module.css`, no aquí. */
 
 .main {
   max-width: 1220px; margin: 0 auto;

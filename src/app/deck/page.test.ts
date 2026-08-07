@@ -17,6 +17,11 @@ const exigirLecturaMock = vi.fn()
 vi.mock('@/auth/roles', () => ({
   exigirLectura: () => exigirLecturaMock(),
   exigirEditor: vi.fn(),
+  // `esAdmin` (ronda 11, tarea 2): `PagPreparar` ahora la llama dentro del
+  // `Promise.all` para alimentar a `BarraNavegacion` — sin mockearla aquí,
+  // `esAdmin()` es `undefined()` y el `Promise.all` entero rechaza. Mismo
+  // mock, mismo motivo, que `src/app/page.test.ts` (Home).
+  esAdmin: vi.fn().mockResolvedValue(false),
 }))
 
 // Mismo motivo que en `reuniones/page.test.tsx`: `connection()` fuera de un
