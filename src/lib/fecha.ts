@@ -52,7 +52,7 @@ export function fechaLarga(d: Date): string {
 
 /** Días transcurridos desde la última sesión, en lenguaje natural. */
 export function textoDiasDesde(dias: number | null): string {
-  if (dias == null) return 'sin sesión aún'
+  if (dias == null) return 'sin reunión aún'
   if (dias === 0) return 'hoy'
   if (dias === 1) return 'ayer'
   return `hace ${dias} días`
@@ -130,7 +130,7 @@ export function fechaCompleta(iso: string): string {
 
 /** "próxima 19 ago · en 26 d" — sin el conteo si la fecha ya pasó. */
 export function textoProxima(iso: string | null, referencia: Date): string {
-  if (!iso) return 'sin próxima sesión agendada'
+  if (!iso) return 'sin próxima reunión agendada'
   const dias = diasHasta(iso, referencia)
   return `próxima ${fechaBreve(iso)}${dias >= 0 ? ` · en ${dias} d` : ''}`
 }

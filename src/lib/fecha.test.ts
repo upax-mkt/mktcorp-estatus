@@ -43,8 +43,14 @@ describe('fechaLarga', () => {
 })
 
 describe('textoDiasDesde', () => {
-  it('dice "sin sesión aún" cuando nunca hubo una', () => {
-    expect(textoDiasDesde(null)).toBe('sin sesión aún')
+  // Ronda 11, auditoría UX/UI (7-ago): "sesión" desapareció de la interfaz
+  // hace dos rondas y se coló una TERCERA vez aquí, porque vive en un helper
+  // de fechas y no en un componente — las dos limpiezas anteriores barrieron
+  // JSX, no `src/lib/fecha.ts`. Este test fija el vocabulario para que no
+  // vuelva a pasar.
+  it('dice "sin reunión aún" cuando nunca hubo una — nunca "sesión"', () => {
+    expect(textoDiasDesde(null)).toBe('sin reunión aún')
+    expect(textoDiasDesde(null)).not.toMatch(/sesión/i)
   })
 
   it('trata 0 y 1 como hoy y ayer, no como "hace N días"', () => {
@@ -69,15 +75,21 @@ describe('diasHasta', () => {
 })
 
 describe('textoProxima', () => {
-  it('avisa cuando no hay próxima sesión agendada', () => {
-    expect(textoProxima(null, REFERENCIA)).toBe('sin próxima sesión agendada')
+  // Mismo bug que "sin sesión aún" en `textoDiasDesde`, y mismo motivo: vive
+  // en este helper de fechas, no en un componente, así que las dos limpiezas
+  // anteriores de "sesión" no lo tocaron. Sin llamador hoy (`textoProxima` no
+  // se usa todavía en ninguna pantalla), pero dejarlo así es la próxima vez
+  // que se cuela en cuanto alguien lo conecte.
+  it('avisa cuando no hay próxima reunión agendada — nunca "sesión"', () => {
+    expect(textoProxima(null, REFERENCIA)).toBe('sin próxima reunión agendada')
+    expect(textoProxima(null, REFERENCIA)).not.toMatch(/sesión/i)
   })
 
-  it('incluye el conteo de días cuando la sesión está por venir', () => {
+  it('incluye el conteo de días cuando la reunión está por venir', () => {
     expect(textoProxima('2026-08-19', REFERENCIA)).toBe('próxima 19 ago · en 26 d')
   })
 
-  it('omite el conteo cuando la fecha ya pasó (una sesión agendada que no se dio)', () => {
+  it('omite el conteo cuando la fecha ya pasó (una reunión agendada que no se dio)', () => {
     expect(textoProxima('2026-07-20', REFERENCIA)).toBe('próxima 20 jul')
   })
 })
