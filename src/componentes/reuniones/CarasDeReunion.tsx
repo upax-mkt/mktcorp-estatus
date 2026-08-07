@@ -1,7 +1,8 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { tienePresentacion, type Reunion } from '@/dominio/reunion'
+import { tienePresentacion, type CaraArchivo, type Reunion } from '@/dominio/reunion'
 import estilos from './CarasDeReunion.module.css'
 
 /**
@@ -19,9 +20,20 @@ import estilos from './CarasDeReunion.module.css'
  *
  * DOCUMENTO Y ARCHIVO CONVIVEN, a propósito: una reunión puede tener el
  * documento web que arma la app Y un PDF subido aparte — no son excluyentes,
- * es justo lo que Franco pedía. Cada archivo se anuncia con SU NOMBRE
- * ORIGINAL, no un genérico "presentación": es lo que deja saber qué se va a
- * descargar antes de hacer clic.
+ * es justo lo que Franco pedía. Cada archivo se anuncia con SU TÍTULO —o su
+ * nombre original si no tiene uno, defensivo— no un genérico "presentación".
+ *
+ * EL TÍTULO SE PUEDE EDITAR DESDE AQUÍ (ronda 11, tarea 3). Franco: "una vez
+ * cargado un archivo como una presentación debería poder editar el nombre
+ * con el que se ve en el front". `editarArchivo` (`src/db/archivos.ts`) y su
+ * Server Action ya existían para los archivos de interés de `ArchivosSala`;
+ * lo que faltaba era ofrecerlo aquí, que es donde vive un archivo colgado de
+ * una reunión. EL TÍTULO ES LO EDITABLE Y MANDA EN CUANTO EXISTE:
+ * `nombreOriginal` se conserva como DATO —sigue siendo lo que de verdad se
+ * descarga (`archivo.url`, sin tocar)— pero deja de ser lo que se lee.
+ * `editarArchivoAction` es opcional, mismo criterio que
+ * `onSubirPresentacion` un poco más abajo: sin ella no se ofrece el lápiz,
+ * ni para equipo.
  *
  * "+ SUBIR PRESENTACIÓN" ESTÁ CABLEADO DE VERDAD desde la tarea 9b: la subida
  * —elegir archivo, mandarlo a Blob, registrar la fila con su `reunionId`—
@@ -74,12 +86,36 @@ interface Props {
    * con `cliente/[slug]/page.tsx` que reporta la Tarea 9 para la Tarea 11.
    */
   onSubirPresentacion?: () => void
+  /**
+   * Edita el TÍTULO de un archivo de la reunión (ronda 11, tarea 3). LA
+   * MISMA `editarArchivoAction` que ya usa `ArchivosSala` para los archivos
+   * de interés (definida en `cliente/[slug]/page.tsx`, ya exige editor en el
+   * servidor) — se le pasa SIN `fecha` a propósito: `CaraArchivo` no la
+   * trae (la fecha de un archivo de reunión es la de SU reunión, no una
+   * propia) y mandar `fecha: null` la borraría en la base (`editarArchivo`,
+   * `src/db/archivos.ts`, trata `undefined` como "no la toques" pero `null`
+   * como "bórrala"). Opcional, mismo criterio que `onSubirPresentacion`: sin
+   * ella no se ofrece el lápiz, ni para equipo.
+   */
+  editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
 }
 
-export function CarasDeReunion({ reunion, equipo, onLeerMinuta, compacta, onSubirPresentacion }: Props) {
+export function CarasDeReunion({
+  reunion,
+  equipo,
+  onLeerMinuta,
+  compacta,
+  onSubirPresentacion,
+  editarArchivoAction,
+}: Props) {
   return (
     <div className={compacta ? estilos.carasCompactas : estilos.caras}>
-      <CaraPresentacion reunion={reunion} equipo={equipo} onSubirPresentacion={onSubirPresentacion} />
+      <CaraPresentacion
+        reunion={reunion}
+        equipo={equipo}
+        onSubirPresentacion={onSubirPresentacion}
+        editarArchivoAction={editarArchivoAction}
+      />
       <CaraMinuta reunion={reunion} equipo={equipo} onLeerMinuta={onLeerMinuta} />
     </div>
   )
@@ -95,10 +131,12 @@ function CaraPresentacion({
   reunion,
   equipo,
   onSubirPresentacion,
+  editarArchivoAction,
 }: {
   reunion: Reunion
   equipo: boolean
   onSubirPresentacion?: () => void
+  editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
 }) {
   if (!tienePresentacion(reunion)) {
     // Sin manejador no se ofrece la acción, aunque quien mire sea equipo: un
@@ -121,11 +159,100 @@ function CaraPresentacion({
         </Link>
       )}
       {reunion.archivos.map((archivo) => (
-        <a key={archivo.id} href={archivo.url} target="_blank" rel="noopener" className={estilos.cara}>
-          <span aria-hidden>▤</span> {archivo.nombreOriginal}
-        </a>
+        <ArchivoDeReunion
+          key={archivo.id}
+          archivo={archivo}
+          equipo={equipo}
+          editarArchivoAction={editarArchivoAction}
+        />
       ))}
     </>
+  )
+}
+
+/**
+ * UN ARCHIVO DE LA REUNIÓN: su título, y el lápiz para editarlo si toca
+ * (ronda 11, tarea 3). Alterna entre pintar (enlace + lápiz) y editar (input
+ * + Guardar/Cancelar) — mismo patrón que `FilaArchivo` en `ArchivosSala.tsx`,
+ * pero SIN reutilizar sus clases de `cliente.module.css`: ver la cabecera de
+ * `CarasDeReunion.module.css` — este componente no depende de los alias de
+ * ninguna página en particular, así que sus clases de edición son propias,
+ * sobre los mismos tokens de `sistema.css` que ya usa `.cara`/`.caraAccion`.
+ */
+function ArchivoDeReunion({
+  archivo,
+  equipo,
+  editarArchivoAction,
+}: {
+  archivo: CaraArchivo
+  equipo: boolean
+  editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
+}) {
+  const tituloVisible = archivo.titulo || archivo.nombreOriginal
+  const [editando, setEditando] = useState(false)
+  const [titulo, setTitulo] = useState(tituloVisible)
+  const [pendiente, empezar] = useTransition()
+
+  // Solo equipo Y con la acción en mano: sin cualquiera de las dos, ni el
+  // lápiz se ofrece — el director de UDN no edita nada (nunca la recibe), y
+  // un llamador que se olvide de pasarla no deja un botón roto a la vista.
+  const puedeEditar = equipo && Boolean(editarArchivoAction)
+
+  if (puedeEditar && editando) {
+    return (
+      <span className={estilos.caraEditando}>
+        <input
+          type="text"
+          className={estilos.caraInput}
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          aria-label={`Título de ${archivo.nombreOriginal}`}
+          autoFocus
+        />
+        <button
+          type="button"
+          className={estilos.caraGuardar}
+          disabled={pendiente || titulo.trim().length === 0}
+          onClick={() =>
+            empezar(async () => {
+              await editarArchivoAction!(archivo.id, { titulo: titulo.trim() })
+              setEditando(false)
+            })
+          }
+        >
+          {pendiente ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button
+          type="button"
+          className={estilos.caraCancelarEdicion}
+          disabled={pendiente}
+          onClick={() => {
+            setTitulo(tituloVisible)
+            setEditando(false)
+          }}
+        >
+          Cancelar
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <span className={estilos.caraConLapiz}>
+      <a href={archivo.url} target="_blank" rel="noopener" className={estilos.cara}>
+        <span aria-hidden>▤</span> {tituloVisible}
+      </a>
+      {puedeEditar && (
+        <button
+          type="button"
+          className={estilos.caraLapiz}
+          onClick={() => setEditando(true)}
+          aria-label={`Editar el título de ${tituloVisible}`}
+        >
+          ✎
+        </button>
+      )}
+    </span>
   )
 }
 

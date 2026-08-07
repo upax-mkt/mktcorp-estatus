@@ -91,6 +91,22 @@ interface Props {
     tamanoBytes: number | null
     reunionId?: string | null
   }) => Promise<{ error?: string }>
+  /**
+   * Edita el TÍTULO de un archivo de una reunión (ronda 11, tarea 3) — se
+   * reenvía tal cual a `CarasDeReunion`, que es quien de verdad pinta el
+   * lápiz y el input. LA MISMA `editarArchivoAction` que ya usa `ArchivosSala`
+   * para los archivos de interés (`cliente/[slug]/page.tsx`), ya exige
+   * editor. Se pasa SIN `fecha` a propósito — ver el comentario de esta
+   * misma prop en `CarasDeReunion.tsx`.
+   *
+   * OPCIONAL, a diferencia de `registrarArchivoAction`: esta pantalla es el
+   * único llamador de producción hoy, pero `ReunionesSala.test.tsx` monta el
+   * componente en más de una decena de casos que no ejercitan la edición de
+   * archivos — pedirla siempre habría forzado tocar cada uno de esos casos
+   * por una prop que no usan. `page.test.ts` (cliente/[slug]) es quien
+   * comprueba que page.tsx SÍ la manda de verdad, para que no quede huérfana.
+   */
+  editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
 }
 
 export function ReunionesSala({
@@ -99,6 +115,7 @@ export function ReunionesSala({
   participacionPorReunion = {},
   salaSlug,
   registrarArchivoAction,
+  editarArchivoAction,
 }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -215,6 +232,7 @@ export function ReunionesSala({
           equipo={equipo}
           onLeerMinuta={() => setAbierta(ultima)}
           onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(ultima) : undefined}
+          editarArchivoAction={editarArchivoAction}
         />
         {subiendoReunionId === ultima.id && (
           <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
@@ -241,6 +259,7 @@ export function ReunionesSala({
                   equipo={equipo}
                   onLeerMinuta={() => setAbierta(r)}
                   onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+                  editarArchivoAction={editarArchivoAction}
                   compacta
                 />
                 {subiendoReunionId === r.id && (

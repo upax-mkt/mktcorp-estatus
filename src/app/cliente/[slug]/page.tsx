@@ -419,12 +419,24 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     return {}
   }
 
-  async function editarArchivoAction(id: string, cambios: { titulo: string; fecha: string | null }) {
+  /**
+   * `cambios.fecha` es OPCIONAL desde la Tarea 3 de la ronda 11 (antes era
+   * obligatorio): `ArchivosSala` (archivos de interés) sigue mandándola
+   * siempre —incluso `null`, cuando no aplica—, pero `CarasDeReunion`
+   * (archivos de reunión, misma ronda) edita SOLO el título y no la trae en
+   * absoluto. `editarArchivo` (`src/db/archivos.ts`) distingue `undefined`
+   * ("no la toques") de `null` ("bórrala") — con `cambios.fecha` OMITIDO no
+   * se le pasa esa clave en absoluto, así que la fecha existente del archivo
+   * no se toca. Mandar `fecha: null` aquí para un archivo de reunión la
+   * habría borrado sin que nadie lo pidiera: esa fecha es la de SU reunión,
+   * no una propia (`CaraArchivo`, `dominio/reunion.ts`, no la trae).
+   */
+  async function editarArchivoAction(id: string, cambios: { titulo: string; fecha?: string | null }) {
     'use server'
     await exigirEditor()
     await editarArchivo(id, {
       titulo: cambios.titulo,
-      fecha: cambios.fecha ? new Date(cambios.fecha) : null,
+      ...(cambios.fecha !== undefined ? { fecha: cambios.fecha ? new Date(cambios.fecha) : null } : {}),
     })
     revalidatePath(`/cliente/${slug}`)
   }
@@ -773,6 +785,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             participacionPorReunion={participacionPorReunion}
             salaSlug={slug}
             registrarArchivoAction={registrarArchivoAction}
+            editarArchivoAction={editarArchivoAction}
           />
 
           {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya

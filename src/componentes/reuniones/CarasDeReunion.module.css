@@ -39,3 +39,42 @@
   transition: border-color 140ms ease, color 140ms ease;
 }
 .caraAccion:hover { border-color: var(--marca, var(--tinta)); color: var(--marca, var(--tinta)); border-style: solid; }
+
+/* ---- editar el título de un archivo (ronda 11, tarea 3) ---- */
+
+/* El enlace y su lápiz, uno junto al otro — el lápiz no entra DENTRO del
+   enlace: un <input> no puede vivir dentro de un <a>. */
+.caraConLapiz { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.caraLapiz {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.7rem; height: 1.7rem; padding: 0; border-radius: var(--r-lleno);
+  border: none; background: none; color: var(--tinta-4); font-size: 0.85rem; cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.caraLapiz:hover { background: var(--papel-hundido); color: var(--tinta-2); }
+
+/* Editando: misma silueta de píldora que .cara, con un input dentro. */
+.caraEditando {
+  display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  padding: 0.3rem 0.3rem 0.3rem 0.7rem; border-radius: var(--r-lleno);
+  background: var(--papel); box-shadow: var(--e-0);
+}
+.caraInput {
+  font: inherit; font-size: 0.83rem; color: var(--tinta); min-width: 10rem;
+  padding: 0.3rem 0.5rem; border: 1px solid var(--tinta-4); border-radius: var(--r-2);
+  background: var(--papel-2);
+}
+.caraInput:focus { outline: none; border-color: var(--marca, var(--tinta)); }
+.caraGuardar {
+  font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  padding: 0.32rem 0.65rem; border: none; border-radius: var(--r-lleno);
+  color: var(--papel); background: var(--tinta);
+}
+.caraGuardar:disabled { opacity: 0.45; cursor: not-allowed; }
+.caraCancelarEdicion {
+  font: inherit; font-size: 0.78rem; color: var(--tinta-3); cursor: pointer;
+  background: none; border: none; padding: 0.32rem 0.3rem;
+}
+.caraCancelarEdicion:hover { color: var(--tinta); }
+.caraCancelarEdicion:disabled { opacity: 0.45; cursor: not-allowed; }

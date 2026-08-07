@@ -137,12 +137,17 @@ vi.mock('@/db/benchmark', () => ({
 
 // `registrarArchivo` con nombre (no un `vi.fn()` anónimo): la Tarea 11 lo
 // necesita para comprobar CON QUÉ se llamó de verdad —si `reunionId` llegó y
-// en qué forma— no solo que se haya llamado.
+// en qué forma— no solo que se haya llamado. `editarArchivo` con nombre
+// desde la ronda 11, tarea 3: el describe de "editar desde la reunión"
+// comprueba que NUNCA le llega una `fecha` cuando la edición viene de
+// `CarasDeReunion` — mandarla en `null` la borraría (`editarArchivo`,
+// `src/db/archivos.ts`, trata `undefined` como "no la toques").
 const registrarArchivoMock = vi.fn()
+const editarArchivoMock = vi.fn()
 vi.mock('@/db/archivos', () => ({
   listarArchivos: vi.fn().mockResolvedValue([]),
   registrarArchivo: (...args: unknown[]) => registrarArchivoMock(...args),
-  editarArchivo: vi.fn(),
+  editarArchivo: (...args: unknown[]) => editarArchivoMock(...args),
   eliminarArchivo: vi.fn(),
 }))
 
@@ -242,14 +247,18 @@ vi.mock('@/componentes/LevantarMinuta', () => ({
 
 // Los dos predicados de la ronda 9 bajo control directo — son el eje del
 // test: `esLector()` decide si `equipo` (visibilidad general) es `true`,
-// `esAdmin()` decide si se genera el token.
+// `esAdmin()` decide si se genera el token. `exigirEditor` con nombre desde
+// la ronda 11, tarea 3: el describe de "editar desde la reunión" comprueba
+// que `editarArchivoAction` lo exige por su cuenta, no solo que la pantalla
+// lo esconda.
 const esAdminMock = vi.fn()
 const esLectorMock = vi.fn()
+const exigirEditorMock = vi.fn()
 vi.mock('@/auth/roles', () => ({
   esAdmin: () => esAdminMock(),
   esLector: () => esLectorMock(),
   exigirAdmin: vi.fn(),
-  exigirEditor: vi.fn(),
+  exigirEditor: (...args: unknown[]) => exigirEditorMock(...args),
 }))
 
 const { default: VistaSala } = await import('./page')
@@ -770,5 +779,85 @@ describe('VistaSala (/cliente/[slug]) — registrarArchivoAction valida que la r
 
     expect(obtenerReunionMock).not.toHaveBeenCalled()
     expect(registrarArchivoMock).toHaveBeenCalled()
+  })
+})
+
+/**
+ * EDITAR EL TÍTULO DE UN ARCHIVO DESDE LA REUNIÓN (ronda 11, tarea 3, paso
+ * 3). Franco: "una vez cargado un archivo como una presentación debería
+ * poder editar el nombre con el que se ve en el front". `editarArchivoAction`
+ * YA EXISTÍA (la usa `ArchivosSala` para los archivos de interés) — lo que
+ * faltaba era pasársela también a `ReunionesSala`, que es quien la reenvía a
+ * `CarasDeReunion` (ver su propio test). Se reutiliza LA MISMA acción, no una
+ * copia: por eso este describe comprueba, de punta a punta, que la instancia
+ * capturada vía `reunionesSalaPropsMock` (el mismo doble que ya usa el
+ * describe de "hallazgo 4a", arriba) es de verdad `editarArchivoAction` y no
+ * un valor inerte — si `page.tsx` la olvidara al armar `<ReunionesSala>`,
+ * este describe se caería.
+ *
+ * NUNCA MANDA `fecha`: `CaraArchivo` (dominio/reunion.ts) no la trae —la
+ * fecha de un archivo de reunión es la de SU reunión, no una propia— y
+ * `editarArchivo` (`src/db/archivos.ts`) trata `fecha: null` como "bórrala".
+ * `editarArchivoAction` amplía su firma para aceptar `cambios.fecha` como
+ * OPCIONAL (antes era obligatorio): con ella ausente, no se le pasa la
+ * clave `fecha` en absoluto a `editarArchivo`, así que la fecha existente del
+ * archivo —fijada al subirlo desde la reunión— no se toca. El camino viejo
+ * de `ArchivosSala` (que sí manda `fecha` siempre, incluso `null` cuando no
+ * aplica) se comprueba aparte para no quedar roto por la ampliación.
+ */
+describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde la reunión (ronda 11, tarea 3)', () => {
+  async function editarArchivoActionCapturada() {
+    render(await invocar())
+    const props = reunionesSalaPropsMock.mock.calls[0][0] as {
+      editarArchivoAction?: (id: string, cambios: { titulo: string; fecha?: string | null }) => Promise<void>
+    }
+    return props.editarArchivoAction
+  }
+
+  it('editarArchivoAction se pasa a ReunionesSala: no queda huérfana la Tarea 9/11 sin cablear otra vez', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const editarArchivoAction = await editarArchivoActionCapturada()
+
+    expect(typeof editarArchivoAction).toBe('function')
+  })
+
+  it('exige editor por su cuenta y llama a editarArchivo con el título, SIN mandar fecha', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const editarArchivoAction = await editarArchivoActionCapturada()
+    await editarArchivoAction!('archivo-de-reunion', { titulo: 'Estatus RL — agosto final' })
+
+    expect(exigirEditorMock).toHaveBeenCalled()
+    expect(editarArchivoMock).toHaveBeenCalledTimes(1)
+    const [id, cambios] = editarArchivoMock.mock.calls[0]
+    expect(id).toBe('archivo-de-reunion')
+    expect(cambios).toEqual({ titulo: 'Estatus RL — agosto final' })
+    expect(Object.prototype.hasOwnProperty.call(cambios, 'fecha')).toBe(false)
+  })
+
+  it('el camino de ArchivosSala (con fecha explícita) se conserva igual: ampliar el tipo no lo rompió', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const editarArchivoAction = await editarArchivoActionCapturada()
+    await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: '2026-08-01' })
+
+    expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', {
+      titulo: 'Catálogo 2026',
+      fecha: new Date('2026-08-01'),
+    })
+  })
+
+  it('con fecha: null explícito (ArchivosSala sin fecha propia) se sigue borrando a propósito', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const editarArchivoAction = await editarArchivoActionCapturada()
+    await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
+
+    expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CarasDeReunion } from './CarasDeReunion'
 import type { Reunion } from '@/dominio/reunion'
@@ -90,17 +90,31 @@ describe('CarasDeReunion — presentación ausente', () => {
 })
 
 describe('CarasDeReunion — presentación presente', () => {
-  it('un archivo se anuncia con SU nombre, para saber qué se descarga', () => {
+  /**
+   * SE ANUNCIA CON SU TÍTULO, no con `nombreOriginal` (ronda 11, tarea 3,
+   * paso 3) — al revés que antes de esta tarea. Franco: "una vez cargado un
+   * archivo como una presentación debería poder editar el nombre con el que
+   * se ve en el front". El título es lo editable y manda en cuanto existe;
+   * `nombreOriginal` se conserva como DATO —sigue siendo el `href` real, lo
+   * que se descarga— pero deja de ser lo que se lee.
+   */
+  it('un archivo se anuncia con SU TÍTULO — el nombre original sigue siendo lo que se descarga', () => {
     render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} />)
-    const enlace = screen.getByRole('link', { name: /Estatus RL agosto\.pdf/ })
+    const enlace = screen.getByRole('link', { name: 'Estatus RL agosto' })
     expect(enlace).toBeInTheDocument()
     expect(enlace).toHaveAttribute('href', '/api/archivo/a1')
+  })
+
+  it('sin título (dato defensivo — el alta siempre exige uno), cae al nombre original', () => {
+    const sinTitulo = REUNION({ archivos: [{ ...ARCHIVO_PDF, titulo: '' }] })
+    render(<CarasDeReunion reunion={sinTitulo} equipo onLeerMinuta={() => {}} />)
+    expect(screen.getByRole('link', { name: 'Estatus RL agosto.pdf' })).toBeInTheDocument()
   })
 
   it('documento y archivo conviven: no son excluyentes', () => {
     render(<CarasDeReunion reunion={conAmbos} equipo onLeerMinuta={() => {}} />)
     const documento = screen.getByRole('link', { name: /documento/i })
-    const archivo = screen.getByRole('link', { name: /\.pdf/ })
+    const archivo = screen.getByRole('link', { name: 'Estatus RL agosto' })
     expect(documento).toBeInTheDocument()
     expect(documento).toHaveAttribute('href', `/reunion/${conAmbos.id}`)
     expect(archivo).toBeInTheDocument()
@@ -111,7 +125,7 @@ describe('CarasDeReunion — presentación presente', () => {
     expect(screen.queryByRole('button', { name: /subir presentación/i })).toBeNull()
   })
 
-  it('con varios archivos, cada uno se anuncia por separado con su propio nombre', () => {
+  it('con varios archivos, cada uno se anuncia por separado con su propio título', () => {
     const conDos = REUNION({
       archivos: [
         ARCHIVO_PDF,
@@ -119,8 +133,102 @@ describe('CarasDeReunion — presentación presente', () => {
       ],
     })
     render(<CarasDeReunion reunion={conDos} equipo onLeerMinuta={() => {}} />)
-    expect(screen.getByRole('link', { name: /Estatus RL agosto\.pdf/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Anexo financiero\.xlsx/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Estatus RL agosto' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Anexo' })).toBeInTheDocument()
+  })
+})
+
+/**
+ * EL TÍTULO DE UN ARCHIVO SE PUEDE EDITAR DESDE LA REUNIÓN (ronda 11, tarea
+ * 3, paso 3). Franco: "una vez cargado un archivo como una presentación
+ * debería poder editar el nombre con el que se ve en el front". `editarArchivo`
+ * (`src/db/archivos.ts`) y su Server Action ya existían para "archivos de
+ * interés" (`ArchivosSala`) — lo que faltaba era ofrecerlo desde `CarasDeReunion`,
+ * que es donde se ve un archivo de presentación colgado de una reunión.
+ *
+ * `editarArchivoAction` es OPCIONAL, MISMO CRITERIO que `onSubirPresentacion`
+ * arriba: sin ella no se ofrece el lápiz, ni para equipo — un botón que no
+ * hace nada es peor que no tener botón (la misma lección de la tarea 9/9b).
+ * El director de UDN nunca la recibe: no edita nada.
+ */
+describe('CarasDeReunion — editar el título de un archivo (ronda 11, tarea 3)', () => {
+  it('equipo, con la acción disponible: ve el lápiz junto al archivo', () => {
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} editarArchivoAction={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /editar el título/i })).toBeInTheDocument()
+  })
+
+  it('sin la acción (aunque seas equipo), no se ofrece el lápiz', () => {
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} />)
+    expect(screen.queryByRole('button', { name: /editar el título/i })).toBeNull()
+  })
+
+  it('el director no ve el lápiz aunque la acción esté disponible: no edita nada', () => {
+    render(
+      <CarasDeReunion reunion={conPdf} equipo={false} onLeerMinuta={() => {}} editarArchivoAction={vi.fn()} />,
+    )
+    expect(screen.queryByRole('button', { name: /editar el título/i })).toBeNull()
+  })
+
+  it('pulsar el lápiz muestra un campo con el título actual, no vacío', async () => {
+    const usuario = userEvent.setup()
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} editarArchivoAction={vi.fn()} />)
+
+    await usuario.click(screen.getByRole('button', { name: /editar el título/i }))
+
+    expect(screen.getByLabelText(/título de/i, { selector: 'input' })).toHaveValue('Estatus RL agosto')
+  })
+
+  it('guardar llama a editarArchivoAction con el id del archivo y el título nuevo', async () => {
+    const usuario = userEvent.setup()
+    const editar = vi.fn().mockResolvedValue(undefined)
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} editarArchivoAction={editar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /editar el título/i }))
+    const campo = screen.getByLabelText(/título de/i, { selector: 'input' })
+    await usuario.clear(campo)
+    await usuario.type(campo, 'Estatus RL — agosto final')
+    await usuario.click(screen.getByRole('button', { name: /^guardar$/i }))
+
+    await waitFor(() =>
+      expect(editar).toHaveBeenCalledWith('a1', { titulo: 'Estatus RL — agosto final' }),
+    )
+  })
+
+  it('guardar no manda `fecha`: el archivo de una reunión no tiene una propia (mandar null la borraría)', async () => {
+    const usuario = userEvent.setup()
+    const editar = vi.fn().mockResolvedValue(undefined)
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} editarArchivoAction={editar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /editar el título/i }))
+    await usuario.click(screen.getByRole('button', { name: /^guardar$/i }))
+
+    await waitFor(() => expect(editar).toHaveBeenCalled())
+    const [, cambios] = editar.mock.calls[0]
+    expect(Object.prototype.hasOwnProperty.call(cambios, 'fecha')).toBe(false)
+  })
+
+  it('cancelar descarta el cambio sin llamar a la acción, y el enlace vuelve a verse', async () => {
+    const usuario = userEvent.setup()
+    const editar = vi.fn()
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} editarArchivoAction={editar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /editar el título/i }))
+    await usuario.type(screen.getByLabelText(/título de/i, { selector: 'input' }), ' algo distinto')
+    await usuario.click(screen.getByRole('button', { name: /cancelar/i }))
+
+    expect(editar).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText(/título de/i, { selector: 'input' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Estatus RL agosto' })).toBeInTheDocument()
+  })
+
+  it('con el título vacío, Guardar queda deshabilitado', async () => {
+    const usuario = userEvent.setup()
+    render(<CarasDeReunion reunion={conPdf} equipo onLeerMinuta={() => {}} editarArchivoAction={vi.fn()} />)
+
+    await usuario.click(screen.getByRole('button', { name: /editar el título/i }))
+    await usuario.clear(screen.getByLabelText(/título de/i, { selector: 'input' }))
+
+    expect(screen.getByRole('button', { name: /^guardar$/i })).toBeDisabled()
   })
 })
 
