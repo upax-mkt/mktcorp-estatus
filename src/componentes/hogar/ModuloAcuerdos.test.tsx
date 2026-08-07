@@ -134,3 +134,105 @@ describe('ModuloAcuerdos, con contenido', () => {
     expect(screen.queryByRole('button', { name: /cumplido/i })).not.toBeInTheDocument()
   })
 })
+
+/**
+ * CRÍTICO DE LA AUDITORÍA UX/UI (ronda 11): `destacados` y `vencidos` llegan
+ * como dos filtros independientes sobre la MISMA lista (`src/app/page.tsx`,
+ * `todosLosAcuerdos()`) y no son excluyentes — un acuerdo destacado que
+ * además venció cumple los dos filtros de origen. Antes de este arreglo el
+ * módulo lo pintaba entero en los dos bloques: mismo texto, misma fecha,
+ * mismo botón, misma estrella. Aquí se prueba con el input REAL que produce
+ * ese solape (el mismo objeto en las dos listas, no dos objetos con el mismo
+ * id) — es justo la forma en la que llega hoy desde `page.tsx`.
+ */
+describe('ModuloAcuerdos, el solapamiento destacado + vencido (crítico de la auditoría UX/UI)', () => {
+  const destacadoYVencido: AcuerdoConSala = {
+    ...BASE,
+    id: 'a-doble',
+    que: 'Sesión de trabajo para bosquejar la agenda, el pretexto y la lista de invitados del desayuno de los 15 líderes',
+    salaNombre: 'Marketing United',
+    estatus: 'vencido',
+    destacado: true,
+  }
+
+  it('EL QUE VALE: un acuerdo destacado Y vencido aparece exactamente una vez en el módulo', () => {
+    render(
+      <ModuloAcuerdos
+        destacados={[destacadoYVencido]}
+        vencidos={[destacadoYVencido]}
+        total={1}
+        destacarAction={nada}
+        cambiarEstatusAction={nada}
+        ponerFechaAction={nada}
+      />,
+    )
+    expect(screen.getAllByText(destacadoYVencido.que)).toHaveLength(1)
+  })
+
+  it('VENCIDOS MANDA: vive en el bloque de Vencidos, y su estrella rellena es la marca de que también está destacado', () => {
+    render(
+      <ModuloAcuerdos
+        destacados={[destacadoYVencido]}
+        vencidos={[destacadoYVencido]}
+        total={1}
+        destacarAction={nada}
+        cambiarEstatusAction={nada}
+        ponerFechaAction={nada}
+      />,
+    )
+    // La píldora roja de la cabecera sigue contando sobre `vencidos` tal cual
+    // llega, sin dedupear: 1 acuerdo de verdad vencido.
+    expect(screen.getByText('1 vencido')).toBeInTheDocument()
+    // Nada se pierde: sigue destacado. La estrella rellena (con su
+    // aria-label de "quitar", no "destacar") es esa marca.
+    expect(screen.getByRole('button', { name: /quitar de destacados/i })).toBeInTheDocument()
+  })
+
+  it('Destacados se queda sin su único elemento, pero NO dice "nada destacado todavía": ese texto mentiría', () => {
+    render(
+      <ModuloAcuerdos
+        destacados={[destacadoYVencido]}
+        vencidos={[destacadoYVencido]}
+        total={1}
+        destacarAction={nada}
+        cambiarEstatusAction={nada}
+        ponerFechaAction={nada}
+      />,
+    )
+    expect(screen.queryByText(/nada destacado todavía/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/el destacado está vencido/i)).toBeInTheDocument()
+  })
+
+  it('con dos destacados vencidos a la vez, el aviso de Destacados va en plural', () => {
+    const otro: AcuerdoConSala = {
+      ...destacadoYVencido, id: 'a-doble-2', que: 'Otro compromiso destacado y vencido',
+    }
+    render(
+      <ModuloAcuerdos
+        destacados={[destacadoYVencido, otro]}
+        vencidos={[destacadoYVencido, otro]}
+        total={2}
+        destacarAction={nada}
+        cambiarEstatusAction={nada}
+        ponerFechaAction={nada}
+      />,
+    )
+    expect(screen.getByText(/los 2 destacados están vencidos/i)).toBeInTheDocument()
+  })
+
+  it('un destacado que NO está vencido no se toca: sigue en Destacados, ajeno al solapamiento de otro acuerdo', () => {
+    const soloDestacado: AcuerdoConSala = { ...BASE, id: 'a-solo', destacado: true, estatus: 'abierto' }
+    render(
+      <ModuloAcuerdos
+        destacados={[soloDestacado, destacadoYVencido]}
+        vencidos={[destacadoYVencido]}
+        total={2}
+        destacarAction={nada}
+        cambiarEstatusAction={nada}
+        ponerFechaAction={nada}
+      />,
+    )
+    expect(screen.getAllByText(soloDestacado.que)).toHaveLength(1)
+    expect(screen.getAllByText(destacadoYVencido.que)).toHaveLength(1)
+  })
+})

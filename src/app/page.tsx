@@ -200,6 +200,12 @@ export default async function Hub() {
     // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
     // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
     // la MISMA lista, no dos consultas que se puedan desincronizar entre sí.
+    // A PROPÓSITO no son excluyentes: cada uno contesta su propia pregunta
+    // completa ("todo lo destacado", "todo lo vencido"), y un acuerdo puede
+    // cumplir las dos a la vez — eso es real, no un error de aquí. Que no se
+    // PINTE dos veces por eso es responsabilidad de quien pinta: el dedupe y
+    // el porqué de "vencidos manda" viven en `ModuloAcuerdos` (crítico de la
+    // auditoría UX/UI, ronda 11 — antes de ese arreglo SÍ se pintaba dos veces).
     todosLosAcuerdos(),
     pulsoDelMes(),
     listarReuniones(),
@@ -221,6 +227,10 @@ export default async function Hub() {
   // misma rejilla con media tarjeta vacía.
   const salasActivas = salas.filter((s) => s.activa)
   const salasPausadas = salas.filter((s) => !s.activa)
+  // Ninguno de los dos EXCLUYE al otro (ver el comentario del Promise.all,
+  // arriba): un acuerdo destacado que además venció vive en las dos listas
+  // que siguen. Quién gana al pintarlo es decisión de `ModuloAcuerdos`, no
+  // de aquí.
   const destacados = acuerdos.filter((a) => a.destacado)
   // Nombre distinto de la constante `vencidos` que ya existe MÁS ABAJO, por
   // sala, dentro del .map() de tarjetas — son dos cosas distintas (una lista
@@ -396,7 +406,11 @@ export default async function Hub() {
             </div>
             <div className={estilos.pulsoItem}>
               <span className="cifra">{pulso.reunionesDadas}</span>
-              <span className="micro">ya se dieron</span>
+              {/* Singular/plural (extra de la auditoría UX/UI, ronda 11):
+                  decía "1 ya se dieron" con una sola reunión. Mismo criterio
+                  que ya usa esta pantalla más abajo, en la píldora de cada
+                  tarjeta de sala. */}
+              <span className="micro">{pulso.reunionesDadas === 1 ? 'ya se dio' : 'ya se dieron'}</span>
             </div>
             <div className={estilos.pulsoItem}>
               <span className="cifra">{pulso.acuerdosAbiertos}</span>
@@ -406,7 +420,8 @@ export default async function Hub() {
               <span className="cifra" data-alerta={pulso.acuerdosVencidos > 0 ? 'true' : undefined}>
                 {pulso.acuerdosVencidos}
               </span>
-              <span className="micro">vencidos</span>
+              {/* Mismo arreglo que "ya se dieron", arriba: decía "1 vencidos". */}
+              <span className="micro">{pulso.acuerdosVencidos === 1 ? 'vencido' : 'vencidos'}</span>
             </div>
           </div>
         </section>
@@ -472,7 +487,9 @@ export default async function Hub() {
         <section>
           <div className={estilos.seccionCabecera}>
             <h2 className={estilos.seccionTitulo}>Los clientes</h2>
-            <span className="micro" data-sinpunto>ordenadas por próxima reunión</span>
+            {/* "Los clientes" es masculino: el adjetivo concuerda con eso, no
+                con "salas" (femenino) — extra de la auditoría UX/UI, ronda 11. */}
+            <span className="micro" data-sinpunto>ordenados por próxima reunión</span>
           </div>
 
           <div className={estilos.salas}>

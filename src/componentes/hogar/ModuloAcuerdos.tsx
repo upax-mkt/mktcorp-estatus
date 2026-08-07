@@ -23,10 +23,34 @@ import { colorDeTextoDeMarca } from '@/temas'
  *   resuelve. (Una sala en freeze no aporta nada a este bloque — sus
  *   acuerdos están congelados, no vencidos: ver `estatusEfectivo`.)
  *
- * TRES vacíos, no dos ni uno — decir el texto equivocado sobre un conjunto
- * vacío ya pasó una vez en este proyecto (ver el test de este componente):
- * "no hay ni un acuerdo" no es lo mismo que "los hay y ninguno destacado",
- * que tampoco es "los hay y ninguno vencido".
+ * SOLAPAMIENTO (crítico de la auditoría UX/UI, ronda 11): `destacados` y
+ * `vencidos` llegan como dos filtros INDEPENDIENTES sobre la misma lista
+ * (`src/app/page.tsx`, `todosLosAcuerdos()`) y a propósito no son
+ * excluyentes — cada uno contesta su propia pregunta completa ("todo lo
+ * destacado", "todo lo vencido"), así que un acuerdo destacado que además
+ * venció cumple los dos y llega aquí en las DOS listas. Hasta esta ronda
+ * este componente lo pintaba entero en los dos bloques: mismo texto, misma
+ * fecha, mismo botón, misma estrella.
+ *
+ * VENCIDOS MANDA — decisión de diseño, no accidente:
+ * - Vencido es un hecho del calendario ("esto se pasó de fecha"); no deja de
+ *   ser cierto porque alguien también lo haya destacado. Destacado es
+ *   curaduría ("esto importa ahora"), una preferencia puesta a mano.
+ * - La píldora roja de la cabecera, aquí abajo, cuenta sobre `vencidos` TAL
+ *   CUAL llega, sin dedupear — si Destacados ganara el empate esa cuenta
+ *   escondería acuerdos de verdad vencidos detrás de una curaduría manual, y
+ *   es precisamente la cifra que Franco mira primero cada mañana.
+ * - Nada se pierde: `Fila`, más abajo, ya pinta la estrella rellena cuando
+ *   `acuerdo.destacado` es cierto y la píldora de fecha en rojo cuando
+ *   `acuerdo.estatus` es 'vencido' — LAS DOS señales, sin importar en qué
+ *   bloque caiga la fila. Un destacado que vence se sigue viendo destacado;
+ *   solo cambia de vecindario, hacia el que se resuelve.
+ *
+ * CUATRO vacíos posibles, no tres — el de Destacados tiene DOS motivos
+ * distintos para estar vacío ("nadie destacó nada todavía" y "lo único
+ * destacado se fue a Vencidos") y cada uno necesita su propio texto: decir
+ * el equivocado sobre un conjunto vacío ya pasó una vez en este proyecto
+ * (ver el test de este componente).
  */
 
 interface Props {
@@ -60,6 +84,22 @@ export function ModuloAcuerdos({
     )
   }
 
+  // EL MISMO ACUERDO SE PINTABA DOS VECES (crítico de la auditoría UX/UI,
+  // ronda 11) — dedupe AQUÍ, al pintar, en vez de confiar en que quien arma
+  // las dos listas (`src/app/page.tsx`) nunca las solape: es esta pantalla,
+  // no la de origen, la que sabe qué significa "pintar" un acuerdo dos
+  // veces. VENCIDOS MANDA (razonamiento completo arriba, en la cabecera del
+  // archivo): un acuerdo presente en las dos listas se pinta SOLO en el
+  // bloque de Vencidos.
+  const idsVencidos = new Set(vencidos.map((a) => a.id))
+  const destacadosSinVencer = destacados.filter((a) => !idsVencidos.has(a.id))
+  // Cuántos destacados quedaron FUERA del bloque de arriba solo porque
+  // vencieron — sin este número, un destacado vencido en solitario deja
+  // "Destacados" vacío exactamente igual que "nadie destacó nada todavía", y
+  // son dos mensajes distintos: uno invita a elegir algo, el otro señala
+  // dónde mirar. Se deriva de `destacados` (no se pierde nada: ver arriba).
+  const destacadosVencidos = destacados.length - destacadosSinVencer.length
+
   return (
     <section className={`tarjeta ${estilos.modulo}`}>
       <header className={estilos.moduloCabecera}>
@@ -73,14 +113,22 @@ export function ModuloAcuerdos({
 
       <div className={estilos.moduloBloque}>
         <h3 className={estilos.moduloSubtitulo}>Destacados</h3>
-        {destacados.length === 0 ? (
+        {destacadosSinVencer.length === 0 ? (
           <p className={estilos.moduloVacio}>
-            Nada destacado todavía.{' '}
-            <Link href="/acuerdos" className={estilos.enlaceSuave}>Elegir en el espacio de acuerdos →</Link>
+            {destacadosVencidos > 0 ? (
+              destacadosVencidos === 1
+                ? 'El destacado está vencido: lo ves abajo, en Vencidos.'
+                : `Los ${destacadosVencidos} destacados están vencidos: los ves abajo, en Vencidos.`
+            ) : (
+              <>
+                Nada destacado todavía.{' '}
+                <Link href="/acuerdos" className={estilos.enlaceSuave}>Elegir en el espacio de acuerdos →</Link>
+              </>
+            )}
           </p>
         ) : (
           <ul className={estilos.acuerdos}>
-            {destacados.map((a) => (
+            {destacadosSinVencer.map((a) => (
               <Fila
                 key={a.id}
                 acuerdo={a}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { EstadoSala } from '@/dominio/salas'
 import type { Reunion } from '@/dominio/reunion'
 
@@ -28,6 +28,10 @@ vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined)
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 const estadoDeSalasMock = vi.fn()
+// Reconfigurable por test (mismo patrón que `estadoDeSalasMock`): hace falta
+// para probar el singular/plural del pulso (extra de la auditoría UX/UI,
+// ronda 11) sin depender del valor fijo que bastaba hasta ahora.
+const pulsoDelMesMock = vi.fn()
 vi.mock('@/db/consultas', () => ({
   estadoDeSalas: () => estadoDeSalasMock(),
   ordenarPorProximaReunion: (salas: EstadoSala[]) => salas,
@@ -35,10 +39,7 @@ vi.mock('@/db/consultas', () => ({
   acuerdosAbiertos: vi.fn().mockReturnValue(0),
   acuerdosVencidos: vi.fn().mockReturnValue(0),
   todosLosAcuerdos: vi.fn().mockResolvedValue([]),
-  pulsoDelMes: vi.fn().mockResolvedValue({
-    salas: 0, reunionesEsteMes: 0, reunionesDadas: 0, acuerdosAbiertos: 0, acuerdosVencidos: 0,
-    salaMasDesatendida: null,
-  }),
+  pulsoDelMes: () => pulsoDelMesMock(),
 }))
 
 vi.mock('@/db/acuerdos', () => ({
@@ -132,6 +133,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   exigirLecturaMock.mockResolvedValue({ rol: 'equipo', rolApp: 'viewer', sub: 'equipo-mkt-corp' })
   estadoDeSalasMock.mockResolvedValue([])
+  pulsoDelMesMock.mockResolvedValue({
+    salas: 0, reunionesEsteMes: 0, reunionesDadas: 0, acuerdosAbiertos: 0, acuerdosVencidos: 0,
+    salaMasDesatendida: null,
+  })
 })
 
 /**
@@ -206,5 +211,73 @@ describe('Hub (/) — "Levantar minuta" no exige confirmar a mano (hallazgo 1)',
     expect(props.pendientes.map((p) => p.id)).toEqual(['r-nueva', 'r-vieja'])
     expect(props.pendientes.find((p) => p.id === 'r-nueva')?.salaNombre).toBe('UiX')
     expect(props.pendientes.find((p) => p.id === 'r-vieja')?.salaNombre).toBe('NeraCode')
+  })
+})
+
+/**
+ * EXTRA DE LA AUDITORÍA UX/UI (ronda 11): la fila de estadísticas decía "1
+ * YA SE DIERON" y "1 VENCIDOS" —plural con número singular— y "Los clientes"
+ * decía "ORDENADAS por próxima reunión" —adjetivo femenino para un sustantivo
+ * masculino—. Mismo criterio que ya usa esta misma pantalla más abajo, en la
+ * píldora de cada tarjeta de sala (`vencido{vencidos > 1 ? 's' : ''}`).
+ */
+describe('Hub (/) — singular/plural del pulso y género de "Los clientes" (extra de la auditoría UX/UI)', () => {
+  it('con exactamente 1 reunión ya dada dice "ya se dio", no "ya se dieron"', async () => {
+    pulsoDelMesMock.mockResolvedValue({
+      salas: 0, reunionesEsteMes: 1, reunionesDadas: 1, acuerdosAbiertos: 0, acuerdosVencidos: 0,
+      salaMasDesatendida: null,
+    })
+
+    render(await Hub())
+
+    expect(screen.getByText('ya se dio')).toBeInTheDocument()
+    expect(screen.queryByText('ya se dieron')).not.toBeInTheDocument()
+  })
+
+  it('con más de 1 reunión ya dada sigue diciendo "ya se dieron"', async () => {
+    pulsoDelMesMock.mockResolvedValue({
+      salas: 0, reunionesEsteMes: 2, reunionesDadas: 2, acuerdosAbiertos: 0, acuerdosVencidos: 0,
+      salaMasDesatendida: null,
+    })
+
+    render(await Hub())
+
+    expect(screen.getByText('ya se dieron')).toBeInTheDocument()
+  })
+
+  it('con 0 reuniones dadas dice "ya se dieron" (plural por defecto, como antes)', async () => {
+    render(await Hub())
+
+    expect(screen.getByText('ya se dieron')).toBeInTheDocument()
+  })
+
+  it('con exactamente 1 acuerdo vencido dice "vencido", no "vencidos"', async () => {
+    pulsoDelMesMock.mockResolvedValue({
+      salas: 0, reunionesEsteMes: 0, reunionesDadas: 0, acuerdosAbiertos: 0, acuerdosVencidos: 1,
+      salaMasDesatendida: null,
+    })
+
+    render(await Hub())
+
+    expect(screen.getByText('vencido')).toBeInTheDocument()
+    expect(screen.queryByText('vencidos')).not.toBeInTheDocument()
+  })
+
+  it('con más de 1 acuerdo vencido sigue diciendo "vencidos"', async () => {
+    pulsoDelMesMock.mockResolvedValue({
+      salas: 0, reunionesEsteMes: 0, reunionesDadas: 0, acuerdosAbiertos: 0, acuerdosVencidos: 3,
+      salaMasDesatendida: null,
+    })
+
+    render(await Hub())
+
+    expect(screen.getByText('vencidos')).toBeInTheDocument()
+  })
+
+  it('"Los clientes" ordena con adjetivo masculino: "ordenados", no "ordenadas"', async () => {
+    render(await Hub())
+
+    expect(screen.getByText('ordenados por próxima reunión')).toBeInTheDocument()
+    expect(screen.queryByText('ordenadas por próxima reunión')).not.toBeInTheDocument()
   })
 })
