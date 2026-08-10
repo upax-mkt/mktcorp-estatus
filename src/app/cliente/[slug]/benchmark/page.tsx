@@ -219,52 +219,6 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
           </section>
         )}
 
-        {/* 6. DÓNDE PROSPECTAR — lo más operativo de la página. */}
-        {benchmark.prospeccion && (
-          <section className={estilos.seccion}>
-            <h2 className={estilos.seccionTitulo}>
-              Dónde prospectar
-              <span className={estilos.conteo}>y con qué gancho</span>
-            </h2>
-            <div className={estilos.bmProspeccion}>
-              {benchmark.prospeccion.filas.map((f) => (
-                <article key={f.industria} className={estilos.bmIndustria}>
-                  <div className={estilos.bmIndustriaCabeza}>
-                    <div>
-                      <h3 className={estilos.bmIndustriaNombre}>{f.industria}</h3>
-                      <span className={estilos.bmIndustriaPrioridad}>{f.prioridad}</span>
-                    </div>
-                    <div className={estilos.bmVentanas}>
-                      {f.meses.map((m, i) => (
-                        <span
-                          key={benchmark.prospeccion!.columnas[i]}
-                          className={estilos.bmVentana}
-                          data-tono={m.tono}
-                        >
-                          <span className={estilos.bmVentanaMes}>{benchmark.prospeccion!.columnas[i]}</span>
-                          <span className={estilos.bmVentanaEstado}>{m.estado}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <p className={estilos.bmGancho}>
-                    <span className={estilos.bmCompetidorEtiqueta}>Oferta gancho</span>
-                    {f.gancho}
-                  </p>
-                  {f.encaja && f.encaja.length > 0 && (
-                    <ul className={estilos.bmEncaja}>
-                      {f.encaja.map((e) => <li key={e}>{e}</li>)}
-                    </ul>
-                  )}
-                </article>
-              ))}
-            </div>
-            <ul className={estilos.bmLeyenda}>
-              {benchmark.prospeccion.leyenda.map((l) => <li key={l}>{l}</li>)}
-            </ul>
-          </section>
-        )}
-
         {/* 7. LA MATRIZ. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>

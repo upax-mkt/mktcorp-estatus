@@ -31,9 +31,6 @@ export type NivelBenchmark = 'lider' | 'a_la_par' | 'rezagado'
 /** Cuánto aprieta un competidor. Ordena la lista: alta primero. */
 export type AmenazaBenchmark = 'alta' | 'media' | 'baja'
 
-/** Intensidad de una casilla del calendario de prospección. */
-export type TonoVentana = 'alto' | 'medio' | 'bajo' | 'neutro'
-
 /**
  * Una cifra de cabecera. TRES O CUATRO, no más: son las que se leen de pie,
  * antes de entrar a nada, y la quinta ya no se lee.
@@ -91,22 +88,6 @@ export interface FrenteAbierto {
   evidencia: string
 }
 
-/**
- * Una industria y su ventana de compra mes a mes. Es la pieza más operativa
- * de todo el benchmark: responde "¿a quién le toco esta semana y qué le
- * digo?".
- */
-export interface VentanaProspeccion {
-  industria: string
-  prioridad: string
-  /** Una casilla por columna del calendario, en orden. */
-  meses: Array<{ estado: string; tono: TonoVentana }>
-  /** Qué se le ofrece a esa industria, en una frase. */
-  gancho: string
-  /** Los servicios que le encajan. */
-  encaja?: string[]
-}
-
 export interface RecomendacionBenchmark {
   que: string
   porque: string
@@ -134,12 +115,6 @@ export interface Benchmark {
   indicadores?: IndicadorBenchmark[]
   tesis?: TesisBenchmark
   frentesAbiertos?: FrenteAbierto[]
-  prospeccion?: {
-    /** Los meses del calendario. */
-    columnas: string[]
-    filas: VentanaProspeccion[]
-    leyenda: string[]
-  }
   recomendaciones?: RecomendacionBenchmark[]
   /** Cómo se mueve la categoría, con fuente externa y fecha. */
   mercado?: DatoDeMercado[]
@@ -157,11 +132,9 @@ export interface ResumenBenchmark {
   brechas: string[]
   /** Competidores con amenaza alta: lo que se mira antes de una reunión. */
   amenazasAltas: string[]
-  /** Las industrias que están en su pico de compra ESTE mes del calendario. */
-  vendenAhora: string[]
 }
 
-export function resumirBenchmark(b: Benchmark, indiceDeMes = 0): ResumenBenchmark {
+export function resumirBenchmark(b: Benchmark): ResumenBenchmark {
   const cuenta = (nivel: NivelBenchmark) => b.dimensiones.filter((d) => d.udn === nivel).length
   return {
     lider: cuenta('lider'),
@@ -170,10 +143,5 @@ export function resumirBenchmark(b: Benchmark, indiceDeMes = 0): ResumenBenchmar
     total: b.dimensiones.length,
     brechas: b.dimensiones.filter((d) => d.udn === 'rezagado').map((d) => d.dimension),
     amenazasAltas: b.competidores.filter((c) => c.amenaza === 'alta').map((c) => c.nombre),
-    // `tono: 'alto'` es el pico de actividad del calendario. Es lo único de
-    // este resumen que caduca solo: la columna se elige por mes.
-    vendenAhora: (b.prospeccion?.filas ?? [])
-      .filter((f) => f.meses[indiceDeMes]?.tono === 'alto')
-      .map((f) => f.industria),
   }
 }

@@ -21,6 +21,8 @@ const {
 } = await import('./documentos')
 const { crearReunion, obtenerReunion, eliminarReunion } = await import('./reuniones')
 const { crearAcuerdo } = await import('./acuerdos')
+// Import dinámico como el resto del archivo: los mocks de arriba se izan.
+const { RAZON_MANUAL } = await import('@/secciones/borrador')
 const {
   reiniciarStoreMemoria, obtenerAcuerdoMemoria, actualizarContenidoItemMemoria, actualizarDecisionItemMemoria,
 } = await import('./store-memoria')
@@ -367,7 +369,50 @@ describe('guardarDecisiones', () => {
 
     const despues = (await documentoDeReunion(reunionId))!
     expect(despues.estado).toBe('listo')
-    expect(despues.items.find((i) => i.tipo === 'portada')!.resultado).toEqual(resultado)
+
+    /**
+     * LO QUE SE LEE NO ES LA FOTO GUARDADA, ES EL CONTENIDO DE AHORA.
+     *
+     * Esta sección está COMPUESTA A MANO, y su maquetado es una función pura
+     * de su borrador (`maquetarBorrador`, determinista y sin red). Así que al
+     * leer se recalcula en vez de servir `decision_maquetacion`: por eso la
+     * `razon` que vuelve es la de una sección compuesta a mano y no la "x"
+     * que se guardó.
+     *
+     * No es un detalle: antes el documento servía la última foto y las
+     * ediciones posteriores no aparecían hasta volver a pulsar "Generar la
+     * presentación", sin que nada lo dijera. Franco: "cuando aprieto «ver
+     * documento» me debería mostrar el preview".
+     */
+    const leida = despues.items.find((i) => i.tipo === 'portada')!.resultado!
+    expect(leida.degradado).toBe(false)
+    expect(leida.decision.titulo).toBe('Estatus NeraCode')
+    expect(leida.decision.layout).toBe('portada')
+    expect(leida.decision.razon).toBe(RAZON_MANUAL)
+  })
+
+  /**
+   * La contracara: en una sección del camino ASISTIDO (sin `seccion` en su
+   * contenido crudo) recalcular exigiría volver a llamar al modelo, así que
+   * ahí la foto guardada sigue mandando.
+   */
+  it('en una sección del camino asistido SÍ manda la decisión guardada', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    const antes = (await documentoDeReunion(reunionId))!
+    const portada = antes.items.find((i) => i.tipo === 'portada')!
+    // Texto crudo y NADA de `seccion`: es el camino asistido.
+    await guardarItemContenido(documentoId, portada.id, { texto: 'material pegado' })
+
+    const resultado = {
+      decision: { layout: 'portada' as const, titulo: 'Lo que propuso la IA', razon: 'porque sí' },
+      degradado: false,
+    }
+    await guardarDecisiones(documentoId, [resultado])
+
+    const despues = (await documentoDeReunion(reunionId))!
+    const leida = despues.items.find((i) => i.tipo === 'portada')!.resultado!
+    expect(leida.decision.titulo).toBe('Lo que propuso la IA')
+    expect(leida.decision.razon).toBe('porque sí')
   })
 
   it('un número de resultados que no coincide con los items llenados revienta con un mensaje claro', async () => {

@@ -1171,3 +1171,72 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    contenedor que ponía el gap, y las cuatro piezas se pegaban unas a otras. */
 .bmSala { display: grid; gap: 1rem; }
 .bmSala .bmSalaCifras { margin-top: 0.15rem; }
+
+/* ══ BENCHMARK — jerarquía visual (ago 2026) ══════════════════════════════
+   Franco: "la info sigue siendo muy básica y mal diagramada, no tiene
+   diseño". El problema no era la falta de adornos: era que TODO pesaba
+   igual. Nueve secciones idénticas en tarjetas idénticas, sin ritmo, obligan
+   a leerlo entero para saber qué importa. Lo que sigue reparte peso. */
+
+/* Las cifras de cabecera ganan aire y una línea de marca arriba: son el
+   primer bloque de la página y tienen que verse como tal. */
+.bmIndicadores { gap: 1rem; margin-bottom: 1.75rem; }
+.bmIndicador { padding: 1.35rem 1.3rem; border-top-width: 4px; }
+.bmIndicadorValor { font-size: clamp(1.9rem, 3.4vw, 2.6rem); }
+
+/* LA TESIS es el punto más alto del documento: pierde la caja gris y gana la
+   banda de marca. Un titular dentro de una tarjeta más se lee como un
+   párrafo con negritas. */
+.bmTesis {
+  background: var(--papel);
+  border: 0; border-left: 4px solid var(--marca);
+  border-radius: 0 var(--r-3) var(--r-3) 0;
+  padding: 1.6rem 1.7rem;
+}
+.bmTesisTitular { font-size: clamp(1.5rem, 3.2vw, 2.15rem); }
+
+/* Un separador entre bloques del documento: sin él, nueve secciones seguidas
+   son una lista. Con él, se lee dónde cambia el tema. */
+.seccion + .seccion { margin-top: 1.4rem; }
+
+/* Las fichas de competidor: más aire y el nombre con peso de titular. La
+   rejilla baja a dos columnas fijas en pantalla ancha — a tres, cada ficha
+   quedaba tan estrecha que "Dónde se le gana" salía en cinco líneas. */
+.bmCompetidores { grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr)); gap: 1rem; }
+.bmCompetidor { padding: 1.25rem 1.35rem; border-left-width: 4px; }
+.bmCompetidorNombre { font-size: 1.12rem; }
+
+/* El bloque "dónde se le gana" es la conclusión de la ficha: se separa del
+   resto con superficie propia en vez de ser una línea más. */
+.bmCompetidorLinea[data-tono='gana'] {
+  background: color-mix(in oklch, var(--marca) 6%, transparent);
+  border-radius: var(--r-2);
+  padding: 0.6rem 0.75rem;
+  margin: 0.15rem -0.15rem 0;
+}
+
+/* Los frentes abiertos, numerados: el número los convierte en una secuencia
+   y no en cuatro cajas sueltas. */
+.bmFrentes { counter-reset: frente; }
+.bmFrente { counter-increment: frente; position: relative; padding-left: 2.6rem; }
+.bmFrente::before {
+  content: counter(frente, decimal-leading-zero);
+  position: absolute; left: 1rem; top: 0.9rem;
+  font-size: 0.8rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--marca) 55%, transparent);
+}
+
+/* La matriz gana altura de fila: con la nota dentro de la celda, las filas
+   apretadas hacían que la nota pareciera parte de la dimensión siguiente. */
+.benchmarkMatriz tbody tr td { padding-top: 0.9rem; padding-bottom: 0.9rem; }
+.bmNotaFila { max-width: 30rem; }
+
+/* CUATRO EN UNA FILA, o dos y dos. Con `auto-fit` + `minmax(15rem)` dentro de
+   un contenedor de 1080px entraban tres y la cuarta caía sola a una segunda
+   fila, dejando un hueco del ancho de dos tarjetas. Un número de columnas
+   fijo por tramo evita el 3+1, que es la peor de las tres formas posibles. */
+.bmIndicadores { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1000px) { .bmIndicadores { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .bmIndicadores { grid-template-columns: 1fr; } }
+.bmIndicador { padding: 1.15rem 1.1rem; }
+.bmIndicadorValor { font-size: clamp(1.7rem, 2.6vw, 2.2rem); }

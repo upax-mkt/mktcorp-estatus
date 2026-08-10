@@ -223,54 +223,18 @@ const PROMO_ESPACIO: Benchmark = {
     },
   ],
 
-  // ── El calendario: la pieza más operativa para el equipo comercial ───────
-  prospeccion: {
-    columnas: ['JUL', 'AGO', 'SEP'],
-    leyenda: [
-      'Vende · pico de actividad, máxima disposición de compra',
-      'Prepara · actividad subiendo, califica y agenda propuestas',
-      'Explora · sector despertando, primeros contactos',
-      'Espera · actividad baja, monitorear y no priorizar',
-      'El ciclo se repite cada temporada según el comportamiento económico del sector.',
-    ],
-    filas: [
-      {
-        industria: 'Comercio al por menor',
-        prioridad: 'Prioridad alta · cuentas vivas',
-        meses: [{ estado: 'Vende', tono: 'alto' }, { estado: 'Explora', tono: 'bajo' }, { estado: 'Vende', tono: 'alto' }],
-        gancho: 'Ayudamos a retailers a convertir fricciones operativas y digitales en soluciones tecnológicas escalables que mejoran eficiencia, experiencia y conversión.',
-        encaja: ['Plataformas e-commerce', 'Integraciones entre sistemas', 'Apps y portales para clientes', 'Automatización de procesos comerciales'],
-      },
-      {
-        industria: 'Comercio al por mayor',
-        prioridad: 'Prioridad alta · cuentas vivas',
-        meses: [{ estado: 'Vende', tono: 'alto' }, { estado: 'Explora', tono: 'bajo' }, { estado: 'Vende', tono: 'alto' }],
-        gancho: 'Optimizamos la transformación digital en procesos comerciales B2B para reducir fricción operativa, acelerar pedidos y dar visibilidad al negocio.',
-        encaja: ['Portales B2B', 'Integraciones con ERP/CRM', 'Software para logística y operación'],
-      },
-      {
-        industria: 'Servicios financieros y de seguros',
-        prioridad: 'Prioridad alta · pipeline Q4/Q1',
-        meses: [{ estado: 'Vende', tono: 'alto' }, { estado: 'Explora', tono: 'bajo' }, { estado: 'Prepara', tono: 'medio' }],
-        gancho: 'Construimos soluciones digitales seguras y escalables para mejorar onboarding, operación, autoservicio y experiencia de usuario.',
-        encaja: ['Onboarding digital', 'Plataformas transaccionales', 'Integraciones con sistemas legacy'],
-      },
-      {
-        industria: 'Industrias manufactureras',
-        prioridad: 'Prioridad media-alta · pipeline Q4',
-        meses: [{ estado: 'Espera', tono: 'neutro' }, { estado: 'Vende', tono: 'alto' }, { estado: 'Prepara', tono: 'medio' }],
-        gancho: 'Ayudamos a empresas manufactureras a digitalizar procesos críticos para ganar visibilidad, eficiencia y control operativo.',
-        encaja: ['Software para operación interna', 'Sistemas de trazabilidad', 'Portales para proveedores'],
-      },
-      {
-        industria: 'Servicios profesionales y técnicos',
-        prioridad: 'Prioridad media · selectiva',
-        meses: [{ estado: 'Espera', tono: 'neutro' }, { estado: 'Vende', tono: 'alto' }, { estado: 'Explora', tono: 'bajo' }],
-        gancho: 'Convertimos procesos complejos de servicios B2B en plataformas digitales simples, escalables y medibles.',
-        encaja: ['Plataformas SaaS', 'Herramientas internas', 'Portales de clientes'],
-      },
-    ],
-  },
+  // NO HAY CALENDARIO DE PROSPECCIÓN, y es importante que no lo haya.
+  //
+  // En una versión anterior de este archivo había uno: industrias por mes con
+  // su "oferta gancho". NO SALÍA DE ESTE BENCHMARK — salía del PDF de
+  // NeraCode, otra UDN, y sus ganchos hablaban de plataformas e-commerce,
+  // integraciones ERP/CRM y SaaS. Es el negocio de NeraCode, no el de una
+  // empresa de DOOH/OOH. Lo detectó Franco preguntando de dónde había salido.
+  //
+  // El benchmark de Promo Espacio (junio 2026) NO analiza ventanas de compra
+  // por industria. Si esa pieza hace falta —y es de las más útiles para un
+  // equipo comercial— sale de un análisis de estacionalidad que hoy no está
+  // hecho para PE, no de copiar el de otra UDN.
 
   recomendaciones: [
     {

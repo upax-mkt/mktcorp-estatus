@@ -19,11 +19,8 @@ import { fechaCompleta } from '@/lib/fecha'
  *   2. DOS O TRES CIFRAS de las de cabecera, en grande.
  *   3. CONTRA QUIÉN se compite de verdad — los de amenaza alta, por nombre.
  *      Es lo que se mira antes de entrar a una reunión con un prospecto.
- *   4. QUÉ INDUSTRIA está en su pico de compra este mes: la única línea de
- *      todo el módulo que sirve para hacer algo hoy.
  *
- * La matriz, las fichas de competidor y el calendario completo viven en su
- * página, a un clic.
+ * La matriz y las fichas de competidor viven en su página, a un clic.
  */
 export function BenchmarkSala({
   benchmark,
@@ -91,12 +88,6 @@ export function BenchmarkSala({
           <p className={estilos.bmSalaLinea}>
             <span className={estilos.bmSalaEtiqueta}>Aprietan</span>
             {resumen.amenazasAltas.join(' · ')}
-          </p>
-        )}
-        {resumen.vendenAhora.length > 0 && (
-          <p className={estilos.bmSalaLinea} data-tono="gana">
-            <span className={estilos.bmSalaEtiqueta}>Compran ahora</span>
-            {resumen.vendenAhora.join(' · ')}
           </p>
         )}
         {resumen.brechas.length > 0 && (

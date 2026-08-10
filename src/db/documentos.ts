@@ -32,7 +32,7 @@ import { estatusEfectivo, type Acuerdo, type EstatusAcuerdo } from '@/dominio/sa
 import {
   obtenerPlantilla, tiposFijosDe, type DefinicionItem,
 } from '@/secciones/plantillas'
-import type { ResultadoMaquetacion } from '@/motor/maquetar'
+import { maquetarBorrador, type ResultadoMaquetacion } from '@/motor/maquetar'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 
 export type { DefinicionItem } from '@/secciones/plantillas'
@@ -218,6 +218,42 @@ function resultadoConImagenNormalizada(resultado: ResultadoMaquetacion | null): 
   return { ...resultado, decision: { ...resultado.decision, imagen: normalizarImagen(resultado.decision.imagen) } }
 }
 
+/**
+ * EL DOCUMENTO ENSEÑA LO QUE HAY ESCRITO AHORA, no la última foto.
+ *
+ * Franco, editando el estatus de NeraCode: *"cuando aprieto «ver documento»
+ * dentro del editor me debería mostrar el preview"*. Lo que veía era su
+ * contenido de HACE DOS HORAS: el documento servía `decision_maquetacion`, la
+ * foto que dejó el último "Generar la presentación", y sus ediciones no
+ * aparecían hasta volver a pulsarlo. Nada se lo decía.
+ *
+ * Para una sección COMPUESTA A MANO eso no hacía falta nunca: su maquetado es
+ * una FUNCIÓN PURA de su borrador (`maquetarBorrador`, determinista y sin
+ * red — ver src/motor/maquetar.ts), así que se puede recalcular al leer, sin
+ * coste y sin llamar a ningún modelo. Es además exactamente lo que ya calcula
+ * la vista previa del editor: por eso las dos coinciden ahora por
+ * construcción y no por disciplina.
+ *
+ * La foto guardada SIGUE MANDANDO para las secciones del camino asistido —las
+ * que propuso la IA y no tienen `seccion` en su contenido crudo—, porque ahí
+ * recalcular exigiría volver a llamar al modelo: se paga y puede dar otra
+ * cosa. En esas, "Generar la presentación" sigue siendo el momento en que se
+ * fija el resultado.
+ */
+function resultadoVigente(
+  contenido: ContenidoItemCrudo,
+  tituloDeRespaldo: string,
+  acuerdosRetomados: Acuerdo[],
+  guardada: unknown,
+): ResultadoMaquetacion | null {
+  if (contenido.seccion) {
+    return resultadoConImagenNormalizada(
+      maquetarBorrador(contenido.seccion, tituloDeRespaldo, acuerdosRetomados),
+    )
+  }
+  return resultadoConImagenNormalizada((guardada as ResultadoMaquetacion | null) ?? null)
+}
+
 interface FilaDocumentoComun {
   id: string
   reunionId: string
@@ -272,7 +308,7 @@ function documentoCompletoDeFilas(
         llenado: esLlenado(contenido),
         padre: def.padre,
         esBase: fijos.has(row.tipo),
-        resultado: resultadoConImagenNormalizada((row.decisionMaquetacion as ResultadoMaquetacion | null) ?? null),
+        resultado: resultadoVigente(contenido, def.titulo, acuerdosRetomados, row.decisionMaquetacion),
         acuerdosRetomados,
       }
     })
