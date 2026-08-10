@@ -992,3 +992,182 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   box-shadow: 0 1px 2px color-mix(in oklch, #000 8%, transparent);
 }
 .materialCamino:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+/* ══ BENCHMARK — piezas de la reconstrucción (ago 2026) ═══════════════════
+   Franco: "la diagramación y el diseño lo es todo, debe ser dinámico" y
+   "falta información clave para las UDN y sus equipos comerciales". */
+
+/* LAS CUATRO CIFRAS DE CABECERA. Fuera de la tarjeta de sección a propósito:
+   van sobre el lienzo, antes de que empiece el documento, porque son lo que
+   se lee de pie. */
+.bmIndicadores {
+  list-style: none; margin: 0 0 1.25rem; padding: 0;
+  display: grid; gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+.bmIndicador {
+  display: grid; gap: 0.3rem; align-content: start;
+  padding: 1.1rem 1.15rem; border-radius: var(--r-3);
+  background: var(--papel); box-shadow: var(--e-1);
+  border-top: 3px solid var(--borde-fuerte);
+}
+.bmIndicador[data-tono='gana'] { border-top-color: var(--marca); }
+.bmIndicador[data-tono='atencion'] { border-top-color: var(--tibia); }
+.bmIndicadorValor {
+  font-size: clamp(1.6rem, 3vw, 2.1rem); font-weight: 800; line-height: 1;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+}
+.bmIndicador[data-tono='gana'] .bmIndicadorValor { color: var(--marca-texto, var(--marca)); }
+.bmIndicador[data-tono='atencion'] .bmIndicadorValor { color: var(--tibia); }
+.bmIndicadorRotulo {
+  font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-3);
+}
+/* La lectura es lo que separa una cifra de un número decorativo. */
+.bmIndicadorLectura { font-size: 0.82rem; line-height: 1.5; color: var(--tx-2); }
+
+/* Cifras digitales de un competidor, dentro de su ficha. */
+.bmCifrasCompetidor {
+  margin: 0.35rem 0 0; padding: 0.7rem 0 0;
+  border-top: 1px solid var(--borde);
+  display: grid; gap: 0.5rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+}
+.bmCifrasCompetidor div { display: grid; gap: 0.1rem; }
+.bmCifrasCompetidor dt {
+  font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-3);
+}
+.bmCifrasCompetidor dd {
+  margin: 0; font-size: 0.95rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bmCompetidorPie {
+  margin-top: 0.35rem; padding-top: 0.6rem; border-top: 1px solid var(--borde);
+  display: grid; gap: 0.25rem;
+  font-size: 0.78rem; line-height: 1.45; color: var(--tx-3);
+}
+.bmCompetidorPie strong { color: var(--tx-2); font-weight: 600; }
+/* "No pelear aquí" en tono de aviso: es lo que evita perder una reunión. */
+.bmCompetidorLinea[data-tono='cuidado'] { color: var(--tx-2); }
+.bmCompetidorLinea[data-tono='cuidado'] .bmCompetidorEtiqueta { color: var(--tibia); }
+
+/* LA VENTANA: dónde la categoría entera está floja. */
+.bmFrentes {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+.bmFrente {
+  display: grid; gap: 0.3rem; align-content: start;
+  padding: 0.9rem 1rem; border-radius: var(--r-2);
+  background: var(--superficie-2);
+}
+.bmFrenteNombre {
+  font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--marca-texto, var(--marca));
+}
+.bmFrenteEvidencia { font-size: 0.85rem; line-height: 1.5; color: var(--tx-2); }
+
+/* DÓNDE PROSPECTAR. Una tarjeta por industria y no una tabla: la tabla era
+   legible para comparar meses, pero aquí lo que se hace es elegir UNA
+   industria y llevarse su gancho a una llamada. */
+.bmProspeccion { display: grid; gap: 0.75rem; }
+.bmIndustria {
+  display: grid; gap: 0.7rem;
+  padding: 1rem 1.15rem; border-radius: var(--r-2);
+  border: 1px solid var(--borde); background: var(--superficie);
+}
+.bmIndustriaCabeza {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.bmIndustriaNombre { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
+.bmIndustriaPrioridad { font-size: 0.74rem; color: var(--tx-3); }
+
+/* Las ventanas del trimestre: la forma se lee antes que las palabras, pero
+   la palabra está siempre — el color nunca es la única señal. */
+.bmVentanas { display: flex; gap: 0.35rem; }
+.bmVentana {
+  display: grid; gap: 0.1rem; justify-items: center;
+  min-width: 4.6rem; padding: 0.4rem 0.5rem;
+  border-radius: 0.45rem; text-align: center;
+  background: var(--superficie-2); border: 1px solid transparent;
+}
+.bmVentana[data-tono='alto'] {
+  background: color-mix(in oklch, var(--marca) 30%, transparent);
+  border-color: color-mix(in oklch, var(--marca) 45%, transparent);
+}
+.bmVentana[data-tono='medio'] { background: color-mix(in oklch, var(--marca) 15%, transparent); }
+.bmVentana[data-tono='bajo'] { background: color-mix(in oklch, var(--marca) 7%, transparent); }
+.bmVentana[data-tono='neutro'] { background: transparent; border-color: var(--borde); }
+.bmVentanaMes {
+  font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-3);
+}
+.bmVentanaEstado { font-size: 0.8rem; font-weight: 600; }
+.bmVentana[data-tono='alto'] .bmVentanaEstado { font-weight: 800; }
+
+.bmGancho {
+  margin: 0; display: grid; gap: 0.15rem;
+  font-size: 0.88rem; line-height: 1.5; color: var(--tx);
+}
+.bmEncaja {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+}
+.bmEncaja li {
+  font-size: 0.76rem; color: var(--tx-2);
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  background: var(--superficie-2);
+}
+.bmLeyenda {
+  list-style: none; margin: 0.9rem 0 0; padding: 0.8rem 0 0;
+  border-top: 1px solid var(--borde);
+  display: grid; gap: 0.2rem;
+  font-size: 0.76rem; color: var(--tx-3);
+}
+
+/* El mercado: lo único que no sale del análisis propio. */
+.bmMercado { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.bmMercado li { font-size: 0.88rem; line-height: 1.55; color: var(--tx-2); }
+.bmFuenteDato {
+  font-size: 0.72rem; color: var(--tx-3); white-space: nowrap;
+  padding: 0.1rem 0.45rem; border-radius: 999px; background: var(--superficie-2);
+}
+
+/* ── El módulo en la SALA: de un vistazo ────────────────────────────────── */
+.bmSalaTesis {
+  margin: 0; font-size: 1.05rem; font-weight: 700; line-height: 1.35;
+  letter-spacing: -0.01em; text-wrap: balance; color: var(--tx);
+}
+.bmSalaCifras {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 0.5rem 2.25rem;
+}
+.bmSalaCifra { display: grid; gap: 0.1rem; }
+.bmSalaCifra strong {
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.bmSalaCifra span { font-size: 0.76rem; color: var(--tx-3); }
+.bmSalaCifra[data-tono='gana'] strong { color: var(--marca-texto, var(--marca)); }
+.bmSalaCifra[data-tono='atencion'] strong { color: var(--tibia); }
+
+.bmSalaLineas { display: grid; gap: 0.35rem; }
+.bmSalaLinea {
+  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.55rem;
+  font-size: 0.86rem; color: var(--tx-2);
+}
+.bmSalaEtiqueta {
+  font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-3); white-space: nowrap;
+}
+.bmSalaLinea[data-tono='gana'] .bmSalaEtiqueta { color: var(--marca-texto, var(--marca)); }
+.bmSalaLinea[data-tono='atencion'] .bmSalaEtiqueta { color: var(--tibia); }
+
+/* El módulo de la sala necesita su propio ritmo: al pasar de "tres
+   contadores y un párrafo" a "tesis + cifras + tres líneas" desapareció el
+   contenedor que ponía el gap, y las cuatro piezas se pegaban unas a otras. */
+.bmSala { display: grid; gap: 1rem; }
+.bmSala .bmSalaCifras { margin-top: 0.15rem; }

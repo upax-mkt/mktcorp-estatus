@@ -14,25 +14,27 @@ export const dynamic = 'force-dynamic'
 /**
  * El benchmark competitivo de una sala, entero, en formato web.
  *
- * Mismo lenguaje que el documento de una reunión —encabezado de marca, la
- * conclusión arriba, la evidencia debajo— porque es lo mismo: material que se
- * enseña a un director. La diferencia es que no nace de una reunión: vive a
- * nivel de sala y se actualiza cuando llega un análisis nuevo.
+ * QUIÉN LO ABRE Y PARA QUÉ decide el orden. No lo lee un analista: lo lee el
+ * director de la UDN y su equipo comercial, muchas veces la víspera de una
+ * reunión con un prospecto. Así que el documento va de lo que se usa de pie a
+ * lo que se estudia sentado:
  *
- * EL ORDEN ES EL ARGUMENTO, y por eso no es el del PDF de origen:
- *
- *   1. La TESIS. Una frase. Si el director solo lee esto, ya sabe la posición.
- *   2. La LECTURA de Mkt Corp: el párrafo que sostiene la tesis.
- *   3. QUIÉN APRIETA: los competidores, ordenados por amenaza, cada uno con su
- *      fortaleza real y —lo que de verdad se usa en una reunión— dónde se le
- *      gana. Antes esto era una fila de cinco nombres sueltos.
- *   4. La MATRIZ, dimensión por dimensión, con la nota que justifica el nivel.
- *      Va después: treinta etiquetas antes de la conclusión es un examen.
- *   5. QUÉ HACER. Un benchmark que no termina en acciones es un informe.
- *
- * Las brechas ya no van en una sección propia: eran las mismas dimensiones de
- * la matriz repetidas doce líneas antes, y repetir no es jerarquizar. Ahora se
- * resumen en la cabecera y se leen en su fila.
+ *   1. CUATRO CIFRAS. Lo que se lee antes de entrar a nada.
+ *   2. LA TESIS. Una frase. Si solo se lee esto, ya se sabe la posición.
+ *   3. RESUMEN EJECUTIVO — breve. Se llamaba "La lectura de Marketing Corp",
+ *      que decía quién escribe y no qué se lee.
+ *   4. CONTRA QUIÉN COMPETIMOS. Cada competidor con su fortaleza, qué NO
+ *      pelearle, dónde se le gana, sus cifras digitales y si contesta el
+ *      teléfono. Es la ficha que se mira antes de entrar a la reunión.
+ *   5. LA VENTANA. Dónde la categoría entera está floja, con evidencia.
+ *   6. DÓNDE PROSPECTAR. El calendario por industria y mes, con su gancho.
+ *      Es la pieza más operativa de todo esto.
+ *   7. DIMENSIÓN POR DIMENSIÓN. La matriz: la evidencia, después de la
+ *      conclusión. Treinta etiquetas antes de la tesis es un examen.
+ *   8. QUÉ HACER. Un benchmark que no termina en acciones es un informe.
+ *   9. CÓMO SE MUEVE EL MERCADO, con fuente externa: es lo único de esta
+ *      página que no sale del análisis propio, y por eso va marcado y al
+ *      final.
  */
 
 const ETIQUETA_NIVEL: Record<NivelBenchmark, string> = {
@@ -52,9 +54,7 @@ const PESO_AMENAZA: Record<AmenazaBenchmark, number> = { alta: 0, media: 1, baja
 
 export default async function PagBenchmarkSala({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  // Misma guarda que /cliente/[slug]: contra las nueve salas reales, no
-  // contra las diez filas de `salas` (grupo-upax tiene tema pero no es una
-  // sala navegable). Ver slugsDeSalas(), src/db/temas.ts.
+  // Misma guarda que /cliente/[slug]: contra las nueve salas reales.
   const [slugsReales, registro] = await Promise.all([slugsDeSalas(), cargarTemas()])
   if (!slugsReales.includes(slug)) notFound()
   const tema = registro[slug]
@@ -67,8 +67,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
   const resumen = resumirBenchmark(benchmark)
   // Copia antes de ordenar: `benchmark.competidores` marca el orden de las
   // COLUMNAS de la matriz, y reordenarlo en sitio desalinearía cada fila con
-  // su competidor — el error que el tipo de cinco posiciones existe para
-  // evitar.
+  // su competidor — el error que el tipo de cinco posiciones evita.
   const porAmenaza = [...benchmark.competidores].sort(
     (a, b) => PESO_AMENAZA[a.amenaza] - PESO_AMENAZA[b.amenaza],
   )
@@ -77,8 +76,6 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
     '--marca': tema.primario,
     '--marca-texto': colorDeTextoDeMarca(tema.primario),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
-    // El sólido validado del hero (auditoría UX/UI, hallazgo 4) — ver el
-    // comentario de `.hero`/`.heroSolida` en cliente.module.css.
     '--hero-superficie': tema.superficieOscura,
     '--hero-texto': tema.textoSobreOscura,
   } as CSSProperties
@@ -93,9 +90,8 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         </div>
       </header>
 
-      {/* El degradado de la marca, exacto y SIN texto encima (regla dura del
-          brandbook): dos bandas, el degradado vacío y `.heroSolida` justo
-          debajo con el texto sobre superficie validada. */}
+      {/* El degradado de marca, exacto y SIN texto encima (regla dura del
+          brandbook): dos bandas, el degradado vacío y la sólida debajo. */}
       <div className={estilos.hero} aria-hidden="true" />
       <div className={estilos.heroSolida}>
         <div className={estilos.heroInner}>
@@ -107,16 +103,6 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
               <span className={estilos.heroMetaL}>competidores seguidos</span>
             </div>
             <div className={estilos.heroMetaItem}>
-              <span className={estilos.heroMetaV}>{resumen.lider} de {resumen.total}</span>
-              <span className={estilos.heroMetaL}>dimensiones liderando</span>
-            </div>
-            <div className={estilos.heroMetaItem}>
-              <span className={estilos.heroMetaV}>{resumen.rezagado}</span>
-              <span className={estilos.heroMetaL}>
-                {resumen.rezagado === 1 ? 'brecha por cerrar' : 'brechas por cerrar'}
-              </span>
-            </div>
-            <div className={estilos.heroMetaItem}>
               <span className={estilos.heroMetaV}>{fechaCompleta(benchmark.actualizado)}</span>
               <span className={estilos.heroMetaL}>última actualización</span>
             </div>
@@ -125,8 +111,20 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
       </div>
 
       <main className={estilos.main}>
-        {/* 1. LA TESIS. Lo primero y lo más grande: es la única línea que un
-            director tiene que poder repetir de memoria después de leer esto. */}
+        {/* 1. LAS CIFRAS. Lo primero, porque es lo único que se lee de pie. */}
+        {benchmark.indicadores && benchmark.indicadores.length > 0 && (
+          <ul className={estilos.bmIndicadores}>
+            {benchmark.indicadores.map((ind) => (
+              <li key={ind.rotulo} className={estilos.bmIndicador} data-tono={ind.tono}>
+                <span className={estilos.bmIndicadorValor}>{ind.valor}</span>
+                <span className={estilos.bmIndicadorRotulo}>{ind.rotulo}</span>
+                <span className={estilos.bmIndicadorLectura}>{ind.lectura}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* 2. LA TESIS. */}
         {benchmark.tesis && (
           <section className={estilos.seccion}>
             <div className={estilos.bmTesis}>
@@ -146,20 +144,18 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
           </section>
         )}
 
-        {/* 2. La lectura de Mkt Corp. */}
+        {/* 3. RESUMEN EJECUTIVO — breve. */}
         <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>La lectura de Marketing Corp</h2>
+          <h2 className={estilos.seccionTitulo}>Resumen ejecutivo</h2>
           <p className={estilos.benchmarkLecturaGrande}>{benchmark.lectura}</p>
         </section>
 
-        {/* 3. Quién aprieta y por dónde se le gana. */}
+        {/* 4. CONTRA QUIÉN COMPETIMOS — la ficha de reunión. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
-            Quién aprieta
+            Contra quién competimos
             {resumen.amenazasAltas.length > 0 && (
-              <span className={estilos.conteo}>
-                {resumen.amenazasAltas.length} de amenaza alta
-              </span>
+              <span className={estilos.conteo}>{resumen.amenazasAltas.length} de amenaza alta</span>
             )}
           </h2>
           <ul className={estilos.bmCompetidores}>
@@ -171,24 +167,111 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                     {ETIQUETA_AMENAZA[c.amenaza]}
                   </span>
                 </div>
+
                 <p className={estilos.bmCompetidorLinea}>
                   <span className={estilos.bmCompetidorEtiqueta}>Su fortaleza</span>
                   {c.fortaleza}
+                </p>
+                <p className={estilos.bmCompetidorLinea} data-tono="cuidado">
+                  <span className={estilos.bmCompetidorEtiqueta}>No pelear aquí</span>
+                  {c.nosGanaEn}
                 </p>
                 <p className={estilos.bmCompetidorLinea} data-tono="gana">
                   <span className={estilos.bmCompetidorEtiqueta}>Dónde se le gana</span>
                   {c.dondeSeLeGana}
                 </p>
+
+                {c.digital && c.digital.length > 0 && (
+                  <dl className={estilos.bmCifrasCompetidor}>
+                    {c.digital.map((d) => (
+                      <div key={d.rotulo}>
+                        <dt>{d.rotulo}</dt>
+                        <dd>{d.valor}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+
+                <div className={estilos.bmCompetidorPie}>
+                  {c.medicion && <span><strong>Mide con:</strong> {c.medicion}</span>}
+                  {c.contactabilidad && <span><strong>Al contactarlos:</strong> {c.contactabilidad}</span>}
+                </div>
               </li>
             ))}
           </ul>
         </section>
 
-        {/* 4. La matriz. La evidencia, después de la conclusión. */}
+        {/* 5. LA VENTANA. */}
+        {benchmark.frentesAbiertos && benchmark.frentesAbiertos.length > 0 && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              Dónde la categoría entera está floja
+              <span className={estilos.conteo}>la ventana, y es temporal</span>
+            </h2>
+            <ul className={estilos.bmFrentes}>
+              {benchmark.frentesAbiertos.map((f) => (
+                <li key={f.frente} className={estilos.bmFrente}>
+                  <span className={estilos.bmFrenteNombre}>{f.frente}</span>
+                  <span className={estilos.bmFrenteEvidencia}>{f.evidencia}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* 6. DÓNDE PROSPECTAR — lo más operativo de la página. */}
+        {benchmark.prospeccion && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              Dónde prospectar
+              <span className={estilos.conteo}>y con qué gancho</span>
+            </h2>
+            <div className={estilos.bmProspeccion}>
+              {benchmark.prospeccion.filas.map((f) => (
+                <article key={f.industria} className={estilos.bmIndustria}>
+                  <div className={estilos.bmIndustriaCabeza}>
+                    <div>
+                      <h3 className={estilos.bmIndustriaNombre}>{f.industria}</h3>
+                      <span className={estilos.bmIndustriaPrioridad}>{f.prioridad}</span>
+                    </div>
+                    <div className={estilos.bmVentanas}>
+                      {f.meses.map((m, i) => (
+                        <span
+                          key={benchmark.prospeccion!.columnas[i]}
+                          className={estilos.bmVentana}
+                          data-tono={m.tono}
+                        >
+                          <span className={estilos.bmVentanaMes}>{benchmark.prospeccion!.columnas[i]}</span>
+                          <span className={estilos.bmVentanaEstado}>{m.estado}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className={estilos.bmGancho}>
+                    <span className={estilos.bmCompetidorEtiqueta}>Oferta gancho</span>
+                    {f.gancho}
+                  </p>
+                  {f.encaja && f.encaja.length > 0 && (
+                    <ul className={estilos.bmEncaja}>
+                      {f.encaja.map((e) => <li key={e}>{e}</li>)}
+                    </ul>
+                  )}
+                </article>
+              ))}
+            </div>
+            <ul className={estilos.bmLeyenda}>
+              {benchmark.prospeccion.leyenda.map((l) => <li key={l}>{l}</li>)}
+            </ul>
+          </section>
+        )}
+
+        {/* 7. LA MATRIZ. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
             Dimensión por dimensión
-            <span className={estilos.conteo}>{tema.nombre} + {benchmark.competidores.length} competidores</span>
+            <span className={estilos.conteo}>
+              {resumen.lider} liderando · {resumen.aLaPar} a la par · {resumen.rezagado} por detrás
+            </span>
           </h2>
           <div className={estilos.benchmarkMatrizWrap}>
             <table className={estilos.benchmarkMatriz}>
@@ -227,7 +310,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
           </div>
         </section>
 
-        {/* 5. Qué hacer. Un benchmark que no termina en acciones es un informe. */}
+        {/* 8. QUÉ HACER. */}
         {benchmark.recomendaciones && benchmark.recomendaciones.length > 0 && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
@@ -242,6 +325,25 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                 </li>
               ))}
             </ol>
+          </section>
+        )}
+
+        {/* 9. EL MERCADO. Lo único que NO sale del análisis propio: va
+            marcado con su fuente, al final, para que nadie lo confunda con
+            una medición nuestra. */}
+        {benchmark.mercado && benchmark.mercado.length > 0 && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              Cómo se mueve el mercado
+              <span className={estilos.conteo}>fuentes externas</span>
+            </h2>
+            <ul className={estilos.bmMercado}>
+              {benchmark.mercado.map((m) => (
+                <li key={m.fuente + m.dato.slice(0, 20)}>
+                  {m.dato} <span className={estilos.bmFuenteDato}>{m.fuente}</span>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 

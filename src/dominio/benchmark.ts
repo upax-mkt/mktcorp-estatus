@@ -2,58 +2,109 @@
  * EL BENCHMARK COMPETITIVO DE UNA SALA: solo la forma, sin datos.
  *
  * Aquí NO hay competidores ni lecturas. El benchmark de cada sala lo carga el
- * equipo en la app y vive en la base de datos; una sala sin benchmark cargado
- * se ve vacía. Antes este archivo traía cinco competidores inventados por
- * sala —con nombres de fantasía, para no afirmar datos falsos de terceros—
- * que la app enseñaba como si fueran análisis. Un espacio vacío que dice "aún
- * no hay benchmark" es más honesto y más útil que uno lleno de ficción.
+ * equipo y vive en `src/datos/benchmark.ts`; una sala sin benchmark cargado se
+ * ve vacía, que es más honesto que llenarla de ficción.
  *
- * LA FORMA CRECIÓ AL CARGAR EL PRIMER BENCHMARK REAL (Promo Espacio, junio
- * 2026: 75 láminas). Antes solo cabían cinco NOMBRES de competidor, la matriz
- * de niveles y un párrafo de lectura, y con eso se perdía lo que de verdad
- * usa un director: por qué cada competidor amenaza, dónde se le gana, cuál es
- * la tesis del análisis y qué hay que hacer. Todo lo nuevo es OPCIONAL: un
- * benchmark que solo traiga la matriz se sigue cargando igual.
+ * ───────────────────────────────────────────────────────────────────────────
+ * PARA QUIÉN ES ESTO, que es lo que decide la forma.
+ *
+ * No es un informe de marketing: lo abre el director de la UDN y su equipo
+ * COMERCIAL, muchas veces el día antes de una reunión con un prospecto. Lo
+ * que necesitan es distinto de lo que necesita un análisis:
+ *
+ *   - contra quién van a competir en esa cuenta y qué les van a decir,
+ *   - qué NO pelear (dónde el competidor gana de verdad),
+ *   - qué industria toca prospectar este mes y con qué gancho,
+ *   - una cifra que puedan repetir.
+ *
+ * La primera versión de este modelo solo guardaba cinco NOMBRES, la matriz de
+ * niveles y un párrafo. Franco: *"falta información clave para las UDN y sus
+ * equipos comerciales dentro del bench"*. Tenía razón: de un análisis de 75
+ * láminas llegaba menos del 20%, y justo la parte que no se usa para vender.
+ *
+ * Todo lo nuevo es OPCIONAL: un benchmark que solo traiga la matriz se sigue
+ * cargando igual y la página se adapta.
  */
 
 export type NivelBenchmark = 'lider' | 'a_la_par' | 'rezagado'
 
-/** Cuánto aprieta un competidor. Es el eje de la matriz de amenaza. */
+/** Cuánto aprieta un competidor. Ordena la lista: alta primero. */
 export type AmenazaBenchmark = 'alta' | 'media' | 'baja'
 
+/** Intensidad de una casilla del calendario de prospección. */
+export type TonoVentana = 'alto' | 'medio' | 'bajo' | 'neutro'
+
 /**
- * Un competidor seguido.
- *
- * Era una cadena suelta con el nombre. Un nombre no sirve para preparar una
- * reunión: el director pregunta "¿y ese por qué me amenaza?" y la respuesta
- * estaba en un PDF fuera de la app.
+ * Una cifra de cabecera. TRES O CUATRO, no más: son las que se leen de pie,
+ * antes de entrar a nada, y la quinta ya no se lee.
  */
+export interface IndicadorBenchmark {
+  valor: string
+  rotulo: string
+  /** Qué hay que entender de esa cifra. Sin esto es un número decorativo. */
+  lectura: string
+  /** `gana` la pinta a favor; `atencion`, en alerta; sin tono, neutra. */
+  tono?: 'gana' | 'atencion'
+}
+
+/** Un competidor seguido, con lo que hace falta para sentarse frente a él. */
 export interface CompetidorBenchmark {
   nombre: string
-  /** Su fortaleza real, en una línea ("Transporte concesionado, audiencia cautiva"). */
+  /** Su fortaleza real, en una línea. */
   fortaleza: string
   amenaza: AmenazaBenchmark
-  /** Dónde le gana la UDN. Es la respuesta comercial, no un consuelo. */
+  /** Lo que vende mejor que la UDN. Saberlo es saber qué NO pelear. */
+  nosGanaEn: string
+  /** Dónde le gana la UDN. Es el argumento comercial, no un consuelo. */
   dondeSeLeGana: string
+  /** Cifras públicas de su presencia digital, si se midieron. */
+  digital?: Array<{ rotulo: string; valor: string }>
+  /** Con qué mide sus resultados. En esta categoría es el terreno de la pelea. */
+  medicion?: string
+  /** Respondió, o no, a una prospección real. */
+  contactabilidad?: string
 }
 
 export interface FilaDimensionBenchmark {
   dimension: string
   udn: NivelBenchmark
-  /** Mismo orden que `competidores` en Benchmark — siempre 5 valores. */
+  /** Mismo orden que `competidores` — siempre 5 valores. */
   competidores: [NivelBenchmark, NivelBenchmark, NivelBenchmark, NivelBenchmark, NivelBenchmark]
-  /** Por qué ese nivel. Una línea; se lee bajo la fila. */
+  /** Por qué ese nivel. Es lo que hace auditable la matriz. */
   nota?: string
 }
 
-/** La tesis del benchmark: lo único que hay que recordar si se olvida todo lo demás. */
+/** La tesis: lo único que hay que recordar si se olvida todo lo demás. */
 export interface TesisBenchmark {
   titular: string
-  /** Qué vende la competencia. */
   ellosVenden: string
-  /** Qué vende la UDN. */
   nosotrosVendemos: string
   sustento: string
+}
+
+/**
+ * Un frente donde la CATEGORÍA ENTERA es débil. No es lo mismo que una brecha
+ * propia: es una puerta abierta, y por eso lleva su evidencia al lado.
+ */
+export interface FrenteAbierto {
+  frente: string
+  evidencia: string
+}
+
+/**
+ * Una industria y su ventana de compra mes a mes. Es la pieza más operativa
+ * de todo el benchmark: responde "¿a quién le toco esta semana y qué le
+ * digo?".
+ */
+export interface VentanaProspeccion {
+  industria: string
+  prioridad: string
+  /** Una casilla por columna del calendario, en orden. */
+  meses: Array<{ estado: string; tono: TonoVentana }>
+  /** Qué se le ofrece a esa industria, en una frase. */
+  gancho: string
+  /** Los servicios que le encajan. */
+  encaja?: string[]
 }
 
 export interface RecomendacionBenchmark {
@@ -61,9 +112,14 @@ export interface RecomendacionBenchmark {
   porque: string
 }
 
+/** Contexto de mercado que NO sale del análisis propio: siempre con fuente. */
+export interface DatoDeMercado {
+  dato: string
+  fuente: string
+}
+
 export interface Benchmark {
   salaSlug: string
-  /** Siempre 5 (spec §5: "siguiendo 5 competidores por UDN"). */
   competidores: [
     CompetidorBenchmark,
     CompetidorBenchmark,
@@ -71,16 +127,23 @@ export interface Benchmark {
     CompetidorBenchmark,
     CompetidorBenchmark,
   ]
-  /** 4-6 filas comparadas. */
   dimensiones: FilaDimensionBenchmark[]
-  /** La lectura de Mkt Corp: dónde gana la UDN, dónde debe cerrar brecha. */
+  /** El resumen ejecutivo. BREVE: lo largo va en su sección. */
   lectura: string
+  /** 3-4 cifras de cabecera. */
+  indicadores?: IndicadorBenchmark[]
   tesis?: TesisBenchmark
-  /** En orden de impacto y facilidad de ejecución. */
+  frentesAbiertos?: FrenteAbierto[]
+  prospeccion?: {
+    /** Los meses del calendario. */
+    columnas: string[]
+    filas: VentanaProspeccion[]
+    leyenda: string[]
+  }
   recomendaciones?: RecomendacionBenchmark[]
-  /** De dónde salió el análisis, para poder volver a la fuente. */
+  /** Cómo se mueve la categoría, con fuente externa y fecha. */
+  mercado?: DatoDeMercado[]
   fuente?: string
-  /** ISO (fecha) de la última actualización de este benchmark. */
   actualizado: string
 }
 
@@ -92,19 +155,13 @@ export interface ResumenBenchmark {
   total: number
   /** Las dimensiones donde la UDN va por detrás. Lo que hay que cerrar. */
   brechas: string[]
-  /** Competidores con amenaza alta. Es lo que se mira antes de una reunión. */
+  /** Competidores con amenaza alta: lo que se mira antes de una reunión. */
   amenazasAltas: string[]
+  /** Las industrias que están en su pico de compra ESTE mes del calendario. */
+  vendenAhora: string[]
 }
 
-/**
- * El benchmark en una línea.
- *
- * La sala enseña esto y no la matriz entera: seis columnas por cinco filas de
- * etiquetas es una tabla que se estudia, no que se mira de paso, y la sala es
- * una pantalla de las que se miran de paso. La matriz vive en su propia
- * página.
- */
-export function resumirBenchmark(b: Benchmark): ResumenBenchmark {
+export function resumirBenchmark(b: Benchmark, indiceDeMes = 0): ResumenBenchmark {
   const cuenta = (nivel: NivelBenchmark) => b.dimensiones.filter((d) => d.udn === nivel).length
   return {
     lider: cuenta('lider'),
@@ -113,5 +170,10 @@ export function resumirBenchmark(b: Benchmark): ResumenBenchmark {
     total: b.dimensiones.length,
     brechas: b.dimensiones.filter((d) => d.udn === 'rezagado').map((d) => d.dimension),
     amenazasAltas: b.competidores.filter((c) => c.amenaza === 'alta').map((c) => c.nombre),
+    // `tono: 'alto'` es el pico de actividad del calendario. Es lo único de
+    // este resumen que caduca solo: la columna se elige por mes.
+    vendenAhora: (b.prospeccion?.filas ?? [])
+      .filter((f) => f.meses[indiceDeMes]?.tono === 'alto')
+      .map((f) => f.industria),
   }
 }
