@@ -876,3 +876,119 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .bmFuente {
   margin: 0.5rem 0 0; font-size: 0.75rem; color: var(--tx-3);
 }
+
+/* ══ MATERIALES COMERCIALES ═══════════════════════════════════════════════
+   Antes "Archivos de interés", y antes una LISTA. Lo que aquí se guarda es
+   material que se ENSEÑA —credenciales, un caso en vídeo, una nota de prensa—
+   y una lista de texto obliga a leer siete títulos para encontrar el deck de
+   credenciales. Una rejilla con carátula se reconoce de un vistazo. */
+
+.materiales {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 0.85rem;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+}
+
+.material {
+  position: relative;
+  display: grid; gap: 0;
+  border-radius: var(--r-2); overflow: hidden;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.material:hover { border-color: var(--borde-fuerte); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .material { transition: none; } .material:hover { transform: none; } }
+
+.materialEnlace {
+  display: grid; gap: 0; color: inherit; text-decoration: none;
+}
+
+/* LA CARÁTULA. 16:10 y no 16:9: la portada de YouTube viene en 4:3 con banda
+   negra arriba y abajo, y a 16:9 la banda se come el alto útil de todas las
+   demás tarjetas para que una sola encaje. */
+.materialCaratula {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  display: grid; place-items: center;
+  background: var(--superficie-2);
+  border-bottom: 1px solid var(--borde);
+  overflow: hidden;
+}
+.materialImagen { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* La carátula tipográfica: lo que se pinta cuando no hay miniatura (un PDF,
+   un PPT, un enlace). No se generan miniaturas de documento a propósito —ver
+   la cabecera de src/lib/materiales.ts. */
+.materialDistintivo {
+  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--tx-3);
+  padding: 0 1rem; text-align: center;
+  overflow-wrap: anywhere;
+}
+.materialCaratula[data-tipo='documento'] {
+  background: color-mix(in oklch, var(--marca) 7%, var(--superficie-2));
+}
+.materialCaratula[data-tipo='documento'] .materialDistintivo {
+  color: var(--marca-texto, var(--marca));
+}
+.materialCaratula[data-tipo='enlace'] .materialDistintivo { font-size: 0.8rem; letter-spacing: 0.02em; }
+
+/* El triángulo de reproducir. Sin él, la portada de un vídeo de YouTube es
+   indistinguible de una imagen cualquiera. */
+.materialPlay {
+  position: absolute; inset: 0; margin: auto;
+  width: 2.75rem; height: 2.75rem; border-radius: 50%;
+  background: color-mix(in oklch, #000 55%, transparent);
+  border: 2px solid #fff;
+  display: grid; place-items: center;
+}
+.materialPlay::after {
+  content: ''; display: block;
+  border-style: solid; border-width: 0.45rem 0 0.45rem 0.75rem;
+  border-color: transparent transparent transparent #fff;
+  margin-left: 0.2rem;
+}
+
+.materialTexto { display: grid; gap: 0.2rem; padding: 0.7rem 0.85rem 0.85rem; }
+.materialTitulo {
+  font-size: 0.9rem; font-weight: 600; line-height: 1.35; color: var(--tx);
+  /* Dos líneas y corta: los títulos largos descuadraban la rejilla entera. */
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.materialMeta { font-size: 0.74rem; color: var(--tx-3); }
+
+/* Las acciones no viven dentro del enlace —anidar un botón en un <a> es HTML
+   inválido y en la práctica se traga el clic— sino sobre la tarjeta. */
+.materialAcciones {
+  display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;
+  padding: 0 0.85rem 0.75rem;
+}
+
+.materialEditando {
+  display: grid; gap: 0.6rem; padding: 0.85rem;
+  border-radius: var(--r-2);
+  background: var(--superficie-2);
+  border: 1px solid var(--borde-fuerte);
+}
+.materialAccionesEdicion { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* El selector archivo / enlace del formulario de añadir. */
+.materialCaminos {
+  display: inline-flex; gap: 0.25rem; padding: 0.2rem;
+  border-radius: 999px; background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  width: fit-content;
+}
+.materialCamino {
+  border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  color: var(--tx-3);
+  padding: 0.35rem 0.85rem; border-radius: 999px;
+}
+.materialCamino[data-activo='true'] {
+  background: var(--superficie); color: var(--tx);
+  box-shadow: 0 1px 2px color-mix(in oklch, #000 8%, transparent);
+}
+.materialCamino:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }

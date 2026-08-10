@@ -222,7 +222,13 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
   const archivos: Array<CaraArchivo & { reunionId: string }> = archivosRows.map((a) => ({
     id: a.id,
     titulo: a.titulo,
-    nombreOriginal: a.nombreOriginal,
+    // `?? ''`: `nombre_original` pasó a nullable cuando un material de sala
+    // pudo ser un ENLACE en vez de un fichero (ronda 12). Aquí no puede
+    // serlo: esta consulta filtra `categoria = 'presentacion'` y una
+    // presentación de una reunión solo nace de una subida, que siempre trae
+    // su nombre. El fallback existe para no propagar el nulo a la cara de la
+    // reunión, donde el nombre se usa para pintar la extensión.
+    nombreOriginal: a.nombreOriginal ?? '',
     // Servido por la ruta que ya comprueba permiso contra la reunión dueña
     // del archivo — ver `src/app/api/archivo/[id]/route.ts`.
     url: `/api/archivo/${a.id}`,

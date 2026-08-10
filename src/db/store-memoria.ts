@@ -138,8 +138,9 @@ export interface FilaArchivoMemoria {
   categoria: 'presentacion' | 'interes' | 'imagen' | 'video'
   titulo: string
   fecha: Date | null
-  ruta: string
-  nombreOriginal: string
+  ruta: string | null
+  nombreOriginal: string | null
+  enlace: string | null
   tipoContenido: string | null
   tamanoBytes: number | null
   subidoPor: string | null

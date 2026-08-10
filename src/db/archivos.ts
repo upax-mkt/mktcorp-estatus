@@ -36,8 +36,11 @@ export interface ArchivoSala {
   titulo: string
   /** ISO, o null cuando no tiene fecha propia (habitual en los de interés). */
   fecha: string | null
-  ruta: string
-  nombreOriginal: string
+  /** Nula si el material es un ENLACE: no hay binario en Blob. */
+  ruta: string | null
+  nombreOriginal: string | null
+  /** La URL, si el material es un enlace (vídeo de YouTube, link de interés). */
+  enlace: string | null
   tipoContenido: string | null
   tamanoBytes: number | null
   subidoPor: string | null
@@ -55,8 +58,11 @@ function desdeFila(fila: {
   categoria: CategoriaArchivo
   titulo: string
   fecha: Date | null
-  ruta: string
-  nombreOriginal: string
+  /** Nula si el material es un ENLACE: no hay binario en Blob. */
+  ruta: string | null
+  nombreOriginal: string | null
+  /** La URL, si el material es un enlace (vídeo de YouTube, link de interés). */
+  enlace: string | null
   tipoContenido: string | null
   tamanoBytes: number | null
   subidoPor: string | null
@@ -71,6 +77,7 @@ function desdeFila(fila: {
     fecha: fila.fecha ? isoFecha(fila.fecha) : null,
     ruta: fila.ruta,
     nombreOriginal: fila.nombreOriginal,
+    enlace: fila.enlace,
     tipoContenido: fila.tipoContenido,
     tamanoBytes: fila.tamanoBytes,
     subidoPor: fila.subidoPor,
@@ -126,8 +133,10 @@ export async function registrarArchivo(datos: {
   categoria: CategoriaArchivo
   titulo: string
   fecha: Date | null
-  ruta: string
-  nombreOriginal: string
+  /** Un material es O un fichero subido (`ruta`) O un `enlace`. Nunca los dos. */
+  ruta?: string | null
+  nombreOriginal?: string | null
+  enlace?: string | null
   tipoContenido?: string | null
   tamanoBytes?: number | null
   subidoPor?: string | null
@@ -140,6 +149,18 @@ export async function registrarArchivo(datos: {
   if (!datos.salaSlug && !datos.reunionId) {
     throw new Error('El archivo debe pertenecer a una sala o a una reunión.')
   }
+  // O fichero o enlace. Sin ninguno de los dos la fila no lleva a ningún
+  // sitio: sería una tarjeta que no se puede abrir. Con los dos, habría dos
+  // destinos y `materialParaVista` tendría que elegir por su cuenta.
+  const tieneFichero = Boolean(datos.ruta)
+  const tieneEnlace = Boolean(datos.enlace)
+  if (tieneFichero === tieneEnlace) {
+    throw new Error('Un material es un archivo subido o un enlace, no las dos cosas ni ninguna.')
+  }
+  if (tieneFichero && !datos.nombreOriginal) {
+    throw new Error('Un archivo subido necesita su nombre original.')
+  }
+
   const titulo = datos.titulo.trim()
   // Sin título la lista sería una columna de nombres de fichero
   // ("Copia de deck v3 FINAL (2).pptx"), que es justo lo que el título viene
@@ -157,8 +178,9 @@ export async function registrarArchivo(datos: {
       categoria: datos.categoria,
       titulo,
       fecha: datos.fecha,
-      ruta: datos.ruta,
-      nombreOriginal: datos.nombreOriginal,
+      ruta: datos.ruta ?? null,
+      nombreOriginal: datos.nombreOriginal ?? null,
+      enlace: datos.enlace ?? null,
       tipoContenido: datos.tipoContenido ?? null,
       tamanoBytes: datos.tamanoBytes ?? null,
       subidoPor: datos.subidoPor ?? null,
@@ -171,8 +193,9 @@ export async function registrarArchivo(datos: {
       categoria: datos.categoria,
       titulo,
       fecha: datos.fecha,
-      ruta: datos.ruta,
-      nombreOriginal: datos.nombreOriginal,
+      ruta: datos.ruta ?? null,
+      nombreOriginal: datos.nombreOriginal ?? null,
+      enlace: datos.enlace ?? null,
       tipoContenido: datos.tipoContenido ?? null,
       tamanoBytes: datos.tamanoBytes ?? null,
       subidoPor: datos.subidoPor ?? null,
@@ -215,7 +238,7 @@ export async function editarArchivo(
  * borrar la fila sin borrar el binario dejaría basura pagada y accesible
  * para quien conserve una URL firmada.
  */
-export async function eliminarArchivo(id: string): Promise<{ ruta: string } | null> {
+export async function eliminarArchivo(id: string): Promise<{ ruta: string | null } | null> {
   const archivo = await obtenerArchivo(id)
   if (!archivo) return null
 

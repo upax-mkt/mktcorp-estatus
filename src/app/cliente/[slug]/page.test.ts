@@ -401,20 +401,23 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     expect(screen.queryByText(/antes de esta herramienta/i)).toBeNull()
   })
 
-  it('archivos de interés sigue en su sitio: eso sí es otra cosa', async () => {
+  it('el módulo de material de la sala sigue en su sitio, ahora como Materiales Comerciales', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
 
     render(await invocar())
 
-    expect(screen.getByText(/archivos de interés/i)).toBeInTheDocument()
+    // Franco: "el modulo Archivos de Interés lo cambiaremos por Materiales
+    // Comerciales" — porque dejó de contener solo archivos.
+    expect(screen.getByText(/materiales comerciales/i)).toBeInTheDocument()
+    expect(screen.queryByText(/archivos de interés/i)).toBeNull()
   })
 
   /**
    * `registrarArchivoAction` ACEPTA Y PASA `reunionId` (para la Tarea 9,
    * `CarasDeReunion`) — pero el único llamador que existe HOY sigue siendo
-   * `ArchivosSala` para "archivos de interés", que nunca manda uno: un
-   * archivo de interés es de la SALA, no de ninguna reunión en particular.
+   * `AnadirMaterial` para los Materiales Comerciales, que nunca manda uno:
+   * un material es de la SALA, no de ninguna reunión en particular.
    * Este test ejercita esa acción de punta a punta —clic, título, elegir
    * archivo— para comprobar que sin `reunionId` en la llamada, `registrarArchivo`
    * (el colaborador real, `src/db/archivos.ts`) igual lo recibe explícito en
@@ -427,7 +430,7 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
 
     render(await invocar())
 
-    await usuario.click(screen.getByRole('button', { name: 'Subir un archivo' }))
+    await usuario.click(screen.getByRole('button', { name: '+ Añadir material' }))
     await usuario.type(screen.getByLabelText('Título'), 'Catálogo 2026')
 
     const entradaArchivo = document.querySelector('input[type="file"]')
@@ -439,6 +442,64 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     expect(registrarArchivoMock).toHaveBeenCalledWith(
       expect.objectContaining({ salaSlug: 'neracode', categoria: 'interes', reunionId: null }),
     )
+  })
+
+  /**
+   * UN MATERIAL PUEDE SER UN ENLACE, no solo un fichero subido.
+   *
+   * Franco: "aquí no solo la UDN tienen PPT, o PDF, también puede ser un
+   * video de YouTube o link de interés". El camino del enlace no pasa por
+   * Blob —no hay binario— así que llega a `registrarArchivo` con `enlace` y
+   * SIN `ruta`: es justo la combinación que la comprobación de esa función
+   * exige, y la que este test fija.
+   */
+  it('un enlace se guarda como material, con enlace y sin ruta', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    const usuario = userEvent.setup()
+
+    render(await invocar())
+
+    await usuario.click(screen.getByRole('button', { name: '+ Añadir material' }))
+    await usuario.click(screen.getByRole('button', { name: 'Un enlace o vídeo' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Caso Grupo Modelo')
+    await usuario.type(screen.getByLabelText('Enlace'), 'https://youtu.be/dQw4w9WgXcQ')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar el enlace' }))
+
+    await waitFor(() => expect(registrarArchivoMock).toHaveBeenCalled())
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        salaSlug: 'neracode',
+        categoria: 'interes',
+        titulo: 'Caso Grupo Modelo',
+        enlace: 'https://youtu.be/dQw4w9WgXcQ',
+      }),
+    )
+    // Sin `ruta`: no hay fichero. Es lo que distingue los dos caminos.
+    expect(registrarArchivoMock.mock.calls[0][0].ruta).toBeUndefined()
+  })
+
+  /**
+   * LA COMPROBACIÓN DEL ENLACE VUELVE A CORRER EN EL SERVIDOR.
+   *
+   * El cliente ya normaliza, pero eso es comodidad: un `javascript:` que
+   * llegara a la base acabaría en un href que ve el director de la UDN. La
+   * Server Action rechaza antes de tocar `registrarArchivo`.
+   */
+  it('un esquema que no es http(s) no llega nunca a la base', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    const usuario = userEvent.setup()
+
+    render(await invocar())
+
+    await usuario.click(screen.getByRole('button', { name: '+ Añadir material' }))
+    await usuario.click(screen.getByRole('button', { name: 'Un enlace o vídeo' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Malicioso')
+    await usuario.type(screen.getByLabelText('Enlace'), 'javascript:alert(1)')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar el enlace' }))
+
+    expect(registrarArchivoMock).not.toHaveBeenCalled()
   })
 })
 

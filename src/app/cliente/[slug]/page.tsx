@@ -33,7 +33,9 @@ import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { ReunionesSala } from '@/componentes/ReunionesSala'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { LevantarMinuta } from '@/componentes/LevantarMinuta'
-import { ArchivosSala } from '@/componentes/ArchivosSala'
+import { normalizarEnlace } from '@/lib/materiales'
+import { MaterialesSala } from '@/componentes/MaterialesSala'
+import { AnadirMaterial } from '@/componentes/AnadirMaterial'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
@@ -448,6 +450,69 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
 
   /**
+   * REGISTRAR UN ARCHIVO como material comercial.
+   *
+   * Envoltura de `registrarArchivoAction` con `categoria` y `fecha` ya
+   * fijadas. Existe como Server Action propia y NO como una flecha inline en
+   * el JSX (`(d) => registrarArchivoAction({...d, categoria: 'interes'})`):
+   * eso es un closure creado en el componente de servidor, y React lo rechaza
+   * al serializarlo hacia un componente cliente —"Functions cannot be passed
+   * directly to Client Components"—, con un 500 en la sala entera. No lo
+   * cazó ningún test: el test invoca la página directamente y no cruza esa
+   * frontera. Lo cazó el print.
+   */
+  async function registrarMaterialArchivoAction(datos: {
+    titulo: string
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ error?: string }> {
+    'use server'
+    return registrarArchivoAction({ ...datos, categoria: 'interes', fecha: null })
+  }
+
+  /**
+   * REGISTRAR UN ENLACE como material comercial (vídeo de YouTube, nota de
+   * prensa, caso publicado).
+   *
+   * Server Action aparte de `registrarArchivoAction` y no un parámetro más:
+   * el camino del archivo tiene que limpiar el binario de Blob si la fila
+   * falla, y el del enlace no tiene binario que limpiar. Meterlos en la
+   * misma función obligaría a ramificar esa limpieza dentro del `catch`,
+   * que es justo donde no conviene tener condiciones.
+   *
+   * `categoria: 'interes'` fija: los enlaces solo existen como material de
+   * sala. Una presentación de una reunión o una imagen de un documento
+   * siempre son un fichero.
+   */
+  async function registrarEnlaceAction(datos: {
+    titulo: string
+    enlace: string
+  }): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+    // Se vuelve a normalizar EN EL SERVIDOR aunque el cliente ya lo hizo: lo
+    // del navegador es comodidad, esto es la comprobación. Sin ella, un
+    // `javascript:` llega a la base y de ahí a un href que ve la UDN.
+    const normalizado = normalizarEnlace(datos.enlace)
+    if ('error' in normalizado) return { error: normalizado.error }
+    try {
+      await registrarArchivo({
+        salaSlug: slug,
+        categoria: 'interes',
+        titulo: datos.titulo,
+        fecha: null,
+        enlace: normalizado.url,
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo guardar el enlace.' }
+    }
+    revalidatePath(`/cliente/${slug}`)
+    return {}
+  }
+
+  /**
    * `cambios.fecha` es OPCIONAL desde la Tarea 3 de la ronda 11 (antes era
    * obligatorio): `ArchivosSala` (archivos de interés) sigue mandándola
    * siempre —incluso `null`, cuando no aplica—, pero `CarasDeReunion`
@@ -476,7 +541,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     // Primero la fila, luego el binario: al revés, un fallo al borrar el
     // archivo dejaría una fila que apunta a la nada.
     const quitado = await eliminarArchivo(id)
-    if (quitado) await del(quitado.ruta).catch(() => {})
+    // `quitado.ruta` es nula si el material era un ENLACE: no hay binario que
+    // borrar, y llamar a `del(null)` sería un error donde no hay nada que
+    // limpiar.
+    if (quitado?.ruta) await del(quitado.ruta).catch(() => {})
     revalidatePath(`/cliente/${slug}`)
   }
 
@@ -906,26 +974,32 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} salaSlug={slug} />
         </section>
 
-        {/* Archivos de interés — al final, como los pidió Franco: lo que el
-            equipo estime conveniente tener a mano en la sala. */}
+        {/* MATERIALES COMERCIALES — al final, como los pidió Franco: lo que el
+            equipo estime conveniente tener a mano en la sala. Se llamaba
+            "Archivos de interés" hasta que dejó de contener solo archivos:
+            ahora también un vídeo de YouTube o un enlace. */}
         {(archivosDeInteres.length > 0 || equipo) && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
               <IconoSeccion nombre="archivos" />
-              Archivos de interés
+              Materiales Comerciales
               {archivosDeInteres.length > 0 && (
                 <span className={estilos.conteo}>{archivosDeInteres.length}</span>
               )}
             </h2>
-            <ArchivosSala
-              salaSlug={slug}
-              categoria="interes"
-              archivos={archivosDeInteres}
+            <MaterialesSala
+              materiales={archivosDeInteres}
               equipo={equipo}
-              registrarAction={registrarArchivoAction}
               editarAction={editarArchivoAction}
               eliminarAction={eliminarArchivoAction}
             />
+            {equipo && (
+              <AnadirMaterial
+                salaSlug={slug}
+                registrarArchivoAction={registrarMaterialArchivoAction}
+                registrarEnlaceAction={registrarEnlaceAction}
+              />
+            )}
           </section>
         )}
 

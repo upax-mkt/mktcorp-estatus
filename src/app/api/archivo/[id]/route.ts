@@ -63,6 +63,13 @@ export async function GET(
     return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   }
 
+  // UN ENLACE NO SE SIRVE POR AQUÍ. Un material que es una URL (vídeo de
+  // YouTube, link de interés) no tiene binario en Blob: la vista enlaza
+  // directo a su destino y esta ruta no debería recibirlo nunca. Si llega,
+  // 404 —el mismo que el resto de esta ruta— y no un 500 por pedirle a Blob
+  // una ruta nula.
+  if (!archivo.ruta) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
   const resultado = await get(archivo.ruta, { access: 'private' })
   if (!resultado || resultado.statusCode !== 200 || !resultado.stream) {
     return NextResponse.json({ error: 'El archivo ya no está en el almacén' }, { status: 404 })
@@ -80,7 +87,7 @@ export async function GET(
     // `inline` para que un PDF o una imagen se abran en el navegador en vez
     // de bajarse a Descargas; el nombre es el ORIGINAL, no la ruta interna
     // con su uuid delante.
-    'Content-Disposition': `inline; filename="${encodeURIComponent(archivo.nombreOriginal)}"`,
+    'Content-Disposition': `inline; filename="${encodeURIComponent(archivo.nombreOriginal ?? 'archivo')}"`,
     // Privado y por sesión: que no quede en una caché compartida.
     'Cache-Control': 'private, max-age=300',
     // SIEMPRE, incluso sirviendo el archivo entero: es lo que le dice al

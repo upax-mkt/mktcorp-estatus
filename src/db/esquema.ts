@@ -350,9 +350,18 @@ export const archivos = pgTable('archivos', {
    * archivos de interés, donde muchas veces no significa nada.
    */
   fecha: timestamp('fecha', { withTimezone: true }),
-  /** Ruta dentro del store de Blob. Es la llave para servirlo y para borrarlo. */
-  ruta: text('ruta').notNull(),
-  nombreOriginal: text('nombre_original').notNull(),
+  /**
+   * Ruta dentro del store de Blob. Es la llave para servirlo y para borrarlo.
+   *
+   * NULA en un material que es un ENLACE (ronda 12): un vídeo de YouTube o un
+   * link de interés no tiene binario que guardar. La regla —o `ruta` o
+   * `enlace`, nunca ninguna— la impone `registrarArchivo`, no un CHECK: ver
+   * `drizzle/0031_materiales_con_enlace.sql`.
+   */
+  ruta: text('ruta'),
+  nombreOriginal: text('nombre_original'),
+  /** La URL, cuando el material es un enlace en vez de un fichero subido. */
+  enlace: text('enlace'),
   tipoContenido: text('tipo_contenido'),
   tamanoBytes: integer('tamano_bytes'),
   /** Quién lo subió, para poder preguntarle. Informativo. */

@@ -11,7 +11,7 @@ import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
 import { CarasDeReunion } from './reuniones/CarasDeReunion'
 import { AcuerdosDeReunion } from './reuniones/AcuerdosDeReunion'
-import { subirArchivoDirecto } from './ArchivosSala'
+import { subirArchivoDirecto } from '@/lib/subir'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
