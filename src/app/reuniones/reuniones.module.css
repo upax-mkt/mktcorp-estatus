@@ -46,25 +46,15 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---- barra ---- (idéntica a agenda.module.css/hub.module.css: mismo
-   material translúcido flotando sobre el lienzo, en vez de un bloque). */
-.barra {
-  position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
-  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
-  color: var(--tinta);
-}
-.volver { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
-.volver:hover { color: var(--tinta-2); }
-.barraTitulo { font-weight: 650; font-size: 0.95rem; }
-.barraDcha { margin-left: auto; display: flex; align-items: center; gap: 1.2rem; }
-.barraLink { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
-.barraLink:hover { color: var(--tinta-2); }
-.barraFecha { font-size: 0.82rem; color: var(--tinta-4); }
+/* ---- barra ----
+   RETIRADA (deuda menor, cierre de ronda): `.barra`/`.volver`/`.barraTitulo`/
+   `.barraDcha`/`.barraLink`/`.barraFecha` pintaban la cabecera local de esta
+   pantalla. La ronda 11 (enganche de la tarea 2) la sustituyó ENTERA por
+   `<BarraNavegacion>` — ver el comentario en `page.tsx`, junto a donde se
+   monta — y desde entonces ningún JSX de este módulo referenciaba estas seis
+   clases. Confirmado con grep contra los dos únicos importadores de esta
+   hoja (`page.tsx` y `PanelAgenda.tsx`, que la usa como `estilosCiclo`)
+   antes de borrar. */
 
 .main { max-width: 84rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
 

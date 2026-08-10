@@ -27,19 +27,13 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.barra {
-  position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; gap: 1rem;
-  padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
-  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
-  color: var(--tinta);
-}
-.volver { color: var(--tinta-2); text-decoration: none; font-size: 0.88rem; }
-.volver:hover { color: var(--tinta); }
-.barraTitulo { font-weight: 650; font-size: 0.95rem; }
+/* `.barra`/`.volver`/`.barraTitulo` SE RETIRARON (deuda menor, cierre de
+   ronda): pintaban la cabecera local ("← volver" + título) de esta pantalla.
+   La ronda 11 (enganche de la tarea 2) la sustituyó por
+   `<BarraNavegacion seccionActiva="personas" .../>` — ver `page.tsx`. `.app`/
+   `.main`/`.encabezado`/`.titulo`/`.subtitulo`, en cambio, SIGUEN VIVAS:
+   esta pantalla sigue pintando su propio cascarón y el título "Personas" —
+   confirmado con grep contra los tres importadores reales antes de borrar. */
 
 .main { max-width: 52rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
 .encabezado { margin-bottom: 1.75rem; }
