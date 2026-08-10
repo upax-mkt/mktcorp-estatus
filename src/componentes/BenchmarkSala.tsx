@@ -53,7 +53,15 @@ export function BenchmarkSala({
           </span>
         </div>
 
-        <p className={estilos.benchmarkLecturaTexto}>{benchmark.lectura}</p>
+        {/* La TESIS manda sobre la lectura cuando existe. La lectura completa
+            es un párrafo de análisis —en el primer benchmark real son doce
+            líneas— y esta tarjeta se mira de paso dentro de la sala: un muro
+            de texto aquí no se lee y además empuja hacia abajo los acuerdos y
+            las reuniones, que es a lo que se entra. La lectura entera vive en
+            la página del benchmark, a un clic. */}
+        <p className={estilos.benchmarkLecturaTexto}>
+          {benchmark.tesis?.titular ?? benchmark.lectura}
+        </p>
 
         {resumen.brechas.length > 0 && (
           <p className={estilos.benchmarkBrechas}>

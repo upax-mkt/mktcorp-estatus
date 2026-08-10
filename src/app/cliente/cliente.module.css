@@ -443,7 +443,15 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .benchmarkMatriz thead th {
   text-align: left; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase;
   font-weight: 700; color: var(--tx-2); background: var(--superficie-2);
-  padding: 0.7rem 0.85rem; white-space: nowrap; border-bottom: 1px solid var(--borde-fuerte);
+  padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--borde-fuerte);
+  /* EL NOMBRE DEL COMPETIDOR SE PARTE EN DOS LÍNEAS. Con `nowrap`, "Global
+     Vía Pública" se llevaba 155 px él solo y la tabla se salía 30 px de su
+     contenedor: la última columna aparecía cortada por la mitad. El
+     contenedor tiene scroll horizontal a propósito (nombres largos + siete
+     columnas), pero desbordar por treinta píxeles no se lee como "hay más a
+     la derecha", se lee como roto. Partido, entra entero a 1440 y el scroll
+     queda para las pantallas donde de verdad hace falta. */
+  vertical-align: bottom; text-wrap: balance;
 }
 .benchmarkMatriz td {
   padding: 0.65rem 0.85rem; border-top: 1px solid var(--borde); vertical-align: middle;
@@ -736,4 +744,135 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .enPreparacionSeguir {
   font-size: 0.83rem; font-weight: 600; white-space: nowrap;
   color: var(--marca-texto, var(--marca));
+}
+
+/* ══ BENCHMARK COMPLETO — piezas nuevas (junio 2026, al cargar el primero
+   real: Promo Espacio). Todo lo que sigue vive SOLO en
+   /cliente/[slug]/benchmark; el resumen de la sala no cambió. ════════════ */
+
+/* LA TESIS. Es lo primero de la página y lo único que se lee entero seguro,
+   así que se le da el peso de un titular, no el de un párrafo. */
+.bmTesis {
+  display: grid; gap: 1.25rem;
+  padding: 1.5rem; border-radius: var(--r-3);
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+}
+.bmTesisTitular {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.6vw, 1.9rem); font-weight: 700;
+  line-height: 1.2; letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--tx);
+}
+
+/* Las dos caras, enfrentadas. La comparación ES el argumento: en una sola
+   columna se lee como dos párrafos y se pierde la oposición. */
+.bmTesisCaras { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+@media (max-width: 720px) { .bmTesisCaras { grid-template-columns: 1fr; } }
+
+.bmTesisCara {
+  display: grid; gap: 0.45rem; align-content: start;
+  padding: 1rem; border-radius: var(--r-2);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+}
+.bmTesisCara p { margin: 0; font-size: 0.9rem; line-height: 1.55; color: var(--tx-2); }
+/* El lado de la UDN lleva su color de marca; el de la competencia, no. La
+   diferencia de peso es intencional: no son dos opciones equivalentes. */
+.bmTesisCara[data-lado='nosotros'] {
+  border-color: color-mix(in oklch, var(--marca) 45%, var(--borde));
+  background: color-mix(in oklch, var(--marca) 6%, var(--superficie));
+}
+.bmTesisCara[data-lado='nosotros'] p { color: var(--tx); }
+.bmTesisEtiqueta {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  color: var(--tx-3);
+}
+.bmTesisCara[data-lado='nosotros'] .bmTesisEtiqueta { color: var(--marca-texto, var(--marca)); }
+.bmTesisSustento {
+  margin: 0; font-size: 0.88rem; line-height: 1.6; color: var(--tx-2); max-width: 78ch;
+}
+
+/* QUIÉN APRIETA. Tarjetas, no filas: cada competidor lleva tres datos que se
+   leen juntos, y en una lista plana el "dónde se le gana" —que es lo único
+   accionable— quedaba al mismo peso que el nombre. */
+.bmCompetidores {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+}
+.bmCompetidor {
+  display: grid; gap: 0.6rem; align-content: start;
+  padding: 1rem 1.15rem; border-radius: var(--r-2);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  /* El filete de la izquierda codifica la amenaza. El color nunca es la
+     única señal: la píldora la dice con palabras. */
+  border-left: 3px solid var(--borde-fuerte);
+}
+.bmCompetidor[data-amenaza='alta'] { border-left-color: var(--tibia); }
+.bmCompetidor[data-amenaza='media'] { border-left-color: color-mix(in oklch, var(--tibia) 45%, var(--borde-fuerte)); }
+
+.bmCompetidorCabeza {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.bmCompetidorNombre { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
+.bmAmenaza {
+  font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  padding: 0.18rem 0.5rem; border-radius: 999px; white-space: nowrap;
+  background: var(--superficie-2); color: var(--tx-3);
+}
+.bmAmenaza[data-amenaza='alta'] {
+  background: color-mix(in oklch, var(--tibia) 18%, transparent); color: var(--tibia);
+}
+
+.bmCompetidorLinea {
+  margin: 0; display: grid; gap: 0.15rem;
+  font-size: 0.86rem; line-height: 1.5; color: var(--tx-2);
+}
+.bmCompetidorLinea[data-tono='gana'] { color: var(--tx); }
+.bmCompetidorEtiqueta {
+  font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  color: var(--tx-3);
+}
+.bmCompetidorLinea[data-tono='gana'] .bmCompetidorEtiqueta { color: var(--marca-texto, var(--marca)); }
+
+/* La nota que justifica el nivel, dentro de su fila de la matriz. */
+.bmNotaFila {
+  display: block; margin-top: 0.35rem;
+  font-size: 0.78rem; font-weight: 400; line-height: 1.5;
+  color: var(--tx-3); text-wrap: pretty;
+  white-space: normal;
+}
+
+/* QUÉ HACER. El número ordena y por eso cuelga a la izquierda a plena
+   intensidad — mismo criterio que los bloques numerados del documento. */
+.bmRecomendaciones {
+  list-style: none; margin: 0; padding: 0;
+  counter-reset: bmrec;
+  display: grid; gap: 0.15rem;
+}
+.bmRecomendacion {
+  counter-increment: bmrec;
+  display: grid; gap: 0.2rem;
+  grid-template-columns: 2.25rem 1fr;
+  padding: 0.9rem 0 0.9rem 0;
+  border-top: 1px solid var(--borde);
+}
+.bmRecomendacion::before {
+  content: counter(bmrec, decimal-leading-zero);
+  grid-row: 1 / span 2;
+  font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--marca-texto, var(--marca));
+  line-height: 1.5;
+}
+.bmRecomendacionQue { font-size: 0.98rem; font-weight: 600; line-height: 1.4; }
+.bmRecomendacionPorque {
+  grid-column: 2; font-size: 0.85rem; line-height: 1.55; color: var(--tx-2); max-width: 76ch;
+}
+
+.bmFuente {
+  margin: 0.5rem 0 0; font-size: 0.75rem; color: var(--tx-3);
 }
