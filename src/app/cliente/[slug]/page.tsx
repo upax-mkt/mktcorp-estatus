@@ -283,8 +283,19 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * La sala ya sabe de quién es: no se vuelve a preguntar. Redirige al editor
    * porque crear una reunión sin abrirla es dejar a alguien mirando la misma
    * pantalla preguntándose si pasó algo.
+   *
+   * `datos.titulo` SE REENVÍA TAL CUAL (deuda menor, cierre de ronda — el
+   * tercero de tres formularios que mandaban el título vacío). `AgendarRapido`
+   * (Home, `agendarRapidoAction`) y `deck/nueva` ya reenviaban su
+   * `datos.titulo`; este atajo mandaba `titulo: ''` FIJO, sin mirar nada —
+   * porque `NuevaSesionSala` ni siquiera pedía el campo. Vacío o lleno,
+   * `datos.titulo` viaja sin tocar: `crearReunionConDocumento` decide qué
+   * hacer con cada caso (cae a `tituloPorDefecto` si llega vacío o solo
+   * espacios — ver su comentario, `src/db/documentos.ts`).
    */
-  async function crearSesionAction(datos: { plantilla: string; dia: string }): Promise<{ error?: string }> {
+  async function crearSesionAction(
+    datos: { plantilla: string; dia: string; titulo: string },
+  ): Promise<{ error?: string }> {
     'use server'
     // EDITOR, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
     // editar un acuerdo. El director de la UDN mueve sus compromisos; no
@@ -304,7 +315,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         // reunión "del 19" se guarda como las 18:00 del 18 en México. Ver
         // `instanteEnCDMX`, src/lib/fecha.ts.
         fecha: instanteEnCDMX(datos.dia, '10:00'),
-        titulo: '',
+        titulo: datos.titulo,
         // Nace agendada — toda reunión nace así (`DatosDeReunion` no tiene
         // parámetro de estado, a diferencia de la vieja `DatosDeSesion`).
       })

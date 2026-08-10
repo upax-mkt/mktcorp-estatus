@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
+import { PLANTILLAS } from '@/secciones/plantillas'
 
 /**
  * EL AGUJERO MÁS GRAVE DE LA RONDA 9, Y EL ÚNICO SIN UN TEST QUE SE CAYERA SI
@@ -211,8 +212,13 @@ vi.mock('@/db/reuniones', () => ({
   obtenerReunion: (...args: unknown[]) => obtenerReunionMock(...args),
 }))
 
+// `crearReunionConDocumento` con nombre (no un `vi.fn()` anónimo): el describe
+// de "crearSesionAction reenvía el título" (más abajo) necesita comprobar CON
+// QUÉ se llamó de verdad — el bug original era exactamente que la acción lo
+// mandaba `''` fijo, ignorando lo que el cliente hubiera mandado.
+const crearReunionConDocumentoMock = vi.fn()
 vi.mock('@/db/documentos', () => ({
-  crearReunionConDocumento: vi.fn(),
+  crearReunionConDocumento: (...args: unknown[]) => crearReunionConDocumentoMock(...args),
   documentoDeReunion: vi.fn().mockResolvedValue(null),
 }))
 
@@ -241,6 +247,24 @@ vi.mock('@/componentes/ReunionesSala', async (importarOriginal) => {
     ReunionesSala: (props: Parameters<typeof real.ReunionesSala>[0]) => {
       reunionesSalaPropsMock(props)
       return createElement(real.ReunionesSala, props)
+    },
+  }
+})
+
+// `NuevaSesionSala`, mismo criterio que `ReunionesSala` arriba: doble que
+// ENVUELVE al componente real (`importarOriginal`) solo para espiar con qué
+// `crearAction` (= `crearSesionAction`, la Server Action de esta página) lo
+// monta la pantalla — el describe de "crearSesionAction reenvía el título"
+// (más abajo) llama esa acción capturada directo, con un `titulo` fabricado,
+// para comprobar que ya no se manda `''` fijo (el bug que cerró esta tarea).
+const nuevaSesionSalaPropsMock = vi.fn()
+vi.mock('@/componentes/NuevaSesionSala', async (importarOriginal) => {
+  const real = await importarOriginal<typeof import('@/componentes/NuevaSesionSala')>()
+  return {
+    ...real,
+    NuevaSesionSala: (props: Parameters<typeof real.NuevaSesionSala>[0]) => {
+      nuevaSesionSalaPropsMock(props)
+      return createElement(real.NuevaSesionSala, props)
     },
   }
 })
@@ -883,5 +907,67 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
     await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
 
     expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
+  })
+})
+
+/**
+ * CREARSESIONACTION REENVÍA EL TÍTULO, NO LO MANDA FIJO EN BLANCO (deuda
+ * menor, cierre de ronda) — el tercero de tres formularios que mandaban el
+ * título vacío. `AgendarRapido` (Home) y `deck/nueva` ya reenviaban
+ * `datos.titulo` a `crearReunionConDocumento`; este atajo ("Preparar una
+ * presentación nueva", dentro de la propia sala) seguía mandando `titulo: ''`
+ * FIJO, sin mirar lo que el cliente hubiera mandado — el bug original exacto
+ * era ese: el campo podía existir en el formulario y la acción lo ignoraba de
+ * todos modos.
+ *
+ * `crearReunionConDocumentoMock` se hace RECHAZAR a propósito en los dos
+ * tests: `crearSesionAction` llama a `crearReunionConDocumento` ANTES del
+ * `redirect()` final, así que el rechazo dispara el `catch` de la acción (que
+ * devuelve `{ error }`) y la ejecución nunca llega a `redirect()` — evita
+ * depender de la implementación real de `next/navigation` (deliberadamente
+ * NO mockeada en este archivo — ver el comentario junto a `vi.mock('next/
+ * navigation', ...)`, arriba, "ningún escenario de este archivo llega a
+ * dispararlos") solo para un test que no necesita llegar tan lejos: lo único
+ * que importa aquí es CON QUÉ se llamó a `crearReunionConDocumento`. El
+ * `resultado.error` que se comprueba al final es la prueba de que, en
+ * efecto, ninguno de los dos tests rozó el `redirect()` real.
+ */
+describe('VistaSala (/cliente/[slug]) — crearSesionAction reenvía el título, no lo manda fijo en blanco (deuda menor)', () => {
+  async function crearActionCapturada() {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    render(await invocar())
+    const props = nuevaSesionSalaPropsMock.mock.calls[0][0] as {
+      crearAction: (datos: { plantilla: string; dia: string; titulo: string }) => Promise<{ error?: string }>
+    }
+    return props.crearAction
+  }
+
+  const CORTE_DE_PRUEBA = 'corte de prueba: no interesa llegar al redirect'
+
+  it('un título escrito viaja tal cual a crearReunionConDocumento — antes se mandaba \'\' fijo, ignorando el campo', async () => {
+    crearReunionConDocumentoMock.mockRejectedValueOnce(new Error(CORTE_DE_PRUEBA))
+    const crearAction = await crearActionCapturada()
+
+    const resultado = await crearAction({
+      plantilla: PLANTILLAS[0].id, dia: '2026-08-19', titulo: 'Research Land — Comercial',
+    })
+
+    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Research Land — Comercial' }),
+    )
+    expect(resultado.error).toBe(CORTE_DE_PRUEBA)
+  })
+
+  it('con el campo vacío, se reenvía tal cual (crearReunionConDocumento decide el default) — no se ignora ni se sustituye', async () => {
+    crearReunionConDocumentoMock.mockRejectedValueOnce(new Error(CORTE_DE_PRUEBA))
+    const crearAction = await crearActionCapturada()
+
+    const resultado = await crearAction({ plantilla: PLANTILLAS[0].id, dia: '2026-08-19', titulo: '' })
+
+    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: '' }),
+    )
+    expect(resultado.error).toBe(CORTE_DE_PRUEBA)
   })
 })
