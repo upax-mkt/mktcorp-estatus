@@ -19,7 +19,7 @@
  * Hay código duplicado entre los dos a propósito — la Tarea 5B borra
  * `sesiones.ts` y migra esos 20 imports; hasta entonces, los dos conviven.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -685,14 +685,56 @@ export async function anadirSeccion(
 
   if (hayDB()) {
     const conexion = db()
-    const [filaDocumento] = await conexion
-      .select({ estructura: esquema.documentos.estructura })
-      .from(esquema.documentos)
-      .where(eq(esquema.documentos.id, documentoId))
-    const estructura = leerEstructura(filaDocumento?.estructura)
+    // ATÓMICO (deuda de concurrencia, ronda 11): la versión vieja hacía un
+    // SELECT de `estructura`, la modificaba en JS (`[...estructura.items,
+    // definicion]`) y la reescribía ENTERA con un UPDATE aparte — un
+    // leer-modificar-escribir con un hueco real en medio. Dos personas
+    // añadiendo secciones a la vez (o el mismo reintento) leían la MISMA
+    // `estructura`, cada una le sumaba SU definición en memoria, y la
+    // segunda escritura pisaba a la primera. El item de la sección perdida
+    // sobrevivía en `items` (el INSERT de abajo es su propia fila, ajeno a
+    // esto) pero sin definición en `estructura`, así que
+    // `documentoCompletoDeFilas` caía al `def` de respaldo y la pintaba con
+    // su tipo crudo (`seccion-<uuid>`). Choca con lo que el producto
+    // promete: el borrador es colaborativo (ver el comentario de
+    // `avanceDeItems` en src/db/consultas.ts).
+    //
+    // `jsonb_set` + `||` DENTRO del UPDATE, no un SELECT aparte: `neon-http`
+    // no tiene transacción ni `SELECT FOR UPDATE` que cierre ese hueco desde
+    // fuera, pero una sola sentencia no lo necesita — Postgres toma el lock
+    // de la fila y evalúa el `SET` contra su valor YA bloqueado; una segunda
+    // sentencia concurrente espera ese lock y, al correr, lee el valor que
+    // la primera ya COMMITEÓ (misma garantía que ya usa el incremento
+    // atómico `ediciones + 1` de participacion.ts, y la misma familia de
+    // arreglo que `crearAcuerdo` aplica en acuerdos.ts para su propia
+    // carrera). Ninguna definición se pierde, sin importar en qué orden
+    // corran dos llamadas concurrentes.
+    //
+    // `coalesce(estructura, '{}'::jsonb)` / `coalesce(...->'items',
+    // '[]'::jsonb)`: un documento recién creado con `crearDocumento` (sin
+    // pasar por `crearReunionConDocumento`) tiene `estructura` NULL hasta
+    // que algo la llena — ver `leerEstructura`.
+    //
+    // SE APPENDEA AL FINAL, igual que el código viejo (`[...estructura.items,
+    // definicion]`), NO en `posicion`: el array de `estructura` NUNCA ha
+    // sido lo que decide el orden VISUAL del documento. `documentoCompletoDeFilas`
+    // (arriba) ordena los items por la columna `items.orden` y solo usa
+    // `estructura.items` como diccionario por `tipo` (`defsPorTipo`, un
+    // `Map`) — ni `reordenarItems` ni `moverItem` tocan `estructura` para
+    // nada, y el código viejo YA appendeaba al final sin mirar `posicion`
+    // (confirmado leyendo esta función ANTES de tocarla, como pide la
+    // ronda). Preservar ese append es preservar el comportamiento exacto —y
+    // es justo lo que permite resolver esto sin cambiar la FORMA del jsonb.
     await conexion
       .update(esquema.documentos)
-      .set({ estructura: { ...estructura, items: [...estructura.items, definicion] }, updatedAt: ahora })
+      .set({
+        estructura: sql`jsonb_set(
+          coalesce(${esquema.documentos.estructura}, '{}'::jsonb),
+          '{items}',
+          coalesce(${esquema.documentos.estructura}->'items', '[]'::jsonb) || ${JSON.stringify([definicion])}::jsonb
+        )`,
+        updatedAt: ahora,
+      })
       .where(eq(esquema.documentos.id, documentoId))
     await conexion.insert(esquema.items).values(fila)
     await Promise.all(
@@ -743,15 +785,50 @@ export async function eliminarSeccion(documentoId: string, itemId: string): Prom
 
   if (hayDB()) {
     const conexion = db()
-    const [filaDocumento] = await conexion
-      .select({ estructura: esquema.documentos.estructura })
-      .from(esquema.documentos)
-      .where(eq(esquema.documentos.id, documentoId))
-    const estructura = leerEstructura(filaDocumento?.estructura)
+    // ATÓMICO — misma deuda y mismo razonamiento que `anadirSeccion` (ver su
+    // comentario arriba): el código viejo leía `estructura`, la filtraba en
+    // JS (`estructura.items.filter(d => !tiposBorrados.has(d.tipo))`) y la
+    // reescribía entera. Dos `eliminarSeccion` a la vez (o un reintento)
+    // podían resucitar en `estructura` una definición cuyo item YA se había
+    // borrado de `items`: la segunda escritura partía de una `estructura`
+    // leída ANTES de que la primera quitara la suya, así que la volvía a
+    // dejar puesta.
+    //
+    // `jsonb_array_elements(...) WITH ORDINALITY` + `jsonb_agg(...)` DENTRO
+    // del UPDATE: se desarma el array de `estructura`, se descartan los
+    // `tipo` de `tiposBorrados` (el mismo `Set` que este archivo ya calculó
+    // para borrar los items y renumerar `quedan`, dos líneas más abajo) y se
+    // vuelve a armar — todo contra el valor de `estructura` que Postgres ya
+    // bloqueó para ESTA sentencia, con la misma garantía de "una sentencia
+    // concurrente ve el resultado ya commiteado de la anterior" que usa
+    // `anadirSeccion`.
+    //
+    // ORDEN PRESERVADO EXPLÍCITAMENTE (`WITH ORDINALITY` + `ORDER BY`), no
+    // por confiar en que un `jsonb_agg` sin `ORDER BY` mantenga el orden de
+    // origen: el resultado es exactamente el de un `.filter()` de JS — mismo
+    // contenido, mismo orden relativo, solo sin los tipos borrados. (Y, como
+    // documenta `anadirSeccion`, ese orden de todos modos no es el que pinta
+    // el documento — pero conservarlo tal cual es más simple de razonar que
+    // justificar por qué se podría perder.)
+    const tiposBorradosJson = JSON.stringify([...tiposBorrados])
     await conexion
       .update(esquema.documentos)
       .set({
-        estructura: { ...estructura, items: estructura.items.filter((d) => !tiposBorrados.has(d.tipo)) },
+        estructura: sql`jsonb_set(
+          coalesce(${esquema.documentos.estructura}, '{}'::jsonb),
+          '{items}',
+          coalesce(
+            (
+              select jsonb_agg(elem.value order by elem.ordinalidad)
+              from jsonb_array_elements(coalesce(${esquema.documentos.estructura}->'items', '[]'::jsonb))
+                with ordinality as elem(value, ordinalidad)
+              where not (
+                coalesce(elem.value->>'tipo', '') in (select jsonb_array_elements_text(${tiposBorradosJson}::jsonb))
+              )
+            ),
+            '[]'::jsonb
+          )
+        )`,
         updatedAt: ahora,
       })
       .where(eq(esquema.documentos.id, documentoId))
