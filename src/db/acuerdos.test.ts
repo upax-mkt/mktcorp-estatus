@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { PgDialect } from 'drizzle-orm/pg-core'
+import type { SQL } from 'drizzle-orm'
 import { crearAcuerdo, editarAcuerdo, moverEstatus, retomarAcuerdo } from './acuerdos'
 import { obtenerAcuerdoMemoria, actualizarAcuerdoMemoria, reiniciarStoreMemoria } from './store-memoria'
 import * as sincronizarMod from '@/monday/sincronizar'
 import * as clienteDB from './cliente'
+import * as temasDB from './temas'
 import * as esquema from './esquema'
 
 /**
@@ -84,6 +87,46 @@ describe('crearAcuerdo y la bandeja', () => {
 
     expect(espia).not.toHaveBeenCalled()
     espia.mockRestore()
+  })
+})
+
+/**
+ * El dedupe de `crearAcuerdo` contra el STORE EN MEMORIA (sin DATABASE_URL —
+ * el camino que corre `npm run dev` sin credenciales y la mayoría de los
+ * tests de este repo). A diferencia de la carrera de `documentos.estructura`
+ * —donde el camino en memoria ya era seguro sin tocarlo, por cómo se
+ * intercalan las promesas de JS—, este dedupe es una regla de negocio NUEVA
+ * que había que añadir a `store-memoria.ts` a propósito
+ * (`buscarAcuerdoDuplicadoMemoria`): sin ella, el store en memoria seguiría
+ * insertando dos filas en cada reintento aunque Postgres ya no lo hiciera —
+ * el doble mintiendo, que es justo lo que la ronda pide evitar.
+ */
+describe('crearAcuerdo — el dedupe también en memoria (deuda de concurrencia, ronda 11)', () => {
+  it('el mismo acuerdo, dos veces para la misma reunión, deja UNA sola fila en el store', async () => {
+    const datos = { que: 'Mandar propuesta revisada', responsable: 'Pablo Levy', fechaCompromiso: null, reunionOrigenId: 'reunion-1' }
+    const primero = await crearAcuerdo('neracode', datos)
+    const segundo = await crearAcuerdo('neracode', datos)
+
+    expect(segundo.id).toBe(primero.id)
+    expect(obtenerAcuerdoMemoria(primero.id)).not.toBeUndefined()
+  })
+
+  it('sin reunionOrigenId (alta manual), dos altas iguales SÍ dejan dos filas', async () => {
+    const datos = { que: 'Acuerdo manual', responsable: 'Alguien', fechaCompromiso: null }
+    const primero = await crearAcuerdo('neracode', datos)
+    const segundo = await crearAcuerdo('neracode', datos)
+
+    expect(segundo.id).not.toBe(primero.id)
+    expect(obtenerAcuerdoMemoria(primero.id)).not.toBeUndefined()
+    expect(obtenerAcuerdoMemoria(segundo.id)).not.toBeUndefined()
+  })
+
+  it('con fechaCompromiso distinta, no se considera el mismo acuerdo', async () => {
+    const base = { que: 'Mandar propuesta', responsable: 'Pablo Levy', reunionOrigenId: 'reunion-1' }
+    const primero = await crearAcuerdo('neracode', { ...base, fechaCompromiso: new Date('2026-08-10') })
+    const segundo = await crearAcuerdo('neracode', { ...base, fechaCompromiso: new Date('2026-08-20') })
+
+    expect(segundo.id).not.toBe(primero.id)
   })
 })
 
@@ -315,5 +358,161 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
     // Y tampoco cambia el estatus guardado: solo la historia.
     expect(fila.estatus).toBe('abierto')
     expect(fila.historia).toContainEqual(expect.objectContaining({ cambios: { retomadoEnSesion: 'sesion-1' } }))
+  })
+})
+
+/**
+ * `crearAcuerdo` — deuda de concurrencia, ronda 11, arreglo #2: `guardarMinuta`
+ * (`src/db/minutas.ts`) llama a `crearAcuerdo` una vez por acuerdo confirmado,
+ * EN UN BUCLE. Un doble clic en "Publicar" o un reintento tras un hipo de red
+ * repiten la MISMA llamada con el MISMO `acuerdosConfirmados` — sin nada aquí,
+ * cada repetición volvía a insertar los mismos acuerdos, duplicados en la
+ * sala. Es "la reunión fantasma" (participacion.ts:75-88) aplicada a los
+ * acuerdos.
+ *
+ * Este describe prueba el MECANISMO (crearAcuerdo en sí, contra un doble de
+ * Postgres); `minutas-concurrencia.test.ts` prueba el ESCENARIO completo
+ * ("publicar dos veces la misma minuta no duplica los acuerdos").
+ *
+ * El doble de `db()` interpreta el fragmento SQL con `PgDialect().sqlToQuery`
+ * —la misma pieza que usa Drizzle para compilarlo de verdad— y le confía a
+ * Postgres que `INSERT ... SELECT ... WHERE NOT EXISTS` hace lo que
+ * documenta: mismo criterio que ya usa `minutas.test.ts` para `ON CONFLICT
+ * DO UPDATE`, y `documentos-concurrencia.test.ts` para `jsonb_set`/`jsonb_agg`.
+ */
+describe('crearAcuerdo — no duplica un acuerdo de la misma reunión al reintentar (deuda de concurrencia, ronda 11)', () => {
+  const dialect = new PgDialect()
+
+  interface FilaAcuerdoToy {
+    id: string
+    salaSlug: string
+    que: string
+    responsable: string
+    fechaCompromiso: string | null
+    reunionOrigenId: string | null
+  }
+
+  let filas: FilaAcuerdoToy[]
+
+  /** Mismo criterio de unicidad que la sentencia real: reunionOrigenId no nulo + que + responsable + fechaCompromiso. */
+  function coincide(f: FilaAcuerdoToy, candidato: Omit<FilaAcuerdoToy, 'id' | 'salaSlug'>): boolean {
+    return (
+      f.reunionOrigenId !== null &&
+      f.reunionOrigenId === candidato.reunionOrigenId &&
+      f.que === candidato.que &&
+      f.responsable === candidato.responsable &&
+      f.fechaCompromiso === candidato.fechaCompromiso
+    )
+  }
+
+  function dobleDB() {
+    return {
+      // El INSERT ... SELECT ... WHERE NOT EXISTS ... RETURNING id de
+      // `crearAcuerdo`: params en el orden fijo que arma la sentencia real
+      // (ver el comentario de `crearAcuerdo`) — id, salaSlug, que,
+      // responsable, squad, prioridad, fechaCompromiso, reunionOrigenId,
+      // responsableMondayId, bandeja.
+      execute: (query: unknown) => {
+        const { params } = dialect.sqlToQuery(query as SQL)
+        const [id, salaSlug, que, responsable, , , fechaCompromiso, reunionOrigenId] = params as (string | null)[]
+        const candidato = { que: que as string, responsable: responsable as string, fechaCompromiso, reunionOrigenId }
+        if (filas.some((f) => coincide(f, candidato))) return Promise.resolve({ rows: [] })
+        filas.push({ id: id as string, salaSlug: salaSlug as string, ...candidato })
+        return Promise.resolve({ rows: [{ id }] })
+      },
+      // El SELECT de respaldo que busca el id ya existente cuando el INSERT
+      // de arriba no insertó nada (ver el comentario de `crearAcuerdo`).
+      select: () => ({
+        from: () => ({
+          where: (condicion: unknown) => {
+            const { params } = dialect.sqlToQuery(condicion as SQL)
+            const [reunionOrigenId, que, responsable] = params as (string | null)[]
+            const encontrada = filas.find(
+              (f) => f.reunionOrigenId === reunionOrigenId && f.que === que && f.responsable === responsable,
+            )
+            return Promise.resolve(encontrada ? [{ id: encontrada.id }] : [])
+          },
+        }),
+      }),
+      // EL INSERT LISO DEL CÓDIGO VIEJO (`.insert(acuerdos).values({...})`,
+      // sin condición): se deja funcionando A PROPÓSITO, sin ningún dedupe,
+      // para que el RED de este describe demuestre la duplicación de verdad
+      // (dos filas) en vez de solo un TypeError por método faltante — el
+      // código arreglado ya no llama a `.insert()` para esta tabla, así que
+      // contra él esta rama simplemente no se ejercita.
+      insert: (tabla: unknown) => {
+        if (tabla !== esquema.acuerdos) throw new Error(`insert inesperado en el doble: ${String(tabla)}`)
+        return {
+          values: (vals: FilaAcuerdoToy) => {
+            filas.push({ ...vals })
+            return Promise.resolve(undefined)
+          },
+        }
+      },
+    }
+  }
+
+  beforeEach(() => {
+    filas = []
+    vi.spyOn(clienteDB, 'hayDB').mockReturnValue(true)
+    vi.spyOn(clienteDB, 'db').mockReturnValue(dobleDB() as unknown as ReturnType<typeof clienteDB.db>)
+    // `validarSala` pasa por `slugsDeSalas` (src/db/temas.ts, envuelta en
+    // `cache()` de React): en vez de fiarse de que `hayDB()` mockeado se
+    // propague correctamente hasta su rama de Postgres —arriesgado, memoiza
+    // por argumento y este archivo ya la pudo haber llamado antes con
+    // `hayDB() === false`—, se mockea directo. Sin esto no es la carrera lo
+    // que se prueba, es si `slugsDeSalas` sabe leer el doble de esta suite.
+    vi.spyOn(temasDB, 'slugsDeSalas').mockResolvedValue(['neracode'])
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('publicar el mismo acuerdo dos veces para la misma reunión deja UNA sola fila', async () => {
+    const datos = { que: 'Mandar propuesta revisada', responsable: 'Pablo Levy', fechaCompromiso: null, reunionOrigenId: 'reunion-1' }
+    await crearAcuerdo('neracode', datos)
+    await crearAcuerdo('neracode', datos)
+
+    expect(filas).toHaveLength(1)
+  })
+
+  it('el reintento devuelve el id de la fila YA creada, nunca uno fabricado que no corresponde a ninguna fila', async () => {
+    const datos = { que: 'Mandar propuesta revisada', responsable: 'Pablo Levy', fechaCompromiso: null, reunionOrigenId: 'reunion-1' }
+    const primero = await crearAcuerdo('neracode', datos)
+    const segundo = await crearAcuerdo('neracode', datos)
+
+    expect(segundo.id).toBe(primero.id)
+    expect(filas.map((f) => f.id)).toEqual([primero.id])
+  })
+
+  it('dos reuniones distintas SÍ dejan dos filas: el dedupe es por reunión, no un candado global sobre el texto', async () => {
+    const base = { que: 'Mandar propuesta', responsable: 'Pablo Levy', fechaCompromiso: null }
+    await crearAcuerdo('neracode', { ...base, reunionOrigenId: 'reunion-1' })
+    await crearAcuerdo('neracode', { ...base, reunionOrigenId: 'reunion-2' })
+
+    expect(filas).toHaveLength(2)
+  })
+
+  it('un alta manual (sin reunionOrigenId, como crearAcuerdoAction) nunca se dedupea: sigue siendo un INSERT liso', async () => {
+    const datos = { que: 'Acuerdo dado de alta a mano', responsable: 'Directora UDN', fechaCompromiso: null }
+    await crearAcuerdo('neracode', datos)
+    await crearAcuerdo('neracode', datos)
+
+    // Dos altas manuales con el mismo texto son dos compromisos reales, no
+    // un reintento — `reunionOrigenId` nulo nunca activa el dedupe (ver el
+    // comentario de `crearAcuerdo` sobre `=` vs. `IS NOT DISTINCT FROM`).
+    expect(filas).toHaveLength(2)
+  })
+
+  it('borrar el acuerdo a mano y volver a publicar la misma minuta SÍ lo vuelve a crear', async () => {
+    const datos = { que: 'Mandar propuesta', responsable: 'Pablo Levy', fechaCompromiso: null, reunionOrigenId: 'reunion-1' }
+    await crearAcuerdo('neracode', datos)
+    // Simula `eliminarAcuerdo`: DELETE real, sin papelera.
+    filas = []
+
+    await crearAcuerdo('neracode', datos)
+
+    // El dedupe mira el estado ACTUAL de la tabla, no un historial de qué se
+    // publicó alguna vez: sin la fila, NOT EXISTS vuelve a ser verdadero.
+    expect(filas).toHaveLength(1)
   })
 })

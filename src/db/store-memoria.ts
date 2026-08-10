@@ -318,6 +318,44 @@ export function obtenerAcuerdoMemoria(id: string): FilaAcuerdoMemoria | undefine
   return acuerdos.get(id)
 }
 
+/**
+ * Un acuerdo YA EXISTENTE de `reunionOrigenId` con el mismo `que`,
+ * `responsable` y `fechaCompromiso` — espejo en memoria del `WHERE NOT
+ * EXISTS` que usa `crearAcuerdo` (src/db/acuerdos.ts) contra Postgres para no
+ * duplicar un acuerdo al reintentar publicar una minuta.
+ *
+ * SIN ESTO EL DOBLE MENTIRÍA (deuda de concurrencia, ronda 11): a diferencia
+ * de la carrera de `documentos.estructura` —donde el doble en memoria ya era
+ * seguro por construcción, sin cambiarlo (ver `anadirSeccion`/`eliminarSeccion`
+ * más arriba)—, aquí el dedupe es una regla de negocio NUEVA, no un efecto de
+ * cómo se intercalan las promesas: antes de esta ronda, `crearAcuerdo` sin DB
+ * insertaba SIEMPRE, sin condición. Si el camino de Postgres aprende a no
+ * duplicar y este no, un `npm run dev` sin `DATABASE_URL` — y cualquier test
+ * que corra contra el store en memoria, que es la mayoría de este archivo —
+ * seguiría duplicando acuerdos en cada reintento sin que ningún test rojo lo
+ * avisara.
+ *
+ * `reunionOrigenId` se compara con `===` a secas, nunca contra `null`: un
+ * acuerdo dado de alta a mano (sin reunión de origen) nunca "coincide" con
+ * otro, mismo criterio que el `columna = valor` (no `IS NOT DISTINCT FROM`)
+ * de la sentencia real — ver ese comentario para el porqué completo.
+ */
+export function buscarAcuerdoDuplicadoMemoria(
+  reunionOrigenId: string,
+  que: string,
+  responsable: string,
+  fechaCompromiso: Date | null,
+): FilaAcuerdoMemoria | undefined {
+  const mismaFecha = (a: Date | null, b: Date | null) => (a?.getTime() ?? null) === (b?.getTime() ?? null)
+  return Array.from(acuerdos.values()).find(
+    (f) =>
+      f.reunionOrigenId === reunionOrigenId &&
+      f.que === que &&
+      f.responsable === responsable &&
+      mismaFecha(f.fechaCompromiso, fechaCompromiso),
+  )
+}
+
 export function actualizarAcuerdoMemoria(
   id: string,
   cambios: Partial<Omit<FilaAcuerdoMemoria, 'id' | 'salaSlug' | 'createdAt'>>,

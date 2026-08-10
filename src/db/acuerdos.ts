@@ -12,7 +12,7 @@
  * Historia de cambios: v1 mínima (spec §4), un jsonb por acuerdo con un
  * registro por movimiento de estatus o edición — ver `esquema.acuerdos.historia`.
  */
-import { and, eq, isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -124,49 +124,162 @@ function bandejaTrasEditar(bandejaActual: string, cambios: CambiosAcuerdo): Esta
   return estadoInicialDeBandeja(responsableMondayId)
 }
 
-/** Da de alta un acuerdo nuevo, siempre en estatus `abierto`. */
+/**
+ * Da de alta un acuerdo nuevo, siempre en estatus `abierto`.
+ *
+ * DEDUPE ATÓMICO cuando `datos.reunionOrigenId` trae valor (deuda de
+ * concurrencia, ronda 11 — "la reunión fantasma" de participacion.ts:75-88
+ * aplicada a los acuerdos): `guardarMinuta` (src/db/minutas.ts) llama a esta
+ * función una vez por acuerdo confirmado, EN UN BUCLE, sin ninguna
+ * restricción que impidiera repetirlo. Un doble clic en "Publicar" o un
+ * reintento tras un hipo de red vuelven a llamar a `guardarMinuta` con el
+ * MISMO `acuerdosConfirmados` — la minuta no se duplica (`UNIQUE
+ * (reunion_id)` + `ON CONFLICT DO UPDATE`, ronda 11), pero sin esto cada
+ * acuerdo confirmado nacía dos veces, con su dueño y su fecha duplicados en
+ * la sala.
+ *
+ * QUÉ HACE ÚNICO A UN ACUERDO DE UNA MINUTA: de qué reunión nació
+ * (`reunionOrigenId`) + su contenido (`que`, `responsable`,
+ * `fechaCompromiso`) — mismo texto, mismo dueño, misma fecha, nacidos de la
+ * MISMA reunión. Dos UDNs distintas pueden compartir "Mandar propuesta —
+ * Pablo Levy" en dos reuniones sin ser el mismo acuerdo; dos publicaciones
+ * de LA MISMA reunión con el mismo texto sí lo son.
+ */
 export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promise<{ id: string }> {
   await validarSala(salaSlug)
   const id = crypto.randomUUID()
   const ahora = new Date()
   const responsableMondayId = normalizarResponsableMondayId(datos.responsableMondayId)
   const bandeja = estadoInicialDeBandeja(responsableMondayId)
+  const reunionOrigenId = datos.reunionOrigenId ?? null
+  const fechaCompromisoIso = datos.fechaCompromiso ? datos.fechaCompromiso.toISOString() : null
 
   if (hayDB()) {
-    await db()
-      .insert(esquema.acuerdos)
-      .values({
-        id,
-        salaSlug,
-        que: datos.que,
-        responsable: datos.responsable,
-        squad: datos.squad ?? null,
-        prioridad: datos.prioridad ?? null,
-        fechaCompromiso: datos.fechaCompromiso,
-        estatus: 'abierto',
-        reunionOrigenId: datos.reunionOrigenId ?? null,
-        responsableMondayId,
-        bandeja,
-        historia: [],
-      })
-  } else {
-    memoria.insertarAcuerdoMemoria({
-      id,
-      salaSlug,
-      que: datos.que,
-      responsable: datos.responsable,
-      squad: datos.squad,
-      prioridad: datos.prioridad,
-      fechaCompromiso: datos.fechaCompromiso,
-      estatus: 'abierto',
-      reunionOrigenId: datos.reunionOrigenId ?? null,
-      responsableMondayId,
-      bandeja,
-      historia: [],
-      createdAt: ahora,
-      updatedAt: ahora,
-    })
+    const conexion = db()
+    // `WHERE NOT EXISTS` DENTRO del INSERT, no un SELECT-y-luego-INSERT: el
+    // mismo hueco de lectura-y-escritura que ya se cerró en
+    // `documentos.estructura` (`anadirSeccion`/`eliminarSeccion`,
+    // src/db/documentos.ts). Una sola sentencia: Postgres evalúa el NOT
+    // EXISTS contra el estado COMMITEADO en el momento en que esta sentencia
+    // corre, así que un reintento SECUENCIAL (doble clic, retry de red — el
+    // escenario real) siempre ve la fila que dejó el intento anterior y el
+    // INSERT no se repite.
+    //
+    // SIN CONSTRAINT NUEVO A PROPÓSITO (alcance de esta tarea: un UNIQUE es
+    // una migración — ver el reporte de la ronda 11). Sin uno, dos
+    // sentencias VERDADERAMENTE simultáneas (dos backends de Postgres en el
+    // mismo instante) podrían las dos ver NOT EXISTS = true antes de que
+    // cualquiera de las dos comitee: una ventana mucho más angosta que la
+    // que había —que se abría en CUALQUIER reintento, no solo uno
+    // milisegundo-exacto— pero no cerrada del todo. El escenario real que
+    // reporta Franco (doble clic, reintento tras un hipo) es secuencial a
+    // nivel de Postgres, así que esto lo resuelve.
+    //
+    // `reunion_origen_id = candidato.reunion_origen_id` con `=`, NO `IS NOT
+    // DISTINCT FROM`: un acuerdo dado de alta a mano desde la sala
+    // (`crearAcuerdoAction`, src/app/cliente/[slug]/page.tsx) nunca manda
+    // `reunionOrigenId` — nace con NULL. `columna = NULL` nunca es
+    // verdadero en SQL, así que el NOT EXISTS es SIEMPRE verdadero para un
+    // alta manual (nunca hay "duplicado" que detectar) y ese camino queda
+    // EXACTAMENTE igual que antes: un INSERT liso. El dedupe solo se activa
+    // cuando `datos.reunionOrigenId` trae valor — hoy, solo `guardarMinuta`.
+    //
+    // BORRAR-Y-REPUBLICAR SIGUE FUNCIONANDO: si Franco borra un acuerdo a
+    // mano (`eliminarAcuerdo`, DELETE real, sin papelera) y vuelve a
+    // publicar la misma minuta, la fila que el NOT EXISTS buscaba ya no
+    // está — vuelve a ser verdadero y el acuerdo (corregido o no) SÍ se
+    // crea. El dedupe mira el estado ACTUAL de la tabla, no un historial de
+    // qué se publicó alguna vez.
+    //
+    // Los valores viajan por una CTE (`candidato`) en vez de repetirse en
+    // cada interpolación: cada parámetro aparece UNA sola vez en la
+    // sentencia, en un orden fijo y fácil de auditar.
+    const insertado = await conexion.execute<{ id: string }>(sql`
+      WITH candidato AS (
+        SELECT
+          ${id}::text AS id,
+          ${salaSlug}::text AS sala_slug,
+          ${datos.que}::text AS que,
+          ${datos.responsable}::text AS responsable,
+          ${datos.squad ?? null}::text AS squad,
+          ${datos.prioridad ?? null}::text AS prioridad,
+          ${fechaCompromisoIso}::timestamptz AS fecha_compromiso,
+          ${reunionOrigenId}::text AS reunion_origen_id,
+          ${responsableMondayId}::text AS responsable_monday_id,
+          ${bandeja}::text AS bandeja
+      )
+      INSERT INTO ${esquema.acuerdos} (
+        id, sala_slug, que, responsable, squad, prioridad, fecha_compromiso,
+        estatus, reunion_origen_id, responsable_monday_id, bandeja, historia
+      )
+      SELECT
+        candidato.id, candidato.sala_slug, candidato.que, candidato.responsable,
+        candidato.squad, candidato.prioridad, candidato.fecha_compromiso, 'abierto',
+        candidato.reunion_origen_id, candidato.responsable_monday_id, candidato.bandeja, '[]'::jsonb
+      FROM candidato
+      WHERE NOT EXISTS (
+        SELECT 1 FROM ${esquema.acuerdos}
+        WHERE ${esquema.acuerdos.reunionOrigenId} = candidato.reunion_origen_id
+          AND ${esquema.acuerdos.que} = candidato.que
+          AND ${esquema.acuerdos.responsable} = candidato.responsable
+          AND ${esquema.acuerdos.fechaCompromiso} IS NOT DISTINCT FROM candidato.fecha_compromiso
+      )
+      RETURNING id
+    `)
+
+    if (insertado.rows.length > 0) return { id: insertado.rows[0].id }
+
+    // El NOT EXISTS no se cumplió: ya había un acuerdo igual de esta misma
+    // reunión. El reintento se descarta sin crear una fila nueva — se
+    // devuelve el id de la fila que YA representa este acuerdo (nunca un id
+    // fabricado que no corresponde a ninguna fila).
+    const [existente] = await conexion
+      .select({ id: esquema.acuerdos.id })
+      .from(esquema.acuerdos)
+      .where(
+        and(
+          eq(esquema.acuerdos.reunionOrigenId, reunionOrigenId as string),
+          eq(esquema.acuerdos.que, datos.que),
+          eq(esquema.acuerdos.responsable, datos.responsable),
+          datos.fechaCompromiso
+            ? eq(esquema.acuerdos.fechaCompromiso, datos.fechaCompromiso)
+            : isNull(esquema.acuerdos.fechaCompromiso),
+        ),
+      )
+    // Defensivo: no debería faltar (el NOT EXISTS que bloqueó el INSERT vio
+    // esta misma fila hace un instante), pero si faltara —un borrado
+    // concurrente justo en medio—, mejor devolver el id que se iba a usar
+    // que reventar una publicación que, para todo lo demás, salió bien.
+    return { id: existente?.id ?? id }
   }
+
+  // MISMO DEDUPE, EN MEMORIA (el doble tiene que decir lo mismo que
+  // Postgres, ver store-memoria.ts): a diferencia de la carrera de
+  // `documentos.estructura` —donde el camino en memoria ya era seguro sin
+  // tocarlo—, aquí SIN esto el store en memoria (lo que corren `npm run dev`
+  // sin `DATABASE_URL` y la mayoría de los tests de este repo) seguiría
+  // duplicando acuerdos en cada reintento aunque Postgres ya no lo hiciera.
+  if (reunionOrigenId) {
+    const duplicado = memoria.buscarAcuerdoDuplicadoMemoria(reunionOrigenId, datos.que, datos.responsable, datos.fechaCompromiso)
+    if (duplicado) return { id: duplicado.id }
+  }
+
+  memoria.insertarAcuerdoMemoria({
+    id,
+    salaSlug,
+    que: datos.que,
+    responsable: datos.responsable,
+    squad: datos.squad,
+    prioridad: datos.prioridad,
+    fechaCompromiso: datos.fechaCompromiso,
+    estatus: 'abierto',
+    reunionOrigenId,
+    responsableMondayId,
+    bandeja,
+    historia: [],
+    createdAt: ahora,
+    updatedAt: ahora,
+  })
 
   // El alta YA NO escribe en Monday. Antes creaba el elemento sola y eso es lo
   // que Franco cambió el 29-jul: nada entra al tablero del equipo sin que
