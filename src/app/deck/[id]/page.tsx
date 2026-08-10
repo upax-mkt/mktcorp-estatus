@@ -110,12 +110,36 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // no viewer — ronda 9, tarea 2): una Server Action es un endpoint, y
   // ocultar el botón en la pantalla no protege nada.
 
+  /**
+   * REVALIDA LAS DOS PANTALLAS DEL DOCUMENTO, no solo el editor.
+   *
+   * EL BUG QUE CIERRA — Franco, tres veces: *"el preview del doc sigue sin
+   * jalar"*. Cada acción revalidaba `/deck/[id]` y NINGUNA
+   * `/deck/[id]/documento`. Las dos pantallas leen el mismo documento, así
+   * que editar invalidaba el editor y dejaba intacta la copia del documento
+   * en la caché de router del navegador: se pulsaba "Ver documento →" —que
+   * es un `<Link>`, o sea navegación de cliente— y Next servía el payload de
+   * ANTES de la edición.
+   *
+   * Por qué no lo cazó ninguna prueba: Playwright hace `goto()`, que es
+   * navegación completa y no toca esa caché; y las comprobaciones de datos
+   * leían la base directamente. El fallo solo existe recorriendo la app como
+   * una persona, con el mismo historial de navegación.
+   *
+   * Que sea UNA función y no dos líneas repetidas es el punto: la mitad
+   * olvidada es exactamente lo que pasó.
+   */
+  function revalidarDocumento() {
+    revalidatePath(`/deck/${id}`)
+    revalidatePath(`/deck/${id}/documento`)
+  }
+
   async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
     const quien = await exigirEditor()
     await guardarSeccion(documentoId, itemId, seccion)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
@@ -123,7 +147,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await anadirSeccion(documentoId, layout, nombre)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
@@ -131,7 +155,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await anadirSeccion(documentoId, layout, nombre, padre)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   async function eliminarSeccionAction(itemId: string) {
@@ -139,7 +163,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await eliminarSeccion(documentoId, itemId)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   /**
@@ -266,7 +290,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await moverItem(documentoId, String(formData.get('itemId') ?? ''), 'arriba')
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   async function bajarItem(formData: FormData) {
@@ -274,7 +298,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await moverItem(documentoId, String(formData.get('itemId') ?? ''), 'abajo')
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
@@ -283,7 +307,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await reordenarItems(documentoId, idsEnOrden)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   /**
@@ -312,7 +336,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     await anadirAcuerdoRetomado(documentoId, acuerdoId)
     await retomarAcuerdo(acuerdoId, id)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidatePath(`/deck/${id}`)
+    revalidarDocumento()
   }
 
   async function maquetar() {
