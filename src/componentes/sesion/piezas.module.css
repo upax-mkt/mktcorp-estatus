@@ -195,6 +195,20 @@
   text-align: center;
 }
 
+/* EL ENCABEZADO DE FILA SÍ SE PARTE EN VARIAS LÍNEAS.
+   `.celdaGrupo` lleva `white-space: nowrap` porque en la tabla de pendientes
+   agrupa un NOMBRE ("Laura & Buga | Neracode") y partirlo se lee mal. Aquí
+   nombra una industria —"Servicios profesionales, científicos y técnicos"—, y
+   como esta tabla es `table-layout: fixed`, sin poder partirse se desbordaba
+   de su columna y se montaba encima de la primera celda de estado. Visto en
+   el estatus de NeraCode de junio: dos de las cinco filas ilegibles. */
+.matriz .celdaGrupo {
+  white-space: normal;
+  text-wrap: balance;
+  vertical-align: middle;
+  padding-right: var(--e-3);
+}
+
 .celdaMatriz {
   font-size: var(--t--1);
   border-radius: 0.35rem;
