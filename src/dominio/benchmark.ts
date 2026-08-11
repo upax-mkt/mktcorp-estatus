@@ -66,8 +66,12 @@ export interface CompetidorBenchmark {
   nosGanaEn: string
   /** Dónde le gana la UDN. Es el argumento comercial, no un consuelo. */
   dondeSeLeGana: string
-  /** Cifras públicas de su presencia digital, si se midieron. */
-  digital?: Array<{ rotulo: string; valor: string }>
+  /* SIN `digital` EN LA FICHA. Esas seis cifras —visitas, tráfico de marca,
+     keywords, autoridad, visibilidad en IA, backlinks— ya son seis de las doce
+     filas de `comparativa`, y dos de ellas además son series de un gráfico. El
+     mismo número dicho de tres formas no da más certeza: alarga la lectura.
+     La tabla comparativa es la fuente, porque es la que se cita en una
+     reunión. */
   /** Con qué mide sus resultados: en esta categoría es el terreno de la pelea. */
   medicion?: string
   contactabilidad?: ContactabilidadBenchmark
@@ -113,12 +117,10 @@ export interface TablaComparativa {
   fuente?: string
 }
 
-/** Una capacidad puntuada de 1 a 5: la UDN contra el promedio de la categoría. */
-export interface EjeRadar {
-  capacidad: string
-  udn: number
-  competencia: number
-}
+/* NO HAY TIPO PARA EL RADAR, y es a propósito. Existía un `EjeRadar` con
+   valores 1-5 que nunca se llenó: la lámina del radar no rotula sus valores,
+   así que llenarlo obligaba a estimarlos leyendo un dibujo. Un campo
+   "disponible" que nadie llena es una invitación a hacer exactamente eso. */
 
 /** La tesis: lo único que hay que recordar si se olvida todo lo demás. */
 export interface TesisBenchmark {
@@ -188,8 +190,6 @@ export interface Benchmark {
   tesis?: TesisBenchmark
   /** Las cifras duras, criterio por criterio. */
   comparativa?: TablaComparativa
-  /** El radar de capacidades: UDN contra el promedio de la categoría. */
-  radar?: { ejes: EjeRadar[]; nota?: string }
   frentesAbiertos?: FrenteAbierto[]
   recomendaciones?: RecomendacionBenchmark[]
   /** Los gráficos del análisis que SÍ traen sus valores rotulados. */

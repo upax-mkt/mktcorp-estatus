@@ -9,6 +9,7 @@ import { resumirBenchmark, type AmenazaBenchmark, type NivelBenchmark } from '@/
 import { puedeVerEstaSala } from '@/auth/sesion'
 import { fechaCompleta } from '@/lib/fecha'
 import { Grafico } from '@/componentes/graficos/Grafico'
+import { IconoBenchmark } from '@/componentes/IconoBenchmark'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 
 export const dynamic = 'force-dynamic'
@@ -141,7 +142,10 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         {benchmark.tesis && (
           <section className={estilos.seccion}>
             <div className={estilos.bmTesis}>
-              <p className={estilos.bmTesisTitular}>{benchmark.tesis.titular}</p>
+              <p className={estilos.bmTesisTitular}>
+                <IconoBenchmark nombre="tesis" className={estilos.bmTesisIcono} />
+                {benchmark.tesis.titular}
+              </p>
               <div className={estilos.bmTesisCaras}>
                 <div className={estilos.bmTesisCara} data-lado="ellos">
                   <span className={estilos.bmTesisEtiqueta}>La competencia vende</span>
@@ -153,19 +157,23 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                 </div>
               </div>
               <p className={estilos.bmTesisSustento}>{benchmark.tesis.sustento}</p>
+              {/* EL RESUMEN, DENTRO DE LA TESIS Y NO EN SU PROPIA TARJETA.
+                  Eran dos bloques de prosa seguidos, cada uno con su título,
+                  antes de llegar al primer competidor: parecían dos resúmenes
+                  que había que reconciliar. La tesis es la declaración; esto
+                  es su desarrollo, así que va debajo, sin encabezado. */}
+              <p className={estilos.bmTesisResumen}>{benchmark.lectura}</p>
             </div>
           </section>
         )}
 
-        {/* 3. RESUMEN EJECUTIVO — breve. */}
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Resumen ejecutivo</h2>
-          <p className={estilos.benchmarkLecturaGrande}>{benchmark.lectura}</p>
-        </section>
-
         {/* 4. CONTRA QUIÉN COMPETIMOS — la ficha de reunión. */}
-        <section className={estilos.seccion}>
+        {/* `data-peso="alto"`: es la sección que de verdad se abre la víspera
+            de una reunión. Sin una señal visual, el orden solo se nota si se
+            lee todo — y quien tiene cinco minutos no lee todo. */}
+        <section className={estilos.seccion} data-peso="alto">
           <h2 className={estilos.seccionTitulo}>
+            <IconoBenchmark nombre="competidores" />
             Contra quién competimos
             {resumen.amenazasAltas.length > 0 && (
               <span className={estilos.conteo}>{resumen.amenazasAltas.length} de amenaza alta</span>
@@ -200,17 +208,6 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                   {c.dondeSeLeGana}
                 </p>
 
-                {c.digital && c.digital.length > 0 && (
-                  <dl className={estilos.bmCifrasCompetidor}>
-                    {c.digital.map((d) => (
-                      <div key={d.rotulo}>
-                        <dt>{d.rotulo}</dt>
-                        <dd>{d.valor}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-
                 {c.contactabilidad && (
                   <div className={estilos.bmContacto} data-respondio={c.contactabilidad.velocidad === 'Sin respuesta' ? 'no' : 'si'}>
                     <span className={estilos.bmCompetidorEtiqueta}>Al contactarlos</span>
@@ -222,12 +219,27 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                   </div>
                 )}
 
-                <div className={estilos.bmCompetidorPie}>
-                  {c.medicion && <span><strong>Mide con:</strong> {c.medicion}</span>}
-                  {c.paid && <span><strong>Paid media:</strong> {c.paid}</span>}
-                  {c.inbound && <span><strong>Inbound:</strong> {c.inbound}</span>}
-                  {c.institucional && <span><strong>Institucional:</strong> {c.institucional}</span>}
-                </div>
+                {/* CÓMO OPERA. Eran cuatro párrafos grises seguidos —un muro
+                    que nadie lee— con la etiqueta en negrita dentro del propio
+                    texto. Ahora cada uno lleva su rótulo arriba, en versalitas,
+                    como el bloque de cifras: se escanea buscando "Paid media"
+                    en vez de leer los cuatro para encontrarlo. */}
+                {(c.medicion || c.paid || c.inbound || c.institucional) && (
+                  /* PLEGADO, con `details` nativo y sin JavaScript nuevo: son
+                     cuatro campos de CONTEXTO —cómo mide, cómo pauta, qué hace
+                     en inbound, qué credenciales tiene— y quien escanea cinco
+                     fichas busca otras dos cosas: qué no pelear y con qué se le
+                     gana. El contexto se lee cuando hace falta, no siempre. */
+                  <details className={estilos.bmComoOperaCaja}>
+                    <summary>Cómo opera</summary>
+                  <dl className={estilos.bmComoOpera}>
+                    {c.medicion && (<><dt>Mide con</dt><dd>{c.medicion}</dd></>)}
+                    {c.paid && (<><dt>Paid media</dt><dd>{c.paid}</dd></>)}
+                    {c.inbound && (<><dt>Inbound</dt><dd>{c.inbound}</dd></>)}
+                    {c.institucional && (<><dt>Institucional</dt><dd>{c.institucional}</dd></>)}
+                  </dl>
+                  </details>
+                )}
               </li>
             ))}
           </ul>
@@ -237,6 +249,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         {benchmark.frentesAbiertos && benchmark.frentesAbiertos.length > 0 && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
+              <IconoBenchmark nombre="ventana" />
               Dónde la categoría entera está floja
               <span className={estilos.conteo}>la ventana, y es temporal</span>
             </h2>
@@ -256,6 +269,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         {benchmark.graficos && benchmark.graficos.length > 0 && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
+              <IconoBenchmark nombre="graficos" />
               Dónde está cada uno
               <span className={estilos.conteo}>los dos ejes de la pelea digital</span>
             </h2>
@@ -279,6 +293,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         {benchmark.comparativa && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
+              <IconoBenchmark nombre="cifras" />
               {benchmark.comparativa.titulo}
               <span className={estilos.conteo}>{benchmark.comparativa.filas.length} criterios</span>
             </h2>
@@ -321,6 +336,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
             propio análisis. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
+            <IconoBenchmark nombre="matriz" />
             Matriz de posicionamiento
             <span className={estilos.conteo}>
               {resumen.lider} líder · {resumen.solido} sólido · {resumen.basico + resumen.ausente} por detrás
@@ -373,6 +389,7 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
         {benchmark.recomendaciones && benchmark.recomendaciones.length > 0 && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
+              <IconoBenchmark nombre="acciones" />
               Qué hacer
               <span className={estilos.conteo}>en orden de impacto</span>
             </h2>
@@ -389,8 +406,9 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
 
         {/* LOS TESTIGOS: las láminas que valen porque se ven. */}
         {benchmark.testigos && benchmark.testigos.length > 0 && (
-          <section className={estilos.seccion}>
+          <section className={estilos.seccion} data-peso="referencia">
             <h2 className={estilos.seccionTitulo}>
+              <IconoBenchmark nombre="evidencia" />
               La evidencia
               <span className={estilos.conteo}>láminas del análisis</span>
             </h2>
@@ -419,8 +437,9 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
             marcado con su fuente, al final, para que nadie lo confunda con
             una medición nuestra. */}
         {benchmark.mercado && benchmark.mercado.length > 0 && (
-          <section className={estilos.seccion}>
+          <section className={estilos.seccion} data-peso="referencia">
             <h2 className={estilos.seccionTitulo}>
+              <IconoBenchmark nombre="mercado" />
               Cómo se mueve el mercado
               <span className={estilos.conteo}>fuentes externas</span>
             </h2>

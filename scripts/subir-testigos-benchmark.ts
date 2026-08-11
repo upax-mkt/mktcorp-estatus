@@ -28,11 +28,24 @@ const SALA = 'promo-espacio'
 const DIR = `${process.env.CLAUDE_JOB_DIR}/tmp/pe`
 
 /** Las láminas que se suben, con el título con el que quedan registradas. */
+/**
+ * LA EVIDENCIA REAL, y no una lámina de datos.
+ *
+ * La primera versión de esta lista subía la matriz, la tabla comparativa y la
+ * contactabilidad — las tres YA reconstruidas como datos en la propia página.
+ * Eso es duplicar. Evidencia es lo que NO se puede reconstruir: los anuncios
+ * que la competencia tiene corriendo con su fecha de inicio a la vista, el
+ * simulador que ISA tiene montado en su sitio, la portada de JCDecaux con sus
+ * campañas reales encima.
+ */
 const TESTIGOS = [
+  { archivo: 'ev-s42-isa-web.png', titulo: 'Evidencia · El simulador de ISA' },
+  { archivo: 'ev-s53-jcdecaux-ads-mx.png', titulo: 'Evidencia · Los 17 anuncios de JCDecaux en México' },
+  { archivo: 'ev-s57-isa-paid.png', titulo: 'Evidencia · Los anuncios que ISA lleva meses sin apagar' },
+  { archivo: 'ev-s54-jcdecaux-ads-intl.png', titulo: 'Evidencia · JCDecaux fuera de México' },
+  { archivo: 'ev-s51-gvp-ads-intl.png', titulo: 'Evidencia · Global Vía Pública fuera de México' },
+  { archivo: 'ev-s36-jcdecaux-web.png', titulo: 'Evidencia · El catálogo de formatos de JCDecaux' },
   { archivo: 's67-radar.png', titulo: 'Benchmark · Radar de capacidades' },
-  { archivo: 's29.png', titulo: 'Benchmark · Tabla comparativa de sitios web y SEO' },
-  { archivo: 's27-matriz.png', titulo: 'Benchmark · Matriz de posicionamiento competitivo' },
-  { archivo: 's21-contacto.png', titulo: 'Benchmark · Contactabilidad de la competencia' },
 ]
 
 async function main() {

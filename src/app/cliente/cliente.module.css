@@ -1069,64 +1069,12 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .bmFrenteEvidencia { font-size: 0.85rem; line-height: 1.5; color: var(--tx-2); }
 
-/* DÓNDE PROSPECTAR. Una tarjeta por industria y no una tabla: la tabla era
-   legible para comparar meses, pero aquí lo que se hace es elegir UNA
-   industria y llevarse su gancho a una llamada. */
-.bmProspeccion { display: grid; gap: 0.75rem; }
-.bmIndustria {
-  display: grid; gap: 0.7rem;
-  padding: 1rem 1.15rem; border-radius: var(--r-2);
-  border: 1px solid var(--borde); background: var(--superficie);
-}
-.bmIndustriaCabeza {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 1rem; flex-wrap: wrap;
-}
-.bmIndustriaNombre { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
-.bmIndustriaPrioridad { font-size: 0.74rem; color: var(--tx-3); }
-
-/* Las ventanas del trimestre: la forma se lee antes que las palabras, pero
-   la palabra está siempre — el color nunca es la única señal. */
-.bmVentanas { display: flex; gap: 0.35rem; }
-.bmVentana {
-  display: grid; gap: 0.1rem; justify-items: center;
-  min-width: 4.6rem; padding: 0.4rem 0.5rem;
-  border-radius: 0.45rem; text-align: center;
-  background: var(--superficie-2); border: 1px solid transparent;
-}
-.bmVentana[data-tono='alto'] {
-  background: color-mix(in oklch, var(--marca) 30%, transparent);
-  border-color: color-mix(in oklch, var(--marca) 45%, transparent);
-}
-.bmVentana[data-tono='medio'] { background: color-mix(in oklch, var(--marca) 15%, transparent); }
-.bmVentana[data-tono='bajo'] { background: color-mix(in oklch, var(--marca) 7%, transparent); }
-.bmVentana[data-tono='neutro'] { background: transparent; border-color: var(--borde); }
-.bmVentanaMes {
-  font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
-  font-weight: 700; color: var(--tx-3);
-}
-.bmVentanaEstado { font-size: 0.8rem; font-weight: 600; }
-.bmVentana[data-tono='alto'] .bmVentanaEstado { font-weight: 800; }
-
-.bmGancho {
-  margin: 0; display: grid; gap: 0.15rem;
-  font-size: 0.88rem; line-height: 1.5; color: var(--tx);
-}
-.bmEncaja {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 0.35rem;
-}
-.bmEncaja li {
-  font-size: 0.76rem; color: var(--tx-2);
-  padding: 0.2rem 0.6rem; border-radius: 999px;
-  background: var(--superficie-2);
-}
-.bmLeyenda {
-  list-style: none; margin: 0.9rem 0 0; padding: 0.8rem 0 0;
-  border-top: 1px solid var(--borde);
-  display: grid; gap: 0.2rem;
-  font-size: 0.76rem; color: var(--tx-3);
-}
+/* NO HAY CSS DE PROSPECCIÓN, y es a propósito. Había aquí ~90 líneas
+   (.bmProspeccion, .bmIndustria, .bmVentanas, .bmGancho, .bmEncaja) para un
+   calendario por industria que se retiró: sus datos venían del deck de OTRA
+   UDN. Un CSS listo que nadie usa es peor que no tenerlo — invita a
+   reconectarlo pensando que hay datos detrás. Si algún día hay estacionalidad
+   real de esta UDN, se vuelve a escribir. */
 
 /* El mercado: lo único que no sale del análisis propio. */
 .bmMercado { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
@@ -1334,3 +1282,71 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    en el inventario y es la que explica por qué un competidor gana cuentas. */
 .bmCompetidorLinea[data-tono='invisible'] { color: var(--tx); }
 .bmCompetidorLinea[data-tono='invisible'] .bmCompetidorEtiqueta { color: var(--tx-2); }
+
+/* El icono de la tesis: cuelga del carril, a la altura de la primera línea,
+   sin empujar el titular. Alineado con `align-self` y no con un margen
+   negativo, que se rompe en cuanto el titular pasa a dos líneas. */
+.bmTesisIcono {
+  width: 26px; height: 26px;
+  color: var(--marca-texto, var(--marca));
+  display: block; margin-bottom: 0.55rem;
+}
+
+/* CÓMO OPERA un competidor: cuatro campos que antes eran cuatro párrafos
+   grises seguidos, con la etiqueta en negrita metida dentro del texto. Un
+   muro así no se lee: se busca. Ahora cada rótulo va arriba y en versalitas,
+   igual que el bloque de cifras, y la fila se escanea. */
+.bmComoOpera {
+  margin: 0.35rem 0 0; padding: 0.75rem 0 0;
+  border-top: 1px solid var(--borde);
+  display: grid; gap: 0.55rem;
+}
+.bmComoOpera dt {
+  font-size: 0.64rem; letter-spacing: 0.09em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-3);
+}
+.bmComoOpera dd {
+  margin: 0.1rem 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--tx-2);
+}
+
+/* ══ JERARQUÍA ENTRE SECCIONES ════════════════════════════════════════════
+   Las nueve secciones vivían en tarjetas idénticas: nada decía cuál importa
+   más salvo el orden, y el orden solo se nota si se lee todo. */
+
+/* La sección que de verdad se abre la víspera de una reunión. */
+.seccion[data-peso='alto'] {
+  border-top: 3px solid var(--marca);
+  box-shadow: var(--e-2, var(--e-1));
+}
+/* Material de referencia: sigue estando, pesa menos. */
+.seccion[data-peso='referencia'] {
+  box-shadow: none;
+  border: 1px solid var(--borde);
+  background: transparent;
+  padding: 1.1rem 1.2rem 1rem;
+}
+
+/* El resumen dentro de la tarjeta de la tesis: su desarrollo, no una segunda
+   declaración. Por eso comparte caja y pierde el encabezado. */
+.bmTesisResumen {
+  margin: 0; padding-top: 0.9rem; border-top: 1px solid var(--borde);
+  font-size: 0.92rem; line-height: 1.65; color: var(--tx-2); max-width: 82ch;
+}
+
+/* "Cómo opera", plegado. `details` nativo: sin JS y con teclado gratis. */
+.bmComoOperaCaja { margin-top: 0.35rem; padding-top: 0.7rem; border-top: 1px solid var(--borde); }
+.bmComoOperaCaja > summary {
+  cursor: pointer; list-style: none;
+  font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--tx-3);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.bmComoOperaCaja > summary::-webkit-details-marker { display: none; }
+.bmComoOperaCaja > summary::after {
+  content: '›'; font-size: 1rem; line-height: 1; transition: transform 0.15s ease;
+}
+.bmComoOperaCaja[open] > summary::after { transform: rotate(90deg); }
+.bmComoOperaCaja > summary:hover { color: var(--marca-texto, var(--marca)); }
+.bmComoOperaCaja > summary:focus-visible { outline: 2px solid var(--marca); outline-offset: 3px; }
+.bmComoOperaCaja .bmComoOpera { border-top: 0; padding-top: 0.7rem; margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .bmComoOperaCaja > summary::after { transition: none; } }

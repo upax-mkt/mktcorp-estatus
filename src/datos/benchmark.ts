@@ -79,14 +79,6 @@ const PROMO_ESPACIO: Benchmark = {
       amenaza: 'alta',
       nosGanaEn: 'Cobertura en transporte, volumen de espacios y credenciales de legalidad y concesiones.',
       dondeSeLeGana: 'Precisión, retail media y segmentación al punto de venta. Ellos mismos reconocen en la reunión que no prometen ROI.',
-      digital: [
-        { rotulo: 'Visitas orgánicas/mes', valor: '3,600' },
-        { rotulo: 'Tráfico de marca', valor: '89%' },
-        { rotulo: 'Keywords', valor: '246' },
-        { rotulo: 'Authority Score', valor: '27/100' },
-        { rotulo: 'Visibilidad en IA', valor: '31/100' },
-        { rotulo: 'Backlinks / dominios', valor: '272k / 343' },
-      ],
       medicion: 'Data propia y firmas externas.',
       institucional: 'Great Place To Work, Premio Nacional de Calidad y Mejores Empresas Mexicanas. Presencia constante en foros de movilidad y cámaras empresariales.',
       fortalezaInvisible: 'Credibilidad institucional: premios, concesiones y relación con el sector. No se ve en el inventario y es lo que le abre puertas.',
@@ -106,14 +98,6 @@ const PROMO_ESPACIO: Benchmark = {
       amenaza: 'alta',
       nosGanaEn: 'Credenciales corporativas, percepción premium, músculo de operación y cobertura nacional.',
       dondeSeLeGana: 'Agilidad, personalización y velocidad de respuesta. Contra ellos no conviene pelear por tamaño, sino por resultado.',
-      digital: [
-        { rotulo: 'Visitas orgánicas/mes', valor: '785' },
-        { rotulo: 'Tráfico de marca', valor: '100%' },
-        { rotulo: 'Keywords', valor: '9' },
-        { rotulo: 'Authority Score', valor: '18/100' },
-        { rotulo: 'Visibilidad en IA', valor: '14/100' },
-        { rotulo: 'Backlinks / dominios', valor: '87 / 31' },
-      ],
       medicion: 'Data propia (DATALAB) y Azerion.',
       institucional: 'Hereda políticas globales de ESG, sustentabilidad y gobierno corporativo. WOO Congress, IAB Conecta e IAB Mixx de forma recurrente.',
       fortalezaInvisible: 'Thought leadership: es el que fija la conversación de la categoría, y eso se traduce en que lo consideren por defecto.',
@@ -133,14 +117,6 @@ const PROMO_ESPACIO: Benchmark = {
       amenaza: 'alta',
       nosGanaEn: 'Cobertura urbana, mobiliario concesionado y experiencia acumulada en OOH tradicional.',
       dondeSeLeGana: 'Digital, conexión con el punto de venta y data. Empaquetando con medición, PE se ve moderno frente a ellos.',
-      digital: [
-        { rotulo: 'Visitas orgánicas/mes', valor: '2,500' },
-        { rotulo: 'Tráfico de marca', valor: '18%' },
-        { rotulo: 'Keywords', valor: '69' },
-        { rotulo: 'Authority Score', valor: '28/100' },
-        { rotulo: 'Visibilidad en IA', valor: '18/100' },
-        { rotulo: 'Backlinks / dominios', valor: '26k / 360' },
-      ],
       medicion: 'Research propio (Dat’s Why).',
       institucional: 'Sin certificaciones visibles. Alianza con NRM Comunicaciones (2025) y un modelo apoyado en concesiones y relaciones con gobiernos y municipios.',
       fortalezaInvisible: 'Relaciones gubernamentales: su modelo depende de concesiones y municipios, y ahí acumula una ventaja que no se compra con inversión.',
@@ -160,14 +136,6 @@ const PROMO_ESPACIO: Benchmark = {
       amenaza: 'media',
       nosGanaEn: 'Variedad de soportes exteriores y posible cobertura regional.',
       dondeSeLeGana: 'Especialización en entornos de consumo. No tienen un activo icónico ni dominante.',
-      digital: [
-        { rotulo: 'Visitas orgánicas/mes', valor: '185' },
-        { rotulo: 'Tráfico de marca', valor: '95%' },
-        { rotulo: 'Keywords', valor: '80' },
-        { rotulo: 'Authority Score', valor: '12/100' },
-        { rotulo: 'Visibilidad en IA', valor: '14/100' },
-        { rotulo: 'Backlinks / dominios', valor: '3,900 / 34' },
-      ],
       medicion: 'Data propia y firmas externas.',
       institucional: 'Sin evidencia pública de certificaciones. Se presenta como red regional de OOH en LatAm y anunció stand propio en el World Out Of Home Congress 2025.',
       fortalezaInvisible: 'Networking internacional: pertenecer a una red regional le da presencia en foros donde no compite por inventario.',
@@ -187,14 +155,6 @@ const PROMO_ESPACIO: Benchmark = {
       amenaza: 'baja',
       nosGanaEn: 'Vallas móviles, formatos custom y agilidad para campañas especiales.',
       dondeSeLeGana: 'Inventario en el momento de decisión y escala. Su reconocimiento nacional es menor.',
-      digital: [
-        { rotulo: 'Visitas orgánicas/mes', valor: '614' },
-        { rotulo: 'Tráfico de marca', valor: '100%' },
-        { rotulo: 'Keywords', valor: '14' },
-        { rotulo: 'Authority Score', valor: '10/100' },
-        { rotulo: 'Visibilidad en IA', valor: 'sin dato' },
-        { rotulo: 'Backlinks / dominios', valor: '96 / 40' },
-      ],
       medicion: 'Software propio (OBP).',
       institucional: 'Sin certificaciones relevantes. Invierte en relación comercial —eventos privados con agencias— más que en posicionamiento institucional.',
       fortalezaInvisible: 'Cercanía con agencias: invierte en la relación comercial directa, que es por donde entran las campañas custom.',
@@ -383,35 +343,96 @@ const PROMO_ESPACIO: Benchmark = {
       },
       lectura: 'Promo Espacio es el tercero en tamaño y el ÚLTIMO en engagement (0.46%). JCDecaux tiene la mitad de seguidores y casi el triple de interacción: publica casos y creatividad, no tecnicismos. El tamaño de la audiencia no es el problema.',
     },
+    {
+      /**
+       * EL RADAR, RECONSTRUIDO COMO DATO.
+       *
+       * La lámina no rotula sus valores, así que en la versión anterior iba
+       * como imagen. Se recuperaron midiendo el gráfico píxel a píxel:
+       * calibrando la rejilla por dos vías independientes (coincidencia del
+       * 0.1%) y localizando los catorce marcadores por máscara de color, con
+       * un margen de ±0.03. La comprobación que lo cierra: los siete valores
+       * de la competencia caen en múltiplos exactos de 0.2, que es justo lo
+       * que produce el promedio de cinco marcas puntuadas en enteros — o sea
+       * que son los números que el gráfico plotea, no una aproximación.
+       *
+       * ⚠️ QUÉ NO SON: una medición de mercado. El pie de la lámina original
+       * dice "evaluación cualitativa del benchmark", y eso va escrito en la
+       * lectura para que nadie los cite como dato duro.
+       *
+       * Se dibuja como barras y no como radar porque el catálogo de gráficos
+       * de esta app no tiene radar, y añadir uno para una sola pantalla es
+       * más deuda que valor. Comparar siete pares de barras funciona igual de
+       * bien —mejor, incluso, para ver la distancia exacta en cada eje.
+       */
+      grafico: {
+        tipo: 'barras-comparadas',
+        titulo: 'Radar de capacidades, eje por eje',
+        periodos: [
+          'Momento de compra',
+          'Digital / programática',
+          'Madurez comercial digital',
+          'Cobertura geográfica',
+          'Creatividad declarada',
+          'Presencia institucional',
+          'Escala inventario físico',
+        ],
+        series: [
+          { etiqueta: 'Promo Espacio', valores: [5, 5, 4, 3, 2, 2, 2] },
+          { etiqueta: 'Promedio competencia', valores: [1.6, 3.4, 2.6, 4, 2.4, 3.6, 4.2] },
+        ],
+        mostrarValores: true,
+      },
+      lectura: 'Los ejes están ordenados por la distancia a favor: en momento de compra la ventaja es de 5 contra 1.6 —la mayor de las siete— y en escala de inventario la desventaja es de 2 contra 4.2. Es la misma forma que la matriz, en una sola vista. Escala de 1 a 5 y evaluación CUALITATIVA del análisis, no una medición de mercado: sirve para ordenar la conversación, no para citar en una propuesta.',
+    },
   ],
 
-  // ── Los testigos: lo que vale porque se ve ───────────────────────────────
+  // ── LA EVIDENCIA ─────────────────────────────────────────────────────────
+  // Franco: *"dejaste láminas como evidencia pero no es esa la evidencia, son
+  // gráficos que no pusiste"*. Tenía razón: subí como testigos la matriz, la
+  // tabla comparativa y la contactabilidad — las tres YA reconstruidas como
+  // datos en esta misma página. Eso es duplicar, no evidenciar.
+  //
+  // Evidencia es lo que NO se puede reconstruir: los anuncios que la
+  // competencia tiene corriendo, sus sitios, sus piezas. Se llenan abajo.
   // Se sirven por /api/archivo/[id], que comprueba permiso contra la sala.
   // Subidos con scripts/subir-testigos-benchmark.ts.
   testigos: [
     {
-      titulo: 'Radar de capacidades',
-      lectura: 'Siete capacidades puntuadas de 1 a 5 contra el promedio de la categoría. El propio deck avisa de que ese promedio aplana las diferencias entre las cinco marcas: por eso la matriz de arriba las abre una por una.',
-      url: '/api/archivo/f088d4dd-f796-413a-b164-b2214a22add9',
-      bloque: 'Conclusiones',
+      titulo: 'El simulador de ISA',
+      lectura: 'Un asistente de tres pasos dentro de su sitio —elegir el espacio, subir la imagen, ver el resultado— que monta la creatividad del cliente sobre la foto de un espacio real. Nadie más en el set lo tiene: resuelve solo la objeción de “no me imagino cómo se va a ver”, sin una llamada. Es lo único del análisis que obliga a construir algo, no a decir algo distinto.',
+      url: '/api/archivo/0ae4933c-704c-4669-96f1-ad6d0b3b035b',
+      bloque: 'ISA Corporativo · sitio',
     },
     {
-      titulo: 'Matriz de posicionamiento competitivo',
-      lectura: 'La lámina original de la que sale la matriz de esta página, con los seis actores en columnas.',
-      url: '/api/archivo/903c1c8a-c999-4378-a017-09b4656fc6c2',
-      bloque: 'Aspectos comerciales',
+      titulo: 'Los 17 anuncios que JCDecaux tiene corriendo en México',
+      lectura: 'Diecisiete anuncios de búsqueda vivos, uno por formato, repartidos en dos dominios propios que compiten entre sí. Todo el argumento es cobertura y escala —“más de 15 mil anuncios”, “presencia en 32 estados”— y meten su suite de medición como enlaces del propio anuncio: Mide el Impacto, Post Buy, Engage. No venden espacios: venden cobertura con medición, y lo dicen desde el anuncio.',
+      url: '/api/archivo/87a34f46-c3ae-4cdc-be55-cc6f9694e1f9',
+      bloque: 'JCDecaux · paid media',
     },
     {
-      titulo: 'Tabla comparativa de sitios web y SEO',
-      lectura: 'Los doce criterios medidos, con la columna de Promo Espacio destacada. Es la fuente de las cifras duras.',
-      url: '/api/archivo/a540f718-8fec-45da-a54f-a63e4179eaf2',
-      bloque: 'Sitios web',
+      titulo: 'Los anuncios que ISA lleva meses sin apagar',
+      lectura: 'Dos anuncios marcados “Activo” en la biblioteca de Meta con su fecha de arranque a la vista: uno desde septiembre y otro desde diciembre de 2025. No venden “OOH”, venden dos activos concretos —aeropuertos y Metro— con foto de sus pantallas ya instaladas y campañas de cliente corriendo. Es el competidor con la operación de pauta más constante del set, y la fecha lo hace indiscutible en una junta.',
+      url: '/api/archivo/632c7458-2b16-4633-be80-9bfa3b10c28a',
+      bloque: 'ISA Corporativo · paid media',
     },
     {
-      titulo: 'Contactabilidad de la competencia',
-      lectura: 'Quién respondió, en cuánto tiempo y con qué calidad. La prueba de que la categoría no atiende.',
-      url: '/api/archivo/c7a023e6-acb8-4c93-bd18-2b929b773788',
-      bloque: 'Aspectos comerciales',
+      titulo: 'JCDecaux fuera de México: caso de éxito, no catálogo',
+      lectura: 'En LinkedIn no anuncian inventario: anuncian el takeover de Wembley por una serie de conciertos agotados. En Meta venden con promesa de retorno y sostienen una serie de contenido propia ya en su quinto episodio. Es el techo de la categoría, y es contra esto que se va a comparar el material de Promo Espacio — no contra una lámina de formatos.',
+      url: '/api/archivo/3b1c5117-7617-4509-b252-5619fa49811f',
+      bloque: 'JCDecaux · internacional',
+    },
+    {
+      titulo: 'Global Vía Pública fuera de México nombra a sus clientes',
+      lectura: 'Afuera sí hacen paid social, y con marca cliente a la vista: sus pantallas corriendo Scotiabank, y la final de la Copa Libertadores con “Amstel apostó por dos de nuestras ubicaciones más potentes”. En México, en cambio, dejan redes sociales vacías. Es un movimiento concreto y copiable que ya dominan y todavía no traen aquí.',
+      url: '/api/archivo/d44f6b1b-1fd2-4191-ac19-d077ea31d3db',
+      bloque: 'Global Vía Pública · internacional',
+    },
+    {
+      titulo: 'Cómo JCDecaux vende formato por formato',
+      lectura: 'Su página de mobiliario urbano no lista formatos: los vende uno a uno con fotografía de calle real y una línea de beneficio cada uno, con campañas de cliente vivas encima. Es el estándar de cómo debería verse una oferta en pantalla. El contrapunto que el propio análisis marca: dependen al 100% del formulario para que alguien los contacte.',
+      url: '/api/archivo/bf72cbc8-d3d1-4a60-9766-6bd1b0b1b1d2',
+      bloque: 'JCDecaux · sitio',
     },
   ],
 
