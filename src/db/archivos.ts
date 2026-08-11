@@ -19,7 +19,7 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { slugsDeSalas } from './temas'
 
-export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video'
+export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia'
 
 export interface ArchivoSala {
   id: string
@@ -137,6 +137,10 @@ export async function registrarArchivo(datos: {
   ruta?: string | null
   nombreOriginal?: string | null
   enlace?: string | null
+  /** Solo en `categoria: 'evidencia'`: de qué disciplina del benchmark es. */
+  bloque?: string | null
+  /** Solo en `categoria: 'evidencia'`: qué hay que mirar en ella. */
+  lectura?: string | null
   tipoContenido?: string | null
   tamanoBytes?: number | null
   subidoPor?: string | null
@@ -181,6 +185,8 @@ export async function registrarArchivo(datos: {
       ruta: datos.ruta ?? null,
       nombreOriginal: datos.nombreOriginal ?? null,
       enlace: datos.enlace ?? null,
+      bloque: datos.bloque ?? null,
+      lectura: datos.lectura ?? null,
       tipoContenido: datos.tipoContenido ?? null,
       tamanoBytes: datos.tamanoBytes ?? null,
       subidoPor: datos.subidoPor ?? null,

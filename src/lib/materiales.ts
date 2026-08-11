@@ -42,6 +42,12 @@ export interface MaterialParaVista {
 const EXTENSIONES_IMAGEN = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg']
 
 /**
+ * Lo que un navegador reproduce sin plugins — la misma lista que `TIPOS_VIDEO`
+ * en `lib/blob.ts`, que es lo único que se deja subir.
+ */
+const EXTENSIONES_VIDEO = ['mp4', 'webm']
+
+/**
  * El id de un vídeo de YouTube, o null si esa URL no es de YouTube.
  *
  * Cubre las cuatro formas con las que llega un enlace pegado a mano:
@@ -135,6 +141,25 @@ export function materialParaVista(m: {
   if (esImagen) {
     return { tipo: 'imagen', miniatura: destino, distintivo: extensionParaCaratula(m.nombreOriginal), destino, externo: false }
   }
+
+  // UN VÍDEO SUBIDO TAMBIÉN ES VÍDEO. Antes solo lo era el de YouTube, y un
+  // mp4 propio caía a "documento": salía con carátula "MP4" y sin el triángulo
+  // de reproducir, indistinguible de un Excel. La miniatura sigue en null —
+  // sacar un fotograma exige decodificar el vídeo en el servidor—, pero el
+  // tipo correcto es lo que permite que quien lo pinta decida reproducirlo en
+  // línea en vez de ofrecer una descarga.
+  const esVideo =
+    EXTENSIONES_VIDEO.includes(ext) || (m.tipoContenido ?? '').startsWith('video/')
+  if (esVideo) {
+    return {
+      tipo: 'video',
+      miniatura: null,
+      distintivo: extensionParaCaratula(m.nombreOriginal),
+      destino,
+      externo: false,
+    }
+  }
+
   return {
     tipo: 'documento',
     miniatura: null,

@@ -23,12 +23,10 @@ import type { Benchmark } from '@/dominio/benchmark'
  * enteras.
  *
  * QUÉ NO ESTÁ AQUÍ Y POR QUÉ:
- * - El RADAR de capacidades (lámina 67) no rotula sus valores: leerlos del
- *   dibujo sería estimarlos. Va como testigo —la imagen— y su clasificación
- *   textual (GANAS / EMPATAS / TE SUPERAN) está repartida en las notas de la
- *   matriz, que sí es literal.
  * - Precios y condiciones comerciales: el propio deck avisa de que no se
  *   pudieron validar (solo ISA y JCDecaux respondieron).
+ * - La EVIDENCIA (capturas de anuncios, sitios, piezas). Se sube desde la
+ *   propia página y vive en base: ver la nota al final de este archivo.
  *
  * DOS ADVERTENCIAS AL PRESENTARLO:
  * - El deck marca la exclusividad de Comscore con "*Por validar", y la ficha
@@ -41,10 +39,20 @@ const PROMO_ESPACIO: Benchmark = {
   salaSlug: 'promo-espacio',
 
   indicadores: [
+    /**
+     * CORREGIDO CONTRA LA MATRIZ. Decía "3 · variables donde es la única
+     * líder — indoor, cercanía al punto de consumo y flexibilidad comercial",
+     * y la matriz de la lámina 27 lo desmiente: en Indoor y en Flexibilidad
+     * comercial IMJ Media también aparece como líder, así que únicas son una,
+     * no tres. Se enseña lo que dice la matriz —cuatro variables liderando— y
+     * la lectura precisa cuál es la que nadie más lidera. Sale más fuerte
+     * dicho bien: quien acompaña en las otras dos es el competidor de menor
+     * amenaza del set.
+     */
     {
-      valor: '3',
-      rotulo: 'Variables donde es la única líder',
-      lectura: 'Indoor, cercanía al punto de consumo y flexibilidad comercial. Nadie más lidera esas tres.',
+      valor: '4 de 10',
+      rotulo: 'Variables donde lidera',
+      lectura: 'En cercanía al punto de consumo lidera SOLA: los cinco se quedan en básico. En indoor y flexibilidad comercial solo le hace sombra IMJ Media, el de menor amenaza.',
       tono: 'gana',
     },
     {
@@ -237,21 +245,27 @@ const PROMO_ESPACIO: Benchmark = {
   ],
 
   // ── Las cifras duras (lámina 29), literal ────────────────────────────────
+  // CADA FILA DICE DE QUÉ DISCIPLINA ES. Las doce venían en una sola tabla
+  // titulada "Sitio web y SEO", pero cinco de ellas no van de SEO: van de
+  // captación —cuántos canales de contacto hay, si hay WhatsApp, si el sitio
+  // corre sobre un CRM—. Etiquetadas, las siete de SEO se leen dentro de "Web
+  // y SEO" y las cinco de captación dentro de "Comercial", que es donde de
+  // verdad se usan.
   comparativa: {
     titulo: 'Sitio web y SEO, criterio por criterio',
     filas: [
-      { criterio: 'Visitas orgánicas / mes', udn: '803', valores: ['3,600', '785', '2,500', '185', '614'] },
-      { criterio: 'Tráfico de marca', udn: '50%', valores: ['89%', '100%', '18%', '95%', '100%'], ganaLaUdn: true },
-      { criterio: 'Keywords posicionadas', udn: '96', valores: ['246', '9', '69', '80', '14'] },
-      { criterio: 'Authority Score (/100)', udn: '22', valores: ['27', '18', '28', '12', '10'] },
-      { criterio: 'Visibilidad en IA (/100)', udn: '26', valores: ['31', '14', '18', '14', 's/d'] },
-      { criterio: 'Core Web Vitals', udn: 'No pasa', valores: ['No pasa', 'No pasa', 'No pasa', 'No pasa', 'Pasa'] },
-      { criterio: 'Backlinks / dominios ref.', udn: '1,600 / 135', valores: ['272k / 343', '87 / 31', '26k / 360', '3,900 / 34', '96 / 40'] },
-      { criterio: 'N.º canales de contacto', udn: '4', valores: ['2', '1', '4', '3', '1'], ganaLaUdn: true },
-      { criterio: 'Canales de contacto', udn: 'Form · Tel · Email · Chat', valores: ['Form · Tel', 'Form', 'Form · Tel · Mail · WA', 'Form · Mail · WA', 'Form'] },
-      { criterio: 'WhatsApp comercial', udn: 'No', valores: ['No', 'No', 'Sí', 'Sí', 'No'] },
-      { criterio: 'CMS / Automatización', udn: 'HubSpot', valores: ['WordPress', 'Drupal', 'WordPress + Elementor', 'WordPress + Elementor', 'WordPress'], ganaLaUdn: true },
-      { criterio: 'CRM conectado al sitio', udn: 'Sí · HubSpot', valores: ['No detectado', 'No detectado', 'No detectado*', 'Sí · Clientify', 'No detectado'], ganaLaUdn: true },
+      { criterio: 'Visitas orgánicas / mes', udn: '803', valores: ['3,600', '785', '2,500', '185', '614'], bloque: 'web' },
+      { criterio: 'Tráfico de marca', udn: '50%', valores: ['89%', '100%', '18%', '95%', '100%'], ganaLaUdn: true, bloque: 'web' },
+      { criterio: 'Keywords posicionadas', udn: '96', valores: ['246', '9', '69', '80', '14'], bloque: 'web' },
+      { criterio: 'Authority Score (/100)', udn: '22', valores: ['27', '18', '28', '12', '10'], bloque: 'web' },
+      { criterio: 'Visibilidad en IA (/100)', udn: '26', valores: ['31', '14', '18', '14', 's/d'], bloque: 'web' },
+      { criterio: 'Core Web Vitals', udn: 'No pasa', valores: ['No pasa', 'No pasa', 'No pasa', 'No pasa', 'Pasa'], bloque: 'web' },
+      { criterio: 'Backlinks / dominios ref.', udn: '1,600 / 135', valores: ['272k / 343', '87 / 31', '26k / 360', '3,900 / 34', '96 / 40'], bloque: 'web' },
+      { criterio: 'N.º canales de contacto', udn: '4', valores: ['2', '1', '4', '3', '1'], ganaLaUdn: true, bloque: 'comercial' },
+      { criterio: 'Canales de contacto', udn: 'Form · Tel · Email · Chat', valores: ['Form · Tel', 'Form', 'Form · Tel · Mail · WA', 'Form · Mail · WA', 'Form'], bloque: 'comercial' },
+      { criterio: 'WhatsApp comercial', udn: 'No', valores: ['No', 'No', 'Sí', 'Sí', 'No'], bloque: 'comercial' },
+      { criterio: 'CMS / Automatización', udn: 'HubSpot', valores: ['WordPress', 'Drupal', 'WordPress + Elementor', 'WordPress + Elementor', 'WordPress'], ganaLaUdn: true, bloque: 'comercial' },
+      { criterio: 'CRM conectado al sitio', udn: 'Sí · HubSpot', valores: ['No detectado', 'No detectado', 'No detectado*', 'Sí · Clientify', 'No detectado'], ganaLaUdn: true, bloque: 'comercial' },
     ],
     notaPie: '* Grupo IMU opera un CRM/BI de ventas interno, pero no se detectó conexión CRM en la captación del sitio público. Solo Promo Espacio corre su sitio sobre una plataforma CRM que captura y nutre leads de forma nativa.',
     fuente: 'Benchmark Sitios Web & SEO (jun 2026) + verificación técnica de sitios',
@@ -267,22 +281,44 @@ const PROMO_ESPACIO: Benchmark = {
     sustento: 'Tres fuerzas que solo este ecosistema combina: contexto (el punto exacto de decisión), atención (la audiencia permanece frente a la pantalla en la fila del banco o la caja del súper, no un vistazo de dos segundos) y repetición (el mismo consumidor vuelve a la misma sucursal cada semana). La medición certificada por un tercero es la evidencia de que ocurre.',
   },
 
-  frentesAbiertos: [
+  // ── EL VEREDICTO DE CADA DISCIPLINA ──────────────────────────────────────
+  // Cuatro de los seis son los "frentes abiertos" del análisis, literales:
+  // sitios donde la CATEGORÍA ENTERA está floja, no solo un competidor. Van
+  // marcados con `ventana` porque esa es la lectura rentable —una puerta que
+  // se cierra sola con el tiempo— y porque es lo que la cabecera resume.
+  //
+  // Los otros dos (portafolio y PR) NO son frentes abiertos: son el resumen de
+  // lo que dicen la matriz de la lámina 27 y las fichas institucionales de las
+  // láminas 4-8. Se escriben sin adorno y sin conclusión que el análisis no
+  // saque.
+  disciplinas: [
     {
-      frente: 'Comercial',
-      evidencia: 'Solo ISA (3 días) y JCDecaux (10 días) respondieron a la prospección. Global, IMJ e IMU no dieron señal pese a tener formulario, redes y teléfono visibles.',
+      id: 'portafolio',
+      veredicto: 'Cuatro de las diez variables de la matriz están en manos de Promo Espacio, y la de cercanía al punto de consumo la lidera sola: los cinco competidores se quedan en básico. Donde pierde —cobertura nacional, mobiliario urbano, transporte— pierde contra inventario concesionado, que no se compra con estrategia. Ahí no se pelea.',
     },
     {
-      frente: 'Paid media',
-      evidencia: 'JCDecaux marca el techo con <$50K MXN y 22 keywords; el resto está por debajo de $10K o ausente. Ninguno usa landing dedicada y la pauta se concentra en Monterrey: activación por plaza, no estrategia nacional.',
+      id: 'web',
+      ventana: true,
+      veredicto: 'Todos dependen del tráfico de su marca (JCDecaux 100%, IMJ 100%, Global 95%, ISA 89%). Cinco de seis no pasan Core Web Vitals. Lideran porque ya los buscan, no porque los descubran.',
     },
     {
-      frente: 'SEO y web',
-      evidencia: 'Todos dependen del tráfico de su marca (JCDecaux 100%, IMJ 100%, Global 95%, ISA 89%). Cinco de seis no pasan Core Web Vitals. Lideran porque ya los buscan, no porque los descubran.',
+      id: 'paid',
+      ventana: true,
+      veredicto: 'JCDecaux marca el techo con <$50K MXN y 22 keywords; el resto está por debajo de $10K o ausente. Ninguno usa landing dedicada y la pauta se concentra en Monterrey: activación por plaza, no estrategia nacional.',
     },
     {
-      frente: 'Inbound y RRSS',
-      evidencia: 'Sin contenido capturable y casi sin blogs con tesis. Dicen qué venden, no cómo funciona ni por qué es superior.',
+      id: 'rrss',
+      ventana: true,
+      veredicto: 'Sin contenido capturable y casi sin blogs con tesis. Dicen qué venden, no cómo funciona ni por qué es superior.',
+    },
+    {
+      id: 'pr',
+      veredicto: 'Es la disciplina donde la distancia es mayor y no se ve en el inventario. ISA acumula Great Place To Work, Premio Nacional de Calidad y Mejores Empresas Mexicanas; JCDecaux hereda ESG global y va a WOO e IAB cada año. Los otros tres no tienen certificaciones visibles. Es lo que los hace parecer líderes aunque el activo no lo sea.',
+    },
+    {
+      id: 'comercial',
+      ventana: true,
+      veredicto: 'Solo ISA (3 días) y JCDecaux (10 días) respondieron a la prospección. Global, IMJ e IMU no dieron señal pese a tener formulario, redes y teléfono visibles.',
     },
   ],
 
@@ -315,6 +351,7 @@ const PROMO_ESPACIO: Benchmark = {
   // porque no rotula sus valores — ese va como testigo.
   graficos: [
     {
+      bloque: 'web',
       // Lámina 30. Los tres ejes de la pelea digital en una sola vista.
       grafico: {
         tipo: 'barras-comparadas',
@@ -330,6 +367,7 @@ const PROMO_ESPACIO: Benchmark = {
       lectura: 'La tercera serie es la que importa: el % de tráfico que NO viene de buscar la marca. JCDecaux e IMJ están en cero — todo su tráfico es gente que ya los conocía. IMU (82%) y Promo Espacio (50%) son los únicos que captan demanda de verdad. Visibilidad IA de IMJ sin dato, contada como 0.',
     },
     {
+      bloque: 'rrss',
       // Lámina 64. Seguidores y engagement no comparten escala: doble eje.
       grafico: {
         tipo: 'combo-barras-lineas',
@@ -344,6 +382,7 @@ const PROMO_ESPACIO: Benchmark = {
       lectura: 'Promo Espacio es el tercero en tamaño y el ÚLTIMO en engagement (0.46%). JCDecaux tiene la mitad de seguidores y casi el triple de interacción: publica casos y creatividad, no tecnicismos. El tamaño de la audiencia no es el problema.',
     },
     {
+      bloque: 'portafolio',
       /**
        * EL RADAR, RECONSTRUIDO COMO DATO.
        *
@@ -360,90 +399,53 @@ const PROMO_ESPACIO: Benchmark = {
        * dice "evaluación cualitativa del benchmark", y eso va escrito en la
        * lectura para que nadie los cite como dato duro.
        *
-       * Se dibuja como barras y no como radar porque el catálogo de gráficos
-       * de esta app no tiene radar, y añadir uno para una sola pantalla es
-       * más deuda que valor. Comparar siete pares de barras funciona igual de
-       * bien —mejor, incluso, para ver la distancia exacta en cada eje.
+       * SE DIBUJA COMO RADAR, que es lo que es. Estuvo un tiempo como barras
+       * horizontales porque el catálogo de gráficos de esta app no tenía
+       * radar; ahora sí (`src/componentes/graficos/Radar.tsx`). Y la forma
+       * importa: siete capacidades medidas con la MISMA vara comparan un
+       * PERFIL, no siete magnitudes sueltas. El polígono enseña de un vistazo
+       * dónde sobresale y dónde se hunde; en barras eran catorce que había
+       * que recorrer de dos en dos.
        */
       grafico: {
-        // HORIZONTALES, no verticales. Siete capacidades con nombres largos
-        // —"Madurez comercial digital", "Escala inventario físico"— no caben
-        // bajo una barra vertical: se pisaban unas a otras y se cortaban a
-        // media palabra. En horizontal la etiqueta va a la izquierda y cabe
-        // entera, que es lo único que importa aquí.
-        tipo: 'barras-horizontales-agrupadas',
-        titulo: 'Radar de capacidades, eje por eje',
-        // ETIQUETAS CORTAS a propósito: la columna de rótulos de este gráfico
-        // recorta a ~15 caracteres, y "Madurez comercial digital" salía como
-        // "Madurez comerc…". Los nombres completos del análisis van escritos
-        // en la lectura de abajo, que es donde se pueden leer enteros.
+        tipo: 'radar',
+        titulo: 'Radar de capacidades',
+        // NOMBRES COMPLETOS, ya no recortados. La columna de rótulos de las
+        // barras horizontales cortaba a ~15 caracteres y "Madurez comercial
+        // digital" salía como "Madurez comerc…"; el radar reparte el nombre
+        // en dos líneas alrededor del polígono y caben enteros.
         periodos: [
-          'Momento compra',
-          'Programática',
-          'Madurez digital',
-          'Cobertura',
-          'Creatividad',
-          'Institucional',
-          'Escala física',
+          'Momento de compra',
+          'Digital y programática',
+          'Madurez comercial digital',
+          'Cobertura geográfica',
+          'Creatividad declarada',
+          'Presencia institucional',
+          'Escala inventario físico',
         ],
         series: [
           { etiqueta: 'Promo Espacio', valores: [5, 5, 4, 3, 2, 2, 2] },
           { etiqueta: 'Promedio competencia', valores: [1.6, 3.4, 2.6, 4, 2.4, 3.6, 4.2] },
         ],
-        mostrarValores: true,
+        // SIN `mostrarValores`, que en un radar no hace nada: catorce números
+        // repartidos alrededor de una rejilla ya rotulada se pisan entre ellos
+        // y tapan justo la forma que se viene a ver. Los dos que importan —5
+        // contra 1.6 y 2 contra 4.2— están escritos en la lectura.
       },
       lectura: 'Siete capacidades, ordenadas por la distancia a favor: momento de compra (5 contra 1.6, la mayor de las siete), digital y programática, madurez comercial digital, cobertura geográfica, creatividad declarada, presencia institucional y escala de inventario físico —donde la desventaja es de 2 contra 4.2—. Es la misma forma que la matriz, en una sola vista. Escala de 1 a 5 y evaluación CUALITATIVA del análisis, no una medición de mercado: sirve para ordenar la conversación, no para citar en una propuesta.',
     },
   ],
 
-  // ── LA EVIDENCIA ─────────────────────────────────────────────────────────
-  // Franco: *"dejaste láminas como evidencia pero no es esa la evidencia, son
-  // gráficos que no pusiste"*. Tenía razón: subí como testigos la matriz, la
-  // tabla comparativa y la contactabilidad — las tres YA reconstruidas como
-  // datos en esta misma página. Eso es duplicar, no evidenciar.
+  // ── LA EVIDENCIA YA NO SE ESCRIBE AQUÍ ───────────────────────────────────
+  // Vivían aquí seis testigos con la URL de su imagen. Franco: *"la evidencia
+  // mejor la cargaré manualmente según la categoría, subiré imágenes o videos
+  // o url; crea el módulo y reemplaza lo que cargaste como imagen, no quites
+  // el texto ya que es su bajada explicativa"*.
   //
-  // Evidencia es lo que NO se puede reconstruir: los anuncios que la
-  // competencia tiene corriendo, sus sitios, sus piezas. Se llenan abajo.
-  // Se sirven por /api/archivo/[id], que comprueba permiso contra la sala.
-  // Subidos con scripts/subir-testigos-benchmark.ts.
-  testigos: [
-    {
-      titulo: 'El simulador de ISA',
-      lectura: 'Un asistente de tres pasos dentro de su sitio —elegir el espacio, subir la imagen, ver el resultado— que monta la creatividad del cliente sobre la foto de un espacio real. Nadie más en el set lo tiene: resuelve solo la objeción de “no me imagino cómo se va a ver”, sin una llamada. Es lo único del análisis que obliga a construir algo, no a decir algo distinto.',
-      url: '/api/archivo/0ae4933c-704c-4669-96f1-ad6d0b3b035b',
-      bloque: 'ISA Corporativo · sitio',
-    },
-    {
-      titulo: 'Los 17 anuncios que JCDecaux tiene corriendo en México',
-      lectura: 'Diecisiete anuncios de búsqueda vivos, uno por formato, repartidos en dos dominios propios que compiten entre sí. Todo el argumento es cobertura y escala —“más de 15 mil anuncios”, “presencia en 32 estados”— y meten su suite de medición como enlaces del propio anuncio: Mide el Impacto, Post Buy, Engage. No venden espacios: venden cobertura con medición, y lo dicen desde el anuncio.',
-      url: '/api/archivo/87a34f46-c3ae-4cdc-be55-cc6f9694e1f9',
-      bloque: 'JCDecaux · paid media',
-    },
-    {
-      titulo: 'Los anuncios que ISA lleva meses sin apagar',
-      lectura: 'Dos anuncios marcados “Activo” en la biblioteca de Meta con su fecha de arranque a la vista: uno desde septiembre y otro desde diciembre de 2025. No venden “OOH”, venden dos activos concretos —aeropuertos y Metro— con foto de sus pantallas ya instaladas y campañas de cliente corriendo. Es el competidor con la operación de pauta más constante del set, y la fecha lo hace indiscutible en una junta.',
-      url: '/api/archivo/632c7458-2b16-4633-be80-9bfa3b10c28a',
-      bloque: 'ISA Corporativo · paid media',
-    },
-    {
-      titulo: 'JCDecaux fuera de México: caso de éxito, no catálogo',
-      lectura: 'En LinkedIn no anuncian inventario: anuncian el takeover de Wembley por una serie de conciertos agotados. En Meta venden con promesa de retorno y sostienen una serie de contenido propia ya en su quinto episodio. Es el techo de la categoría, y es contra esto que se va a comparar el material de Promo Espacio — no contra una lámina de formatos.',
-      url: '/api/archivo/3b1c5117-7617-4509-b252-5619fa49811f',
-      bloque: 'JCDecaux · internacional',
-    },
-    {
-      titulo: 'Global Vía Pública fuera de México nombra a sus clientes',
-      lectura: 'Afuera sí hacen paid social, y con marca cliente a la vista: sus pantallas corriendo Scotiabank, y la final de la Copa Libertadores con “Amstel apostó por dos de nuestras ubicaciones más potentes”. En México, en cambio, dejan redes sociales vacías. Es un movimiento concreto y copiable que ya dominan y todavía no traen aquí.',
-      url: '/api/archivo/d44f6b1b-1fd2-4191-ac19-d077ea31d3db',
-      bloque: 'Global Vía Pública · internacional',
-    },
-    {
-      titulo: 'Cómo JCDecaux vende formato por formato',
-      lectura: 'Su página de mobiliario urbano no lista formatos: los vende uno a uno con fotografía de calle real y una línea de beneficio cada uno, con campañas de cliente vivas encima. Es el estándar de cómo debería verse una oferta en pantalla. El contrapunto que el propio análisis marca: dependen al 100% del formulario para que alguien los contacte.',
-      url: '/api/archivo/bf72cbc8-d3d1-4a60-9766-6bd1b0b1b1d2',
-      bloque: 'JCDecaux · sitio',
-    },
-  ],
+  // Ahora se sube desde la propia página y vive en `archivos` con
+  // `categoria: 'evidencia'`, clasificada por disciplina. Las seis bajadas que
+  // estaban escritas aquí NO se perdieron: se migraron a su fila con
+  // scripts/migrar-evidencia-benchmark.ts, palabra por palabra.
 
   mercado: [
     {

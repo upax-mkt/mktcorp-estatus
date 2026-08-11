@@ -323,7 +323,11 @@ export const minutas = pgTable('minutas', {
 // una reunión sin sala también lleva imágenes.
 // 'video' (ronda 9, tarea 7) es lo mismo que 'imagen' pero para el vídeo de
 // una sección: tampoco cuelga de una sala, cuelga de la reunión.
-export const categoriaArchivoEnum = pgEnum('categoria_archivo', ['presentacion', 'interes', 'imagen', 'video'])
+export const categoriaArchivoEnum = pgEnum('categoria_archivo', [
+  'presentacion', 'interes', 'imagen', 'video',
+  /** Una lámina, captura o vídeo que sostiene un hallazgo del benchmark. */
+  'evidencia',
+])
 
 export const archivos = pgTable('archivos', {
   id: text('id').primaryKey(),
@@ -362,6 +366,16 @@ export const archivos = pgTable('archivos', {
   nombreOriginal: text('nombre_original'),
   /** La URL, cuando el material es un enlace en vez de un fichero subido. */
   enlace: text('enlace'),
+  /**
+   * De qué DISCIPLINA del benchmark es esta evidencia: web, paid, RRSS, PR…
+   * Nulo en todo lo que no sea `categoria = 'evidencia'`.
+   */
+  bloque: text('bloque'),
+  /**
+   * La bajada: qué hay que MIRAR en esa imagen y por qué importa. Sin ella
+   * una captura es decoración — es la diferencia entre evidencia y adorno.
+   */
+  lectura: text('lectura'),
   tipoContenido: text('tipo_contenido'),
   tamanoBytes: integer('tamano_bytes'),
   /** Quién lo subió, para poder preguntarle. Informativo. */

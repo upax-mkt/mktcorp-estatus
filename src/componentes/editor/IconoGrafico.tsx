@@ -84,6 +84,22 @@ const DIBUJOS: Record<TipoGrafico, React.ReactNode> = {
       <polyline points="1,14 8,8 15,11 23,3" fill="none" stroke={MARCA} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
+  'radar': (
+    <>
+      {/* La rejilla concéntrica y, encima, un perfil: es lo que distingue a un
+          radar de cualquier otra forma cerrada. */}
+      <polygon points="12,2 20.6,8.2 17.3,18.3 6.7,18.3 3.4,8.2" fill="none" stroke={APAGADO} strokeWidth="1" />
+      <polygon points="12,6.5 16.3,9.6 14.7,14.6 9.3,14.6 7.7,9.6" fill="none" stroke={APAGADO} strokeWidth="1" />
+      <polygon
+        points="12,3 16.3,9.6 15.8,16.3 9.9,13.8 6.3,9.2"
+        fill={MARCA}
+        fillOpacity="0.25"
+        stroke={MARCA}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </>
+  ),
   'dona': (
     <>
       {/* El anillo se dibuja con un trazo grueso sobre la circunferencia: un

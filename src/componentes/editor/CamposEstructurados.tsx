@@ -254,6 +254,7 @@ const NOMBRE_DE_TIPO: Record<(typeof TIPOS_DE_GRAFICO)[number], string> = {
   'combo-barras-lineas': 'Barras + líneas (con meta)',
   'area': 'Área',
   'dona': 'Dona',
+  'radar': 'Radar',
 }
 
 const FORMAS: Array<{ valor: NonNullable<Serie['forma']>; nombre: string }> = [
@@ -514,6 +515,10 @@ function TIPOS_COMPATIBLES(cuantasSeries: number, dosEjes: boolean): Array<(type
     if (tipo === 'combo-barras-lineas') return cuantasSeries > 1
     if (tipo === 'barras-comparadas' || tipo === 'barras-horizontales-agrupadas') return cuantasSeries > 1
     if (tipo === 'lineas-multiples') return cuantasSeries > 1
+    // El radar mide TODOS sus ejes con la misma vara: dos escalas ahí no
+    // significan nada. Y con una sola serie sigue teniendo sentido —es el
+    // perfil de una— así que no se pide más de una.
+    if (tipo === 'radar') return !dosEjes
     // Las barras horizontales no llevan eje de valores, así que no pueden
     // tener dos escalas.
     if (dosEjes && tipo === 'barras-horizontales') return false

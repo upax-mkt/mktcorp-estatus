@@ -248,9 +248,16 @@ export const TIPOS_DE_GRAFICO = [
   // barras de volumen con líneas de tendencia y meta sobre un segundo eje;
   // dos periodos comparados por canal en horizontal; y varias métricas de
   // escalas muy distintas (coste vs. clics) que necesitan doble eje.
+  //
+  // Y el radar, que es el único que NO compara magnitudes sino un PERFIL:
+  // varias capacidades medidas con la misma vara —una evaluación de 1 a 5— y
+  // dos o tres series encima. Es la forma del benchmark de una UDN contra el
+  // promedio de su competencia; en barras eso son catorce barras que hay que
+  // recorrer de dos en dos.
   'combo-barras-lineas',
   'barras-horizontales-agrupadas',
   'lineas-multiples',
+  'radar',
 ] as const
 
 /** En qué eje se lee una serie cuando el gráfico tiene dos escalas. */
@@ -412,7 +419,9 @@ const Columna = z.object({
 }).strict()
 
 const Grafico = z.object({
-  tipo: z.enum(TIPOS_DE_GRAFICO).describe('Qué forma de gráfico comunica mejor estos datos.'),
+  tipo: z.enum(TIPOS_DE_GRAFICO).describe(
+    'Qué forma de gráfico comunica mejor estos datos. Usa "radar" SOLO para comparar varias capacidades (tres o más) medidas todas con la misma vara —una evaluación de 1 a 5, un scoring por criterio— entre dos o tres series: dibuja el perfil de cada una y la distancia entre ellas. NUNCA lo uses para una serie temporal ni para magnitudes distintas entre sí: el radar cierra el polígono, así que uniría diciembre con enero, y todos sus ejes comparten una sola escala.',
+  ),
   titulo: TextoPlano.optional().describe('Título del gráfico, si aporta ("Tráfico website").'),
   periodos: z.array(TextoPlano).min(1).describe(
     'El eje horizontal: los meses o categorías, en orden ("enero", "febrero"… o "Organic Search", "Paid Search"…).',

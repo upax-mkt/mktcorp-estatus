@@ -42,6 +42,15 @@ export type IconoBench =
   | 'acciones'
   | 'evidencia'
   | 'mercado'
+  // Uno por disciplina: son los que encabezan los seis bloques en que se
+  // reparte el análisis, y sus nombres coinciden con los ids de `DISCIPLINAS`
+  // para que el bloque pida su icono sin una tabla de traducción en medio.
+  | 'portafolio'
+  | 'web'
+  | 'paid'
+  | 'rrss'
+  | 'pr'
+  | 'comercial'
 
 export function IconoBenchmark({ nombre, className }: { nombre: IconoBench; className?: string }) {
   switch (nombre) {
@@ -140,6 +149,69 @@ export function IconoBenchmark({ nombre, className }: { nombre: IconoBench; clas
         <svg {...COMUNES} className={className}>
           <path d="M4 17.5l5-5 3.5 3L20 7" />
           <path d="M15.5 7H20v4.5" />
+        </svg>
+      )
+
+    // ── Las seis disciplinas ────────────────────────────────────────────────
+
+    // Portafolio: las pantallas del inventario, una grande y dos pequeñas.
+    case 'portafolio':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="3.5" y="4.5" width="11" height="8" rx="1.4" />
+          <path d="M9 12.5v3" /><path d="M6.5 15.5h5" />
+          <rect x="16.5" y="7" width="4" height="5.5" rx="1" />
+          <rect x="16.5" y="15" width="4" height="4.5" rx="1" />
+        </svg>
+      )
+
+    // Web y SEO: el globo del buscador con su meridiano.
+    case 'web':
+      return (
+        <svg {...COMUNES} className={className}>
+          <circle cx="12" cy="12" r="8.2" />
+          <path d="M3.8 12h16.4" />
+          <path d="M12 3.8c2.2 2.4 3.3 5.2 3.3 8.2s-1.1 5.8-3.3 8.2" />
+          <path d="M12 3.8c-2.2 2.4-3.3 5.2-3.3 8.2s1.1 5.8 3.3 8.2" />
+        </svg>
+      )
+
+    // Paid media: el clic que se paga. Un cursor sobre un anuncio.
+    case 'paid':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="3.5" y="4.5" width="13" height="10" rx="1.6" />
+          <path d="M6.5 8h7" /><path d="M6.5 11h4" />
+          <path d="M13.5 13.2l6.5 3.2-2.9 1.1-1.1 2.9z" />
+        </svg>
+      )
+
+    // Inbound y RRSS: el globo de conversación con su reacción.
+    case 'rrss':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M4 6.6A2.1 2.1 0 016.1 4.5h9A2.1 2.1 0 0117.2 6.6v5.3a2.1 2.1 0 01-2.1 2.1H9l-5 3.4z" />
+          <path d="M20 9.5v6.2a2.1 2.1 0 01-2.1 2.1h-1.2l.3 2.7-3.2-2.7" />
+        </svg>
+      )
+
+    // PR: el micrófono de la vocería, con su base.
+    case 'pr':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="9.2" y="3.2" width="5.6" height="10.4" rx="2.8" />
+          <path d="M5.8 11.5a6.2 6.2 0 0012.4 0" />
+          <path d="M12 17.7v3.1" /><path d="M8.8 20.8h6.4" />
+        </svg>
+      )
+
+    // Comercial: el apretón de manos que cierra. Dos trazos que se encuentran.
+    case 'comercial':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M3.5 9.5l3-2.5 4 3.2 2.2-1.6 4.4 3.6" />
+          <path d="M13.5 8.6l3.4-2.1 3.6 3v6l-3 2-3.2-2.6" />
+          <path d="M3.5 9.5v5.6l3.4 2.4 3.3-2.6" />
         </svg>
       )
   }

@@ -82,6 +82,37 @@ describe('materialParaVista — qué cara pone cada material', () => {
     expect(v.miniatura).toBe('/api/archivo/abc')
   })
 
+  /**
+   * Un mp4 propio caía a "documento" —carátula "MP4", sin triángulo de
+   * reproducir— porque solo YouTube contaba como vídeo. Quien sube la
+   * evidencia de un benchmark sube capturas y vídeos: los dos tienen que
+   * distinguirse de un Excel.
+   */
+  it('un vídeo subido es vídeo, y se sigue sirviendo por /api/archivo/[id]', () => {
+    const v = materialParaVista({
+      ...base,
+      ruta: 'salas/pe/video/x-spot.mp4',
+      nombreOriginal: 'spot.mp4',
+      tipoContenido: 'video/mp4',
+    })
+    expect(v.tipo).toBe('video')
+    expect(v.destino).toBe('/api/archivo/abc')
+    expect(v.externo).toBe(false)
+    // Sin miniatura: sacar un fotograma exigiría decodificar el vídeo en el
+    // servidor. Quien lo pinta decide si lo reproduce en línea.
+    expect(v.miniatura).toBeNull()
+  })
+
+  it('reconoce el vídeo por su tipo de contenido aunque el nombre no lleve extensión', () => {
+    const v = materialParaVista({
+      ...base,
+      ruta: 'salas/pe/video/x-grabacion',
+      nombreOriginal: 'grabacion',
+      tipoContenido: 'video/webm',
+    })
+    expect(v.tipo).toBe('video')
+  })
+
   it('reconoce la imagen por su tipo de contenido aunque el nombre no lleve extensión', () => {
     const v = materialParaVista({
       ...base,
