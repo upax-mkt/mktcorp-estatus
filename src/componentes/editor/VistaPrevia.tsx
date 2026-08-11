@@ -70,19 +70,6 @@ export function VistaPrevia({ borrador, tituloDeRespaldo, tema, acuerdosRetomado
             </div>
           </ProveedorTema>
 
-          {/* LA AGENDA ES LA ÚNICA QUE NO SE PREVISUALIZA EXACTA, y decirlo
-              aquí es más honesto que dejar que parezca un fallo. En el
-              documento el índice se GENERA con las secciones reales —lleva a
-              cada una, es navegable— e ignora estas líneas; esta previa solo
-              ve su propia sección, así que enseña lo tecleado. Es la
-              diferencia que Franco vio al comparar editor y documento. */}
-          {borrador.layout === 'agenda' && (
-            <p className={estilos.previaAviso}>
-              En el documento esta lista se sustituye por un índice navegable de las secciones
-              reales de la reunión. Lo que se escriba aquí sirve de guion, no de índice.
-            </p>
-          )}
-
           {resultado.degradado && (
             <p className={estilos.previaAviso}>
               Con lo que hay ahora, esta sección se presentaría solo con su título.{' '}

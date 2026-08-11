@@ -114,25 +114,58 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
         <p className={estilos.subtitulo}>{decision.subtitulo}</p>
       )}
 
-      {/* Índice: en papel era una lista muerta; aquí lleva a cada sección. */}
-      {papel === 'indice' && indice_general && indice_general.length > 0 ? (
-        <ol className={estilos.indice}>
-          {indice_general.map((entrada) => (
-            <li key={entrada.ancla}>
-              <a href={`#${entrada.ancla}`} className={estilos.indiceEnlace}>
-                {entrada.titulo}
-              </a>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        decision.cuerpo && (
-          <ol className={estilos.cuerpo}>
-            {decision.cuerpo.map((linea, i) => (
-              <li key={`linea-${i}`}>{linea}</li>
+      {/* ÍNDICE. En papel era una lista muerta; aquí lleva a cada sección.
+          LO ESCRITO MANDA SOBRE LO GENERADO, y ese orden importa:
+
+          antes el índice se generaba SIEMPRE con las secciones reales e
+          ignoraba por completo lo que se hubiera escrito en la agenda. El
+          editor ofrecía su campo "Puntos", se escribía, se guardaba… y el
+          documento seguía enseñando otra cosa. Franco: *"en el editor
+          modifiqué la agenda y eso no se ve reflejado en el preview"*. Un
+          campo que se puede llenar y no hace nada es peor que no tenerlo.
+
+          Ahora: si hay agenda escrita, esa es la agenda —y cada línea sigue
+          siendo un enlace cuando coincide con una sección, así que no se
+          pierde la navegación—; si no hay nada escrito, se genera sola con
+          las secciones reales, que es lo que hace que nadie tenga que
+          teclearla. */}
+      {papel === 'indice' && (() => {
+        const escrita = (decision.cuerpo ?? []).filter((l) => l.trim().length > 0)
+        const generado = indice_general ?? []
+        if (escrita.length === 0 && generado.length === 0) return null
+
+        const anclaDe = (linea: string) =>
+          generado.find((e) => e.titulo.trim().toLowerCase() === linea.trim().toLowerCase())?.ancla
+
+        const entradas = escrita.length > 0
+          ? escrita.map((linea, i) => ({ titulo: linea, ancla: anclaDe(linea), clave: `escrita-${i}` }))
+          : generado.map((e) => ({ titulo: e.titulo, ancla: e.ancla, clave: e.ancla }))
+
+        return (
+          <ol className={estilos.indice}>
+            {entradas.map((e) => (
+              <li key={e.clave}>
+                {e.ancla ? (
+                  <a href={`#${e.ancla}`} className={estilos.indiceEnlace}>{e.titulo}</a>
+                ) : (
+                  e.titulo
+                )}
+              </li>
             ))}
           </ol>
         )
+      })()}
+
+      {/* `cuerpo` en una sección que NO es el índice: líneas sueltas, sin
+          enlazar. Hoy solo el layout de agenda declara este campo
+          (`catalogo.ts`), pero el contrato lo admite en cualquiera y una
+          propuesta de la IA puede traerlo: sin esto se perdería en silencio. */}
+      {papel !== 'indice' && decision.cuerpo && decision.cuerpo.length > 0 && (
+        <ol className={estilos.cuerpo}>
+          {decision.cuerpo.map((linea, i) => (
+            <li key={`linea-${i}`}>{linea}</li>
+          ))}
+        </ol>
       )}
 
       {/* ORDEN DE LECTURA de una sección, y por qué:
