@@ -144,11 +144,11 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
         return (
           <ol className={estilos.indice}>
             {entradas.map((e) => (
-              <li key={e.clave}>
+              <li key={e.clave} className={estilos.indiceFila}>
                 {e.ancla ? (
                   <a href={`#${e.ancla}`} className={estilos.indiceEnlace}>{e.titulo}</a>
                 ) : (
-                  e.titulo
+                  <span>{e.titulo}</span>
                 )}
               </li>
             ))}

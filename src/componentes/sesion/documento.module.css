@@ -227,7 +227,14 @@
   margin-top: var(--e-2);
 }
 
-.indiceEnlace {
+/* EL NÚMERO Y LA CAJA CUELGAN DE LA FILA, NO DEL ENLACE.
+   Desde que la agenda escrita manda sobre la generada, una línea puede NO
+   corresponder a ninguna sección —"Acuerdos del mes pasado" no es una
+   sección del documento— y entonces se escribe como texto, sin enlace. Con
+   el contador y el layout colgando de `.indiceEnlace`, esa línea perdía su
+   número y su sangría: se leía como un subtítulo suelto encima de la lista,
+   que es exactamente como se veía en el estatus de NeraCode. */
+.indiceFila {
   counter-increment: indice;
   display: flex;
   align-items: baseline;
@@ -235,23 +242,29 @@
   padding: var(--e-3) var(--e-3) var(--e-3) 0;
   border-radius: 0.5rem;
   font-size: var(--t-1);
-  text-decoration: none;
-  color: inherit;
-  transition: background 0.15s ease, transform 0.15s ease;
 }
-
-.indiceEnlace:focus-visible {
-  outline: 2px solid var(--primario-sobre-superficie);
-  outline-offset: 2px;
-}
-
-.indiceEnlace::before {
+.indiceFila::before {
   content: counter(indice);
   flex-shrink: 0;
   min-width: var(--rail);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--primario-sobre-superficie);
+}
+
+.indiceEnlace {
+  display: flex;
+  align-items: baseline;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 0.5rem;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.indiceEnlace:focus-visible {
+  outline: 2px solid var(--primario-sobre-superficie);
+  outline-offset: 2px;
 }
 
 .indiceEnlace:hover {
