@@ -366,16 +366,25 @@ const PROMO_ESPACIO: Benchmark = {
        * bien —mejor, incluso, para ver la distancia exacta en cada eje.
        */
       grafico: {
-        tipo: 'barras-comparadas',
+        // HORIZONTALES, no verticales. Siete capacidades con nombres largos
+        // —"Madurez comercial digital", "Escala inventario físico"— no caben
+        // bajo una barra vertical: se pisaban unas a otras y se cortaban a
+        // media palabra. En horizontal la etiqueta va a la izquierda y cabe
+        // entera, que es lo único que importa aquí.
+        tipo: 'barras-horizontales-agrupadas',
         titulo: 'Radar de capacidades, eje por eje',
+        // ETIQUETAS CORTAS a propósito: la columna de rótulos de este gráfico
+        // recorta a ~15 caracteres, y "Madurez comercial digital" salía como
+        // "Madurez comerc…". Los nombres completos del análisis van escritos
+        // en la lectura de abajo, que es donde se pueden leer enteros.
         periodos: [
-          'Momento de compra',
-          'Digital / programática',
-          'Madurez comercial digital',
-          'Cobertura geográfica',
-          'Creatividad declarada',
-          'Presencia institucional',
-          'Escala inventario físico',
+          'Momento compra',
+          'Programática',
+          'Madurez digital',
+          'Cobertura',
+          'Creatividad',
+          'Institucional',
+          'Escala física',
         ],
         series: [
           { etiqueta: 'Promo Espacio', valores: [5, 5, 4, 3, 2, 2, 2] },
@@ -383,7 +392,7 @@ const PROMO_ESPACIO: Benchmark = {
         ],
         mostrarValores: true,
       },
-      lectura: 'Los ejes están ordenados por la distancia a favor: en momento de compra la ventaja es de 5 contra 1.6 —la mayor de las siete— y en escala de inventario la desventaja es de 2 contra 4.2. Es la misma forma que la matriz, en una sola vista. Escala de 1 a 5 y evaluación CUALITATIVA del análisis, no una medición de mercado: sirve para ordenar la conversación, no para citar en una propuesta.',
+      lectura: 'Siete capacidades, ordenadas por la distancia a favor: momento de compra (5 contra 1.6, la mayor de las siete), digital y programática, madurez comercial digital, cobertura geográfica, creatividad declarada, presencia institucional y escala de inventario físico —donde la desventaja es de 2 contra 4.2—. Es la misma forma que la matriz, en una sola vista. Escala de 1 a 5 y evaluación CUALITATIVA del análisis, no una medición de mercado: sirve para ordenar la conversación, no para citar en una propuesta.',
     },
   ],
 
