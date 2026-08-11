@@ -18,7 +18,7 @@ import * as esquema from './esquema'
 import { benchmarkIncrustado } from '@/datos/benchmark'
 import type { Benchmark } from '@/dominio/benchmark'
 
-export type { Benchmark, FilaDimensionBenchmark, NivelBenchmark } from '@/dominio/benchmark'
+export type { Benchmark, FilaMatrizBenchmark, NivelBenchmark } from '@/dominio/benchmark'
 
 function isoFecha(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -53,7 +53,7 @@ export async function obtenerBenchmark(salaSlug: string): Promise<Benchmark | nu
   return {
     salaSlug,
     competidores: fila.competidores as Benchmark['competidores'],
-    dimensiones: fila.dimensiones as Benchmark['dimensiones'],
+    matriz: fila.dimensiones as Benchmark['matriz'],
     lectura: fila.lectura ?? '',
     actualizado: isoFecha(fila.updatedAt),
   }

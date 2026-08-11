@@ -1240,3 +1240,97 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 @media (max-width: 560px) { .bmIndicadores { grid-template-columns: 1fr; } }
 .bmIndicador { padding: 1.15rem 1.1rem; }
 .bmIndicadorValor { font-size: clamp(1.7rem, 2.6vw, 2.2rem); }
+
+/* ══ BENCHMARK — la escala de CUATRO niveles del análisis ═════════════════
+   El modelo empezó con tres (líder / a la par / rezagado) porque los inventé
+   antes de mirar el deck. El benchmark real usa cuatro y los define él mismo.
+   Aplastarlos en tres pierde justo la distinción que usa un comercial:
+   "Sólido" y "Básico" no son lo mismo delante de un cliente. */
+.nivel[data-nivel='solido'] {
+  background: color-mix(in oklch, var(--marca) 10%, transparent);
+  color: var(--tx-2); font-weight: 600;
+}
+.nivel[data-nivel='basico'] { background: var(--superficie-2); color: var(--tx-3); }
+.nivel[data-nivel='ausente'] {
+  background: transparent; color: var(--tx-3);
+  border: 1px dashed var(--borde-fuerte);
+}
+.nivel[data-nivel='sin_dato'] {
+  background: transparent; color: var(--tx-4);
+  border: 1px dotted var(--borde);
+}
+
+.bmLeyendaNiveles {
+  list-style: none; margin: 0.9rem 0 0; padding: 0.85rem 0 0;
+  border-top: 1px solid var(--borde);
+  display: grid; gap: 0.4rem;
+}
+.bmLeyendaNiveles li {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  font-size: 0.8rem; color: var(--tx-3);
+}
+
+/* Las cifras duras: la columna de la UDN se marca cuando gana esa fila, para
+   no tener que comparar seis números uno a uno. */
+.bmCifraTabla { font-weight: 700; font-variant-numeric: tabular-nums; }
+.benchmarkColUdn[data-gana='true'] {
+  background: color-mix(in oklch, var(--marca) 12%, var(--superficie));
+}
+.benchmarkColUdn[data-gana='true'] .bmCifraTabla { color: var(--marca-texto, var(--marca)); }
+.bmNotaTabla {
+  margin: 0.7rem 0 0; font-size: 0.78rem; line-height: 1.5; color: var(--tx-3);
+  max-width: 80ch;
+}
+
+/* Contactabilidad dentro de la ficha: quién contesta y en cuánto. Es de lo
+   más accionable del análisis, así que no puede ser una línea más del pie. */
+.bmContacto {
+  display: grid; gap: 0.2rem;
+  padding: 0.7rem 0.8rem; border-radius: var(--r-2);
+  background: var(--superficie-2);
+  border-left: 3px solid var(--borde-fuerte);
+}
+.bmContacto[data-respondio='si'] { border-left-color: var(--tibia); }
+.bmContacto[data-respondio='no'] { border-left-color: color-mix(in oklch, var(--marca) 55%, transparent); }
+.bmContacto p { margin: 0; font-size: 0.84rem; line-height: 1.45; color: var(--tx); }
+.bmContactoImplicacion { color: var(--tx-2); font-size: 0.8rem; }
+
+/* LOS TESTIGOS. Una lámina que vale porque se ve: se enseña grande, con lo
+   que hay que mirar en ella al lado. Sin esa línea es decoración. */
+.bmTestigos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 1.1rem;
+}
+.bmTestigo {
+  display: grid; gap: 0.85rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+}
+@media (max-width: 820px) { .bmTestigo { grid-template-columns: 1fr; } }
+
+.bmTestigoImagen {
+  display: block; border-radius: var(--r-2); overflow: hidden;
+  border: 1px solid var(--borde); background: var(--superficie-2);
+  transition: border-color 0.15s ease;
+}
+.bmTestigoImagen:hover { border-color: var(--marca); }
+.bmTestigoImagen img { width: 100%; height: auto; display: block; }
+.bmTestigoTexto { display: grid; gap: 0.25rem; align-content: start; }
+.bmTestigoTitulo { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.01em; }
+.bmTestigoBloque {
+  font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--marca-texto, var(--marca));
+}
+.bmTestigoTexto p { margin: 0.15rem 0 0; font-size: 0.85rem; line-height: 1.55; color: var(--tx-2); }
+
+/* Los gráficos del benchmark, reconstruidos como datos. */
+.bmGraficos { display: grid; gap: 1.6rem; }
+.bmGrafico { margin: 0; display: grid; gap: 0.6rem; }
+.bmGrafico figcaption {
+  font-size: 0.85rem; line-height: 1.55; color: var(--tx-2); max-width: 82ch;
+  padding-left: 0.9rem; border-left: 3px solid color-mix(in oklch, var(--marca) 40%, transparent);
+}
+/* La fortaleza invisible: se marca distinto porque es la lectura que no se ve
+   en el inventario y es la que explica por qué un competidor gana cuentas. */
+.bmCompetidorLinea[data-tono='invisible'] { color: var(--tx); }
+.bmCompetidorLinea[data-tono='invisible'] .bmCompetidorEtiqueta { color: var(--tx-2); }

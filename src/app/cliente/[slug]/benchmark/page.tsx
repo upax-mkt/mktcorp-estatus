@@ -8,6 +8,8 @@ import { obtenerBenchmark } from '@/db/benchmark'
 import { resumirBenchmark, type AmenazaBenchmark, type NivelBenchmark } from '@/dominio/benchmark'
 import { puedeVerEstaSala } from '@/auth/sesion'
 import { fechaCompleta } from '@/lib/fecha'
+import { Grafico } from '@/componentes/graficos/Grafico'
+import { ProveedorTema } from '@/componentes/ProveedorTema'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,8 +41,19 @@ export const dynamic = 'force-dynamic'
 
 const ETIQUETA_NIVEL: Record<NivelBenchmark, string> = {
   lider: 'Líder',
-  a_la_par: 'A la par',
-  rezagado: 'Rezagado',
+  solido: 'Sólido',
+  basico: 'Básico',
+  ausente: 'Ausente',
+  sin_dato: 'Sin dato',
+}
+
+/** La definición de cada nivel, del propio análisis. Va en la leyenda. */
+const QUE_SIGNIFICA: Record<NivelBenchmark, string> = {
+  lider: 'Referente: marca el estándar que los demás deben superar',
+  solido: 'Bien resuelto y competitivo; cumple el estándar de la categoría',
+  basico: 'Existe, pero mínimo o incompleto; todavía no compite',
+  ausente: 'Sin presencia detectable de esta capacidad',
+  sin_dato: 'Aún no se ha cargado información para esa casilla',
 }
 
 const ETIQUETA_AMENAZA: Record<AmenazaBenchmark, string> = {
@@ -176,6 +189,12 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                   <span className={estilos.bmCompetidorEtiqueta}>No pelear aquí</span>
                   {c.nosGanaEn}
                 </p>
+                {c.fortalezaInvisible && (
+                  <p className={estilos.bmCompetidorLinea} data-tono="invisible">
+                    <span className={estilos.bmCompetidorEtiqueta}>Su fortaleza invisible</span>
+                    {c.fortalezaInvisible}
+                  </p>
+                )}
                 <p className={estilos.bmCompetidorLinea} data-tono="gana">
                   <span className={estilos.bmCompetidorEtiqueta}>Dónde se le gana</span>
                   {c.dondeSeLeGana}
@@ -192,9 +211,22 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                   </dl>
                 )}
 
+                {c.contactabilidad && (
+                  <div className={estilos.bmContacto} data-respondio={c.contactabilidad.velocidad === 'Sin respuesta' ? 'no' : 'si'}>
+                    <span className={estilos.bmCompetidorEtiqueta}>Al contactarlos</span>
+                    <p>
+                      <strong>{c.contactabilidad.velocidad}</strong>
+                      {c.contactabilidad.velocidad !== 'Sin respuesta' && <> · {c.contactabilidad.calidad} · {c.contactabilidad.informacion}</>}
+                    </p>
+                    <p className={estilos.bmContactoImplicacion}>{c.contactabilidad.implicacion}</p>
+                  </div>
+                )}
+
                 <div className={estilos.bmCompetidorPie}>
                   {c.medicion && <span><strong>Mide con:</strong> {c.medicion}</span>}
-                  {c.contactabilidad && <span><strong>Al contactarlos:</strong> {c.contactabilidad}</span>}
+                  {c.paid && <span><strong>Paid media:</strong> {c.paid}</span>}
+                  {c.inbound && <span><strong>Inbound:</strong> {c.inbound}</span>}
+                  {c.institucional && <span><strong>Institucional:</strong> {c.institucional}</span>}
                 </div>
               </li>
             ))}
@@ -219,34 +251,97 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
           </section>
         )}
 
-        {/* 7. LA MATRIZ. */}
+        {/* LOS GRÁFICOS del análisis, reconstruidos como datos. Van antes de
+            las tablas: una forma se lee de un vistazo y una tabla se estudia. */}
+        {benchmark.graficos && benchmark.graficos.length > 0 && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              Dónde está cada uno
+              <span className={estilos.conteo}>los dos ejes de la pelea digital</span>
+            </h2>
+            {/* El MISMO proveedor de tema que el documento: sin él los gráficos
+                salen sin los tokens `--dato-N` y las series pierden color. */}
+            <ProveedorTema tema={tema} superficie="clara">
+              <div className={estilos.bmGraficos}>
+                {benchmark.graficos.map((g) => (
+                  <figure key={g.grafico.titulo ?? g.grafico.periodos.join()} className={estilos.bmGrafico}>
+                    <Grafico grafico={g.grafico} alto={280} />
+                    {g.lectura && <figcaption>{g.lectura}</figcaption>}
+                  </figure>
+                ))}
+              </div>
+            </ProveedorTema>
+          </section>
+        )}
+
+        {/* 7. LAS CIFRAS DURAS. Antes de la matriz: un número se cita en una
+            reunión, una etiqueta no. */}
+        {benchmark.comparativa && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              {benchmark.comparativa.titulo}
+              <span className={estilos.conteo}>{benchmark.comparativa.filas.length} criterios</span>
+            </h2>
+            <div className={estilos.benchmarkMatrizWrap}>
+              <table className={estilos.benchmarkMatriz}>
+                <thead>
+                  <tr>
+                    <th className={estilos.benchmarkColDimension}>Criterio</th>
+                    <th className={`${estilos.benchmarkColUdn} ${estilos.benchmarkColUdnEtiqueta}`}>
+                      {tema.nombre}
+                    </th>
+                    {benchmark.competidores.map((c) => <th key={c.nombre}>{c.nombre}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {benchmark.comparativa.filas.map((f) => (
+                    <tr key={f.criterio}>
+                      <td className={estilos.benchmarkFilaDimension}>{f.criterio}</td>
+                      <td className={estilos.benchmarkColUdn} data-gana={f.ganaLaUdn ? 'true' : undefined}>
+                        <span className={estilos.bmCifraTabla}>{f.udn}</span>
+                      </td>
+                      {f.valores.map((v, i) => (
+                        <td key={benchmark.competidores[i].nombre}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {benchmark.comparativa.notaPie && (
+              <p className={estilos.bmNotaTabla}>{benchmark.comparativa.notaPie}</p>
+            )}
+            {benchmark.comparativa.fuente && (
+              <p className={estilos.bmFuente}>Fuente: {benchmark.comparativa.fuente}</p>
+            )}
+          </section>
+        )}
+
+        {/* 8. LA MATRIZ DE POSICIONAMIENTO, en la escala de cuatro niveles del
+            propio análisis. */}
         <section className={estilos.seccion}>
           <h2 className={estilos.seccionTitulo}>
-            Dimensión por dimensión
+            Matriz de posicionamiento
             <span className={estilos.conteo}>
-              {resumen.lider} liderando · {resumen.aLaPar} a la par · {resumen.rezagado} por detrás
+              {resumen.lider} líder · {resumen.solido} sólido · {resumen.basico + resumen.ausente} por detrás
             </span>
           </h2>
           <div className={estilos.benchmarkMatrizWrap}>
             <table className={estilos.benchmarkMatriz}>
               <thead>
                 <tr>
-                  <th className={estilos.benchmarkColDimension}>Dimensión</th>
+                  <th className={estilos.benchmarkColDimension}>Variable</th>
                   <th className={`${estilos.benchmarkColUdn} ${estilos.benchmarkColUdnEtiqueta}`}>
                     {tema.nombre}
                   </th>
-                  {benchmark.competidores.map((c) => (
-                    <th key={c.nombre}>{c.nombre}</th>
-                  ))}
+                  {benchmark.competidores.map((c) => <th key={c.nombre}>{c.nombre}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {benchmark.dimensiones.map((f) => (
-                  <tr key={f.dimension}>
+                {benchmark.matriz.map((f) => (
+                  <tr key={f.variable}>
                     <td className={estilos.benchmarkFilaDimension}>
-                      {f.dimension}
-                      {/* La nota justifica el nivel EN SU FILA. Fuera de aquí
-                          obliga a recordar qué decía la casilla de arriba. */}
+                      {f.variable}
                       {f.nota && <span className={estilos.bmNotaFila}>{f.nota}</span>}
                     </td>
                     <td className={estilos.benchmarkColUdn}>
@@ -262,6 +357,16 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
               </tbody>
             </table>
           </div>
+          {/* La leyenda con la definición de cada nivel: sin ella, "Sólido" y
+              "Básico" son dos palabras cualquiera. Sale del propio análisis. */}
+          <ul className={estilos.bmLeyendaNiveles}>
+            {(['lider', 'solido', 'basico', 'ausente'] as const).map((n) => (
+              <li key={n}>
+                <span className={estilos.nivel} data-nivel={n}>{ETIQUETA_NIVEL[n]}</span>
+                {QUE_SIGNIFICA[n]}
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* 8. QUÉ HACER. */}
@@ -279,6 +384,34 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                 </li>
               ))}
             </ol>
+          </section>
+        )}
+
+        {/* LOS TESTIGOS: las láminas que valen porque se ven. */}
+        {benchmark.testigos && benchmark.testigos.length > 0 && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              La evidencia
+              <span className={estilos.conteo}>láminas del análisis</span>
+            </h2>
+            <ul className={estilos.bmTestigos}>
+              {benchmark.testigos.map((t) => (
+                <li key={t.url} className={estilos.bmTestigo}>
+                  <a href={t.url} target="_blank" rel="noopener" className={estilos.bmTestigoImagen}>
+                    {/* `img` a pelo y no `next/image`: sale de /api/archivo/[id],
+                        que es dinámica y privada — optimizarla en el servidor
+                        obligaría a descargarla en cada render. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={t.url} alt={t.titulo} loading="lazy" />
+                  </a>
+                  <div className={estilos.bmTestigoTexto}>
+                    <span className={estilos.bmTestigoTitulo}>{t.titulo}</span>
+                    {t.bloque && <span className={estilos.bmTestigoBloque}>{t.bloque}</span>}
+                    <p>{t.lectura}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 

@@ -70,20 +70,26 @@ export function BenchmarkSala({
         <ul className={estilos.bmSalaCifras}>
           <li className={estilos.bmSalaCifra} data-tono="gana">
             <strong>{resumen.lider} de {resumen.total}</strong>
-            <span>Dimensiones liderando</span>
+            <span>Variables liderando</span>
           </li>
           <li className={estilos.bmSalaCifra}>
-            <strong>{resumen.aLaPar}</strong>
-            <span>A la par</span>
+            <strong>{resumen.solido}</strong>
+            <span>Sólido</span>
           </li>
           <li className={estilos.bmSalaCifra} data-tono="atencion">
-            <strong>{resumen.rezagado}</strong>
+            <strong>{resumen.basico + resumen.ausente}</strong>
             <span>Por detrás</span>
           </li>
         </ul>
       )}
 
       <div className={estilos.bmSalaLineas}>
+        {resumen.unicaLider.length > 0 && (
+          <p className={estilos.bmSalaLinea} data-tono="gana">
+            <span className={estilos.bmSalaEtiqueta}>Única líder en</span>
+            {resumen.unicaLider.join(' · ')}
+          </p>
+        )}
         {resumen.amenazasAltas.length > 0 && (
           <p className={estilos.bmSalaLinea}>
             <span className={estilos.bmSalaEtiqueta}>Aprietan</span>
