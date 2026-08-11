@@ -14,7 +14,7 @@ import { secretoConfigurado, generarTokenDeSala, cerrarSesion } from '@/auth/ses
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { ClaveDeSala } from '@/componentes/ClaveDeSala'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { editarSalaAction } from '@/app/salas/acciones'
 import { pausarSalaAction, reactivarSalaAction } from '@/app/acuerdos/acciones'
@@ -96,6 +96,9 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
   // otra vez a propósito: si mañana cambia el gate de esta página, un
   // hardcodeo aquí mentiría sobre quién mira.
   const admin = await esAdmin()
+  // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
+  // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
+  const clientes = await clientesParaBarra()
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/salas/page.tsx`
   // / `src/app/personas/page.tsx`: repetido a propósito en cada pantalla que
@@ -270,7 +273,7 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
           hardcodeado. `salirAction={salir}`: la Server Action que esta
           misma función define arriba, repetida a propósito en cada pantalla
           que monta la barra (mismo criterio que el resto de la app). */}
-      <BarraNavegacion seccionActiva={undefined} hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva={undefined} hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <header className={estilos.barra}>
         <Link href={`/cliente/${slug}`} className={estilos.volver}>← {tema.nombre}</Link>

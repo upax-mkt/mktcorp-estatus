@@ -22,6 +22,14 @@ import estilos from '@/app/cliente/cliente.module.css'
 
 interface Props {
   salaSlug: string
+  /**
+   * En cuál de los dos módulos de la sala se guarda. Aquí solo decide la
+   * CARPETA del store —para que se pueda leer a ojo— y el texto del botón;
+   * la categoría con la que se registra la fila la fija la Server Action en
+   * el servidor, que es lo que impide escribir en una categoría ajena
+   * llamando al endpoint desde fuera.
+   */
+  categoria: 'comercial' | 'interes'
   registrarArchivoAction: (datos: {
     titulo: string
     ruta: string
@@ -34,7 +42,12 @@ interface Props {
 
 type Camino = 'archivo' | 'enlace'
 
-export function AnadirMaterial({ salaSlug, registrarArchivoAction, registrarEnlaceAction }: Props) {
+export function AnadirMaterial({
+  salaSlug,
+  categoria,
+  registrarArchivoAction,
+  registrarEnlaceAction,
+}: Props) {
   const [abierto, setAbierto] = useState(false)
   const [camino, setCamino] = useState<Camino>('archivo')
   const [titulo, setTitulo] = useState('')
@@ -64,7 +77,7 @@ export function AnadirMaterial({ salaSlug, registrarArchivoAction, registrarEnla
     }
     setTrabajando(true)
     try {
-      const subido = await subirArchivoDirecto(salaSlug, 'interes', archivo)
+      const subido = await subirArchivoDirecto(salaSlug, categoria, archivo)
       const r = await registrarArchivoAction({ titulo: titulo.trim(), ...subido })
       if (r.error) { setError(r.error); return }
       cerrar()
@@ -95,7 +108,7 @@ export function AnadirMaterial({ salaSlug, registrarArchivoAction, registrarEnla
   if (!abierto) {
     return (
       <button type="button" className={estilos.nuevaMinutaBoton} onClick={() => setAbierto(true)}>
-        + Añadir material
+        {categoria === 'comercial' ? '+ Añadir material' : '+ Añadir archivo'}
       </button>
     )
   }

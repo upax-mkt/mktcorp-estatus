@@ -10,7 +10,7 @@ import { slugsDeSalasPausadas } from '@/db/salas'
 import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,11 +40,12 @@ export default async function PagNuevaSesion() {
   // ahora.
   await connection()
   const hoy = new Date()
-  const [pausadas, registro, salas, admin] = await Promise.all([
+  const [pausadas, registro, salas, admin, clientes] = await Promise.all([
     slugsDeSalasPausadas(),
     cargarTemas(),
     slugsDeSalas(),
     esAdmin(),
+    clientesParaBarra(),
   ])
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
@@ -97,7 +98,7 @@ export default async function PagNuevaSesion() {
           local se CONSERVA debajo, sin excepción: son dos cosas distintas
           (saltar de sección vs. volver a la lista de la que salió esta
           reunión nueva), mismo criterio que /deck/[id]. */}
-      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <header className={estilos.barra}>
         {/* Deck Designer → Presentaciones (tarea 18): solo el nombre visible. */}

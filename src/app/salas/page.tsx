@@ -13,7 +13,7 @@ import { cerrarSesion } from '@/auth/sesion'
 import { urlBase } from '@/lib/url-base'
 import { FormularioSala } from '@/componentes/salas/FormularioSala'
 import { BloqueEnlaceAgenda } from '@/componentes/salas/BloqueEnlaceAgenda'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { crearSalaAction, editarSalaAction, recalcularPaletaAction, generarEnlaceAction, revocarEnlaceAction } from './acciones'
 
 export const dynamic = 'force-dynamic'
@@ -51,6 +51,9 @@ export default async function PagSalas({
   // no lanzó arriba, la sesión YA administra Marketing Corporativo. Llamar a
   // `esAdmin()` sería preguntarle lo mismo a la sesión dos veces.
   const admin = true
+  // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
+  // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
+  const clientes = await clientesParaBarra()
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
   // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
@@ -106,7 +109,7 @@ export default async function PagSalas({
 
   return (
     <div className={estilos.app}>
-      <BarraNavegacion seccionActiva="salas" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="salas" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL (revisión final de la rama, punto 5): sin esta
@@ -168,7 +171,17 @@ export default async function PagSalas({
                 <li key={slug} className={estilos.filaSala}>
                   <div className={estilos.filaResumen}>
                     <span className={estilos.filaColor} style={{ background: tema.primario }} aria-hidden />
-                    <span className={estilos.filaNombre}>{tema.nombre}</span>
+                    {/* EL NOMBRE ES LA PUERTA A LA SALA, no solo el botón del
+                        final (Franco: *"dentro de la pestaña clientes el
+                        nombre también debe llevarme a la sala, no solo el
+                        botón «Ver sala»"*). Es lo que hace todo el mundo al
+                        llegar a una lista: pulsar el nombre. Que no hiciera
+                        nada obligaba a cruzar la fila entera hasta el botón.
+                        El botón se queda: dice a dónde lleva, y el nombre por
+                        sí solo no lo dice. */}
+                    <Link href={`/cliente/${slug}`} className={estilos.filaNombre}>
+                      {tema.nombre}
+                    </Link>
                     <span className="pildora" data-tono={enPausa ? undefined : 'bien'}>
                       {enPausa ? 'en pausa' : 'activa'}
                     </span>

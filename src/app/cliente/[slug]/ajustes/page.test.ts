@@ -78,6 +78,9 @@ const REGISTRO_TEMAS = {
 const cargarTemasMock = vi.fn()
 vi.mock('@/db/temas', () => ({
   cargarTemas: (...args: unknown[]) => cargarTemasMock(...args),
+  // `slugsDeSalas` la usa `clientesParaBarra()`, que alimenta el desplegable
+  // de Clientes de la barra.
+  slugsDeSalas: () => Promise.resolve(['neracode']),
 }))
 
 const exigirAdminMock = vi.fn()

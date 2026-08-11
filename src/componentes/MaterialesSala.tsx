@@ -31,18 +31,20 @@ interface Props {
   materiales: ArchivoSala[]
   /** Solo el equipo añade y edita; el director lee y abre. */
   equipo: boolean
+  /**
+   * Qué se lee cuando no hay nada. Llega por prop porque este componente
+   * dibuja los DOS módulos de la sala —Materiales Comerciales y Archivos de
+   * Interés— y el vacío es lo único que los distingue: es donde se explica
+   * qué va en cada uno, que es justo lo que hay que saber estando vacío.
+   */
+  vacio: string
   editarAction: (id: string, cambios: { titulo: string; fecha: string | null }) => Promise<void>
   eliminarAction: (id: string) => Promise<void>
 }
 
-export function MaterialesSala({ materiales, equipo, editarAction, eliminarAction }: Props) {
+export function MaterialesSala({ materiales, equipo, vacio, editarAction, eliminarAction }: Props) {
   if (materiales.length === 0) {
-    return (
-      <p className={estilos.vacioNota}>
-        Credenciales, casos de éxito, un vídeo de YouTube, una nota de prensa: lo que la UDN
-        necesite tener a mano para vender.
-      </p>
-    )
+    return <p className={estilos.vacioNota}>{vacio}</p>
   }
 
   return (

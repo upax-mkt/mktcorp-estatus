@@ -1,0 +1,27 @@
+-- ARCHIVOS DE INTERÉS VUELVE, AL LADO DE MATERIALES COMERCIALES.
+--
+-- Franco: *"dentro de la sala, al final, después de materiales comerciales
+-- hay que agregar Archivos de Interés con las mismas características"*.
+--
+-- Son dos módulos, no uno con dos nombres: lo comercial es lo que la UDN usa
+-- para VENDER (credenciales, un caso en vídeo, una nota de prensa) y lo de
+-- interés es todo lo demás que conviene tener a mano en la sala (un estudio,
+-- un brief, un tablero). Mezclados, la carpeta que un comercial abre cinco
+-- minutos antes de una reunión se llena de material que no le sirve ahí.
+--
+-- POR QUÉ SE AÑADE `comercial` Y NO `interes`: la categoría `interes` YA
+-- EXISTE y es la que hoy guarda los Materiales Comerciales — el nombre viene
+-- de cuando ese módulo se llamaba "Archivos de interés", antes de que Franco
+-- lo renombrara. Dejarlo así y meter el módulo nuevo con otro nombre
+-- cualquiera deja para siempre una trampa: quien lea `interes` en el código
+-- entendería lo contrario de lo que guarda.
+--
+-- Así que el valor nuevo describe lo que de verdad hay hoy (`comercial`), la
+-- 0034 mueve las filas, y `interes` queda libre para significar exactamente
+-- lo que dice su nombre.
+--
+-- VA SOLA EN SU ARCHIVO a propósito: Postgres no deja USAR un valor de enum
+-- en la misma transacción en que se añade, así que el UPDATE que las mueve
+-- vive en la 0034 y se aplica después.
+
+ALTER TYPE "categoria_archivo" ADD VALUE IF NOT EXISTS 'comercial';

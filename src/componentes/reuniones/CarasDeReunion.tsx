@@ -139,15 +139,34 @@ function CaraPresentacion({
   editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
 }) {
   if (!tienePresentacion(reunion)) {
-    // Sin manejador no se ofrece la acción, aunque quien mire sea equipo: un
-    // botón que no hace nada es peor que este texto. Es el defecto que tuvo
-    // esta ronda entre las tareas 9 y 9b, y esta línea es lo que impide que
-    // vuelva sin que ningún test se entere.
-    if (!equipo || !onSubirPresentacion) return <span className="pildora">Sin presentación</span>
+    if (!equipo) return <span className="pildora">Sin presentación</span>
+    /**
+     * LAS DOS VÍAS, JUNTAS (Franco: *"al crear una nueva reunión… allí me debe
+     * permitir o cargar la presentación que ya hicimos o crearla en el
+     * editor"*).
+     *
+     * Una reunión recién creada solo ofrecía subir un archivo, así que armarla
+     * en el editor exigía saberse la ruta `/deck/<id>` o volver por la lista
+     * de Presentaciones. Son los dos caminos normales y ninguno es el
+     * principal: unas veces el deck ya existe en PowerPoint y otras se
+     * construye aquí.
+     *
+     * `onSubirPresentacion` sigue siendo opcional y su botón solo se pinta si
+     * llega: un botón sin manejador es peor que no ofrecer la acción — el
+     * defecto que ya tuvo esta pantalla una vez. El del editor no depende de
+     * nadie: es un enlace a una ruta que siempre existe.
+     */
     return (
-      <button type="button" className={estilos.caraAccion} onClick={onSubirPresentacion}>
-        <span aria-hidden>+</span> Subir presentación
-      </button>
+      <>
+        {onSubirPresentacion && (
+          <button type="button" className={estilos.caraAccion} onClick={onSubirPresentacion}>
+            <span aria-hidden>+</span> Subir presentación
+          </button>
+        )}
+        <Link href={`/deck/${reunion.id}`} className={estilos.caraAccion}>
+          <span aria-hidden>✎</span> Armarla en el editor
+        </Link>
+      </>
     )
   }
 

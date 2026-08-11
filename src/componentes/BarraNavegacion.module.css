@@ -54,6 +54,64 @@
   font-weight: 700;
   border-bottom-color: var(--marca, var(--tinta));
 }
+/* ══ CLIENTES, DESPLEGABLE ═════════════════════════════════════════════════
+   Franco: "en el menú, los clientes deberían desplegarse para ingresar a uno
+   directamente". `details`/`summary` nativos: teclado y toque gratis, cero JS,
+   y la barra sigue siendo un componente de servidor. */
+.clientes { position: relative; }
+.clientes > summary {
+  cursor: pointer; list-style: none;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.clientes > summary::-webkit-details-marker { display: none; }
+.clientes > summary::after {
+  content: '⌄'; font-size: 0.9rem; line-height: 1;
+  /* El acento tipográfico cuelga alto: se baja para que quede a la altura
+     de la palabra en vez de flotar sobre ella. */
+  transform: translateY(-0.15em);
+  transition: transform var(--rapido) linear;
+}
+.clientes[open] > summary::after { transform: translateY(-0.05em) rotate(180deg); }
+.clientes > summary:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: 3px; }
+
+.clientesPanel {
+  position: absolute; top: calc(100% + 0.6rem); right: 0; z-index: 40;
+  min-width: 15rem;
+  padding: 0.45rem;
+  border-radius: var(--r-2, 12px);
+  background: var(--papel, #fff);
+  border: 1px solid var(--linea);
+  box-shadow: var(--e-2, 0 12px 32px rgb(0 0 0 / 0.14));
+  display: grid; gap: 0.15rem;
+}
+/* Volcado a la izquierda cuando la barra envuelve en pantalla angosta: a la
+   derecha del todo se saldría del viewport. */
+@media (max-width: 560px) { .clientesPanel { right: auto; left: 0; } }
+
+.clientesConfig {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.74rem; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700;
+  color: var(--tinta-4); text-decoration: none;
+  border-bottom: 1px solid var(--linea);
+  margin-bottom: 0.2rem;
+}
+.clientesConfig:hover { color: var(--tinta); }
+
+.clientesLista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.05rem; }
+.clienteEnlace {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.45rem 0.55rem; border-radius: 8px;
+  font-size: 0.88rem; font-weight: 550; color: var(--tinta-2); text-decoration: none;
+  transition: background var(--rapido) linear, color var(--rapido) linear;
+}
+.clienteEnlace:hover { background: var(--lienzo-2, rgb(0 0 0 / 0.04)); color: var(--tinta); }
+.clienteEnlace:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: -2px; }
+.clientePunto { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+@media (prefers-reduced-motion: reduce) {
+  .clientes > summary::after, .clienteEnlace { transition: none; }
+}
+
 .barraFecha { font-size: 0.8rem; color: var(--tinta-4); white-space: nowrap; }
 .barraSalir {
   font: inherit; font-size: 0.82rem; color: var(--tinta-3);

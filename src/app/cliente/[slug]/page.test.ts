@@ -401,16 +401,51 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     expect(screen.queryByText(/antes de esta herramienta/i)).toBeNull()
   })
 
-  it('el módulo de material de la sala sigue en su sitio, ahora como Materiales Comerciales', async () => {
+  /**
+   * DOS MÓDULOS DE MATERIAL, no uno. "Archivos de interés" se renombró a
+   * "Materiales Comerciales" cuando dejó de contener solo archivos; Franco
+   * pidió después recuperar el de interés al lado, para lo que no es material
+   * de venta. Son dos secciones con la misma mecánica y contenido distinto.
+   */
+  it('la sala pinta los dos módulos de material, en orden: primero el comercial', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
 
+    const { container } = render(await invocar())
+
+    const comercial = screen.getByText(/materiales comerciales/i)
+    const interes = screen.getByText(/archivos de interés/i)
+    expect(comercial).toBeInTheDocument()
+    expect(interes).toBeInTheDocument()
+    // El comercial va primero: es el que se abre antes de una reunión.
+    const titulos = [...container.querySelectorAll<HTMLElement>('h2')]
+    expect(titulos.indexOf(comercial)).toBeLessThan(titulos.indexOf(interes))
+  })
+
+  /**
+   * CADA MÓDULO TIENE SU PROPIA ACCIÓN Y SU CATEGORÍA FIJADA EN EL SERVIDOR.
+   * Si la categoría viajara desde el navegador, quien conociera el endpoint
+   * podría escribir en cualquiera — incluida `evidencia`, que tiene reglas
+   * propias, o `presentacion`, que ordena la línea de tiempo de la sala.
+   */
+  it('el módulo de interés registra en su categoría, no en la comercial', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    const usuario = userEvent.setup()
+
     render(await invocar())
 
-    // Franco: "el modulo Archivos de Interés lo cambiaremos por Materiales
-    // Comerciales" — porque dejó de contener solo archivos.
-    expect(screen.getByText(/materiales comerciales/i)).toBeInTheDocument()
-    expect(screen.queryByText(/archivos de interés/i)).toBeNull()
+    await usuario.click(screen.getByRole('button', { name: '+ Añadir archivo' }))
+    await usuario.type(screen.getByLabelText('Título'), 'Estudio de categoría')
+
+    const entrada = document.querySelector('input[type="file"]')
+    if (!(entrada instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    await usuario.upload(entrada, new File(['x'], 'estudio.pdf', { type: 'application/pdf' }))
+
+    await waitFor(() => expect(registrarArchivoMock).toHaveBeenCalled())
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ salaSlug: 'neracode', categoria: 'interes', reunionId: null }),
+    )
   })
 
   /**
@@ -423,7 +458,7 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
    * (el colaborador real, `src/db/archivos.ts`) igual lo recibe explícito en
    * `null`, no `undefined` perdido por el camino ni ausente del todo.
    */
-  it('un archivo de interés se registra con reunionId null: no es de ninguna reunión, es de la sala', async () => {
+  it('un material comercial se registra con reunionId null: no es de ninguna reunión, es de la sala', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
     const usuario = userEvent.setup()
@@ -440,7 +475,7 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
 
     await waitFor(() => expect(registrarArchivoMock).toHaveBeenCalled())
     expect(registrarArchivoMock).toHaveBeenCalledWith(
-      expect.objectContaining({ salaSlug: 'neracode', categoria: 'interes', reunionId: null }),
+      expect.objectContaining({ salaSlug: 'neracode', categoria: 'comercial', reunionId: null }),
     )
   })
 
@@ -470,7 +505,7 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     expect(registrarArchivoMock).toHaveBeenCalledWith(
       expect.objectContaining({
         salaSlug: 'neracode',
-        categoria: 'interes',
+        categoria: 'comercial',
         titulo: 'Caso Grupo Modelo',
         enlace: 'https://youtu.be/dQw4w9WgXcQ',
       }),

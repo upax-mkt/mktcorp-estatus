@@ -12,7 +12,7 @@ import { fueDada, type Reunion } from '@/dominio/reunion'
 import { diaCivil, fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,7 +82,9 @@ export default async function PagPreparar() {
   const hoy = new Date()
   // `esAdmin()` (ronda 11, tarea 2): esta pantalla no lo necesitaba hasta
   // ahora — llega con `BarraNavegacion`, que condiciona Clientes/Personas.
-  const [reuniones, admin] = await Promise.all([listarReuniones(), esAdmin()])
+  const [reuniones, admin, clientes] = await Promise.all([
+    listarReuniones(), esAdmin(), clientesParaBarra(),
+  ])
   const hoyCivil = diaCivil(hoy.toISOString())
 
   /**
@@ -181,7 +183,7 @@ export default async function PagPreparar() {
 
   return (
     <div className={estilos.app}>
-      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>

@@ -1,14 +1,24 @@
 /**
  * Los archivos que el equipo cuelga en una sala.
  *
- * Dos categorías, misma mecánica:
+ * Categorías de SALA, misma mecánica:
  *
  * - `presentacion` — las presentaciones ANTIGUAS, las que se dieron antes de
  *   que existiera esta herramienta. Las nuevas no se suben: se arman en la
  *   app y viven en `/sesion/{id}`, así que la sala mezcla las dos cosas en
  *   una sola línea de tiempo ordenada por fecha.
- * - `interes` — presentaciones comerciales, excels, imágenes: lo que el
- *   equipo estime útil tener a mano en la sala.
+ * - `comercial` — **Materiales Comerciales**: lo que la UDN usa para VENDER.
+ *   Credenciales, un caso en vídeo, una nota de prensa.
+ * - `interes` — **Archivos de Interés**: todo lo demás que conviene tener a
+ *   mano en la sala. Un estudio, un brief, el enlace a un tablero.
+ *
+ * ⚠️ Hasta la migración 0034, `interes` guardaba los Materiales Comerciales
+ * (se llamaba así por el nombre viejo de ese módulo, antes de que Franco lo
+ * renombrara) y sus filas se movieron a `comercial`.
+ *
+ * Y dos que NO son de sala, sino de una reunión: `imagen` y `video` son lo
+ * que va incrustado dentro de un documento. Más `evidencia`, que es de sala
+ * pero cuelga del benchmark (ver `src/db/evidencia.ts`).
  *
  * El binario vive en Vercel Blob; aquí solo su `ruta` y sus datos. Ver
  * `src/lib/blob.ts` para por qué el store es privado y cómo se sirve.
@@ -19,7 +29,7 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { slugsDeSalas } from './temas'
 
-export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia'
+export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial'
 
 export interface ArchivoSala {
   id: string

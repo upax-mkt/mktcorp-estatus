@@ -29,7 +29,7 @@ import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
 import { AgendarRapido, type SalaParaAgendar, type DatosAgendarRapido } from '@/componentes/hogar/AgendarRapido'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { colorDeTextoDeMarca } from '@/temas'
 
 /**
@@ -207,7 +207,7 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, acuerdos, pulso, reuniones, personas, admin] = await Promise.all([
+  const [salasCrudas, acuerdos, pulso, reuniones, personas, admin, clientes] = await Promise.all([
     estadoDeSalas(),
     // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
     // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
@@ -229,6 +229,7 @@ export default async function Hub() {
     // cosmética (esa pantalla vuelve a exigir admin ella sola), pero no tiene
     // sentido ofrecer un enlace a quien va a rebotar en cuanto lo toque.
     esAdmin(),
+    clientesParaBarra(),
   ])
   const molde = await moldeDeMinuta(null)
   const salas = ordenarPorProximaReunion(salasCrudas)
@@ -373,7 +374,7 @@ export default async function Hub() {
           comparten, en vez de cada una inventando (o divergiendo) la suya.
           Sin `seccionActiva`: el Home no es ninguna de las cinco pestañas del
           ciclo — a él se llega por el logo. */}
-      <BarraNavegacion hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL (revisión final de la rama, punto 5): antes esta

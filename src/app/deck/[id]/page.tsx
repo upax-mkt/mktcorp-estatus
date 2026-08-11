@@ -20,17 +20,16 @@ import {
   itemDeAcuerdosPendientes,
   eliminarDocumentoDeReunion,
 } from '@/db/documentos'
-import { eliminarReunion } from '@/db/reuniones'
 import { maquetarSesion } from '@/motor/maquetar'
 import { maquetarItem } from '@/motor/maquetar'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
 import { esEditor, exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
-import { BorrarSesion } from '@/componentes/BorrarSesion'
+import { DescartarPresentacion } from '@/componentes/DescartarPresentacion'
 import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
 import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
 import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
@@ -62,6 +61,38 @@ function etiquetaAlcance(alcance: string): string {
   return alcance === 'todos' ? 'todos los squads' : alcance
 }
 
+/**
+ * REVALIDA LAS DOS PANTALLAS DEL DOCUMENTO, no solo el editor.
+ *
+ * EL BUG QUE CIERRA — Franco, tres veces: *"el preview del doc sigue sin
+ * jalar"*. Cada acción revalidaba `/deck/[id]` y NINGUNA
+ * `/deck/[id]/documento`. Las dos pantallas leen el mismo documento, así que
+ * editar invalidaba el editor y dejaba intacta la copia del documento en la
+ * caché de router del navegador: se pulsaba "Ver documento →" —que es un
+ * `<Link>`, o sea navegación de cliente— y Next servía el payload de ANTES de
+ * la edición.
+ *
+ * Por qué no lo cazó ninguna prueba: Playwright hace `goto()`, que es
+ * navegación completa y no toca esa caché; y las comprobaciones de datos
+ * leían la base directamente. El fallo solo existe recorriendo la app como
+ * una persona, con el mismo historial de navegación.
+ *
+ * Que sea UNA función y no dos líneas repetidas es el punto: la mitad
+ * olvidada es exactamente lo que pasó.
+ *
+ * A NIVEL DE MÓDULO, y por eso `id` llega por parámetro en vez de por cierre.
+ * Declarada dentro del componente, las trece Server Actions que la llaman se
+ * la llevaban en su cierre y React intentaba serializarla al mandarlas al
+ * cliente: "Functions cannot be passed directly to Client Components…
+ * [function revalidarDocumento]", en la consola de cada carga del editor. Es
+ * el mismo defecto que tumbó entera la sala con una flecha inline y la
+ * pantalla del benchmark con un ayudante interno.
+ */
+function revalidarDocumento(id: string) {
+  revalidatePath(`/deck/${id}`)
+  revalidatePath(`/deck/${id}/documento`)
+}
+
 export default async function PagSesion({ params }: { params: Promise<{ id: string }> }) {
   // Página de equipo que faltaba exigir a nivel de página (corrección
   // post-revisión de la ronda 9) — la comprobación de sesión va primero,
@@ -74,6 +105,9 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   await connection()
   const hoy = new Date()
   const admin = await esAdmin()
+  // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
+  // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
+  const clientes = await clientesParaBarra()
   const { id } = await params
   // El id de la URL es el de la REUNIÓN (heredado de la vieja sesión: las
   // dos comparten id). El documento es una fila aparte, ligada 1:1 — puede
@@ -110,36 +144,12 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // no viewer — ronda 9, tarea 2): una Server Action es un endpoint, y
   // ocultar el botón en la pantalla no protege nada.
 
-  /**
-   * REVALIDA LAS DOS PANTALLAS DEL DOCUMENTO, no solo el editor.
-   *
-   * EL BUG QUE CIERRA — Franco, tres veces: *"el preview del doc sigue sin
-   * jalar"*. Cada acción revalidaba `/deck/[id]` y NINGUNA
-   * `/deck/[id]/documento`. Las dos pantallas leen el mismo documento, así
-   * que editar invalidaba el editor y dejaba intacta la copia del documento
-   * en la caché de router del navegador: se pulsaba "Ver documento →" —que
-   * es un `<Link>`, o sea navegación de cliente— y Next servía el payload de
-   * ANTES de la edición.
-   *
-   * Por qué no lo cazó ninguna prueba: Playwright hace `goto()`, que es
-   * navegación completa y no toca esa caché; y las comprobaciones de datos
-   * leían la base directamente. El fallo solo existe recorriendo la app como
-   * una persona, con el mismo historial de navegación.
-   *
-   * Que sea UNA función y no dos líneas repetidas es el punto: la mitad
-   * olvidada es exactamente lo que pasó.
-   */
-  function revalidarDocumento() {
-    revalidatePath(`/deck/${id}`)
-    revalidatePath(`/deck/${id}/documento`)
-  }
-
   async function guardarSeccionAction(itemId: string, seccion: BorradorSeccion) {
     'use server'
     const quien = await exigirEditor()
     await guardarSeccion(documentoId, itemId, seccion)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   async function anadirSeccionAction(layout: DecisionSlide['layout'], nombre: string) {
@@ -147,7 +157,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await anadirSeccion(documentoId, layout, nombre)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   async function anadirSubseccionAction(padre: string, layout: DecisionSlide['layout'], nombre: string) {
@@ -155,7 +165,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await anadirSeccion(documentoId, layout, nombre, padre)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   async function eliminarSeccionAction(itemId: string) {
@@ -163,7 +173,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await eliminarSeccion(documentoId, itemId)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   /**
@@ -290,7 +300,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await moverItem(documentoId, String(formData.get('itemId') ?? ''), 'arriba')
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   async function bajarItem(formData: FormData) {
@@ -298,7 +308,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await moverItem(documentoId, String(formData.get('itemId') ?? ''), 'abajo')
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   /** Persiste el orden que dejó el arrastre (ver ListaOrdenable). */
@@ -307,7 +317,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     const quien = await exigirEditor()
     await reordenarItems(documentoId, idsEnOrden)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   /**
@@ -336,7 +346,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     await anadirAcuerdoRetomado(documentoId, acuerdoId)
     await retomarAcuerdo(acuerdoId, id)
     if (quien.sub) await registrarEdicion(id, quien.sub)
-    revalidarDocumento()
+    revalidarDocumento(id)
   }
 
   async function maquetar() {
@@ -356,13 +366,33 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     redirect(`/deck/${id}/documento`)
   }
 
-  async function borrarSesionAction() {
+  /**
+   * DESCARTA LA PRESENTACIÓN, NO LA REUNIÓN (Franco: *"si estoy en el editor
+   * y quiero eliminar lo que estoy trabajando, no puede eliminar la reunión,
+   * ya que son cosas distintas"*).
+   *
+   * Llamaba a `eliminarReunion`: tirar un deck mal empezado se llevaba la
+   * junta del calendario. Ahora solo borra el documento y sus secciones.
+   *
+   * Y REDIRIGE A LA SALA, NO AQUÍ: esta misma página CREA un documento al
+   * cargar si la reunión no tiene (ver arriba), así que quedarse
+   * reconstruiría al instante lo que se acaba de descartar. La sala es donde
+   * vive la reunión en el calendario, y desde ella se vuelve a elegir entre
+   * subir la presentación ya hecha o armarla aquí. Sin sala —una reunión
+   * interna de Marketing Corp— se cae a la lista de Presentaciones.
+   */
+  async function descartarPresentacionAction() {
     'use server'
     await exigirEditor()
-    await eliminarReunion(id, eliminarDocumentoDeReunion)
+    await eliminarDocumentoDeReunion(id)
     revalidatePath('/deck')
     revalidatePath('/')
-    redirect('/deck')
+    // `!`: mismo motivo que el `reunion!` de `maquetarSeccionAction` — el
+    // `notFound()` de arriba lo garantiza en runtime, pero TS no retiene el
+    // estrechamiento de una `const` externa dentro de una Server Action.
+    const sala = reunion!.salaSlug
+    if (sala) revalidatePath(`/cliente/${sala}`)
+    redirect(sala ? `/cliente/${sala}` : '/deck')
   }
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
@@ -438,7 +468,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
           "← Presentaciones"/"Ver documento"/"Minuta con IA" de abajo: volver
           al cuestionario de ESTA reunión y saltar a otra sección son cosas
           distintas (brief, "que no se pierda el volver"). */}
-      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <header className={estilos.barra}>
         {/* Deck Designer → Presentaciones (tarea 18): solo el nombre visible. */}
@@ -661,7 +691,7 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
           <p className={estilos.panelMaquetarAviso}>Llena al menos una sección para poder generar el documento.</p>
         )}
 
-        <BorrarSesion borrarAction={borrarSesionAction} />
+        <DescartarPresentacion descartarAction={descartarPresentacionAction} />
       </main>
     </div>
   )

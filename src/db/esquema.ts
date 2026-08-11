@@ -323,10 +323,21 @@ export const minutas = pgTable('minutas', {
 // una reunión sin sala también lleva imágenes.
 // 'video' (ronda 9, tarea 7) es lo mismo que 'imagen' pero para el vídeo de
 // una sección: tampoco cuelga de una sala, cuelga de la reunión.
+// LOS DOS MÓDULOS DE LA SALA, que son dos y no uno con dos nombres:
+// 'comercial' es lo que la UDN usa para VENDER (credenciales, un caso en
+// vídeo, una nota de prensa) e 'interes' es todo lo demás que conviene tener
+// a mano (un estudio, un brief, un tablero). Mezclados, la carpeta que se
+// abre cinco minutos antes de una reunión se llena de lo que no sirve ahí.
+// ⚠️ HASTA LA MIGRACIÓN 0034, 'interes' guardaba los Materiales Comerciales
+// —se llamaba así por el nombre viejo de ese módulo— y sus filas se movieron
+// a 'comercial'. Si aparece una fila 'interes' anterior a esa fecha, es
+// material comercial mal clasificado.
 export const categoriaArchivoEnum = pgEnum('categoria_archivo', [
   'presentacion', 'interes', 'imagen', 'video',
   /** Una lámina, captura o vídeo que sostiene un hallazgo del benchmark. */
   'evidencia',
+  /** Material de venta de la UDN. Ver la nota de arriba sobre 'interes'. */
+  'comercial',
 ])
 
 export const archivos = pgTable('archivos', {

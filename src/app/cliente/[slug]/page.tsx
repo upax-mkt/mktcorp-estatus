@@ -51,7 +51,7 @@ import {
   puedeVerEstaSala, cerrarSesion,
 } from '@/auth/sesion'
 import { esAdmin, esLector, exigirEditor } from '@/auth/roles'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
 // La vista de equipo ahora escribe (cambiar estatus, editar fecha) — se
 // necesita fresca en cada carga, no la copia estática que generateStaticParams
@@ -103,6 +103,43 @@ const ETIQUETA_ESTADO: Record<Acuerdo['estatus'], string> = {
   abierto: 'abierto', cumplido: 'cumplido', vencido: 'vencido',
 }
 
+/**
+ * Guarda un enlace en uno de los dos módulos de la sala.
+ *
+ * A NIVEL DE MÓDULO, NO DENTRO DE LA PÁGINA, y esto no es estilo. Declarada
+ * dentro del componente, las dos Server Actions que la llaman se la llevarían
+ * en su cierre, y React intenta serializarla al mandarlas al cliente:
+ * "Functions cannot be passed directly to Client Components", con un 500 en
+ * la sala entera. Aquí es una referencia de módulo que el servidor resuelve
+ * sola. Por eso `slug` llega por parámetro en vez de por cierre.
+ *
+ * NO revalida: la ruta la conoce quien llama, que es la acción de la página.
+ */
+async function guardarEnlaceDeSala(
+  salaSlug: string,
+  categoria: 'comercial' | 'interes',
+  datos: { titulo: string; enlace: string },
+): Promise<{ error?: string }> {
+  await exigirEditor()
+  // Se vuelve a normalizar EN EL SERVIDOR aunque el cliente ya lo hizo: lo
+  // del navegador es comodidad, esto es la comprobación. Sin ella, un
+  // `javascript:` llega a la base y de ahí a un href que ve la UDN.
+  const normalizado = normalizarEnlace(datos.enlace)
+  if ('error' in normalizado) return { error: normalizado.error }
+  try {
+    await registrarArchivo({
+      salaSlug,
+      categoria,
+      titulo: datos.titulo,
+      fecha: null,
+      enlace: normalizado.url,
+    })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo guardar el enlace.' }
+  }
+  return {}
+}
+
 export default async function VistaSala({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   // Guarda contra las nueve salas reales, no contra las diez filas de
@@ -130,8 +167,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // directorio interno), nunca una escritura — para eso, más abajo, cada
   // Server Action exige lo suyo por su cuenta.
   const equipo = await esLector()
-  const [benchmark, archivosDeInteres, personas] = await Promise.all([
+  const [benchmark, materialesComerciales, archivosDeInteres, personas] = await Promise.all([
     obtenerBenchmark(slug),
+    listarArchivos(slug, 'comercial'),
     listarArchivos(slug, 'interes'),
     /**
      * Para el selector de responsable de NuevoAcuerdoForm/LevantarMinuta —
@@ -226,6 +264,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * `BarraNavegacion`.
    */
   const admin = await esAdmin()
+  // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
+  // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
+  const clientes = await clientesParaBarra()
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
   const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
@@ -450,18 +491,36 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
 
   /**
-   * REGISTRAR UN ARCHIVO como material comercial.
+   * REGISTRAR UN ARCHIVO en uno de los dos módulos de la sala.
    *
-   * Envoltura de `registrarArchivoAction` con `categoria` y `fecha` ya
-   * fijadas. Existe como Server Action propia y NO como una flecha inline en
-   * el JSX (`(d) => registrarArchivoAction({...d, categoria: 'interes'})`):
-   * eso es un closure creado en el componente de servidor, y React lo rechaza
-   * al serializarlo hacia un componente cliente —"Functions cannot be passed
-   * directly to Client Components"—, con un 500 en la sala entera. No lo
-   * cazó ningún test: el test invoca la página directamente y no cruza esa
-   * frontera. Lo cazó el print.
+   * CUATRO ACCIONES Y NO UNA CON UN PARÁMETRO, y no es repetición gratuita:
+   * cada una es un endpoint distinto y su categoría queda FIJADA EN EL
+   * SERVIDOR. Si la categoría viajara desde el navegador, quien conociera la
+   * acción podría escribir en cualquiera de ellas — incluida `evidencia`, que
+   * tiene reglas propias, o `presentacion`, que ordena la línea de tiempo de
+   * la sala.
+   *
+   * Y NINGUNA ES UNA FLECHA INLINE en el JSX
+   * (`(d) => registrarArchivoAction({...d, categoria})`): eso es un closure
+   * creado en el componente de servidor, y React lo rechaza al serializarlo
+   * hacia un componente cliente —"Functions cannot be passed directly to
+   * Client Components"—, con un 500 en la sala entera. No lo cazó ningún
+   * test: el test invoca la página directamente y no cruza esa frontera. Lo
+   * cazó el print.
    */
   async function registrarMaterialArchivoAction(datos: {
+    titulo: string
+    ruta: string
+    nombreOriginal: string
+    tipoContenido: string | null
+    tamanoBytes: number | null
+  }): Promise<{ error?: string }> {
+    'use server'
+    return registrarArchivoAction({ ...datos, categoria: 'comercial', fecha: null })
+  }
+
+  /** Lo mismo, para Archivos de Interés. Ver el comentario de arriba. */
+  async function registrarInteresArchivoAction(datos: {
     titulo: string
     ruta: string
     nombreOriginal: string
@@ -473,8 +532,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
 
   /**
-   * REGISTRAR UN ENLACE como material comercial (vídeo de YouTube, nota de
-   * prensa, caso publicado).
+   * REGISTRAR UN ENLACE (vídeo de YouTube, nota de prensa, caso publicado).
    *
    * Server Action aparte de `registrarArchivoAction` y no un parámetro más:
    * el camino del archivo tiene que limpiar el binario de Blob si la fila
@@ -482,34 +540,28 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * misma función obligaría a ramificar esa limpieza dentro del `catch`,
    * que es justo donde no conviene tener condiciones.
    *
-   * `categoria: 'interes'` fija: los enlaces solo existen como material de
-   * sala. Una presentación de una reunión o una imagen de un documento
-   * siempre son un fichero.
+   * La categoría se fija aquí, en el servidor: los enlaces solo existen como
+   * material de sala. Una presentación de una reunión o una imagen de un
+   * documento siempre son un fichero.
    */
   async function registrarEnlaceAction(datos: {
     titulo: string
     enlace: string
   }): Promise<{ error?: string }> {
     'use server'
-    await exigirEditor()
-    // Se vuelve a normalizar EN EL SERVIDOR aunque el cliente ya lo hizo: lo
-    // del navegador es comodidad, esto es la comprobación. Sin ella, un
-    // `javascript:` llega a la base y de ahí a un href que ve la UDN.
-    const normalizado = normalizarEnlace(datos.enlace)
-    if ('error' in normalizado) return { error: normalizado.error }
-    try {
-      await registrarArchivo({
-        salaSlug: slug,
-        categoria: 'interes',
-        titulo: datos.titulo,
-        fecha: null,
-        enlace: normalizado.url,
-      })
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo guardar el enlace.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    return {}
+    const r = await guardarEnlaceDeSala(slug, 'comercial', datos)
+    if (!r.error) revalidatePath(`/cliente/${slug}`)
+    return r
+  }
+
+  async function registrarEnlaceInteresAction(datos: {
+    titulo: string
+    enlace: string
+  }): Promise<{ error?: string }> {
+    'use server'
+    const r = await guardarEnlaceDeSala(slug, 'interes', datos)
+    if (!r.error) revalidatePath(`/cliente/${slug}`)
+    return r
   }
 
   /**
@@ -677,7 +729,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           siendo la misma función, ahora con dos disparadores: el botón
           "Salir" de abajo para el director, y esta barra para el equipo. */}
       {equipo && (
-        <BarraNavegacion hoy={hoy} admin={admin} salirAction={salirDeLaSala} />
+        <BarraNavegacion hoy={hoy} admin={admin} clientes={clientes} salirAction={salirDeLaSala} />
       )}
 
       <header className={estilos.barra}>
@@ -974,15 +1026,51 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} salaSlug={slug} />
         </section>
 
-        {/* MATERIALES COMERCIALES — al final, como los pidió Franco: lo que el
-            equipo estime conveniente tener a mano en la sala. Se llamaba
-            "Archivos de interés" hasta que dejó de contener solo archivos:
-            ahora también un vídeo de YouTube o un enlace. */}
-        {(archivosDeInteres.length > 0 || equipo) && (
+        {/* LOS DOS MÓDULOS DE MATERIAL, al final de la sala.
+
+            Son dos y no uno con un filtro porque responden a dos preguntas
+            distintas: "¿qué le enseño a un prospecto?" y "¿dónde estaba aquel
+            estudio?". Quien abre la sala cinco minutos antes de una reunión
+            hace la primera, y mezclarlos le pone delante lo que no le sirve.
+            Misma mecánica en los dos: fichero o enlace, rejilla con
+            miniatura, renombrar y quitar. */}
+        {(materialesComerciales.length > 0 || equipo) && (
           <section className={estilos.seccion}>
             <h2 className={estilos.seccionTitulo}>
               <IconoSeccion nombre="archivos" />
               Materiales Comerciales
+              {materialesComerciales.length > 0 && (
+                <span className={estilos.conteo}>{materialesComerciales.length}</span>
+              )}
+            </h2>
+            <MaterialesSala
+              materiales={materialesComerciales}
+              equipo={equipo}
+              editarAction={editarArchivoAction}
+              eliminarAction={eliminarArchivoAction}
+              vacio="Credenciales, casos de éxito, un vídeo de YouTube, una nota de prensa: lo que la UDN necesite tener a mano para vender."
+            />
+            {equipo && (
+              <AnadirMaterial
+                salaSlug={slug}
+                categoria="comercial"
+                registrarArchivoAction={registrarMaterialArchivoAction}
+                registrarEnlaceAction={registrarEnlaceAction}
+              />
+            )}
+          </section>
+        )}
+
+        {/* ARCHIVOS DE INTERÉS (Franco: *"después de materiales comerciales
+            hay que agregar Archivos de Interés con las mismas
+            características"*). Todo lo que no es material de venta pero
+            conviene tener a mano: un estudio, un brief, el enlace a un
+            tablero. */}
+        {(archivosDeInteres.length > 0 || equipo) && (
+          <section className={estilos.seccion}>
+            <h2 className={estilos.seccionTitulo}>
+              <IconoSeccion nombre="archivos" />
+              Archivos de Interés
               {archivosDeInteres.length > 0 && (
                 <span className={estilos.conteo}>{archivosDeInteres.length}</span>
               )}
@@ -992,12 +1080,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               equipo={equipo}
               editarAction={editarArchivoAction}
               eliminarAction={eliminarArchivoAction}
+              vacio="Un estudio, un brief, una hoja de cálculo, el enlace a un tablero: lo que no es material de venta pero conviene tener a mano."
             />
             {equipo && (
               <AnadirMaterial
                 salaSlug={slug}
-                registrarArchivoAction={registrarMaterialArchivoAction}
-                registrarEnlaceAction={registrarEnlaceAction}
+                categoria="interes"
+                registrarArchivoAction={registrarInteresArchivoAction}
+                registrarEnlaceAction={registrarEnlaceInteresAction}
               />
             )}
           </section>

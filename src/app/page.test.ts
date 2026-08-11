@@ -32,6 +32,18 @@ const estadoDeSalasMock = vi.fn()
 // para probar el singular/plural del pulso (extra de la auditoría UX/UI,
 // ronda 11) sin depender del valor fijo que bastaba hasta ahora.
 const pulsoDelMesMock = vi.fn()
+/**
+ * El desplegable de Clientes de la barra pide la lista de salas
+ * (`clientesParaBarra()`); esta suite no va de eso, así que se dobla.
+ */
+vi.mock('@/db/temas', () => ({
+  slugsDeSalas: () => Promise.resolve(['neracode', 'mexa-creativa']),
+  cargarTemas: () => Promise.resolve({
+    neracode: { nombre: 'NeraCode', primario: '#101010' },
+    'mexa-creativa': { nombre: 'Mexa Creativa', primario: '#c0392b' },
+  }),
+}))
+
 vi.mock('@/db/consultas', () => ({
   estadoDeSalas: () => estadoDeSalasMock(),
   ordenarPorProximaReunion: (salas: EstadoSala[]) => salas,

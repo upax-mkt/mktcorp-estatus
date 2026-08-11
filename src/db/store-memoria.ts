@@ -135,7 +135,7 @@ export interface FilaArchivoMemoria {
   salaSlug: string | null
   /** De qué reunión es, si es una imagen o vídeo incrustado en su documento. Se llamaba `sesionId`. */
   reunionId?: string | null
-  categoria: 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia'
+  categoria: 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial'
   titulo: string
   fecha: Date | null
   ruta: string | null

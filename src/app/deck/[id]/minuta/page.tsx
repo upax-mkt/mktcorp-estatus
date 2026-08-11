@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { obtenerMinuta, editarTextoMinuta, eliminarMinuta, cargarMinutaExterna } from '@/db/minutas'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
@@ -34,6 +34,9 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   await connection()
   const hoy = new Date()
   const admin = await esAdmin()
+  // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
+  // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
+  const clientes = await clientesParaBarra()
   const { id } = await params
   const reunion = await obtenerReunion(id)
   if (!reunion) notFound()
@@ -77,7 +80,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
             tiene esa clave — el nombre visible de la pestaña es
             "Presentaciones" (tarea 18), pero la ruta y la clave del ciclo
             siguen siendo `deck`. */}
-        <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+        <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
         <header className={estilos.barra}>
           {/* "Cuestionario" no es el nombre de `/deck/{id}` desde hace dos
               rondas (auditoría UX/UI, 7-ago): hoy es el editor del documento
@@ -155,7 +158,7 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
       {/* LA BARRA: mismo montaje que en el early return de arriba — ver su
           comentario ("todavía no se dio") para el porqué de `seccionActiva`
           y de por qué no sustituye al "← Editar documento". */}
-      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="deck" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
       <header className={estilos.barra}>
         <Link href={`/deck/${id}`} className={estilos.volver}>← Editar documento</Link>
         <div className={estilos.barraTitulo}>{reunion.salaNombre} · Minuta</div>

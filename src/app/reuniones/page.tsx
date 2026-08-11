@@ -8,7 +8,7 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import type { SesionPorConfirmar } from '@/dominio/salas'
@@ -275,7 +275,7 @@ export default async function PagReuniones() {
   await connection()
   const hoy = new Date()
 
-  const [reuniones, slugsReales, registro, pausadas, admin] = await Promise.all([
+  const [reuniones, slugsReales, registro, pausadas, admin, clientes] = await Promise.all([
     listarReuniones(),
     slugsDeSalas(),
     cargarTemas(),
@@ -288,6 +288,7 @@ export default async function PagReuniones() {
     // Personas que pinta `BarraNavegacion`, que esta pantalla no montaba
     // hasta ahora.
     esAdmin(),
+    clientesParaBarra(),
   ])
 
   const salas = slugsReales.map((slug) => {
@@ -355,7 +356,7 @@ export default async function PagReuniones() {
           Meeting Hub" era justo la copia divergida que esta ronda vino a
           unificar (ver la cabecera de `BarraNavegacion.tsx`), no un nivel de
           jerarquía distinto que deba sobrevivir aparte. */}
-      <BarraNavegacion seccionActiva="reuniones" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="reuniones" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* Título + "agendar" ya no se pintan aquí (auditoría UX/UI, ronda 11

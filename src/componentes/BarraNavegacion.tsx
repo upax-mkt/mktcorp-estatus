@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import estilos from './BarraNavegacion.module.css'
 import { fechaLarga } from '@/lib/fecha'
+import { cargarTemas, slugsDeSalas } from '@/db/temas'
 
 /**
  * LA BARRA, siempre disponible en cualquier módulo (ronda 11, tarea 2).
@@ -54,6 +55,13 @@ import { fechaLarga } from '@/lib/fecha'
 /** Las cinco pestañas del ciclo — mismo orden que la barra siempre tuvo. */
 export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'salas' | 'personas'
 
+/** Un cliente del desplegable: lo justo para pintar su fila. */
+export interface ClienteBarra {
+  slug: string
+  nombre: string
+  color: string
+}
+
 export interface BarraNavegacionProps {
   /**
    * La sección de ESTA pantalla, para marcarla con `aria-current="page"`.
@@ -65,11 +73,50 @@ export interface BarraNavegacionProps {
   hoy: Date
   /** Si quien mira administra Marketing Corporativo — condiciona Clientes y Personas. */
   admin: boolean
+  /**
+   * Los clientes que despliega la pestaña Clientes, de `clientesParaBarra()`.
+   * Solo se pintan si `admin`: el desplegable hereda la visibilidad de su
+   * pestaña en vez de inventarse una propia.
+   */
+  clientes: ClienteBarra[]
   /** Server Action de cada página: `cerrarSesion()` + `redirect('/entrar')`. */
   salirAction: () => Promise<void>
 }
 
-export function BarraNavegacion({ seccionActiva, hoy, admin, salirAction }: BarraNavegacionProps) {
+/**
+ * LOS CLIENTES DEL DESPLEGABLE, listos para pintar.
+ *
+ * Cada pantalla que monta la barra los pide con esto y los pasa por prop. No
+ * los carga la barra por su cuenta —que sería más cómodo— por una razón dura:
+ * un Server Component ASÍNCRONO no se puede renderizar dentro del árbol de
+ * otro componente en un test de jsdom ("<BarraNavegacion> is an async Client
+ * Component"), y esta barra la montan once pantallas que sí se prueban así.
+ * Con el dato por prop la barra sigue siendo síncrona y las once suites
+ * siguen valiendo.
+ *
+ * Y la prop es OBLIGATORIA, que es lo que evita el olvido: una pantalla nueva
+ * que monte la barra sin pasarla no compila.
+ *
+ * No cuesta una consulta más: `slugsDeSalas`/`cargarTemas` van envueltas en
+ * `cache()` de React, así que en las pantallas que ya las piden —casi todas—
+ * esto no vuelve a tocar la base.
+ */
+export async function clientesParaBarra(): Promise<ClienteBarra[]> {
+  const [slugs, registro] = await Promise.all([slugsDeSalas(), cargarTemas()])
+  return slugs.map((slug) => ({
+    slug,
+    nombre: registro[slug]?.nombre ?? slug,
+    color: registro[slug]?.primario ?? 'transparent',
+  }))
+}
+
+export function BarraNavegacion({
+  seccionActiva,
+  hoy,
+  admin,
+  clientes,
+  salirAction,
+}: BarraNavegacionProps) {
   return (
     <header className={estilos.barra}>
       <Link href="/" className={estilos.marca}>
@@ -135,13 +182,41 @@ export function BarraNavegacion({ seccionActiva, hoy, admin, salirAction }: Barr
             que no puede cumplir. Salas → Clientes (tarea 18): mismo
             criterio de solo-nombre que Presentaciones, arriba. */}
         {admin && (
-          <Link
-            href="/salas"
-            className={estilos.barraLink}
-            aria-current={seccionActiva === 'salas' ? 'page' : undefined}
-          >
-            Clientes
-          </Link>
+          /* CLIENTES, DESPLEGABLE. `details`/`summary` nativos y no un menú
+             de React: se abre con teclado y con dedo sin escribir una línea
+             de JS, y este componente sigue siendo de servidor. El enlace a
+             la pantalla de configuración no se pierde — va el primero dentro
+             del panel, separado de las salas. */
+          <details className={estilos.clientes}>
+            <summary
+              className={estilos.barraLink}
+              aria-current={seccionActiva === 'salas' ? 'page' : undefined}
+            >
+              Clientes
+            </summary>
+            <div className={estilos.clientesPanel}>
+              <Link href="/salas" className={estilos.clientesConfig}>
+                Configurar clientes →
+              </Link>
+              <ul className={estilos.clientesLista}>
+                {clientes.map((c) => (
+                  <li key={c.slug}>
+                    <Link href={`/cliente/${c.slug}`} className={estilos.clienteEnlace}>
+                      {/* El punto de color es la señal que ya identifica a
+                          cada cliente en el resto de la app (Home, salas);
+                          aquí ahorra leer nueve nombres para encontrar uno. */}
+                      <span
+                        className={estilos.clientePunto}
+                        style={{ background: c.color }}
+                        aria-hidden="true"
+                      />
+                      {c.nombre}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
         )}
         {admin && (
           <Link

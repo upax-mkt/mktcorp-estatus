@@ -7,7 +7,7 @@ import { exigirAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
 import { FilaPersona } from '@/componentes/personas/FilaPersona'
 import { FormularioAlta } from '@/componentes/personas/FormularioAlta'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { altaPersonaAction, cambiarRolAction, activarPersonaAction } from './acciones'
 
 export const dynamic = 'force-dynamic'
@@ -41,6 +41,9 @@ export default async function PagPersonas() {
   // `admin` para `BarraNavegacion`: siempre `true` — si `exigirAdmin()` no
   // lanzó arriba, la sesión YA administra Marketing Corporativo.
   const admin = true
+  // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
+  // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
+  const clientes = await clientesParaBarra()
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
   // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
@@ -62,7 +65,7 @@ export default async function PagPersonas() {
 
   return (
     <div className={estilos.app}>
-      <BarraNavegacion seccionActiva="personas" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="personas" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL: mismo aviso que /salas — sin base no hay contra

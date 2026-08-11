@@ -85,7 +85,41 @@ describe('CarasDeReunion — presentación ausente', () => {
     render(<CarasDeReunion reunion={sinNada} equipo onLeerMinuta={() => {}} />)
 
     expect(screen.queryByRole('button', { name: /subir presentación/i })).toBeNull()
+    // El otro camino SÍ sigue: es un enlace a una ruta que siempre existe, no
+    // depende de que nadie le pase un manejador.
+    expect(screen.getByRole('link', { name: /armarla en el editor/i })).toBeInTheDocument()
+  })
+
+  /**
+   * LAS DOS VÍAS AL CREAR LA REUNIÓN (Franco: *"allí me debe permitir o
+   * cargar la presentación que ya hicimos o crearla en el editor"*).
+   *
+   * Solo se ofrecía subir un archivo, así que armarla aquí exigía saberse la
+   * ruta o volver por la lista de Presentaciones. Ninguno de los dos caminos
+   * es el principal: unas veces el deck ya existe y otras se construye.
+   */
+  it('una reunión sin presentación ofrece los dos caminos: subirla o armarla en el editor', () => {
+    render(
+      <CarasDeReunion
+        reunion={sinNada}
+        equipo
+        onLeerMinuta={() => {}}
+        onSubirPresentacion={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /subir presentación/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /armarla en el editor/i }))
+      .toHaveAttribute('href', `/deck/${sinNada.id}`)
+  })
+
+  /** Al director de la UDN no se le ofrece ninguna de las dos: él no prepara. */
+  it('sin ser equipo no se ofrece ningún camino, solo el estado', () => {
+    render(<CarasDeReunion reunion={sinNada} equipo={false} onLeerMinuta={() => {}} onSubirPresentacion={() => {}} />)
+
     expect(screen.getByText(/sin presentación/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /subir presentación/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /armarla en el editor/i })).toBeNull()
   })
 })
 

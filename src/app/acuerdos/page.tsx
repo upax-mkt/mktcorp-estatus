@@ -7,7 +7,7 @@ import { todosLosAcuerdos } from '@/db/consultas'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
 import { ErrorMonday } from '@/monday/cliente'
 import { TablaAcuerdos } from '@/componentes/acuerdos/TablaAcuerdos'
-import { BarraNavegacion } from '@/componentes/BarraNavegacion'
+import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { destacarAction } from './acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
 
@@ -63,10 +63,11 @@ export default async function PagAcuerdos() {
 
   await refrescarDesdeMondaySeguro()
 
-  const [acuerdos, pendientes, admin] = await Promise.all([
+  const [acuerdos, pendientes, admin, clientes] = await Promise.all([
     todosLosAcuerdos(),
     acuerdosPendientesDeSubir(),
     esAdmin(),
+    clientesParaBarra(),
   ])
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
@@ -79,7 +80,7 @@ export default async function PagAcuerdos() {
 
   return (
     <div className={estilos.app}>
-      <BarraNavegacion seccionActiva="acuerdos" hoy={hoy} admin={admin} salirAction={salir} />
+      <BarraNavegacion seccionActiva="acuerdos" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
         <div className={estilos.encabezado}>
