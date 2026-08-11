@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { tienePresentacion, type Reunion } from '@/dominio/reunion'
+import { seEstaArmando, tienePresentacion, type Reunion } from '@/dominio/reunion'
 import type { Participante } from '@/db/participacion'
 import type { CategoriaArchivo } from '@/db/archivos'
-import { fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
+import { fechaBreve, fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
 import { TAMANO_MAXIMO, pesoLegible } from '@/lib/blob'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
@@ -13,6 +13,12 @@ import { CarasDeReunion } from './reuniones/CarasDeReunion'
 import { AcuerdosDeReunion } from './reuniones/AcuerdosDeReunion'
 import { subirArchivoDirecto } from '@/lib/subir'
 import estilos from '@/app/cliente/cliente.module.css'
+// La píldora de acción ("+ Subir presentación", "Armarla en el editor") se
+// define UNA vez, en el módulo de las caras de una reunión. Importarla aquí
+// en vez de copiar sus diez líneas es lo que evita que las dos versiones se
+// separen: sin esto, `estilos.caraAccion` llegaba `undefined` y el botón se
+// pintaba con el borde por defecto del navegador junto a un enlace pelado.
+import caras from './reuniones/CarasDeReunion.module.css'
 
 /**
  * LAS REUNIONES DE UNA SALA: lo que se presentó y lo que se acordó, juntos.
@@ -52,7 +58,21 @@ import estilos from '@/app/cliente/cliente.module.css'
  */
 
 interface Props {
+  /** El historial: lo que ya ocurrió, con su documento, minuta y acuerdos. */
   reuniones: Reunion[]
+  /**
+   * LO QUE VIENE: lo que todavía hay que preparar. Llega aparte y ya
+   * ordenado —del más próximo al más lejano— porque son dos preguntas
+   * distintas y mezclarlas es lo que estaba roto.
+   */
+  porVenir: Reunion[]
+  /**
+   * Cuántas secciones lleva el documento de cada reunión por venir, por id.
+   * `null` (o ausente) = todavía no hay documento; entonces no se ofrece
+   * "seguir editando" nada, que es el defecto que reportó Franco al descartar
+   * una presentación y seguir viéndola como editable.
+   */
+  avancePorReunion?: Record<string, { llenados: number; total: number } | null>
   /** El equipo puede corregir la minuta; el director solo la lee. */
   equipo: boolean
   /**
@@ -107,15 +127,28 @@ interface Props {
    * comprueba que page.tsx SÍ la manda de verdad, para que no quede huérfana.
    */
   editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
+  /**
+   * BORRAR UNA REUNIÓN DESDE LA SALA (Franco: *"la otra reunión tampoco puedo
+   * eliminarla de la sala"*). No se podía: eliminar una reunión solo existía
+   * en Presentaciones, y la sala es donde se la encuentra.
+   *
+   * Opcional porque el director de la UDN no la recibe —solo `equipo` la
+   * usa— y porque las suites que montan este componente sin ejercitarla no
+   * tienen por qué fabricarla.
+   */
+  eliminarReunionAction?: (id: string) => Promise<{ error?: string }>
 }
 
 export function ReunionesSala({
   reuniones,
+  porVenir,
+  avancePorReunion = {},
   equipo,
   participacionPorReunion = {},
   salaSlug,
   registrarArchivoAction,
   editarArchivoAction,
+  eliminarReunionAction,
 }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -180,15 +213,15 @@ export function ReunionesSala({
     if (!abierta && nodo.open) nodo.close()
   }, [abierta])
 
-  if (reuniones.length === 0) {
-    return (
-      <p className={estilos.vacioNota}>
-        Todavía no se ha dado ninguna reunión con este cliente. La primera nace al preparar una
-        presentación; su minuta se levanta al terminarla.
-      </p>
-    )
-  }
+  // El input de archivo tiene que existir aunque no haya historial: lo usan
+  // también las filas de "Lo que viene". Por eso el vacío ya no corta la
+  // función entera — se decide más abajo, dentro del render.
+  const hayHistorial = reuniones.length > 0
 
+  // Con historial vacío no hay `ultima`: el bloque destacado no se pinta (ver
+  // `hayHistorial`, abajo), pero el destructuring corre igual y `ultima` sería
+  // `undefined`. Se le da una reunión vacía para que los accesos de más abajo
+  // —dentro de un condicional que no se cumple— no revienten al evaluarse.
   const [ultima, ...anteriores] = reuniones
   const minutaDe = (r: Reunion) => r.minuta
   /**
@@ -200,7 +233,7 @@ export function ReunionesSala({
    */
   const participantesDeReunion = (r: Reunion): Participante[] | undefined =>
     equipo ? participacionPorReunion[r.id] : undefined
-  const participantesUltima = participantesDeReunion(ultima)
+  const participantesUltima = ultima ? participantesDeReunion(ultima) : undefined
 
   return (
     <>
@@ -219,6 +252,38 @@ export function ReunionesSala({
         }}
       />
 
+      {/* ═══ LO QUE VIENE ═══ Lo que todavía hay que preparar. Antes vivía
+          en una tira suelta arriba de la sala que decía "Seguir editando" a
+          toda reunión agendada, mirara o no si había algo que editar. */}
+      {porVenir.length > 0 && (
+        <div className={estilos.porVenir}>
+          <div className={estilos.porVenirRotulo}>
+            Lo que viene
+            <span className={estilos.conteo}>{porVenir.length}</span>
+          </div>
+          {porVenir.map((r) => (
+            <FilaPorVenir
+              key={r.id}
+              reunion={r}
+              equipo={equipo}
+              avance={avancePorReunion[r.id] ?? null}
+              subiendo={subiendoReunionId === r.id}
+              error={errorSubida?.reunionId === r.id ? errorSubida.mensaje : null}
+              onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+              eliminarAction={equipo ? eliminarReunionAction : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      {!hayHistorial && (
+        <p className={estilos.vacioNota}>
+          Todavía no se ha dado ninguna reunión con este cliente. La primera nace al preparar una
+          presentación; su minuta se levanta al terminarla.
+        </p>
+      )}
+
+      {hayHistorial && (
       <div className={estilos.reunionDestacada}>
         <div className={estilos.reunionCabecera}>
           <div>
@@ -226,6 +291,13 @@ export function ReunionesSala({
             <h3 className={estilos.presTitulo}>{ultima.titulo}</h3>
             <div className={estilos.presFecha}>{fechaCompleta(ultima.fecha)}</div>
           </div>
+          {/* La salida, también en el historial: la reunión que sobra puede
+              ser una vieja tanto como una por venir. */}
+          {equipo && (
+            <div className={estilos.reunionBorrar}>
+              <BorrarReunion reunion={ultima} eliminarAction={eliminarReunionAction} />
+            </div>
+          )}
         </div>
         <CarasDeReunion
           reunion={ultima}
@@ -243,6 +315,7 @@ export function ReunionesSala({
         <AcuerdosDeReunion acuerdos={ultima.acuerdos} />
         {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
       </div>
+      )}
 
       {anteriores.length > 0 && (
         <div className={estilos.reuniones}>
@@ -253,6 +326,11 @@ export function ReunionesSala({
                 <div className={estilos.reunionFilaTexto}>
                   <span className={estilos.presFilaTitulo}>{r.titulo}</span>
                   <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
+                  {equipo && (
+                    <span className={estilos.reunionBorrar}>
+                      <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
+                    </span>
+                  )}
                 </div>
                 <CarasDeReunion
                   reunion={r}
@@ -348,4 +426,173 @@ export function ReunionesSala({
 function textoEnvio(cuantos: number): string {
   if (cuantos === 0) return 'sin enviar'
   return `enviada a ${cuantos}`
+}
+
+/**
+ * UNA REUNIÓN QUE TODAVÍA NO HA OCURRIDO: qué le falta y qué se puede hacer.
+ *
+ * Tres estados posibles y tres respuestas distintas, que es justo lo que la
+ * sala no distinguía:
+ *
+ * 1. **Tiene un documento empezado** → "Seguir editando", con su avance real.
+ * 2. **No tiene documento** → las dos vías: subir la presentación que ya
+ *    existe, o armarla aquí. Es el caso de una reunión recién creada y el de
+ *    una cuya presentación se descartó — antes las dos decían "Seguir
+ *    editando · 0 de 0 secciones", que no llevaba a ninguna parte.
+ * 3. **Ya tiene un archivo subido** → se enseña, y se puede seguir añadiendo.
+ *
+ * Y siempre, para el equipo, la salida: **borrarla**. Una reunión creada por
+ * error se quedaba para siempre en el calendario de la sala porque el único
+ * borrado vivía en Presentaciones.
+ */
+function FilaPorVenir({
+  reunion,
+  equipo,
+  avance,
+  subiendo,
+  error,
+  onSubirPresentacion,
+  eliminarAction,
+}: {
+  reunion: Reunion
+  equipo: boolean
+  avance: { llenados: number; total: number } | null
+  subiendo: boolean
+  error: string | null
+  onSubirPresentacion?: () => void
+  eliminarAction?: (id: string) => Promise<{ error?: string }>
+}) {
+  const armando = seEstaArmando(reunion)
+
+  return (
+    <div className={estilos.porVenirFila}>
+      <div className={estilos.porVenirTexto}>
+        <strong>{reunion.titulo}</strong>
+        <span>
+          {fechaBreve(reunion.fecha)}
+          {' · '}
+          {/* QUÉ LE FALTA, dicho sin rodeos. Un documento existente pero sin
+              secciones llenas no es "0 de 0": es un documento empezado. */}
+          {armando && avance
+            ? `${avance.llenados} de ${avance.total} secciones`
+            : armando
+              ? 'presentación empezada'
+              : reunion.archivos.length > 0
+                ? `${reunion.archivos.length} archivo${reunion.archivos.length > 1 ? 's' : ''} subido${reunion.archivos.length > 1 ? 's' : ''}`
+                : 'sin presentación todavía'}
+        </span>
+      </div>
+
+      {equipo && (
+        <div className={estilos.porVenirAcciones}>
+          {armando ? (
+            <Link href={`/deck/${reunion.id}`} className={caras.caraAccion}>
+              Seguir editando →
+            </Link>
+          ) : (
+            <>
+              {onSubirPresentacion && (
+                <button type="button" className={caras.caraAccion} onClick={onSubirPresentacion}>
+                  <span aria-hidden>+</span> Subir presentación
+                </button>
+              )}
+              <Link href={`/deck/${reunion.id}`} className={caras.caraAccion}>
+                <span aria-hidden>✎</span> Armarla en el editor
+              </Link>
+            </>
+          )}
+
+          <BorrarReunion reunion={reunion} eliminarAction={eliminarAction} />
+        </div>
+      )}
+
+      {/* Los archivos ya subidos, para que subir uno no parezca no hacer nada. */}
+      {reunion.archivos.length > 0 && (
+        <ul className={estilos.porVenirArchivos}>
+          {reunion.archivos.map((a) => (
+            <li key={a.id}>
+              <a href={`/api/archivo/${a.id}`} target="_blank" rel="noopener">{a.titulo}</a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {subiendo && <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>}
+      {error && <p className={estilos.subirError} role="alert">{error}</p>}
+    </div>
+  )
+}
+
+/**
+ * BORRAR UNA REUNIÓN, desde donde uno se la encuentra.
+ *
+ * Franco: *"la otra reunión tampoco puedo eliminarla de la sala"*. No se
+ * podía: el borrado vivía solo en Presentaciones (`/deck`), y la sala es donde
+ * uno se topa con la reunión que sobra. Sirve para los DOS bloques —lo que
+ * viene y el historial— porque es la misma operación.
+ *
+ * Confirma en dos tiempos y dice qué se lleva: la reunión con su presentación
+ * y su minuta. Los acuerdos ya publicados NO se van —cuelgan de la sala y
+ * pueden llevar semanas moviéndose—, y decirlo importa: es justo la duda que
+ * frena a alguien delante de un botón de borrar.
+ */
+function BorrarReunion({
+  reunion,
+  eliminarAction,
+}: {
+  reunion: Reunion
+  eliminarAction?: (id: string) => Promise<{ error?: string }>
+}) {
+  const [confirmando, setConfirmando] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!eliminarAction) return null
+
+  if (!confirmando) {
+    return (
+      <button
+        type="button"
+        className={estilos.botonIconoBorrar}
+        onClick={() => setConfirmando(true)}
+        aria-label={`Borrar la reunión ${reunion.titulo}`}
+      >
+        ✕
+      </button>
+    )
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={estilos.botonBorrar}
+        disabled={borrando}
+        onClick={() => {
+          setBorrando(true)
+          setError(null)
+          void eliminarAction(reunion.id)
+            .then((r) => { if (r?.error) setError(r.error) })
+            .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo borrar.'))
+            .finally(() => setBorrando(false))
+        }}
+      >
+        {borrando ? 'Borrando…' : 'Sí, borrar la reunión'}
+      </button>
+      <button
+        type="button"
+        className={estilos.botonCancelarBorrado}
+        onClick={() => setConfirmando(false)}
+      >
+        Cancelar
+      </button>
+      {!borrando && (
+        <p className={estilos.porVenirAviso}>
+          Se borra la reunión con su presentación y su minuta. Los acuerdos ya publicados en esta
+          sala se quedan.
+        </p>
+      )}
+      {error && <p className={estilos.subirError} role="alert">{error}</p>}
+    </>
+  )
 }

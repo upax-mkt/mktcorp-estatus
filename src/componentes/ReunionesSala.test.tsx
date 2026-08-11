@@ -53,7 +53,7 @@ const registrarArchivoActionNoop = vi.fn().mockResolvedValue({})
 describe('ReunionesSala — participación de equipo', () => {
   it('equipo, con datos: pinta quién preparó y quién presentó en la reunión destacada', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[ULTIMA]}
         equipo
         participacionPorReunion={{ s1: [P('Iris')] }}
@@ -66,7 +66,7 @@ describe('ReunionesSala — participación de equipo', () => {
 
   it('equipo, con datos: también la pinta en una reunión anterior (fila compacta)', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[ULTIMA, ANTERIOR]}
         equipo
         participacionPorReunion={{ s0: [P('César')] }}
@@ -84,7 +84,7 @@ describe('ReunionesSala — participación de equipo', () => {
     // para un director, así que el mapa llega vacío—, pero el propio
     // componente tiene que sostener la regla por su cuenta.
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[ULTIMA]}
         equipo={false}
         participacionPorReunion={{ s1: [P('Iris')] }}
@@ -98,7 +98,7 @@ describe('ReunionesSala — participación de equipo', () => {
 
   it('equipo, pero sin nadie que haya tocado esta sesión todavía: no pinta nada de más', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[ULTIMA]}
         equipo
         participacionPorReunion={{}}
@@ -111,7 +111,7 @@ describe('ReunionesSala — participación de equipo', () => {
 
   it('equipo, sin el prop siquiera (default): no revienta y no pinta nada', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[ULTIMA]}
         equipo
         salaSlug={SALA_SLUG}
@@ -156,7 +156,7 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
     const registrarArchivoAction = vi.fn().mockResolvedValue({})
 
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[SIN_PRESENTACION_ULTIMA, SIN_PRESENTACION_ANTERIOR]}
         equipo
         salaSlug={SALA_SLUG}
@@ -189,7 +189,7 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
     const registrarArchivoAction = vi.fn().mockResolvedValue({})
 
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[SIN_PRESENTACION_ULTIMA, SIN_PRESENTACION_ANTERIOR]}
         equipo
         salaSlug={SALA_SLUG}
@@ -216,7 +216,7 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
     const registrarArchivoAction = vi.fn().mockResolvedValue({ error: 'No se pudo registrar el archivo.' })
 
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[SIN_PRESENTACION_ULTIMA]}
         equipo
         salaSlug={SALA_SLUG}
@@ -245,7 +245,7 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
     const registrarArchivoAction = vi.fn().mockResolvedValue({ error: 'No se pudo registrar el archivo.' })
 
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[SIN_PRESENTACION_ULTIMA]}
         equipo
         salaSlug={SALA_SLUG}
@@ -269,7 +269,7 @@ describe('ReunionesSala — subir presentación (ronda 10, tarea 9b)', () => {
     )
 
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[SIN_PRESENTACION_ULTIMA]}
         equipo
         salaSlug={SALA_SLUG}
@@ -318,7 +318,7 @@ describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
 
   it('la reunión destacada despliega los suyos', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[{ ...ULTIMA, acuerdos: [ACUERDO] }]}
         equipo
         salaSlug={SALA_SLUG}
@@ -332,7 +332,7 @@ describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
 
   it('una reunión anterior también, no solo la última', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[ULTIMA, { ...ANTERIOR, acuerdos: [ACUERDO] }]}
         equipo
         salaSlug={SALA_SLUG}
@@ -345,7 +345,7 @@ describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
 
   it('los acuerdos de una reunión no se cuelan en otra', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[{ ...ULTIMA, acuerdos: [ACUERDO] }, ANTERIOR]}
         equipo
         salaSlug={SALA_SLUG}
@@ -360,7 +360,7 @@ describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
 
   it('el director de UDN también los ve: son suyos, no del equipo', () => {
     render(
-      <ReunionesSala
+      <ReunionesSala porVenir={[]}
         reuniones={[{ ...ULTIMA, acuerdos: [ACUERDO] }]}
         equipo={false}
         salaSlug={SALA_SLUG}

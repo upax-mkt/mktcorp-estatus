@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   reunionesDeSala, fueDada, tienePresentacion, reunionesMinutables, reunionesPorConfirmar,
+  reunionesPorVenir, historialDeReuniones, seEstaArmando,
   type Reunion,
 } from './reunion'
 
@@ -222,5 +223,75 @@ describe('reunionesMinutables', () => {
   it('una reunión futura no es minutable: todavía no pasa', () => {
     const futura = { ...base, fecha: '2026-08-10T19:00:00Z', estado: 'dada' as const }
     expect(reunionesMinutables([futura], hoy)).toHaveLength(0)
+  })
+})
+
+/**
+ * LO QUE VIENE Y LO QUE YA PASÓ (Franco: *"sigue estando rara la lógica en el
+ * módulo de reuniones dentro de la sala"*).
+ *
+ * La sala repartía la misma reunión en tres bloques que no se hablaban. Estas
+ * dos funciones parten la lista por la única frontera que cambia lo que se
+ * puede hacer con una reunión —si su día ya pasó— y son complementarias por
+ * construcción, que es lo que impide que la duplicación vuelva por un filtro
+ * nuevo.
+ */
+describe('reunionesPorVenir / historialDeReuniones', () => {
+  const futura: Reunion = { ...base, id: 'futura', fecha: '2026-08-20T19:00:00Z' }
+  const hoyMismo: Reunion = { ...base, id: 'hoy', fecha: '2026-08-04T19:00:00Z' }
+  const pasada: Reunion = { ...base, id: 'pasada', fecha: '2026-07-15T19:00:00Z' }
+
+  it('lo que viene son las que todavía no han ocurrido, de la más próxima a la más lejana', () => {
+    expect(reunionesPorVenir([futura, pasada, hoyMismo], hoy).map((r) => r.id))
+      .toEqual(['hoy', 'futura'])
+  })
+
+  /** Hoy todavía se prepara: la junta es esta tarde. */
+  it('la de HOY está por venir, no en el historial', () => {
+    expect(reunionesPorVenir([hoyMismo], hoy).map((r) => r.id)).toEqual(['hoy'])
+    expect(historialDeReuniones([hoyMismo], hoy)).toHaveLength(0)
+  })
+
+  it('lo explícito manda: una futura ya marcada como dada va al historial', () => {
+    const adelantada = { ...futura, estado: 'dada' as const }
+    expect(reunionesPorVenir([adelantada], hoy)).toHaveLength(0)
+    expect(historialDeReuniones([adelantada], hoy).map((r) => r.id)).toEqual(['futura'])
+  })
+
+  it('una futura marcada "no se dio" tampoco se sigue preparando', () => {
+    const cancelada = { ...futura, noDadaEn: '2026-08-04T00:00:00Z' }
+    expect(reunionesPorVenir([cancelada], hoy)).toHaveLength(0)
+    expect(historialDeReuniones([cancelada], hoy).map((r) => r.id)).toEqual(['futura'])
+  })
+
+  /**
+   * LA INVARIANTE QUE IMPIDE QUE VUELVA EL BUG: toda reunión está en
+   * exactamente una de las dos listas. Si algún día alguien añade un filtro a
+   * `reunionesPorVenir`, el historial lo recoge solo — porque se define como
+   * su complemento, no con criterios paralelos.
+   */
+  it('cada reunión cae en exactamente una lista, nunca en las dos ni en ninguna', () => {
+    const todas = [futura, hoyMismo, pasada,
+      { ...pasada, id: 'negada', noDadaEn: '2026-08-01T00:00:00Z' },
+      { ...futura, id: 'adelantada', estado: 'dada' as const }]
+    const porVenir = reunionesPorVenir(todas, hoy).map((r) => r.id)
+    const historial = historialDeReuniones(todas, hoy).map((r) => r.id)
+    expect([...porVenir, ...historial].sort()).toEqual(todas.map((r) => r.id).sort())
+    expect(porVenir.filter((id) => historial.includes(id))).toEqual([])
+  })
+})
+
+/**
+ * `seEstaArmando` mira si EXISTE el documento, no si está listo: son dos
+ * preguntas distintas y confundirlas es lo que hacía que la sala ofreciera
+ * "Seguir editando" a una reunión cuya presentación se acababa de descartar.
+ */
+describe('seEstaArmando', () => {
+  it('sin documento no hay nada que seguir editando', () => {
+    expect(seEstaArmando(base)).toBe(false)
+  })
+
+  it('un documento a medio armar cuenta, aunque no esté listo', () => {
+    expect(seEstaArmando({ ...base, documentoId: 'doc-1', documentoListo: false })).toBe(true)
   })
 })

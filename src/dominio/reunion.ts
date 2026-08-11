@@ -276,3 +276,72 @@ export function reunionesPorConfirmar(
     .filter((r) => tieneRespaldo(r) && diaCivil(r.fecha) < hoyCivil)
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 }
+
+/**
+ * ═══ LO QUE VIENE Y LO QUE YA PASÓ ═══════════════════════════════════════
+ *
+ * Franco: *"sigue estando rara la lógica en el módulo de reuniones dentro de
+ * la sala: había una presentación, entré, la descarté, pero sigue apareciendo
+ * en la sala para editar; y la otra reunión tampoco puedo eliminarla"*.
+ *
+ * Lo que estaba raro era que la sala repartía la MISMA reunión en tres
+ * bloques que no se hablaban entre ellos —"en preparación" arriba, la lista
+ * de reuniones en medio, "por confirmar" abajo— y ninguno preguntaba lo
+ * mismo. Una junta del 20 de agosto salía rotulada "La última" porque la
+ * lista ordena por fecha y toma la primera, sin mirar si ya ocurrió.
+ *
+ * Estas dos funciones parten la lista por la única frontera que de verdad
+ * cambia lo que se puede hacer con una reunión: **si su día ya pasó**. Antes
+ * se prepara; después se minuta y se archiva.
+ */
+
+/**
+ * LO QUE VIENE: su día no ha llegado (o es hoy) y nadie la ha dado por dada.
+ *
+ * `estado !== 'dada'` respeta lo explícito: si alguien confirmó que ya se dio
+ * —una junta adelantada, un error al marcarla— manda esa palabra y no el
+ * calendario, igual que en `fueDada`.
+ *
+ * Orden ASCENDENTE, al revés que el historial: lo primero de la lista es lo
+ * que hay que preparar antes.
+ */
+export function reunionesPorVenir(rs: Reunion[], hoyCivil: string): Reunion[] {
+  return rs
+    .filter((r) => r.estado !== 'dada')
+    .filter((r) => !r.noDadaEn)
+    .filter((r) => diaCivil(r.fecha) >= hoyCivil)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+}
+
+/**
+ * EL HISTORIAL: todo lo demás. Lo que ya ocurrió, lo que se dio por ocurrido
+ * y lo que se marcó como no dado — con su documento, sus archivos, su minuta
+ * y sus acuerdos.
+ *
+ * Se define como el COMPLEMENTO EXACTO de `reunionesPorVenir` y no con su
+ * propio juego de filtros: dos listas con criterios paralelos se separan en
+ * cuanto una cambia, y entonces una reunión desaparece de las dos o sale en
+ * las dos. Aquí eso no puede pasar.
+ */
+export function historialDeReuniones(rs: Reunion[], hoyCivil: string): Reunion[] {
+  const porVenir = new Set(reunionesPorVenir(rs, hoyCivil).map((r) => r.id))
+  return rs.filter((r) => !porVenir.has(r.id)).sort((a, b) => b.fecha.localeCompare(a.fecha))
+}
+
+/**
+ * ¿HAY UNA PRESENTACIÓN A MEDIO ARMAR EN EL EDITOR?
+ *
+ * `documentoId`, no `documentoListo`: son preguntas distintas. `documentoListo`
+ * dice si hay algo que ENSEÑARLE a la UDN (por eso lo usa `tienePresentacion`);
+ * esto dice si hay algo que SEGUIR EDITANDO, que es cierto desde que existe el
+ * documento aunque no tenga ni una sección llena.
+ *
+ * EL BUG QUE CIERRA: la sala ofrecía "Seguir editando →" a toda reunión
+ * agendada, mirara o no si había documento. Franco descartó la presentación
+ * de NeraCode —lo que borra el documento y deja la reunión en el calendario,
+ * que es justo lo que pidió— y la sala siguió ofreciéndole seguir editando
+ * algo que ya no existía, con "0 de 0 secciones" debajo.
+ */
+export function seEstaArmando(r: Reunion): boolean {
+  return Boolean(r.documentoId)
+}

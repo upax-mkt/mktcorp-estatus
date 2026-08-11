@@ -13,7 +13,10 @@ import {
 import {
   type SesionPorConfirmar,
 } from '@/dominio/salas'
-import { fueDada, reunionesMinutables, reunionesPorConfirmar } from '@/dominio/reunion'
+import {
+  historialDeReuniones, reunionesMinutables, reunionesPorConfirmar, reunionesPorVenir,
+  seEstaArmando,
+} from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
@@ -40,9 +43,11 @@ import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
 import {
-  marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion,
+  marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion, eliminarReunion,
 } from '@/db/reuniones'
-import { crearReunionConDocumento, documentoDeReunion } from '@/db/documentos'
+import {
+  crearReunionConDocumento, documentoDeReunion, eliminarDocumentoDeReunion,
+} from '@/db/documentos'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
@@ -212,35 +217,45 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const hoy = new Date()
   const hoyCivil = diaCivil(hoy.toISOString())
   /**
-   * LO QUE ESTÁ A MEDIO ARMAR PARA ESTE CLIENTE.
+   * LO QUE VIENE Y LO QUE YA PASÓ — la única frontera que cambia lo que se
+   * puede hacer con una reunión.
    *
-   * CORREGIDO (revisión final de la ronda 10, hallazgo 2): el filtro perdió
-   * su segunda mitad al migrar de sesión a reunión. `EstadoReunion` es
-   * 'agendada' | 'dada' — `'agendada'` sola ya no basta, porque `fueDada`
-   * (`dominio/reunion.ts`, escrita en esta misma ronda) puede deducir una
-   * reunión como dada SIN que nadie la haya confirmado a mano (con respaldo
-   * y el día ya pasado). Sin el `!fueDada` de aquí, esa misma reunión salía
-   * DOS VECES en pantalla: aquí arriba con "Seguir editando →" y más abajo,
-   * en "Por confirmar" (`reunionesPorConfirmar`, que sí aplica ese mismo
-   * criterio), con "¿se dio?" — la misma pregunta respondida en dos sitios
-   * que no se enteran uno del otro.
+   * Franco: *"sigue estando rara la lógica en el módulo de reuniones dentro
+   * de la sala"*. Estaba raro porque la misma reunión se repartía en tres
+   * bloques que no se hablaban —una tira de "en preparación" aquí, la lista
+   * de reuniones en medio, "por confirmar" abajo— y el de arriba ofrecía
+   * "Seguir editando" a toda reunión agendada, mirara o no si había un
+   * documento que editar. Al descartar una presentación, la reunión seguía
+   * ofreciéndose como editable con "0 de 0 secciones" debajo.
    *
-   * `s.reuniones`, no la vieja `reunionesDeLaSala` (derivada de
-   * `listarReuniones()`, un `ReunionResumen[]` sin `documentoListo`/
-   * `archivos`/`minuta`): `fueDada` necesita ese respaldo completo, y
-   * `EstadoSala.reuniones` (`estadoDeSalaDB`, Tarea 7) ya lo trae cosido —
-   * la misma fuente que usa `pendientesDeMinuta`, más abajo.
+   * Las dos listas las parte el dominio y son COMPLEMENTARIAS por
+   * construcción (`historialDeReuniones` se define como "lo que no está por
+   * venir"), así que ninguna reunión puede salir en las dos ni en ninguna.
    */
-  const enPreparacion = s.reuniones.filter((r) => r.estado === 'agendada' && !fueDada(r, hoyCivil))
+  const porVenir = reunionesPorVenir(s.reuniones, hoyCivil)
+  const historial = historialDeReuniones(s.reuniones, hoyCivil)
   /**
-   * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
-   * documento, no de la reunión) — se resuelven aquí, solo si hay equipo
-   * mirando (es lo único que renderiza esta lista) y solo para las reuniones
-   * en preparación de ESTA sala, que en la práctica son unas pocas.
+   * CUÁNTAS SECCIONES LLEVA cada presentación por armar. No vive en
+   * `ReunionResumen` (es del documento, no de la reunión), así que se resuelve
+   * aquí — solo si hay equipo mirando, que es lo único que lo renderiza, y
+   * solo para las que están por venir, que son unas pocas.
+   *
+   * `null` cuando la reunión no tiene documento: es lo que distingue "sin
+   * presentación todavía" de "empezada", y lo que evita volver a ofrecer
+   * seguir editando algo que no existe.
    */
-  const documentosEnPreparacion = equipo
-    ? new Map(await Promise.all(enPreparacion.map(async (r) => [r.id, await documentoDeReunion(r.id)] as const)))
-    : new Map<string, Awaited<ReturnType<typeof documentoDeReunion>>>()
+  const avancePorReunion: Record<string, { llenados: number; total: number } | null> = {}
+  if (equipo) {
+    const docs = await Promise.all(
+      porVenir.map(async (r) => [r.id, seEstaArmando(r) ? await documentoDeReunion(r.id) : null] as const),
+    )
+    for (const [id, doc] of docs) {
+      avancePorReunion[id] = doc
+        ? { llenados: doc.items.filter((it) => it.llenado).length, total: doc.items.length }
+        : null
+    }
+  }
+
   async function salirDeLaSala() {
     'use server'
     await cerrarSesion()
@@ -584,6 +599,43 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       ...(cambios.fecha !== undefined ? { fecha: cambios.fecha ? new Date(cambios.fecha) : null } : {}),
     })
     revalidatePath(`/cliente/${slug}`)
+  }
+
+  /**
+   * BORRAR UNA REUNIÓN DESDE LA SALA (Franco: *"la otra reunión tampoco puedo
+   * eliminarla de la sala"*).
+   *
+   * No se podía: el borrado vivía solo en Presentaciones (`/deck`), y la sala
+   * es donde uno se encuentra la reunión que sobra. Es la misma operación,
+   * ofrecida donde hace falta.
+   *
+   * COMPRUEBA QUE LA REUNIÓN ES DE ESTA SALA antes de borrarla. El id lo manda
+   * el navegador y una Server Action es un endpoint: sin esto, quien tenga el
+   * id de una reunión de OTRA sala podría borrarla desde aquí. Esconder el
+   * botón no protege nada.
+   *
+   * `eliminarDocumentoDeReunion` como segundo argumento: `eliminarReunion` lo
+   * exige cuando la reunión tiene documento —`documentos.reunion_id` es NOT
+   * NULL + UNIQUE, así que hay que borrarlo antes— y se pasa siempre, tenga o
+   * no. Los acuerdos ya publicados NO se van: cuelgan de la sala y pueden
+   * llevar semanas moviéndose (`eliminarReunion` les suelta el origen).
+   */
+  async function eliminarReunionAction(reunionId: string): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+    const laReunion = await obtenerReunion(reunionId)
+    if (!laReunion || laReunion.salaSlug !== slug) {
+      return { error: 'Esa reunión no es de este cliente.' }
+    }
+    try {
+      await eliminarReunion(reunionId, eliminarDocumentoDeReunion)
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo borrar la reunión.' }
+    }
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/deck')
+    revalidatePath('/')
+    return {}
   }
 
   async function eliminarArchivoAction(id: string) {
@@ -945,40 +997,21 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             {reuniones.length > 0 && <span className={estilos.conteo}>{reuniones.length}</span>}
           </h2>
 
-          {/* LO QUE SE ESTÁ PREPARANDO, arriba y con su avance.
-              Franco: "si trae una presentación en preparación debería aparecer
-              dentro del espacio, así el usuario ingresa y sigue editando".
-              Tenía razón y era un agujero raro: el Home SÍ lo enseñaba —"18 de
-              18 secciones"— y el espacio del propio cliente, que es donde uno
-              entra a trabajar, no. */}
-          {equipo && enPreparacion.length > 0 && (
-            <div className={estilos.enPreparacion}>
-              {enPreparacion.map((p) => {
-                const doc = documentosEnPreparacion.get(p.id)
-                const totalItems = doc?.items.length ?? 0
-                const itemsLlenados = doc?.items.filter((it) => it.llenado).length ?? 0
-                return (
-                <Link key={p.id} href={`/deck/${p.id}`} className={estilos.enPreparacionFila}>
-                  <span className={estilos.enPreparacionTexto}>
-                    <strong>{p.titulo}</strong>
-                    <span>
-                      {fechaBreve(p.fecha)} · {itemsLlenados} de {totalItems} secciones
-                    </span>
-                  </span>
-                  <span className={estilos.enPreparacionSeguir}>Seguir editando →</span>
-                </Link>
-                )
-              })}
-            </div>
-          )}
-
+          {/* UN SOLO MÓDULO. `porVenir` es lo que hay que preparar —con lo
+              que le falta y las tres salidas: seguir editando, subir la que
+              ya existe o armarla— y `reuniones` es el historial. Antes lo
+              primero vivía en una tira aparte que no sabía de lo segundo, y
+              una junta futura salía rotulada "La última". */}
           <ReunionesSala
-            reuniones={reuniones}
+            reuniones={historial}
+            porVenir={porVenir}
+            avancePorReunion={avancePorReunion}
             equipo={equipo}
             participacionPorReunion={participacionPorReunion}
             salaSlug={slug}
             registrarArchivoAction={registrarArchivoAction}
             editarArchivoAction={editarArchivoAction}
+            eliminarReunionAction={eliminarReunionAction}
           />
 
           {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya

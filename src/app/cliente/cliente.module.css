@@ -727,23 +727,42 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .avisoCongelado strong { color: var(--tx); font-weight: 600; }
 
-/* ---- lo que se está preparando para este cliente ---- */
-.enPreparacion { display: grid; gap: 0.5rem; margin-bottom: 1.2rem; }
-.enPreparacionFila {
+/* ---- LO QUE VIENE: lo que todavía hay que preparar ----
+   Sustituye a `.enPreparacion`, la tira que vivía suelta arriba de la sala y
+   ofrecía "Seguir editando" a toda reunión agendada, hubiera o no algo que
+   editar. Ahora es un bloque DENTRO del módulo de reuniones, con lo que le
+   falta a cada una y lo que se puede hacer al respecto — borrarla incluido. */
+.porVenir { display: grid; gap: 0.55rem; margin-bottom: 1.4rem; }
+.porVenirRotulo {
+  display: flex; align-items: center; gap: 0.55rem;
+  font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+  font-weight: 800; color: var(--tx-2);
+}
+.porVenirFila {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; flex-wrap: wrap;
+  gap: 0.8rem 1rem; flex-wrap: wrap;
   padding: 0.85rem 1rem; border-radius: var(--r-3);
   background: color-mix(in oklch, var(--marca) 8%, transparent);
   border: 1px solid color-mix(in oklch, var(--marca) 22%, transparent);
-  text-decoration: none; color: inherit;
-  transition: border-color var(--rapido, 0.15s) linear;
 }
-.enPreparacionFila:hover { border-color: var(--marca); }
-.enPreparacionTexto { display: grid; gap: 0.2rem; font-size: 0.9rem; min-width: 0; }
-.enPreparacionTexto span { font-size: 0.8rem; color: var(--tx-3); }
-.enPreparacionSeguir {
-  font-size: 0.83rem; font-weight: 600; white-space: nowrap;
-  color: var(--marca-texto, var(--marca));
+.porVenirTexto { display: grid; gap: 0.2rem; font-size: 0.9rem; min-width: 0; }
+.porVenirTexto span { font-size: 0.8rem; color: var(--tx-3); }
+.porVenirAcciones {
+  display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
+  margin-left: auto;
+}
+.porVenirArchivos {
+  flex-basis: 100%; list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.porVenirArchivos a { color: var(--marca-texto, var(--marca)); }
+/* La salida de una reunión del historial: discreta hasta que se pulsa, y
+   entonces la confirmación ocupa su propia línea. */
+.reunionBorrar { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.porVenirAviso {
+  flex-basis: 100%; margin: 0;
+  font-size: 0.8rem; line-height: 1.45; color: var(--tx-2);
 }
 
 /* ══ BENCHMARK COMPLETO — piezas nuevas (junio 2026, al cargar el primero

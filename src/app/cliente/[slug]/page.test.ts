@@ -438,8 +438,9 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     await usuario.click(screen.getByRole('button', { name: '+ Añadir archivo' }))
     await usuario.type(screen.getByLabelText('Título'), 'Estudio de categoría')
 
-    const entrada = document.querySelector('input[type="file"]')
-    if (!(entrada instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    const entradas = document.querySelectorAll<HTMLInputElement>('input[type="file"]:not([aria-hidden])')
+    const entrada = entradas[entradas.length - 1]
+    if (!entrada) throw new Error('No se encontró el input de archivo del módulo.')
     await usuario.upload(entrada, new File(['x'], 'estudio.pdf', { type: 'application/pdf' }))
 
     await waitFor(() => expect(registrarArchivoMock).toHaveBeenCalled())
@@ -468,8 +469,11 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     await usuario.click(screen.getByRole('button', { name: '+ Añadir material' }))
     await usuario.type(screen.getByLabelText('Título'), 'Catálogo 2026')
 
-    const entradaArchivo = document.querySelector('input[type="file"]')
-    if (!(entradaArchivo instanceof HTMLInputElement)) throw new Error('No se encontró el input de archivo.')
+    // EL ÚLTIMO, no el primero: el módulo de reuniones tiene su propio
+    // `input[type=file]` oculto y compartido, y va antes en el documento.
+    const entradas = document.querySelectorAll<HTMLInputElement>('input[type="file"]:not([aria-hidden])')
+    const entradaArchivo = entradas[entradas.length - 1]
+    if (!entradaArchivo) throw new Error('No se encontró el input de archivo del módulo.')
     const archivo = new File(['contenido'], 'catalogo.pdf', { type: 'application/pdf' })
     await usuario.upload(entradaArchivo, archivo)
 
@@ -788,52 +792,92 @@ describe('VistaSala (/cliente/[slug]) — "Levantar minuta" no exige confirmar a
 })
 
 /**
- * HALLAZGO 2 DE LA REVISIÓN FINAL (ronda 10) — la misma reunión salía a la
- * vez en "En preparación" (arriba, "Seguir editando →") y en "Por confirmar"
- * (abajo, "¿se dio?"). El filtro de `enPreparacion` perdió su segunda mitad
- * al migrar de sesión a reunión: antes excluía lo que la deducción de
- * `fueDada` ya contaba como dado; ahora es `estado === 'agendada'` a secas.
+ * UNA REUNIÓN, UN SOLO SITIO (Franco: *"sigue estando rara la lógica en el
+ * módulo de reuniones dentro de la sala… mejora la lógica entre
+ * presentaciones, minutas y reuniones"*).
  *
- * Este test fija la mitad que faltaba: `estado === 'agendada' && !fueDada(...)`.
+ * La sala repartía la MISMA reunión en tres bloques que no se hablaban entre
+ * ellos: una tira de "en preparación" arriba, la lista de reuniones en medio
+ * y "por confirmar" abajo. El hallazgo 2 de la ronda 10 ya había parcheado
+ * una de las duplicaciones con un filtro (`estado === 'agendada' &&
+ * !fueDada(...)`), pero el problema era estructural y volvió por otro lado: al
+ * DESCARTAR una presentación, la reunión se quedaba sin documento y la tira
+ * seguía ofreciendo "Seguir editando · 0 de 0 secciones".
+ *
+ * Ahora la frontera es una sola —si su día ya pasó— y las dos listas son
+ * complementarias por construcción (`historialDeReuniones` = lo que NO está
+ * por venir), así que la duplicación no puede volver por ningún filtro nuevo.
  */
-describe('VistaSala (/cliente/[slug]) — "En preparación" no duplica lo que ya se cuenta como dado (hallazgo 2)', () => {
-  const REUNION_AGENDADA_MAQUETADA = {
+describe('VistaSala (/cliente/[slug]) — cada reunión aparece en un solo bloque', () => {
+  const PASADA_MAQUETADA = {
     id: 'reunion-maquetada', titulo: 'Quincenal julio', fecha: '2026-07-15T10:00:00.000Z',
     tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
     documentoListo: true, archivos: [], acuerdos: [],
   }
-  const REUNION_AGENDADA_SIN_RESPALDO = {
+  const PASADA_SIN_RESPALDO = {
     id: 'reunion-sin-respaldo', titulo: 'Standup sin nada encima', fecha: '2026-07-10T10:00:00.000Z',
     tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
     documentoListo: false, archivos: [], acuerdos: [],
   }
-  const SALA_MIXTA: EstadoSala = {
-    ...SALA_BASE,
-    reuniones: [REUNION_AGENDADA_MAQUETADA, REUNION_AGENDADA_SIN_RESPALDO],
+  /** Dentro de tres años: no hay "hoy" que la deje atrás. */
+  const FUTURA_SIN_DOCUMENTO = {
+    id: 'reunion-futura', titulo: 'La que viene sin nada', fecha: '2029-07-10T10:00:00.000Z',
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    documentoListo: false, archivos: [], acuerdos: [],
   }
 
-  it('una agendada ya deducible como dada (con respaldo, día pasado) NO sale en "en preparación"', async () => {
-    estadoDeSalaMock.mockResolvedValueOnce(SALA_MIXTA)
+  it('lo que ya pasó NO se ofrece para seguir editando, tenga respaldo o no', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce({
+      ...SALA_BASE, reuniones: [PASADA_MAQUETADA, PASADA_SIN_RESPALDO],
+    })
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
 
     render(await invocar())
 
-    expect(
-      screen.queryByRole('link', { name: /Quincenal julio[\s\S]*Seguir editando/i }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/seguir editando/i)).not.toBeInTheDocument()
+    // Pero siguen estando: en el historial, con su título. (`getAllBy`: la
+    // destacada lo pinta como encabezado y el selector de minuta lo repite.)
+    expect(screen.getAllByText('Quincenal julio').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Standup sin nada encima').length).toBeGreaterThan(0)
   })
 
-  it('una agendada SIN respaldo todavía sigue en "en preparación": de esa sí falta todo', async () => {
-    estadoDeSalaMock.mockResolvedValueOnce(SALA_MIXTA)
+  /**
+   * EL BUG QUE REPORTÓ FRANCO. Descartó la presentación de una reunión —lo
+   * que borra el documento y deja la junta en el calendario— y la sala siguió
+   * ofreciéndole seguir editando algo que ya no existía.
+   */
+  it('una reunión por venir SIN documento ofrece las dos vías, no "seguir editando"', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce({ ...SALA_BASE, reuniones: [FUTURA_SIN_DOCUMENTO] })
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
 
     render(await invocar())
 
-    expect(
-      screen.getByRole('link', { name: /Standup sin nada encima[\s\S]*Seguir editando/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByText('La que viene sin nada')).toBeInTheDocument()
+    expect(screen.queryByText(/seguir editando/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/sin presentación todavía/i)).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /armarla en el editor/i }).length).toBeGreaterThan(0)
+  })
+
+  /**
+   * Y NO SE ROTULA "LA ÚLTIMA": el historial ordena por fecha y toma la
+   * primera, así que sin esta separación una junta futura salía anunciada
+   * como la última que se dio.
+   */
+  it('una reunión por venir no entra al historial ni se anuncia como "La última"', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce({
+      ...SALA_BASE, reuniones: [FUTURA_SIN_DOCUMENTO, PASADA_MAQUETADA],
+    })
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    // "La última" existe, y es la pasada — no la de dentro de tres años.
+    const destacada = screen.getByText('La última').closest('div')?.parentElement?.parentElement
+    expect(destacada?.textContent).toContain('Quincenal julio')
+    expect(destacada?.textContent).not.toContain('La que viene sin nada')
   })
 })
 
