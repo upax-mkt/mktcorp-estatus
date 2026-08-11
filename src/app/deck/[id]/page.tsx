@@ -7,7 +7,7 @@ import estilos from '../deck.module.css'
 import { obtenerReunion } from '@/db/reuniones'
 import {
   documentoDeReunion,
-  crearDocumento,
+  crearDocumentoConPlantilla,
   moverItem,
   reordenarItems,
   entradasCrudasDeDocumento,
@@ -133,7 +133,14 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
   // la base: es un GET con efecto, justo lo que la doctrina de `auth/roles.ts`
   // prohíbe. Sin documento, el viewer ve el editor vacío, que es inofensivo:
   // las trece acciones de escritura de abajo exigen editor por su cuenta.
-  if (!documentoPrevio && (await esEditor())) await crearDocumento(id)
+  // CON LA PLANTILLA QUE ELIGIÓ LA REUNIÓN, no a secas. Desde que crear una
+  // reunión dejó de crear su deck de golpe (migración 0035), el "qué reunión
+  // es" que se contestó al agendarla espera en `reuniones.plantilla` hasta
+  // que alguien pulsa "armarla en el editor" — que puede ser días después.
+  // Sin plantilla registrada (toda reunión anterior a eso, y las que nacen al
+  // publicar una minuta) se cae a la de por defecto, que es lo que hacía
+  // antes de existir esa columna.
+  if (!documentoPrevio && (await esEditor())) await crearDocumentoConPlantilla(id, reunion.plantilla)
   const documento = documentoPrevio ?? (await documentoDeReunion(id))
   const documentoId = documento?.id ?? ''
   const items = documento?.items ?? []

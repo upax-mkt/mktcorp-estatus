@@ -209,17 +209,25 @@ vi.mock('@/db/reuniones', () => ({
   marcarDada: vi.fn(),
   marcarNoDada: vi.fn(),
   desmarcarNoDada: vi.fn(),
+  eliminarReunion: vi.fn(),
   obtenerReunion: (...args: unknown[]) => obtenerReunionMock(...args),
+  // Con nombre (no un `vi.fn()` anónimo): el describe de "crear una reunión"
+  // (más abajo) comprueba CON QUÉ se llamó — el bug original era que la
+  // acción mandaba el título `''` fijo, ignorando el campo.
+  crearReunion: (...args: unknown[]) => crearReunionMock(...args),
 }))
+const crearReunionMock = vi.fn()
 
-// `crearReunionConDocumento` con nombre (no un `vi.fn()` anónimo): el describe
-// de "crearSesionAction reenvía el título" (más abajo) necesita comprobar CON
-// QUÉ se llamó de verdad — el bug original era exactamente que la acción lo
-// mandaba `''` fijo, ignorando lo que el cliente hubiera mandado.
 const crearReunionConDocumentoMock = vi.fn()
 vi.mock('@/db/documentos', () => ({
   crearReunionConDocumento: (...args: unknown[]) => crearReunionConDocumentoMock(...args),
   documentoDeReunion: vi.fn().mockResolvedValue(null),
+  eliminarDocumentoDeReunion: vi.fn(),
+  // El de verdad, no un doble: la acción lo usa para que una reunión sin
+  // título escrito no nazca con el nombre en blanco, y este test comprueba
+  // justo eso — doblarlo lo dejaría sin comprobar nada.
+  tituloPorDefecto: (tipo: string, fecha: Date) =>
+    `Estatus ${tipo} · ${fecha.toISOString().slice(0, 10)}`,
 }))
 
 vi.mock('@/app/acuerdos/acciones', () => ({
@@ -1072,7 +1080,7 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
  * `resultado.error` que se comprueba al final es la prueba de que, en
  * efecto, ninguno de los dos tests rozó el `redirect()` real.
  */
-describe('VistaSala (/cliente/[slug]) — crearSesionAction reenvía el título, no lo manda fijo en blanco (deuda menor)', () => {
+describe('VistaSala (/cliente/[slug]) — crear una reunión no crea su presentación', () => {
   async function crearActionCapturada() {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
@@ -1083,31 +1091,78 @@ describe('VistaSala (/cliente/[slug]) — crearSesionAction reenvía el título,
     return props.crearAction
   }
 
-  const CORTE_DE_PRUEBA = 'corte de prueba: no interesa llegar al redirect'
-
-  it('un título escrito viaja tal cual a crearReunionConDocumento — antes se mandaba \'\' fijo, ignorando el campo', async () => {
-    crearReunionConDocumentoMock.mockRejectedValueOnce(new Error(CORTE_DE_PRUEBA))
+  /**
+   * EL CAMBIO QUE PIDIÓ FRANCO: *"aparece un botón que dice crear
+   * presentación y debería ser crear reunión; una vez que la creo debo
+   * decidir si la creo con el editor de presentaciones o cargar un archivo ya
+   * creado"*.
+   *
+   * La acción llamaba a `crearReunionConDocumento` y terminaba en
+   * `redirect(/deck/<id>)`: agendar la junta y empezar su deck eran el mismo
+   * gesto. Quien ya tenía la presentación hecha acababa igual en el editor,
+   * con ocho secciones vacías que nadie iba a llenar.
+   */
+  it('crea SOLO la reunión: no toca el documento', async () => {
+    crearReunionMock.mockResolvedValueOnce({ id: 'r-nueva' })
     const crearAction = await crearActionCapturada()
 
     const resultado = await crearAction({
       plantilla: PLANTILLAS[0].id, dia: '2026-08-19', titulo: 'Research Land — Comercial',
     })
 
-    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
-      expect.objectContaining({ titulo: 'Research Land — Comercial' }),
-    )
-    expect(resultado.error).toBe(CORTE_DE_PRUEBA)
+    expect(crearReunionMock).toHaveBeenCalledTimes(1)
+    expect(crearReunionConDocumentoMock).not.toHaveBeenCalled()
+    expect(resultado.error).toBeUndefined()
   })
 
-  it('con el campo vacío, se reenvía tal cual (crearReunionConDocumento decide el default) — no se ignora ni se sustituye', async () => {
-    crearReunionConDocumentoMock.mockRejectedValueOnce(new Error(CORTE_DE_PRUEBA))
+  /** La plantilla elegida se guarda en la reunión y espera al editor. */
+  it('la reunión recuerda qué clase de junta es', async () => {
+    crearReunionMock.mockResolvedValueOnce({ id: 'r-nueva' })
     const crearAction = await crearActionCapturada()
 
-    const resultado = await crearAction({ plantilla: PLANTILLAS[0].id, dia: '2026-08-19', titulo: '' })
+    await crearAction({ plantilla: PLANTILLAS[1].id, dia: '2026-08-19', titulo: 'Comité' })
 
-    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
-      expect.objectContaining({ titulo: '' }),
+    expect(crearReunionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ plantilla: PLANTILLAS[1].id, salaSlug: 'neracode' }),
     )
-    expect(resultado.error).toBe(CORTE_DE_PRUEBA)
+  })
+
+  it('un título escrito viaja tal cual', async () => {
+    crearReunionMock.mockResolvedValueOnce({ id: 'r-nueva' })
+    const crearAction = await crearActionCapturada()
+
+    await crearAction({
+      plantilla: PLANTILLAS[0].id, dia: '2026-08-19', titulo: 'Research Land — Comercial',
+    })
+
+    expect(crearReunionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Research Land — Comercial' }),
+    )
+  })
+
+  /**
+   * Con el campo vacío el título lo resuelve el SERVIDOR y nunca llega vacío
+   * a la base: antes lo hacía `crearReunionConDocumento` por dentro, y al
+   * dejar de usarla había que reponerlo aquí o las reuniones nacerían sin
+   * nombre.
+   */
+  it('con el campo vacío, el servidor pone un título legible — nunca uno en blanco', async () => {
+    crearReunionMock.mockResolvedValueOnce({ id: 'r-nueva' })
+    const crearAction = await crearActionCapturada()
+
+    await crearAction({ plantilla: PLANTILLAS[0].id, dia: '2026-08-19', titulo: '' })
+
+    const enviado = crearReunionMock.mock.calls.at(-1)?.[0] as { titulo: string }
+    expect(enviado.titulo.trim().length).toBeGreaterThan(0)
+  })
+
+  it('una plantilla que no existe se rechaza sin tocar la base', async () => {
+    const crearAction = await crearActionCapturada()
+    crearReunionMock.mockClear()
+
+    const resultado = await crearAction({ plantilla: 'inventada', dia: '2026-08-19', titulo: 'x' })
+
+    expect(resultado.error).toMatch(/plantilla/i)
+    expect(crearReunionMock).not.toHaveBeenCalled()
   })
 })

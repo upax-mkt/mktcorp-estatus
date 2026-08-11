@@ -23,8 +23,8 @@
  * sección "Using Server Functions in a Client Component").
  */
 import { revalidatePath } from 'next/cache'
-import { crearReunionConDocumento } from '@/db/documentos'
-import { editarReunion, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
+import { tituloPorDefecto } from '@/db/documentos'
+import { crearReunion, editarReunion, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
 import { slugsDeSalas } from '@/db/temas'
 import { exigirEditor } from '@/auth/roles'
 import { instanteEnCDMX } from '@/lib/fecha'
@@ -62,12 +62,24 @@ export async function agendarReunionAction(datos: DatosFormulario): Promise<{ er
     return { error: `Elige una sala válida (recibido: "${datos.salaSlug}")` }
   }
   try {
-    await crearReunionConDocumento({
+    // AGENDAR NO ES EMPEZAR EL DECK. Esto llamaba a
+    // `crearReunionConDocumento`, igual que el botón de la sala antes de que
+    // Franco pidiera separarlos (*"debería ser crear reunión; una vez que la
+    // creo debo decidir si la creo con el editor o cargar un archivo ya
+    // creado"*). Se cambia aquí también para que agendar signifique lo mismo
+    // en las dos pantallas: si no, una junta agendada desde el calendario
+    // saldría en su sala como "a medio armar" y una agendada desde la sala
+    // como "sin presentación todavía", por el mismo gesto.
+    //
+    // Este formulario no pregunta la plantilla —tiene tipo, alcance y
+    // participantes—, así que la reunión nace sin ella y el editor cae a la
+    // de por defecto el día que alguien la arme.
+    await crearReunion({
       salaSlug: datos.salaSlug,
       tipo: datos.tipo,
       alcance: datos.alcance.trim() || 'todos',
       fecha: instanteDe(datos.dia, datos.hora),
-      titulo: datos.titulo.trim(),
+      titulo: datos.titulo.trim() || tituloPorDefecto(datos.tipo, instanteDe(datos.dia, datos.hora)),
       participantes: datos.participantes.split(',').map((p) => p.trim()).filter(Boolean),
       lugar: datos.lugar.trim() || null,
       // Nace agendada — toda reunión nace así (`DatosDeReunion` no tiene

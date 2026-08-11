@@ -5,7 +5,23 @@ import { PLANTILLAS } from '@/secciones/plantillas'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
- * Preparar una presentación DESDE la sala.
+ * CREAR UNA REUNIÓN desde la sala.
+ *
+ * Franco: *"aparece un botón que dice crear presentación y debería ser crear
+ * reunión; una vez que la creo debo decidir si la creo con el editor de
+ * presentaciones o cargar un archivo ya creado"*.
+ *
+ * Se llamaba "Preparar una presentación nueva" y terminaba en el editor, así
+ * que agendar una junta y empezar a maquetar su deck eran el mismo gesto:
+ * quien ya tenía la presentación hecha acababa igual dentro del editor, con
+ * ocho secciones vacías que nadie iba a llenar. Ahora esto crea la REUNIÓN y
+ * ya; la presentación se elige después, en "Lo que viene", donde las dos
+ * vías están una al lado de la otra.
+ *
+ * "Qué reunión es" SE SIGUE PREGUNTANDO AQUÍ, y no es una contradicción: es
+ * una propiedad de la junta —un comité no es un estatus de UDN— y lo que
+ * decide con qué secciones nace su deck el día que se arme. Se guarda en la
+ * reunión (migración 0035) y espera ahí.
  *
  * Lo pidió Franco (punto 3): antes había que salir a `/deck/nueva`,
  * elegir otra vez de qué sala era —estando ya dentro de ella— y volver. La
@@ -43,7 +59,7 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
   if (!abierto) {
     return (
       <button type="button" className={estilos.nuevaMinutaBoton} onClick={() => setAbierto(true)}>
-        Preparar una presentación nueva
+        + Crear reunión
       </button>
     )
   }
@@ -56,7 +72,11 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
         setError(null)
         empezar(async () => {
           const r = await crearAction({ plantilla, dia, titulo })
-          if (r.error) setError(r.error)
+          if (r.error) { setError(r.error); return }
+          // Se cierra y se limpia: la reunión recién creada aparece justo
+          // encima, en "Lo que viene", con las dos vías para su presentación.
+          // Antes esto no hacía falta porque la acción redirigía al editor.
+          setDia(''); setTitulo(''); setAbierto(false)
         })
       }}
     >
@@ -107,13 +127,14 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
       </div>
 
       <p className={estilos.subirPista}>
-        Se crea para {nombreSala} y se abre el editor. La fecha se puede mover después.
+        Se agenda para {nombreSala}. Después eliges si armas la presentación aquí o subes la que ya
+        tienes hecha. La fecha se puede mover.
       </p>
       {error && <p className={estilos.subirError}>{error}</p>}
 
       <div className={estilos.confirmarBorrado}>
         <button type="submit" className={estilos.archivoGuardar} disabled={pendiente || !dia}>
-          {pendiente ? 'Creando…' : 'Crear y abrir el editor →'}
+          {pendiente ? 'Creando…' : 'Crear reunión'}
         </button>
         <button
           type="button"

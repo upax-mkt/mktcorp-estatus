@@ -246,6 +246,13 @@
       "when": 1786384814760,
       "tag": "0034_mover_materiales_a_comercial",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786384815760,
+      "tag": "0035_reunion_recuerda_su_plantilla",
+      "breakpoints": true
     }
   ]
 }

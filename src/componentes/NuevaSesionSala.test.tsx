@@ -8,7 +8,7 @@ import { NuevaSesionSala } from './NuevaSesionSala'
  * cierre de ronda). `AgendarRapido` (Home) y `deck/nueva` ya pedían el título
  * — este atajo, "Preparar una presentación nueva" dentro de la sala, seguía
  * pidiendo solo plantilla y día, así que `crearSesionAction` (`page.tsx`) lo
- * mandaba `titulo: ''` FIJO a `crearReunionConDocumento`, sin mirar si el
+ * mandaba `titulo: ''` FIJO a `crearReunion`, sin mirar si el
  * usuario había escrito algo — porque no había dónde escribirlo.
  *
  * Caso real que lo disparó: Research Land tiene dos quincenales en la MISMA
@@ -25,16 +25,16 @@ import { NuevaSesionSala } from './NuevaSesionSala'
  */
 
 describe('NuevaSesionSala — título opcional (deuda menor: el tercero de tres formularios)', () => {
-  it('ofrece un campo de Título que no bloquea "Crear y abrir el editor" si se deja vacío', async () => {
+  it('ofrece un campo de Título que no bloquea "Crear reunión" si se deja vacío', async () => {
     const usuario = userEvent.setup()
     const crearAction = vi.fn().mockResolvedValue({})
     render(<NuevaSesionSala nombreSala="Research Land" crearAction={crearAction} />)
 
-    await usuario.click(screen.getByRole('button', { name: /preparar una presentación nueva/i }))
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
     expect(screen.getByLabelText(/título/i)).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(/cuándo/i), { target: { value: '2026-08-19' } })
-    await usuario.click(screen.getByRole('button', { name: /crear y abrir el editor/i }))
+    await usuario.click(screen.getByRole('button', { name: /^crear reunión$/i }))
 
     expect(crearAction).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ dia: '2026-08-19', titulo: '' }),
@@ -46,10 +46,10 @@ describe('NuevaSesionSala — título opcional (deuda menor: el tercero de tres 
     const crearAction = vi.fn().mockResolvedValue({})
     render(<NuevaSesionSala nombreSala="Research Land" crearAction={crearAction} />)
 
-    await usuario.click(screen.getByRole('button', { name: /preparar una presentación nueva/i }))
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
     fireEvent.change(screen.getByLabelText(/cuándo/i), { target: { value: '2026-08-19' } })
     fireEvent.change(screen.getByLabelText(/título/i), { target: { value: 'Research Land — Digital' } })
-    await usuario.click(screen.getByRole('button', { name: /crear y abrir el editor/i }))
+    await usuario.click(screen.getByRole('button', { name: /^crear reunión$/i }))
 
     expect(crearAction).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ titulo: 'Research Land — Digital' }),

@@ -43,10 +43,10 @@ import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
 import {
-  marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion, eliminarReunion,
+  marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion, eliminarReunion, crearReunion,
 } from '@/db/reuniones'
 import {
-  crearReunionConDocumento, documentoDeReunion, eliminarDocumentoDeReunion,
+  documentoDeReunion, eliminarDocumentoDeReunion, tituloPorDefecto,
 } from '@/db/documentos'
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
@@ -351,20 +351,42 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * hacer con cada caso (cae a `tituloPorDefecto` si llega vacío o solo
    * espacios — ver su comentario, `src/db/documentos.ts`).
    */
+  /**
+   * CREAR LA REUNIÓN. SOLO LA REUNIÓN.
+   *
+   * Franco: *"aparece un botón que dice crear presentación y debería ser
+   * crear reunión; una vez que la creo debo decidir si la creo con el editor
+   * de presentaciones o cargar un archivo ya creado"*.
+   *
+   * Esto llamaba a `crearReunionConDocumento` y terminaba con
+   * `redirect(/deck/<id>)`: agendar una junta y empezar a maquetar su deck
+   * eran el mismo gesto, sin punto intermedio donde decidir. Quien ya tenía
+   * la presentación hecha acababa igual dentro del editor, con ocho secciones
+   * vacías que nadie iba a llenar — y esa reunión aparecía después en la sala
+   * como "a medio armar" sin que nadie la hubiera empezado.
+   *
+   * Ahora nace la reunión y ya. La decisión —armarla aquí o subir la que ya
+   * existe— se toma en la sala, en "Lo que viene", donde están las dos vías
+   * una al lado de la otra. Sin `redirect`: quien crea se queda donde estaba
+   * y ve aparecer su reunión.
+   *
+   * La plantilla elegida NO se pierde: se guarda en la reunión (migración
+   * 0035) y el editor la usa el día que se pulse "armarla en el editor".
+   *
+   * EDITOR, no `exigirEdicionDeAcuerdos`: crear una reunión no es editar un
+   * acuerdo. El director de la UDN mueve sus compromisos; no agenda la junta
+   * en la que se los van a presentar.
+   */
   async function crearSesionAction(
     datos: { plantilla: string; dia: string; titulo: string },
   ): Promise<{ error?: string }> {
     'use server'
-    // EDITOR, no `exigirEdicionDeAcuerdos`: preparar una presentación no es
-    // editar un acuerdo. El director de la UDN mueve sus compromisos; no
-    // arma la sesión en la que se los van a presentar.
     await exigirEditor()
     if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
       return { error: 'Plantilla desconocida.' }
     }
-    let nueva: { reunionId: string }
     try {
-      nueva = await crearReunionConDocumento({
+      await crearReunion({
         salaSlug: slug,
         plantilla: datos.plantilla,
         tipo: 'mensual',
@@ -373,16 +395,17 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         // reunión "del 19" se guarda como las 18:00 del 18 en México. Ver
         // `instanteEnCDMX`, src/lib/fecha.ts.
         fecha: instanteEnCDMX(datos.dia, '10:00'),
-        titulo: datos.titulo,
-        // Nace agendada — toda reunión nace así (`DatosDeReunion` no tiene
-        // parámetro de estado, a diferencia de la vieja `DatosDeSesion`).
+        // Vacío se resuelve en el servidor con un título legible — el mismo
+        // `tituloPorDefecto` que usaba `crearReunionConDocumento`.
+        titulo: datos.titulo.trim() || tituloPorDefecto('mensual', instanteEnCDMX(datos.dia, '10:00')),
+        // Nace agendada: agendar no es haber ocurrido.
       })
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo crear la reunión.' }
     }
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
-    redirect(`/deck/${nueva.reunionId}`)
+    return {}
   }
 
   // ---- Confirmar si una reunión se dio o no (punto 2/3) ----

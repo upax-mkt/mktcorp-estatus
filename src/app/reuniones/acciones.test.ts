@@ -31,16 +31,25 @@ vi.mock('@/auth/roles', () => ({
   exigirEditor: () => exigirEditorMock(),
 }))
 
-const crearReunionConDocumentoMock = vi.fn()
+/**
+ * AGENDAR CREA LA REUNIÓN, NO SU DECK (Franco: *"debería ser crear reunión;
+ * una vez que la creo debo decidir si la creo con el editor o cargar un
+ * archivo ya creado"*). Antes esto llamaba a `crearReunionConDocumento`; el
+ * mock cambia con ella para que estas pruebas sigan mirando lo que de verdad
+ * se manda a la base.
+ */
 vi.mock('@/db/documentos', () => ({
-  crearReunionConDocumento: (...args: unknown[]) => crearReunionConDocumentoMock(...args),
+  tituloPorDefecto: (tipo: string, fecha: Date) =>
+    `Estatus ${tipo} · ${fecha.toISOString().slice(0, 10)}`,
 }))
 
 const editarReunionMock = vi.fn()
 const marcarDadaMock = vi.fn()
 const marcarNoDadaMock = vi.fn()
 const desmarcarNoDadaMock = vi.fn()
+const crearReunionConDocumentoMock = vi.fn()
 vi.mock('@/db/reuniones', () => ({
+  crearReunion: (...args: unknown[]) => crearReunionConDocumentoMock(...args),
   editarReunion: (...args: unknown[]) => editarReunionMock(...args),
   marcarDada: (...args: unknown[]) => marcarDadaMock(...args),
   marcarNoDada: (...args: unknown[]) => marcarNoDadaMock(...args),

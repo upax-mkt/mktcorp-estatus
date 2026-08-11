@@ -135,6 +135,18 @@ export const reuniones = pgTable('reuniones', {
   fecha: timestamp('fecha', { withTimezone: true }).notNull(),
   titulo: text('titulo').notNull(),
   tipo: tipoReunionEnum('tipo').notNull(),
+  /**
+   * QUÉ CLASE DE JUNTA ES —estatus de UDN, comité, arranque de campaña…— y,
+   * por tanto, con qué secciones nace su presentación si algún día se arma
+   * aquí (`src/secciones/plantillas.ts`).
+   *
+   * Vive en la REUNIÓN y no en el documento porque la elección se hace al
+   * crear la junta y el documento puede no existir hasta días después: desde
+   * que crear una reunión dejó de crear su deck de golpe (migración 0035),
+   * hace falta un sitio donde esperar. Nula = se usa la plantilla por
+   * defecto, que es lo que pasaba antes de que esta columna existiera.
+   */
+  plantilla: text('plantilla'),
   estado: estadoReunionEnum('estado').notNull().default('agendada'),
   /**
    * Alguien dijo que ESTA reunión no se dio —se canceló, se pospuso—. Es un

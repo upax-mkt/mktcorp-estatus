@@ -56,6 +56,8 @@ export interface FilaReunionMemoria {
   fecha: Date
   titulo: string
   tipo: 'semanal' | 'quincenal' | 'mensual'
+  /** Qué clase de junta es; decide con qué secciones nace su presentación. */
+  plantilla?: string | null
   estado: 'agendada' | 'dada'
   /** Ver la columna homónima en src/db/esquema.ts. */
   noDadaEn: Date | null

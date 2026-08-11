@@ -175,7 +175,7 @@ function leerEstructura(bruto: unknown): EstructuraDocumento {
  * fecha ("3 de agosto de 2026") en vez de construirlo a mano con `mesLargo`
  * (pensado para encabezados de calendario, no para texto corrido).
  */
-function tituloPorDefecto(tipo: TipoReunion, fecha: Date): string {
+export function tituloPorDefecto(tipo: TipoReunion, fecha: Date): string {
   return `Estatus ${tipo} · ${fechaCompleta(fecha.toISOString())}`
 }
 
@@ -544,11 +544,33 @@ export async function crearReunionConDocumento(
   const titulo = datos.titulo?.trim() || tituloPorDefecto(datos.tipo, datos.fecha)
   const { id: reunionId } = await crearReunion({ ...datos, titulo })
 
+  const { documentoId } = await crearDocumentoConPlantilla(reunionId, datos.plantilla)
+  return { reunionId, documentoId }
+}
+
+/**
+ * CREA EL DOCUMENTO DE UNA REUNIÓN CON LAS SECCIONES DE SU PLANTILLA.
+ *
+ * Extraída de `crearReunionConDocumento` cuando crear una reunión dejó de
+ * crear su deck de golpe (Franco: *"una vez que la creo debo decidir si la
+ * creo con el editor de presentaciones o cargar un archivo ya creado"*).
+ * Ahora hacen falta las dos cosas por separado: la reunión al agendarla, y su
+ * documento el día que alguien pulse "armarla en el editor" —que puede ser
+ * tres días después—.
+ *
+ * SIN ESTO, el editor creaba el documento con `crearDocumento` a secas: una
+ * fila vacía, sin las ocho secciones del estatus. Quien pulsaba "armarla en
+ * el editor" se encontraba un lienzo en blanco en vez de su plantilla.
+ */
+export async function crearDocumentoConPlantilla(
+  reunionId: string,
+  idPlantilla?: string | null,
+): Promise<{ documentoId: string }> {
   // Las secciones con las que nace salen de LA PLANTILLA, no de una
   // constante: un comité no arranca con los ocho bloques del estatus de una
   // UDN. `obtenerPlantilla` ya resuelve el "estatus-udn" por defecto cuando
-  // `datos.plantilla` no viene o no existe.
-  const plantilla = obtenerPlantilla(datos.plantilla)
+  // no viene ninguna o no existe.
+  const plantilla = obtenerPlantilla(idPlantilla ?? undefined)
   const { id: documentoId } = await crearDocumento(reunionId, plantilla.id)
 
   const ahora = new Date()
@@ -576,7 +598,7 @@ export async function crearReunionConDocumento(
     memoria.actualizarEstructuraDocumentoMemoria(documentoId, estructura)
     memoria.insertarItemsMemoria(filasBase.map((f) => ({ ...f, createdAt: ahora, updatedAt: ahora })))
   }
-  return { reunionId, documentoId }
+  return { documentoId }
 }
 
 /**

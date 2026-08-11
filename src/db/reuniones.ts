@@ -44,6 +44,12 @@ export interface ReunionResumen {
   fecha: string // ISO
   titulo: string
   tipo: TipoReunion
+  /**
+   * Qué clase de junta es. Lo lee el editor para saber con qué secciones
+   * nace su presentación cuando se arma —que puede ser días después de
+   * crearla, desde que crear la reunión dejó de crear su deck de golpe.
+   */
+  plantilla?: string | null
   estado: EstadoReunion
   /**
    * `null` = nadie ha dicho que esta reunión no se dio. Con fecha, alguien lo
@@ -69,6 +75,12 @@ export interface ReunionResumen {
 }
 
 export interface DatosDeReunion {
+  /**
+   * Qué clase de junta es (`src/secciones/plantillas.ts`). Opcional: una
+   * reunión registrada retroactivamente al publicar una minuta no eligió
+   * ninguna, y sin ella el editor cae a la de por defecto.
+   */
+  plantilla?: string | null
   /**
    * De qué sala es. NULO para una reunión que no pertenece a ninguna: un
    * comité, un arranque de campaña, una interna de Mkt Corp — mismo
@@ -149,6 +161,7 @@ interface FilaReunionComun {
   fecha: Date
   titulo: string
   tipo: TipoReunion
+  plantilla?: string | null
   estado: EstadoReunion
   noDadaEn: Date | null
   lugar: string | null
@@ -172,6 +185,7 @@ function resumenDeFilaReunion(
     fecha: fila.fecha.toISOString(),
     titulo: fila.titulo,
     tipo: fila.tipo,
+    plantilla: fila.plantilla ?? null,
     estado: fila.estado,
     noDadaEn: fila.noDadaEn ? fila.noDadaEn.toISOString() : null,
     lugar: fila.lugar,
@@ -227,6 +241,10 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
     fecha: datos.fecha,
     titulo: datos.titulo,
     tipo: datos.tipo,
+    // Qué clase de junta es, para que su presentación —si se arma aquí, y
+    // puede ser días después— nazca con las secciones que le tocan. Ver la
+    // columna en `src/db/esquema.ts` y la migración 0035.
+    plantilla: datos.plantilla ?? null,
     // Nace agendada por defecto (agendar no es haber ocurrido, spec §1) —
     // salvo que quien llama diga explícitamente que ya se dio. Es lo que usa
     // el registro retroactivo de una minuta (`publicarMinutaAction`) para

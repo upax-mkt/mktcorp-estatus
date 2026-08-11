@@ -1,0 +1,28 @@
+-- CREAR LA REUNIÓN Y ARMAR SU PRESENTACIÓN DEJAN DE SER EL MISMO PASO.
+--
+-- Franco: *"aparece un botón que dice crear presentación y debería ser crear
+-- reunión; una vez que la creo debo decidir si la creo con el editor de
+-- presentaciones o cargar un archivo ya creado"*.
+--
+-- Hasta ahora el botón de la sala llamaba a `crearReunionConDocumento` y
+-- redirigía al editor: crear una junta en el calendario y empezar a maquetar
+-- su deck eran la misma acción, sin punto intermedio donde decidir. Quien ya
+-- tenía la presentación hecha en PowerPoint acababa igualmente dentro del
+-- editor, con ocho secciones vacías que nadie iba a llenar.
+--
+-- Ahora la reunión nace SOLA. La presentación se elige después, en su sala:
+-- armarla aquí o subir la que ya existe.
+--
+-- POR QUÉ HACE FALTA ESTA COLUMNA. El formulario pregunta "qué reunión es"
+-- —estatus de UDN, comité, arranque de campaña…— y esa respuesta es la que
+-- decide con qué secciones nace el documento. Si la reunión se crea sin
+-- documento, esa elección no tiene dónde vivir hasta que alguien pulse
+-- "armarla en el editor", que puede ser tres días después. Guardarla en la
+-- reunión es además lo correcto: qué CLASE de junta es, es de la junta; qué
+-- secciones tiene el deck, es del documento que hereda de ella.
+--
+-- NULLABLE: toda reunión anterior a esto no tiene plantilla registrada, y no
+-- se le inventa ninguna. Sin ella, el editor cae a la de por defecto — que es
+-- exactamente lo que hacía antes de existir esta columna.
+
+ALTER TABLE "reuniones" ADD COLUMN IF NOT EXISTS "plantilla" text;
