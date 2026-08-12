@@ -23,22 +23,28 @@ import estilos from '@/app/cliente/cliente.module.css'
  * reposicionarlo bien para que se vea bien, NO AGRANDES EL MÓDULO"*.
  *
  * Y el corte tenía una causa medible: **el tablero de ORBIT es responsive**.
- * Medido en su despliegue, su alto según el ancho que le des:
+ * Su alto real según el ancho que le des, medido en su despliegue:
  *
- *     390 px → 1435 de alto      1100 px →  900
- *     700 px → 1175              1200 px →  900
- *     900 px → 1264              1280 px →  900
+ *      390 px → 1414 de alto     1100 px →  636
+ *      760 px → 1184             1200 px →  678
+ *     1010 px → 1260
  *
- * A partir de 1100 px entra en su diseño de escritorio y mide 900. Por debajo
- * apila sus columnas y crece. El módulo de la sala mide ~1010 px, así que
- * caía justo en la zona apilada: 1264 px de contenido dentro de una caja de
- * 920, cortados.
+ * Entre 1010 y 1100 está el salto: ahí entra en su diseño de escritorio y el
+ * contenido se ordena en dos columnas. Por debajo apila y CRECE. El módulo de
+ * la sala mide ~1100 px, así que caía en el filo — y con 1010 se iba a 1260,
+ * dentro de una caja de 920: cortado.
  *
  * Así que se le da el ancho en el que su diseño encaja —`ANCHO_UTIL`— y se
- * escala hasta el ancho real. A 1010 px eso son 0,92: un 8 % más pequeño,
- * imperceptible, y el módulo BAJA de 920 a ~825 px. Alargar la caja habría
- * sido lo contrario de lo que se pidió, y encoger el ancho no arregla nada
- * porque el contenido crece cuando lo estrechas.
+ * escala hasta el ancho real, con la caja a la altura que le corresponde.
+ * Alargar la caja habría sido lo contrario de lo que se pidió, y estrecharla
+ * empeora el problema, porque el contenido crece cuando lo aprietas.
+ *
+ * ⚠️ MEDIR ESTO TIENE TRAMPA y la primera medida salió mal: `scrollHeight`
+ * NUNCA es menor que la ventana, así que con un viewport de 900 devolvía 900
+ * para todo lo que midiera menos —de ahí un módulo con 260 px de papel en
+ * blanco debajo—. Y el `<body>` de ORBIT se estira al 100 % de la ventana, así
+ * que medir elementos tampoco vale. Lo que funciona: capturar la página y
+ * buscar la última fila de píxeles que no es el fondo.
  *
  * EN PANTALLAS ESTRECHAS NO SE ESCALA. A 390 px la escala sería 0,35 y el
  * texto quedaría ilegible: ahí manda el diseño apilado de ORBIT, a su tamaño,
@@ -46,17 +52,23 @@ import estilos from '@/app/cliente/cliente.module.css'
  * completo que no se lee.
  */
 
-/** El ancho en el que ORBIT deja de apilar. Medido en su despliegue. */
-const ANCHO_UTIL = 1100
-/** Lo que mide de alto a ese ancho. */
-const ALTO_UTIL = 900
+/** El ancho en el que ORBIT usa su diseño de escritorio. Medido, no supuesto. */
+const ANCHO_UTIL = 1200
+/**
+ * Lo que mide de alto a ese ancho: 678 px medidos, redondeados a 700 para que
+ * un dato más —una fila que aparezca cuando la UDN cierre otro trato— no vuelva
+ * a cortar el tablero.
+ */
+const ALTO_UTIL = 700
 /**
  * Por debajo de esto no se escala: reducir a menos de ~0,7 convierte el
  * tablero en algo que se ve entero y no se lee.
  */
 const MINIMO_PARA_ESCALAR = 760
-/** Lo que mide apilado en pantallas estrechas. */
-const ALTO_APILADO = 1450
+/** Lo que mide apilado en pantallas estrechas (1414 px a 390, medidos). */
+const ALTO_APILADO = 1440
+/** El hub entero, del que aquí solo se incrusta una vista. */
+const ORBIT = 'https://orbit-hub-fgap.vercel.app/'
 
 export function TableroAnalytics({
   url,
@@ -112,6 +124,34 @@ export function TableroAnalytics({
           }
         />
       </div>
+
+      {/* EL PASO A ORBIT, al pie del mismo módulo. Franco: *"abajo del módulo,
+          como parte del mismo Data y Analytics, hay que agregar un banner para
+          llevarlos a ORBIT de Marketing Corp… con un mensaje que diga: si no
+          tienes sus accesos, pídeselos al equipo"*.
+
+          Lo que se incrusta arriba es UNA vista de ORBIT —el funnel de esta
+          UDN— y ORBIT es bastante más. Quien quiera tirar del hilo tiene que
+          saber que existe el sitio entero y, si rebota en su login, qué hacer:
+          la frase evita el callejón sin salida de una puerta cerrada sin
+          instrucciones.
+
+          Va DENTRO de la sección y no como módulo aparte porque es el mismo
+          asunto: al plegar Data & Analytics se pliega con él. */}
+      <a
+        className={estilos.tableroBanner}
+        href={ORBIT}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <span className={estilos.tableroBannerTexto}>
+          <strong>Ver el tablero completo en ORBIT</strong>
+          <span>
+            El hub de datos de Marketing Corp. Si no tienes acceso, pídeselo al equipo.
+          </span>
+        </span>
+        <span className={estilos.tableroBannerFlecha} aria-hidden>→</span>
+      </a>
     </Seccion>
   )
 }

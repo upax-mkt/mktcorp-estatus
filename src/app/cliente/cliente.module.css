@@ -1911,3 +1911,34 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .pieAcceso strong { color: var(--tx-2); font-weight: 600; }
 .pieAcceso a { color: var(--tx-2); text-decoration: underline; text-underline-offset: 3px; }
 .pieAcceso a:hover { color: var(--tx); }
+
+/* El paso a ORBIT, al pie del módulo de analytics. Lo que se incrusta arriba
+   es UNA vista; esto dice que existe el sitio entero y qué hacer si rebotas en
+   su login. Con el color de la marca de la sala —no el de ORBIT—: está dentro
+   de la casa de esta UDN. */
+.tableroBanner {
+  display: flex; align-items: center; gap: 1rem;
+  margin-top: 0.9rem; padding: 0.85rem 1.1rem;
+  border-radius: var(--r-3);
+  background: color-mix(in oklch, var(--marca) 8%, var(--superficie-2));
+  border: 1px solid color-mix(in oklch, var(--marca) 22%, transparent);
+  color: inherit; text-decoration: none;
+  transition: background var(--rapido) linear, border-color var(--rapido) linear;
+}
+.tableroBanner:hover {
+  background: color-mix(in oklch, var(--marca) 14%, var(--superficie-2));
+  border-color: color-mix(in oklch, var(--marca) 40%, transparent);
+}
+.tableroBanner:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+.tableroBannerTexto { display: grid; gap: 0.15rem; min-width: 0; }
+.tableroBannerTexto strong { font-size: 0.92rem; font-weight: 650; color: var(--tx); }
+.tableroBannerTexto span { font-size: 0.82rem; color: var(--tx-2); line-height: 1.45; }
+/* La flecha se separa al pasar por encima: el gesto que dice "esto te saca de
+   aquí" sin gastar una palabra más. */
+.tableroBannerFlecha {
+  margin-left: auto; flex: none;
+  font-size: 1.05rem; color: var(--marca-texto, var(--marca));
+  transition: transform var(--rapido) var(--suave, ease);
+}
+.tableroBanner:hover .tableroBannerFlecha { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) { .tableroBannerFlecha { transition: none; } }
