@@ -805,6 +805,26 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 /* La salida de una reunión, también escondida hasta que se acerca uno: en una
    tarjeta que se abre para LEER, una ✕ permanente es lo primero que se ve y lo
    último que se quiere. Con el teclado aparece al recibir el foco. */
+/* ══ SUBCATEGORÍAS DENTRO DE UN MÓDULO DE MATERIALES ══════════════════════
+   Un grupo nace al ponerle nombre a un material; al vaciarse desaparece solo.
+   Lo SIN AGRUPAR va arriba y sin encabezado: es el caso normal, y titularlo
+   convertiría en un problema lo que no lo es. */
+.gruposMateriales { display: grid; gap: 1.4rem; }
+.grupoMaterial { display: grid; gap: 0.7rem; }
+.grupoCabecera {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding-bottom: 0.4rem; border-bottom: 1px solid var(--borde);
+}
+.grupoNombre {
+  margin: 0; font-size: 0.78rem; letter-spacing: 0.09em; text-transform: uppercase;
+  font-weight: 800; color: var(--tx-2);
+}
+/* Un material mientras se puede arrastrar: su tarjeta y, debajo, a qué
+   subcategoría pertenece. */
+.materialEnGrupo { display: grid; gap: 0.4rem; }
+.materialGrupoSelector { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.materialGrupoSelector select, .materialGrupoSelector input { font-size: 0.8rem; max-width: 18rem; }
+
 /* ══ UNA SECCIÓN PLEGABLE ═════════════════════════════════════════════════
    `details`/`summary` nativos: se abre con teclado y con dedo sin una línea
    de JS, y la página sigue siendo de servidor. El `summary` conserva la

@@ -58,6 +58,24 @@ export interface DatosSala {
   nombre: string
   slug: string
   primario: string
+  /**
+   * SECUNDARIO Y ACENTO, A MANO Y OPCIONALES.
+   *
+   * Franco: *"en la configuración de una sala solo puedo seleccionar el color
+   * primario, y en el caso de hoy, cuando selecciono el negro, solo me hace
+   * combinaciones de grises, siendo que hoy tiene negro, azul y otros"*.
+   *
+   * Tenía razón y la causa es geométrica: `derivarMarca` saca el secundario y
+   * el acento ROTANDO EL TONO del primario, y el negro no tiene tono —su
+   * croma es cero—, así que rotarlo devuelve más negro. Con cualquier color
+   * saturado la derivación funciona; con negro, blanco o gris no puede
+   * funcionar, porque no hay de dónde sacar un segundo color.
+   *
+   * Así que se pueden escribir. Vacíos = se derivan como siempre, que es lo
+   * que quiere quien tiene una marca de un solo color y no quiere pensar.
+   */
+  secundario?: string
+  acento?: string
   /** Clave de `CATALOGO_DE_FUENTES` (src/temas/fuentes.ts) — tarea 7. */
   familiaDisplay: string
   familiaTexto: string
@@ -81,6 +99,9 @@ export interface SalaExistente {
   slug: string
   nombre: string
   primario: string
+  /** Los que la marca tiene de verdad, si alguien los escribió (ver `DatosSala`). */
+  secundario?: string
+  acento?: string
   /**
    * Opcionales por el mismo motivo que `logoUrl`/`logoRelacionDeTinta`: una
    * sala real siempre las trae (ver `src/app/salas/page.tsx`), pero el
@@ -150,6 +171,8 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
   const [identificador, setIdentificador] = useState(sala?.slug ?? '')
   const [identificadorTocado, setIdentificadorTocado] = useState(editando)
   const [primario, setPrimario] = useState(sala?.primario ?? '')
+  const [secundario, setSecundario] = useState(sala?.secundario ?? '')
+  const [acento, setAcento] = useState(sala?.acento ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
   const [cadencia, setCadencia] = useState<Cadencia>(sala?.cadencia ?? CADENCIA_POR_DEFECTO)
@@ -288,6 +311,9 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
           nombre: nombre.trim(),
           slug: editando ? (sala as SalaExistente).slug : identificadorFinal,
           primario,
+          // Vacío viaja como vacío: es lo que le dice al servidor "derívalo".
+          secundario: secundario.trim(),
+          acento: acento.trim(),
           familiaDisplay,
           familiaTexto,
           logoUrl,
@@ -417,8 +443,56 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               />
             </div>
             <p className={estilos.pista}>
-              El color exacto del brandbook. Todo lo demás —secundario, acento, superficies, textos
-              legibles y el degradado— se deriva de aquí.
+              El color exacto del brandbook. Las superficies, los textos legibles y el degradado se
+              derivan de aquí.
+            </p>
+          </div>
+
+          {/* LOS OTROS DOS COLORES DE LA MARCA, escribibles.
+              Se derivan del primario mientras se dejen vacíos —lo normal para
+              una marca de un solo color—, pero una que tiene negro Y azul no
+              se puede derivar: el negro no tiene tono que rotar, y de ahí
+              salían las escalas de gris que reportó Franco. */}
+          <div className={estilos.campo}>
+            <span className={estilos.etiqueta}>Secundario y acento</span>
+            <div className={estilos.colorFila}>
+              <input
+                type="color"
+                className={estilos.entradaColor}
+                value={HEX_VALIDO.test(secundario) ? secundario : '#000000'}
+                onChange={(e) => setSecundario(e.target.value)}
+                aria-label="Elegir el color secundario"
+              />
+              <input
+                type="text"
+                className={estilos.entrada}
+                value={secundario}
+                onChange={(e) => setSecundario(e.target.value.trim())}
+                placeholder="Secundario — vacío = derivado"
+                aria-label="Color secundario"
+              />
+            </div>
+            <div className={estilos.colorFila}>
+              <input
+                type="color"
+                className={estilos.entradaColor}
+                value={HEX_VALIDO.test(acento) ? acento : '#000000'}
+                onChange={(e) => setAcento(e.target.value)}
+                aria-label="Elegir el color de acento"
+              />
+              <input
+                type="text"
+                className={estilos.entrada}
+                value={acento}
+                onChange={(e) => setAcento(e.target.value.trim())}
+                placeholder="Acento — vacío = derivado"
+                aria-label="Color de acento"
+              />
+            </div>
+            <p className={estilos.pista}>
+              Déjalos en blanco y se derivan del primario. Escríbelos cuando la marca tenga más de
+              un color de verdad — o cuando el primario sea negro, blanco o gris: de esos no se
+              puede derivar nada, porque no tienen tono que girar.
             </p>
           </div>
 

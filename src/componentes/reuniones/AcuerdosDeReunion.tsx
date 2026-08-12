@@ -70,6 +70,15 @@ export function AcuerdosDeReunion({ acuerdos }: Props) {
         {acuerdos.map((a) => (
           <li key={a.id} className={estilos.fila}>
             <span className={estilos.que}>{a.que}</span>
+            {/* LA META Y EL ESTATUS, JUNTOS Y EN UNA SOLA CAJA.
+                Franco: *"cuando los acuerdos son un poco extensos se rompe el
+                diseño"*. Eran TRES hijos de un flex con `space-between` y
+                `wrap`: en cuanto el texto ocupaba la línea entera, el
+                responsable y la píldora caían por separado y `space-between`
+                los mandaba a extremos opuestos —o dejaba "abierto" solo en su
+                propia línea, sangrado—. Agrupados, la fila solo puede partirse
+                por un sitio, y siempre por el mismo. */}
+            <span className={estilos.derecha}>
             <span className={estilos.meta}>
               {/* "por asignar" es el valor de base cuando nadie eligió responsable
                   todavía (ver SelectorResponsable.tsx) — mismo criterio de lectura
@@ -83,6 +92,7 @@ export function AcuerdosDeReunion({ acuerdos }: Props) {
             </span>
             <span className="pildora" data-tono={TONO_ESTATUS[a.estatus]}>
               {a.estatus}
+            </span>
             </span>
           </li>
         ))}

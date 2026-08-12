@@ -140,6 +140,34 @@ function validarDatosComunes(datos: {
  * Ninguna acción de esta pantalla borra salas — no existe un
  * `eliminarSalaAction`. Para dejar de atender una está la pausa (ronda 7).
  */
+
+/**
+ * LA MARCA, CON LO QUE SE ESCRIBIÓ A MANO ENCIMA DE LO DERIVADO.
+ *
+ * `derivarMarca` saca el secundario y el acento rotando el TONO del primario,
+ * y eso solo funciona si el primario tiene tono: con negro, blanco o gris —
+ * croma cero— rotar devuelve el mismo color, que es de donde salían las
+ * escalas de gris que reportó Franco (*"cuando selecciono el negro solo me
+ * hace combinaciones de grises, siendo que hoy tiene negro, azul y otros"*).
+ *
+ * Lo escrito manda; lo vacío se deriva. Las superficies, los textos legibles
+ * y el degradado se siguen derivando siempre del primario: son cálculos de
+ * legibilidad (contraste AA), no decisiones de marca.
+ */
+function marcaConSobrescritos(
+  nombre: string,
+  primario: string,
+  secundario?: string,
+  acento?: string,
+): ReturnType<typeof derivarMarca> {
+  const base = derivarMarca(nombre, primario)
+  return {
+    ...base,
+    ...(secundario && HEX_VALIDO.test(secundario) ? { secundario } : {}),
+    ...(acento && HEX_VALIDO.test(acento) ? { acento } : {}),
+  }
+}
+
 export async function crearSalaAction(datos: DatosSala): Promise<{ error?: string }> {
   await exigirAdmin()
 
@@ -162,7 +190,7 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
   )[0]
   if (existente) return { error: `Ya existe una sala con el identificador "${slug}".` }
 
-  const marca = derivarMarca(datos.nombre, datos.primario)
+  const marca = marcaConSobrescritos(datos.nombre, datos.primario, datos.secundario, datos.acento)
 
   try {
     await db().insert(esquema.salas).values({
@@ -249,6 +277,20 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         // que `crearSalaAction` sigue dependiendo).
         nombre: datos.nombre.trim(),
         primario: datos.primario,
+        /**
+         * SECUNDARIO Y ACENTO SÍ SE GUARDAN AQUÍ, y no contradice la regla de
+         * arriba: esa dice que "Guardar cambios" no toca los DERIVADOS, y
+         * estos dejan de serlo en cuanto alguien los escribe. Vacíos no se
+         * tocan —siguen valiendo los que haya, derivados o no—, que es lo que
+         * hace inofensivo el campo para quien no lo usa.
+         *
+         * Sin esto, lo escrito solo valdría al CREAR una sala, y el caso de
+         * Franco es una que ya existe: NeraCode, con negro y azul, cuya
+         * paleta derivada eran escalas de gris.
+         */
+        ...(datos.secundario && HEX_VALIDO.test(datos.secundario)
+          ? { secundario: datos.secundario } : {}),
+        ...(datos.acento && HEX_VALIDO.test(datos.acento) ? { acento: datos.acento } : {}),
         // Tarea 7: antes este UPDATE no tocaba la tipografía en absoluto —no
         // había desde dónde elegirla— así que cualquier edición (el logo, el
         // color) dejaba la fuente donde estuviera. Ahora sí viaja, validada

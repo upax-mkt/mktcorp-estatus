@@ -260,6 +260,20 @@
       "when": 1786493765625,
       "tag": "0036_alinear_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786493766625,
+      "tag": "0037_grupos_de_materiales",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786559912849,
+      "tag": "0038_alinear_snapshots_grupos",
+      "breakpoints": true
     }
   ]
 }

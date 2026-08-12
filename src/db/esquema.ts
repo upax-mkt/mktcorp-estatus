@@ -395,6 +395,20 @@ export const archivos = pgTable('archivos', {
    */
   bloque: text('bloque'),
   /**
+   * SUBCATEGORÍA dentro de su módulo (migración 0037): "Credenciales",
+   * "Casos de éxito", "Notas de prensa"… El nombre lo pone quien sube.
+   *
+   * Es una ETIQUETA, no una entidad: no tiene dueño ni fecha, y no existe sin
+   * material dentro. Nula = sin agrupar, que es donde cae todo lo anterior.
+   */
+  grupo: text('grupo'),
+  /**
+   * Dónde va dentro de su grupo, cuando alguien lo ha arrastrado. Nulo = el
+   * orden por fecha de siempre, así que la columna no cambia nada hasta que
+   * se usa.
+   */
+  orden: integer('orden'),
+  /**
    * La bajada: qué hay que MIRAR en esa imagen y por qué importa. Sin ella
    * una captura es decoración — es la diferencia entre evidencia y adorno.
    */

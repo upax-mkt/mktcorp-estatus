@@ -28,7 +28,8 @@ import { participantesDe, registrarEdicion, type Participante } from '@/db/parti
 import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
-  listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, type CategoriaArchivo,
+  listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, reubicarMateriales,
+  type CategoriaArchivo,
 } from '@/db/archivos'
 import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
@@ -38,7 +39,7 @@ import { ReunionesSala } from '@/componentes/ReunionesSala'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { LevantarMinuta } from '@/componentes/LevantarMinuta'
 import { normalizarEnlace } from '@/lib/materiales'
-import { MaterialesSala } from '@/componentes/MaterialesSala'
+import { MaterialesAgrupados } from '@/componentes/MaterialesAgrupados'
 import { AnadirMaterial } from '@/componentes/AnadirMaterial'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { PausaSala } from '@/componentes/PausaSala'
@@ -780,6 +781,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     return {}
   }
 
+  /**
+   * REUBICA LOS MATERIALES DE UN MÓDULO: quién va en qué subcategoría y en
+   * qué orden (Franco: *"debo poder crear subcategorías… y reubicar su orden
+   * drag and drop"*).
+   *
+   * Recibe la lista COMPLETA tal como quedó tras arrastrar, no un "mueve este
+   * de aquí a allá": así no hay huecos que calcular y dos personas moviendo a
+   * la vez no se dejan dos materiales en la misma posición. `reubicarMateriales`
+   * filtra además por sala en el WHERE — el id viaja desde el navegador.
+   */
+  async function reubicarMaterialesAction(
+    enOrden: Array<{ id: string; grupo: string | null }>,
+  ): Promise<void> {
+    'use server'
+    await exigirEditor()
+    await reubicarMateriales(slug, enOrden)
+    revalidatePath(`/cliente/${slug}`)
+  }
+
   async function eliminarArchivoAction(id: string) {
     'use server'
     await exigirEditor()
@@ -1267,11 +1287,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 <span className={estilos.conteo}>{materialesComerciales.length}</span>
               )}
             </h2>
-            <MaterialesSala
+            <MaterialesAgrupados
               materiales={materialesComerciales}
               equipo={equipo}
               editarAction={editarArchivoAction}
               eliminarAction={eliminarArchivoAction}
+              reubicarAction={reubicarMaterialesAction}
               vacio="Credenciales, casos de éxito, un vídeo de YouTube, una nota de prensa: lo que la UDN necesite tener a mano para vender."
             />
             {equipo && (
@@ -1299,11 +1320,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 <span className={estilos.conteo}>{archivosDeInteres.length}</span>
               )}
             </h2>
-            <MaterialesSala
+            <MaterialesAgrupados
               materiales={archivosDeInteres}
               equipo={equipo}
               editarAction={editarArchivoAction}
               eliminarAction={eliminarArchivoAction}
+              reubicarAction={reubicarMaterialesAction}
               vacio="Un estudio, un brief, una hoja de cálculo, el enlace a un tablero: lo que no es material de venta pero conviene tener a mano."
             />
             {equipo && (

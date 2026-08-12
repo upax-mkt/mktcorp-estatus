@@ -138,6 +138,9 @@ export interface FilaArchivoMemoria {
   /** De qué reunión es, si es una imagen o vídeo incrustado en su documento. Se llamaba `sesionId`. */
   reunionId?: string | null
   categoria: 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial'
+  /** Subcategoría dentro de su módulo, y su posición dentro de ella. */
+  grupo?: string | null
+  orden?: number | null
   titulo: string
   fecha: Date | null
   ruta: string | null
@@ -426,7 +429,7 @@ export function listarArchivosDeSalaMemoria(salaSlug: string): FilaArchivoMemori
 
 export function actualizarArchivoMemoria(
   id: string,
-  cambios: Partial<Pick<FilaArchivoMemoria, 'titulo' | 'fecha'>>,
+  cambios: Partial<Pick<FilaArchivoMemoria, 'titulo' | 'fecha' | 'grupo' | 'orden'>>,
 ): void {
   const fila = archivos.get(id)
   if (!fila) return

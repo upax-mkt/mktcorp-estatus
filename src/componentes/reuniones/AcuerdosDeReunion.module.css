@@ -30,21 +30,39 @@
   list-style: none;
 }
 
+/* DOS COLUMNAS, NO TRES CAJAS SUELTAS EN UN FLEX.
+   Con `space-between` y `flex-wrap`, un acuerdo largo empujaba el responsable
+   y la píldora a líneas distintas y a extremos opuestos. En rejilla, el texto
+   crece hacia abajo en su columna y lo de la derecha se queda donde está. */
 .fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  padding: 0.5rem 0;
+}
+/* En pantalla angosta caen una debajo de otra, alineadas a la izquierda: dos
+   columnas de 15ch no se leen. */
+@media (max-width: 620px) {
+  .fila { grid-template-columns: 1fr; }
+}
+/* El responsable, la fecha y el estatus viajan juntos: son la misma
+   respuesta —de quién es y cómo va— y separarlos fue el defecto. */
+.derecha {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding: 0.5rem 0;
+  gap: 0.6rem;
+  white-space: nowrap;
 }
 .fila + .fila { border-top: 1px solid var(--linea); }
 
 .que {
   color: var(--tinta);
   font-weight: 500;
-  flex: 1 1 auto;
-  min-width: 12ch;
+  /* `min-width: 0` en una rejilla: sin él, una palabra larga ensancha la
+     columna y desborda la fila en vez de partirse. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .meta {

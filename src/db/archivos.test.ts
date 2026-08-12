@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   listarArchivos, obtenerArchivo, registrarArchivo, editarArchivo, eliminarArchivo,
+  reubicarMateriales,
 } from './archivos'
 import { reiniciarStoreMemoria } from './store-memoria'
 
@@ -120,5 +121,62 @@ describe('eliminar', () => {
 
   it('borrar algo que no existe devuelve null, no revienta', async () => {
     expect(await eliminarArchivo('no-existe')).toBeNull()
+  })
+})
+
+/**
+ * SUBCATEGORÍAS Y ORDEN A MANO (Franco: *"debo poder crear subcategorías
+ * dentro del módulo… y reubicar su orden drag and drop"*).
+ *
+ * Lo que fija esta suite es la regla de ordenación, que es donde está la
+ * decisión: **lo que alguien arrastró manda sobre la fecha**. Sin eso, subir
+ * un material nuevo se colaría en medio de una lista ya ordenada a mano solo
+ * por ser el más reciente.
+ */
+describe('el orden de los materiales', () => {
+  const base = {
+    salaSlug: 'neracode', categoria: 'comercial' as const, fecha: null,
+    nombreOriginal: 'x.pdf', tipoContenido: 'application/pdf', tamanoBytes: 10,
+  }
+
+  it('sin nadie que los haya movido, mandan las fechas: lo más reciente primero', async () => {
+    await registrarArchivo({ ...base, titulo: 'viejo', ruta: 'a', fecha: new Date('2026-01-01') })
+    await registrarArchivo({ ...base, titulo: 'nuevo', ruta: 'b', fecha: new Date('2026-06-01') })
+
+    const lista = await listarArchivos('neracode', 'comercial')
+    expect(lista.map((m) => m.titulo)).toEqual(['nuevo', 'viejo'])
+  })
+
+  it('en cuanto se arrastran, manda el orden puesto a mano', async () => {
+    const a = await registrarArchivo({ ...base, titulo: 'viejo', ruta: 'a', fecha: new Date('2026-01-01') })
+    const b = await registrarArchivo({ ...base, titulo: 'nuevo', ruta: 'b', fecha: new Date('2026-06-01') })
+
+    await reubicarMateriales('neracode', [
+      { id: a.id, grupo: 'Credenciales' },
+      { id: b.id, grupo: 'Credenciales' },
+    ])
+
+    const lista = await listarArchivos('neracode', 'comercial')
+    expect(lista.map((m) => m.titulo)).toEqual(['viejo', 'nuevo'])
+    expect(lista.map((m) => m.grupo)).toEqual(['Credenciales', 'Credenciales'])
+  })
+
+  /**
+   * Y un material NUEVO no se cuela en medio de lo ya ordenado: va detrás,
+   * aunque su fecha sea la más reciente de todas.
+   */
+  it('lo que nunca se tocó va detrás de lo que sí, por reciente que sea', async () => {
+    const a = await registrarArchivo({ ...base, titulo: 'colocado', ruta: 'a', fecha: new Date('2026-01-01') })
+    await reubicarMateriales('neracode', [{ id: a.id, grupo: null }])
+    await registrarArchivo({ ...base, titulo: 'recién subido', ruta: 'b', fecha: new Date('2026-12-01') })
+
+    const lista = await listarArchivos('neracode', 'comercial')
+    expect(lista.map((m) => m.titulo)).toEqual(['colocado', 'recién subido'])
+  })
+
+  it('un material nace sin grupo: nadie tiene que nombrar una categoría para subir algo', async () => {
+    const a = await registrarArchivo({ ...base, titulo: 'suelto', ruta: 'a' })
+    const lista = await listarArchivos('neracode', 'comercial')
+    expect(lista.find((m) => m.id === a.id)?.grupo).toBeNull()
   })
 })

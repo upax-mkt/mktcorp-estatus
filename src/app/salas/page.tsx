@@ -211,6 +211,10 @@ export default async function PagSalas({
                           slug,
                           nombre: tema.nombre,
                           primario: tema.primario,
+                          // Los que la marca tiene hoy: el formulario arranca
+                          // con ellos para que editar no los borre sin querer.
+                          secundario: tema.secundario,
+                          acento: tema.acento,
                           familiaDisplay: tema.familiaDisplay,
                           familiaTexto: tema.familiaTexto,
                           logoUrl: extraDeLaEditada?.logoUrl ?? null,

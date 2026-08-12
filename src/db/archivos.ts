@@ -55,6 +55,10 @@ export interface ArchivoSala {
   tamanoBytes: number | null
   subidoPor: string | null
   subidoEn: string // ISO
+  /** Subcategoría dentro de su módulo, o null si está sin agrupar. */
+  grupo: string | null
+  /** Posición dentro de su grupo; null mientras nadie lo haya arrastrado. */
+  orden: number | null
 }
 
 function isoFecha(d: Date): string {
@@ -76,6 +80,8 @@ function desdeFila(fila: {
   tipoContenido: string | null
   tamanoBytes: number | null
   subidoPor: string | null
+  grupo?: string | null
+  orden?: number | null
   createdAt: Date
 }): ArchivoSala {
   return {
@@ -92,6 +98,8 @@ function desdeFila(fila: {
     tamanoBytes: fila.tamanoBytes,
     subidoPor: fila.subidoPor,
     subidoEn: isoFecha(fila.createdAt),
+    grupo: fila.grupo ?? null,
+    orden: fila.orden ?? null,
   }
 }
 
@@ -105,6 +113,20 @@ function desdeFila(fila: {
  */
 function porFechaDesc(a: ArchivoSala, b: ArchivoSala): number {
   return (b.fecha ?? b.subidoEn).localeCompare(a.fecha ?? a.subidoEn)
+}
+
+/**
+ * EL ORDEN QUE ALGUIEN PUSO A MANO MANDA; el resto cae al de siempre.
+ *
+ * Un material con `orden` fue arrastrado hasta ahí a propósito, así que va
+ * antes que cualquiera que nunca se tocó — si no, subir algo nuevo se colaría
+ * en medio de una lista ya ordenada solo por ser más reciente.
+ */
+function porOrdenYFecha(a: ArchivoSala, b: ArchivoSala): number {
+  if (a.orden != null && b.orden != null) return a.orden - b.orden
+  if (a.orden != null) return -1
+  if (b.orden != null) return 1
+  return porFechaDesc(a, b)
 }
 
 export async function listarArchivos(
@@ -121,7 +143,7 @@ export async function listarArchivos(
         .listarArchivosDeSalaMemoria(salaSlug)
         .filter((f) => !categoria || f.categoria === categoria)
 
-  return filas.map(desdeFila).sort(porFechaDesc)
+  return filas.map(desdeFila).sort(porOrdenYFecha)
 }
 
 export async function obtenerArchivo(id: string): Promise<ArchivoSala | null> {
@@ -151,6 +173,8 @@ export async function registrarArchivo(datos: {
   bloque?: string | null
   /** Solo en `categoria: 'evidencia'`: qué hay que mirar en ella. */
   lectura?: string | null
+  /** Subcategoría dentro de su módulo ("Credenciales", "Casos de éxito"…). */
+  grupo?: string | null
   tipoContenido?: string | null
   tamanoBytes?: number | null
   subidoPor?: string | null
@@ -197,6 +221,7 @@ export async function registrarArchivo(datos: {
       enlace: datos.enlace ?? null,
       bloque: datos.bloque ?? null,
       lectura: datos.lectura ?? null,
+      grupo: datos.grupo?.trim() || null,
       tipoContenido: datos.tipoContenido ?? null,
       tamanoBytes: datos.tamanoBytes ?? null,
       subidoPor: datos.subidoPor ?? null,
@@ -264,4 +289,62 @@ export async function eliminarArchivo(id: string): Promise<{ ruta: string | null
     memoria.eliminarArchivoMemoria(id)
   }
   return { ruta: archivo.ruta }
+}
+
+/**
+ * REUBICA LOS MATERIALES: quién va en qué grupo y en qué orden.
+ *
+ * Franco: *"debo poder crear subcategorías dentro del módulo… y además
+ * necesito poder reubicar su orden drag and drop"*.
+ *
+ * Recibe la lista COMPLETA del módulo tal como quedó tras arrastrar, no un
+ * "mueve este de aquí a allá". Es lo que evita la clase de fallo que ya mordió
+ * en `items.orden`: dos personas moviendo a la vez, cada una calculando su
+ * hueco, y dos materiales en la misma posición. Aquí la última en soltar
+ * escribe la lista entera y no hay hueco que calcular.
+ *
+ * `neon-http` no tiene transacciones, así que son N updates sueltos. Si el
+ * proceso muere a media lista, lo que queda es un orden parcial —feo, no
+ * roto— y el siguiente arrastre lo arregla.
+ */
+export async function reubicarMateriales(
+  salaSlug: string,
+  enOrden: Array<{ id: string; grupo: string | null }>,
+): Promise<void> {
+  if (enOrden.length === 0) return
+
+  if (!hayDB()) {
+    enOrden.forEach((m, i) => memoria.actualizarArchivoMemoria(m.id, { grupo: m.grupo, orden: i }))
+    return
+  }
+  const conexion = db()
+  for (const [i, m] of enOrden.entries()) {
+    await conexion
+      .update(esquema.archivos)
+      // `salaSlug` en el WHERE: el id llega del navegador, y sin esto se
+      // podría reordenar el material de otro cliente desde aquí.
+      .set({ grupo: m.grupo?.trim() || null, orden: i, updatedAt: new Date() })
+      .where(and(eq(esquema.archivos.id, m.id), eq(esquema.archivos.salaSlug, salaSlug)))
+  }
+}
+
+/** Renombra un grupo entero dentro de un módulo de una sala. */
+export async function renombrarGrupo(
+  salaSlug: string,
+  categoria: CategoriaArchivo,
+  antes: string,
+  despues: string,
+): Promise<void> {
+  const nuevo = despues.trim()
+  if (!hayDB() || nuevo.length === 0) return
+  await db()
+    .update(esquema.archivos)
+    .set({ grupo: nuevo, updatedAt: new Date() })
+    .where(
+      and(
+        eq(esquema.archivos.salaSlug, salaSlug),
+        eq(esquema.archivos.categoria, categoria),
+        eq(esquema.archivos.grupo, antes),
+      ),
+    )
 }

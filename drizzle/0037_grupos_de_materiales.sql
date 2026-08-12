@@ -1,0 +1,31 @@
+-- SUBCATEGORÍAS DENTRO DE MATERIALES COMERCIALES Y ARCHIVOS DE INTERÉS.
+--
+-- Franco: *"en los módulos de Materiales Comerciales y Archivos de Interés
+-- debo poder crear subcategorías dentro del módulo, así una presentación
+-- comercial o un video corp queda dentro de un ítem (define el nombre)
+-- mientras que una nota de prensa o un caso de éxito en otro ítem, pero todos
+-- dentro del mismo módulo. Y además necesito poder reubicar su orden drag and
+-- drop"*.
+--
+-- Hoy los dos módulos son una rejilla plana ordenada por fecha. Con tres
+-- materiales da igual; con veinte —credenciales, casos, notas de prensa,
+-- vídeos, tarifarios— encontrar uno obliga a leerlos todos.
+--
+-- DOS COLUMNAS, NO UNA TABLA DE GRUPOS. Un grupo aquí no es una entidad con
+-- vida propia: no tiene dueño, ni permisos, ni fecha, ni existe sin material
+-- dentro. Es una etiqueta que ordena. Una tabla aparte obligaría a crear el
+-- grupo antes de poder subir nada, a borrarlo cuando se vacía y a mantener su
+-- integridad — tres problemas nuevos para lo que aquí resuelve un texto.
+--
+-- `grupo` NULO = "sin agrupar", que es donde cae todo lo que ya existe y donde
+-- sigue cayendo lo que se suba sin elegir. No se inventa un grupo por defecto:
+-- inventarlo obligaría a nombrar la categoría a quien solo quería subir un
+-- archivo.
+--
+-- `orden` NULO = "todavía nadie lo ha arrastrado". La lista cae entonces al
+-- orden por fecha de siempre, así que la columna no cambia nada hasta que
+-- alguien la use — y en cuanto la usa, manda.
+
+ALTER TABLE "archivos" ADD COLUMN IF NOT EXISTS "grupo" text;
+--> statement-breakpoint
+ALTER TABLE "archivos" ADD COLUMN IF NOT EXISTS "orden" integer;
