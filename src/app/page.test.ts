@@ -68,11 +68,16 @@ vi.mock('@/db/reuniones', () => ({
   marcarDada: vi.fn(),
   marcarNoDada: vi.fn(),
   desmarcarNoDada: vi.fn(),
+  // Agendar crea la REUNIÓN, no su deck: ver el describe de más abajo.
+  crearReunion: (...args: unknown[]) => crearReunionMock(...args),
 }))
+const crearReunionMock = vi.fn()
 
-const crearReunionConDocumentoMock = vi.fn()
 vi.mock('@/db/documentos', () => ({
-  crearReunionConDocumento: (...args: unknown[]) => crearReunionConDocumentoMock(...args),
+  // El de verdad, no un doble: es lo que impide que una reunión agendada sin
+  // título nazca sin nombre, y el test de abajo comprueba justo eso.
+  tituloPorDefecto: (tipo: string, fecha: Date) =>
+    `Estatus ${tipo} · ${fecha.toISOString().slice(0, 10)}`,
 }))
 
 vi.mock('@/db/participacion', () => ({
@@ -306,46 +311,57 @@ describe('Hub (/) — singular/plural del pulso y género de "Los clientes" (ext
 })
 
 /**
- * AGENDAR RÁPIDO: EL TÍTULO LLEGA HASTA LA BASE (auditoría UX/UI, ronda 11).
+ * AGENDAR RÁPIDO: CREA LA REUNIÓN, NO SU PRESENTACIÓN.
  *
- * `AgendarRapido.tsx` gana un campo de Título opcional en esta misma ronda —
- * pero un campo que el componente recoge y nadie reenvía es exactamente el
- * defecto de rondas pasadas que el brief pide no repetir ("se construyó, se
- * probó, y nadie lo montó en pantalla"): `agendarRapidoAction`, AQUÍ, mandaba
- * `titulo: ''` FIJO a `crearReunionConDocumento` sin mirar `datos.titulo` —
- * cualquier cosa que el formulario recogiera se perdía en este único punto de
- * paso. Este describe es la prueba de que ya no: lo que llega en `datos`
- * viaja tal cual hasta la llamada a la base.
+ * Este atajo llamaba a `crearReunionConDocumento`, que agenda la junta Y le
+ * monta el deck de una vez — el criterio viejo de toda la app, "toda reunión
+ * agendada nace con su documento". Franco lo desmontó: *"debería ser crear
+ * reunión; una vez que la creo debo decidir si la creo con el editor de
+ * presentaciones o cargar un archivo ya creado"*.
+ *
+ * La sala y `/reuniones` se cambiaron con esa petición y ESTE SE QUEDÓ ATRÁS,
+ * que es el defecto que este describe impide repetir: el mismo gesto dejando
+ * la reunión en dos estados distintos según la pantalla por la que se entre.
+ *
+ * Y el título sigue sin poder llegar vacío: lo resolvía
+ * `crearReunionConDocumento` por dentro, así que al dejar de usarla hay que
+ * reponerlo aquí — si no, dos quincenales de la misma sala (el caso real de
+ * Research Land, Comercial vs. Digital) nacen sin nombre en el calendario.
  */
-describe('Hub (/) — "Agendar rápido" manda el título hasta la base (auditoría UX/UI, ronda 11)', () => {
-  it('un título escrito viaja de agendar() a crearReunionConDocumento, sin quedarse fijo en una cadena vacía', async () => {
-    render(await Hub())
-
+describe('Hub (/) — "Agendar rápido" agenda la reunión y nada más', () => {
+  function agendarDesdeElHome() {
     const { agendar } = agendarRapidoPropsMock.mock.calls[0][0] as {
       agendar: (datos: {
         salaSlug: string; dia: string; hora: string; tipo: string; titulo: string
       }) => Promise<{ error?: string }>
     }
-    await agendar({
+    return agendar
+  }
+
+  it('crea SOLO la reunión: no monta su documento', async () => {
+    render(await Hub())
+    crearReunionMock.mockClear()
+
+    await agendarDesdeElHome()({
       salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual',
       titulo: 'Estatus Comercial Quincenal',
     })
 
-    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
-      expect.objectContaining({ titulo: 'Estatus Comercial Quincenal' }),
+    expect(crearReunionMock).toHaveBeenCalledTimes(1)
+    expect(crearReunionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Estatus Comercial Quincenal', salaSlug: 'neracode' }),
     )
   })
 
-  it('sin título, manda cadena vacía — crearReunionConDocumento es quien sabe convertirla en un título por defecto legible', async () => {
+  it('sin título escrito, el servidor pone uno legible — nunca uno en blanco', async () => {
     render(await Hub())
+    crearReunionMock.mockClear()
 
-    const { agendar } = agendarRapidoPropsMock.mock.calls[0][0] as {
-      agendar: (datos: {
-        salaSlug: string; dia: string; hora: string; tipo: string; titulo: string
-      }) => Promise<{ error?: string }>
-    }
-    await agendar({ salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual', titulo: '' })
+    await agendarDesdeElHome()({
+      salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual', titulo: '',
+    })
 
-    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(expect.objectContaining({ titulo: '' }))
+    const enviado = crearReunionMock.mock.calls.at(-1)?.[0] as { titulo: string }
+    expect(enviado.titulo.trim().length).toBeGreaterThan(0)
   })
 })

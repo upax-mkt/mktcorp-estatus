@@ -15,8 +15,8 @@ import { reunionesMinutables, reunionesPorConfirmar } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
 import { destacarAction } from '@/app/acuerdos/acciones'
-import { listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
-import { crearReunionConDocumento } from '@/db/documentos'
+import { crearReunion, listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
+import { tituloPorDefecto } from '@/db/documentos'
 import { registrarEdicion } from '@/db/participacion'
 import { directorio } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
@@ -149,52 +149,42 @@ export default async function Hub() {
   }
 
   /**
-   * AGENDAR DESDE EL HOME (tarea 14): reusa `crearReunionConDocumento`, no la
-   * `crearReunion` de bajo nivel — y no por casualidad, sino por lo mismo que
-   * usa `/agenda` (`agendarAction`, src/app/agenda/page.tsx): hoy TODA
-   * reunión agendada desde la app nace con su documento —es lo que hace
-   * `/agenda`, y por qué las diez reuniones migradas lo tienen todas.
-   * `crearReunionConDocumento` ya sabe qué hacer con un título vacío (cae a
-   * `tituloPorDefecto`, src/db/documentos.ts); la `crearReunion` de bajo
-   * nivel no tiene esa lógica y hubiera guardado un título en blanco —
-   * visible luego en el calendario, en /agenda y en el propio deck. Ser
-   * coherente con "toda reunión agendada tiene documento" también evita
-   * abrir, desde el atajo del Home, el único camino de la app hacia una
-   * reunión sin documento (`documentoDeReunion` lo tolera — devuelve `null` —
-   * pero hoy ningún flujo real lo produce).
+   * AGENDAR DESDE EL HOME: crea la REUNIÓN, no su presentación.
    *
-   * `datos.titulo` SE REENVÍA TAL CUAL (auditoría UX/UI, ronda 11 — "el
-   * título de una reunión no dice de qué es"): `AgendarRapido.tsx` sigue
-   * siendo a propósito minimalista (sala/día/hora/tipo), pero ahora suma un
-   * quinto campo, OPCIONAL, para el título — sin él, dos reuniones de la
-   * misma sala y cadencia (el caso real: Research Land, Comercial vs.
-   * Digital, las dos quincenales) nacían con el MISMO título derivado,
-   * indistinguibles en cualquier lista. ANTES de este arreglo, esta acción
-   * mandaba `titulo: ''` FIJO sin mirar `datos.titulo` en absoluto — un
-   * campo que el formulario recogiera se habría perdido aquí mismo, el
-   * defecto exacto de "se construyó, se probó, y nadie lo montó en pantalla"
-   * que este proyecto ya sufrió antes. Vacío o lleno, `datos.titulo` viaja
-   * sin tocar: `crearReunionConDocumento` decide qué hacer con cada caso.
+   * Llamaba a `crearReunionConDocumento`, que agenda la junta Y le monta el
+   * deck de una vez. Ese era el criterio de toda la app —"toda reunión
+   * agendada nace con su documento"— hasta que Franco lo desmontó: *"debería
+   * ser crear reunión; una vez que la creo debo decidir si la creo con el
+   * editor de presentaciones o cargar un archivo ya creado"*.
+   *
+   * La sala y `/reuniones` ya se cambiaron con esa petición; ESTE ATAJO SE
+   * QUEDÓ ATRÁS, y era el tercero de tres. Dejarlo así significa que el mismo
+   * gesto —agendar una junta— deja la reunión en dos estados distintos según
+   * la pantalla por la que se entre: la agendada aquí saldría en su sala como
+   * "a medio armar", con ocho secciones vacías que nadie empezó, y la agendada
+   * allí como "sin presentación todavía".
+   *
+   * EL TÍTULO SIGUE SIN PODER LLEGAR VACÍO. Lo resolvía `crearReunionConDocumento`
+   * por dentro; al dejar de usarla hay que reponerlo aquí, o dos reuniones de
+   * la misma sala y cadencia —el caso real: Research Land, Comercial vs.
+   * Digital, las dos quincenales— nacerían sin nombre en el calendario.
    *
    * ESCONDER EL BOTÓN NO PROTEGE EL ENDPOINT: `exigirEditor()` primero, igual
    * que cualquier otra acción de escritura de esta página. Y "una sala en
-   * pausa no se ofrece" (constraint del brief, con su test en
-   * `AgendarRapido.test.tsx`) es cortesía de interfaz nada más — el rechazo
-   * de verdad, contra el freeze real de la base, ya lo hace `crearReunion`
-   * por dentro de `crearReunionConDocumento`. El try/catch de aquí solo
-   * convierte esa excepción en un mensaje legible para el formulario en vez
-   * de tumbar la página entera — mismo patrón que `agendarAction`/
-   * `editarAction` en `/agenda`.
+   * pausa no se ofrece" es cortesía de interfaz: el rechazo de verdad, contra
+   * el freeze de la base, lo hace `crearReunion` por dentro. El try/catch
+   * convierte esa excepción en un mensaje legible en vez de tumbar la página.
    */
   async function agendarRapidoAction(datos: DatosAgendarRapido): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
+    const cuando = instanteDe(datos.dia, datos.hora)
     try {
-      await crearReunionConDocumento({
+      await crearReunion({
         salaSlug: datos.salaSlug,
         tipo: datos.tipo,
-        fecha: instanteDe(datos.dia, datos.hora),
-        titulo: datos.titulo,
+        fecha: cuando,
+        titulo: datos.titulo.trim() || tituloPorDefecto(datos.tipo, cuando),
       })
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo agendar la reunión.' }
