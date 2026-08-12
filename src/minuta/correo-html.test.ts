@@ -111,8 +111,11 @@ describe('el texto del modelo nunca sale como marcado', () => {
 describe('lo que no se reconoce falla hacia el lado seguro', () => {
   it('un texto sin estructura sale como párrafos, no se pierde', () => {
     const html = correoAHtml('Una línea suelta.\n\nOtra línea suelta.')
-    expect(html).toContain('<p style="margin:0 0 12px">Una línea suelta.</p>')
-    expect(html).toContain('<p style="margin:0 0 12px">Otra línea suelta.</p>')
+    // Sin fijar el estilo exacto: lo que importa es que sean párrafos y que
+    // no se inventen negritas. Los estilos concretos los cubre el describe de
+    // Outlook, más abajo.
+    expect(html).toContain('>Una línea suelta.</p>')
+    expect(html).toContain('>Otra línea suelta.</p>')
     expect(html).not.toContain('<strong>')
   })
 
@@ -122,6 +125,91 @@ describe('lo que no se reconoce falla hacia el lado seguro', () => {
   })
 
   it('un texto vacío no revienta', () => {
-    expect(correoAHtml('')).toBe('<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1a1a"></div>')
+    expect(correoAHtml('')).toMatch(/^<div style="[^"]+"><\/div>$/)
+  })
+})
+
+/**
+ * QUE SE VEA BIEN AL PEGARLO EN OUTLOOK (Franco: *"cuando la pego en el mail
+ * (outlook) se ve horrible; debe quedar copiar y pegar, pero bonito"*).
+ *
+ * Outlook de escritorio compone con el motor de Word, y Word **no hereda la
+ * tipografía dentro de una tabla**: la fuente iba declarada una sola vez, en
+ * el `<div>` de fuera, así que los párrafos la heredaban y las celdas caían a
+ * Times New Roman. La tabla de acuerdos —lo único que de verdad se lee de una
+ * minuta— llegaba con otra letra que el resto del correo.
+ *
+ * Estas pruebas fijan lo que NO se puede volver a perder. Son literales a
+ * propósito: es la clase de detalle que se borra al refactorizar sin que nada
+ * se ponga rojo.
+ */
+describe('correoAHtml — que Outlook no lo destroce', () => {
+  const CON_TABLA = [
+    'Acuerdos',
+    'Acción | Owner | Fecha',
+    'Mandar el reporte | Ana | 3 ago',
+  ].join('\n')
+
+  it('CADA celda declara su propia tipografía: Word no la hereda de fuera', () => {
+    const html = correoAHtml(CON_TABLA)
+    const celdas = html.match(/<t[hd] style="([^"]*)"/g) ?? []
+    expect(celdas.length).toBeGreaterThan(0)
+    for (const celda of celdas) expect(celda).toContain('font-family:Arial')
+  })
+
+  it('los párrafos y los items también la declaran, no solo el contenedor', () => {
+    const html = correoAHtml('Hola.\n\nPuntos\n* uno\n* dos')
+    for (const etiqueta of ['<p style="', '<li style="', '<ul style="']) {
+      const i = html.indexOf(etiqueta)
+      expect(i, `falta ${etiqueta}`).toBeGreaterThan(-1)
+      expect(html.slice(i, html.indexOf('"', i + etiqueta.length))).toContain('font-family:Arial')
+    }
+  })
+
+  /** Sin unidad, Word ignora `line-height` y mete su propio interlineado. */
+  it('el interlineado va en píxeles, nunca sin unidad', () => {
+    const html = correoAHtml(CON_TABLA)
+    expect(html).toContain('line-height:22px')
+    expect(html).not.toMatch(/line-height:\d+\.\d+[;"]/)
+    expect(html).toContain('mso-line-height-rule:exactly')
+  })
+
+  /** Word respeta los atributos antes que `border-collapse`. */
+  it('la tabla lleva cellspacing/cellpadding/border como atributos', () => {
+    const html = correoAHtml(CON_TABLA)
+    expect(html).toContain('<table cellspacing="0" cellpadding="0" border="0"')
+  })
+
+  it('la lista lleva margen izquierdo, que es lo que Word entiende', () => {
+    const html = correoAHtml('Puntos\n* uno\n* dos')
+    const ul = html.match(/<ul style="([^"]*)"/)?.[1] ?? ''
+    expect(ul).toMatch(/margin:[^;]*24px/)
+  })
+})
+
+/**
+ * EL HTML SE PINTA CON `dangerouslySetInnerHTML` (`CorreoMinuta`, y el visor
+ * de la sala), así que lo que sale de aquí es marcado vivo. La cabecera del
+ * módulo afirmaba que "no hay camino por el que la transcripción acabe siendo
+ * marcado": lo había, y era el `href` del pie.
+ */
+describe('correoAHtml — nada del texto se convierte en marcado', () => {
+  it('escapa las comillas, no solo &<>', () => {
+    const html = correoAHtml('Dijo "hola" y \'adiós\'.')
+    expect(html).toContain('&quot;hola&quot;')
+    expect(html).not.toMatch(/>[^<]*"hola"/)
+  })
+
+  it('una URL con comillas no se convierte en enlace: se queda como texto', () => {
+    const html = correoAHtml('https://x.mx/a" onmouseover="alert(1)', 'https://app.mx')
+    expect(html).not.toContain('onmouseover="alert(1)"')
+    expect(html).not.toContain('<a href')
+    expect(html).toContain('&quot;')
+  })
+
+  it('una URL normal sí es enlace, y con su tipografía', () => {
+    const html = correoAHtml('https://mktcorp-estatus.vercel.app/reunion/abc')
+    expect(html).toContain('<a href="https://mktcorp-estatus.vercel.app/reunion/abc"')
+    expect(html).toMatch(/<a href="[^"]*" style="[^"]*font-family:Arial/)
   })
 })

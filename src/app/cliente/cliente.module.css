@@ -300,13 +300,19 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 
 /* La minuta es un correo: se lee en su propio texto, con sus saltos de línea,
    y a una medida que no obligue a barrer la cabeza de lado a lado. */
+/* El cuerpo de la minuta, ya con su forma (`CorreoMinuta`). SIN `pre-wrap`:
+   antes se pintaba el texto plano y los saltos de línea eran lo único que le
+   daba estructura; ahora el HTML trae sus párrafos, sus listas y su tabla, y
+   `pre-wrap` solo añadiría los saltos otra vez, duplicando el aire. */
 .lightboxTexto {
   padding: 1.4rem 1.5rem;
   overflow-y: auto;
-  white-space: pre-wrap;
   font-size: 0.94rem;
   line-height: 1.65;
 }
+/* La tabla de acuerdos puede ser más ancha que el diálogo en una pantalla
+   angosta: se desplaza dentro de su caja en vez de estirar el diálogo. */
+.lightboxTexto table { max-width: 100%; }
 .lightboxVacio { padding: 1.4rem 1.5rem; color: var(--tx-3); font-size: 0.9rem; }
 
 .lightboxPie {

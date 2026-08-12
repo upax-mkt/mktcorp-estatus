@@ -9,6 +9,7 @@ import { fechaBreve, fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
 import { TAMANO_MAXIMO, pesoLegible } from '@/lib/blob'
 import { ParticipantesSesion } from '@/componentes/sesion/ParticipantesSesion'
 import { CopiarBoton } from './CopiarBoton'
+import { CorreoMinuta } from './CorreoMinuta'
 import { CarasDeReunion } from './reuniones/CarasDeReunion'
 import { AcuerdosDeReunion } from './reuniones/AcuerdosDeReunion'
 import { subirArchivoDirecto } from '@/lib/subir'
@@ -405,7 +406,19 @@ export function ReunionesSala({
             </header>
 
             {minutaDe(abierta)!.texto ? (
-              <div className={estilos.lightboxTexto}>{minutaDe(abierta)!.texto}</div>
+              /* CON SU FORMATO, no como texto plano (Franco: *"cuando se
+                 publica la minuta, después para verla pierde el formato
+                 bonito"*). Este visor pintaba `minuta.texto` a pelo dentro de
+                 un `pre-wrap`: los encabezados llegaban como una línea más y
+                 la tabla de acuerdos —alineada con barras— se deshacía, que es
+                 justo lo que `CorreoMinuta` existe para arreglar. Se reusa ESE
+                 componente, el mismo que ya pinta la vista previa antes de
+                 publicar y el mismo HTML que se copia al portapapeles: lo que
+                 se revisa, lo que se manda y lo que se archiva son la misma
+                 cosa. */
+              <div className={estilos.lightboxTexto}>
+                <CorreoMinuta texto={minutaDe(abierta)!.texto ?? ''} />
+              </div>
             ) : (
               <p className={estilos.lightboxVacio}>
                 Esta minuta no tiene texto guardado. Se generó antes de que la sala pudiera

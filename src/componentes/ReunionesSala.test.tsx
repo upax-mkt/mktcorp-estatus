@@ -466,3 +466,58 @@ describe('ReunionesSala — el ciclo de una reunión por venir', () => {
     expect(screen.queryByRole('button', { name: /borrar la reunión/i })).not.toBeInTheDocument()
   })
 })
+
+/**
+ * LA MINUTA SE LEE CON SU FORMATO, no como un volcado de texto.
+ *
+ * Franco: *"cuando se publica la minuta, después para verla pierde formato
+ * bonito"*. Este visor pintaba `minuta.texto` a pelo dentro de un `pre-wrap`:
+ * los encabezados llegaban como una línea más y la tabla de acuerdos
+ * —alineada con barras, que solo se lee en monoespaciada— se deshacía en
+ * frases separadas por palotes.
+ *
+ * Ahora usa `CorreoMinuta`, el MISMO componente que pinta la vista previa
+ * antes de publicar y el mismo HTML que se copia al portapapeles: lo que se
+ * revisa, lo que se manda y lo que se archiva son la misma cosa.
+ */
+describe('ReunionesSala — la minuta publicada conserva su forma', () => {
+  const TEXTO = [
+    'Hola, equipo:',
+    '',
+    'Acuerdos y accionables',
+    'Acción | Owner | Fecha',
+    'Mandar el reporte | Ana | 3 ago',
+  ].join('\n')
+
+  const CON_MINUTA: Reunion = {
+    ...BASE,
+    id: 'm1',
+    fecha: '2026-07-15T10:00:00.000Z',
+    titulo: 'Con minuta',
+    minuta: { titulo: 'Minuta de julio', fecha: '2026-07-15T10:00:00.000Z', texto: TEXTO, enviadaA: 0 },
+  }
+
+  it('la pinta como correo: encabezado en negrita y la tabla con sus celdas', async () => {
+    const usuario = userEvent.setup()
+    const { container } = render(
+      <ReunionesSala
+        reuniones={[CON_MINUTA]}
+        porVenir={[]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /minuta/i }))
+
+    const dialogo = container.querySelector('dialog')
+    expect(dialogo).not.toBeNull()
+    // La tabla existe DE VERDAD, no como línea de texto con barras.
+    expect(dialogo!.querySelectorAll('table')).toHaveLength(1)
+    expect(dialogo!.querySelectorAll('td').length).toBeGreaterThan(0)
+    expect(dialogo!.querySelectorAll('strong').length).toBeGreaterThan(0)
+    // Y el texto crudo con palotes ya no aparece en ninguna parte.
+    expect(dialogo!.textContent).not.toContain('Acción | Owner | Fecha')
+  })
+})

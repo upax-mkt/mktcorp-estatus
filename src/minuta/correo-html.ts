@@ -1,5 +1,6 @@
 /**
- * EL MISMO CORREO, EN HTML, para que al pegarlo en Gmail se vea como un correo.
+ * EL MISMO CORREO, EN HTML, para que al pegarlo en el correo se vea como un
+ * correo — en Gmail y, sobre todo, en OUTLOOK.
  *
  * Franco: "el resultado debería venir con algo de formato para copiar y pegar
  * en mail, sobre todo las tablas, poner algo en bold".
@@ -24,28 +25,78 @@
  *
  * ESTILOS EN LÍNEA, sin excepción: Gmail borra el `<style>` de la cabecera al
  * pegar, y una clase sin hoja de estilos no pinta nada.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ * OUTLOOK (Franco: *"cuando la pego en el mail (outlook) se ve horrible"*).
+ *
+ * Outlook de escritorio no compone HTML con un motor web: usa el de Word. Y
+ * Word tiene una peculiaridad que arruinaba justo la parte que importa —
+ * **NO HEREDA LA TIPOGRAFÍA DENTRO DE UNA TABLA**. La fuente iba declarada una
+ * sola vez, en el `<div>` de fuera; los párrafos la heredaban y las celdas no,
+ * así que la tabla de acuerdos —lo único que de verdad se lee de una minuta—
+ * caía a Times New Roman a 12pt en medio de un correo en Arial. Se veía como
+ * dos correos pegados con cinta.
+ *
+ * Por eso ahora CADA elemento que lleva texto —párrafo, item, celda,
+ * encabezado, enlace— declara su propia familia y su tamaño. Es redundante
+ * mirándolo, y es exactamente lo que hace falta.
+ *
+ * Lo demás que se añadió por Word, todo inocuo en el resto de clientes:
+ * - `line-height` en PÍXELES y `mso-line-height-rule:exactly`. Sin unidad,
+ *   Word lo ignora y mete su propio interlineado.
+ * - `cellspacing`/`cellpadding`/`border` como ATRIBUTOS además del CSS: Word
+ *   respeta los atributos antes que `border-collapse`, y sin ellos deja un
+ *   marco doble alrededor de cada celda.
+ * - Las listas con `margin-left` y no solo `padding-left`: Word no aplica el
+ *   padding y las viñetas se pegaban al margen.
+ * - `mso-padding-alt` en las celdas, que es como Word entiende el relleno.
  */
 
+/**
+ * La familia y el interlineado se repiten en cada elemento a propósito: ver la
+ * nota de Outlook en la cabecera. Word no los hereda dentro de una tabla.
+ */
+const FUENTE = 'font-family:Arial,Helvetica,sans-serif'
+const CUERPO = `${FUENTE};font-size:14px;line-height:22px;mso-line-height-rule:exactly;color:#1a1a1a`
+const CELDA = `${FUENTE};font-size:13px;line-height:19px;mso-line-height-rule:exactly;color:#1a1a1a`
+
 const ESTILOS = {
-  cuerpo: 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1a1a',
-  parrafo: 'margin:0 0 12px',
-  encabezado: 'margin:0 0 6px;font-size:14px',
-  lista: 'margin:0 0 12px;padding-left:22px',
-  item: 'margin:0 0 5px',
-  tabla: 'border-collapse:collapse;margin:2px 0 14px;font-size:13px',
-  th: 'text-align:left;padding:7px 12px 7px 0;border-bottom:2px solid #1a1a1a;font-weight:bold',
-  td: 'text-align:left;padding:7px 12px 7px 0;border-bottom:1px solid #dcdcdc;vertical-align:top',
+  cuerpo: CUERPO,
+  parrafo: `${CUERPO};margin:0 0 12px 0`,
+  encabezado: `${CUERPO};margin:0 0 6px 0`,
+  // `margin-left` ADEMÁS de `padding-left`: Word ignora el padding de una
+  // lista y las viñetas se pegan al margen izquierdo.
+  lista: `${CUERPO};margin:0 0 12px 24px;padding-left:0`,
+  item: `${CUERPO};margin:0 0 5px 0`,
+  tabla: 'border-collapse:collapse;margin:2px 0 14px 0',
+  th: `${CELDA};text-align:left;padding:7px 12px 7px 0;mso-padding-alt:7px 12px 7px 0;border-bottom:2px solid #1a1a1a;font-weight:bold`,
+  td: `${CELDA};text-align:left;padding:7px 12px 7px 0;mso-padding-alt:7px 12px 7px 0;border-bottom:1px solid #dcdcdc;vertical-align:top`,
+  enlace: `${CUERPO};color:#1155cc`,
 } as const
 
 const VINETA = /^\s*[*\-•]\s+/
 /** Una fila de tabla: dos celdas o más separadas por barra. */
 const CELDAS = / \| /
 
+/**
+ * Escapa TAMBIÉN las comillas, no solo `&<>`.
+ *
+ * No es cosmético: este HTML se pinta con `dangerouslySetInnerHTML`
+ * (`CorreoMinuta`, y desde ahora también el visor de la sala), y el único
+ * sitio donde un trozo de texto acaba dentro de un ATRIBUTO es el `href` del
+ * pie. Sin escapar la comilla doble, una línea como
+ * `https://x.mx/a" onmouseover="…` cerraba el atributo y metía el suyo.
+ *
+ * La cabecera de este módulo afirmaba que "no hay camino por el que la
+ * transcripción de una reunión acabe siendo marcado". Lo había, y era ese.
+ */
 function escapar(texto: string): string {
   return texto
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function celdas(linea: string): string[] {
@@ -69,6 +120,10 @@ function esEncabezado(linea: string, lineasDelBloque: number): boolean {
 /** El enlace del pie: relativo en el texto, absoluto y pinchable en el correo. */
 function comoEnlace(linea: string, base: string): string | null {
   const t = linea.trim()
+  // Sin comillas ni signos de menor/mayor: `\S` los admitía, y de ahí salía el
+  // agujero que documenta `escapar`. Escapar es la defensa que cuenta; esto es
+  // la segunda, para que un `href` raro ni siquiera llegue a construirse.
+  if (/["'<>`]/.test(t)) return null
   if (/^https?:\/\/\S+$/.test(t)) return t
   if (/^\/[\w\-/]*$/.test(t)) return base ? `${base}${t}` : null
   return null
@@ -104,7 +159,9 @@ function bloqueDeTabla(lineas: string[]): string {
         .join('')}</tr>`
     })
     .join('')
-  return `<table style="${ESTILOS.tabla}"><thead><tr>${th}</tr></thead><tbody>${filas}</tbody></table>`
+  // Los ATRIBUTOS además del CSS: Word los respeta antes que
+  // `border-collapse`, y sin ellos pinta un marco doble en cada celda.
+  return `<table cellspacing="0" cellpadding="0" border="0" style="${ESTILOS.tabla}"><thead><tr>${th}</tr></thead><tbody>${filas}</tbody></table>`
 }
 
 /**
@@ -154,7 +211,9 @@ export function correoAHtml(texto: string, base = ''): string {
 
       const enlace = comoEnlace(linea, base)
       if (enlace) {
-        partes.push(`<p style="${ESTILOS.parrafo}"><a href="${escapar(enlace)}">${escapar(enlace)}</a></p>`)
+        partes.push(
+          `<p style="${ESTILOS.parrafo}"><a href="${escapar(enlace)}" style="${ESTILOS.enlace}">${escapar(enlace)}</a></p>`,
+        )
         i++
         continue
       }
