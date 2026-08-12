@@ -287,3 +287,70 @@
   font-weight: 700; color: var(--tinta-3, var(--tx-3));
 }
 .redCampo .entrada { font-size: 0.85rem; }
+
+/* ══ LOS COLORES DE UNA MARCA ═════════════════════════════════════════════
+   Franco: *"el selector de color es demasiado enredado… simplifica y dale un
+   poquito de aire"*. Eran seis cuadros negros idénticos repartidos en tres
+   rótulos en plural —"Secundario y acento", "Cabecera de la sala"— con un
+   párrafo de cuatro líneas entre medias. El porqué completo, en
+   `ColoresDeMarca.tsx`. */
+.grupoColor { display: grid; gap: 0.55rem; }
+.grupoColor + .grupoColor { margin-top: 1.6rem; }
+.grupoColorTitulo {
+  font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+  font-weight: 700; color: var(--tinta-3);
+}
+/* Dos columnas cuando cabe: seis colores en una tira vertical son medio metro
+   de formulario para lo que se lee de un vistazo en una rejilla. */
+.coloresRejilla {
+  display: grid; gap: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+.marcaColorFila {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 0.6rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+  border-radius: var(--r-2);
+  transition: background var(--rapido) linear;
+}
+.marcaColorFila:hover { background: var(--papel-hundido); }
+/* LA MUESTRA ES EL SELECTOR. Un `<input type="color">` nativo trae un marco
+   gris de sistema que no se parece a nada de esta app; se le quita todo y se
+   deja el color, que es lo único que tiene que comunicar. */
+.marcaColorMuestra {
+  appearance: none; -webkit-appearance: none;
+  width: 2rem; height: 2rem; padding: 0; border: none; cursor: pointer;
+  background: none; border-radius: var(--r-2); flex: none;
+}
+.marcaColorMuestra::-webkit-color-swatch-wrapper { padding: 0; }
+.marcaColorMuestra::-webkit-color-swatch {
+  border-radius: var(--r-2);
+  /* El borde permite ver un color blanco sobre papel blanco. */
+  border: 1px solid color-mix(in oklch, var(--tinta) 14%, transparent);
+}
+.marcaColorMuestra::-moz-color-swatch {
+  border-radius: var(--r-2);
+  border: 1px solid color-mix(in oklch, var(--tinta) 14%, transparent);
+}
+.marcaColorMuestra:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+
+.marcaColorFilaNombre {
+  display: grid; gap: 0.1rem; min-width: 0;
+  font-size: 0.85rem; font-weight: 500; color: var(--tinta);
+}
+.marcaColorFilaHex {
+  font: inherit; font-size: 0.78rem; font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  width: 6.6rem; text-align: right;
+  padding: 0.25rem 0.45rem; border-radius: var(--r-1);
+  border: 1px solid transparent; background: none; color: var(--tinta-3);
+}
+.marcaColorFilaHex:hover { border-color: var(--linea); }
+.marcaColorFilaHex:focus { border-color: var(--linea-fuerte); background: var(--papel); color: var(--tinta); outline: none; }
+
+/* La cifra de contraste: el dato con el que se decide, no un candado. */
+.contraste {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--bien); font-variant-numeric: tabular-nums;
+}
+.contraste[data-bajo='true'] { color: var(--mal); }

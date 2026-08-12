@@ -35,7 +35,11 @@ describe('FormularioSala — tipografía (tarea 7)', () => {
     const { container } = render(<FormularioSala guardar={guardar} slugsUsados={[]} />)
 
     await usuario.type(screen.getByLabelText(/nombre/i), 'Prueba')
-    await usuario.type(screen.getByPlaceholderText('#614ACA'), '#614ACA')
+    // Por su NOMBRE y no por el marcador de posición: los colores se
+    // reorganizaron en la ronda 12 (`ColoresDeMarca.tsx`) y el `placeholder`
+    // de cada uno pasó a ser su valor derivado, que cambia con el primario. El
+    // `aria-label` es lo que no depende del estado.
+    await usuario.type(screen.getByLabelText('Primario, código hexadecimal'), '#614ACA')
 
     const radioAnton = container.querySelector('input[name="familiaDisplay"][value="anton"]') as HTMLInputElement
     const radioRaleway = container.querySelector('input[name="familiaTexto"][value="raleway"]') as HTMLInputElement
@@ -178,7 +182,11 @@ describe('FormularioSala — cadencia (ronda 10, tarea 16: quincenal en la inter
     render(<FormularioSala guardar={guardar} slugsUsados={[]} />)
 
     await usuario.type(screen.getByLabelText(/nombre/i), 'Prueba')
-    await usuario.type(screen.getByPlaceholderText('#614ACA'), '#614ACA')
+    // Por su NOMBRE y no por el marcador de posición: los colores se
+    // reorganizaron en la ronda 12 (`ColoresDeMarca.tsx`) y el `placeholder`
+    // de cada uno pasó a ser su valor derivado, que cambia con el primario. El
+    // `aria-label` es lo que no depende del estado.
+    await usuario.type(screen.getByLabelText('Primario, código hexadecimal'), '#614ACA')
     await usuario.selectOptions(screen.getByLabelText(/cadencia/i), 'quincenal')
     await usuario.click(screen.getByRole('button', { name: /crear sala/i }))
 

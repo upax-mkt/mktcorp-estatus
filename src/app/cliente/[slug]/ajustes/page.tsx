@@ -324,6 +324,9 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
               gradienteInicio: tema.gradiente[0],
               gradienteFin: tema.gradiente[1],
               superficieOscura: tema.superficieOscura,
+              superficieClara: tema.superficieClara,
+              textoSobreClara: tema.textoSobreClara,
+              textoSobreOscura: tema.textoSobreOscura,
             }}
             // Se vuelve a la sala, no a la lista global: aquí se entró desde
             // dentro de ella. El default de `FormularioSala` es `/salas`, que

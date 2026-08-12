@@ -9,6 +9,7 @@ import { medirTinta } from '@/lib/tinta'
 import { rutaDeArchivo, pesoLegible, TAMANO_MAXIMO } from '@/lib/blob'
 import type { Cadencia } from '@/dominio/reunion'
 import { VistaPreviaMarca } from './VistaPreviaMarca'
+import { GrupoDeColores } from './ColoresDeMarca'
 import { SelectorTipografia } from './SelectorTipografia'
 import estilos from '@/app/salas/salas.module.css'
 
@@ -97,6 +98,15 @@ export interface DatosSala {
   gradienteInicio?: string
   gradienteFin?: string
   superficieOscura?: string
+  /**
+   * EL TEXTO Y LOS ICONOS. Franco: *"no puedo poner el color de la letra o de
+   * los iconos"*. Se derivaban del contraste contra su fondo y no había dónde
+   * tocarlos, así que una marca cuyo manual pide blanco sobre su azul se
+   * quedaba con texto oscuro porque el cálculo mandaba. Ahora manda quien
+   * escribe; el contraste se MIDE y se enseña al lado, pero no bloquea.
+   */
+  textoSobreClara?: string
+  textoSobreOscura?: string
   /** Clave de `CATALOGO_DE_FUENTES` (src/temas/fuentes.ts) — tarea 7. */
   familiaDisplay: string
   familiaTexto: string
@@ -140,6 +150,10 @@ export interface SalaExistente {
   gradienteInicio?: string
   gradienteFin?: string
   superficieOscura?: string
+  /** El fondo claro, solo para medir contra él el color de su texto. */
+  superficieClara?: string
+  textoSobreClara?: string
+  textoSobreOscura?: string
   /**
    * Opcionales por el mismo motivo que `logoUrl`/`logoRelacionDeTinta`: una
    * sala real siempre las trae (ver `src/app/salas/page.tsx`), pero el
@@ -226,6 +240,9 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
   const [gradienteInicio, setGradienteInicio] = useState(sala?.gradienteInicio ?? '')
   const [gradienteFin, setGradienteFin] = useState(sala?.gradienteFin ?? '')
   const [superficieOscura, setSuperficieOscura] = useState(sala?.superficieOscura ?? '')
+  const [superficieClara] = useState(sala?.superficieClara ?? '')
+  const [textoSobreClara, setTextoSobreClara] = useState(sala?.textoSobreClara ?? '')
+  const [textoSobreOscura, setTextoSobreOscura] = useState(sala?.textoSobreOscura ?? '')
   const [acento, setAcento] = useState(sala?.acento ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
@@ -384,6 +401,8 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
           gradienteInicio: gradienteInicio.trim(),
           gradienteFin: gradienteFin.trim(),
           superficieOscura: superficieOscura.trim(),
+          textoSobreClara: textoSobreClara.trim(),
+          textoSobreOscura: textoSobreOscura.trim(),
         })
         if (r.error) {
           setError(r.error)
@@ -488,149 +507,59 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
             <p className={estilos.pista}>Cada cuánto se reúne el equipo con esta sala.</p>
           </div>
 
+          {/* ── LOS COLORES DE LA MARCA ─────────────────────────────────
+              Franco: *"el selector de color es demasiado enredado, además no
+              puedo poner el color de la letra o de los iconos; simplifica y
+              dale un poquito de aire"*.
+              Eran SEIS cuadros negros idénticos bajo tres rótulos en plural
+              —"Secundario y acento", "Cabecera de la sala"—, sin forma de
+              saber cuál era cuál, con un párrafo de cuatro líneas entre grupo
+              y grupo. Y faltaban justo los dos que él quería tocar: los del
+              texto. Ahora cada color tiene su nombre al lado y los grupos
+              dicen PARA QUÉ sirve cada uno. Ver `ColoresDeMarca.tsx`. */}
           <div className={estilos.campo}>
-            <span className={estilos.etiqueta}>Color primario</span>
-            <div className={estilos.colorFila}>
-              <input
-                type="color"
-                className={estilos.entradaColor}
-                value={primarioValido ? primario : '#000000'}
-                onChange={(e) => setPrimario(e.target.value)}
-                aria-label="Elegir color con el selector del sistema"
-              />
-              <input
-                type="text"
-                className={estilos.entrada}
-                value={primario}
-                onChange={(e) => setPrimario(e.target.value.trim())}
-                placeholder="#614ACA"
-                required
-              />
-            </div>
-            <p className={estilos.pista}>
-              El color exacto del brandbook. Las superficies, los textos legibles y el degradado se
-              derivan de aquí.
-            </p>
-          </div>
+            <GrupoDeColores
+              titulo="La marca"
+              pista="El primario es el color exacto del brandbook. Los otros dos se derivan de él si los dejas en blanco — salvo que el primario sea negro, blanco o gris, de los que no hay tono que girar y hay que escribirlos."
+              campos={[
+                { clave: 'primario', nombre: 'Primario', valor: primario, alCambiar: setPrimario },
+                { clave: 'secundario', nombre: 'Secundario', valor: secundario, alCambiar: setSecundario, derivado: derivados?.secundario },
+                { clave: 'acento', nombre: 'Acento', valor: acento, alCambiar: setAcento, derivado: derivados?.acento },
+              ]}
+            />
 
-          {/* LOS OTROS DOS COLORES DE LA MARCA, escribibles.
-              Se derivan del primario mientras se dejen vacíos —lo normal para
-              una marca de un solo color—, pero una que tiene negro Y azul no
-              se puede derivar: el negro no tiene tono que rotar, y de ahí
-              salían las escalas de gris que reportó Franco. */}
-          <div className={estilos.campo}>
-            <span className={estilos.etiqueta}>Secundario y acento</span>
-            {/* EL CUADRITO ENSEÑA EL DERIVADO CUANDO EL CAMPO ESTÁ VACÍO, no
-                negro. `<input type="color">` no admite "sin valor": vacío cae
-                a #000000, así que los dos salían negros mientras la paleta de
-                al lado enseñaba el azul derivado — la pantalla se contradecía
-                a sí misma a diez centímetros, y en el único caso que este
-                campo vino a resolver (una marca que ES negra) el error era
-                indistinguible del acierto. */}
-            <div className={estilos.colorFila}>
-              <input
-                type="color"
-                className={estilos.entradaColor}
-                value={HEX_VALIDO.test(secundario) ? secundario : (derivados?.secundario ?? '#000000')}
-                onChange={(e) => setSecundario(e.target.value)}
-                aria-label="Elegir el color secundario"
-              />
-              <input
-                type="text"
-                className={estilos.entrada}
-                value={secundario}
-                onChange={(e) => setSecundario(e.target.value.trim())}
-                placeholder="Secundario — vacío = derivado"
-                aria-label="Color secundario"
-              />
-            </div>
-            <div className={estilos.colorFila}>
-              <input
-                type="color"
-                className={estilos.entradaColor}
-                value={HEX_VALIDO.test(acento) ? acento : (derivados?.acento ?? '#000000')}
-                onChange={(e) => setAcento(e.target.value)}
-                aria-label="Elegir el color de acento"
-              />
-              <input
-                type="text"
-                className={estilos.entrada}
-                value={acento}
-                onChange={(e) => setAcento(e.target.value.trim())}
-                placeholder="Acento — vacío = derivado"
-                aria-label="Color de acento"
-              />
-            </div>
-            <p className={estilos.pista}>
-              Déjalos en blanco y se derivan del primario. Escríbelos cuando la marca tenga más de
-              un color de verdad — o cuando el primario sea negro, blanco o gris: de esos no se
-              puede derivar nada, porque no tienen tono que girar.
-            </p>
-          </div>
+            <GrupoDeColores
+              titulo="La cabecera de la sala"
+              pista="El degradado grande con el logotipo, y la franja de debajo donde van las fechas y las redes. En blanco se derivan del primario."
+              campos={[
+                { clave: 'g1', nombre: 'Degradado, desde', valor: gradienteInicio, alCambiar: setGradienteInicio, derivado: derivados?.gradiente[0] },
+                { clave: 'g2', nombre: 'Degradado, hasta', valor: gradienteFin, alCambiar: setGradienteFin, derivado: derivados?.gradiente[1] },
+                { clave: 'oscura', nombre: 'Franja', valor: superficieOscura, alCambiar: setSuperficieOscura, derivado: derivados?.superficieOscura },
+              ]}
+            />
 
-          {/* EL DEGRADADO Y LA FRANJA. Lo que ocupa media pantalla de la sala
-              y hasta la ronda 12 no se podía cambiar desde ningún sitio salvo
-              "Recalcular paleta", que los reescribe los dos derivándolos del
-              primario — y de un negro no se deriva ningún azul. */}
-          <div className={estilos.campo}>
-            <span className={estilos.etiqueta}>Cabecera de la sala</span>
-            <div className={estilos.colorFila}>
-              <input
-                type="color"
-                className={estilos.entradaColor}
-                value={HEX_VALIDO.test(gradienteInicio) ? gradienteInicio : (derivados?.gradiente[0] ?? '#000000')}
-                onChange={(e) => setGradienteInicio(e.target.value)}
-                aria-label="Elegir el inicio del degradado"
-              />
-              <input
-                type="text"
-                className={estilos.entrada}
-                value={gradienteInicio}
-                onChange={(e) => setGradienteInicio(e.target.value.trim())}
-                placeholder="Degradado, desde — vacío = derivado"
-                aria-label="Degradado, color inicial"
-              />
-            </div>
-            <div className={estilos.colorFila}>
-              <input
-                type="color"
-                className={estilos.entradaColor}
-                value={HEX_VALIDO.test(gradienteFin) ? gradienteFin : (derivados?.gradiente[1] ?? '#000000')}
-                onChange={(e) => setGradienteFin(e.target.value)}
-                aria-label="Elegir el fin del degradado"
-              />
-              <input
-                type="text"
-                className={estilos.entrada}
-                value={gradienteFin}
-                onChange={(e) => setGradienteFin(e.target.value.trim())}
-                placeholder="Degradado, hasta — vacío = derivado"
-                aria-label="Degradado, color final"
-              />
-            </div>
-            <div className={estilos.colorFila}>
-              <input
-                type="color"
-                className={estilos.entradaColor}
-                value={HEX_VALIDO.test(superficieOscura) ? superficieOscura : (derivados?.superficieOscura ?? '#000000')}
-                onChange={(e) => setSuperficieOscura(e.target.value)}
-                aria-label="Elegir el fondo de la franja de datos"
-              />
-              <input
-                type="text"
-                className={estilos.entrada}
-                value={superficieOscura}
-                onChange={(e) => setSuperficieOscura(e.target.value.trim())}
-                placeholder="Franja bajo el logo — vacío = derivado"
-                aria-label="Fondo de la franja de datos"
-              />
-            </div>
-            <p className={estilos.pista}>
-              El degradado grande con el logotipo, y la franja oscura de debajo donde van las fechas
-              y las redes. En blanco se derivan del primario; escríbelos cuando la marca tenga dos
-              colores de verdad —negro arriba y azul abajo, por ejemplo—, que es algo que ninguna
-              derivación puede inventar sola.
-            </p>
+            {/* EL TEXTO Y LOS ICONOS, que es lo que faltaba. Se derivaban del
+                contraste y no había dónde cambiarlos, así que una marca con
+                una franja clara se quedaba con texto oscuro aunque su manual
+                dijera blanco. Ahora manda quien escribe y al lado aparece el
+                contraste real: es su marca, lo que le falta para decidir es el
+                dato, no un candado. */}
+            <GrupoDeColores
+              titulo="El texto y los iconos"
+              pista="El texto sobre cada fondo. La cifra de al lado es su contraste real: 4,5:1 es el mínimo legible (WCAG AA). Puedes bajar de ahí si tu manual lo pide, pero lo vas a ver."
+              campos={[
+                {
+                  clave: 'txClara', nombre: 'Sobre fondo claro', valor: textoSobreClara,
+                  alCambiar: setTextoSobreClara, derivado: derivados?.textoSobreClara,
+                  sobre: HEX_VALIDO.test(superficieClara) ? superficieClara : derivados?.superficieClara,
+                },
+                {
+                  clave: 'txOscura', nombre: 'Sobre la franja', valor: textoSobreOscura,
+                  alCambiar: setTextoSobreOscura, derivado: derivados?.textoSobreOscura,
+                  sobre: HEX_VALIDO.test(superficieOscura) ? superficieOscura : derivados?.superficieOscura,
+                },
+              ]}
+            />
           </div>
 
           {/* LOS ENLACES PÚBLICOS DE LA MARCA (Franco: *"necesito que todas

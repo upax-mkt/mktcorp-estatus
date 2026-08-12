@@ -229,6 +229,9 @@ export default async function PagSalas({
                           gradienteInicio: tema.gradiente[0],
                           gradienteFin: tema.gradiente[1],
                           superficieOscura: tema.superficieOscura,
+                          superficieClara: tema.superficieClara,
+                          textoSobreClara: tema.textoSobreClara,
+                          textoSobreOscura: tema.textoSobreOscura,
                         }}
                       />
                     </div>

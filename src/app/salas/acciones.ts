@@ -289,11 +289,24 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         ...(datos.superficieOscura && HEX_VALIDO.test(datos.superficieOscura)
           ? {
               superficieOscura: datos.superficieOscura,
-              // El texto de la franja se recalcula CONTRA EL FONDO NUEVO: es
-              // legibilidad, no marca, y dejarlo con el contraste del color
-              // viejo es exactamente cómo se hace ilegible una franja.
-              textoSobreOscura: colorDeTextoSobre(datos.superficieOscura),
+              /**
+               * EL TEXTO DE LA FRANJA se recalcula contra el fondo nuevo SOLO
+               * SI NADIE LO ESCRIBIÓ. Antes se recalculaba siempre —"es
+               * legibilidad, no marca"— y eso dejaba fuera el caso de Franco:
+               * un manual que pide blanco sobre su azul. Ahora lo escrito
+               * manda, el contraste se le enseña en el formulario mientras
+               * elige, y el cálculo sigue cubriendo a quien no toca nada.
+               */
+              ...(datos.textoSobreOscura && HEX_VALIDO.test(datos.textoSobreOscura)
+                ? {}
+                : { textoSobreOscura: colorDeTextoSobre(datos.superficieOscura) }),
             }
+          : {}),
+        ...(datos.textoSobreClara && HEX_VALIDO.test(datos.textoSobreClara)
+          ? { textoSobreClara: datos.textoSobreClara }
+          : {}),
+        ...(datos.textoSobreOscura && HEX_VALIDO.test(datos.textoSobreOscura)
+          ? { textoSobreOscura: datos.textoSobreOscura }
           : {}),
         // Tarea 7: antes este UPDATE no tocaba la tipografía en absoluto —no
         // había desde dónde elegirla— así que cualquier edición (el logo, el
