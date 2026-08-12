@@ -196,7 +196,12 @@ vi.mock('@/auth/sesion', () => ({
   secretoConfigurado: vi.fn().mockReturnValue(null),
   puedeVerEstaSala: vi.fn().mockResolvedValue(true),
   cerrarSesion: vi.fn(),
+  // Quién mira: decide si se le ofrece "Salir" — ver `conSesion` en la
+  // página. Por defecto, nadie (el caso mayoritario desde que la sala es
+  // pública: el enlace que se comparte con las UDNs).
+  sesionActual: () => sesionActualMock(),
 }))
+const sesionActualMock = vi.fn().mockResolvedValue(null)
 
 // Migrado de @/db/sesiones (ronda 10, tarea 5b): `listarSesiones` ->
 // `listarReuniones` (@/db/reuniones); `crearSesionConEstructura` ->
@@ -1380,5 +1385,43 @@ describe('VistaSala (/cliente/[slug]) — la vista compartida es de solo lectura
     expect(screen.getByText('Mandar el reporte')).toBeInTheDocument()
     expect(document.querySelectorAll('select')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: /añadir acuerdo/i })).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * "SALIR" SOLO SI HAY ALGO QUE CERRAR.
+ *
+ * Este botón nació para el director que entra con la clave de su sala: la
+ * cookie dura 30 días, la raíz lo devuelve aquí, y sin él se quedaba sin
+ * ninguna salida — *"una sesión que no se puede terminar no es una sesión, es
+ * una trampa"*, dice su comentario en la página, "y en un ordenador
+ * compartido deja la sala de una UDN abierta a quien se siente después".
+ *
+ * Su condición era `!equipo`, que entonces significaba "el director". Cuando
+ * la sala pasó a verse SIN LOGIN (Franco: *"todo sin login, pueden descargar
+ * pero no pueden editar nada"*) esa condición se quedó igual y empezó a
+ * significar otra cosa: también quien no ha entrado — que es hoy el visitante
+ * mayoritario, el del enlace que se comparte con las UDNs. Se le ofrecía
+ * cerrar una sesión que no tiene.
+ */
+describe('VistaSala (/cliente/[slug]) — "Salir" solo cuando hay sesión', () => {
+  it('sin ninguna sesión —el enlace compartido— no se ofrece salir', async () => {
+    esLectorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+    sesionActualMock.mockResolvedValue(null)
+
+    render(await invocar())
+
+    expect(screen.queryByRole('button', { name: 'Salir' })).not.toBeInTheDocument()
+  })
+
+  it('con la sesión de sala del director, sí: es la salida que la cookie de 30 días necesita', async () => {
+    esLectorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+    sesionActualMock.mockResolvedValue({ rol: 'sala', sala: 'neracode', exp: Date.now() + 1000 })
+
+    render(await invocar())
+
+    expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
   })
 })

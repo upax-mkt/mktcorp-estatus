@@ -54,7 +54,7 @@ import {
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
-import { puedeVerEstaSala, cerrarSesion } from '@/auth/sesion'
+import { puedeVerEstaSala, cerrarSesion, sesionActual } from '@/auth/sesion'
 import { esAdmin, esEditor, esLector, exigirEditor } from '@/auth/roles'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
@@ -191,6 +191,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // directorio interno), nunca una escritura — para eso, más abajo, cada
   // Server Action exige lo suyo por su cuenta.
   const equipo = await esLector()
+  /**
+   * SI HAY ALGUNA SESIÓN QUE CERRAR. Desde que la sala es pública (Franco:
+   * *"todo sin login, pueden descargar pero no pueden editar nada"*) hay tres
+   * visitantes y no dos: el equipo, el director con su cookie de sala, y
+   * QUIEN NO TRAE NADA — que es el caso principal, el del enlace que se
+   * comparte. A ese último se le estaba pintando un botón "Salir" que no
+   * tenía nada que cerrar. Ver el `<header>` de más abajo.
+   */
+  const conSesion = (await sesionActual()) !== null
   const [benchmark, materialesComerciales, archivosDeInteres, personas] = await Promise.all([
     obtenerBenchmark(slug),
     listarArchivos(slug, 'comercial'),
@@ -979,8 +988,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             deja la sala de una UDN abierta a quien se siente después.
             Va DESPUÉS del nombre: el `margin-left:auto` del nombre ya empuja
             el bloque a la derecha, y con dos autos el primero se comía todo el
-            hueco y dejaba «Salir» flotando en mitad de la barra. */}
-        {!equipo && (
+            hueco y dejaba «Salir» flotando en mitad de la barra.
+            Y SOLO SI HAY SESIÓN (`conSesion`, arriba): ahora que la sala se ve
+            sin ninguna, este botón se le estaba ofreciendo también a quien no
+            había entrado — el visitante mayoritario, el del enlace que se
+            comparte con las UDNs. Un "Salir" que no cierra nada. */}
+        {!equipo && conSesion && (
           <form action={salirDeLaSala}>
             <button type="submit" className={estilos.salirBoton}>Salir</button>
           </form>
