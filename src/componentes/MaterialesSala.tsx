@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import type { ArchivoSala } from '@/db/archivos'
 import { pesoLegible } from '@/lib/blob'
 import { materialParaVista } from '@/lib/materiales'
+import { CaratulaMaterial } from './CaratulaMaterial'
 import { fechaBreveConAnio } from '@/lib/fecha'
 import estilos from '@/app/cliente/cliente.module.css'
 
@@ -150,7 +151,7 @@ function Material({
               onError={() => setMiniaturaRota(true)}
             />
           ) : (
-            <span className={estilos.materialDistintivo}>{vista.distintivo}</span>
+            <CaratulaMaterial vista={vista} nombreOriginal={material.nombreOriginal} />
           )}
           {/* El triángulo de reproducir SOLO en vídeo: sin él, la portada de
               YouTube es indistinguible de una imagen cualquiera. */}

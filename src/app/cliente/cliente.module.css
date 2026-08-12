@@ -911,8 +911,17 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 /* Una línea: en una fila de altura fija, la segunda se sale de la caja. */
 .materialOrdenable .materialTitulo { font-size: 0.86rem; -webkit-line-clamp: 1; line-clamp: 1; }
 .materialOrdenable .materialMeta { font-size: 0.72rem; }
-/* "PDF" en una carátula de 3,6rem se partía en "PD / F". */
-.materialOrdenable .materialDistintivo { font-size: 0.66rem; padding: 0 0.2rem; overflow-wrap: normal; }
+/* La carátula, encogida a 3,6 rem. La hoja sube —con `padding-bottom` en el
+   contenedor, no bajando la etiqueta— para que la banda de la extensión no
+   quede pegada al borde de la tarjeta. */
+.materialOrdenable .caratulaDoc { padding-bottom: 0.75rem; }
+.materialOrdenable .caratulaHoja { width: 46%; }
+.materialOrdenable .caratulaEtiqueta { bottom: 0.22rem; font-size: 0.48rem; padding: 0.08rem 0.28rem; letter-spacing: 0.05em; }
+.materialOrdenable .caratulaMonograma { width: 1.7rem; height: 1.7rem; border-radius: 0.55rem; font-size: 0.85rem; }
+/* El dominio no cabe bajo un monograma de 1,7 rem, y el título de al lado ya
+   lo dice: en organizar, la carátula solo tiene que identificar. */
+.materialOrdenable .caratulaDominio { display: none; }
+.materialOrdenable .caratulaEnlace { gap: 0; }
 /* El ✕ y «Renombrar» de la tarjeta: aquí SÍ permanentes, porque este es el
    modo en el que se editan. En lectura ni siquiera se montan. */
 .materialOrdenable .materialAcciones {
@@ -1146,22 +1155,104 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .materialImagen { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* La carátula tipográfica: lo que se pinta cuando no hay miniatura (un PDF,
-   un PPT, un enlace). No se generan miniaturas de documento a propósito —ver
-   la cabecera de src/lib/materiales.ts. */
-.materialDistintivo {
-  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.06em;
-  color: var(--tx-3);
-  padding: 0 1rem; text-align: center;
-  overflow-wrap: anywhere;
+/* ══ LA CARÁTULA DE UN MATERIAL SIN MINIATURA ═════════════════════════════
+   Franco: *"las miniaturas se ven sin diseño, una imagen gris y ya; dale amor
+   y que se vea bonito"*. Era literal: un rectángulo gris con «PDF» centrado,
+   y ocho materiales se veían como ocho rectángulos iguales que había que LEER.
+   El porqué de cada una de las tres caras está en `CaratulaMaterial.tsx`.
+
+   `.materialDistintivo` se retiró con ellas: era ese texto centrado.
+
+   ── UN DOCUMENTO ES UNA HOJA ───────────────────────────────────────────── */
+.caratulaDoc {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  /* Un degradado muy suave de la marca en diagonal: da profundidad sin
+     convertir la carátula en una mancha de color. */
+  background:
+    radial-gradient(120% 100% at 50% 0%,
+      color-mix(in oklch, var(--marca) 12%, var(--superficie-2)) 0%,
+      var(--superficie-2) 70%);
 }
-.materialCaratula[data-tipo='documento'] {
-  background: color-mix(in oklch, var(--marca) 7%, var(--superficie-2));
+.caratulaHoja {
+  width: 44%; max-width: 4.4rem; height: auto;
+  /* La sombra la lleva el SVG entero y no el `path`: así el doblez y los
+     renglones no proyectan cada uno la suya. */
+  filter: drop-shadow(0 2px 5px color-mix(in oklch, var(--marca) 22%, transparent));
+  transition: transform 0.18s var(--suave, ease);
 }
-.materialCaratula[data-tipo='documento'] .materialDistintivo {
-  color: var(--marca-texto, var(--marca));
+.material:hover .caratulaHoja { transform: translateY(-2px) rotate(-1.5deg); }
+@media (prefers-reduced-motion: reduce) { .material:hover .caratulaHoja { transform: none; } }
+
+.hojaPapel { fill: var(--papel, #fff); stroke: color-mix(in oklch, var(--marca) 22%, transparent); stroke-width: 1.5; }
+/* El doblez, un punto más oscuro que el papel: es lo que hace que se lea como
+   una esquina levantada y no como un recorte. */
+.hojaDoblez { fill: color-mix(in oklch, var(--marca) 18%, var(--papel, #fff)); }
+.hojaRenglones rect { fill: color-mix(in oklch, var(--marca) 25%, transparent); }
+
+/* La extensión, abajo. LA ÚNICA PIEZA CON EL COLOR DEL FORMATO: la sala se
+   viste con la identidad de su UDN, y ocho carátulas en rojo, verde y naranja
+   la convertirían en un explorador de archivos. Aquí el color sí trabaja —es
+   lo que separa un Excel de un PDF sin leer. */
+.caratulaEtiqueta {
+  position: absolute; bottom: 0.6rem;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em;
+  padding: 0.16rem 0.5rem; border-radius: var(--r-lleno);
+  color: #fff; background: var(--tinte, var(--tx-3));
+  box-shadow: 0 1px 3px color-mix(in oklch, #000 18%, transparent);
 }
-.materialCaratula[data-tipo='enlace'] .materialDistintivo { font-size: 0.8rem; letter-spacing: 0.02em; }
+.caratulaDoc[data-familia='pdf']          { --tinte: #d93a3f; }
+.caratulaDoc[data-familia='hoja']         { --tinte: #1a7f4b; }
+.caratulaDoc[data-familia='presentacion'] { --tinte: #d1591a; }
+.caratulaDoc[data-familia='texto']        { --tinte: #1c62c4; }
+.caratulaDoc[data-familia='comprimido']   { --tinte: #6b4bb8; }
+.caratulaDoc[data-familia='video']        { --tinte: #2f4bc4; }
+.caratulaDoc[data-familia='imagen']       { --tinte: #0f8f9e; }
+/* Sin familia conocida, el color de la marca: inventar un octavo tono para
+   "otro" sería darle una identidad a lo que precisamente no la tiene. */
+.caratulaDoc[data-familia='otro']         { --tinte: var(--marca-texto, var(--marca)); }
+
+/* ── UN ENLACE ES UN SITIO ────────────────────────────────────────────────
+   Monograma con la inicial del dominio, en un color CALCULADO del propio
+   dominio (`tonoDeDominio`): estable, sin guardar nada y sin pedirle el
+   favicon al sitio de destino — eso haría una petición a un tercero desde la
+   sala PÚBLICA de un cliente. */
+.caratulaEnlace {
+  position: absolute; inset: 0;
+  display: grid; place-items: center; align-content: center; gap: 0.55rem;
+  padding: 0 0.9rem;
+  background: linear-gradient(160deg,
+    oklch(0.965 0.03 var(--tono)) 0%,
+    oklch(0.93 0.045 var(--tono)) 100%);
+}
+.caratulaMonograma {
+  width: 2.6rem; height: 2.6rem; border-radius: 0.85rem;
+  display: grid; place-items: center;
+  font-size: 1.25rem; font-weight: 800; line-height: 1;
+  color: #fff;
+  background: linear-gradient(160deg,
+    oklch(0.62 0.16 var(--tono)) 0%,
+    oklch(0.5 0.17 var(--tono)) 100%);
+  box-shadow: 0 2px 6px oklch(0.5 0.17 var(--tono) / 0.35);
+  transition: transform 0.18s var(--suave, ease);
+}
+.material:hover .caratulaMonograma { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .material:hover .caratulaMonograma { transform: none; } }
+.caratulaDominio {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.01em;
+  color: oklch(0.42 0.09 var(--tono));
+  text-align: center; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── UN VÍDEO SIN PORTADA ─────────────────────────────────────────────────
+   Oscuro, como un reproductor antes de arrancar. Nada dibujado debajo: encima
+   va el triángulo, y cualquier otra cosa competiría con él. */
+.caratulaVideo {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 100% at 50% 40%,
+    color-mix(in oklch, var(--marca) 30%, #14161a) 0%, #14161a 75%);
+}
 
 /* El triángulo de reproducir. Sin él, la portada de un vídeo de YouTube es
    indistinguible de una imagen cualquiera. */

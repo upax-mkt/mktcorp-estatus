@@ -5,6 +5,9 @@ import {
   extensionParaCaratula,
   materialParaVista,
   normalizarEnlace,
+  familiaDeFormato,
+  tonoDeDominio,
+  inicialDeDominio,
 } from './materiales'
 
 const base = { id: 'abc', enlace: null, ruta: null, nombreOriginal: null, tipoContenido: null }
@@ -168,5 +171,87 @@ describe('extensionParaCaratula y dominioDe', () => {
   it('el dominio, sin www', () => {
     expect(dominioDe('https://www.ejemplo.com/x')).toBe('ejemplo.com')
     expect(dominioDe('no soy url')).toBe('enlace')
+  })
+})
+
+/**
+ * LA CARA DE UN MATERIAL SIN MINIATURA (ronda 12).
+ *
+ * Franco: *"las miniaturas preview de los materiales cargados como un pdf o un
+ * link o un excel se ven sin diseño, una imagen gris y ya; dale amor y que se
+ * vea bonito"*. Era literal: un rectángulo gris con la palabra «PDF» centrada,
+ * así que ocho materiales se veían como ocho rectángulos iguales que había que
+ * LEER uno a uno.
+ *
+ * Lo que se clasifica aquí es lo que permite dibujarlos distintos. El color y
+ * la forma viven en el CSS y en `CaratulaMaterial`: la clasificación es
+ * conocimiento del dominio, el verde y el rojo son decisiones de estilo.
+ */
+describe('familiaDeFormato', () => {
+  it.each([
+    ['credenciales.pdf', 'pdf'],
+    ['icp.xlsx', 'hoja'],
+    ['datos.csv', 'hoja'],
+    ['estatus.pptx', 'presentacion'],
+    ['guion.docx', 'texto'],
+    ['notas.md', 'texto'],
+    ['entregable.zip', 'comprimido'],
+    ['reel.mp4', 'video'],
+    ['portada.png', 'imagen'],
+  ] as const)('%s → %s', (nombre, familia) => {
+    expect(familiaDeFormato(nombre)).toBe(familia)
+  })
+
+  it.each([null, '', 'sin_extension', 'archivo.xyz'])(
+    'lo que no reconoce cae en "otro" (%s): sin inventar una familia',
+    (nombre) => {
+      expect(familiaDeFormato(nombre)).toBe('otro')
+    },
+  )
+
+  it('no le importan las mayúsculas del nombre', () => {
+    expect(familiaDeFormato('CREDENCIALES.PDF')).toBe('pdf')
+  })
+
+  /** Un nombre con puntos: manda la ÚLTIMA extensión, no la primera. */
+  it('con varios puntos, la extensión es la última', () => {
+    expect(familiaDeFormato('reporte.v2.final.xlsx')).toBe('hoja')
+  })
+})
+
+describe('el monograma de un enlace', () => {
+  /**
+   * EL MISMO DOMINIO DA SIEMPRE EL MISMO COLOR. Es lo único que se le pide:
+   * no reparte bien ni falta que hace, pero si cambiara entre cargas, la misma
+   * tarjeta parpadearía de color en cada visita.
+   */
+  it('el tono es estable para un dominio dado', () => {
+    expect(tonoDeDominio('onuris.sharepoint.com')).toBe(tonoDeDominio('onuris.sharepoint.com'))
+  })
+
+  it('está siempre dentro del círculo cromático', () => {
+    for (const d of ['a.mx', 'onuris.sharepoint.com', 'brujula-comercial-upax.vercel.app', '']) {
+      const t = tonoDeDominio(d)
+      expect(t).toBeGreaterThanOrEqual(0)
+      expect(t).toBeLessThan(360)
+    }
+  })
+
+  /** Dominios distintos con colores distintos: es para lo que sirve. */
+  it('dos dominios de un mismo material no colisionan', () => {
+    expect(tonoDeDominio('onuris.sharepoint.com')).not.toBe(tonoDeDominio('brujula-comercial-upax.vercel.app'))
+  })
+
+  it.each([
+    ['onuris.sharepoint.com', 'O'],
+    ['www.upax.com.mx', 'U'],
+    ['4chan.org', '4'],
+  ])('la inicial de %s es %s', (dominio, inicial) => {
+    expect(inicialDeDominio(dominio)).toBe(inicial)
+  })
+
+  /** Sin ninguna letra ni número no se revienta: se pinta un punto. */
+  it('un dominio sin caracteres alfanuméricos cae a "·"', () => {
+    expect(inicialDeDominio('---')).toBe('·')
   })
 })

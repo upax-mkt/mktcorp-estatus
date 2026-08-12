@@ -86,6 +86,69 @@ export function dominioDe(url: string): string {
   }
 }
 
+/**
+ * A QUÉ FAMILIA DE FORMATO PERTENECE UNA EXTENSIÓN.
+ *
+ * Franco: *"las miniaturas de los materiales cargados como un pdf o un link o
+ * un excel se ven sin diseño, una imagen gris y ya; dale amor"*.
+ *
+ * La familia es lo que permite que un Excel se distinga de un PDF DE UN
+ * VISTAZO, sin leer. Se clasifica AQUÍ —con el tipo y la miniatura, las otras
+ * dos decisiones de este módulo— y el color lo pone el CSS a partir de ella:
+ * la clasificación es conocimiento del dominio, el verde y el rojo son
+ * decisiones de la hoja de estilo.
+ *
+ * Las familias son las que de verdad se distinguen a golpe de vista en una
+ * rejilla; afinar más (`.numbers` aparte de `.xlsx`) daría dos verdes que
+ * nadie sabría separar.
+ */
+export type FamiliaFormato =
+  | 'pdf' | 'hoja' | 'presentacion' | 'texto' | 'comprimido' | 'video' | 'imagen' | 'otro'
+
+const FAMILIAS: Record<string, FamiliaFormato> = {
+  pdf: 'pdf',
+  xlsx: 'hoja', xls: 'hoja', xlsm: 'hoja', csv: 'hoja', numbers: 'hoja', ods: 'hoja',
+  pptx: 'presentacion', ppt: 'presentacion', key: 'presentacion', odp: 'presentacion',
+  docx: 'texto', doc: 'texto', pages: 'texto', odt: 'texto', txt: 'texto', md: 'texto', rtf: 'texto',
+  zip: 'comprimido', rar: 'comprimido', '7z': 'comprimido', gz: 'comprimido', tar: 'comprimido',
+  mp4: 'video', mov: 'video', webm: 'video', avi: 'video', mkv: 'video',
+  png: 'imagen', jpg: 'imagen', jpeg: 'imagen', gif: 'imagen', webp: 'imagen', avif: 'imagen', svg: 'imagen',
+}
+
+export function familiaDeFormato(nombre: string | null): FamiliaFormato {
+  const ext = (nombre ?? '').split('.').pop()?.toLowerCase() ?? ''
+  return FAMILIAS[ext] ?? 'otro'
+}
+
+/**
+ * UN TONO ESTABLE PARA UN DOMINIO, entre 0 y 359.
+ *
+ * Un enlace no tiene extensión ni portada, así que su carátula era el gris de
+ * todos. Con esto cada dominio tiene SU color —siempre el mismo, calculado, no
+ * guardado— y `onuris.sharepoint.com` deja de ser indistinguible de
+ * `brujula-comercial-upax.vercel.app` en una rejilla de ocho.
+ *
+ * Y NO SE PIDE EL FAVICON al sitio de destino, que sería lo obvio: cada
+ * carátula haría una petición a un tercero desde la sala PÚBLICA de un
+ * cliente, revelándole la IP de quien la mira, y la mitad devolvería un 404
+ * que hay que tapar igual. Un monograma no pide nada a la red y no falla.
+ *
+ * Suma simple de códigos: no hace falta que reparta bien, hace falta que sea
+ * el mismo tono cada vez para el mismo dominio.
+ */
+export function tonoDeDominio(dominio: string): number {
+  let suma = 0
+  for (let i = 0; i < dominio.length; i++) suma = (suma * 31 + dominio.charCodeAt(i)) % 360
+  return suma
+}
+
+/** La inicial con la que se dibuja el monograma de un enlace. */
+export function inicialDeDominio(dominio: string): string {
+  const limpio = dominio.replace(/^www\./, '')
+  const letra = limpio.match(/[a-z0-9]/i)?.[0] ?? '·'
+  return letra.toUpperCase()
+}
+
 /** La extensión en mayúsculas, para la carátula de un documento. */
 export function extensionParaCaratula(nombre: string | null): string {
   const ext = (nombre ?? '').split('.').pop()?.toLowerCase() ?? ''
