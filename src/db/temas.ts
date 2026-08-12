@@ -101,6 +101,7 @@ export const cargarTemas = cache(async (): Promise<Record<string, Tema>> => {
       gradiente: esquema.salas.gradiente,
       familiaDisplay: esquema.salas.familiaDisplay,
       familiaTexto: esquema.salas.familiaTexto,
+      redes: esquema.salas.redes,
     })
     .from(esquema.salas)
 

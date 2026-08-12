@@ -19,6 +19,7 @@ import {
 } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { Seccion } from '@/componentes/Seccion'
+import { RedesDeSala } from '@/componentes/RedesDeSala'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
   type EstatusAcuerdo,
@@ -1051,6 +1052,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               <span className={estilos.heroMetaV}>{abiertos}{vencidos > 0 ? ` · ${vencidos} venc.` : ''}</span>
               <span className={estilos.heroMetaL}>acuerdos abiertos</span>
             </div>
+
+            {/* Los enlaces públicos de la marca, al final de la misma franja:
+                es identidad, no gestión, y quien abre la sala —incluido el
+                director con el enlace compartido— tiene ahí por dónde ver a
+                esa marca por fuera. Sin ninguno, no se pinta nada. */}
+            <RedesDeSala redes={tema?.redes} nombre={s.nombre} />
           </div>
         </div>
       </div>
@@ -1279,19 +1286,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             Misma mecánica en los dos: fichero o enlace, rejilla con
             miniatura, renombrar y quitar. */}
         {(materialesComerciales.length > 0 || equipo) && (
-          <Seccion
-            icono="archivos"
+          /* El módulo dibuja su PROPIA cabecera (ver `MaterialesAgrupados`):
+             el botón «Organizar» va en la esquina donde `Seccion` pone el
+             conteo, y ese botón tiene estado — el estado es del cliente. */
+          <MaterialesAgrupados
             titulo="Materiales Comerciales"
-            conteo={materialesComerciales.length > 0 && materialesComerciales.length}
+            materiales={materialesComerciales}
+            equipo={equipo}
+            editarAction={editarArchivoAction}
+            eliminarAction={eliminarArchivoAction}
+            reubicarAction={reubicarMaterialesAction}
+            vacio="Credenciales, casos de éxito, un vídeo de YouTube, una nota de prensa: lo que la UDN necesite tener a mano para vender."
           >
-            <MaterialesAgrupados
-              materiales={materialesComerciales}
-              equipo={equipo}
-              editarAction={editarArchivoAction}
-              eliminarAction={eliminarArchivoAction}
-              reubicarAction={reubicarMaterialesAction}
-              vacio="Credenciales, casos de éxito, un vídeo de YouTube, una nota de prensa: lo que la UDN necesite tener a mano para vender."
-            />
             {equipo && (
               <AnadirMaterial
                 salaSlug={slug}
@@ -1300,7 +1306,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 registrarEnlaceAction={registrarEnlaceAction}
               />
             )}
-          </Seccion>
+          </MaterialesAgrupados>
         )}
 
         {/* ARCHIVOS DE INTERÉS (Franco: *"después de materiales comerciales
@@ -1309,19 +1315,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             conviene tener a mano: un estudio, un brief, el enlace a un
             tablero. */}
         {(archivosDeInteres.length > 0 || equipo) && (
-          <Seccion
-            icono="archivos"
+          <MaterialesAgrupados
             titulo="Archivos de Interés"
-            conteo={archivosDeInteres.length > 0 && archivosDeInteres.length}
+            materiales={archivosDeInteres}
+            equipo={equipo}
+            editarAction={editarArchivoAction}
+            eliminarAction={eliminarArchivoAction}
+            reubicarAction={reubicarMaterialesAction}
+            vacio="Un estudio, un brief, una hoja de cálculo, el enlace a un tablero: lo que no es material de venta pero conviene tener a mano."
           >
-            <MaterialesAgrupados
-              materiales={archivosDeInteres}
-              equipo={equipo}
-              editarAction={editarArchivoAction}
-              eliminarAction={eliminarArchivoAction}
-              reubicarAction={reubicarMaterialesAction}
-              vacio="Un estudio, un brief, una hoja de cálculo, el enlace a un tablero: lo que no es material de venta pero conviene tener a mano."
-            />
             {equipo && (
               <AnadirMaterial
                 salaSlug={slug}
@@ -1330,7 +1332,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 registrarEnlaceAction={registrarEnlaceInteresAction}
               />
             )}
-          </Seccion>
+          </MaterialesAgrupados>
         )}
 
         {/* ACCESO DEL DIRECTOR (clave + link firmado): SE MUDÓ ENTERO A

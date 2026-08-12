@@ -19,6 +19,7 @@ import {
   jsonb,
   primaryKey,
 } from 'drizzle-orm/pg-core'
+import type { RedesDeSala } from '@/dominio/redes'
 
 // ---- Enums ----
 // Solo se tipan como enum los campos cuyos valores exactos están fijados en
@@ -105,6 +106,13 @@ export const salas = pgTable('salas', {
   logoUrl: text('logo_url'),
   /** Proporción de tinta del PNG/SVG (tarea 6): con qué se deriva su altura relativa. Nula hasta medirlo. */
   logoRelacionDeTinta: real('logo_relacion_de_tinta'),
+  /**
+   * Los enlaces públicos de la marca: sitio, blog y redes. Clave → URL, con
+   * las claves de `src/dominio/redes.ts` (la única lista) y solo `http(s)`.
+   * `{}` es "ninguno", que es lo mismo que "sin rellenar": no hay nada que
+   * distinguir entre los dos, así que no admite nulo.
+   */
+  redes: jsonb('redes').$type<RedesDeSala>().notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

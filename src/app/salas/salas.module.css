@@ -267,3 +267,23 @@
    <select>, ver su comentario de cabecera. Aquí solo se fija tamaño/línea. */
 .muestraTitulo { font-size: 1.3rem; font-weight: 700; line-height: 1.15; color: var(--tx); overflow-wrap: anywhere; }
 .muestraParrafo { font-size: 0.84rem; line-height: 1.42; color: var(--tx-2); overflow-wrap: anywhere; }
+
+/* ── LOS ENLACES PÚBLICOS DE LA MARCA ────────────────────────────────────
+   Doce campos en dos columnas: la lista es fija y se lee de arriba abajo para
+   saber qué falta. Un "añadir enlace → elegir tipo → pegar" sería tres gestos
+   por red para no ahorrar nada — las que sobran se quedan en blanco y no se
+   guardan. */
+.redesCampos {
+  display: grid; gap: 0.5rem 0.9rem;
+  /* 11rem y no 15: la columna izquierda del formulario mide unas 28rem, así
+     que con 15 entraba UNA sola y los doce campos formaban una tira de medio
+     metro. Con 11 caben dos, y la lista se abarca de un vistazo — que es todo
+     el sentido de tenerla fija. */
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+.redCampo { display: grid; gap: 0.25rem; min-width: 0; }
+.redNombre {
+  font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 700; color: var(--tinta-3, var(--tx-3));
+}
+.redCampo .entrada { font-size: 0.85rem; }

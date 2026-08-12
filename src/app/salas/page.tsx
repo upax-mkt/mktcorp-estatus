@@ -220,6 +220,11 @@ export default async function PagSalas({
                           logoUrl: extraDeLaEditada?.logoUrl ?? null,
                           logoRelacionDeTinta: extraDeLaEditada?.logoRelacionDeTinta ?? null,
                           cadencia: extraDeLaEditada?.cadencia ?? 'mensual',
+                          // Mismo motivo que `secundario`/`acento`, y aquí más
+                          // grave: `editarSalaAction` escribe `redes` siempre,
+                          // así que sin esto guardar cualquier cambio las
+                          // borraría todas.
+                          redes: tema.redes,
                         }}
                       />
                     </div>

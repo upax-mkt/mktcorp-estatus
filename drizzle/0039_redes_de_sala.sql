@@ -1,0 +1,31 @@
+-- LOS ENLACES PÚBLICOS DE CADA MARCA: sitio, blog y redes.
+--
+-- Franco: *"necesito que todas las salas en el header tengan sus respectivos
+-- iconos de redes sociales, sitio web, blog, etc."*.
+--
+-- UNA COLUMNA `jsonb` Y NO UNA TABLA `enlaces_de_sala`. Un enlace aquí no
+-- tiene vida propia —no tiene fecha, ni dueño, ni permisos, ni existe sin su
+-- sala— y son como mucho diez por marca. Una tabla obligaría a una consulta
+-- más en cada carga de sala para pintar una fila de iconos, y a mantener su
+-- integridad para no ganar nada: nadie va a listar "todos los Instagram del
+-- grupo", ni a ordenarlos, ni a buscarlos.
+--
+-- La forma la declara `src/dominio/redes.ts`, que es la ÚNICA lista de claves
+-- válidas: la comparten el formulario de ajustes, la cabecera de la sala y lo
+-- que se guarda. Un tipo que existiera en dos de los tres se guardaría sin
+-- error y no se pintaría nunca.
+--
+-- DEFAULT '{}' Y NOT NULL: "esta sala no tiene redes" y "todavía no se ha
+-- rellenado" son lo mismo aquí —no hay nada que distinguir—, y un objeto vacío
+-- se recorre igual que uno lleno. Un NULL obligaría a comprobarlo en cada
+-- sitio que lo lea.
+--
+-- ⚠️ ESTE ARCHIVO LO GENERÓ `drizzle-kit generate`, y el comentario se añadió
+-- encima SIN TOCAR el SQL. Es la lección de las rondas 10, 11 y 12, donde la
+-- misma trampa mordió tres veces: una migración escrita a mano no genera
+-- snapshot NI entrada en el journal, así que `db:migrate` la ignora en
+-- silencio —parece aplicada, dice "migrations applied successfully", y la
+-- columna no existe— y el siguiente `generate` la vuelve a emitir. Generar
+-- primero y comentar después resuelve las dos cosas de raíz.
+
+ALTER TABLE "salas" ADD COLUMN "redes" jsonb DEFAULT '{}'::jsonb NOT NULL;

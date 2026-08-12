@@ -274,6 +274,13 @@
       "when": 1786559912849,
       "tag": "0038_alinear_snapshots_grupos",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786565221283,
+      "tag": "0039_redes_de_sala",
+      "breakpoints": true
     }
   ]
 }

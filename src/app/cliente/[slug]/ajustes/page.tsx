@@ -304,11 +304,22 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
               slug,
               nombre: tema.nombre,
               primario: tema.primario,
+              // Los que la marca tiene hoy — igual que en `/salas`. Faltaban:
+              // el formulario los enseñaba en blanco aunque estuvieran
+              // escritos, así que quien entrara a cambiar otra cosa no veía la
+              // paleta real de su marca.
+              secundario: tema.secundario,
+              acento: tema.acento,
               familiaDisplay: tema.familiaDisplay,
               familiaTexto: tema.familiaTexto,
               logoUrl: extra?.logoUrl ?? null,
               logoRelacionDeTinta: extra?.logoRelacionDeTinta ?? null,
               cadencia: extra?.cadencia ?? 'mensual',
+              // OBLIGATORIO cablearlas: `editarSalaAction` escribe `redes`
+              // SIEMPRE —vaciar todos los campos tiene que poder significar
+              // "esta marca no tiene redes"—, así que un formulario que no las
+              // recibiera las borraría al guardar cualquier otra cosa.
+              redes: tema.redes,
             }}
             // Se vuelve a la sala, no a la lista global: aquí se entró desde
             // dentro de ella. El default de `FormularioSala` es `/salas`, que

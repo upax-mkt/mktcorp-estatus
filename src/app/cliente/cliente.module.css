@@ -105,6 +105,28 @@
 .heroMetaV { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .heroMetaL { font-size: 0.75rem; opacity: 0.8; }
 
+/* ── LOS ENLACES DE LA MARCA, en la misma franja de datos ─────────────────
+   `margin-left:auto` los manda al extremo: la franja se lee de izquierda a
+   derecha como "cómo va la relación… y quién es esta marca por fuera". En
+   móvil, donde la franja envuelve, caen a su propia línea y el auto no hace
+   nada — que es justo lo que se quiere. */
+.heroRedes {
+  display: flex; align-items: center; gap: 0.15rem;
+  margin-left: auto; flex-wrap: wrap;
+}
+.heroRed {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; border-radius: var(--r-lleno);
+  color: inherit; opacity: 0.75;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+/* El fondo del hover sale del color del TEXTO, no de un gris fijo: esta
+   franja se pinta sobre la superficie oscura de cada marca, y un gris que
+   funciona sobre el azul de NeraCode desaparece sobre el negro de HoF. */
+.heroRed:hover { opacity: 1; background: color-mix(in oklch, currentColor 16%, transparent); }
+.heroRed:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; opacity: 1; }
+@media (max-width: 620px) { .heroRedes { margin-left: 0; } }
+
 /* ---- contenedor ---- */
 .main {
   max-width: 1080px; margin: 0 auto;
@@ -831,11 +853,80 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   margin: 0; font-size: 0.78rem; letter-spacing: 0.09em; text-transform: uppercase;
   font-weight: 800; color: var(--tx-2);
 }
-/* Un material mientras se puede arrastrar: su tarjeta y, debajo, a qué
-   subcategoría pertenece. */
-.materialEnGrupo { display: grid; gap: 0.4rem; }
+/* ── ORGANIZAR ES UN MODO ──────────────────────────────────────────────
+   Y por eso puede permitirse otra forma. En LECTURA manda la rejilla de
+   carátulas (`.materiales`, más arriba), que es lo que se consulta a diario;
+   aquí abajo vive el aparato de ordenar, que se enciende a propósito y se
+   apaga al terminar. La primera versión lo tuvo encendido siempre y convirtió
+   seis carátulas de House of Films en dos mil píxeles de columna. */
+.moduloBarra { margin-left: auto; display: flex; align-items: center; gap: 0.7rem; }
+.conteoSuelto {
+  font-size: 0.78rem; font-weight: 500; letter-spacing: var(--track-normal);
+  color: var(--tx-3);
+}
+.organizandoNota {
+  margin: -0.2rem 0 1rem; font-size: 0.82rem; color: var(--tx-2); line-height: 1.5;
+}
+.organizandoNota span { color: var(--marca-texto, var(--marca)); font-weight: 600; }
+
+/* Un grupo entero es arrastrable: se levanta como una pieza, con sus
+   materiales dentro. */
+.grupoOrdenable {
+  border: 1px solid var(--borde); border-radius: var(--r-3);
+  padding: 0.8rem 0.9rem; background: var(--papel);
+}
+.grupoOrdenable .grupoCabecera { border-bottom: none; padding-bottom: 0; }
+.arrastrando { opacity: 0.35; }
+.asaGrupo {
+  font: inherit; line-height: 1; cursor: grab;
+  border: none; background: none; color: var(--tx-3);
+  padding: 0.15rem 0.2rem; border-radius: var(--r-1); flex: none;
+}
+.asaGrupo:hover { color: var(--tx); background: var(--papel-hundido); }
+.asaGrupo:active { cursor: grabbing; }
+.asaGrupo:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+/* En modo organizar los materiales van en columna: se comparan de un vistazo
+   y el asa siempre cae en el mismo sitio. La rejilla es de la vista de leer. */
+.materialesOrdenables { display: grid; gap: 0.5rem; }
+.materialOrdenable {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 0.7rem;
+  padding: 0.35rem; border-radius: var(--r-2); background: var(--papel-hundido);
+}
+/* Dentro de organizar la tarjeta se acuesta: carátula pequeña a la izquierda
+   y título al lado. Sigue reconociéndose de un vistazo —para eso está la
+   carátula— sin gastar el alto de la rejilla, que aquí solo serviría para
+   alejar unas piezas de otras justo cuando hay que compararlas. */
+.materialOrdenable .materiales { grid-template-columns: 1fr; gap: 0; }
+/* La TARJETA se parte en dos: lo que se lee, y sus acciones al final. Es el
+   `.material` quien lleva estas dos columnas —tiene exactamente dos hijos, el
+   enlace y las acciones— y el ENLACE lleva las suyas por dentro, carátula y
+   texto. Ponerle las de la miniatura al padre estrujaba el enlace entero en
+   4,6rem y dejaba «Renombrar ✕» encima del título. */
+.materialOrdenable .material { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.materialOrdenable .materialEnlace { grid-template-columns: 3.6rem minmax(0, 1fr); align-items: center; }
+.materialOrdenable .materialCaratula { aspect-ratio: 1; border-bottom: none; border-right: 1px solid var(--borde); }
+.materialOrdenable .materialTexto { padding: 0.45rem 0.7rem; }
+/* Una línea: en una fila de altura fija, la segunda se sale de la caja. */
+.materialOrdenable .materialTitulo { font-size: 0.86rem; -webkit-line-clamp: 1; line-clamp: 1; }
+.materialOrdenable .materialMeta { font-size: 0.72rem; }
+/* "PDF" en una carátula de 3,6rem se partía en "PD / F". */
+.materialOrdenable .materialDistintivo { font-size: 0.66rem; padding: 0 0.2rem; overflow-wrap: normal; }
+/* El ✕ y «Renombrar» de la tarjeta: aquí SÍ permanentes, porque este es el
+   modo en el que se editan. En lectura ni siquiera se montan. */
+.materialOrdenable .materialAcciones {
+  opacity: 1; padding: 0 0.7rem; flex-wrap: nowrap; flex: none;
+}
 .materialGrupoSelector { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.materialGrupoSelector select, .materialGrupoSelector input { font-size: 0.8rem; max-width: 18rem; }
+.materialGrupoSelector select, .materialGrupoSelector input { font-size: 0.8rem; width: 11rem; max-width: 11rem; }
+/* Lo que sigue al cursor: el nombre de lo que llevas, no una captura de la
+   tarjeta entera —que a este tamaño taparía justo el hueco donde va a caer. */
+.arrastrandoFantasma {
+  padding: 0.5rem 0.9rem; border-radius: var(--r-2);
+  background: var(--tx); color: var(--papel);
+  font-size: 0.85rem; font-weight: 600; box-shadow: var(--e-2);
+}
 
 /* ══ UNA SECCIÓN PLEGABLE ═════════════════════════════════════════════════
    `details`/`summary` nativos: se abre con teclado y con dedo sin una línea

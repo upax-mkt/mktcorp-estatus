@@ -39,6 +39,20 @@ export const EsquemaTema = z.object({
   /** Clave de familia tipográfica, resuelta en src/temas/fuentes.ts */
   familiaDisplay: z.string().min(1),
   familiaTexto: z.string().min(1),
+  /**
+   * Los enlaces públicos de la marca: sitio, blog y redes (`salas.redes`).
+   * `.catch({})` y no `.optional()`: una fila con un JSON raro en esa columna
+   * NO puede tumbar la marca entera de una sala —`cargarTemas` descarta la
+   * fila que no valida, y con ella el color, el logo y el degradado—; que
+   * falten unos iconos es infinitamente más barato que una sala sin vestir.
+   * Lo que llega se sanea después con `sanearRedes`, que es quien filtra
+   * claves desconocidas y esquemas que no sean http(s).
+   *
+   * `.optional()` para que los temas de la SEMILLA (`src/temas/*.ts`, escritos
+   * a mano) no tengan que declarar un `redes: {}` que no dice nada: sin redes
+   * y con redes vacías son lo mismo, y quien lo pinta ya trata los dos igual.
+   */
+  redes: z.record(z.string(), z.string()).catch({}).optional(),
 })
 
 export type Tema = z.infer<typeof EsquemaTema>

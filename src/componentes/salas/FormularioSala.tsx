@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { upload } from '@vercel/blob/client'
 import { derivarMarca, slugDesdeNombre } from '@/lib/marca'
+import { REDES, NOMBRE_DE_RED, type RedesDeSala } from '@/dominio/redes'
 import { medirTinta } from '@/lib/tinta'
 import { rutaDeArchivo, pesoLegible, TAMANO_MAXIMO } from '@/lib/blob'
 import type { Cadencia } from '@/dominio/reunion'
@@ -92,6 +93,13 @@ export interface DatosSala {
    * todavía no leen ni escriben `crearSalaAction`/`editarSalaAction`.
    */
   cadencia?: Cadencia
+  /**
+   * Los enlaces públicos de la marca — sitio, blog y redes. Clave → URL, con
+   * las claves de `src/dominio/redes.ts`. Opcional por el mismo motivo que
+   * `cadencia`: los fixtures de `acciones.test.ts` construyen este tipo a
+   * mano.
+   */
+  redes?: RedesDeSala
 }
 
 /** Lo mínimo de una sala YA CREADA que este formulario necesita para editarla. */
@@ -113,6 +121,8 @@ export interface SalaExistente {
   logoRelacionDeTinta?: number | null
   /** Opcional por lo mismo — hoy `page.tsx` todavía no la trae (ver el aviso junto a `CADENCIAS`); si falta, arranca en `CADENCIA_POR_DEFECTO`. */
   cadencia?: Cadencia
+  /** Los enlaces públicos ya guardados, si los hay. */
+  redes?: RedesDeSala
 }
 
 interface Props {
@@ -172,6 +182,13 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
   const [identificadorTocado, setIdentificadorTocado] = useState(editando)
   const [primario, setPrimario] = useState(sala?.primario ?? '')
   const [secundario, setSecundario] = useState(sala?.secundario ?? '')
+  /**
+   * Los enlaces de la marca. Se guardan TODOS los campos aunque estén vacíos y
+   * se limpian al enviar: un `Record` con huecos es más simple de teclear que
+   * una lista de pares que hay que añadir y quitar, y `sanearRedes` (dominio)
+   * se queda solo con lo que tiene URL válida.
+   */
+  const [redes, setRedes] = useState<RedesDeSala>(sala?.redes ?? {})
   const [acento, setAcento] = useState(sala?.acento ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
@@ -325,6 +342,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
           logoUrl,
           logoRelacionDeTinta: logoRelacion,
           cadencia,
+          redes,
         })
         if (r.error) {
           setError(r.error)
@@ -506,6 +524,36 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               Déjalos en blanco y se derivan del primario. Escríbelos cuando la marca tenga más de
               un color de verdad — o cuando el primario sea negro, blanco o gris: de esos no se
               puede derivar nada, porque no tienen tono que girar.
+            </p>
+          </div>
+
+          {/* LOS ENLACES PÚBLICOS DE LA MARCA (Franco: *"necesito que todas
+              las salas en el header tengan sus respectivos iconos de redes
+              sociales, sitio web, blog, etc."*). Todos los campos a la vista y
+              en blanco: escribir en uno es más rápido que "añadir enlace →
+              elegir tipo → pegar", y una lista fija se lee de arriba abajo
+              para saber qué falta. Lo vacío no se guarda ni se pinta. */}
+          <div className={estilos.campo}>
+            <span className={estilos.etiqueta}>Enlaces públicos</span>
+            <div className={estilos.redesCampos}>
+              {REDES.map((red) => (
+                <label key={red} className={estilos.redCampo}>
+                  <span className={estilos.redNombre}>{NOMBRE_DE_RED[red]}</span>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    className={estilos.entrada}
+                    value={redes[red] ?? ''}
+                    onChange={(e) => setRedes((r) => ({ ...r, [red]: e.target.value }))}
+                    placeholder="https://…"
+                    aria-label={NOMBRE_DE_RED[red]}
+                  />
+                </label>
+              ))}
+            </div>
+            <p className={estilos.pista}>
+              Aparecen como iconos en la cabecera de la sala, para quien la abra. Lo que se deje en
+              blanco no se muestra. Tienen que empezar por <code>https://</code>.
             </p>
           </div>
 

@@ -6,6 +6,7 @@ import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin } from '@/auth/roles'
 import { derivarMarca, marcaConSobrescritos, slugDesdeNombre } from '@/lib/marca'
+import { sanearRedes } from '@/dominio/redes'
 import { generarEnlaceDeAgenda, revocarEnlaceDeAgenda } from '@/db/enlace-agenda'
 import type { DatosSala } from '@/componentes/salas/FormularioSala'
 import { esFamiliaConocida } from '@/temas/fuentes'
@@ -190,6 +191,9 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
       familiaTexto: datos.familiaTexto,
       logoUrl: datos.logoUrl,
       logoRelacionDeTinta: datos.logoRelacionDeTinta,
+      // Los enlaces públicos, saneados en el servidor: ver el mismo campo en
+      // `editarSalaAction`, más abajo, con el porqué completo.
+      redes: sanearRedes(datos.redes),
     })
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'No se pudo crear la sala.' }
@@ -281,6 +285,19 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         cadencia: datos.cadencia ?? CADENCIA_POR_DEFECTO,
         logoUrl: datos.logoUrl,
         logoRelacionDeTinta: datos.logoRelacionDeTinta,
+        /**
+         * LOS ENLACES PÚBLICOS. `sanearRedes` (dominio) filtra aquí y no en el
+         * formulario: una Server Action es un endpoint, y la validación de una
+         * pantalla no protege lo que hay detrás. Descarta claves desconocidas
+         * y todo lo que no sea `http(s)` — estos enlaces acaban en un `href`
+         * de una página pública, y `javascript:` en un `href` es ejecución.
+         *
+         * Se escribe SIEMPRE, aunque venga vacío: vaciar todos los campos es
+         * una forma legítima de decir "esta marca no tiene redes", y con un
+         * `...(x ? {} : {})` como el de secundario/acento no habría manera de
+         * borrar el último enlace.
+         */
+        redes: sanearRedes(datos.redes),
         updatedAt: new Date(),
       })
       .where(eq(esquema.salas.slug, slug))

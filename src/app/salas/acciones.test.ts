@@ -388,14 +388,21 @@ describe('editarSalaAction — el guardado normal NO toca los ocho campos deriva
     }
   })
 
-  it('el .set() SÍ incluye exactamente los siete campos que el formulario edita de verdad (más updatedAt) — cadencia sumada en la tarea 15', async () => {
+  /**
+   * `redes` se sumó en la ronda 12 y NO es un campo derivado: es exactamente
+   * lo que el formulario edita. Se escribe SIEMPRE, aunque llegue vacío —a
+   * diferencia de `secundario`/`acento`, que solo se tocan si vienen— porque
+   * vaciar todos los campos tiene que poder significar "esta marca no tiene
+   * redes"; sin eso no habría manera de borrar el último enlace.
+   */
+  it('el .set() SÍ incluye exactamente los campos que el formulario edita de verdad (más updatedAt)', async () => {
     await editarSalaAction('zeus', {
       nombre: 'Zeus Nuevo', slug: 'zeus', primario: '#00ff00',
       familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: 'https://blob/x.png', logoRelacionDeTinta: 0.4,
       cadencia: 'quincenal',
     })
     expect(Object.keys(setCapturado.ultimo!).sort()).toEqual(
-      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'cadencia', 'updatedAt'].sort(),
+      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'cadencia', 'redes', 'updatedAt'].sort(),
     )
   })
 
