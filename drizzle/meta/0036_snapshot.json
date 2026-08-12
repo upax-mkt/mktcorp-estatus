@@ -1,0 +1,1211 @@
+{
+  "id": "3eb23405-54ab-4171-8ebb-828b1d8b5922",
+  "prevId": "0a74d0cf-246e-4365-818f-e9a261e3dc94",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.acuerdos": {
+      "name": "acuerdos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sala_slug": {
+          "name": "sala_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "que": {
+          "name": "que",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "responsable": {
+          "name": "responsable",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "squad": {
+          "name": "squad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prioridad": {
+          "name": "prioridad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha_compromiso": {
+          "name": "fecha_compromiso",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estatus": {
+          "name": "estatus",
+          "type": "estatus_acuerdo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'abierto'"
+        },
+        "reunion_origen_id": {
+          "name": "reunion_origen_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monday_id": {
+          "name": "monday_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "responsable_monday_id": {
+          "name": "responsable_monday_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destacado": {
+          "name": "destacado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "monday_tipo": {
+          "name": "monday_tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monday_url": {
+          "name": "monday_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monday_sincronizado_en": {
+          "name": "monday_sincronizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bandeja": {
+          "name": "bandeja",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'no_aplica'"
+        },
+        "historia": {
+          "name": "historia",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "acuerdos_sala_slug_salas_slug_fk": {
+          "name": "acuerdos_sala_slug_salas_slug_fk",
+          "tableFrom": "acuerdos",
+          "tableTo": "salas",
+          "columnsFrom": [
+            "sala_slug"
+          ],
+          "columnsTo": [
+            "slug"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "acuerdos_reunion_origen_id_reuniones_id_fk": {
+          "name": "acuerdos_reunion_origen_id_reuniones_id_fk",
+          "tableFrom": "acuerdos",
+          "tableTo": "reuniones",
+          "columnsFrom": [
+            "reunion_origen_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.archivos": {
+      "name": "archivos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sala_slug": {
+          "name": "sala_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reunion_id": {
+          "name": "reunion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "categoria_archivo",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ruta": {
+          "name": "ruta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nombre_original": {
+          "name": "nombre_original",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enlace": {
+          "name": "enlace",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bloque": {
+          "name": "bloque",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lectura": {
+          "name": "lectura",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo_contenido": {
+          "name": "tipo_contenido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tamano_bytes": {
+          "name": "tamano_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subido_por": {
+          "name": "subido_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "archivos_sala_slug_salas_slug_fk": {
+          "name": "archivos_sala_slug_salas_slug_fk",
+          "tableFrom": "archivos",
+          "tableTo": "salas",
+          "columnsFrom": [
+            "sala_slug"
+          ],
+          "columnsTo": [
+            "slug"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "archivos_reunion_id_reuniones_id_fk": {
+          "name": "archivos_reunion_id_reuniones_id_fk",
+          "tableFrom": "archivos",
+          "tableTo": "reuniones",
+          "columnsFrom": [
+            "reunion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.benchmarks": {
+      "name": "benchmarks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sala_slug": {
+          "name": "sala_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "competidores": {
+          "name": "competidores",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "dimensiones": {
+          "name": "dimensiones",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "lectura": {
+          "name": "lectura",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "benchmarks_sala_slug_salas_slug_fk": {
+          "name": "benchmarks_sala_slug_salas_slug_fk",
+          "tableFrom": "benchmarks",
+          "tableTo": "salas",
+          "columnsFrom": [
+            "sala_slug"
+          ],
+          "columnsTo": [
+            "slug"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.documentos": {
+      "name": "documentos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reunion_id": {
+          "name": "reunion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_documento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'borrador'"
+        },
+        "estructura": {
+          "name": "estructura",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plantilla": {
+          "name": "plantilla",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "documentos_reunion_id_reuniones_id_fk": {
+          "name": "documentos_reunion_id_reuniones_id_fk",
+          "tableFrom": "documentos",
+          "tableTo": "reuniones",
+          "columnsFrom": [
+            "reunion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "documentos_reunion_id_unique": {
+          "name": "documentos_reunion_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reunion_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.enlace_agenda": {
+      "name": "enlace_agenda",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.items": {
+      "name": "items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "documento_id": {
+          "name": "documento_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "orden": {
+          "name": "orden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contenido_crudo": {
+          "name": "contenido_crudo",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision_maquetacion": {
+          "name": "decision_maquetacion",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "items_documento_id_documentos_id_fk": {
+          "name": "items_documento_id_documentos_id_fk",
+          "tableFrom": "items",
+          "tableTo": "documentos",
+          "columnsFrom": [
+            "documento_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.minutas": {
+      "name": "minutas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reunion_id": {
+          "name": "reunion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transcripcion": {
+          "name": "transcripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "texto_final": {
+          "name": "texto_final",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enviada_a": {
+          "name": "enviada_a",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "minutas_reunion_id_reuniones_id_fk": {
+          "name": "minutas_reunion_id_reuniones_id_fk",
+          "tableFrom": "minutas",
+          "tableTo": "reuniones",
+          "columnsFrom": [
+            "reunion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "minutas_reunion_id_unique": {
+          "name": "minutas_reunion_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reunion_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.participacion": {
+      "name": "participacion",
+      "schema": "",
+      "columns": {
+        "reunion_id": {
+          "name": "reunion_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correo": {
+          "name": "correo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primera_edicion": {
+          "name": "primera_edicion",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ultima_edicion": {
+          "name": "ultima_edicion",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ediciones": {
+          "name": "ediciones",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "presento": {
+          "name": "presento",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "participacion_reunion_id_reuniones_id_fk": {
+          "name": "participacion_reunion_id_reuniones_id_fk",
+          "tableFrom": "participacion",
+          "tableTo": "reuniones",
+          "columnsFrom": [
+            "reunion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "participacion_reunion_id_correo_pk": {
+          "name": "participacion_reunion_id_correo_pk",
+          "columns": [
+            "reunion_id",
+            "correo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.personas": {
+      "name": "personas",
+      "schema": "",
+      "columns": {
+        "correo": {
+          "name": "correo",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rol": {
+          "name": "rol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creada_en": {
+          "name": "creada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ultimo_acceso": {
+          "name": "ultimo_acceso",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.personas_monday": {
+      "name": "personas_monday",
+      "schema": "",
+      "columns": {
+        "monday_id": {
+          "name": "monday_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correo": {
+          "name": "correo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cargado_en": {
+          "name": "cargado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantillas": {
+      "name": "plantillas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_plantilla",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "para_que": {
+          "name": "para_que",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "sala_slug": {
+          "name": "sala_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contenido": {
+          "name": "contenido",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "plantillas_sala_slug_salas_slug_fk": {
+          "name": "plantillas_sala_slug_salas_slug_fk",
+          "tableFrom": "plantillas",
+          "tableTo": "salas",
+          "columnsFrom": [
+            "sala_slug"
+          ],
+          "columnsTo": [
+            "slug"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reuniones": {
+      "name": "reuniones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sala_slug": {
+          "name": "sala_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_reunion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plantilla": {
+          "name": "plantilla",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_reunion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'agendada'"
+        },
+        "no_dada_en": {
+          "name": "no_dada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lugar": {
+          "name": "lugar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alcance": {
+          "name": "alcance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'todos'"
+        },
+        "participantes": {
+          "name": "participantes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "reuniones_sala_slug_salas_slug_fk": {
+          "name": "reuniones_sala_slug_salas_slug_fk",
+          "tableFrom": "reuniones",
+          "tableTo": "salas",
+          "columnsFrom": [
+            "sala_slug"
+          ],
+          "columnsTo": [
+            "slug"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.salas": {
+      "name": "salas",
+      "schema": "",
+      "columns": {
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "cadencia": {
+          "name": "cadencia",
+          "type": "cadencia",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'mensual'"
+        },
+        "clave_hash": {
+          "name": "clave_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clave_creada_en": {
+          "name": "clave_creada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "pausada_desde": {
+          "name": "pausada_desde",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primario": {
+          "name": "primario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "secundario": {
+          "name": "secundario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acento": {
+          "name": "acento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "superficie_clara": {
+          "name": "superficie_clara",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "superficie_oscura": {
+          "name": "superficie_oscura",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto_sobre_clara": {
+          "name": "texto_sobre_clara",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto_sobre_oscura": {
+          "name": "texto_sobre_oscura",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gradiente": {
+          "name": "gradiente",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "familia_display": {
+          "name": "familia_display",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "familia_texto": {
+          "name": "familia_texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "logo_url": {
+          "name": "logo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "logo_relacion_de_tinta": {
+          "name": "logo_relacion_de_tinta",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.cadencia": {
+      "name": "cadencia",
+      "schema": "public",
+      "values": [
+        "semanal",
+        "quincenal",
+        "mensual"
+      ]
+    },
+    "public.categoria_archivo": {
+      "name": "categoria_archivo",
+      "schema": "public",
+      "values": [
+        "presentacion",
+        "interes",
+        "imagen",
+        "video",
+        "evidencia",
+        "comercial"
+      ]
+    },
+    "public.estado_documento": {
+      "name": "estado_documento",
+      "schema": "public",
+      "values": [
+        "borrador",
+        "listo"
+      ]
+    },
+    "public.estado_reunion": {
+      "name": "estado_reunion",
+      "schema": "public",
+      "values": [
+        "agendada",
+        "dada"
+      ]
+    },
+    "public.estatus_acuerdo": {
+      "name": "estatus_acuerdo",
+      "schema": "public",
+      "values": [
+        "abierto",
+        "cumplido",
+        "vencido",
+        "cancelado"
+      ]
+    },
+    "public.tipo_plantilla": {
+      "name": "tipo_plantilla",
+      "schema": "public",
+      "values": [
+        "sesion",
+        "minuta"
+      ]
+    },
+    "public.tipo_reunion": {
+      "name": "tipo_reunion",
+      "schema": "public",
+      "values": [
+        "semanal",
+        "quincenal",
+        "mensual"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

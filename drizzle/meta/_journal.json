@@ -253,6 +253,13 @@
       "when": 1786384815760,
       "tag": "0035_reunion_recuerda_su_plantilla",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1786493765625,
+      "tag": "0036_alinear_snapshots",
+      "breakpoints": true
     }
   ]
 }
