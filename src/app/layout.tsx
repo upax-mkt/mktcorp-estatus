@@ -8,7 +8,7 @@ import "./globals.css";
 import "./sistema.css";
 
 export const metadata: Metadata = {
-  title: "mktcorp-estatus",
+  title: "Meeting Hub · Marketing Corp",
   description: "Sistema de estatus en vivo de Marketing Corporativo para las salas de Grupo UPAX",
 };
 

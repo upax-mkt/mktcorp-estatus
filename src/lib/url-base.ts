@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 
 /**
- * Origen público de la app ("https://mktcorp-estatus.vercel.app"), para armar
+ * Origen público de la app ("https://mktcorp-upax.vercel.app"), para armar
  * links que se comparten fuera (el acceso de una sala).
  *
  * Se toma del propio request, así el link que se copia apunta siempre al

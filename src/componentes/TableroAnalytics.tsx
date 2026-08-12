@@ -10,8 +10,14 @@ import estilos from '@/app/cliente/cliente.module.css'
  * Franco: *"en cada sala hay que agregar un módulo más, arriba de los
  * acuerdos: es un iframe con data y analytics de la UDN"*. Lo sirve ORBIT
  * (RevOps) en `orbit-hub-fgap.vercel.app/embed/<slug>`, sin login, y esa ruta
- * solo se deja incrustar desde `mktcorp-estatus.vercel.app` — cabecera
- * `Content-Security-Policy: frame-ancestors`, del lado de ORBIT.
+ * solo se deja incrustar desde el dominio que ORBIT tenga en su cabecera
+ * `Content-Security-Policy: frame-ancestors`.
+ *
+ * ⚠️ HOY ESA CABECERA DICE `mktcorp-estatus.vercel.app`, que era el dominio de
+ * esta app antes del 12-ago. **Al renombrarla a `mktcorp-upax.vercel.app` el
+ * tablero deja de cargar por el dominio nuevo** hasta que RevOps añada el
+ * nuevo a su `frame-ancestors`. El viejo se conservó como alias justo para que
+ * no se cayera mientras tanto.
  *
  * ⚠️ CONSECUENCIA: **en `localhost:3000` el iframe sale en blanco** y el
  * navegador escribe un error de CSP en consola. No es un fallo de esta

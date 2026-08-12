@@ -56,7 +56,8 @@ export const EsquemaTema = z.object({
   /**
    * El tablero de Data & Analytics de esta UDN, para incrustar
    * (`salas.analytics_url`). Lo sirve ORBIT y solo se deja cargar en iframe
-   * desde `mktcorp-estatus.vercel.app`. Ausente = esta sala no tiene tablero,
+   * desde el dominio que ORBIT tenga en su `frame-ancestors` (ver el aviso en
+   * `TableroAnalytics.tsx`). Ausente = esta sala no tiene tablero,
    * y entonces el módulo no existe.
    */
   analyticsUrl: z.string().nullish().catch(null),
