@@ -393,7 +393,9 @@ describe('editarSalaAction — el guardado normal NO toca los ocho campos deriva
    * lo que el formulario edita. Se escribe SIEMPRE, aunque llegue vacío —a
    * diferencia de `secundario`/`acento`, que solo se tocan si vienen— porque
    * vaciar todos los campos tiene que poder significar "esta marca no tiene
-   * redes"; sin eso no habría manera de borrar el último enlace.
+   * redes"; sin eso no habría manera de borrar el último enlace. Lo mismo
+   * `analyticsUrl`, que se sumó con el módulo de Data & Analytics: vaciarlo
+   * es lo que quita el módulo de la sala.
    */
   it('el .set() SÍ incluye exactamente los campos que el formulario edita de verdad (más updatedAt)', async () => {
     await editarSalaAction('zeus', {
@@ -402,7 +404,7 @@ describe('editarSalaAction — el guardado normal NO toca los ocho campos deriva
       cadencia: 'quincenal',
     })
     expect(Object.keys(setCapturado.ultimo!).sort()).toEqual(
-      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'cadencia', 'redes', 'updatedAt'].sort(),
+      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'cadencia', 'redes', 'analyticsUrl', 'updatedAt'].sort(),
     )
   })
 

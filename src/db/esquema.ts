@@ -113,6 +113,18 @@ export const salas = pgTable('salas', {
    * distinguir entre los dos, así que no admite nulo.
    */
   redes: jsonb('redes').$type<RedesDeSala>().notNull().default({}),
+  /**
+   * EL TABLERO DE DATA & ANALYTICS DE ESTA UDN, para incrustar.
+   *
+   * Lo sirve ORBIT (`orbit-hub-fgap.vercel.app/embed/<slug>`), la app de
+   * RevOps. Se guarda la URL COMPLETA y no solo un interruptor "tiene
+   * analytics", aunque hoy todas sigan el mismo patrón por slug: el día que
+   * una UDN cuelgue de otra ruta —o de otro tablero— un booleano obligaría a
+   * tocar el código, y una URL no.
+   *
+   * Nula = esta sala no tiene tablero, y entonces el módulo no existe.
+   */
+  analyticsUrl: text('analytics_url'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

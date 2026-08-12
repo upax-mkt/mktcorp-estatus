@@ -320,6 +320,7 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
               // "esta marca no tiene redes"—, así que un formulario que no las
               // recibiera las borraría al guardar cualquier otra cosa.
               redes: tema.redes,
+              analyticsUrl: tema.analyticsUrl,
             }}
             // Se vuelve a la sala, no a la lista global: aquí se entró desde
             // dentro de ella. El default de `FormularioSala` es `/salas`, que

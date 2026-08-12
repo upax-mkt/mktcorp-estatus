@@ -53,6 +53,13 @@ export const EsquemaTema = z.object({
    * y con redes vacías son lo mismo, y quien lo pinta ya trata los dos igual.
    */
   redes: z.record(z.string(), z.string()).catch({}).optional(),
+  /**
+   * El tablero de Data & Analytics de esta UDN, para incrustar
+   * (`salas.analytics_url`). Lo sirve ORBIT y solo se deja cargar en iframe
+   * desde `mktcorp-estatus.vercel.app`. Ausente = esta sala no tiene tablero,
+   * y entonces el módulo no existe.
+   */
+  analyticsUrl: z.string().nullish().catch(null),
 })
 
 export type Tema = z.infer<typeof EsquemaTema>

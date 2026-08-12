@@ -59,10 +59,16 @@ vi.mock('next/navigation', async (importOriginal) => {
   }
 })
 
+/** La marca mínima que esta pantalla necesita para vestirse. */
+const TEMA_BASE = { nombre: 'NeraCode', primario: '#101010', gradiente: ['#101010', '#202020'] }
+/**
+ * Reconfigurable por test (mismo patrón que `estadoDeSalaMock`): hace falta
+ * para el módulo de Data & Analytics, cuya URL vive en el TEMA de la sala
+ * (`salas.analytics_url`) y no en su estado.
+ */
+const cargarTemasMock = vi.fn()
 vi.mock('@/db/temas', () => ({
-  cargarTemas: vi.fn().mockResolvedValue({
-    neracode: { nombre: 'NeraCode', primario: '#101010', gradiente: ['#101010', '#202020'] },
-  }),
+  cargarTemas: () => cargarTemasMock(),
   slugsDeSalas: vi.fn().mockResolvedValue(['neracode']),
 }))
 
@@ -345,6 +351,9 @@ beforeEach(() => {
   // Default para todo el archivo: la sala sin reuniones. El bloque de
   // participación lo pisa puntualmente con `mockResolvedValueOnce`.
   estadoDeSalaMock.mockResolvedValue(SALA_BASE)
+  // Sin `analyticsUrl`: el módulo de Data & Analytics no existe salvo que un
+  // test lo pida, que es exactamente su comportamiento en producción.
+  cargarTemasMock.mockResolvedValue({ neracode: TEMA_BASE })
   participantesDeMock.mockResolvedValue([])
   // Default: cualquier reunionId que llegue a `registrarArchivoAction` se
   // resuelve como de ESTA sala ('neracode', el slug fijo de `invocar()`) —
@@ -458,7 +467,10 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
     expect(comercial).toBeInTheDocument()
     expect(interes).toBeInTheDocument()
     // El comercial va primero: es el que se abre antes de una reunión.
-    const titulos = [...container.querySelectorAll<HTMLElement>('h2')]
+    // `h2, summary`: los módulos se volvieron plegables en la ronda 12
+    // (Franco: *"los módulos todos deben tener la opción de colapsarse"*) y
+    // una sección plegable titula con `<summary>`, no con `<h2>`.
+    const titulos = [...container.querySelectorAll<HTMLElement>('h2, summary')]
     expect(titulos.indexOf(comercial)).toBeLessThan(titulos.indexOf(interes))
   })
 
@@ -1423,5 +1435,132 @@ describe('VistaSala (/cliente/[slug]) — "Salir" solo cuando hay sesión', () =
     render(await invocar())
 
     expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
+  })
+})
+
+/**
+ * LA RONDA 12, PARTE 2 — cuatro peticiones de Franco sobre la sala.
+ */
+describe('VistaSala (/cliente/[slug]) — el freeze se gobierna en ajustes', () => {
+  /**
+   * Franco: *"pausar la sala solo debe vivir dentro de los ajustes de la
+   * sala"*. El interruptor estaba en lo primero de la sala, encima de los
+   * acuerdos, todos los días — para un gesto que se hace una vez al año. Y ya
+   * existía además en `/cliente/<slug>/ajustes`: era el mismo botón en dos
+   * sitios, y el de aquí era el que estorbaba.
+   */
+  it('ni al admin le ofrece pausar desde la sala', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.queryByRole('button', { name: /pausar esta sala/i })).not.toBeInTheDocument()
+  })
+
+  /**
+   * LO QUE SÍ SE QUEDA, y ahora para TODOS y no solo para el director: que una
+   * sala esté congelada explica por qué no tiene próxima reunión ni
+   * vencimientos, y esa pregunta se la hace igual quien la gestiona.
+   */
+  it('con la sala en pausa, el aviso se ve también siendo del equipo', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce({ ...SALA_BASE, activa: false, pausadaDesde: '2026-08-03' })
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.getByText(/está en pausa/i)).toBeInTheDocument()
+    // Y con la puerta a donde se cambia, que es lo único que se movió.
+    expect(screen.getByRole('link', { name: /reactivar en los ajustes/i })).toBeInTheDocument()
+  })
+
+  it('con la sala activa no hay aviso ninguno', async () => {
+    esLectorMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.queryByText(/está en pausa/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('VistaSala (/cliente/[slug]) — un módulo vacío no existe para quien solo mira', () => {
+  /**
+   * Franco: *"si hay algún módulo que no tenga contenido en la vista de viewer
+   * no debe mostrarse"*. Al director de la UDN, "Benchmark aún no cargado para
+   * esta sala" no le dice nada que pueda hacer: es una nota interna sobre
+   * trabajo de Marketing Corp, en la sala que se le comparte.
+   */
+  it('sin benchmark, el director no ve el módulo', async () => {
+    esLectorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.queryByText(/benchmark competitivo/i)).not.toBeInTheDocument()
+  })
+
+  /** Al equipo sí: para él ese vacío ES la puerta de entrada a cargarlo. */
+  it('sin benchmark, el equipo sí lo ve: es por donde se carga', async () => {
+    esLectorMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.getByText(/benchmark competitivo/i)).toBeInTheDocument()
+  })
+})
+
+describe('VistaSala (/cliente/[slug]) — Data & Analytics', () => {
+  /**
+   * Franco: *"en cada sala hay que agregar un módulo más, debe estar arriba de
+   * los acuerdos: es un iframe de un módulo que contiene data y analytics de
+   * la UDN"*. La URL la guarda cada sala (`salas.analytics_url`); sin ella no
+   * hay módulo, ni vacío ni aviso — que es la misma regla del bloque de
+   * arriba.
+   */
+  it('sin URL guardada, el módulo no existe', async () => {
+    esLectorMock.mockResolvedValue(true)
+
+    render(await invocar())
+
+    expect(screen.queryByText(/data & analytics/i)).not.toBeInTheDocument()
+    expect(document.querySelector('iframe')).toBeNull()
+  })
+
+  it('con URL, el iframe apunta ahí y va ARRIBA de los acuerdos', async () => {
+    cargarTemasMock.mockResolvedValue({
+      neracode: { ...TEMA_BASE, analyticsUrl: 'https://orbit-hub-fgap.vercel.app/embed/neracode' },
+    })
+    esLectorMock.mockResolvedValue(true)
+
+    const { container } = render(await invocar())
+
+    const marco = container.querySelector('iframe')
+    expect(marco?.getAttribute('src')).toBe('https://orbit-hub-fgap.vercel.app/embed/neracode')
+    // El orden importa y es lo que se pidió: primero los datos.
+    const titulos = [...container.querySelectorAll<HTMLElement>('h2, summary')].map((t) => t.textContent ?? '')
+    const analytics = titulos.findIndex((t) => /data & analytics/i.test(t))
+    const acuerdos = titulos.findIndex((t) => /acuerdos/i.test(t))
+    expect(analytics).toBeGreaterThanOrEqual(0)
+    expect(analytics).toBeLessThan(acuerdos)
+  })
+})
+
+describe('VistaSala (/cliente/[slug]) — todos los módulos se colapsan', () => {
+  /**
+   * Franco: *"los módulos todos deben tener la opción de colapsarse"*. Solo
+   * Acuerdos lo era. Se comprueba sobre `<details>` —no sobre una clase— porque
+   * eso es lo que hace que funcione con teclado y sin JavaScript.
+   */
+  it('cada sección de la sala es un <details> abierto', async () => {
+    esLectorMock.mockResolvedValue(true)
+
+    const { container } = render(await invocar())
+
+    const plegables = [...container.querySelectorAll('main details')]
+    // Acuerdos, Reuniones, Benchmark, Materiales Comerciales, Archivos de Interés.
+    expect(plegables.length).toBeGreaterThanOrEqual(5)
+    // Abiertos de serie: lo que se esconde por defecto deja de existir.
+    for (const d of plegables) expect((d as HTMLDetailsElement).open).toBe(true)
   })
 })

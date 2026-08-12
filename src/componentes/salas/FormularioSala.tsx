@@ -100,6 +100,12 @@ export interface DatosSala {
    * mano.
    */
   redes?: RedesDeSala
+  /**
+   * El tablero de Data & Analytics que se incrusta en la sala. Cadena vacía =
+   * "no tiene", que es lo que borra el módulo — por eso viaja como texto y no
+   * como `string | null`: el formulario no distingue "vacío" de "sin tocar".
+   */
+  analyticsUrl?: string
 }
 
 /** Lo mínimo de una sala YA CREADA que este formulario necesita para editarla. */
@@ -123,6 +129,8 @@ export interface SalaExistente {
   cadencia?: Cadencia
   /** Los enlaces públicos ya guardados, si los hay. */
   redes?: RedesDeSala
+  /** El tablero de analytics ya guardado, si lo hay. */
+  analyticsUrl?: string | null
 }
 
 interface Props {
@@ -189,6 +197,8 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
    * se queda solo con lo que tiene URL válida.
    */
   const [redes, setRedes] = useState<RedesDeSala>(sala?.redes ?? {})
+  /** El tablero de ORBIT que se incrusta en la sala. Vacío = no hay módulo. */
+  const [analyticsUrl, setAnalyticsUrl] = useState(sala?.analyticsUrl ?? '')
   const [acento, setAcento] = useState(sala?.acento ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
@@ -343,6 +353,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
           logoRelacionDeTinta: logoRelacion,
           cadencia,
           redes,
+          analyticsUrl: analyticsUrl.trim(),
         })
         if (r.error) {
           setError(r.error)
@@ -554,6 +565,27 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
             <p className={estilos.pista}>
               Aparecen como iconos en la cabecera de la sala, para quien la abra. Lo que se deje en
               blanco no se muestra. Tienen que empezar por <code>https://</code>.
+            </p>
+          </div>
+
+          {/* EL TABLERO DE DATA & ANALYTICS (RevOps). Un campo y no un
+              interruptor: el patrón de hoy es por slug, pero eso es cómo están
+              montadas las dos primeras salas, no una promesa de ORBIT. */}
+          <div className={estilos.campo}>
+            <label className={estilos.etiqueta} htmlFor="analytics-url">Data &amp; Analytics</label>
+            <input
+              id="analytics-url"
+              type="url"
+              inputMode="url"
+              className={estilos.entrada}
+              value={analyticsUrl}
+              onChange={(e) => setAnalyticsUrl(e.target.value)}
+              placeholder="https://orbit-hub-fgap.vercel.app/embed/…"
+            />
+            <p className={estilos.pista}>
+              El tablero de ORBIT que se incrusta arriba de los acuerdos, en la sala. En blanco, el
+              módulo no aparece. Solo carga desde el dominio de esta app: en local sale en blanco, y
+              es la política de seguridad de ORBIT funcionando, no un fallo.
             </p>
           </div>
 

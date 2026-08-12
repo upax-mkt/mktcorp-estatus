@@ -6,7 +6,7 @@ import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin } from '@/auth/roles'
 import { derivarMarca, marcaConSobrescritos, slugDesdeNombre } from '@/lib/marca'
-import { sanearRedes } from '@/dominio/redes'
+import { sanearRedes, urlPublicaValida } from '@/dominio/redes'
 import { generarEnlaceDeAgenda, revocarEnlaceDeAgenda } from '@/db/enlace-agenda'
 import type { DatosSala } from '@/componentes/salas/FormularioSala'
 import { esFamiliaConocida } from '@/temas/fuentes'
@@ -194,6 +194,10 @@ export async function crearSalaAction(datos: DatosSala): Promise<{ error?: strin
       // Los enlaces públicos, saneados en el servidor: ver el mismo campo en
       // `editarSalaAction`, más abajo, con el porqué completo.
       redes: sanearRedes(datos.redes),
+      analyticsUrl:
+        datos.analyticsUrl && urlPublicaValida(datos.analyticsUrl)
+          ? datos.analyticsUrl.trim()
+          : null,
     })
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'No se pudo crear la sala.' }
@@ -298,6 +302,17 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
          * borrar el último enlace.
          */
         redes: sanearRedes(datos.redes),
+        /**
+         * EL TABLERO DE ANALYTICS. Se escribe siempre, por el mismo motivo que
+         * `redes`: vaciar el campo tiene que poder quitar el módulo. `null` y
+         * no cadena vacía —la columna es nullable y "sin tablero" es la
+         * ausencia, no un texto en blanco— y solo si es una URL `http(s)`
+         * de verdad: acaba en el `src` de un iframe.
+         */
+        analyticsUrl:
+          datos.analyticsUrl && urlPublicaValida(datos.analyticsUrl)
+            ? datos.analyticsUrl.trim()
+            : null,
         updatedAt: new Date(),
       })
       .where(eq(esquema.salas.slug, slug))

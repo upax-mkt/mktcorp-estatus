@@ -20,6 +20,7 @@ import {
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { Seccion } from '@/componentes/Seccion'
 import { RedesDeSala } from '@/componentes/RedesDeSala'
+import { TableroAnalytics } from '@/componentes/TableroAnalytics'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
   type EstatusAcuerdo,
@@ -43,7 +44,6 @@ import { normalizarEnlace } from '@/lib/materiales'
 import { MaterialesAgrupados } from '@/componentes/MaterialesAgrupados'
 import { AnadirMaterial } from '@/componentes/AnadirMaterial'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
-import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
 import {
@@ -52,7 +52,7 @@ import {
 import {
   documentoDeReunion, eliminarDocumentoDeReunion, tituloPorDefecto,
 } from '@/db/documentos'
-import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
+import { destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import { puedeVerEstaSala, cerrarSesion, sesionActual } from '@/auth/sesion'
@@ -575,23 +575,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
 
   // ---- El freeze de esta sala (tarea 12, ronda 7) ----
-  // Cierres finos sobre `pausarSalaAction`/`reactivarSalaAction` (ambas ya
-  // exigen equipo por su cuenta) para que `PausaSala` no tenga que conocer el
-  // slug. La comprobación real de "¿se puede preparar una sesión con la sala
-  // en pausa?" NO vive aquí, sino en `crearSesion` (src/db/sesiones.ts): es
-  // el único punto por el que pasan los tres caminos que crean una sesión, y
-  // repetirla en cada página sería justo el tipo de protección que se olvida
-  // en una de las tres.
-
-  async function pausarEstaSalaAction(): Promise<void> {
-    'use server'
-    await pausarSalaAction(slug)
-  }
-
-  async function reactivarEstaSalaAction(): Promise<void> {
-    'use server'
-    await reactivarSalaAction(slug)
-  }
+  // EL FREEZE SE GOBIERNA EN AJUSTES (ronda 12). `pausarEstaSalaAction` y
+  // `reactivarEstaSalaAction` vivían aquí para el interruptor que Franco
+  // mandó mudar —*"pausar la sala solo debe vivir dentro de los ajustes de la
+  // sala"*—; se retiran con él y no se dejan sin llamadores. Las de verdad
+  // (`pausarSalaAction`/`reactivarSalaAction`, src/app/acuerdos/acciones.ts,
+  // que exigen equipo por su cuenta) las usa `cliente/[slug]/ajustes`.
+  //
+  // Lo que NO se movió: la comprobación de "¿se puede preparar una reunión
+  // con la sala en pausa?" nunca estuvo aquí. Vive en `crearReunion`
+  // (src/db/reuniones.ts), el único punto por el que pasan los tres caminos
+  // que crean una, y repetirla por página sería justo el tipo de protección
+  // que se olvida en una de las tres.
 
   // ---- Server actions: archivos colgados en la sala ----
 
@@ -1063,29 +1058,33 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       </div>
 
       <main className={estilos.main}>
-        {/* EL FREEZE (tarea 12): equipo ve el interruptor completo —pausar o
-            reactivar, con lo que cada uno implica—; el director de solo
-            lectura, si está en pausa, ve el mismo aviso sin el control, para
-            no ofrecerle un botón que su sesión no puede usar. */}
-        {equipo ? (
-          <PausaSala
-            nombreSala={s.nombre}
-            activa={s.activa}
-            pausadaDesde={s.pausadaDesde}
-            pausarAction={pausarEstaSalaAction}
-            reactivarAction={reactivarEstaSalaAction}
-          />
-        ) : (
-          !s.activa && (
-            <div className={estilos.avisoCongelado}>
-              <span>
-                <strong>{s.nombre} está en pausa</strong>
-                {s.pausadaDesde ? ` desde el ${fechaCompleta(s.pausadaDesde)}` : ''}: no hay reuniones ni
-                gestión hasta nuevo aviso. Los acuerdos se pueden seguir consultando y no vencen
-                mientras tanto.
-              </span>
-            </div>
-          )
+        {/* EL FREEZE: AQUÍ SE INFORMA, NO SE DECIDE (ronda 12).
+            Franco: *"pausar la sala solo debe vivir dentro de los ajustes de
+            la sala"*. Hasta ahora el equipo veía el interruptor completo
+            —pausar o reactivar— en lo primero de la sala, encima de los
+            acuerdos, todos los días, para un gesto que se hace una vez al
+            año. El control ya existía además en `/cliente/<slug>/ajustes`, así
+            que era el mismo botón en dos sitios, y el de aquí era el que
+            estorbaba.
+            LO QUE SÍ SE QUEDA es el aviso, y ahora PARA TODOS y no solo para
+            el director: que una sala esté congelada explica por qué no tiene
+            próxima reunión ni vencimientos, y esa pregunta se la hace igual
+            quien la gestiona. Con el enlace a los ajustes para quien puede
+            cambiarlo. */}
+        {!s.activa && (
+          <div className={estilos.avisoCongelado}>
+            <span>
+              <strong>{s.nombre} está en pausa</strong>
+              {s.pausadaDesde ? ` desde el ${fechaCompleta(s.pausadaDesde)}` : ''}: no hay reuniones ni
+              gestión hasta nuevo aviso. Los acuerdos se pueden seguir consultando y no vencen
+              mientras tanto.
+            </span>
+            {admin && (
+              <Link href={`/cliente/${slug}/ajustes`} className={estilos.avisoEnlace}>
+                Reactivar en los ajustes →
+              </Link>
+            )}
+          </div>
         )}
 
         {/* POR QUÉ ESTÁS AQUÍ, dicho en vez de dejarlo adivinar.
@@ -1114,6 +1113,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             de quien mira, no el estado en que se le entrega.
             EL RESUMEN VIAJA AL ENCABEZADO para que plegado siga informando:
             "5 abiertos · 2 vencidos" es lo que se necesita saber sin abrir. */}
+        {/* DATA & ANALYTICS — arriba de Acuerdos, como pidió Franco. Solo si
+            esta sala tiene tablero: sin él no hay módulo, ni vacío ni aviso
+            (ver `analyticsUrl` en el esquema y `TableroAnalytics`). */}
+        {tema?.analyticsUrl && (
+          <TableroAnalytics url={tema.analyticsUrl} nombreSala={s.nombre} />
+        )}
+
         <Seccion icono="acuerdos" titulo="Acuerdos" conteo={resumenDeAcuerdos(s.acuerdos)} plegable>
           {s.acuerdos.length === 0 && !equipo ? (
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
@@ -1213,7 +1219,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             reunión". Eran dos listas paralelas ordenadas cada una por su
             cuenta; para saber qué se acordó en la presentación de mayo había
             que buscar mayo dos veces. */}
-        <Seccion icono="reuniones" titulo="Reuniones" conteo={reuniones.length > 0 && reuniones.length}>
+        <Seccion icono="reuniones" titulo="Reuniones" conteo={reuniones.length > 0 && reuniones.length} plegable>
 
           {/* UN SOLO MÓDULO. `porVenir` es lo que hay que preparar —con lo
               que le falta y las tres salidas: seguir editando, subir la que
@@ -1268,14 +1274,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           )}
         </Seccion>
 
-        {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}
+        {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5).
+            SOLO SI HAY BENCHMARK O SI QUIEN MIRA PUEDE CARGARLO. Franco: *"si
+            hay algún módulo que no tenga contenido en la vista de viewer no
+            debe mostrarse"*. Al director de la UDN, "Benchmark aún no cargado
+            para esta sala" no le dice nada que pueda hacer: es una nota
+            interna sobre trabajo de Marketing Corp, en la sala que se le
+            comparte. Al equipo sí se le enseña vacío, porque para él ES la
+            puerta de entrada a cargarlo. Mismo criterio que ya seguían los dos
+            módulos de material. */}
+        {(benchmark || equipo) && (
         <Seccion
           icono="benchmark"
           titulo="Benchmark competitivo"
           conteo={benchmark && `${s.nombre} + ${benchmark.competidores.length} competidores`}
+          plegable
         >
           <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} salaSlug={slug} />
         </Seccion>
+        )}
 
         {/* LOS DOS MÓDULOS DE MATERIAL, al final de la sala.
 

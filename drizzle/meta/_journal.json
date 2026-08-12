@@ -281,6 +281,13 @@
       "when": 1786565221283,
       "tag": "0039_redes_de_sala",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1786566527413,
+      "tag": "0040_tablero_de_analytics",
+      "breakpoints": true
     }
   ]
 }

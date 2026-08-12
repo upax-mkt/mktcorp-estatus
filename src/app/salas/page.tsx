@@ -225,6 +225,7 @@ export default async function PagSalas({
                           // así que sin esto guardar cualquier cambio las
                           // borraría todas.
                           redes: tema.redes,
+                          analyticsUrl: tema.analyticsUrl,
                         }}
                       />
                     </div>

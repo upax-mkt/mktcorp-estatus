@@ -1682,3 +1682,35 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 /* La ficha de un competidor pierde el bloque "cómo opera" y se queda en lo
    que se mira antes de entrar a la reunión: fortaleza, qué no pelear, la
    fortaleza invisible, dónde se le gana y si contesta el teléfono. */
+
+/* ── EL TABLERO DE ANALYTICS ──────────────────────────────────────────────
+   Diego Luna (RevOps) midió el contenido de ORBIT en 900-950 px de alto y
+   pidió ajustar el `height` al espacio disponible. Se usa `min` contra la
+   altura de la ventana para que en un portátil de 13" el tablero no sea más
+   alto que la pantalla: con 900 fijos, quien abre la sala no ve nada más que
+   el iframe y hay que hacer scroll a ciegas para llegar a los acuerdos. */
+/* El enlace a los ajustes dentro del aviso de pausa: el aviso informa, y el
+   control vive en otra pantalla — sin esto habría que salir a buscarla. */
+.avisoEnlace {
+  margin-left: auto; flex: none;
+  font-size: 0.85rem; font-weight: 600; color: inherit;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.avisoEnlace:hover { text-decoration-thickness: 2px; }
+
+.tableroMarco {
+  border-radius: var(--r-3);
+  overflow: hidden;
+  background: var(--papel-hundido);
+}
+.tableroIframe {
+  display: block;
+  width: 100%;
+  height: min(920px, 78vh);
+  border: none;
+}
+/* En móvil manda la altura del contenido, no la de la ventana: 78vh de un
+   teléfono son cuatro dedos y el tablero se vuelve una rendija. */
+@media (max-width: 720px) {
+  .tableroIframe { height: 920px; }
+}

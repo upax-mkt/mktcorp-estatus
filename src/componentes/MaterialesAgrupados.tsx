@@ -167,7 +167,10 @@ export function MaterialesAgrupados({
     )
 
   return (
-    <Seccion icono="archivos" titulo={titulo} conteo={cabecera}>
+    /* Plegable como el resto (Franco: *"los módulos todos deben tener la
+       opción de colapsarse"*). Abierta por defecto: lo que se esconde de
+       serie deja de existir. */
+    <Seccion icono="archivos" titulo={titulo} conteo={cabecera} plegable>
       {materiales.length === 0 ? (
         <p className={estilos.vacioNota}>{vacio}</p>
       ) : equipo && organizando ? (
