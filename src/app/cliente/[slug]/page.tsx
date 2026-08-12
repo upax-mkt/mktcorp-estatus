@@ -19,7 +19,9 @@ import {
 } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { Seccion } from '@/componentes/Seccion'
+import { FilaAcuerdo } from '@/componentes/acuerdos/FilaAcuerdo'
 import { RedesDeSala } from '@/componentes/RedesDeSala'
+import { MenuSecciones, type EntradaDeMenu } from '@/componentes/MenuSecciones'
 import { TableroAnalytics } from '@/componentes/TableroAnalytics'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
@@ -54,7 +56,7 @@ import {
 } from '@/db/documentos'
 import { destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
+import { fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import { puedeVerEstaSala, cerrarSesion, sesionActual } from '@/auth/sesion'
 import { esAdmin, esEditor, esLector, exigirEditor } from '@/auth/roles'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
@@ -98,16 +100,10 @@ async function refrescarDesdeMondaySeguro(slug: string): Promise<void> {
   }
 }
 
-function textoFechaAcuerdo(a: Acuerdo): { txt: string; clase: string } {
-  if (a.fechaCompromiso == null) return { txt: 'por definir', clase: 'pordef' }
-  return {
-    txt: fechaBreve(a.fechaCompromiso),
-    clase: a.estatus === 'vencido' ? 'vencida' : '',
-  }
-}
-const ETIQUETA_ESTADO: Record<Acuerdo['estatus'], string> = {
-  abierto: 'abierto', cumplido: 'cumplido', vencido: 'vencido',
-}
+// `textoFechaAcuerdo` y `ETIQUETA_ESTADO` se mudaron a
+// `componentes/acuerdos/FilaAcuerdo.tsx` con la fila que los usaba: el Home
+// pinta ahora esa MISMA fila, y dos copias de "cómo se escribe la fecha de un
+// acuerdo" es justo lo que hacía que las dos pantallas no coincidieran.
 
 /**
  * QUÉ DICE EL ENCABEZADO DE ACUERDOS CUANDO ESTÁ PLEGADO.
@@ -827,10 +823,39 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     // comentario de `.hero`/`.heroSolida` en cliente.module.css.
     '--hero-superficie': tema.superficieOscura,
     '--hero-texto': tema.textoSobreOscura,
+    // El alto de la barra global, para que el riel de secciones se pegue justo
+    // debajo. CERO cuando no la hay: el director de la UDN no ve el menú de
+    // Marketing Corp, y su riel tiene que pegarse arriba del todo (ver
+    // `.menuSecciones`).
+    '--barra-alta': equipo ? '62px' : '0px',
   } as CSSProperties
 
   const abiertos = acuerdosAbiertos(s)
   const vencidos = acuerdosVencidos(s)
+
+  /**
+   * LAS SECCIONES QUE ESTA VISTA VA A PINTAR, para el índice de arriba.
+   *
+   * Se arma con las MISMAS condiciones que deciden cada `<Seccion>` más abajo
+   * —el tablero solo si la sala tiene URL, el benchmark solo si hay o si eres
+   * del equipo, cada módulo de material solo si tiene algo o si eres del
+   * equipo— porque un índice escrito aparte acabaría ofreciéndole a un
+   * director enlaces a secciones que en su vista no existen. Si alguna
+   * condición cambia allí abajo, tiene que cambiar aquí: son la misma
+   * decisión escrita dos veces, y por eso van pegadas.
+   */
+  const seccionesDeLaSala: EntradaDeMenu[] = [
+    ...(tema?.analyticsUrl ? [{ id: 's-analytics', titulo: 'Data & Analytics' }] : []),
+    { id: 's-acuerdos', titulo: 'Acuerdos', conteo: abiertos > 0 ? `${abiertos}` : undefined },
+    { id: 's-reuniones', titulo: 'Reuniones', conteo: s.reuniones.length > 0 ? `${s.reuniones.length}` : undefined },
+    ...(benchmark || equipo ? [{ id: 's-benchmark', titulo: 'Benchmark' }] : []),
+    ...(materialesComerciales.length > 0 || equipo
+      ? [{ id: 's-comercial', titulo: 'Materiales', conteo: materialesComerciales.length > 0 ? `${materialesComerciales.length}` : undefined }]
+      : []),
+    ...(archivosDeInteres.length > 0 || equipo
+      ? [{ id: 's-interes', titulo: 'Archivos', conteo: archivosDeInteres.length > 0 ? `${archivosDeInteres.length}` : undefined }]
+      : []),
+  ]
   // La reunión ya llega cosida —presentación, minuta y acuerdos juntos— desde
   // `estadoDeSalaDB` (Tarea 7). Ver `EstadoSala.reuniones`, `dominio/salas.ts`.
   const reuniones = s.reuniones
@@ -1057,6 +1082,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         </div>
       </div>
 
+      {/* EL ÍNDICE DE LA SALA. Se arma AQUÍ, pegado a las condiciones que
+          deciden qué secciones existen: son todas condicionales —el tablero
+          solo si la sala tiene URL, el benchmark solo si hay o si eres del
+          equipo, los materiales solo si hay o si eres del equipo— y una lista
+          escrita aparte acabaría ofreciéndole a un director enlaces a
+          secciones que en su vista no se pintan.
+          Con menos de tres entradas no se pinta: un índice de dos líneas para
+          dos módulos es cromo que no ahorra ningún scroll. */}
+      {seccionesDeLaSala.length >= 3 && <MenuSecciones entradas={seccionesDeLaSala} />}
+
       <main className={estilos.main}>
         {/* EL FREEZE: AQUÍ SE INFORMA, NO SE DECIDE (ronda 12).
             Franco: *"pausar la sala solo debe vivir dentro de los ajustes de
@@ -1117,40 +1152,37 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             esta sala tiene tablero: sin él no hay módulo, ni vacío ni aviso
             (ver `analyticsUrl` en el esquema y `TableroAnalytics`). */}
         {tema?.analyticsUrl && (
-          <TableroAnalytics url={tema.analyticsUrl} nombreSala={s.nombre} />
+          <TableroAnalytics id="s-analytics" url={tema.analyticsUrl} nombreSala={s.nombre} />
         )}
 
-        <Seccion icono="acuerdos" titulo="Acuerdos" conteo={resumenDeAcuerdos(s.acuerdos)} plegable>
+        <Seccion id="s-acuerdos" icono="acuerdos" titulo="Acuerdos" conteo={resumenDeAcuerdos(s.acuerdos)} plegable>
           {s.acuerdos.length === 0 && !equipo ? (
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
           ) : (
             <div className={estilos.acuerdos}>
               {s.acuerdos.map((a) => {
-                const f = textoFechaAcuerdo(a)
-                // Congelado (tarea 12): un abierto de una sala en pausa. Su
-                // estatus efectivo ya llega como 'abierto' —estatusEfectivo
-                // no lo pasa a vencido mientras la sala está apagada—, pero
-                // decir solo "abierto" sobre una fecha vieja no explicaría
-                // por qué no está en rojo. Se lo dice esta etiqueta aparte.
-                const congelado = estaCongelado(a, s)
-                const claseEstado = congelado ? estilos.congelado : estilos[a.estatus]
+                const origen = a.reunionOrigenId ? origenDeAcuerdo.get(a.reunionOrigenId) : undefined
                 return (
-                  <div key={a.id} className={estilos.acuerdo}>
-                    <span className={`${estilos.acuerdoEstado} ${claseEstado}`} />
-                    <div>
-                      {/* EL LÁPIZ VA FUERA DEL TEXTO, no dentro. Estuvo dentro
-                          de `.acuerdoQue` y el glifo pasaba a formar parte del
-                          acuerdo al seleccionarlo o copiarlo — me lo demostró
-                          un script de prueba que leyó el texto renderizado y
-                          guardó "…casos de éxito✎" en la base. Lo que se lee
-                          como el compromiso tiene que ser SOLO el compromiso.
+                  <FilaAcuerdo
+                    key={a.id}
+                    acuerdo={{ ...a, congelado: estaCongelado(a, s) }}
+                    // Dentro de una sala no se dice de qué sala es: son todos
+                    // de la misma. El Home sí lo pasa — ver `FilaAcuerdo`.
+                    origen={origen ? { href: `#r-${origen.id}`, fecha: origen.fecha } : undefined}
+                    texto={
+                      /* EL LÁPIZ VA FUERA DEL TEXTO, no dentro. Estuvo dentro
+                         de `.acuerdoQue` y el glifo pasaba a formar parte del
+                         acuerdo al seleccionarlo o copiarlo — me lo demostró un
+                         script de prueba que leyó el texto renderizado y guardó
+                         "…casos de éxito✎" en la base. Lo que se lee como el
+                         compromiso tiene que ser SOLO el compromiso.
 
-                          CORREGIRLO ES SOLO DE ADMIN Y EDITORES (`equipo`), no
-                          del director de la UDN — Franco: *"solo el admin y
-                          editores pueden hacer cambios en los acuerdos ya
-                          publicados"*. Él sigue moviendo estatus y fecha de los
-                          suyos, con `AcuerdoControles`, a la derecha. */}
-                      {equipo ? (
+                         CORREGIRLO ES SOLO DE ADMIN Y EDITORES (`equipo`), no
+                         del director de la UDN — Franco: *"solo el admin y
+                         editores pueden hacer cambios en los acuerdos ya
+                         publicados"*. Él sigue moviendo estatus y fecha de los
+                         suyos, con `AcuerdoControles`, a la derecha. */
+                      equipo ? (
                         <EditarAcuerdo
                           acuerdoId={a.id}
                           queInicial={a.que}
@@ -1161,53 +1193,29 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                       ) : (
                         // El director de la UDN lee el acuerdo; no lo reescribe.
                         <div className={estilos.acuerdoQue}>{a.que}</div>
-                      )}
-                      <div className={estilos.acuerdoMeta}>
-                        <span>{a.responsable === 'por asignar' ? 'sin dueño' : a.responsable}</span>
-                        {a.squad && <><span className={estilos.sep}>·</span><span>{a.squad}</span></>}
-                        <span className={estilos.sep}>·</span>
-                        <span className={`${estilos.acuerdoFecha} ${f.clase ? estilos[f.clase] : ''}`}>{f.txt}</span>
-                        {/* DE DÓNDE SALIÓ. Un compromiso sin su junta obliga a
-                            recordar en cuál se acordó para poder discutirlo. */}
-                        {(() => {
-                          const origen = a.reunionOrigenId ? origenDeAcuerdo.get(a.reunionOrigenId) : undefined
-                          if (!origen) return null
-                          return (
-                            <>
-                              <span className={estilos.sep}>·</span>
-                              <a href={`#r-${origen.id}`} className={estilos.acuerdoOrigen}>
-                                de la reunión del {fechaBreve(origen.fecha)}
-                              </a>
-                            </>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                    <div className={estilos.acuerdoDcha}>
-                      <span className={`${estilos.acuerdoBadge} ${claseEstado}`}>
-                        {congelado ? 'congelado' : ETIQUETA_ESTADO[a.estatus]}
-                      </span>
-                      {/* La estrella: SOLO equipo, no `editaAcuerdos` — es
-                          Mkt Corp quien cura el Home, el director de la UDN
-                          no se auto-destaca (ver destacarAction). */}
-                      {equipo && (
-                        <Estrella acuerdoId={a.id} destacado={a.destacado ?? false} destacar={destacarAction} />
-                      )}
-                      {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
-                      {editaAcuerdos && (
-                        <AcuerdoControles
-                          acuerdoId={a.id}
-                          estatusInicial={a.estatus}
-                          fechaInicial={a.fechaCompromiso}
-                          cambiarEstatusAction={cambiarEstatusAction}
-                          editarFechaAction={editarFechaAction}
-                          eliminarAction={eliminarAcuerdoAction}
-                        />
-                      )}
-                    </div>
-                  </div>
+                      )
+                    }
+                  >
+                    {/* La estrella: SOLO equipo, no `editaAcuerdos` — es Mkt
+                        Corp quien cura el Home, el director de la UDN no se
+                        auto-destaca (ver destacarAction). */}
+                    {equipo && (
+                      <Estrella acuerdoId={a.id} destacado={a.destacado ?? false} destacar={destacarAction} />
+                    )}
+                    {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
+                    {editaAcuerdos && (
+                      <AcuerdoControles
+                        acuerdoId={a.id}
+                        estatusInicial={a.estatus}
+                        fechaInicial={a.fechaCompromiso}
+                        cambiarEstatusAction={cambiarEstatusAction}
+                        editarFechaAction={editarFechaAction}
+                        eliminarAction={eliminarAcuerdoAction}
+                      />
+                    )}
+                  </FilaAcuerdo>
                 )
-              })}
+                            })}
             </div>
           )}
             {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
@@ -1219,7 +1227,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             reunión". Eran dos listas paralelas ordenadas cada una por su
             cuenta; para saber qué se acordó en la presentación de mayo había
             que buscar mayo dos veces. */}
-        <Seccion icono="reuniones" titulo="Reuniones" conteo={reuniones.length > 0 && reuniones.length} plegable>
+        <Seccion id="s-reuniones" icono="reuniones" titulo="Reuniones" conteo={reuniones.length > 0 && reuniones.length} plegable>
 
           {/* UN SOLO MÓDULO. `porVenir` es lo que hay que preparar —con lo
               que le falta y las tres salidas: seguir editando, subir la que
@@ -1285,6 +1293,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             módulos de material. */}
         {(benchmark || equipo) && (
         <Seccion
+          id="s-benchmark"
           icono="benchmark"
           titulo="Benchmark competitivo"
           conteo={benchmark && `${s.nombre} + ${benchmark.competidores.length} competidores`}
@@ -1307,6 +1316,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
              el botón «Organizar» va en la esquina donde `Seccion` pone el
              conteo, y ese botón tiene estado — el estado es del cliente. */
           <MaterialesAgrupados
+            id="s-comercial"
             titulo="Materiales Comerciales"
             materiales={materialesComerciales}
             equipo={equipo}
@@ -1333,6 +1343,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             tablero. */}
         {(archivosDeInteres.length > 0 || equipo) && (
           <MaterialesAgrupados
+            id="s-interes"
             titulo="Archivos de Interés"
             materiales={archivosDeInteres}
             equipo={equipo}

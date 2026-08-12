@@ -7,7 +7,7 @@ import { fechaBreve } from '@/lib/fecha'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { Seccion } from '@/componentes/Seccion'
 import estilos from '@/app/hub.module.css'
-import { colorDeTextoDeMarca } from '@/temas'
+import { FilaAcuerdo } from '@/componentes/acuerdos/FilaAcuerdo'
 
 /**
  * Acuerdos y pendientes, dentro del Home y EDITABLES ahí mismo.
@@ -195,6 +195,18 @@ export function ModuloAcuerdos({
   )
 }
 
+/**
+ * LA MISMA FILA QUE LA SALA (ronda 12). Franco, dos veces: *"en el home es
+ * otra versión"* y *"te dije que no es lo mismo que vemos en las salas"*.
+ *
+ * Y no lo era: aquí faltaban el punto de estado, la etiqueta de estatus y de
+ * qué reunión salía el acuerdo, y la fecha era un botón que abría un selector.
+ * Ahora la pinta `FilaAcuerdo` —el componente que se extrajo de la sala— y lo
+ * único propio de esta pantalla son los controles de la derecha, que van como
+ * `children`: aquí se alterna Cumplido/Reabrir y se pone fecha, porque es el
+ * tablero desde el que se resuelve; en la sala se mueve el estatus con su
+ * desplegable.
+ */
 function Fila({
   acuerdo,
   destacarAction,
@@ -210,19 +222,22 @@ function Fila({
   const [editandoFecha, setEditandoFecha] = useState(false)
 
   return (
-    <li className={estilos.acuerdo} style={{ '--marca': acuerdo.salaColor, '--marca-texto': colorDeTextoDeMarca(acuerdo.salaColor) } as React.CSSProperties}>
-      <div className={estilos.acuerdoCuerpo}>
-        <p className={estilos.acuerdoQue}>{acuerdo.que}</p>
-        <div className={estilos.acuerdoMeta}>
-          <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.acuerdoSala}>
-            {acuerdo.salaNombre}
-          </Link>
-          <span className={estilos.punto} aria-hidden>·</span>
-          <span>{acuerdo.responsable === 'por asignar' ? 'sin dueño' : acuerdo.responsable}</span>
-        </div>
-      </div>
-
-      <div className={estilos.acuerdoControles}>
+    <FilaAcuerdo
+      acuerdo={acuerdo}
+      // El Home cruza nueve salas: aquí SÍ hace falta decir de quién es.
+      sala={{ slug: acuerdo.salaSlug, nombre: acuerdo.salaNombre, color: acuerdo.salaColor }}
+      // El ancla de la reunión de origen, con la URL completa de SU sala: la
+      // de la sala es local (`#r-<id>`) porque el acuerdo ya está allí.
+      origen={
+        acuerdo.reunionOrigenId && acuerdo.reunionOrigenFecha
+          ? {
+              href: `/cliente/${acuerdo.salaSlug}#r-${acuerdo.reunionOrigenId}`,
+              fecha: acuerdo.reunionOrigenFecha,
+            }
+          : undefined
+      }
+    >
+      <>
         {/* La fecha se pone AQUÍ. "Sin fecha" es la mitad de lo que pone a un
             acuerdo en riesgo, y resolverlo tiene que costar un clic. */}
         {editandoFecha ? (
@@ -272,7 +287,7 @@ function Fila({
         </button>
 
         <Estrella acuerdoId={acuerdo.id} destacado={acuerdo.destacado} destacar={destacarAction} />
-      </div>
-    </li>
+      </>
+    </FilaAcuerdo>
   )
 }

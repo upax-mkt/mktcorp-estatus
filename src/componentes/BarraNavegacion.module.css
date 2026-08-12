@@ -19,9 +19,21 @@
      el mismo contenido, nada se oculta detrás de un botón de hamburguesa
      que esta app no tiene en ningún otro sitio. */
   min-height: 62px;
-  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  /* 94 % Y NO 78 %: hasta la ronda 12 esta barra NUNCA SE PEGÓ —`overflow-x:
+     hidden` en `html, body` la anclaba a un contenedor que no scrollea— y con
+     el lienzo siempre detrás, el 78 % translúcido se veía sólido. Al arreglar
+     el sticky (ver `globals.css`) empezó a pasar por encima del contenido y se
+     leía el texto DE DEBAJO a través de ella: dos frases superpuestas.
+     El `backdrop-filter` sigue puesto, pero no se puede depender de él —no
+     compone igual sobre un iframe de otro origen, y algunos navegadores lo
+     ignoran—: lo que tapa es la opacidad. */
+  /* SÓLIDO. El `backdrop-filter` que había aquí nunca llegó a hacer nada
+     visible: hasta la ronda 12 ninguna de estas barras se pegaba —lo impedía
+     el `overflow-x: hidden` de `html, body`— así que siempre tenían el lienzo
+     detrás y el translúcido se veía opaco. Al arreglar el sticky empezaron a
+     pasar por encima del contenido y se leía el texto de debajo a través de
+     ellas. Una barra que no tapa es peor que una sólida. */
+  background: var(--lienzo);
   border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
 }
 .marca { display: flex; align-items: center; }

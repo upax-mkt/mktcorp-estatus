@@ -39,14 +39,33 @@
 
 /* ---- barra superior ---- */
 .barra {
-  /* Material translúcido en vez de un bloque oscuro: la barra deja de ser
-     una franja que corta la página y pasa a flotar sobre ella. */
-  position: sticky; top: 0; z-index: 30;
+  /* YA NO SE PEGA (ronda 12). Estaba en `sticky top: 0` con z-index 30, igual
+     que la barra global —que va antes en el DOM—, así que al arreglar el
+     sticky de toda la app las dos se pusieron en el mismo sitio y esta tapaba
+     a la otra, con su texto leyéndose por debajo.
+     Se queda quieta y no al revés porque es CONTEXTO, no navegación: dice
+     dónde estás, cómo volver y dónde están los ajustes, y eso se lee al
+     llegar. Lo que sí hace falta a mitad de página es saltar de sección, y de
+     eso se encarga el riel (`.menuSecciones`), que ocupa el sitio pegado que
+     esta dejó. */
+  position: relative; z-index: 30;
   display: flex; align-items: center; gap: 1rem;
   padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
-  background: color-mix(in oklch, var(--lienzo) 78%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  /* 94 % Y NO 78 %: hasta la ronda 12 esta barra NUNCA SE PEGÓ —`overflow-x:
+     hidden` en `html, body` la anclaba a un contenedor que no scrollea— y con
+     el lienzo siempre detrás, el 78 % translúcido se veía sólido. Al arreglar
+     el sticky (ver `globals.css`) empezó a pasar por encima del contenido y se
+     leía el texto DE DEBAJO a través de ella: dos frases superpuestas.
+     El `backdrop-filter` sigue puesto, pero no se puede depender de él —no
+     compone igual sobre un iframe de otro origen, y algunos navegadores lo
+     ignoran—: lo que tapa es la opacidad. */
+  /* SÓLIDO. El `backdrop-filter` que había aquí nunca llegó a hacer nada
+     visible: hasta la ronda 12 ninguna de estas barras se pegaba —lo impedía
+     el `overflow-x: hidden` de `html, body`— así que siempre tenían el lienzo
+     detrás y el translúcido se veía opaco. Al arreglar el sticky empezaron a
+     pasar por encima del contenido y se leía el texto de debajo a través de
+     ellas. Una barra que no tapa es peor que una sólida. */
+  background: var(--lienzo);
   border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
   color: var(--tinta);
 }
@@ -170,6 +189,14 @@
 /* ---- acuerdos ---- */
 .acuerdos { display: flex; flex-direction: column; }
 .acuerdo {
+  /* LOS ALIAS, AQUÍ Y NO SOLO EN `.app` (ronda 12). Esta fila se extrajo a
+     `componentes/acuerdos/FilaAcuerdo.tsx` y ahora la pinta también el Home,
+     que no está dentro de `.app` de esta hoja: `--alerta` y `--ok` no existían
+     allí y el punto de estado de un acuerdo VENCIDO salía transparente — un
+     hueco de 10 px donde debía ir la señal más fuerte de la fila. Declararlos
+     en la propia fila la hace autosuficiente en cualquier pantalla. */
+  --alerta: var(--mal);
+  --ok: var(--bien);
   display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 1rem;
   padding: 1rem 0; border-top: 1px solid var(--borde);
 }
@@ -1775,11 +1802,14 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    fortaleza invisible, dónde se le gana y si contesta el teléfono. */
 
 /* ── EL TABLERO DE ANALYTICS ──────────────────────────────────────────────
-   Diego Luna (RevOps) midió el contenido de ORBIT en 900-950 px de alto y
-   pidió ajustar el `height` al espacio disponible. Se usa `min` contra la
-   altura de la ventana para que en un portátil de 13" el tablero no sea más
-   alto que la pantalla: con 900 fijos, quien abre la sala no ve nada más que
-   el iframe y hay que hacer scroll a ciegas para llegar a los acuerdos. */
+   Diego Luna (RevOps) midió el contenido de ORBIT en 900-950 px de alto.
+   ALTURA ENTERA, sin recortar contra la ventana: durante una ronda fue
+   `min(920px, 78vh)` para que el tablero no llenara la pantalla de un portátil
+   de 13", pero recortarlo tiene un precio que no se ve en un print — el
+   contenido no cabe, el iframe gana scroll PROPIO, y la rueda (o el dedo, que
+   es peor) mueve primero el tablero y solo al llegar a su tope sigue la sala.
+   El módulo NACE PLEGADO (ver `TableroAnalytics.tsx`), así que ya no invade
+   nada: quien lo abre lo quiere entero. */
 /* El enlace a los ajustes dentro del aviso de pausa: el aviso informa, y el
    control vive en otra pantalla — sin esto habría que salir a buscarla. */
 .avisoEnlace {
@@ -1797,11 +1827,69 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .tableroIframe {
   display: block;
   width: 100%;
-  height: min(920px, 78vh);
+  height: 920px;
   border: none;
 }
-/* En móvil manda la altura del contenido, no la de la ventana: 78vh de un
-   teléfono son cuatro dedos y el tablero se vuelve una rendija. */
-@media (max-width: 720px) {
-  .tableroIframe { height: 920px; }
+
+/* ══ EL ÍNDICE DE LA SALA ═════════════════════════════════════════════════
+   Franco: *"las salas, ahora que tienen varias secciones, tal vez necesitamos
+   un menú arriba para que las UDN puedan llegar rápido a cada sección"*. El
+   porqué de cada decisión está en `MenuSecciones.tsx`.
+
+   HERMANO DE `<main>`, NO HIJO: `.main` es una rejilla, y el bloque
+   contenedor de un ítem de rejilla es su propia celda — un `sticky` ahí no
+   tendría por dónde viajar. Colgando de `.app` se pega a toda la página. */
+.menuSecciones {
+  position: sticky;
+  /* Justo bajo la barra global, que mide 62 px y SOLO la ve el equipo: para
+     el director de la UDN no existe, y su riel se pega arriba del todo. La
+     variable la pone la página según quién mira. */
+  top: var(--barra-alta, 0px);
+  z-index: 20;
+  /* Opaco por el mismo motivo que las dos barras: este riel pasa por encima
+     del contenido —y del iframe de ORBIT, que es otro origen y donde el
+     `backdrop-filter` compone distinto en cada navegador. */
+  /* SÓLIDO. El `backdrop-filter` que había aquí nunca llegó a hacer nada
+     visible: hasta la ronda 12 ninguna de estas barras se pegaba —lo impedía
+     el `overflow-x: hidden` de `html, body`— así que siempre tenían el lienzo
+     detrás y el translúcido se veía opaco. Al arreglar el sticky empezaron a
+     pasar por encima del contenido y se leía el texto de debajo a través de
+     ellas. Una barra que no tapa es peor que una sólida. */
+  background: var(--lienzo);
+  border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
 }
+.menuLista {
+  /* El mismo carril que `.main`, para que los chips arranquen alineados con
+     las tarjetas y no floten sobre el papel. */
+  max-width: 1080px; margin: 0 auto;
+  padding: 0.45rem clamp(1rem, 4vw, 2.5rem);
+  display: flex; gap: 0.25rem; list-style: none;
+  /* NO ENVUELVE: en móvil se desliza. Seis chips en dos líneas empujarían el
+     contenido cada vez que la barra se pega. */
+  overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity;
+}
+.menuLista::-webkit-scrollbar { display: none; }
+.menuEnlace {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  /* 40 px de alto: objetivo táctil, no decoración. */
+  min-height: 40px; padding: 0.35rem 0.75rem; border-radius: var(--r-lleno);
+  font-size: 0.85rem; font-weight: 550; letter-spacing: var(--track-normal);
+  color: var(--tx-2); text-decoration: none; white-space: nowrap;
+  scroll-snap-align: start;
+  transition: background var(--rapido) linear, color var(--rapido) linear;
+}
+.menuEnlace:hover { background: var(--papel-hundido); color: var(--tx); }
+.menuEnlace:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+/* TRES SEÑALES Y NO SOLO COLOR —peso, tinta llena y la marca—: mismo criterio
+   que ya sigue la barra global para su pestaña activa. */
+.menuEnlace[aria-current] {
+  color: var(--tx); font-weight: 700;
+  background: color-mix(in oklch, var(--marca) 12%, transparent);
+  box-shadow: inset 0 -2px 0 var(--marca);
+}
+.menuConteo { font-size: 0.75rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .menuEnlace { transition: none; } }
+
+/* Que la cabecera de la sección no acabe DEBAJO de las barras al saltar
+   (WCAG 2.4.11). 62 de la barra + el alto del riel + aire. */
+.main > section { scroll-margin-top: calc(var(--barra-alta, 0px) + 4.5rem); }

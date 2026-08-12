@@ -614,6 +614,13 @@ export async function acuerdosArrastrablesDe(salaSlug: string, reunionId: string
  * src/db/acuerdos.ts.
  */
 export interface AcuerdoConSala extends Acuerdo {
+  /**
+   * El día de la reunión en la que se acordó, si salió de una. Acompaña al
+   * `reunionOrigenId` que ya venía de `Acuerdo`: el id solo no basta para
+   * escribir "de la reunión del 23 jul", y sin esa línea el Home no puede
+   * pintar la misma fila que la sala.
+   */
+  reunionOrigenFecha?: string | null
   salaSlug: string
   salaNombre: string
   salaColor: string
@@ -706,9 +713,17 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
       bandeja: esquema.acuerdos.bandeja,
       salaSlug: esquema.acuerdos.salaSlug,
       salaActiva: esquema.salas.activa,
+      // DE QUÉ REUNIÓN SALIÓ, con su FECHA (ronda 12). El id ya viajaba y no
+      // servía de nada aquí: para escribir "de la reunión del 23 jul" hace
+      // falta el día, y sin él el Home no podía pintar la misma fila que la
+      // sala — que es lo que pidió Franco. `leftJoin` porque un acuerdo puede
+      // no venir de ninguna reunión (se levantan también a mano).
+      reunionOrigenId: esquema.acuerdos.reunionOrigenId,
+      reunionOrigenFecha: esquema.reuniones.fecha,
     })
     .from(esquema.acuerdos)
     .innerJoin(esquema.salas, eq(esquema.acuerdos.salaSlug, esquema.salas.slug))
+    .leftJoin(esquema.reuniones, eq(esquema.acuerdos.reunionOrigenId, esquema.reuniones.id))
 
   return filas
     // 'cancelado' deja de mostrarse, igual que en la vista de sala (ver el
@@ -738,6 +753,11 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
         mondayTipo: f.mondayTipo,
         bandeja: f.bandeja,
         mondayDesvinculado: f.mondayId == null && f.mondaySincronizadoEn != null,
+        reunionOrigenId: f.reunionOrigenId,
+        // Día civil anclado a CDMX, como toda fecha que se ESCRIBE en esta
+        // app: el instante guardado en UTC se corre un día si se recorta a
+        // secas (ver la cabecera de `lib/fecha.ts`).
+        reunionOrigenFecha: f.reunionOrigenFecha ? diaCivil(f.reunionOrigenFecha.toISOString()) : null,
       }
     })
     // La fecha más próxima primero; sin fecha, al final — mismo criterio que

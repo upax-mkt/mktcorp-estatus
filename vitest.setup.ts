@@ -61,3 +61,26 @@ vi.mock('next/font/google', () => {
     Barlow_Condensed: fuente,
   }
 })
+
+/**
+ * `IntersectionObserver` NO EXISTE EN JSDOM, y el índice de la sala lo usa
+ * para saber qué sección se está mirando (`componentes/MenuSecciones.tsx`).
+ * Sin este doble, montar la sala en un test revienta con "IntersectionObserver
+ * is not defined" — 45 tests a la vez, ninguno relacionado con el menú.
+ *
+ * Es un doble MUDO a propósito: nunca dispara. Que una sección se marque como
+ * activa depende de posiciones reales en pantalla, y jsdom no las tiene —
+ * simular el callback aquí solo produciría una verdad inventada. Lo que sí se
+ * puede probar en jsdom (que los enlaces existen, a dónde apuntan, que abren
+ * el plegable) no pasa por el observador.
+ */
+class ObservadorMudo implements IntersectionObserver {
+  readonly root = null
+  readonly rootMargin = ''
+  readonly thresholds: ReadonlyArray<number> = []
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords(): IntersectionObserverEntry[] { return [] }
+}
+globalThis.IntersectionObserver = ObservadorMudo as unknown as typeof IntersectionObserver

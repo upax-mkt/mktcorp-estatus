@@ -30,9 +30,35 @@
 import { Seccion } from './Seccion'
 import estilos from '@/app/cliente/cliente.module.css'
 
-export function TableroAnalytics({ url, nombreSala }: { url: string; nombreSala: string }) {
+export function TableroAnalytics({
+  url,
+  nombreSala,
+  id,
+}: {
+  url: string
+  nombreSala: string
+  id?: string
+}) {
   return (
-    <Seccion icono="benchmark" titulo="Data & Analytics" plegable>
+    /**
+     * NACE PLEGADO, y es lo único que hace este módulo distinto del resto.
+     *
+     * Franco: *"siento que el iframe ocupa mucho espacio"*. Con el cromo de la
+     * sala —dos barras, el hero de marca y su franja de datos— son unos 390 px
+     * antes del primer módulo; el tablero añadía 585 más, así que la cabecera
+     * de Acuerdos quedaba medio metro por debajo del pliegue.
+     *
+     * Se descartó ENCOGERLO: el contenido de ORBIT mide 900-950 px, y a 56vh
+     * el director ve medio gráfico Y el iframe conserva scroll propio — la
+     * rueda y el dedo mueven primero el tablero y solo al llegar a su tope
+     * sigue la sala. Plegado no cuesta legibilidad, y al abrirse lo hace a su
+     * altura entera, sin esa trampa.
+     *
+     * Sigue siendo el PRIMER módulo, como se pidió: lo que cambia es que
+     * ocupa una línea hasta que se abre, y el índice de arriba lo alcanza en
+     * un clic.
+     */
+    <Seccion id={id} icono="benchmark" titulo="Data & Analytics" plegable abierta={false}>
       <div className={estilos.tableroMarco}>
         <iframe
           src={url}

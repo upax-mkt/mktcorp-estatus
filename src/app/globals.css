@@ -18,7 +18,14 @@ html {
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  /* `clip` Y NO `hidden`, y no es un matiz: `overflow: hidden` convierte al
+     elemento en CONTENEDOR DE SCROLL, y entonces cualquier `position: sticky`
+     de sus descendientes se ancla a él en vez de a la ventana — así que no se
+     pega nunca. Lo pagó el índice de la sala (`MenuSecciones`), que se
+     comportaba como estático sin dar ningún error.
+     `clip` recorta exactamente igual lo que se desborde en horizontal, no crea
+     ese contenedor, y está en todos los navegadores desde 2022. */
+  overflow-x: clip;
 }
 
 body {

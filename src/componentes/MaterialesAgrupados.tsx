@@ -103,6 +103,12 @@ interface Props {
   vacio: string
   /** El título del módulo: este componente dibuja su propia cabecera. */
   titulo: string
+  /**
+   * El ancla de la sección, para el índice de la sala. Se reenvía a `Seccion`
+   * — sin esto, dos de las seis entradas del menú nacerían muertas, porque
+   * este componente dibuja su propia cabecera y `Seccion` no la ve.
+   */
+  id?: string
   editarAction: (id: string, cambios: { titulo: string; fecha: string | null }) => Promise<void>
   eliminarAction: (id: string) => Promise<void>
   /** La lista COMPLETA del módulo tal como quedó: ver `reubicarMateriales`. */
@@ -120,6 +126,7 @@ export function MaterialesAgrupados({
   equipo,
   vacio,
   titulo,
+  id,
   editarAction,
   eliminarAction,
   reubicarAction,
@@ -170,7 +177,7 @@ export function MaterialesAgrupados({
     /* Plegable como el resto (Franco: *"los módulos todos deben tener la
        opción de colapsarse"*). Abierta por defecto: lo que se esconde de
        serie deja de existir. */
-    <Seccion icono="archivos" titulo={titulo} conteo={cabecera} plegable>
+    <Seccion id={id} icono="archivos" titulo={titulo} conteo={cabecera} plegable>
       {materiales.length === 0 ? (
         <p className={estilos.vacioNota}>{vacio}</p>
       ) : equipo && organizando ? (
