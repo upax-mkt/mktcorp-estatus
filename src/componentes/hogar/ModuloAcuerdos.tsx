@@ -219,19 +219,25 @@ function Fila({
           </button>
         )}
 
-        {/* Un destacado ya cumplido no necesita el botón: marcarlo otra vez
-            no cambia nada y solo confundiría. En Vencidos siempre aplica. */}
-        {acuerdo.estatus !== 'cumplido' && (
-          <button
-            type="button"
-            className="boton"
-            data-tono="suave"
-            disabled={pendiente}
-            onClick={() => empezar(async () => { await cambiarEstatusAction(acuerdo.id, 'cumplido') })}
-          >
-            {pendiente ? '…' : 'Cumplido'}
-          </button>
-        )}
+        {/* MARCAR Y DESMARCAR, no solo marcar.
+            Franco: *"aparece un acuerdo como cumplido y no recuerdo haberlo
+            marcado… además no veo el botón"*. Al cumplirse, el botón
+            desaparecía: era de ida y no de vuelta, así que un cumplido por
+            error se quedaba cumplido para siempre desde esta pantalla —había
+            que ir a la sala del cliente a buscar el desplegable de estatus.
+            Toda acción que cambia un dato tiene que poder deshacerse donde se
+            hizo. */}
+        <button
+          type="button"
+          className="boton"
+          data-tono="suave"
+          disabled={pendiente}
+          onClick={() => empezar(async () => {
+            await cambiarEstatusAction(acuerdo.id, acuerdo.estatus === 'cumplido' ? 'abierto' : 'cumplido')
+          })}
+        >
+          {pendiente ? '…' : acuerdo.estatus === 'cumplido' ? 'Reabrir' : 'Cumplido'}
+        </button>
 
         <Estrella acuerdoId={acuerdo.id} destacado={acuerdo.destacado} destacar={destacarAction} />
       </div>

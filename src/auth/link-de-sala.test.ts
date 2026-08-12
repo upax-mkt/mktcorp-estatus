@@ -68,7 +68,10 @@ describe('el token del link', () => {
     // haberle puesto esa cookie encima, y una salida.
     expect(puedeVerRuta(s, '/')).toBe(false)
     expect(puedeVerRuta(s, '/cliente/mexa-creativa')).toBe(true)
-    expect(puedeVerRuta(s, '/cliente/zeus')).toBe(false)
+    // Desde el 12-ago las salas son públicas, así que la de OTRO cliente ya
+    // no distingue a este token: lo que sigue negándole es todo lo de
+    // Marketing Corp, y los ajustes de cualquier sala.
+    expect(puedeVerRuta(s, '/cliente/zeus/ajustes')).toBe(false)
   })
 
   it('/entrar es pública: la salida siempre lleva a algún sitio', async () => {

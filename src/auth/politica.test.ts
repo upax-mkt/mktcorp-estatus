@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { puedeVerSala, puedeVerRuta, esRutaPublica } from './politica'
+import { puedeVerSala, puedeVerRuta, esRutaPublica, puedeEditarContenido } from './politica'
 import type { Sesion } from './firma'
 
 const EQUIPO: Sesion = { rol: 'equipo', sub: 'franco@upax.com.mx', exp: Date.now() + 1000 }
@@ -16,19 +16,32 @@ const ADMIN: Sesion = { rol: 'equipo', rolApp: 'admin', exp: Date.now() + 1000 }
 const EDITOR: Sesion = { rol: 'equipo', rolApp: 'editor', exp: Date.now() + 1000 }
 const VIEWER: Sesion = { rol: 'equipo', rolApp: 'viewer', exp: Date.now() + 1000 }
 
-describe('puedeVerSala', () => {
-  it('el equipo ve cualquier sala', () => {
+/**
+ * LA SALA DE UN CLIENTE SE LEE SIN SESIÓN (12-ago).
+ *
+ * Franco: *"esta es la URL que le compartiré a las UDNs y directores; pedir
+ * que se logueen, o pasarles una URL larguísima o una clave, se les va a
+ * terminar olvidando"*. Preguntado por el alcance con la exposición sobre la
+ * mesa —los slugs son los nombres de las UDNs, así que la URL se adivina—
+ * respondió: *"todo sin login, pueden descargar pero no pueden editar nada"*.
+ *
+ * Lo que estas pruebas fijan no es que se abra —eso es una línea— sino QUÉ
+ * NO se abrió con ella.
+ */
+describe('puedeVerSala — la sala se lee sin entrar', () => {
+  it('cualquiera ve cualquier sala, con sesión o sin ella', () => {
     expect(puedeVerSala(EQUIPO, 'neracode')).toBe(true)
-    expect(puedeVerSala(EQUIPO, 'zeus')).toBe(true)
+    expect(puedeVerSala(SALA_NC, 'zeus')).toBe(true)
+    expect(puedeVerSala(null, 'neracode')).toBe(true)
   })
 
-  it('un acceso de sala ve la suya y ninguna otra', () => {
-    expect(puedeVerSala(SALA_NC, 'neracode')).toBe(true)
-    expect(puedeVerSala(SALA_NC, 'zeus')).toBe(false)
-  })
-
-  it('sin sesión no se ve nada', () => {
-    expect(puedeVerSala(null, 'neracode')).toBe(false)
+  /** VER no es TOCAR: lo segundo lo sigue decidiendo `puedeEditarContenido`. */
+  it('pero nadie de fuera escribe', () => {
+    expect(puedeEditarContenido(null)).toBe(false)
+    expect(puedeEditarContenido(SALA_NC)).toBe(false)
+    // `ADMIN` y no `EQUIPO`: esa fija no lleva `rolApp`, y una sesión de
+    // equipo sin rol de app falla cerrado a propósito (ronda 9).
+    expect(puedeEditarContenido(ADMIN)).toBe(true)
   })
 })
 
@@ -39,10 +52,34 @@ describe('esRutaPublica', () => {
     expect(esRutaPublica('/api/auth/slack/retorno')).toBe(true)
   })
 
-  it('no abre el resto de la app', () => {
-    expect(esRutaPublica('/')).toBe(false)
-    expect(esRutaPublica('/cliente/neracode')).toBe(false)
-    expect(esRutaPublica('/deck')).toBe(false)
+  it('abre la sala de un cliente, su benchmark, sus documentos y sus archivos', () => {
+    expect(esRutaPublica('/cliente/neracode')).toBe(true)
+    expect(esRutaPublica('/cliente/neracode/benchmark')).toBe(true)
+    expect(esRutaPublica('/reunion/abc-123')).toBe(true)
+    expect(esRutaPublica('/api/archivo/abc-123')).toBe(true)
+  })
+
+  /**
+   * LO QUE NO SE ABRIÓ. Es la mitad que importa de este cambio: los ajustes
+   * de una sala guardan su clave y su enlace firmado, y todo lo de Marketing
+   * Corp es de Marketing Corp.
+   */
+  it('NO abre los ajustes de una sala: ahí viven su clave y su enlace firmado', () => {
+    expect(esRutaPublica('/cliente/neracode/ajustes')).toBe(false)
+    expect(puedeVerRuta(null, '/cliente/neracode/ajustes')).toBe(false)
+  })
+
+  it('NO abre nada de Marketing Corp', () => {
+    for (const ruta of ['/', '/deck', '/deck/abc', '/reuniones', '/acuerdos', '/acuerdos/bandeja', '/salas', '/personas']) {
+      expect(esRutaPublica(ruta), `${ruta} quedó abierta`).toBe(false)
+      expect(puedeVerRuta(null, ruta), `${ruta} se abre sin sesión`).toBe(false)
+    }
+  })
+
+  /** Lista blanca de hijas: una pantalla nueva bajo /cliente/<slug>/ no se abre sola. */
+  it('una hija de sala que no esté en la lista no se abre', () => {
+    expect(esRutaPublica('/cliente/neracode/lo-que-sea')).toBe(false)
+    expect(esRutaPublica('/cliente/neracode/benchmark/detalle')).toBe(false)
   })
 
   it('no se deja engañar por rutas que solo empiezan parecido', () => {
@@ -52,9 +89,9 @@ describe('esRutaPublica', () => {
 })
 
 describe('puedeVerRuta', () => {
-  it('sin sesión no se entra a ninguna ruta protegida', () => {
+  it('sin sesión se entra a la sala de un cliente y a nada de Mkt Corp', () => {
+    expect(puedeVerRuta(null, '/cliente/neracode')).toBe(true)
     expect(puedeVerRuta(null, '/')).toBe(false)
-    expect(puedeVerRuta(null, '/cliente/neracode')).toBe(false)
     expect(puedeVerRuta(null, '/deck/abc')).toBe(false)
   })
 
@@ -77,18 +114,30 @@ describe('puedeVerRuta', () => {
    * fallaba en /salas y /personas: el proxy manda derecho a /entrar.
    */
   it('una sesión de equipo SIN rolApp no entra a ninguna ruta de equipo, ni siquiera las que no son de admin', () => {
-    for (const ruta of ['/', '/cliente/zeus', '/deck', '/deck/abc/minuta', '/acuerdos', '/acuerdos/bandeja']) {
+    // Sin `/cliente/zeus`: la sala de un cliente ya no es ruta de equipo, se
+    // lee sin sesión — que es justo lo que comprueba el caso de abajo.
+    for (const ruta of ['/', '/deck', '/deck/abc/minuta', '/acuerdos', '/acuerdos/bandeja']) {
       expect(puedeVerRuta(EQUIPO, ruta)).toBe(false)
     }
   })
 
-  it('un acceso de sala entra a su sala y a su deck, nada más', () => {
+  /** Y la sala sí, porque es pública: no depende del rol de nadie. */
+  it('una sesión de equipo sin rolApp entra a una sala igual que un desconocido', () => {
+    expect(puedeVerRuta(EQUIPO, '/cliente/zeus')).toBe(true)
+  })
+
+  /**
+   * Desde que la sala es pública, un acceso de sala ya no restringe NADA de
+   * lo que se ve: entra a cualquier sala igual que un desconocido. Lo que
+   * sigue cerrado para él es todo lo de Marketing Corp — lo comprueba el caso
+   * "no entra al hub ni a la preparación ni al motor", más abajo.
+   */
+  it('un acceso de sala entra a cualquier sala, como cualquiera', () => {
     expect(puedeVerRuta(SALA_NC, '/cliente/neracode')).toBe(true)
-    // La sesión publicada pasa el filtro optimista; la página comprueba de qué
-    // sala es, porque la ruta lleva un id y no un slug.
+    expect(puedeVerRuta(SALA_NC, '/cliente/zeus')).toBe(true)
+    // La ruta lleva un id y no un slug: pasa el filtro optimista y la PÁGINA
+    // comprueba de qué sala es.
     expect(puedeVerRuta(SALA_NC, '/reunion/abc-123')).toBe(true)
-    expect(puedeVerRuta(SALA_NC, '/cliente/zeus')).toBe(false)
-    expect(puedeVerRuta(SALA_NC, '/cliente/zeus')).toBe(false)
   })
 
   it('un acceso de sala descarga los archivos de su sala', () => {
@@ -104,11 +153,12 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/api/otra/cosa')).toBe(false)
   })
 
-  it('un acceso de sala abre el benchmark de SU sala y no el de otra', () => {
+  it('el benchmark de cualquier sala se abre; sus ajustes no', () => {
     expect(puedeVerRuta(SALA_NC, '/cliente/neracode/benchmark')).toBe(true)
-    expect(puedeVerRuta(SALA_NC, '/cliente/zeus/benchmark')).toBe(false)
-    // Lista blanca de hijas: una página nueva bajo /sala/<slug>/ no se abre
-    // por olvido.
+    expect(puedeVerRuta(SALA_NC, '/cliente/zeus/benchmark')).toBe(true)
+    // Lista blanca de hijas: los ajustes guardan la clave de la sala y su
+    // enlace firmado, así que NO entran — ni una página nueva por olvido.
+    expect(puedeVerRuta(SALA_NC, '/cliente/neracode/ajustes')).toBe(false)
     expect(puedeVerRuta(SALA_NC, '/cliente/neracode/lo-que-sea')).toBe(false)
   })
 
@@ -119,9 +169,16 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/deck/abc')).toBe(false)
   })
 
-  it('no se deja engañar por un slug que empieza igual que el suyo', () => {
-    expect(puedeVerRuta(SALA_NC, '/cliente/neracode-falsa')).toBe(false)
+  /**
+   * Con la sala pública, un slug parecido ya no es un problema de acceso —
+   * cualquier sala se ve— pero uno INEXISTENTE tiene que seguir muriendo en
+   * la página con un 404, no pintando media pantalla. Eso lo comprueba
+   * `page.test.ts` contra `slugsDeSalas()`; aquí solo se fija que una ruta
+   * con `..` no se cuela como si fuera una sala.
+   */
+  it('una ruta con .. no se cuela como sala', () => {
     expect(puedeVerRuta(SALA_NC, '/cliente/neracode/../zeus')).toBe(false)
+    expect(esRutaPublica('/cliente/neracode/../zeus')).toBe(false)
   })
 
   it('una ruta desconocida se niega por defecto en vez de abrirse', () => {
@@ -220,7 +277,9 @@ describe('la agenda pública, y solo ella', () => {
   })
 
   it('el resto de la app sigue cerrado sin sesión', () => {
-    for (const ruta of ['/', '/acuerdos', '/acuerdos/bandeja', '/cliente/neracode', '/deck', '/deck/nueva', '/salas']) {
+    // Sin `/cliente/neracode`: la sala de un cliente se abrió a propósito, y
+    // que siga cerrada TODO lo demás es lo que este caso protege.
+    for (const ruta of ['/', '/acuerdos', '/acuerdos/bandeja', '/deck', '/deck/nueva', '/salas']) {
       expect(puedeVerRuta(null, ruta)).toBe(false)
     }
   })
@@ -229,6 +288,7 @@ describe('la agenda pública, y solo ella', () => {
     const dir = { rol: 'sala' as const, sala: 'neracode', exp: 9e12 }
     expect(puedeVerRuta(dir, '/agenda')).toBe(false)
     expect(puedeVerRuta(dir, '/salas')).toBe(false)
-    expect(puedeVerRuta(dir, '/cliente/zeus')).toBe(false)
+    // `/cliente/zeus` ya no prueba nada de su rol: esa sala la ve cualquiera.
+    expect(puedeVerRuta(dir, '/cliente/zeus/ajustes')).toBe(false)
   })
 })

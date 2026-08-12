@@ -28,6 +28,49 @@ import type { Sesion } from './firma'
 /** Rutas que deben responder sin sesión: si no, no habría forma de entrar. */
 const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/retorno']
 
+/**
+ * LA SALA DE UN CLIENTE SE ABRE SIN SESIÓN, EN SOLO LECTURA.
+ *
+ * Franco: *"esta es la URL que le compartiré a las UDNs y directores; pedir
+ * que se logueen, o pasarles una URL larguísima o una clave, se les va a
+ * terminar olvidando"*. Y sobre el alcance, preguntado explícitamente:
+ * *"todo sin login, pueden descargar pero no pueden editar nada"*.
+ *
+ * ⚠️ QUÉ SIGNIFICA, dicho sin adornos: `/cliente/<slug>` responde a
+ * cualquiera que teclee la URL, y los slugs son los nombres de las UDNs. Con
+ * ella se ve el estatus del cliente —sus acuerdos con nombres y fechas, sus
+ * reuniones, el texto completo de las minutas, el benchmark competitivo— y se
+ * descargan sus presentaciones y credenciales. Es una decisión de producto
+ * tomada con esa consecuencia sobre la mesa, no un descuido.
+ *
+ * LO QUE NO SE ABRE: escribir (ninguna Server Action; todas exigen editor),
+ * los ajustes de la sala —donde viven su clave y su enlace firmado— y todo lo
+ * de Marketing Corp: el Home, las reuniones, los acuerdos, las salas y las
+ * personas. Un archivo que cuelga de una reunión SIN sala (una interna de Mkt
+ * Corp) tampoco: ese sigue pidiendo lectura de equipo.
+ *
+ * LISTA BLANCA DE HIJAS, no prefijo: `/cliente/<slug>/ajustes` NO entra, y
+ * una pantalla nueva bajo `/cliente/<slug>/` tampoco se abrirá por olvido.
+ */
+const HIJAS_DE_SALA_PUBLICAS = ['benchmark']
+
+function esSalaPublica(partes: string[]): boolean {
+  // `/cliente/<slug>`
+  if (partes.length === 2 && partes[0] === 'cliente') return true
+  // `/cliente/<slug>/<hija en la lista>`
+  if (partes.length === 3 && partes[0] === 'cliente') {
+    return HIJAS_DE_SALA_PUBLICAS.includes(partes[2])
+  }
+  // `/reunion/<id>` — el documento de una junta. Lleva un id, así que aquí no
+  // se sabe de qué cliente es: pasa el filtro y la PÁGINA comprueba contra la
+  // sala real. Una reunión sin sala sigue siendo de equipo.
+  if (partes.length === 2 && partes[0] === 'reunion') return true
+  // `/api/archivo/<id>` — mismo caso, y es lo que hace que "pueden descargar"
+  // sea cierto. La ruta comprueba la sala del archivo antes de servir un byte.
+  if (partes.length === 3 && partes[0] === 'api' && partes[1] === 'archivo') return true
+  return false
+}
+
 /** Rutas de solo-equipo, por prefijo de primer segmento. */
 const SECCIONES_DE_EQUIPO = ['deck']
 
@@ -50,6 +93,7 @@ function segmentos(ruta: string): string[] {
 
 export function esRutaPublica(ruta: string): boolean {
   if (RUTAS_PUBLICAS.includes(ruta)) return true
+  if (esSalaPublica(segmentos(ruta))) return true
   // LA AGENDA COMPARTIDA, y solo ella.
   //
   // Exactamente dos segmentos: `/agenda/<token>` se abre, `/agenda` NO —esa es
@@ -106,9 +150,17 @@ export function puedeLeer(sesion: Sesion | null): boolean {
 
 /** El equipo ve todas las salas; un acceso de sala, únicamente la suya. */
 export function puedeVerSala(sesion: Sesion | null, slug: string): boolean {
-  if (!sesion) return false
-  if (sesion.rol === 'equipo') return true
-  return sesion.sala === slug
+  // SIN SESIÓN TAMBIÉN, desde el 12-ago: la sala de un cliente se comparte por
+  // su URL y se lee sin entrar (ver `HIJAS_DE_SALA_PUBLICAS`, arriba). Lo que
+  // decide esta función es VER; escribir lo decide `puedeEditarContenido`, que
+  // sigue exigiendo equipo con permiso.
+  //
+  // `slug` deja de usarse para decidir y se conserva en la firma a propósito:
+  // sus dos docenas de llamadores dicen de QUÉ sala hablan, y quitarlo haría
+  // ilegible el día que vuelva a haber salas con acceso restringido.
+  void sesion
+  void slug
+  return true
 }
 
 /**

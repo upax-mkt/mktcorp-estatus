@@ -26,12 +26,15 @@ const VIEWER: Sesion = { rol: 'equipo', sub: 'viewer@upax.com.mx', rolApp: 'view
 const DIR_NERACODE: Sesion = { rol: 'sala', sala: 'neracode', exp: Date.now() + 1000 }
 
 describe('un acceso de sala no escribe nada', () => {
-  it('el director ve SU sala', () => {
+  /**
+   * VER DEJÓ DE SER LO QUE SE RESTRINGE (12-ago): la sala de un cliente se
+   * lee sin sesión, porque su URL se comparte. Lo que se restringe es
+   * escribir, y eso es lo que comprueba el resto de esta suite.
+   */
+  it('la sala se ve, con acceso de sala o sin ninguno', () => {
     expect(puedeVerSala(DIR_NERACODE, 'neracode')).toBe(true)
-  })
-
-  it('y solo la suya', () => {
-    expect(puedeVerSala(DIR_NERACODE, 'zeus')).toBe(false)
+    expect(puedeVerSala(DIR_NERACODE, 'zeus')).toBe(true)
+    expect(puedeVerSala(null, 'neracode')).toBe(true)
   })
 
   /**
@@ -45,7 +48,6 @@ describe('un acceso de sala no escribe nada', () => {
 
   it('sin sesión tampoco, evidentemente', () => {
     expect(puedeEditarContenido(null)).toBe(false)
-    expect(puedeVerSala(null, 'neracode')).toBe(false)
   })
 })
 

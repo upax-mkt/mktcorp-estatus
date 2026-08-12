@@ -250,6 +250,21 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * construcción (`historialDeReuniones` se define como "lo que no está por
    * venir"), así que ninguna reunión puede salir en las dos ni en ninguna.
    */
+  /**
+   * DE QUÉ REUNIÓN SALIÓ CADA ACUERDO (Franco: *"la lógica de los acuerdos
+   * tiene que estar bien conectada a la minuta"*).
+   *
+   * La dirección reunión → acuerdos ya existía (cada reunión despliega los
+   * suyos). Faltaba la de vuelta: leyendo un compromiso, no había forma de
+   * llegar a la junta donde se acordó ni a su minuta. `reunionOrigenId` estaba
+   * en el dato desde la ronda 10 y no lo usaba nadie.
+   *
+   * Se enlaza al ANCLA de la reunión en esta misma página (`#r-<id>`) y no a
+   * `/reunion/<id>`: esa ruta enseña el documento, y lo que se quiere es la
+   * junta con su minuta al lado, que es donde está el contexto del acuerdo.
+   */
+  const origenDeAcuerdo = new Map(s.reuniones.map((r) => [r.id, r]))
+
   const porVenir = reunionesPorVenir(s.reuniones, hoyCivil)
   const historial = historialDeReuniones(s.reuniones, hoyCivil)
   /**
@@ -1112,6 +1127,20 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                         {a.squad && <><span className={estilos.sep}>·</span><span>{a.squad}</span></>}
                         <span className={estilos.sep}>·</span>
                         <span className={`${estilos.acuerdoFecha} ${f.clase ? estilos[f.clase] : ''}`}>{f.txt}</span>
+                        {/* DE DÓNDE SALIÓ. Un compromiso sin su junta obliga a
+                            recordar en cuál se acordó para poder discutirlo. */}
+                        {(() => {
+                          const origen = a.reunionOrigenId ? origenDeAcuerdo.get(a.reunionOrigenId) : undefined
+                          if (!origen) return null
+                          return (
+                            <>
+                              <span className={estilos.sep}>·</span>
+                              <a href={`#r-${origen.id}`} className={estilos.acuerdoOrigen}>
+                                de la reunión del {fechaBreve(origen.fecha)}
+                              </a>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                     <div className={estilos.acuerdoDcha}>

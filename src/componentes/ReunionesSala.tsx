@@ -299,8 +299,11 @@ export function ReunionesSala({
         </p>
       )}
 
+      {/* `id` en cada fila: para poder llegar hasta una reunión desde el
+          acuerdo que salió de ella (ver `origenDeAcuerdo`, en la página de la
+          sala) — que es donde está su minuta, a un clic. */}
       {hayHistorial && (
-      <div className={estilos.reunionDestacada}>
+      <div className={estilos.reunionDestacada} id={`r-${ultima.id}`}>
         <div className={estilos.reunionCabecera}>
           <div>
             <div className={estilos.presTag}>La última</div>
@@ -338,7 +341,7 @@ export function ReunionesSala({
           {anteriores.map((r) => {
             const participantes = participantesDeReunion(r)
             return (
-              <div key={r.id} className={estilos.reunionFila}>
+              <div key={r.id} className={estilos.reunionFila} id={`r-${r.id}`}>
                 <div className={estilos.reunionFilaTexto}>
                   <span className={estilos.presFilaTitulo}>{r.titulo}</span>
                   <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
