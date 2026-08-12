@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { seEstaArmando, tienePresentacion, type Reunion } from '@/dominio/reunion'
 import type { Participante } from '@/db/participacion'
@@ -137,6 +137,17 @@ interface Props {
    * tienen por qué fabricarla.
    */
   eliminarReunionAction?: (id: string) => Promise<{ error?: string }>
+  /**
+   * CERRAR EL CICLO: dar por dada una reunión cuya presentación ya está
+   * lista (Franco: *"debería ofrecerme… finalizar o marcar como completada,
+   * ya que el journey se cumplió, y pasar al grupo que le corresponda"*).
+   * Marcarla es lo que la mueve de "Lo que viene" al historial, sin tocar su
+   * fecha: `reunionesPorVenir` filtra `estado !== 'dada'`.
+   *
+   * Es la MISMA acción que ya usaba "Por confirmar" para responder "¿se
+   * dio?" — no una segunda forma de marcar lo mismo.
+   */
+  marcarDadaAction?: (id: string) => Promise<void>
 }
 
 export function ReunionesSala({
@@ -149,6 +160,7 @@ export function ReunionesSala({
   registrarArchivoAction,
   editarArchivoAction,
   eliminarReunionAction,
+  marcarDadaAction,
 }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -270,7 +282,10 @@ export function ReunionesSala({
               subiendo={subiendoReunionId === r.id}
               error={errorSubida?.reunionId === r.id ? errorSubida.mensaje : null}
               onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+              onLeerMinuta={() => setAbierta(r)}
               eliminarAction={equipo ? eliminarReunionAction : undefined}
+              marcarDadaAction={equipo ? marcarDadaAction : undefined}
+              editarArchivoAction={editarArchivoAction}
             />
           ))}
         </div>
@@ -452,7 +467,10 @@ function FilaPorVenir({
   subiendo,
   error,
   onSubirPresentacion,
+  onLeerMinuta,
   eliminarAction,
+  marcarDadaAction,
+  editarArchivoAction,
 }: {
   reunion: Reunion
   equipo: boolean
@@ -460,9 +478,13 @@ function FilaPorVenir({
   subiendo: boolean
   error: string | null
   onSubirPresentacion?: () => void
+  onLeerMinuta: () => void
   eliminarAction?: (id: string) => Promise<{ error?: string }>
+  marcarDadaAction?: (id: string) => Promise<void>
+  editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
 }) {
-  const armando = seEstaArmando(reunion)
+  const [cerrando, empezarCierre] = useTransition()
+  const lista = tienePresentacion(reunion)
 
   return (
     <div className={estilos.porVenirFila}>
@@ -473,49 +495,59 @@ function FilaPorVenir({
           {' · '}
           {/* QUÉ LE FALTA, dicho sin rodeos. Un documento existente pero sin
               secciones llenas no es "0 de 0": es un documento empezado. */}
-          {armando && avance
-            ? `${avance.llenados} de ${avance.total} secciones`
-            : armando
-              ? 'presentación empezada'
-              : reunion.archivos.length > 0
-                ? `${reunion.archivos.length} archivo${reunion.archivos.length > 1 ? 's' : ''} subido${reunion.archivos.length > 1 ? 's' : ''}`
+          {lista
+            ? 'presentación lista'
+            : seEstaArmando(reunion) && avance
+              ? `${avance.llenados} de ${avance.total} secciones`
+              : seEstaArmando(reunion)
+                ? 'presentación empezada'
                 : 'sin presentación todavía'}
         </span>
       </div>
 
-      {equipo && (
-        <div className={estilos.porVenirAcciones}>
-          {armando ? (
-            <Link href={`/deck/${reunion.id}`} className={caras.caraAccion}>
-              Seguir editando →
-            </Link>
-          ) : (
-            <>
-              {onSubirPresentacion && (
-                <button type="button" className={caras.caraAccion} onClick={onSubirPresentacion}>
-                  <span aria-hidden>+</span> Subir presentación
-                </button>
-              )}
-              <Link href={`/deck/${reunion.id}`} className={caras.caraAccion}>
-                <span aria-hidden>✎</span> Armarla en el editor
-              </Link>
-            </>
-          )}
+      {/* QUÉ HAY Y QUÉ SIGUE. `CarasDeReunion` es la ÚNICA que decide eso —
+          documento y archivos si los hay, "seguir editando" si está a medias,
+          las dos vías si no hay nada, y levantar la minuta— así que aquí no
+          se repite ninguna de esas decisiones. */}
+      <div className={estilos.porVenirAcciones}>
+        <CarasDeReunion
+          reunion={reunion}
+          equipo={equipo}
+          onLeerMinuta={onLeerMinuta}
+          onSubirPresentacion={onSubirPresentacion}
+          editarArchivoAction={editarArchivoAction}
+          compacta
+        />
 
-          <BorrarReunion reunion={reunion} eliminarAction={eliminarAction} />
-        </div>
-      )}
+        {/**
+         * CERRAR EL CICLO (Franco: *"cuando ya creé la reunión y subí la
+         * presentación, debería ofrecerme generar la minuta, generar acuerdos
+         * y finalizar o marcar como completada, ya que el journey se cumplió,
+         * y pasar al grupo que le corresponda"*).
+         *
+         * Solo con la presentación lista: antes de eso no hay nada que dar
+         * por dado, y ofrecerlo invitaría a cerrar una junta que no ocurrió.
+         * Al marcarla, `reunionesPorVenir` deja de contarla (filtra `estado
+         * !== 'dada'`) y cae sola en el historial — como "La última" si es la
+         * más reciente. Eso es lo que la mueve de grupo, sin tocar su fecha.
+         *
+         * LOS ACUERDOS SALEN DE LA MINUTA, no de un botón aparte: publicarla
+         * es lo que los crea y los deja vivos en la sala. Por eso el ciclo se
+         * ofrece en este orden y "Levantar minuta" ya viene de `CarasDeReunion`.
+         */}
+        {equipo && lista && marcarDadaAction && (
+          <button
+            type="button"
+            className={caras.caraAccion}
+            disabled={cerrando}
+            onClick={() => empezarCierre(async () => { await marcarDadaAction(reunion.id) })}
+          >
+            <span aria-hidden>✓</span> {cerrando ? 'Cerrando…' : 'Ya se dio'}
+          </button>
+        )}
 
-      {/* Los archivos ya subidos, para que subir uno no parezca no hacer nada. */}
-      {reunion.archivos.length > 0 && (
-        <ul className={estilos.porVenirArchivos}>
-          {reunion.archivos.map((a) => (
-            <li key={a.id}>
-              <a href={`/api/archivo/${a.id}`} target="_blank" rel="noopener">{a.titulo}</a>
-            </li>
-          ))}
-        </ul>
-      )}
+        {equipo && <BorrarReunion reunion={reunion} eliminarAction={eliminarAction} />}
+      </div>
 
       {subiendo && <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>}
       {error && <p className={estilos.subirError} role="alert">{error}</p>}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { tienePresentacion, type CaraArchivo, type Reunion } from '@/dominio/reunion'
+import { seEstaArmando, tienePresentacion, type CaraArchivo, type Reunion } from '@/dominio/reunion'
 import estilos from './CarasDeReunion.module.css'
 
 /**
@@ -140,6 +140,19 @@ function CaraPresentacion({
 }) {
   if (!tienePresentacion(reunion)) {
     if (!equipo) return <span className="pildora">Sin presentación</span>
+    /**
+     * YA EMPEZADA EN EL EDITOR: una sola salida, seguir donde se dejó.
+     * Ofrecer aquí "subir" y "armar" sería ofrecer empezar de cero lo que ya
+     * está a medias. `seEstaArmando` mira si EXISTE el documento, no si está
+     * listo: son preguntas distintas (ver `dominio/reunion.ts`).
+     */
+    if (seEstaArmando(reunion)) {
+      return (
+        <Link href={`/deck/${reunion.id}`} className={estilos.caraAccion}>
+          Seguir editando →
+        </Link>
+      )
+    }
     /**
      * LAS DOS VÍAS, JUNTAS (Franco: *"al crear una nueva reunión… allí me debe
      * permitir o cargar la presentación que ya hicimos o crearla en el
@@ -292,6 +305,23 @@ function CaraMinuta({
       </button>
     )
   }
+
+  /**
+   * SIN NADA QUE RESPALDE LA JUNTA NO SE OFRECE MINUTARLA.
+   *
+   * Este hueco se ofrecía siempre, así que una reunión de dentro de un mes
+   * recién creada —sin presentación, sin nada— invitaba a levantar el acta de
+   * algo que todavía no ha ocurrido. El criterio es el mismo que decide qué
+   * es minutable en el dominio (`reunionesMinutables`): que la junta esté
+   * dada, o que haya una presentación que la respalde. Es también lo que pidió
+   * Franco al describir el ciclo — *"cuando ya… subí la presentación, debería
+   * ofrecerme generar la minuta"*: la presentación es la señal.
+   *
+   * NO se mira la fecha aquí a propósito: este componente no sabe qué día es
+   * hoy, y quien decide qué reuniones entran en cada bloque —lo que viene o el
+   * historial— ya lo hizo antes de llegar aquí.
+   */
+  if (!tienePresentacion(reunion) && reunion.estado !== 'dada') return null
 
   if (!equipo) return <span className="pildora" data-tono="ojo">Falta la minuta</span>
 

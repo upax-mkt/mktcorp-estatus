@@ -308,3 +308,39 @@ describe('CarasDeReunion — minuta ya publicada', () => {
     expect(alLeer).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * MINUTAR ES PARA LO QUE YA OCURRIÓ, o al menos para lo que tiene con qué
+ * respaldarse.
+ *
+ * "Levantar minuta" se ofrecía SIEMPRE que no hubiera minuta, así que una
+ * reunión de dentro de un mes recién creada —sin presentación, sin nada—
+ * invitaba a levantar el acta de algo que no ha pasado. Mismo criterio que
+ * `reunionesMinutables` en el dominio: dada, o con presentación que la
+ * respalde. Franco lo describió como el ciclo: *"cuando ya… subí la
+ * presentación, debería ofrecerme generar la minuta"*.
+ */
+describe('CarasDeReunion — cuándo se ofrece levantar la minuta', () => {
+  const futuraVacia: Reunion = {
+    ...sinNada, id: 'f1', estado: 'agendada', documentoListo: false, archivos: [],
+  }
+
+  it('sin presentación y sin darla por dada, no se ofrece minutarla', () => {
+    render(<CarasDeReunion reunion={futuraVacia} equipo onLeerMinuta={() => {}} />)
+    expect(screen.queryByRole('link', { name: /levantar minuta/i })).not.toBeInTheDocument()
+  })
+
+  it('con la presentación subida, sí: es la señal de que la junta ya tiene con qué', () => {
+    const conDeck: Reunion = {
+      ...futuraVacia,
+      archivos: [{ id: 'a1', titulo: 'Deck', url: '/api/archivo/a1', nombreOriginal: 'd.pdf' }],
+    }
+    render(<CarasDeReunion reunion={conDeck} equipo onLeerMinuta={() => {}} />)
+    expect(screen.getByRole('link', { name: /levantar minuta/i })).toBeInTheDocument()
+  })
+
+  it('una junta ya dada se minuta aunque no tenga presentación: pasó igual', () => {
+    render(<CarasDeReunion reunion={{ ...futuraVacia, estado: 'dada' }} equipo onLeerMinuta={() => {}} />)
+    expect(screen.getByRole('link', { name: /levantar minuta/i })).toBeInTheDocument()
+  })
+})

@@ -1035,6 +1035,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             registrarArchivoAction={registrarArchivoAction}
             editarArchivoAction={editarArchivoAction}
             eliminarReunionAction={eliminarReunionAction}
+            marcarDadaAction={marcarPresentadaAction}
           />
 
           {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya

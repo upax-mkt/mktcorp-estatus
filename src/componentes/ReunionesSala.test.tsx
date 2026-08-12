@@ -371,3 +371,98 @@ describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
     expect(screen.getByText(/Cruce de paid media/)).toBeInTheDocument()
   })
 })
+
+/**
+ * EL CICLO DE UNA REUNIÓN, DE PRINCIPIO A FIN.
+ *
+ * Franco: *"cuando ya creé la reunión y subí la presentación, debería
+ * ofrecerme generar la minuta, generar acuerdos y finalizar o marcar como
+ * completada, ya que el journey se cumplió, y pasar al grupo que le
+ * corresponda"*.
+ *
+ * "Lo que viene" solo sabía preparar: una vez subida la presentación, la
+ * reunión se quedaba ahí sin nada que hacer con ella. Estas pruebas fijan las
+ * tres etapas y, sobre todo, que **cerrarla es lo que la mueve de grupo** —
+ * sin tocar su fecha.
+ */
+describe('ReunionesSala — el ciclo de una reunión por venir', () => {
+  const POR_VENIR = {
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, acuerdos: [],
+  }
+  const SIN_NADA: Reunion = {
+    ...POR_VENIR, id: 'v1', fecha: '2029-09-15T10:00:00.000Z', titulo: 'La que viene',
+    documentoListo: false, archivos: [],
+  }
+  const EMPEZADA: Reunion = { ...SIN_NADA, documentoId: 'doc-1' }
+  const LISTA: Reunion = {
+    ...SIN_NADA,
+    archivos: [{ id: 'a1', titulo: 'Deck de agosto', url: '/api/archivo/a1', nombreOriginal: 'deck.pdf' }],
+  }
+
+  function pintar(reunion: Reunion, extra: Record<string, unknown> = {}) {
+    return render(
+      <ReunionesSala
+        reuniones={[]}
+        porVenir={[reunion]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+        {...extra}
+      />,
+    )
+  }
+
+  it('sin presentación ofrece las dos vías y NADA de cierre: no hay junta que dar por dada', () => {
+    pintar(SIN_NADA, { marcarDadaAction: vi.fn() })
+
+    expect(screen.getByRole('button', { name: /subir presentación/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /armarla en el editor/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ya se dio/i })).not.toBeInTheDocument()
+  })
+
+  /** A medias no se empieza de cero: una sola salida, seguir donde se dejó. */
+  it('a medio armar ofrece seguir editando, no volver a empezar', () => {
+    pintar(EMPEZADA, { marcarDadaAction: vi.fn() })
+
+    expect(screen.getByRole('link', { name: /seguir editando/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /subir presentación/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ya se dio/i })).not.toBeInTheDocument()
+  })
+
+  it('con la presentación lista ofrece el cierre: levantar la minuta y darla por dada', () => {
+    pintar(LISTA, { marcarDadaAction: vi.fn() })
+
+    expect(screen.getByText('Deck de agosto')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /levantar minuta/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ya se dio/i })).toBeInTheDocument()
+    expect(screen.getByText(/presentación lista/i)).toBeInTheDocument()
+  })
+
+  it('"Ya se dio" llama a la acción que la mueve de grupo, con SU id', async () => {
+    const marcarDadaAction = vi.fn().mockResolvedValue(undefined)
+    const usuario = userEvent.setup()
+    pintar(LISTA, { marcarDadaAction })
+
+    await usuario.click(screen.getByRole('button', { name: /ya se dio/i }))
+
+    expect(marcarDadaAction).toHaveBeenCalledWith('v1')
+  })
+
+  /** Al director de la UDN no se le ofrece cerrar la junta: no le toca. */
+  it('sin ser equipo no hay cierre ni borrado', () => {
+    render(
+      <ReunionesSala
+        reuniones={[]}
+        porVenir={[LISTA]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+        marcarDadaAction={vi.fn()}
+        eliminarReunionAction={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: /ya se dio/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /borrar la reunión/i })).not.toBeInTheDocument()
+  })
+})
