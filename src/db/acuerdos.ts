@@ -727,3 +727,32 @@ export async function refrescarDesdeMonday(salaSlug?: string): Promise<void> {
     }
   }
 }
+
+/**
+ * De qué sala es un acuerdo, o `null` si no existe.
+ *
+ * Existe para que una Server Action pueda comprobar que el acuerdo que le
+ * mandan es del cliente cuya pantalla lo pidió — el id viaja desde el
+ * navegador y una acción es un endpoint.
+ *
+ * SE PREGUNTA A LA BASE Y NO A LO QUE LA PÁGINA YA TENÍA CARGADO, por dos
+ * motivos. El de fondo: lo cargado es una foto del momento del render, y
+ * entre eso y el clic pueden pasar minutos. El práctico: alcanzar ese objeto
+ * desde dentro de la acción mete su contenido en el cierre que React
+ * serializa hacia el cliente, y ahí salta "Functions cannot be passed
+ * directly to Client Components" — pasó con `s.acuerdos.some(...)` y tumbó la
+ * sala entera.
+ */
+export async function salaDeAcuerdo(acuerdoId: string): Promise<string | null> {
+  if (!hayDB()) {
+    return memoria.obtenerAcuerdoMemoria(acuerdoId)?.salaSlug ?? null
+  }
+  const fila = (
+    await db()
+      .select({ salaSlug: esquema.acuerdos.salaSlug })
+      .from(esquema.acuerdos)
+      .where(eq(esquema.acuerdos.id, acuerdoId))
+      .limit(1)
+  )[0]
+  return fila?.salaSlug ?? null
+}

@@ -23,7 +23,10 @@ import { PLANTILLAS } from '@/secciones/plantillas'
  * del componente; solo `VistaSala` misma se ejecuta.
  */
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+// Con nombre: el describe de "corregir un acuerdo" comprueba que el cambio
+// se propaga a las CUATRO pantallas donde ese acuerdo puede estar.
+const revalidatePathMock = vi.fn()
+vi.mock('next/cache', () => ({ revalidatePath: (...args: unknown[]) => revalidatePathMock(...args) }))
 
 // `connection()` (ronda 11, enganche de la tarea 2): la página ahora lo
 // llama para que `BarraNavegacion` pinte la fecha de HOY, no la del build
@@ -124,11 +127,16 @@ vi.mock('@/db/participacion', async (importarOriginal) => {
   return { ...real, participantesDe: (...args: unknown[]) => participantesDeMock(...args) }
 })
 
+const editarAcuerdoMock = vi.fn()
+const salaDeAcuerdoMock = vi.fn()
 vi.mock('@/db/acuerdos', () => ({
   moverEstatus: vi.fn(),
-  editarAcuerdo: vi.fn(),
+  editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
   crearAcuerdo: vi.fn(),
   eliminarAcuerdo: vi.fn(),
+  // De qué sala es un acuerdo: lo pregunta la acción de corregir, para
+  // rechazar el id de otro cliente.
+  salaDeAcuerdo: (...args: unknown[]) => salaDeAcuerdoMock(...args),
   refrescarDesdeMonday: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -265,6 +273,23 @@ vi.mock('@/componentes/ReunionesSala', async (importarOriginal) => {
 // monta la pantalla — el describe de "crearSesionAction reenvía el título"
 // (más abajo) llama esa acción capturada directo, con un `titulo` fabricado,
 // para comprobar que ya no se manda `''` fijo (el bug que cerró esta tarea).
+/**
+ * `EditarAcuerdo` se envuelve para poder llamar su Server Action DIRECTO: el
+ * gate de quién puede corregir un acuerdo publicado vive en la acción, no en
+ * si el botón se pinta (esconder un botón no protege un endpoint).
+ */
+const editarAcuerdoPropsMock = vi.fn()
+vi.mock('@/componentes/EditarAcuerdo', async (importarOriginal) => {
+  const real = await importarOriginal<typeof import('@/componentes/EditarAcuerdo')>()
+  return {
+    ...real,
+    EditarAcuerdo: (props: Parameters<typeof real.EditarAcuerdo>[0]) => {
+      editarAcuerdoPropsMock(props)
+      return createElement(real.EditarAcuerdo, props)
+    },
+  }
+})
+
 const nuevaSesionSalaPropsMock = vi.fn()
 vi.mock('@/componentes/NuevaSesionSala', async (importarOriginal) => {
   const real = await importarOriginal<typeof import('@/componentes/NuevaSesionSala')>()
@@ -1164,5 +1189,117 @@ describe('VistaSala (/cliente/[slug]) — crear una reunión no crea su presenta
 
     expect(resultado.error).toMatch(/plantilla/i)
     expect(crearReunionMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * CORREGIR UN ACUERDO YA PUBLICADO.
+ *
+ * Franco preguntó *"¿cómo hago para editar un acuerdo ya publicado?"* y la
+ * respuesta era: no se podía. El texto solo se editaba en la bandeja y solo
+ * mientras el acuerdo seguía `pendiente`; una vez en la sala, ante una errata
+ * la única salida era borrarlo y crearlo de nuevo.
+ *
+ * Y lo que fija este describe sobre todo es el CANDADO, que Franco pidió
+ * explícito: *"solo el admin y editores pueden hacer cambios en los acuerdos
+ * ya publicados"*.
+ */
+describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => {
+  const CON_ACUERDO: EstadoSala = {
+    ...SALA_BASE,
+    acuerdos: [{
+      id: 'ac-1', que: 'Mandar el reporte', responsable: 'Ana', estatus: 'abierto',
+      fechaCompromiso: null, destacado: false,
+    } as EstadoSala['acuerdos'][number]],
+  }
+
+  async function accionCapturada() {
+    // Por defecto el acuerdo es de esta sala; el test del id ajeno lo cambia.
+    salaDeAcuerdoMock.mockResolvedValue('neracode')
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDO)
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    render(await invocar())
+    const props = editarAcuerdoPropsMock.mock.calls[0][0] as {
+      editarAction: (
+        id: string,
+        cambios: { que: string; responsable: string; responsableMondayId: string | null },
+      ) => Promise<{ error?: string }>
+    }
+    return props.editarAction
+  }
+
+  it('el lápiz solo se ofrece al equipo, no al director de la UDN', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDO)
+    esLectorMock.mockResolvedValue(false) // el director
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(editarAcuerdoPropsMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * EL GATE QUE CUENTA. `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`:
+   * esa segunda deja pasar al director de la UDN para SU sala, y es la que
+   * usan mover el estatus y la fecha. Corregir el compromiso, no.
+   */
+  it('la acción exige editor, no el permiso de acuerdos del director', async () => {
+    const editar = await accionCapturada()
+    exigirEditorMock.mockClear()
+
+    await editar('ac-1', { que: 'Mandar el reporte corregido', responsable: 'Ana', responsableMondayId: null })
+
+    expect(exigirEditorMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('guarda el texto y el responsable nuevos', async () => {
+    const editar = await accionCapturada()
+    editarAcuerdoMock.mockClear()
+
+    await editar('ac-1', { que: '  Mandar el reporte al cierre  ', responsable: 'Iris', responsableMondayId: 'm-9' })
+
+    expect(editarAcuerdoMock).toHaveBeenCalledWith('ac-1', expect.objectContaining({
+      que: 'Mandar el reporte al cierre', // recortado
+      responsable: 'Iris',
+      responsableMondayId: 'm-9',
+    }))
+  })
+
+  it('un acuerdo de OTRA sala se rechaza: el id lo manda el navegador', async () => {
+    const editar = await accionCapturada()
+    editarAcuerdoMock.mockClear()
+
+    salaDeAcuerdoMock.mockResolvedValueOnce('mexa-creativa')
+    const r = await editar('de-otra-sala', { que: 'x', responsable: 'Ana', responsableMondayId: null })
+
+    expect(r.error).toMatch(/no es de este cliente/i)
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('no deja vaciar el texto: un acuerdo sin qué hacer no es un acuerdo', async () => {
+    const editar = await accionCapturada()
+    editarAcuerdoMock.mockClear()
+
+    const r = await editar('ac-1', { que: '   ', responsable: 'Ana', responsableMondayId: null })
+
+    expect(r.error).toBeTruthy()
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * "Desaparece de todos lados" (Franco): si faltara una pantalla, el texto
+   * viejo seguiría ahí hasta que a alguien le caducara la caché.
+   */
+  it('revalida las cuatro pantallas donde el acuerdo puede estar', async () => {
+    const editar = await accionCapturada()
+    revalidatePathMock.mockClear()
+
+    await editar('ac-1', { que: 'Nuevo texto', responsable: 'Ana', responsableMondayId: null })
+
+    const rutas = revalidatePathMock.mock.calls.map((c) => c[0])
+    for (const ruta of ['/cliente/neracode', '/', '/acuerdos', '/acuerdos/bandeja']) {
+      expect(rutas, `no revalida ${ruta}`).toContain(ruta)
+    }
   })
 })

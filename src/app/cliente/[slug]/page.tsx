@@ -20,7 +20,8 @@ import {
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import {
-  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, type EstatusAcuerdo,
+  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
+  type EstatusAcuerdo,
 } from '@/db/acuerdos'
 import { directorio } from '@/db/personas'
 import { participantesDe, registrarEdicion, type Participante } from '@/db/participacion'
@@ -42,6 +43,7 @@ import { AnadirMaterial } from '@/componentes/AnadirMaterial'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { PausaSala } from '@/componentes/PausaSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
+import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
 import {
   marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion, eliminarReunion, crearReunion,
 } from '@/db/reuniones'
@@ -325,6 +327,75 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
+  }
+
+  /**
+   * CORREGIR UN ACUERDO YA PUBLICADO: su texto y su responsable.
+   *
+   * Franco preguntó *"¿cómo hago para editar un acuerdo ya publicado?"* y la
+   * respuesta era: no se podía. Editar el texto solo existía en la bandeja
+   * (`/acuerdos/bandeja`) y solo mientras el acuerdo seguía `pendiente` —
+   * `editarEnBandejaAction` corta con `if (fila.bandeja !== 'pendiente')
+   * return`. Una vez en la sala, la única salida ante una errata o un dueño
+   * mal asignado era borrarlo y volver a crearlo, perdiendo su origen.
+   *
+   * ⚠️ `exigirEditor()`, NO `exigirEdicionDeAcuerdos(slug)` — es la única
+   * acción de acuerdos de esta pantalla que NO deja pasar al director de la
+   * UDN, y es lo que pidió Franco: *"solo el admin y editores pueden hacer
+   * cambios en los acuerdos ya publicados"*. El director sigue moviendo el
+   * estatus y la fecha de los suyos (eso no cambia); lo que no hace es
+   * reescribir el compromiso ni cambiarse el dueño.
+   *
+   * SIN RASTRO VISIBLE, también por petición suya (*"no queda registro
+   * histórico y desaparece de todos lados"*): el texto viejo no se enseña en
+   * ninguna parte. La columna `acuerdos.historia` sigue registrando el cambio
+   * porque es infraestructura interna que ninguna pantalla pinta —lo
+   * comprobado antes de escribir esto— y quitarla sería perder la auditoría
+   * de estatus que ya existía por algo que nunca se ve.
+   *
+   * Y REVALIDA LAS CUATRO PANTALLAS donde este acuerdo puede estar: su sala,
+   * el Home, el espacio de acuerdos y la bandeja. "Desaparece de todos lados"
+   * es literalmente eso — si faltara una, el texto viejo seguiría ahí hasta
+   * que a alguien le caducara la caché.
+   */
+  async function editarAcuerdoTextoAction(
+    acuerdoId: string,
+    cambios: { que: string; responsable: string; responsableMondayId: string | null },
+  ): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+    const que = cambios.que.trim()
+    if (que.length === 0) return { error: 'El acuerdo necesita decir qué hay que hacer.' }
+    // Que sea de ESTA sala: el id lo manda el navegador y una Server Action
+    // es un endpoint. Sin esto, quien tenga el id de un acuerdo de otro
+    // cliente podría reescribirlo desde aquí.
+    //
+    // ⚠️ SE PREGUNTA A LA BASE, NO A `s.acuerdos` — que es lo que la página ya
+    // tenía cargado y sería lo cómodo. Alcanzar ese objeto desde dentro de la
+    // acción mete su contenido en el cierre que React serializa hacia el
+    // cliente, y salta "Functions cannot be passed directly to Client
+    // Components… [function some]": la sala entera con un 500. Es la CUARTA
+    // vez hoy que este patrón muerde (ver `bloqueValido` en el benchmark,
+    // `guardarEnlaceDeSala` aquí mismo y `revalidarDocumento` en el editor).
+    // Y además es más correcto: lo cargado es una foto del render, y entre
+    // eso y el clic pueden pasar minutos.
+    if ((await salaDeAcuerdo(acuerdoId)) !== slug) {
+      return { error: 'Ese acuerdo no es de este cliente.' }
+    }
+    try {
+      await editarAcuerdo(acuerdoId, {
+        que,
+        responsable: cambios.responsable.trim() || 'por asignar',
+        responsableMondayId: cambios.responsableMondayId,
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo guardar el cambio.' }
+    }
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/')
+    revalidatePath('/acuerdos')
+    revalidatePath('/acuerdos/bandeja')
+    return {}
   }
 
   async function eliminarAcuerdoAction(acuerdoId: string) {
@@ -969,7 +1040,30 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                   <div key={a.id} className={estilos.acuerdo}>
                     <span className={`${estilos.acuerdoEstado} ${claseEstado}`} />
                     <div>
-                      <div className={estilos.acuerdoQue}>{a.que}</div>
+                      {/* EL LÁPIZ VA FUERA DEL TEXTO, no dentro. Estuvo dentro
+                          de `.acuerdoQue` y el glifo pasaba a formar parte del
+                          acuerdo al seleccionarlo o copiarlo — me lo demostró
+                          un script de prueba que leyó el texto renderizado y
+                          guardó "…casos de éxito✎" en la base. Lo que se lee
+                          como el compromiso tiene que ser SOLO el compromiso.
+
+                          CORREGIRLO ES SOLO DE ADMIN Y EDITORES (`equipo`), no
+                          del director de la UDN — Franco: *"solo el admin y
+                          editores pueden hacer cambios en los acuerdos ya
+                          publicados"*. Él sigue moviendo estatus y fecha de los
+                          suyos, con `AcuerdoControles`, a la derecha. */}
+                      <div className={estilos.acuerdoLinea}>
+                        <div className={estilos.acuerdoQue}>{a.que}</div>
+                        {equipo && (
+                          <EditarAcuerdo
+                            acuerdoId={a.id}
+                            queInicial={a.que}
+                            responsableInicial={a.responsable}
+                            personas={personas}
+                            editarAction={editarAcuerdoTextoAction}
+                          />
+                        )}
+                      </div>
                       <div className={estilos.acuerdoMeta}>
                         <span>{a.responsable === 'por asignar' ? 'sin dueño' : a.responsable}</span>
                         {a.squad && <><span className={estilos.sep}>·</span><span>{a.squad}</span></>}
