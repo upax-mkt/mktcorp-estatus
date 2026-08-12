@@ -84,3 +84,18 @@ class ObservadorMudo implements IntersectionObserver {
   takeRecords(): IntersectionObserverEntry[] { return [] }
 }
 globalThis.IntersectionObserver = ObservadorMudo as unknown as typeof IntersectionObserver
+
+/**
+ * `ResizeObserver` TAMPOCO EXISTE EN JSDOM. Lo usa el tablero de analytics
+ * (`componentes/TableroAnalytics.tsx`) para medir el ancho del módulo y
+ * escalar el iframe hasta que quepa. Mismo criterio que el doble de
+ * `IntersectionObserver` de arriba: MUDO, porque medir anchos reales es
+ * exactamente lo que jsdom no hace, y simular el callback aquí solo produciría
+ * una verdad inventada.
+ */
+class MedidorMudo implements ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = MedidorMudo as unknown as typeof ResizeObserver

@@ -1802,33 +1802,27 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    fortaleza invisible, dónde se le gana y si contesta el teléfono. */
 
 /* ── EL TABLERO DE ANALYTICS ──────────────────────────────────────────────
-   Diego Luna (RevOps) midió el contenido de ORBIT en 900-950 px de alto.
-   ALTURA ENTERA, sin recortar contra la ventana: durante una ronda fue
-   `min(920px, 78vh)` para que el tablero no llenara la pantalla de un portátil
-   de 13", pero recortarlo tiene un precio que no se ve en un print — el
-   contenido no cabe, el iframe gana scroll PROPIO, y la rueda (o el dedo, que
-   es peor) mueve primero el tablero y solo al llegar a su tope sigue la sala.
-   El módulo NACE PLEGADO (ver `TableroAnalytics.tsx`), así que ya no invade
-   nada: quien lo abre lo quiere entero. */
-/* El enlace a los ajustes dentro del aviso de pausa: el aviso informa, y el
-   control vive en otra pantalla — sin esto habría que salir a buscarla. */
-.avisoEnlace {
-  margin-left: auto; flex: none;
-  font-size: 0.85rem; font-weight: 600; color: inherit;
-  text-decoration: underline; text-underline-offset: 3px;
-}
-.avisoEnlace:hover { text-decoration-thickness: 2px; }
-
+   SE ESCALA, NO SE ALARGA. El tablero de ORBIT es responsive: por debajo de
+   1100 px de ancho apila sus columnas y crece a ~1264, así que dentro del
+   módulo (~1010 px) no cabía y se cortaba. Se le da el ancho en el que su
+   diseño encaja y se reduce hasta el real — el alto de la caja y la escala los
+   calcula `TableroAnalytics.tsx`, que es quien mide el ancho de verdad; aquí
+   solo vive lo que no depende de esa medida. */
 .tableroMarco {
   border-radius: var(--r-3);
   overflow: hidden;
   background: var(--papel-hundido);
+  /* La caja recorta lo que sobre mientras el observador aún no ha medido: sin
+     esto, el primer fotograma pinta 1100 px de iframe desbordando la tarjeta. */
+  position: relative;
 }
 .tableroIframe {
   display: block;
-  width: 100%;
-  height: 920px;
   border: none;
+  /* Desde la esquina, para que al reducir no quede aire arriba ni a la
+     izquierda: escalar desde el centro dejaría el contenido descolocado
+     dentro de su propia caja. */
+  transform-origin: top left;
 }
 
 /* ══ EL ÍNDICE DE LA SALA ═════════════════════════════════════════════════
