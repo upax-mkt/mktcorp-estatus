@@ -53,17 +53,33 @@ export function EditarAcuerdo({
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
 
+  /**
+   * EN REPOSO PINTA EL TEXTO Y SU LÁPIZ; editando, SOLO el editor.
+   *
+   * El componente es dueño del texto —no solo del botón— porque si no, al
+   * abrir el editor el acuerdo original se quedaba a la izquierda y la caja
+   * de edición aparecía al lado: dos versiones del mismo compromiso en
+   * pantalla, y la vieja con más peso visual que la que se está escribiendo.
+   * Para saber cuál esconder hay que saber si se está editando, y eso vive
+   * aquí.
+   *
+   * El lápiz es HERMANO del texto, no hijo: dentro, su glifo pasaba a formar
+   * parte del acuerdo al seleccionarlo o copiarlo.
+   */
   if (!editando) {
     return (
-      <button
-        type="button"
-        className={estilos.acuerdoLapiz}
-        onClick={() => setEditando(true)}
-        aria-label={`Corregir el acuerdo ${queInicial}`}
-        title="Corregir"
-      >
-        ✎
-      </button>
+      <div className={estilos.acuerdoLinea}>
+        <div className={estilos.acuerdoQue}>{queInicial}</div>
+        <button
+          type="button"
+          className={estilos.acuerdoLapiz}
+          onClick={() => setEditando(true)}
+          aria-label={`Corregir el acuerdo ${queInicial}`}
+          title="Corregir"
+        >
+          ✎
+        </button>
+      </div>
     )
   }
 

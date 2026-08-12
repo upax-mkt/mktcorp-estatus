@@ -1052,18 +1052,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                           editores pueden hacer cambios en los acuerdos ya
                           publicados"*. Él sigue moviendo estatus y fecha de los
                           suyos, con `AcuerdoControles`, a la derecha. */}
-                      <div className={estilos.acuerdoLinea}>
+                      {equipo ? (
+                        <EditarAcuerdo
+                          acuerdoId={a.id}
+                          queInicial={a.que}
+                          responsableInicial={a.responsable}
+                          personas={personas}
+                          editarAction={editarAcuerdoTextoAction}
+                        />
+                      ) : (
+                        // El director de la UDN lee el acuerdo; no lo reescribe.
                         <div className={estilos.acuerdoQue}>{a.que}</div>
-                        {equipo && (
-                          <EditarAcuerdo
-                            acuerdoId={a.id}
-                            queInicial={a.que}
-                            responsableInicial={a.responsable}
-                            personas={personas}
-                            editarAction={editarAcuerdoTextoAction}
-                          />
-                        )}
-                      </div>
+                      )}
                       <div className={estilos.acuerdoMeta}>
                         <span>{a.responsable === 'por asignar' ? 'sin dueño' : a.responsable}</span>
                         {a.squad && <><span className={estilos.sep}>·</span><span>{a.squad}</span></>}
