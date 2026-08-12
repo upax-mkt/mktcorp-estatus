@@ -1,64 +1,62 @@
 import { describe, it, expect } from 'vitest'
-import { puedeEditarAcuerdos, puedeEditarContenido } from './politica'
+import { puedeEditarContenido, puedeVerSala } from './politica'
 import type { Sesion } from './firma'
 
 /**
- * La única excepción a "solo Marketing Corp escribe".
+ * EL ENLACE DE UNA SALA SE MIRA, NO SE TOCA.
  *
- * Un acuerdo es un compromiso de la UDN. Que su dueño no pueda marcarlo como
- * cumplido obliga a pedirlo por Slack para que alguien lo teclee — el trámite
- * que esta app viene a quitar. Pero la excepción es ESA y nada más: no
- * alcanza a preparar sesiones, subir archivos ni minutar.
+ * Hasta el 12-ago existía una excepción a "solo Marketing Corp escribe":
+ * `puedeEditarAcuerdos` dejaba al director de una UDN mover el estatus y la
+ * fecha de los compromisos de SU sala. La razón era buena —que el dueño de un
+ * acuerdo pueda marcarlo cumplido sin pedirlo por Slack— y aun así se cerró,
+ * porque el enlace de una sala se COMPARTE:
  *
- * Desde la ronda 9 (tarea 2) `puedeEditarAcuerdos` mira además `rolApp` para
- * el lado de equipo: admin y editor entran, viewer no — un `EQUIPO` con
- * `rolApp: 'admin'` sigue siendo el caso representativo (Franco es admin, ver
- * la migración de la tarea 1), con `EDITOR`/`VIEWER` aparte para las dos
- * ramas nuevas que antes no existían.
+ *   Franco: *"cuando comparto esta URL… si no estás logueado solo puede ver la
+ *   vista de solo lectura; por ende no tiene que verse el botón añadir
+ *   acuerdo, ni poder modificar fechas o estatus"*.
+ *
+ * Esta suite fija lo que queda en pie: que un acceso de sala NO escribe nada,
+ * en ninguna parte. Sustituye a la que probaba la excepción — se conserva el
+ * archivo, y no se borra, porque lo que aquí importa es que la regla vieja no
+ * vuelva sin que nadie se entere.
  */
 const EQUIPO: Sesion = { rol: 'equipo', sub: 'franco@upax.com.mx', rolApp: 'admin', exp: Date.now() + 1000 }
 const EDITOR: Sesion = { rol: 'equipo', sub: 'editora@upax.com.mx', rolApp: 'editor', exp: Date.now() + 1000 }
 const VIEWER: Sesion = { rol: 'equipo', sub: 'viewer@upax.com.mx', rolApp: 'viewer', exp: Date.now() + 1000 }
 const DIR_NERACODE: Sesion = { rol: 'sala', sala: 'neracode', exp: Date.now() + 1000 }
 
-describe('puedeEditarAcuerdos', () => {
-  it('el equipo (admin) mueve los de cualquier sala', () => {
-    expect(puedeEditarAcuerdos(EQUIPO, 'neracode')).toBe(true)
-    expect(puedeEditarAcuerdos(EQUIPO, 'zeus')).toBe(true)
+describe('un acceso de sala no escribe nada', () => {
+  it('el director ve SU sala', () => {
+    expect(puedeVerSala(DIR_NERACODE, 'neracode')).toBe(true)
   })
 
-  it('un editor también: exigirEdicionDeAcuerdos acepta admin y editor', () => {
-    expect(puedeEditarAcuerdos(EDITOR, 'neracode')).toBe(true)
+  it('y solo la suya', () => {
+    expect(puedeVerSala(DIR_NERACODE, 'zeus')).toBe(false)
   })
 
-  it('un viewer NO: solo lee, no es la excepción de acuerdos', () => {
-    expect(puedeEditarAcuerdos(VIEWER, 'neracode')).toBe(false)
-  })
-
-  it('el director mueve los de SU sala', () => {
-    expect(puedeEditarAcuerdos(DIR_NERACODE, 'neracode')).toBe(true)
-  })
-
-  it('y no los de otra', () => {
-    expect(puedeEditarAcuerdos(DIR_NERACODE, 'zeus')).toBe(false)
-  })
-
-  it('sin sesión, nada', () => {
-    expect(puedeEditarAcuerdos(null, 'neracode')).toBe(false)
-  })
-
-  it('un slug que empieza igual no cuela', () => {
-    expect(puedeEditarAcuerdos(DIR_NERACODE, 'neracode-falsa')).toBe(false)
-  })
-
-  it('la excepción NO amplía lo demás: el director sigue sin poder editar contenido en general', () => {
-    // `puedeEditarContenido` es lo que guarda preparar sesiones, subir
-    // archivos y minutar (`puedeEditar`, más laxo y sin mirar `rolApp`, se
-    // retiró en la corrección post-revisión de la ronda 9 — ver
-    // src/auth/roles.ts). Si esto se volviera true para el director, la
-    // excepción de los acuerdos se habría convertido en acceso de escritura
-    // general.
+  /**
+   * EL CAMBIO DEL 12-AGO, en una línea: antes esto era `true` para los
+   * acuerdos de su propia sala a través de `puedeEditarAcuerdos`. Ya no hay
+   * ninguna vía por la que un acceso de sala escriba.
+   */
+  it('no edita contenido, y ya no queda ninguna excepción que lo permita', () => {
     expect(puedeEditarContenido(DIR_NERACODE)).toBe(false)
+  })
+
+  it('sin sesión tampoco, evidentemente', () => {
+    expect(puedeEditarContenido(null)).toBe(false)
+    expect(puedeVerSala(null, 'neracode')).toBe(false)
+  })
+})
+
+describe('dentro de Marketing Corp, quién escribe', () => {
+  it('admin y editor sí', () => {
     expect(puedeEditarContenido(EQUIPO)).toBe(true)
+    expect(puedeEditarContenido(EDITOR)).toBe(true)
+  })
+
+  /** Un viewer de Mkt Corp lee todo y no toca nada — igual que el director. */
+  it('un viewer no', () => {
+    expect(puedeEditarContenido(VIEWER)).toBe(false)
   })
 })

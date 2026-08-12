@@ -4,7 +4,7 @@
 // componente de cliente.
 import { cookies } from 'next/headers'
 import { firmar, verificar, type Sesion, type RolApp } from './firma'
-import { puedeEditarAcuerdos, puedeVerSala } from './politica'
+import { puedeVerSala } from './politica'
 import { COOKIE_SESION } from './nombres'
 import { hayAlgunAdminActivo } from '@/db/directorio'
 
@@ -158,29 +158,22 @@ export async function claveDeEquipoSigueSirviendo(): Promise<boolean> {
 // director de una UDN, que roles.ts no modela porque no es un nivel dentro
 // de equipo, es un permiso aparte sobre SU sala.
 
-/**
- * Lanza si quien pide no puede tocar los acuerdos de ESTA sala.
+/* NO HAY YA UNA EXCEPCIÓN DE ACUERDOS PARA EL DIRECTOR DE UNA UDN.
  *
- * La usan las acciones de acuerdos en vez de `exigirEditor`/`exigirAdmin`: el
- * director de la UDN sí puede moverlos en la suya, sin ser del equipo.
- * `puedeEditarAcuerdos` (src/auth/politica.ts) resuelve el lado de equipo
- * delegando en `puedeEditarContenido` (admin o editor, no viewer) y el lado
- * de sala comparando el slug. Todo lo demás de la sala —archivos, minutas,
- * preparar— sigue exigiendo `exigirEditor()`/`exigirAdmin()` como cualquier
- * otra pantalla de equipo.
+ * Vivían aquí `exigirEdicionDeAcuerdos(slug)` y `puedeEditarAcuerdosDe(slug)`,
+ * la única grieta en "solo Marketing Corp escribe": el director podía mover el
+ * estatus y la fecha de los compromisos de SU sala. Franco la cerró al ver lo
+ * que ve alguien con el enlace de una sala compartido: *"si no estás logueado
+ * solo puede ver la vista de solo lectura; por ende no tiene que verse el
+ * botón añadir acuerdo, ni poder modificar fechas o estatus"*.
+ *
+ * Se RETIRAN en vez de dejarlas sin llamadores: una función de permisos que
+ * concede más de lo que la política permite es exactamente lo que alguien
+ * reconecta por error creyendo que es el gate correcto. Lo que queda es la vía
+ * única de `src/auth/roles.ts` — `exigirEditor()` para escribir, `esEditor()`
+ * para decidir si se ofrece el control. Si algún día vuelve la excepción, está
+ * en git y su razón está escrita arriba.
  */
-export async function exigirEdicionDeAcuerdos(slug: string): Promise<Sesion> {
-  const sesion = await sesionActual()
-  if (!puedeEditarAcuerdos(sesion, slug)) {
-    throw new Error('No puedes editar los acuerdos de esta sala.')
-  }
-  return sesion as Sesion
-}
-
-/** true si quien pide puede mover los acuerdos de esta sala. */
-export async function puedeEditarAcuerdosDe(slug: string): Promise<boolean> {
-  return puedeEditarAcuerdos(await sesionActual(), slug)
-}
 
 /** true si quien pide puede ver esta sala. */
 export async function puedeVerEstaSala(slug: string): Promise<boolean> {

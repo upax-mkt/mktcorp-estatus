@@ -798,7 +798,51 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 /* Con el teclado el lápiz tiene que ser visible antes de pulsarlo. */
 @media (prefers-reduced-motion: reduce) { .acuerdoLapiz { transition: none; } }
 
+/* La salida de una reunión, también escondida hasta que se acerca uno: en una
+   tarjeta que se abre para LEER, una ✕ permanente es lo primero que se ve y lo
+   último que se quiere. Con el teclado aparece al recibir el foco. */
+/* ══ UNA SECCIÓN PLEGABLE ═════════════════════════════════════════════════
+   `details`/`summary` nativos: se abre con teclado y con dedo sin una línea
+   de JS, y la página sigue siendo de servidor. El `summary` conserva la
+   silueta de `.seccionTitulo` para que plegado y desplegado se lean como la
+   misma sección — lo único que se añade es el triángulo. */
+.seccionPlegable > summary {
+  cursor: pointer; list-style: none;
+  margin-bottom: 0; /* lo pone el contenido al abrirse */
+}
+.seccionPlegable[open] > summary { margin-bottom: 1rem; }
+.seccionPlegable > summary::-webkit-details-marker { display: none; }
+.seccionPlegable > summary::after {
+  content: '›'; margin-left: 0.5rem;
+  font-size: 1.05rem; line-height: 1; color: var(--tx-3);
+  transition: transform var(--rapido, 0.15s) linear;
+}
+.seccionPlegable[open] > summary::after { transform: rotate(90deg); }
+.seccionPlegable > summary:hover::after { color: var(--tx); }
+.seccionPlegable > summary:focus-visible { outline: 2px solid var(--marca); outline-offset: 4px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { .seccionPlegable > summary::after { transition: none; } }
+
+/* El campo donde se teclea ELIMINAR: ocupa su propia línea, para que se lea
+   el aviso de arriba antes de escribir. */
+.borrarTecleo { flex-basis: 100%; display: grid; gap: 0.3rem; max-width: 22rem; }
+.borrarTecleo > span { font-size: 0.8rem; color: var(--tx-2); }
 .reunionBorrar { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+/* Se apunta a la FILA y no a `.reunionBorrar`: en "Lo que viene" el botón
+   cuelga directo de `.porVenirAcciones`, sin ese envoltorio. */
+.reunionDestacada .botonIconoBorrar,
+.reunionFila .botonIconoBorrar,
+.porVenirFila .botonIconoBorrar { opacity: 0; transition: opacity 140ms ease; }
+.reunionDestacada:hover .botonIconoBorrar,
+.reunionFila:hover .botonIconoBorrar,
+.porVenirFila:hover .botonIconoBorrar,
+.reunionDestacada .botonIconoBorrar:focus-visible,
+.reunionFila .botonIconoBorrar:focus-visible,
+.porVenirFila .botonIconoBorrar:focus-visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .reunionDestacada .botonIconoBorrar,
+  .reunionFila .botonIconoBorrar,
+  .porVenirFila .botonIconoBorrar { transition: none; }
+}
 .porVenirAviso {
   flex-basis: 100%; margin: 0;
   font-size: 0.8rem; line-height: 1.45; color: var(--tx-2);

@@ -521,3 +521,108 @@ describe('ReunionesSala — la minuta publicada conserva su forma', () => {
     expect(dialogo!.textContent).not.toContain('Acción | Owner | Fecha')
   })
 })
+
+/**
+ * BORRAR UNA REUNIÓN: LA FRICCIÓN ESCALA CON LO QUE SE PIERDE.
+ *
+ * Franco: *"borrar una reunión que ya se dio y se marcó como tal no puede ser
+ * eliminada solo con un clic; debería el editor o admin teclear un captcha o
+ * escribir ELIMINAR"*.
+ *
+ * No son el mismo acto. Tirar una junta del jueves creada por error no
+ * destruye nada. Tirar una que ya se dio se lleva su presentación, su minuta
+ * y el registro de que ocurrió — y eso no se rehace, porque la transcripción
+ * de la que salió el acta ya no está.
+ */
+describe('ReunionesSala — borrar una reunión con historia exige teclearlo', () => {
+  const BASE_BORRAR = {
+    tipo: 'mensual' as const, noDadaEn: null, documentoListo: false, archivos: [], acuerdos: [],
+  }
+  const VACIA: Reunion = {
+    ...BASE_BORRAR, id: 'v1', fecha: '2029-09-15T10:00:00.000Z', titulo: 'Recién creada',
+    estado: 'agendada',
+  }
+  const YA_SE_DIO: Reunion = { ...VACIA, id: 'd1', titulo: 'Quincenal de julio', estado: 'dada' }
+
+  function pintarPorVenir(reunion: Reunion, eliminarReunionAction = vi.fn()) {
+    render(
+      <ReunionesSala
+        reuniones={[]}
+        porVenir={[reunion]}
+        equipo
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+        eliminarReunionAction={eliminarReunionAction}
+      />,
+    )
+    return eliminarReunionAction
+  }
+
+  it('una reunión vacía y por venir se borra en dos tiempos, sin teclear nada', async () => {
+    const usuario = userEvent.setup()
+    const eliminar = pintarPorVenir(VACIA)
+
+    await usuario.click(screen.getByRole('button', { name: /borrar la reunión/i }))
+    expect(screen.queryByLabelText(/escribe eliminar/i)).not.toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: /sí, borrar la reunión/i }))
+    expect(eliminar).toHaveBeenCalledWith('v1')
+  })
+
+  it('una que YA SE DIO pide teclear ELIMINAR, y hasta entonces no deja borrar', async () => {
+    const usuario = userEvent.setup()
+    const eliminar = pintarPorVenir(YA_SE_DIO)
+
+    await usuario.click(screen.getByRole('button', { name: /borrar la reunión/i }))
+
+    const boton = screen.getByRole('button', { name: /sí, borrar la reunión/i })
+    expect(boton).toBeDisabled()
+    // Y dice qué se lleva, que es para lo que sirve la fricción.
+    expect(screen.getByText(/ya se dio/i)).toBeInTheDocument()
+    expect(screen.getByText(/no se puede recuperar/i)).toBeInTheDocument()
+
+    await usuario.type(screen.getByLabelText(/escribe eliminar/i), 'ELIMINAR')
+    expect(boton).toBeEnabled()
+    await usuario.click(boton)
+    expect(eliminar).toHaveBeenCalledWith('d1')
+  })
+
+  it('media palabra no basta', async () => {
+    const usuario = userEvent.setup()
+    const eliminar = pintarPorVenir(YA_SE_DIO)
+
+    await usuario.click(screen.getByRole('button', { name: /borrar la reunión/i }))
+    await usuario.type(screen.getByLabelText(/escribe eliminar/i), 'ELIMIN')
+
+    expect(screen.getByRole('button', { name: /sí, borrar la reunión/i })).toBeDisabled()
+    expect(eliminar).not.toHaveBeenCalled()
+  })
+
+  /** Con minuta, presentación o acuerdos también pesa, aunque nadie la haya confirmado. */
+  it.each([
+    ['con minuta', { minuta: { titulo: 'm', fecha: '2029-09-15T10:00:00.000Z', texto: 'x', enviadaA: 0 } }],
+    ['con presentación', { documentoListo: true }],
+    ['con acuerdos', { acuerdos: [{ id: 'a1', que: 'x', responsable: 'Ana', estatus: 'abierto' }] }],
+  ])('%s también exige teclearlo, aunque siga agendada', async (_caso, extra) => {
+    const usuario = userEvent.setup()
+    pintarPorVenir({ ...VACIA, ...extra } as Reunion)
+
+    await usuario.click(screen.getByRole('button', { name: /borrar la reunión/i }))
+
+    expect(screen.getByLabelText(/escribe eliminar/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sí, borrar la reunión/i })).toBeDisabled()
+  })
+
+  it('cancelar limpia lo tecleado: al reabrir hay que escribirlo otra vez', async () => {
+    const usuario = userEvent.setup()
+    pintarPorVenir(YA_SE_DIO)
+
+    await usuario.click(screen.getByRole('button', { name: /borrar la reunión/i }))
+    await usuario.type(screen.getByLabelText(/escribe eliminar/i), 'ELIMINAR')
+    await usuario.click(screen.getByRole('button', { name: /cancelar/i }))
+    await usuario.click(screen.getByRole('button', { name: /borrar la reunión/i }))
+
+    expect(screen.getByLabelText(/escribe eliminar/i)).toHaveValue('')
+    expect(screen.getByRole('button', { name: /sí, borrar la reunión/i })).toBeDisabled()
+  })
+})

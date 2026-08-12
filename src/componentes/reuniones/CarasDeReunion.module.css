@@ -46,13 +46,28 @@
    enlace: un <input> no puede vivir dentro de un <a>. */
 .caraConLapiz { display: inline-flex; align-items: center; gap: 0.3rem; }
 
+/* EL LÁPIZ SE ESCONDE HASTA QUE HACE FALTA (Franco: *"aparecen los lápiz de
+   edición, eso debería aparecer dentro, no en el front"*).
+   Estaba siempre visible al lado de cada archivo: un glifo suelto, sin
+   etiqueta y sin contexto, entre el nombre de la presentación y la minuta.
+   En una tarjeta que se abre para leer QUÉ hay, un botón de edición
+   permanente es ruido — y esta pantalla la ve también el director de la UDN.
+   Aparece al acercarse a su fila, y con el teclado en cuanto recibe el foco:
+   esconderlo no puede significar hacerlo inalcanzable. */
 .caraLapiz {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.7rem; height: 1.7rem; padding: 0; border-radius: var(--r-lleno);
   border: none; background: none; color: var(--tinta-4); font-size: 0.85rem; cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  opacity: 0;
+  transition: opacity 140ms ease, background 140ms ease, color 140ms ease;
 }
+.caraConLapiz:hover .caraLapiz,
+.caras:hover .caraLapiz,
+.carasCompactas:hover .caraLapiz,
+.caraLapiz:focus-visible { opacity: 1; }
 .caraLapiz:hover { background: var(--papel-hundido); color: var(--tinta-2); }
+.caraLapiz:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .caraLapiz { transition: none; } }
 
 /* Editando: misma silueta de píldora que .cara, con un input dentro. */
 .caraEditando {

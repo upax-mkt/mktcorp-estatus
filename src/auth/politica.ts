@@ -99,26 +99,10 @@ export function puedeLeer(sesion: Sesion | null): boolean {
   return sesion.rolApp === 'admin' || sesion.rolApp === 'editor' || sesion.rolApp === 'viewer'
 }
 
-/**
- * Quién puede tocar los ACUERDOS de una sala.
- *
- * Marketing Corp —admin o editor, ver `puedeEditarContenido`; un viewer NO—,
- * en todas. Y el director de una UDN, en la suya y solo en la suya (Franco,
- * 28-jul: "solo pueden editar los acuerdos y pendientes").
- *
- * Es la única excepción a "solo Mkt Corp escribe", y tiene sentido: un
- * acuerdo es un compromiso de la UDN. Que su dueño no pueda marcarlo como
- * cumplido obliga a pedirlo por Slack para que alguien lo teclee — el trámite
- * que esta app viene a quitar.
- *
- * NO alcanza a nada más: ni preparar sesiones, ni subir archivos, ni minutar,
- * ni tocar otra sala.
- */
-export function puedeEditarAcuerdos(sesion: Sesion | null, slug: string): boolean {
-  if (!sesion) return false
-  if (sesion.rol === 'equipo') return puedeEditarContenido(sesion)
-  return sesion.rol === 'sala' && sesion.sala === slug
-}
+/* `puedeEditarAcuerdos` SE RETIRÓ (12-ago). Era la excepción que dejaba al
+ * director de una UDN mover el estatus y la fecha de los acuerdos de SU sala;
+ * Franco la cerró al ver que el enlace compartido de una sala tiene que ser de
+ * solo lectura. Ver la nota en `src/auth/sesion.ts`. */
 
 /** El equipo ve todas las salas; un acceso de sala, únicamente la suya. */
 export function puedeVerSala(sesion: Sesion | null, slug: string): boolean {

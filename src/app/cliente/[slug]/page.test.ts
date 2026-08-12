@@ -194,10 +194,8 @@ vi.mock('@vercel/blob/client', () => ({
 // del mock es la guarda contra una regresión silenciosa.
 vi.mock('@/auth/sesion', () => ({
   secretoConfigurado: vi.fn().mockReturnValue(null),
-  puedeEditarAcuerdosDe: vi.fn().mockResolvedValue(false),
   puedeVerEstaSala: vi.fn().mockResolvedValue(true),
   cerrarSesion: vi.fn(),
-  exigirEdicionDeAcuerdos: vi.fn(),
 }))
 
 // Migrado de @/db/sesiones (ronda 10, tarea 5b): `listarSesiones` ->
@@ -324,9 +322,13 @@ vi.mock('@/componentes/LevantarMinuta', () => ({
 const esAdminMock = vi.fn()
 const esLectorMock = vi.fn()
 const exigirEditorMock = vi.fn()
+const esEditorMock = vi.fn().mockResolvedValue(true)
 vi.mock('@/auth/roles', () => ({
   esAdmin: () => esAdminMock(),
   esLector: () => esLectorMock(),
+  // Quién edita los acuerdos desde el 12-ago: el equipo con permiso de
+  // escritura, no el director de la UDN (ver `acuerdos-permisos.test.ts`).
+  esEditor: () => esEditorMock(),
   exigirAdmin: vi.fn(),
   exigirEditor: (...args: unknown[]) => exigirEditorMock(...args),
 }))
@@ -1240,9 +1242,11 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
   })
 
   /**
-   * EL GATE QUE CUENTA. `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`:
-   * esa segunda deja pasar al director de la UDN para SU sala, y es la que
-   * usan mover el estatus y la fecha. Corregir el compromiso, no.
+   * EL GATE QUE CUENTA: `exigirEditor()`. Hasta el 12-ago convivía con
+   * `exigirEdicionDeAcuerdos(slug)`, que dejaba pasar al director de la UDN
+   * para SU sala y era la que usaban mover estatus y fecha; se retiró al
+   * cerrar la vista compartida en solo lectura, así que hoy las cuatro
+   * acciones de acuerdos exigen lo mismo.
    */
   it('la acción exige editor, no el permiso de acuerdos del director', async () => {
     const editar = await accionCapturada()
@@ -1301,5 +1305,80 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     for (const ruta of ['/cliente/neracode', '/', '/acuerdos', '/acuerdos/bandeja']) {
       expect(rutas, `no revalida ${ruta}`).toContain(ruta)
     }
+  })
+})
+
+/**
+ * EL ENLACE DE UNA SALA SE COMPARTE: SE MIRA, NO SE TOCA.
+ *
+ * Franco: *"cuando comparto esta URL —/cliente/neracode— quien no está
+ * logueado solo puede ver la vista de solo lectura; por ende no tiene que
+ * verse el botón añadir acuerdo, ni poder modificar fechas o estatus"*.
+ *
+ * Hasta el 12-ago el director de la UDN SÍ movía el estatus y la fecha de los
+ * acuerdos de su sala: era la única excepción a "solo Marketing Corp escribe"
+ * (`puedeEditarAcuerdos`, ronda 7), y tenía su razón — que el dueño de un
+ * compromiso pueda marcarlo cumplido sin pedirlo por Slack. Se cierra porque
+ * ese enlace circula, y lo que circula tiene que ser inerte.
+ *
+ * SE COMPRUEBA POR LAS PROPS Y NO POR LO PINTADO: `AcuerdoControles` es
+ * `'use client'`, así que lo que la página le pase viaja al navegador aunque
+ * el componente decida no enseñarlo. Lo que importa es que no se le pase.
+ */
+describe('VistaSala (/cliente/[slug]) — la vista compartida es de solo lectura', () => {
+  const CON_ACUERDOS: EstadoSala = {
+    ...SALA_BASE,
+    acuerdos: [{
+      id: 'ac-1', que: 'Mandar el reporte', responsable: 'Ana', estatus: 'abierto',
+      fechaCompromiso: null, destacado: false,
+    } as EstadoSala['acuerdos'][number]],
+  }
+
+  it('sin permiso de escritura no se ofrece crear ni mover un acuerdo', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDOS)
+    esLectorMock.mockResolvedValue(false) // quien llega con el enlace de la sala
+    esEditorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    // El acuerdo SÍ se lee: la vista compartida informa.
+    expect(screen.getByText('Mandar el reporte')).toBeInTheDocument()
+    // Y no se toca por ninguna vía.
+    expect(screen.queryByRole('button', { name: /añadir acuerdo/i })).not.toBeInTheDocument()
+    expect(document.querySelectorAll('select')).toHaveLength(0)
+    expect(document.querySelectorAll('input[type="date"]')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: /corregir el acuerdo/i })).not.toBeInTheDocument()
+  })
+
+  it('con permiso de escritura sí, evidentemente', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDOS)
+    esLectorMock.mockResolvedValue(true)
+    esEditorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(document.querySelectorAll('select').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('input[type="date"]').length).toBeGreaterThan(0)
+  })
+
+  /**
+   * UN VIEWER DE MARKETING CORP TAMPOCO ESCRIBE. Es `esEditor()` y no
+   * `esLector()` lo que abre los controles: alguien de Mkt Corp con permiso de
+   * lectura ve la sala entera —incluida la participación del equipo— pero no
+   * mueve un acuerdo.
+   */
+  it('un viewer de Mkt Corp lee la sala y no mueve acuerdos', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDOS)
+    esLectorMock.mockResolvedValue(true)
+    esEditorMock.mockResolvedValue(false)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    expect(screen.getByText('Mandar el reporte')).toBeInTheDocument()
+    expect(document.querySelectorAll('select')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: /añadir acuerdo/i })).not.toBeInTheDocument()
   })
 })

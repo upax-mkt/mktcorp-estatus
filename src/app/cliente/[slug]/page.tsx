@@ -53,11 +53,8 @@ import {
 import { pausarSalaAction, reactivarSalaAction, destacarAction } from '@/app/acuerdos/acciones'
 import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaBreve, fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
-import {
-  exigirEdicionDeAcuerdos, puedeEditarAcuerdosDe,
-  puedeVerEstaSala, cerrarSesion,
-} from '@/auth/sesion'
-import { esAdmin, esLector, exigirEditor } from '@/auth/roles'
+import { puedeVerEstaSala, cerrarSesion } from '@/auth/sesion'
+import { esAdmin, esEditor, esLector, exigirEditor } from '@/auth/roles'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
 // La vista de equipo ahora escribe (cambiar estatus, editar fecha) — se
@@ -108,6 +105,25 @@ function textoFechaAcuerdo(a: Acuerdo): { txt: string; clase: string } {
 }
 const ETIQUETA_ESTADO: Record<Acuerdo['estatus'], string> = {
   abierto: 'abierto', cumplido: 'cumplido', vencido: 'vencido',
+}
+
+/**
+ * QUÉ DICE EL ENCABEZADO DE ACUERDOS CUANDO ESTÁ PLEGADO.
+ *
+ * Un número a secas ("11") no sirve para decidir si abrir: once cumplidos y
+ * once vencidos son la misma cifra y dos situaciones distintas. Se nombra lo
+ * que exige acción —vencidos primero, luego abiertos— y lo cerrado se resume
+ * en "al día" solo cuando no queda nada pendiente.
+ */
+function resumenDeAcuerdos(acuerdos: Acuerdo[]): string {
+  if (acuerdos.length === 0) return 'ninguno'
+  const vencidos = acuerdos.filter((a) => a.estatus === 'vencido').length
+  const abiertos = acuerdos.filter((a) => a.estatus === 'abierto').length
+  const partes: string[] = []
+  if (vencidos > 0) partes.push(`${vencidos} vencido${vencidos > 1 ? 's' : ''}`)
+  if (abiertos > 0) partes.push(`${abiertos} abierto${abiertos > 1 ? 's' : ''}`)
+  if (partes.length === 0) return `${acuerdos.length} al día`
+  return partes.join(' · ')
 }
 
 /**
@@ -286,7 +302,24 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const clientes = await clientesParaBarra()
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
-  const editaAcuerdos = await puedeEditarAcuerdosDe(slug)
+  /**
+   * QUIÉN EDITA LOS ACUERDOS EN ESTA PANTALLA: SOLO EL EQUIPO.
+   *
+   * Franco: *"cuando comparto esta URL, quien no está logueado solo puede ver
+   * la vista de solo lectura; por ende no tiene que verse el botón añadir
+   * acuerdo, ni poder modificar fechas o estatus"*.
+   *
+   * Era `puedeEditarAcuerdosDe(slug)`, que SÍ deja pasar al director de la UDN
+   * para su propia sala — una decisión de la ronda 7 ("el director mueve sus
+   * compromisos"). Franco la revierte: el enlace de una sala se comparte, y lo
+   * compartido se mira, no se toca.
+   *
+   * `esEditor()` y no `equipo` (`esLector()`): un viewer de Marketing Corp
+   * tampoco escribe. Y el gate de verdad está abajo, en cada acción —esconder
+   * el botón nunca fue la protección—: las cuatro pasaron de
+   * `exigirEdicionDeAcuerdos(slug)` a `exigirEditor()` en el mismo cambio.
+   */
+  const editaAcuerdos = await esEditor()
 
   // ---- Server actions: acuerdos editables (spec §4/§6) ----
   // "Solo el equipo Mkt Corp mueve el estatus": cada acción lo exige por su
@@ -295,7 +328,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function cambiarEstatusAction(acuerdoId: string, estatus: EstatusAcuerdo) {
     'use server'
-    await exigirEdicionDeAcuerdos(slug)
+    await exigirEditor()
     await moverEstatus(acuerdoId, estatus)
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
@@ -303,7 +336,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function editarFechaAction(acuerdoId: string, fecha: string | null) {
     'use server'
-    await exigirEdicionDeAcuerdos(slug)
+    await exigirEditor()
     await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
@@ -317,7 +350,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     fechaCompromiso: string | null
   }) {
     'use server'
-    await exigirEdicionDeAcuerdos(slug)
+    await exigirEditor()
     await crearAcuerdo(slug, {
       que: datos.que,
       responsable: datos.responsable,
@@ -400,7 +433,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   async function eliminarAcuerdoAction(acuerdoId: string) {
     'use server'
-    await exigirEdicionDeAcuerdos(slug)
+    await exigirEditor()
     await eliminarAcuerdo(acuerdoId)
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
@@ -1016,13 +1049,23 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </div>
         )}
 
-        {/* Acuerdos primero — es lo que el director quiere ver */}
+        {/* Acuerdos primero — es lo que el director quiere ver.
+            PLEGABLE (Franco: *"el módulo acuerdos debería ser colapsable
+            dentro de la sala"*): con once compromisos abiertos, la lista
+            empuja reuniones, benchmark y materiales media pantalla hacia
+            abajo, y quien entra a mirar la última presentación tiene que
+            pasarlos todos. `details`/`summary` nativos —teclado y toque
+            gratis, cero JS— y ABIERTO por defecto: plegarlo es una decisión
+            de quien mira, no el estado en que se le entrega.
+            EL RESUMEN VIAJA AL ENCABEZADO para que plegado siga informando:
+            "5 abiertos · 2 vencidos" es lo que se necesita saber sin abrir. */}
         <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>
-            <IconoSeccion nombre="acuerdos" />
-            Acuerdos
-            <span className={estilos.conteo}>{s.acuerdos.length}</span>
-          </h2>
+          <details className={estilos.seccionPlegable} open>
+            <summary className={estilos.seccionTitulo}>
+              <IconoSeccion nombre="acuerdos" />
+              Acuerdos
+              <span className={estilos.conteo}>{resumenDeAcuerdos(s.acuerdos)}</span>
+            </summary>
           {s.acuerdos.length === 0 && !equipo ? (
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
           ) : (
@@ -1098,7 +1141,8 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               })}
             </div>
           )}
-          {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
+            {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
+          </details>
         </section>
 
         {/* REUNIONES — la presentación y su minuta, juntas.

@@ -572,15 +572,34 @@ function FilaPorVenir({
  * BORRAR UNA REUNIÓN, desde donde uno se la encuentra.
  *
  * Franco: *"la otra reunión tampoco puedo eliminarla de la sala"*. No se
- * podía: el borrado vivía solo en Presentaciones (`/deck`), y la sala es donde
- * uno se topa con la reunión que sobra. Sirve para los DOS bloques —lo que
- * viene y el historial— porque es la misma operación.
+ * podía: el borrado vivía solo en Presentaciones (`/deck`). Aquí sirve para
+ * los DOS bloques —lo que viene y el historial— porque es la misma operación.
  *
- * Confirma en dos tiempos y dice qué se lleva: la reunión con su presentación
- * y su minuta. Los acuerdos ya publicados NO se van —cuelgan de la sala y
- * pueden llevar semanas moviéndose—, y decirlo importa: es justo la duda que
- * frena a alguien delante de un botón de borrar.
+ * ───────────────────────────────────────────────────────────────────────────
+ * LA FRICCIÓN ESCALA CON LO QUE SE PIERDE (Franco: *"borrar una reunión que
+ * ya se dio y se marcó como tal no puede ser eliminada solo con un clic;
+ * debería el editor o admin teclear un captcha o escribir ELIMINAR"*).
+ *
+ * No son el mismo acto. Tirar una junta del jueves que se creó por error no
+ * destruye nada: se vuelve a crear en diez segundos. Tirar una que YA SE DIO
+ * se lleva su presentación, su minuta y el registro de que ocurrió — y eso no
+ * se rehace, porque la transcripción de la que salió el acta ya no está.
+ *
+ * Así que hay dos puertas:
+ *
+ * - **Vacía y por venir** → confirmar en dos tiempos, como hasta ahora.
+ * - **Con historia** (se dio, o tiene minuta, presentación o acuerdos) →
+ *   además hay que TECLEAR "ELIMINAR". No es un trámite decorativo: obliga a
+ *   leer qué se lleva antes de poder pulsar, que es justo lo que un segundo
+ *   clic no consigue. Un captcha no aportaría nada aquí — no protege de un
+ *   robot, protege de un descuido, y para eso lo que sirve es escribir.
+ *
+ * Los acuerdos ya publicados NO se van en ninguno de los dos casos: cuelgan
+ * de la sala y pueden llevar semanas moviéndose. Decirlo importa: es justo la
+ * duda que frena a alguien delante de un botón de borrar.
  */
+const PALABRA = 'ELIMINAR'
+
 function BorrarReunion({
   reunion,
   eliminarAction,
@@ -589,10 +608,31 @@ function BorrarReunion({
   eliminarAction?: (id: string) => Promise<{ error?: string }>
 }) {
   const [confirmando, setConfirmando] = useState(false)
+  const [tecleado, setTecleado] = useState('')
   const [borrando, setBorrando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (!eliminarAction) return null
+
+  /**
+   * ¿Esta reunión tiene algo que perder? `estado === 'dada'` es lo explícito
+   * —alguien dijo que ocurrió— y el resto es respaldo: lo que se llevaría por
+   * delante el borrado. Cualquiera de las dos cosas cierra la puerta fácil.
+   */
+  const pesa =
+    reunion.estado === 'dada' ||
+    Boolean(reunion.minuta) ||
+    reunion.documentoListo ||
+    reunion.archivos.length > 0 ||
+    reunion.acuerdos.length > 0
+
+  const listo = !pesa || tecleado.trim().toUpperCase() === PALABRA
+
+  function cerrar() {
+    setConfirmando(false)
+    setTecleado('')
+    setError(null)
+  }
 
   if (!confirmando) {
     return (
@@ -609,34 +649,67 @@ function BorrarReunion({
 
   return (
     <>
-      <button
-        type="button"
-        className={estilos.botonBorrar}
-        disabled={borrando}
-        onClick={() => {
-          setBorrando(true)
-          setError(null)
-          void eliminarAction(reunion.id)
-            .then((r) => { if (r?.error) setError(r.error) })
-            .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo borrar.'))
-            .finally(() => setBorrando(false))
-        }}
-      >
-        {borrando ? 'Borrando…' : 'Sí, borrar la reunión'}
-      </button>
-      <button
-        type="button"
-        className={estilos.botonCancelarBorrado}
-        onClick={() => setConfirmando(false)}
-      >
-        Cancelar
-      </button>
-      {!borrando && (
-        <p className={estilos.porVenirAviso}>
-          Se borra la reunión con su presentación y su minuta. Los acuerdos ya publicados en esta
-          sala se quedan.
-        </p>
+      <p className={estilos.porVenirAviso}>
+        {pesa ? (
+          <>
+            Esta reunión <strong>ya se dio</strong>. Se borran su presentación, su minuta y el
+            registro de que ocurrió — la transcripción de la que salió el acta no se puede
+            recuperar. Los acuerdos ya publicados en esta sala se quedan.
+          </>
+        ) : (
+          <>
+            Se borra la reunión con su presentación y su minuta. Los acuerdos ya publicados en esta
+            sala se quedan.
+          </>
+        )}
+      </p>
+
+      {pesa && (
+        <label className={estilos.borrarTecleo}>
+          <span>
+            Escribe <strong>{PALABRA}</strong> para confirmar
+          </span>
+          <input
+            type="text"
+            className={estilos.archivoInput}
+            value={tecleado}
+            onChange={(e) => setTecleado(e.target.value)}
+            // Sin autocompletar ni corregir: el navegador ofreciendo la
+            // palabra convertiría el candado en un clic más.
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-label={`Escribe ${PALABRA} para borrar la reunión ${reunion.titulo}`}
+            autoFocus
+          />
+        </label>
       )}
+
+      <div className={estilos.reunionBorrar}>
+        <button
+          type="button"
+          className={estilos.botonBorrar}
+          disabled={borrando || !listo}
+          onClick={() => {
+            setBorrando(true)
+            setError(null)
+            void eliminarAction(reunion.id)
+              .then((r) => { if (r?.error) setError(r.error) })
+              .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo borrar.'))
+              .finally(() => setBorrando(false))
+          }}
+        >
+          {borrando ? 'Borrando…' : 'Sí, borrar la reunión'}
+        </button>
+        <button
+          type="button"
+          className={estilos.botonCancelarBorrado}
+          onClick={cerrar}
+          disabled={borrando}
+        >
+          Cancelar
+        </button>
+      </div>
       {error && <p className={estilos.subirError} role="alert">{error}</p>}
     </>
   )
