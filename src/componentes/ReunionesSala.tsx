@@ -336,7 +336,18 @@ export function ReunionesSala({
       </div>
       )}
 
+      {/* ═══ REUNIONES ANTERIORES ═══ Franco: *"en el módulo Reuniones hay
+          que agregar la subsección de Reuniones Anteriores dentro del mismo
+          módulo"*. La lista ya estaba —debajo de "La última", sin rótulo— y
+          por eso se leía como una continuación de esa tarjeta en vez de como
+          lo que es: la historia de la relación. Mismo rótulo y mismo conteo
+          que "Lo que viene", que es el otro bloque del módulo. */}
       {anteriores.length > 0 && (
+        <>
+        <div className={estilos.porVenirRotulo} style={{ marginTop: '1.4rem' }}>
+          Reuniones anteriores
+          <span className={estilos.conteo}>{anteriores.length}</span>
+        </div>
         <div className={estilos.reuniones}>
           {anteriores.map((r) => {
             const participantes = participantesDeReunion(r)
@@ -375,6 +386,7 @@ export function ReunionesSala({
             )
           })}
         </div>
+        </>
       )}
 
       <dialog

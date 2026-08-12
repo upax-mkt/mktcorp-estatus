@@ -327,6 +327,19 @@ const HEX_DE_SEIS = /^#[0-9a-fA-F]{6}$/
  * seguía derivando del primario — le enseñaba a quien acababa de escribir un
  * azul a mano el gris que venía a corregir.
  */
+/**
+ * EL TEXTO LEGIBLE SOBRE UNA SUPERFICIE OSCURA ESCRITA A MANO.
+ *
+ * Misma regla que usa `derivarMarca`: se parte del blanco puro —las nueve
+ * marcas reales lo usan ahí, sin excepción— y se ajusta hasta cumplir el
+ * contraste mínimo. Se expone aparte porque la franja de la sala ya se puede
+ * escribir a mano (ver `editarSalaAction`), y cambiar el fondo sin recalcular
+ * su texto es exactamente cómo una franja se vuelve ilegible.
+ */
+export function colorDeTextoSobre(superficie: string): string {
+  return ajustarColorParaContraste('#ffffff', superficie, CONTRASTE_MINIMO_TEXTO).toLowerCase()
+}
+
 export function marcaConSobrescritos(
   nombre: string,
   primario: string,

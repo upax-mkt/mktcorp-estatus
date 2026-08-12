@@ -77,6 +77,26 @@ export interface DatosSala {
    */
   secundario?: string
   acento?: string
+  /**
+   * LAS DOS PARADAS DEL DEGRADADO Y LA SUPERFICIE OSCURA, también a mano.
+   *
+   * Franco, con House of Films: *"cambié los colores de HoF en el editor de
+   * sala pero la cabecera me sigue apareciendo azul; debería ser negro, y lo
+   * de abajo azul, al revés"*.
+   *
+   * Y tenía razón: puso primario, secundario y acento en negro, se guardaron
+   * los tres, y la cabecera siguió azul — porque el DEGRADADO es un derivado y
+   * "Guardar cambios" no toca los derivados a propósito (regla dura: derivar
+   * al editar destruía el brandbook). Así que el único color que no podía
+   * cambiar era justo el que ocupa media pantalla.
+   *
+   * Mismo criterio que secundario y acento: vacíos se derivan, escritos
+   * mandan. Es lo que permite una marca de dos colores de verdad — negro
+   * arriba y azul abajo — que ninguna derivación va a inventar sola.
+   */
+  gradienteInicio?: string
+  gradienteFin?: string
+  superficieOscura?: string
   /** Clave de `CATALOGO_DE_FUENTES` (src/temas/fuentes.ts) — tarea 7. */
   familiaDisplay: string
   familiaTexto: string
@@ -116,6 +136,10 @@ export interface SalaExistente {
   /** Los que la marca tiene de verdad, si alguien los escribió (ver `DatosSala`). */
   secundario?: string
   acento?: string
+  /** Las dos paradas del degradado y el fondo de la franja, ya guardados. */
+  gradienteInicio?: string
+  gradienteFin?: string
+  superficieOscura?: string
   /**
    * Opcionales por el mismo motivo que `logoUrl`/`logoRelacionDeTinta`: una
    * sala real siempre las trae (ver `src/app/salas/page.tsx`), pero el
@@ -199,6 +223,9 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
   const [redes, setRedes] = useState<RedesDeSala>(sala?.redes ?? {})
   /** El tablero de ORBIT que se incrusta en la sala. Vacío = no hay módulo. */
   const [analyticsUrl, setAnalyticsUrl] = useState(sala?.analyticsUrl ?? '')
+  const [gradienteInicio, setGradienteInicio] = useState(sala?.gradienteInicio ?? '')
+  const [gradienteFin, setGradienteFin] = useState(sala?.gradienteFin ?? '')
+  const [superficieOscura, setSuperficieOscura] = useState(sala?.superficieOscura ?? '')
   const [acento, setAcento] = useState(sala?.acento ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
@@ -354,6 +381,9 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
           cadencia,
           redes,
           analyticsUrl: analyticsUrl.trim(),
+          gradienteInicio: gradienteInicio.trim(),
+          gradienteFin: gradienteFin.trim(),
+          superficieOscura: superficieOscura.trim(),
         })
         if (r.error) {
           setError(r.error)
@@ -535,6 +565,71 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               Déjalos en blanco y se derivan del primario. Escríbelos cuando la marca tenga más de
               un color de verdad — o cuando el primario sea negro, blanco o gris: de esos no se
               puede derivar nada, porque no tienen tono que girar.
+            </p>
+          </div>
+
+          {/* EL DEGRADADO Y LA FRANJA. Lo que ocupa media pantalla de la sala
+              y hasta la ronda 12 no se podía cambiar desde ningún sitio salvo
+              "Recalcular paleta", que los reescribe los dos derivándolos del
+              primario — y de un negro no se deriva ningún azul. */}
+          <div className={estilos.campo}>
+            <span className={estilos.etiqueta}>Cabecera de la sala</span>
+            <div className={estilos.colorFila}>
+              <input
+                type="color"
+                className={estilos.entradaColor}
+                value={HEX_VALIDO.test(gradienteInicio) ? gradienteInicio : (derivados?.gradiente[0] ?? '#000000')}
+                onChange={(e) => setGradienteInicio(e.target.value)}
+                aria-label="Elegir el inicio del degradado"
+              />
+              <input
+                type="text"
+                className={estilos.entrada}
+                value={gradienteInicio}
+                onChange={(e) => setGradienteInicio(e.target.value.trim())}
+                placeholder="Degradado, desde — vacío = derivado"
+                aria-label="Degradado, color inicial"
+              />
+            </div>
+            <div className={estilos.colorFila}>
+              <input
+                type="color"
+                className={estilos.entradaColor}
+                value={HEX_VALIDO.test(gradienteFin) ? gradienteFin : (derivados?.gradiente[1] ?? '#000000')}
+                onChange={(e) => setGradienteFin(e.target.value)}
+                aria-label="Elegir el fin del degradado"
+              />
+              <input
+                type="text"
+                className={estilos.entrada}
+                value={gradienteFin}
+                onChange={(e) => setGradienteFin(e.target.value.trim())}
+                placeholder="Degradado, hasta — vacío = derivado"
+                aria-label="Degradado, color final"
+              />
+            </div>
+            <div className={estilos.colorFila}>
+              <input
+                type="color"
+                className={estilos.entradaColor}
+                value={HEX_VALIDO.test(superficieOscura) ? superficieOscura : (derivados?.superficieOscura ?? '#000000')}
+                onChange={(e) => setSuperficieOscura(e.target.value)}
+                aria-label="Elegir el fondo de la franja de datos"
+              />
+              <input
+                type="text"
+                className={estilos.entrada}
+                value={superficieOscura}
+                onChange={(e) => setSuperficieOscura(e.target.value.trim())}
+                placeholder="Franja bajo el logo — vacío = derivado"
+                aria-label="Fondo de la franja de datos"
+              />
+            </div>
+            <p className={estilos.pista}>
+              El degradado grande con el logotipo, y la franja oscura de debajo donde van las fechas
+              y las redes. En blanco se derivan del primario; escríbelos cuando la marca tenga dos
+              colores de verdad —negro arriba y azul abajo, por ejemplo—, que es algo que ninguna
+              derivación puede inventar sola.
             </p>
           </div>
 

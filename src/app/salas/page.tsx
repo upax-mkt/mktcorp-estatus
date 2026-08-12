@@ -226,6 +226,9 @@ export default async function PagSalas({
                           // borraría todas.
                           redes: tema.redes,
                           analyticsUrl: tema.analyticsUrl,
+                          gradienteInicio: tema.gradiente[0],
+                          gradienteFin: tema.gradiente[1],
+                          superficieOscura: tema.superficieOscura,
                         }}
                       />
                     </div>

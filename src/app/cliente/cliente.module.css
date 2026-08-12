@@ -1859,37 +1859,61 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
 }
 .menuLista {
-  /* El mismo carril que `.main`, para que los chips arranquen alineados con
-     las tarjetas y no floten sobre el papel. */
+  /* El mismo carril que `.main`, para que las pestañas arranquen alineadas
+     con las tarjetas y no floten sobre el papel. */
   max-width: 1080px; margin: 0 auto;
-  padding: 0.45rem clamp(1rem, 4vw, 2.5rem);
-  display: flex; gap: 0.25rem; list-style: none;
-  /* NO ENVUELVE: en móvil se desliza. Seis chips en dos líneas empujarían el
-     contenido cada vez que la barra se pega. */
+  padding: 0 clamp(1rem, 4vw, 2.5rem);
+  display: flex; gap: 1.4rem; list-style: none;
+  /* NO ENVUELVE: en móvil se desliza. Seis entradas en dos líneas empujarían
+     el contenido cada vez que la barra se pega. */
   overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity;
 }
 .menuLista::-webkit-scrollbar { display: none; }
+
+/* PESTAÑAS, NO BOTONES. La primera versión eran píldoras con fondo gris y una
+   sombra interior, y Franco las cazó de inmediato: *"es feo el diseño del
+   índice de las secciones, los botones son antiguos, nada que ver con el
+   diseño de la app"*. Tenía razón — la app no tiene un solo control con esa
+   forma. Su navegación se escribe así, en `BarraNavegacion.module.css`: texto
+   sin fondo, y la actual se marca con MÁS PESO, TINTA COMPLETA y un subrayado
+   del color de la marca. Tres señales y ninguna es solo el color. Esto es esa
+   misma pestaña, con su conteo al lado. */
 .menuEnlace {
-  display: inline-flex; align-items: center; gap: 0.45rem;
-  /* 40 px de alto: objetivo táctil, no decoración. */
-  min-height: 40px; padding: 0.35rem 0.75rem; border-radius: var(--r-lleno);
-  font-size: 0.85rem; font-weight: 550; letter-spacing: var(--track-normal);
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  /* 44 px de alto sumando el padding: objetivo táctil, no decoración. */
+  padding: 0.85rem 0 0.7rem;
+  font-size: 0.86rem; font-weight: 550; letter-spacing: var(--track-normal);
   color: var(--tx-2); text-decoration: none; white-space: nowrap;
+  /* Borde transparente por defecto y no uno que aparezca al activarse:
+     reservar el sitio evita que la fila salte al cambiar de sección. */
+  border-bottom: 2px solid transparent;
   scroll-snap-align: start;
-  transition: background var(--rapido) linear, color var(--rapido) linear;
+  transition: color var(--rapido) linear, border-color var(--rapido) linear;
 }
-.menuEnlace:hover { background: var(--papel-hundido); color: var(--tx); }
-.menuEnlace:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
-/* TRES SEÑALES Y NO SOLO COLOR —peso, tinta llena y la marca—: mismo criterio
-   que ya sigue la barra global para su pestaña activa. */
+.menuEnlace:hover { color: var(--tx); }
+.menuEnlace:focus-visible { outline: 2px solid var(--marca); outline-offset: 3px; border-radius: 4px; }
 .menuEnlace[aria-current] {
   color: var(--tx); font-weight: 700;
-  background: color-mix(in oklch, var(--marca) 12%, transparent);
-  box-shadow: inset 0 -2px 0 var(--marca);
+  border-bottom-color: var(--marca-texto, var(--marca));
 }
-.menuConteo { font-size: 0.75rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+.menuConteo {
+  font-size: 0.74rem; color: var(--tx-3); font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.menuEnlace[aria-current] .menuConteo { color: var(--marca-texto, var(--marca)); }
 @media (prefers-reduced-motion: reduce) { .menuEnlace { transition: none; } }
 
 /* Que la cabecera de la sección no acabe DEBAJO de las barras al saltar
    (WCAG 2.4.11). 62 de la barra + el alto del riel + aire. */
 .main > section { scroll-margin-top: calc(var(--barra-alta, 0px) + 4.5rem); }
+
+/* El pie de una sala compartida: quién eres y por dónde entra Marketing Corp.
+   Una línea, al final y en gris — el aviso que sustituye ocupaba el primer
+   renglón de la sala para hablarle a quien pasa por aquí una vez. */
+.pieAcceso {
+  margin: 2.5rem 0 0; text-align: center;
+  font-size: 0.82rem; color: var(--tx-3); line-height: 1.6;
+}
+.pieAcceso strong { color: var(--tx-2); font-weight: 600; }
+.pieAcceso a { color: var(--tx-2); text-decoration: underline; text-underline-offset: 3px; }
+.pieAcceso a:hover { color: var(--tx); }

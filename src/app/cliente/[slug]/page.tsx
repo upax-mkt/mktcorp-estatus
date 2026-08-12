@@ -1122,22 +1122,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           </div>
         )}
 
-        {/* POR QUÉ ESTÁS AQUÍ, dicho en vez de dejarlo adivinar.
-            Quien llega con un link de sala y no esperaba estar aquí —alguien
-            de Mkt Corp que abrió el link para comprobar que servía— veía una
-            sala ajena, sin explicación, y un «Salir» diminuto en la esquina.
-            Un redirect silencioso no deja a nadie de pie. */}
-        {!equipo && (
-          <div className={estilos.avisoAcceso}>
-            <span>
-              Estás viendo el espacio de <strong>{s.nombre}</strong> con un acceso de solo lectura.
-            </span>
-            <a href="/entrar" className={estilos.avisoEnlace}>
-              ¿Eres de Marketing Corporativo? Entra con tu clave →
-            </a>
-          </div>
-        )}
-
         {/* Acuerdos primero — es lo que el director quiere ver.
             PLEGABLE (Franco: *"el módulo acuerdos debería ser colapsable
             dentro de la sala"*): con once compromisos abiertos, la lista
@@ -1375,6 +1359,23 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             encabezado que explica la diferencia entre ambas. El enlace ⚙ de
             la cabecera (arriba) es la ÚNICA puerta hacia ellas — en la sala
             no queda nada de esto. */}
+
+        {/* LA PUERTA DE MARKETING CORP, AL PIE Y EN UNA LÍNEA (ronda 12).
+            Franco: *"saca de la vista de viewers el módulo que dice si eres de
+            marketing ingresa aquí; déjalo abajo pero como hiperlink, más
+            sutil"*.
+            Era un aviso ancho arriba del todo, encima de los acuerdos, y su
+            destinatario es UNO: el de Mkt Corp que abre el enlace compartido
+            para comprobar que sirve. Al director de la UDN —que es quien de
+            verdad usa esta pantalla, todos los días— le ocupaba el primer
+            renglón de su sala para ofrecerle una puerta que no es suya.
+            Abajo sigue estando cuando hace falta, y no cuesta nada al resto. */}
+        {!equipo && (
+          <p className={estilos.pieAcceso}>
+            Vista de solo lectura de <strong>{s.nombre}</strong>.{' '}
+            <a href="/entrar">¿Eres de Marketing Corporativo?</a>
+          </p>
+        )}
       </main>
     </div>
   )

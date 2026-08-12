@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { db, hayDB } from '@/db/cliente'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin } from '@/auth/roles'
-import { derivarMarca, marcaConSobrescritos, slugDesdeNombre } from '@/lib/marca'
+import { derivarMarca, marcaConSobrescritos, colorDeTextoSobre, slugDesdeNombre } from '@/lib/marca'
 import { sanearRedes, urlPublicaValida } from '@/dominio/redes'
 import { generarEnlaceDeAgenda, revocarEnlaceDeAgenda } from '@/db/enlace-agenda'
 import type { DatosSala } from '@/componentes/salas/FormularioSala'
@@ -272,6 +272,29 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         ...(datos.secundario && HEX_VALIDO.test(datos.secundario)
           ? { secundario: datos.secundario } : {}),
         ...(datos.acento && HEX_VALIDO.test(datos.acento) ? { acento: datos.acento } : {}),
+        /**
+         * EL DEGRADADO Y LA FRANJA, por el mismo criterio y por el caso que
+         * los trajo. Franco puso HoF en negro y la cabecera siguió azul: el
+         * degradado es un derivado, "Guardar cambios" no toca los derivados, y
+         * `recalcularPaleta` —el único que sí— los saca del primario, así que
+         * de un negro nunca iba a salir el azul que la marca tiene de verdad.
+         *
+         * Las DOS paradas o ninguna: un degradado con una sola parada guardada
+         * y la otra derivada sería mitad de una marca y mitad de otra.
+         */
+        ...(datos.gradienteInicio && HEX_VALIDO.test(datos.gradienteInicio) &&
+            datos.gradienteFin && HEX_VALIDO.test(datos.gradienteFin)
+          ? { gradiente: [datos.gradienteInicio, datos.gradienteFin] }
+          : {}),
+        ...(datos.superficieOscura && HEX_VALIDO.test(datos.superficieOscura)
+          ? {
+              superficieOscura: datos.superficieOscura,
+              // El texto de la franja se recalcula CONTRA EL FONDO NUEVO: es
+              // legibilidad, no marca, y dejarlo con el contraste del color
+              // viejo es exactamente cómo se hace ilegible una franja.
+              textoSobreOscura: colorDeTextoSobre(datos.superficieOscura),
+            }
+          : {}),
         // Tarea 7: antes este UPDATE no tocaba la tipografía en absoluto —no
         // había desde dónde elegirla— así que cualquier edición (el logo, el
         // color) dejaba la fuente donde estuviera. Ahora sí viaja, validada
