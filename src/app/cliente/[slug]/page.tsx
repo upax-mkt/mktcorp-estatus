@@ -18,6 +18,7 @@ import {
   seEstaArmando,
 } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
+import type { Metadata } from 'next'
 import { Seccion } from '@/componentes/Seccion'
 import { FilaAcuerdo } from '@/componentes/acuerdos/FilaAcuerdo'
 import { RedesDeSala } from '@/componentes/RedesDeSala'
@@ -159,6 +160,42 @@ async function guardarEnlaceDeSala(
     return { error: error instanceof Error ? error.message : 'No se pudo guardar el enlace.' }
   }
   return {}
+}
+
+/**
+ * LO QUE SE VE AL COMPARTIR EL ENLACE DE UNA SALA.
+ *
+ * Es la URL que Franco reparte a las UDNs, así que su vista previa es lo
+ * primero que un director ve de esta app — antes de abrirla. Hasta la ronda 12
+ * enseñaba el título genérico del layout ("Meeting Hub · Marketing Corp") en
+ * las nueve salas por igual, describiendo la herramienta desde dentro en vez
+ * de decirle a quien la recibe qué va a encontrar.
+ *
+ * `cargarTemas()` va cacheada por petición (`cache()`, src/db/temas.ts), así
+ * que pedirla aquí no añade una consulta: es la misma que ya hace la página.
+ */
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> },
+): Promise<Metadata> {
+  const { slug } = await params
+  const tema = (await cargarTemas())[slug]
+  // Sin tema no hay sala: la página va a devolver 404, y anunciar un nombre
+  // inventado en la vista previa sería peor que no anunciar ninguno.
+  if (!tema) return { title: 'Cliente' }
+
+  const descripcion = `Acuerdos, reuniones, minutas y materiales de ${tema.nombre} con Marketing Corporativo.`
+  return {
+    title: tema.nombre,
+    description: descripcion,
+    openGraph: {
+      title: `${tema.nombre} · Meeting Hub`,
+      description: descripcion,
+      // La imagen la genera `opengraph-image.tsx` de esta misma carpeta; Next
+      // la enlaza sola. Se declara el resto para que el título y el texto no
+      // caigan al del layout.
+      type: 'website',
+    },
+  }
 }
 
 export default async function VistaSala({ params }: { params: Promise<{ slug: string }> }) {

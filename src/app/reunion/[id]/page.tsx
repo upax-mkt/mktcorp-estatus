@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import estilos from '@/app/deck/deck.module.css'
+import type { Metadata } from 'next'
 import { obtenerReunion } from '@/db/reuniones'
 import { documentoDeReunion } from '@/db/documentos'
 import { estadoDeSala } from '@/db/consultas'
 import { temaDeSala } from '@/temas'
 import { cargarTemas } from '@/db/temas'
+import { fechaCompleta } from '@/lib/fecha'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { puedeVerEstaSala } from '@/auth/sesion'
 import { esLector, exigirLectura } from '@/auth/roles'
@@ -26,6 +28,29 @@ export const dynamic = 'force-dynamic'
  * reunión, no un slug de sala, así que hasta no leer la reunión no se sabe de
  * quién es. El proxy la deja pasar y esta comprobación es la que manda.
  */
+/**
+ * LO QUE SE VE AL COMPARTIR UNA REUNIÓN. La otra URL que sale de esta app
+ * hacia fuera: se manda para que alguien lea una presentación concreta, y
+ * hasta la ronda 12 se previsualizaba igual que todo lo demás — con el título
+ * genérico del layout, sin decir de qué junta ni de qué cliente se trata.
+ */
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Metadata> {
+  const { id } = await params
+  const reunion = await obtenerReunion(id)
+  if (!reunion) return { title: 'Reunión' }
+
+  const tema = reunion.salaSlug ? (await cargarTemas())[reunion.salaSlug] : undefined
+  const deQuien = tema ? `${tema.nombre} · ` : ''
+  const descripcion = `${deQuien}Reunión del ${fechaCompleta(reunion.fecha)} con Marketing Corporativo.`
+  return {
+    title: reunion.titulo,
+    description: descripcion,
+    openGraph: { title: `${reunion.titulo} · Meeting Hub`, description: descripcion, type: 'article' },
+  }
+}
+
 export default async function PagSesionPublicada({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const [reunion, documento] = await Promise.all([obtenerReunion(id), documentoDeReunion(id)])

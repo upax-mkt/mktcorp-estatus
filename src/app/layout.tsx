@@ -7,9 +7,54 @@ import "./globals.css";
 // es válida ANTES de cualquier otra regla del archivo.
 import "./sistema.css";
 
+/**
+ * LO QUE SE VE AL COMPARTIR UN ENLACE DE ESTA APP.
+ *
+ * Franco: *"cuando se comparte la url aparece todo este contenido que no está
+ * bien: Meeting Hub · Marketing CorpSistema de estatus en vivo de Marketing
+ * Corporativo para las salas de Grupo UPAX"*.
+ *
+ * Dos cosas iban mal y las dos venían de aquí:
+ *
+ * 1. **ESTE ERA EL ÚNICO SITIO CON METADATA DE TODA LA APP.** Da igual qué URL
+ *    se comparta —el Home, la sala de una UDN, una reunión—: Slack, WhatsApp y
+ *    LinkedIn enseñaban siempre este mismo título y esta misma descripción. La
+ *    sala de NeraCode se previsualizaba como "Meeting Hub · Marketing Corp".
+ *    Cada pantalla que se comparte define ahora la suya (`generateMetadata`).
+ * 2. **EL TEXTO ESTABA ESCRITO HACIA DENTRO.** "Sistema de estatus en vivo de
+ *    Marketing Corporativo para las salas de Grupo UPAX" describe la
+ *    herramienta desde el lado de quien la opera. Quien recibe el enlace es el
+ *    director de su UDN, y lo que necesita saber es qué va a encontrar.
+ *
+ * `metadataBase` es obligatorio para que la imagen de vista previa viaje como
+ * URL absoluta: sin él, Next avisa y las redes no resuelven la imagen. Sale
+ * del entorno para que un preview de Vercel no anuncie el dominio de
+ * producción — `VERCEL_PROJECT_PRODUCTION_URL` la pone Vercel sola, así que el
+ * cambio de dominio del 12-ago no obligó a tocar nada aquí.
+ */
+const ORIGEN =
+  process.env.APP_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : 'http://localhost:3000')
+
 export const metadata: Metadata = {
-  title: "Meeting Hub · Marketing Corp",
-  description: "Sistema de estatus en vivo de Marketing Corporativo para las salas de Grupo UPAX",
+  metadataBase: new URL(ORIGEN),
+  title: {
+    // Cada pantalla pone lo suyo y esto lo completa: "NeraCode · Meeting Hub".
+    template: '%s · Meeting Hub',
+    default: 'Meeting Hub · Marketing Corp',
+  },
+  description:
+    'El espacio donde Marketing Corporativo y cada unidad de negocio siguen sus acuerdos, sus reuniones y sus materiales.',
+  openGraph: {
+    type: 'website',
+    locale: 'es_MX',
+    siteName: 'Meeting Hub · Marketing Corp',
+  },
+  // Sin buscadores: aquí hay acuerdos y minutas de clientes. La sala es
+  // pública porque su enlace se comparte, no para que se indexe.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
