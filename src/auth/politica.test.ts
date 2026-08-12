@@ -60,6 +60,16 @@ describe('esRutaPublica', () => {
   })
 
   /**
+   * LA IMAGEN DE VISTA PREVIA la piden Slack, WhatsApp y LinkedIn desde sus
+   * propios servidores y SIN sesión. Protegida, el enlace compartido se queda
+   * sin imagen — que es justo lo que pasó al desplegarla: 307 a `/entrar`.
+   */
+  it('abre la imagen de vista previa de una sala: la piden las redes sin sesión', () => {
+    expect(esRutaPublica('/cliente/neracode/opengraph-image')).toBe(true)
+    expect(puedeVerRuta(null, '/cliente/neracode/opengraph-image')).toBe(true)
+  })
+
+  /**
    * LO QUE NO SE ABRIÓ. Es la mitad que importa de este cambio: los ajustes
    * de una sala guardan su clave y su enlace firmado, y todo lo de Marketing
    * Corp es de Marketing Corp.

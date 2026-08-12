@@ -52,7 +52,24 @@ const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/re
  * LISTA BLANCA DE HIJAS, no prefijo: `/cliente/<slug>/ajustes` NO entra, y
  * una pantalla nueva bajo `/cliente/<slug>/` tampoco se abrirá por olvido.
  */
-const HIJAS_DE_SALA_PUBLICAS = ['benchmark']
+const HIJAS_DE_SALA_PUBLICAS = [
+  'benchmark',
+  /**
+   * LA IMAGEN DE VISTA PREVIA (ronda 12). La piden Slack, WhatsApp y LinkedIn
+   * al desplegar el enlace de una sala, y lo hacen SIN sesión y desde sus
+   * propios servidores: protegida, la vista previa se queda sin imagen y el
+   * enlace vuelve a ser dos renglones de texto.
+   *
+   * Y ESTA LISTA HIZO SU TRABAJO: la ruta se creó, se desplegó y devolvía un
+   * 307 a `/entrar` — exactamente lo que dice el comentario de arriba, que una
+   * pantalla nueva bajo `/cliente/<slug>/` no se abre por olvido. Se abre
+   * escribiéndola aquí, que es el punto.
+   *
+   * No añade exposición: la imagen lleva el nombre de la sala y su degradado,
+   * y la sala entera ya es pública.
+   */
+  'opengraph-image',
+]
 
 function esSalaPublica(partes: string[]): boolean {
   // `/cliente/<slug>`
