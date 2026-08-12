@@ -304,3 +304,39 @@ export function derivarMarca(nombre: string, primario: string): MarcaDerivada {
     gradiente: [primarioNormalizado, gradienteSegundaParada],
   }
 }
+
+/** Un hex de seis dígitos con almohadilla — lo único que aquí se acepta. */
+const HEX_DE_SEIS = /^#[0-9a-fA-F]{6}$/
+
+/**
+ * LA MARCA, CON LO QUE SE ESCRIBIÓ A MANO ENCIMA DE LO DERIVADO.
+ *
+ * `derivarMarca` saca el secundario y el acento rotando el TONO del primario,
+ * y eso solo funciona si el primario tiene tono: con negro, blanco o gris
+ * —croma cero— rotar devuelve el mismo color, que es de donde salían las
+ * escalas de gris que reportó Franco (*"cuando selecciono el negro solo me
+ * hace combinaciones de grises, siendo que hoy tiene negro, azul y otros"*).
+ *
+ * Lo escrito manda; lo vacío se deriva. Las superficies, los textos legibles y
+ * el degradado se siguen derivando siempre del primario: son cálculos de
+ * legibilidad (contraste AA), no decisiones de marca.
+ *
+ * VIVE AQUÍ Y NO EN LA SERVER ACTION que la estrenó (`app/salas/acciones.ts`):
+ * la vista previa del formulario tiene que enseñar EXACTAMENTE lo que se va a
+ * guardar, y mientras esta función vivió solo del lado del servidor la previa
+ * seguía derivando del primario — le enseñaba a quien acababa de escribir un
+ * azul a mano el gris que venía a corregir.
+ */
+export function marcaConSobrescritos(
+  nombre: string,
+  primario: string,
+  secundario?: string | null,
+  acento?: string | null,
+): MarcaDerivada {
+  const base = derivarMarca(nombre, primario)
+  return {
+    ...base,
+    ...(secundario && HEX_DE_SEIS.test(secundario) ? { secundario: secundario.toLowerCase() } : {}),
+    ...(acento && HEX_DE_SEIS.test(acento) ? { acento: acento.toLowerCase() } : {}),
+  }
+}

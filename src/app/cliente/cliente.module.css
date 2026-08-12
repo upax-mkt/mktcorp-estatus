@@ -106,16 +106,28 @@
 .heroMetaL { font-size: 0.75rem; opacity: 0.8; }
 
 /* ---- contenedor ---- */
-.main { max-width: 1080px; margin: 0 auto; padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem; }
+.main {
+  max-width: 1080px; margin: 0 auto;
+  padding: clamp(1.75rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+  /* EL AIRE ENTRE SECCIONES LO PONE EL CONTENEDOR, no cada sección con su
+     `margin-bottom` (ronda 12). La sección se mudó a un componente que el Home
+     también usa (`componentes/Seccion.tsx`), y una pieza compartida no puede
+     traer decidida su separación: en el Home el ritmo es otro y la sección
+     acabaría trayéndose el de aquí a una rejilla que ya tiene el suyo. */
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+}
+/* LA SECCIÓN VIVE EN `componentes/Seccion.module.css` (ronda 12) — allí están
+   `.seccion`, su cabecera y el plegable, y de allí tiran esta pantalla y el
+   Home. Lo que queda aquí abajo con este nombre es el residuo que todavía
+   usan `benchmark/`, `ajustes/` y un par de componentes sueltos: mismas
+   reglas, sin el margen, hasta que también ellos pasen por el componente. */
 .seccion {
-  /* La sección ES la tarjeta, como los módulos del Home. Antes cada bloque
-     era texto suelto sobre el lienzo con tarjetas sueltas dentro: dos niveles
-     de elevación discutiendo cuál es el contenedor. */
   background: var(--papel);
   border-radius: var(--r-4);
   box-shadow: var(--e-1);
   padding: 1.35rem 1.4rem 1.25rem;
-  margin-bottom: 1.25rem;
 }
 .seccionTitulo {
   /* Icono y texto JUNTOS a la izquierda; el contador empujado a la derecha

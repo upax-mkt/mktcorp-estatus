@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { AcuerdoConSala, EstatusAcuerdo } from '@/db/consultas'
 import { fechaBreve } from '@/lib/fecha'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
+import { Seccion } from '@/componentes/Seccion'
 import estilos from '@/app/hub.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
 
@@ -46,11 +47,19 @@ import { colorDeTextoDeMarca } from '@/temas'
  *   bloque caiga la fila. Un destacado que vence se sigue viendo destacado;
  *   solo cambia de vecindario, hacia el que se resuelve.
  *
- * CUATRO vacíos posibles, no tres — el de Destacados tiene DOS motivos
- * distintos para estar vacío ("nadie destacó nada todavía" y "lo único
- * destacado se fue a Vencidos") y cada uno necesita su propio texto: decir
- * el equivocado sobre un conjunto vacío ya pasó una vez en este proyecto
- * (ver el test de este componente).
+ * LOS VACÍOS, que en este componente son la parte delicada: decir el texto
+ * equivocado sobre un conjunto vacío ya pasó una vez aquí (una app recién
+ * estrenada saludaba con "todo lo abierto tiene dueño y día"), y el test de
+ * este archivo existe por eso.
+ *
+ * Destacados podía quedarse vacío por DOS motivos que no significan lo mismo
+ * —"nadie ha destacado nada" y "lo único destacado venció y está abajo"— y
+ * durante una ronda cada uno tuvo su frase. La segunda se retiró en la ronda
+ * 12: era una nota al pie explicando la partición de esta misma tarjeta, y el
+ * acuerdo en cuestión estaba dos centímetros más abajo con su estrella
+ * dorada, diciéndolo sin gastar una línea. Ahora, en ese caso, el bloque
+ * entero no se pinta (`hayDestacados`). Lo que sigue prohibido es lo de
+ * siempre: decir "nada destacado todavía" habiéndolos.
  */
 
 interface Props {
@@ -73,14 +82,11 @@ export function ModuloAcuerdos({
 }: Props) {
   if (total === 0) {
     return (
-      <section className={`tarjeta ${estilos.modulo}`}>
-        <header className={estilos.moduloCabecera}>
-          <h2 className={estilos.moduloTitulo}>Acuerdos y pendientes</h2>
-        </header>
+      <Seccion icono="acuerdos" titulo="Acuerdos y pendientes">
         <p className={estilos.moduloVacio}>
           Todavía no hay acuerdos. Se levantan en el espacio del cliente o al cerrar una minuta.
         </p>
-      </section>
+      </Seccion>
     )
   }
 
@@ -99,50 +105,76 @@ export function ModuloAcuerdos({
   // son dos mensajes distintos: uno invita a elegir algo, el otro señala
   // dónde mirar. Se deriva de `destacados` (no se pierde nada: ver arriba).
   const destacadosVencidos = destacados.length - destacadosSinVencer.length
+  /**
+   * SI EL BLOQUE «DESTACADOS» APARECE (ronda 12) — y con él, la partición en
+   * dos que da sentido a los rótulos de abajo.
+   *
+   * Aparece cuando tiene algo que decir: filas destacadas que enseñar, o la
+   * invitación a destacar la primera. NO aparece en el único caso en que
+   * quedaría vacío por un tecnicismo —todo lo destacado venció y se fue al
+   * otro bloque—, porque ahí lo que salía era una nota explicando la propia
+   * partición de la pantalla, y el acuerdo estaba dos centímetros más abajo
+   * con su estrella dorada puesta, diciendo lo mismo sin gastar una línea.
+   */
+  const hayDestacados = destacadosSinVencer.length > 0 || destacadosVencidos === 0
 
   return (
-    <section className={`tarjeta ${estilos.modulo}`}>
-      <header className={estilos.moduloCabecera}>
-        <h2 className={estilos.moduloTitulo}>Acuerdos y pendientes</h2>
-        {vencidos.length > 0 && (
+    <Seccion
+      icono="acuerdos"
+      titulo="Acuerdos y pendientes"
+      /* La píldora ROJA y no el texto plano que usa la sala: es la cifra que
+         se mira primero cada mañana, y el color es la mitad del mensaje. */
+      conteo={
+        vencidos.length > 0 && (
           <span className="pildora" data-tono="mal">
             {vencidos.length} vencido{vencidos.length > 1 ? 's' : ''}
           </span>
-        )}
-      </header>
+        )
+      }
+    >
+
+      {/* UN BLOQUE QUE SE DISCULPA POR ESTAR VACÍO SOBRA (ronda 12).
+          Cuando lo único destacado había vencido, aquí salía el rótulo
+          "DESTACADOS" y debajo "El destacado está vencido: lo ves abajo, en
+          Vencidos" — una nota al pie sobre la propia partición de la pantalla,
+          en el sitio donde debería ir trabajo. Y sobraba: el acuerdo está dos
+          centímetros más abajo, con SU ESTRELLA DORADA puesta, que es
+          exactamente lo que la nota venía a explicar.
+          El bloque solo aparece, entonces, cuando tiene algo que decir: filas
+          destacadas, o la invitación a destacar la primera. Lo que NO puede
+          volver a pasar es decir "nada destacado todavía" habiéndolos —esa
+          frase mentiría, y es la razón de ser de esta partición—; ver el test
+          de este componente, que lo sigue vigilando. */}
+      {hayDestacados && (
+        <div className={estilos.moduloBloque}>
+          <h3 className={estilos.moduloSubtitulo}>Destacados</h3>
+          {destacadosSinVencer.length === 0 ? (
+            <p className={estilos.moduloVacio}>
+              Nada destacado todavía.{' '}
+              <Link href="/acuerdos" className={estilos.enlaceSuave}>Elegir en el espacio de acuerdos →</Link>
+            </p>
+          ) : (
+            <ul className={estilos.acuerdos}>
+              {destacadosSinVencer.map((a) => (
+                <Fila
+                  key={a.id}
+                  acuerdo={a}
+                  destacarAction={destacarAction}
+                  cambiarEstatusAction={cambiarEstatusAction}
+                  ponerFechaAction={ponerFechaAction}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className={estilos.moduloBloque}>
-        <h3 className={estilos.moduloSubtitulo}>Destacados</h3>
-        {destacadosSinVencer.length === 0 ? (
-          <p className={estilos.moduloVacio}>
-            {destacadosVencidos > 0 ? (
-              destacadosVencidos === 1
-                ? 'El destacado está vencido: lo ves abajo, en Vencidos.'
-                : `Los ${destacadosVencidos} destacados están vencidos: los ves abajo, en Vencidos.`
-            ) : (
-              <>
-                Nada destacado todavía.{' '}
-                <Link href="/acuerdos" className={estilos.enlaceSuave}>Elegir en el espacio de acuerdos →</Link>
-              </>
-            )}
-          </p>
-        ) : (
-          <ul className={estilos.acuerdos}>
-            {destacadosSinVencer.map((a) => (
-              <Fila
-                key={a.id}
-                acuerdo={a}
-                destacarAction={destacarAction}
-                cambiarEstatusAction={cambiarEstatusAction}
-                ponerFechaAction={ponerFechaAction}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className={estilos.moduloBloque}>
-        <h3 className={estilos.moduloSubtitulo}>Vencidos</h3>
+        {/* El rótulo solo cuando hay DOS bloques que distinguir. Con
+            Destacados fuera, "VENCIDOS" etiqueta la única lista de una tarjeta
+            cuya cabecera ya dice "2 vencidos": la misma palabra tres veces en
+            cuatro centímetros. */}
+        {hayDestacados && <h3 className={estilos.moduloSubtitulo}>Vencidos</h3>}
         {vencidos.length === 0 ? (
           <p className={estilos.moduloVacio}>Todo lo abierto está en fecha.</p>
         ) : (
@@ -159,7 +191,7 @@ export function ModuloAcuerdos({
           </ul>
         )}
       </div>
-    </section>
+    </Seccion>
   )
 }
 

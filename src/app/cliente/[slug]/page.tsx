@@ -18,7 +18,7 @@ import {
   seEstaArmando,
 } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
-import { IconoSeccion } from '@/componentes/IconoSeccion'
+import { Seccion } from '@/componentes/Seccion'
 import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
   type EstatusAcuerdo,
@@ -1094,13 +1094,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             de quien mira, no el estado en que se le entrega.
             EL RESUMEN VIAJA AL ENCABEZADO para que plegado siga informando:
             "5 abiertos · 2 vencidos" es lo que se necesita saber sin abrir. */}
-        <section className={estilos.seccion}>
-          <details className={estilos.seccionPlegable} open>
-            <summary className={estilos.seccionTitulo}>
-              <IconoSeccion nombre="acuerdos" />
-              Acuerdos
-              <span className={estilos.conteo}>{resumenDeAcuerdos(s.acuerdos)}</span>
-            </summary>
+        <Seccion icono="acuerdos" titulo="Acuerdos" conteo={resumenDeAcuerdos(s.acuerdos)} plegable>
           {s.acuerdos.length === 0 && !equipo ? (
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
           ) : (
@@ -1191,8 +1185,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             </div>
           )}
             {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
-          </details>
-        </section>
+        </Seccion>
 
         {/* REUNIONES — la presentación y su minuta, juntas.
             Franco: "el módulo Presentaciones y minutas creo que debe ser uno,
@@ -1200,12 +1193,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             reunión". Eran dos listas paralelas ordenadas cada una por su
             cuenta; para saber qué se acordó en la presentación de mayo había
             que buscar mayo dos veces. */}
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>
-            <IconoSeccion nombre="reuniones" />
-            Reuniones
-            {reuniones.length > 0 && <span className={estilos.conteo}>{reuniones.length}</span>}
-          </h2>
+        <Seccion icono="reuniones" titulo="Reuniones" conteo={reuniones.length > 0 && reuniones.length}>
 
           {/* UN SOLO MÓDULO. `porVenir` es lo que hay que preparar —con lo
               que le falta y las tres salidas: seguir editando, subir la que
@@ -1258,17 +1246,16 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               />
             </div>
           )}
-        </section>
+        </Seccion>
 
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5) */}
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>
-            <IconoSeccion nombre="benchmark" />
-            Benchmark competitivo
-            {benchmark && <span className={estilos.conteo}>{s.nombre} + {benchmark.competidores.length} competidores</span>}
-          </h2>
+        <Seccion
+          icono="benchmark"
+          titulo="Benchmark competitivo"
+          conteo={benchmark && `${s.nombre} + ${benchmark.competidores.length} competidores`}
+        >
           <BenchmarkSala benchmark={benchmark} nombreSala={s.nombre} salaSlug={slug} />
-        </section>
+        </Seccion>
 
         {/* LOS DOS MÓDULOS DE MATERIAL, al final de la sala.
 
@@ -1279,14 +1266,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             Misma mecánica en los dos: fichero o enlace, rejilla con
             miniatura, renombrar y quitar. */}
         {(materialesComerciales.length > 0 || equipo) && (
-          <section className={estilos.seccion}>
-            <h2 className={estilos.seccionTitulo}>
-              <IconoSeccion nombre="archivos" />
-              Materiales Comerciales
-              {materialesComerciales.length > 0 && (
-                <span className={estilos.conteo}>{materialesComerciales.length}</span>
-              )}
-            </h2>
+          <Seccion
+            icono="archivos"
+            titulo="Materiales Comerciales"
+            conteo={materialesComerciales.length > 0 && materialesComerciales.length}
+          >
             <MaterialesAgrupados
               materiales={materialesComerciales}
               equipo={equipo}
@@ -1303,7 +1287,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 registrarEnlaceAction={registrarEnlaceAction}
               />
             )}
-          </section>
+          </Seccion>
         )}
 
         {/* ARCHIVOS DE INTERÉS (Franco: *"después de materiales comerciales
@@ -1312,14 +1296,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             conviene tener a mano: un estudio, un brief, el enlace a un
             tablero. */}
         {(archivosDeInteres.length > 0 || equipo) && (
-          <section className={estilos.seccion}>
-            <h2 className={estilos.seccionTitulo}>
-              <IconoSeccion nombre="archivos" />
-              Archivos de Interés
-              {archivosDeInteres.length > 0 && (
-                <span className={estilos.conteo}>{archivosDeInteres.length}</span>
-              )}
-            </h2>
+          <Seccion
+            icono="archivos"
+            titulo="Archivos de Interés"
+            conteo={archivosDeInteres.length > 0 && archivosDeInteres.length}
+          >
             <MaterialesAgrupados
               materiales={archivosDeInteres}
               equipo={equipo}
@@ -1336,7 +1317,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                 registrarEnlaceAction={registrarEnlaceInteresAction}
               />
             )}
-          </section>
+          </Seccion>
         )}
 
         {/* ACCESO DEL DIRECTOR (clave + link firmado): SE MUDÓ ENTERO A

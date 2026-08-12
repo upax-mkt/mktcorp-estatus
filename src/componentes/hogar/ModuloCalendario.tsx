@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { semanasDelMes, agruparPorDia, mesVecino, NOMBRES_DE_DIA } from '@/dominio/calendario'
 import { mesLargo, horaBreve, diaCivil, fechaCompleta } from '@/lib/fecha'
 import type { SesionEnCalendario } from '@/componentes/agenda/Calendario'
+import { Seccion } from '@/componentes/Seccion'
 import estilos from '@/app/hub.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
 
@@ -39,9 +40,13 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
   const delDiaAbierto = diaAbierto ? (porDia.get(diaAbierto) ?? []) : []
 
   return (
-    <section className={`tarjeta ${estilos.modulo}`}>
-      <header className={estilos.moduloCabecera}>
-        <h2 className={estilos.moduloTitulo}>{mesLargo(anio, mes)}</h2>
+    <Seccion
+      icono="calendario"
+      titulo={mesLargo(anio, mes)}
+      /* En el sitio del conteo van los controles del mes: es la esquina
+         derecha de la cabecera, y aquí lo que hace falta a la derecha no es
+         una cifra sino ir a otro mes. */
+      conteo={
         <div className={estilos.moduloAcciones}>
           <button
             type="button"
@@ -61,7 +66,8 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
           </button>
           <Link href="/agenda" className="boton" data-tono="fantasma">Agenda →</Link>
         </div>
-      </header>
+      }
+    >
 
       <div className={estilos.rejillaMes} role="grid" aria-label={`Reuniones de ${mesLargo(anio, mes)}`}>
         {NOMBRES_DE_DIA.map((n) => (
@@ -128,7 +134,7 @@ export function ModuloCalendario({ sesiones, hoy }: Props) {
 
       {/* Lo siguiente que viene, siempre a la vista aunque no se toque nada. */}
       {!diaAbierto && <Proximas sesiones={sesiones} hoy={hoy} />}
-    </section>
+    </Seccion>
   )
 }
 

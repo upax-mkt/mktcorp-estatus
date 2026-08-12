@@ -55,8 +55,23 @@
 }
 .saludoSub { color: var(--tinta-3); font-size: 0.95rem; margin: 0.6rem 0 0; }
 .pulsoCifras { display: flex; gap: clamp(1.5rem, 4vw, 3rem); flex-wrap: wrap; }
-.pulsoItem { display: grid; gap: 0.45rem; }
+/* Cada cifra es un enlace a donde se atiende (ronda 12): hereda color y no se
+   subraya, para que siga leyéndose como un dato y no como una lista de
+   links — el subrayado aparece al pasar por encima, que es cuando hace falta
+   saber que se puede tocar. */
+.pulsoItem {
+  display: grid; gap: 0.45rem;
+  color: inherit; text-decoration: none;
+  border-radius: var(--r-2); padding: 0.25rem 0.4rem; margin: -0.25rem -0.4rem;
+  transition: background var(--rapido) linear;
+}
+.pulsoItem:hover { background: var(--papel-hundido); }
+.pulsoItem:hover :global(.micro) { text-decoration: underline; text-underline-offset: 2px; }
+.pulsoItem:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
 .pulsoItem :global(.cifra)[data-alerta='true'] { color: var(--mal); }
+/* `ojo` y no `mal`: un cliente sin próxima reunión es trabajo por hacer, no
+   un incumplimiento — el rojo es de los vencidos. */
+.pulsoItem :global(.cifra)[data-alerta='ojo'] { color: var(--alerta); }
 
 /* ---- módulos ----
    Acuerdos ocupa más porque sus filas llevan controles; las minutas cruzan
@@ -84,14 +99,11 @@
   .modulos > :nth-child(3) { grid-column: 1; grid-row: 2; }
 }
 
-.modulo { padding: 1.35rem 1.4rem 1.2rem; }
-.moduloCabecera {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; margin-bottom: 1rem;
-}
-.moduloTitulo {
-  font-size: 1.02rem; font-weight: 600; letter-spacing: var(--track-titulo); margin: 0;
-}
+/* LA TARJETA Y SU CABECERA VIVEN EN `componentes/Seccion.module.css` (ronda
+   12): `.modulo`, `.moduloCabecera` y `.moduloTitulo` se retiraron de aquí
+   cuando el Home pasó a usar el mismo componente que la sala — eran una
+   segunda versión del mismo patrón, y tener dos es exactamente lo que las
+   dejó divergir. Lo de abajo es lo que sigue siendo PROPIO del Home. */
 .moduloAcciones { display: flex; align-items: center; gap: 0.35rem; }
 .moduloVacio { font-size: 0.88rem; color: var(--tinta-3); margin: 0; line-height: 1.5; }
 .enlaceSuave { color: var(--tinta); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
@@ -104,12 +116,6 @@
   font-size: 0.7rem; letter-spacing: var(--track-micro); text-transform: uppercase;
   font-weight: 700; color: var(--tinta-3); margin: 0 0 0.5rem;
 }
-
-.seccionCabecera {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 1rem; margin-bottom: 1.1rem;
-}
-.seccionTitulo { font-size: 1.15rem; font-weight: 600; letter-spacing: var(--track-titulo); margin: 0; }
 
 /* ---- acuerdos ---- */
 .acuerdos { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -255,8 +261,17 @@
   padding: 1.6rem 1.5rem 1.35rem;
   text-decoration: none; color: inherit; overflow: hidden;
   transition: transform var(--rapido) var(--suave), box-shadow var(--rapido) var(--suave);
+  /* SIN SOMBRA, PORQUE AHORA VIVE DENTRO DE UNA TARJETA (ronda 12).
+     Al meter "Los clientes" en una sección —que ES una tarjeta, como en la
+     sala— estas quedaron blancas con sombra sobre blanco con sombra: dos
+     niveles de elevación discutiendo cuál es el contenedor, exactamente el
+     defecto que la vista de sala ya había corregido. El borde delimita sin
+     levantar; la sombra se reserva para el hover, que es cuando significa
+     algo ("esto se puede tocar"). */
+  box-shadow: none;
+  border: 1px solid var(--linea);
 }
-.sala:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
+.sala:hover { transform: translateY(-2px); box-shadow: var(--e-2); border-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .sala:hover { transform: none; } }
 
 /* El filo de marca, arriba. Es lo único de color de la tarjeta además del

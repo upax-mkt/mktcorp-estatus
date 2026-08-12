@@ -9,6 +9,7 @@ import {
 import { EditorMolde } from '@/componentes/EditorMolde'
 import type { MoldeMinuta } from '@/minuta/molde'
 import type { PersonaMonday } from '@/monday/personas'
+import { Seccion } from '@/componentes/Seccion'
 import estilos from '@/app/hub.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
 
@@ -68,15 +69,17 @@ export function ModuloMinutas({
   }, [abierta])
 
   return (
-    <section className={`tarjeta ${estilos.modulo}`}>
-      <header className={estilos.moduloCabecera}>
-        <h2 className={estilos.moduloTitulo}>Minutas</h2>
-        {pendientes.length > 0 && (
+    <Seccion
+      icono="minuta"
+      titulo="Minutas"
+      conteo={
+        pendientes.length > 0 && (
           <span className="pildora" data-tono="ojo">
             {pendientes.length === 1 ? '1 reunión sin minuta' : `${pendientes.length} reuniones sin minuta`}
           </span>
-        )}
-      </header>
+        )
+      }
+    >
 
       {minutas.length === 0 ? (
         <p className={estilos.moduloVacio}>
@@ -150,6 +153,6 @@ export function ModuloMinutas({
           </div>
         )}
       </dialog>
-    </section>
+    </Seccion>
   )
 }

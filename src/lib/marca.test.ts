@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugDesdeNombre, derivarMarca } from './marca'
+import { slugDesdeNombre, derivarMarca, marcaConSobrescritos } from './marca'
 import { contraste } from './color'
 
 describe('slugDesdeNombre', () => {
@@ -111,5 +111,70 @@ describe('derivarMarca — colisión primario/superficieOscura con un primario c
       if (m.primario === m.superficieOscura) colisiones.push(hex)
     }
     expect(colisiones.length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * `marcaConSobrescritos` — LO ESCRITO A MANO MANDA.
+ *
+ * Nació dentro de `app/salas/acciones.ts`, del lado del servidor, y por eso
+ * la vista previa del formulario —que corre en el navegador— no podía usarla:
+ * seguía derivando del primario y le enseñaba a quien acababa de escribir un
+ * secundario azul el gris que venía justo a corregir. Vive aquí para que la
+ * previa y el guardado no puedan volver a discrepar.
+ */
+describe('marcaConSobrescritos', () => {
+  const NEGRO = '#000000'
+
+  it('sin sobrescritos, es exactamente lo derivado', () => {
+    expect(marcaConSobrescritos('Zeus', '#614aca')).toEqual(derivarMarca('Zeus', '#614aca'))
+  })
+
+  it('lo escrito gana; lo vacío se sigue derivando', () => {
+    const m = marcaConSobrescritos('UiX', '#614aca', '#ff6a00', '')
+    expect(m.secundario).toBe('#ff6a00')
+    expect(m.acento).toBe(derivarMarca('UiX', '#614aca').acento)
+  })
+
+  /**
+   * EL CASO QUE LO MOTIVÓ. Franco: *"cuando selecciono el negro solo me hace
+   * combinaciones de grises, siendo que hoy tiene negro, azul y otros"*.
+   * Que del negro no se pueda derivar una paleta lo fija `color.test.ts`
+   * —es geometría, y ahí se explica—; lo que se comprueba aquí es la salida:
+   * escribirlos SÍ funciona, y el primario se queda como está. La marca
+   * sigue siendo negra; lo que gana es un azul que antes no había manera de
+   * meter.
+   */
+  it('con un primario negro, escribir los colores sí los mete, y el primario no se toca', () => {
+    const escrita = marcaConSobrescritos('Marca negra', NEGRO, '#004ed6', '#b533ff')
+    expect(escrita.secundario).toBe('#004ed6')
+    expect(escrita.acento).toBe('#b533ff')
+    expect(escrita.primario).toBe(derivarMarca('Marca negra', NEGRO).primario)
+  })
+
+  it('un hex inválido se ignora en vez de guardarse: cae al derivado', () => {
+    for (const basura of ['azul', '#12345', '#GGGGGG', '  ']) {
+      expect(marcaConSobrescritos('X', '#614aca', basura).secundario)
+        .toBe(derivarMarca('X', '#614aca').secundario)
+    }
+  })
+
+  it('normaliza a minúsculas, como todo lo que sale de `derivarMarca`', () => {
+    expect(marcaConSobrescritos('X', '#614aca', '#FF6A00').secundario).toBe('#ff6a00')
+  })
+
+  /**
+   * LAS SUPERFICIES Y LOS TEXTOS NO SE SOBRESCRIBEN, y no es un olvido: son
+   * cálculos de legibilidad (contraste AA contra el fondo), no decisiones de
+   * marca. Dejarlos a mano es la vía rápida a un texto que no se lee.
+   */
+  it('solo toca secundario y acento: superficies, textos y degradado se siguen derivando', () => {
+    const base = derivarMarca('X', '#614aca')
+    const m = marcaConSobrescritos('X', '#614aca', '#ff6a00', '#00ff00')
+    expect(m.superficieClara).toBe(base.superficieClara)
+    expect(m.superficieOscura).toBe(base.superficieOscura)
+    expect(m.textoSobreClara).toBe(base.textoSobreClara)
+    expect(m.textoSobreOscura).toBe(base.textoSobreOscura)
+    expect(m.gradiente).toEqual(base.gradiente)
   })
 })

@@ -30,7 +30,17 @@ const COMUNES = {
   'aria-hidden': true,
 }
 
-export type NombreIcono = 'acuerdos' | 'reuniones' | 'benchmark' | 'archivos' | 'clave' | 'minuta'
+export type NombreIcono =
+  | 'acuerdos'
+  | 'reuniones'
+  | 'benchmark'
+  | 'archivos'
+  | 'clave'
+  | 'minuta'
+  // Los tres del Home, cuando adoptó esta misma cabecera (ver `Seccion.tsx`).
+  | 'clientes'
+  | 'calendario'
+  | 'pausa'
 
 export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; className?: string }) {
   switch (nombre) {
@@ -88,6 +98,35 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
           <path d="M6 4.5h8.5L18.5 8.5v11a1 1 0 01-1 1h-11a1 1 0 01-1-1v-14a1 1 0 011-1z" />
           <path d="M14 4.5v4.5h4.5" />
           <path d="M8.5 13h7M8.5 16.5h4.5" />
+        </svg>
+      )
+
+    // Los clientes: tres marcas, una junto a otra. No siluetas de personas —
+    // eso ya es 'reuniones', y un cliente aquí es una marca, no una persona.
+    case 'clientes':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="3.5" y="6" width="5" height="12" rx="1.5" />
+          <rect x="10.5" y="9" width="5" height="9" rx="1.5" />
+          <rect x="17.5" y="4" width="3" height="14" rx="1.5" />
+        </svg>
+      )
+
+    case 'calendario':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="3.5" y="5.5" width="17" height="14" rx="2.5" />
+          <path d="M3.5 10h17" />
+          <path d="M8 3.5v4M16 3.5v4" />
+        </svg>
+      )
+
+    // En pausa: las dos barras de siempre. Se entiende sin leer el título, que
+    // es justo lo que hace falta en una sección que se salta la mayoría.
+    case 'pausa':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M9.5 5.5v13M14.5 5.5v13" />
         </svg>
       )
   }

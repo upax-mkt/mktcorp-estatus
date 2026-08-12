@@ -1,0 +1,68 @@
+/* LA SECCIÓN. Ver `Seccion.tsx` para el porqué de cada regla.
+   Salido tal cual de `cliente.module.css`, que es donde el patrón se resolvió
+   primero — no es un rediseño, es la misma sección mudada a un sitio del que
+   pueda tirar también el Home. */
+
+.seccion {
+  /* La sección ES la tarjeta. Un título suelto sobre el lienzo con tarjetas
+     dentro son dos niveles de elevación discutiendo cuál es el contenedor. */
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+  padding: 1.35rem 1.4rem 1.25rem;
+}
+
+.titulo {
+  /* Icono y texto JUNTOS a la izquierda; el contador empujado a la derecha
+     con `margin-left:auto`, no con `space-between` — con tres hijos,
+     `space-between` reparte los huecos y manda el título al centro. */
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: var(--track-titulo);
+  color: var(--tinta, var(--tx));
+  text-transform: none;
+  margin: 0 0 1rem;
+}
+.titulo svg { flex: none; color: var(--marca-texto, var(--marca)); }
+
+.conteo {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: var(--track-normal);
+  color: var(--tinta-3, var(--tx-3));
+  /* El conteo no empuja al título cuando es largo ("Marketing United + 4
+     competidores"): se encoge él, que es lo accesorio. */
+  min-width: 0;
+  text-align: right;
+}
+
+/* ---- plegable ---- */
+.plegable > summary {
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 0; /* lo pone el contenido al abrirse */
+}
+.plegable[open] > summary { margin-bottom: 1rem; }
+.plegable > summary::-webkit-details-marker { display: none; }
+.plegable > summary::after {
+  content: '›';
+  margin-left: 0.5rem;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--tinta-3, var(--tx-3));
+  transition: transform var(--rapido, 0.15s) linear;
+}
+.plegable[open] > summary::after { transform: rotate(90deg); }
+.plegable > summary:hover::after { color: var(--tinta, var(--tx)); }
+.plegable > summary:focus-visible {
+  outline: 2px solid var(--marca);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .plegable > summary::after { transition: none; }
+}

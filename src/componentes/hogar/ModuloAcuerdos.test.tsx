@@ -188,7 +188,14 @@ describe('ModuloAcuerdos, el solapamiento destacado + vencido (crítico de la au
     expect(screen.getByRole('button', { name: /quitar de destacados/i })).toBeInTheDocument()
   })
 
-  it('Destacados se queda sin su único elemento, pero NO dice "nada destacado todavía": ese texto mentiría', () => {
+  /**
+   * EL BLOQUE ENTERO DESAPARECE (ronda 12), en vez de quedarse vacío con una
+   * nota que explica dónde mirar. La lección que este test cuida sigue siendo
+   * la misma y es la importante: NUNCA decir "nada destacado todavía"
+   * habiéndolos. Lo que cambió es el remedio — antes una frase, ahora ningún
+   * bloque: el acuerdo está justo debajo, en Vencidos, con su estrella puesta.
+   */
+  it('Destacados se queda sin su único elemento: el bloque no se pinta, y NO dice "nada destacado todavía"', () => {
     render(
       <ModuloAcuerdos
         destacados={[destacadoYVencido]}
@@ -200,10 +207,12 @@ describe('ModuloAcuerdos, el solapamiento destacado + vencido (crítico de la au
       />,
     )
     expect(screen.queryByText(/nada destacado todavía/i)).not.toBeInTheDocument()
-    expect(screen.getByText(/el destacado está vencido/i)).toBeInTheDocument()
+    expect(screen.queryByText('Destacados')).not.toBeInTheDocument()
+    // Y el acuerdo sigue a la vista, que es lo que hacía innecesaria la nota.
+    expect(screen.getByText(destacadoYVencido.que)).toBeInTheDocument()
   })
 
-  it('con dos destacados vencidos a la vez, el aviso de Destacados va en plural', () => {
+  it('con dos destacados vencidos a la vez, tampoco queda un bloque vacío: los dos se ven en Vencidos', () => {
     const otro: AcuerdoConSala = {
       ...destacadoYVencido, id: 'a-doble-2', que: 'Otro compromiso destacado y vencido',
     }
@@ -217,7 +226,9 @@ describe('ModuloAcuerdos, el solapamiento destacado + vencido (crítico de la au
         ponerFechaAction={nada}
       />,
     )
-    expect(screen.getByText(/los 2 destacados están vencidos/i)).toBeInTheDocument()
+    expect(screen.queryByText('Destacados')).not.toBeInTheDocument()
+    expect(screen.getByText(destacadoYVencido.que)).toBeInTheDocument()
+    expect(screen.getByText(otro.que)).toBeInTheDocument()
   })
 
   it('un destacado que NO está vencido no se toca: sigue en Destacados, ajeno al solapamiento de otro acuerdo', () => {

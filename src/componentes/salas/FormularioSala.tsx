@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { upload } from '@vercel/blob/client'
-import { slugDesdeNombre } from '@/lib/marca'
+import { derivarMarca, slugDesdeNombre } from '@/lib/marca'
 import { medirTinta } from '@/lib/tinta'
 import { rutaDeArchivo, pesoLegible, TAMANO_MAXIMO } from '@/lib/blob'
 import type { Cadencia } from '@/dominio/reunion'
@@ -233,6 +233,12 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
     identificadorFinal.length > 0 && slugsUsados.includes(identificadorFinal)
 
   const primarioValido = HEX_VALIDO.test(primario)
+  /**
+   * Lo que saldría del primario si nadie escribiera nada — para que los dos
+   * cuadritos de color enseñen ESO mientras sus campos están vacíos, en vez
+   * del negro al que cae un `<input type="color">` sin valor.
+   */
+  const derivados = primarioValido ? derivarMarca(nombre.trim() || 'x', primario) : null
   const nombreListo = nombre.trim().length > 0
   const listo =
     nombreListo && identificadorFinal.length > 0 && !identificadorRepetido && primarioValido && !subiendoLogo
@@ -455,11 +461,18 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               salían las escalas de gris que reportó Franco. */}
           <div className={estilos.campo}>
             <span className={estilos.etiqueta}>Secundario y acento</span>
+            {/* EL CUADRITO ENSEÑA EL DERIVADO CUANDO EL CAMPO ESTÁ VACÍO, no
+                negro. `<input type="color">` no admite "sin valor": vacío cae
+                a #000000, así que los dos salían negros mientras la paleta de
+                al lado enseñaba el azul derivado — la pantalla se contradecía
+                a sí misma a diez centímetros, y en el único caso que este
+                campo vino a resolver (una marca que ES negra) el error era
+                indistinguible del acierto. */}
             <div className={estilos.colorFila}>
               <input
                 type="color"
                 className={estilos.entradaColor}
-                value={HEX_VALIDO.test(secundario) ? secundario : '#000000'}
+                value={HEX_VALIDO.test(secundario) ? secundario : (derivados?.secundario ?? '#000000')}
                 onChange={(e) => setSecundario(e.target.value)}
                 aria-label="Elegir el color secundario"
               />
@@ -476,7 +489,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               <input
                 type="color"
                 className={estilos.entradaColor}
-                value={HEX_VALIDO.test(acento) ? acento : '#000000'}
+                value={HEX_VALIDO.test(acento) ? acento : (derivados?.acento ?? '#000000')}
                 onChange={(e) => setAcento(e.target.value)}
                 aria-label="Elegir el color de acento"
               />
@@ -587,6 +600,8 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
         <VistaPreviaMarca
           nombre={nombre}
           primario={primarioValido ? primario : null}
+          secundario={secundario}
+          acento={acento}
           logoUrl={logoUrl}
           logoRelacionDeTinta={logoRelacion}
         />

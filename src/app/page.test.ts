@@ -302,11 +302,27 @@ describe('Hub (/) — singular/plural del pulso y género de "Los clientes" (ext
     expect(screen.getByText('vencidos')).toBeInTheDocument()
   })
 
-  it('"Los clientes" ordena con adjetivo masculino: "ordenados", no "ordenadas"', async () => {
+  /**
+   * LA NOTA DE ORDEN SE RETIRÓ (ronda 12) — y este test se queda para contar
+   * por qué, en vez de borrarse.
+   *
+   * Aquí se comprobaba que "Los clientes" dijera "ORDENADOS por próxima
+   * reunión" y no "ordenadas": el sustantivo es masculino y el adjetivo
+   * concordaba con "salas", que es lo que hay en el código pero no lo que
+   * está escrito en la pantalla. Esa lección de concordancia sigue viva en el
+   * resto de esta suite.
+   *
+   * La frase entera se fue cuando el Home adoptó la cabecera de la sala (ver
+   * `componentes/Seccion.tsx`): a la derecha del título va un CONTEO, no una
+   * explicación. El orden de la rejilla ya se lee solo —cada tarjeta enseña
+   * su próxima reunión, en orden— mientras que cuántos clientes están sin
+   * agendar no se sabe sin ir contándolos a ojo. En ese sitio, uno de los dos
+   * datos vale y el otro decora.
+   */
+  it('la cabecera de "Los clientes" cuenta clientes, no explica el orden', async () => {
     render(await Hub())
 
-    expect(screen.getByText('ordenados por próxima reunión')).toBeInTheDocument()
-    expect(screen.queryByText('ordenadas por próxima reunión')).not.toBeInTheDocument()
+    expect(screen.queryByText(/ordenad[oa]s por próxima reunión/)).not.toBeInTheDocument()
   })
 })
 
@@ -363,5 +379,83 @@ describe('Hub (/) — "Agendar rápido" agenda la reunión y nada más', () => {
 
     const enviado = crearReunionMock.mock.calls.at(-1)?.[0] as { titulo: string }
     expect(enviado.titulo.trim().length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * EL TRABAJO QUE EL HOME NO ESTABA DICIENDO EN VOZ ALTA (ronda 12).
+ *
+ * Franco: *"el home sigo percibiéndolo sin lógica y desconectado, al menos del
+ * UX/UI de las salas"*.
+ *
+ * Parte del arreglo fue de forma —el Home adoptó la cabecera de la sala, ver
+ * `componentes/Seccion.tsx`— y parte de fondo: el pulso contaba cinco cosas y
+ * ninguna era la que define el oficio de Marketing Corporativo, que a ninguna
+ * UDN se le pase el estatus. Cuántos clientes están hoy sin nada agendado
+ * estaba solo implícito, repartido en las tarjetas que ponen "por agendar" en
+ * naranja y que había que ir contando a ojo.
+ *
+ * DOS TRAMPAS, y las dos se prueban aquí porque las dos son maneras de que la
+ * cifra mienta justo cuando importa: contar salas EN PAUSA (que no tienen
+ * próxima reunión a propósito — el freeze se convertiría en una tarea
+ * pendiente) y no distinguir "sin próxima" de "sin ninguna todavía".
+ */
+describe('Hub (/) — la cuenta de clientes sin próxima reunión', () => {
+  it('cuenta las activas que no tienen próxima reunión', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, slug: 'a', nombre: 'A', proximaReunion: null },
+      { ...SALA_BASE, slug: 'b', nombre: 'B', proximaReunion: null },
+      { ...SALA_BASE, slug: 'c', nombre: 'C', proximaReunion: '2026-09-01' },
+    ])
+
+    render(await Hub())
+
+    expect(screen.getByText('sin próxima reunión')).toBeInTheDocument()
+    expect(screen.getByText('2 por agendar')).toBeInTheDocument()
+  })
+
+  /** Una sala en freeze no tiene próxima reunión a propósito: no es trabajo. */
+  it('NO cuenta las salas en pausa', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, slug: 'a', nombre: 'A', proximaReunion: null },
+      { ...SALA_BASE, slug: 'z', nombre: 'Zeus', proximaReunion: null, activa: false, pausadaDesde: '2026-08-03' },
+    ])
+
+    render(await Hub())
+
+    expect(screen.getByText('1 por agendar')).toBeInTheDocument()
+  })
+
+  /** Con todo agendado, la cabecera no anuncia un cero: no hay nada que hacer. */
+  it('sin ninguno por agendar, no pone un conteo en cero', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, slug: 'a', nombre: 'A', proximaReunion: '2026-09-01' },
+    ])
+
+    render(await Hub())
+
+    expect(screen.queryByText(/por agendar$/)).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * CADA CIFRA DEL PULSO LLEVA A DONDE SE ATIENDE (ronda 12).
+ *
+ * Eran seis números que se leían y no se podían tocar: se entendía que algo
+ * había que hacer y para hacerlo tocaba buscar dónde. Un tablero cuyos números
+ * no llevan a su trabajo es decoración con datos dentro.
+ */
+describe('Hub (/) — el pulso es navegable', () => {
+  it('los acuerdos llevan a su pantalla; los clientes y el calendario, a su bloque', async () => {
+    render(await Hub())
+
+    const destino = (rotulo: string) =>
+      screen.getByText(rotulo).closest('a')?.getAttribute('href')
+
+    expect(destino('acuerdos abiertos')).toBe('/acuerdos')
+    expect(destino('vencidos')).toBe('/acuerdos')
+    expect(destino('clientes')).toBe('#clientes')
+    expect(destino('sin próxima reunión')).toBe('#clientes')
+    expect(destino('reuniones este mes')).toBe('#calendario')
   })
 })

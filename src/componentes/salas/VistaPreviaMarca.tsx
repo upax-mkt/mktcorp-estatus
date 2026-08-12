@@ -1,4 +1,4 @@
-import { derivarMarca } from '@/lib/marca'
+import { marcaConSobrescritos } from '@/lib/marca'
 import { altoDesdeTinta } from '@/temas/logos'
 import estilos from '@/app/salas/salas.module.css'
 
@@ -27,13 +27,22 @@ interface Props {
   nombre: string
   /** Hex de 6 dígitos ya validado por quien llama; si no lo es, no hay nada que derivar todavía. */
   primario: string | null
+  /**
+   * Escritos a mano en el formulario, si los hay. Vacíos, se derivan del
+   * primario como siempre. SIN ESTO LA PREVIA MIENTE: hasta la ronda 12 solo
+   * recibía el primario, así que a quien acababa de escribir un secundario
+   * azul —porque su marca es negra y azul, y de un negro no se deriva nada—
+   * le seguía enseñando el gris que venía justo a corregir.
+   */
+  secundario?: string | null
+  acento?: string | null
   logoUrl?: string | null
   logoRelacionDeTinta?: number | null
 }
 
 const HEX_VALIDO = /^#[0-9a-fA-F]{6}$/
 
-export function VistaPreviaMarca({ nombre, primario, logoUrl, logoRelacionDeTinta }: Props) {
+export function VistaPreviaMarca({ nombre, primario, secundario, acento, logoUrl, logoRelacionDeTinta }: Props) {
   if (!primario || !HEX_VALIDO.test(primario)) {
     return (
       <div className={`tarjeta ${estilos.previa}`}>
@@ -42,7 +51,7 @@ export function VistaPreviaMarca({ nombre, primario, logoUrl, logoRelacionDeTint
     )
   }
 
-  const marca = derivarMarca(nombre.trim() || 'Nombre de la sala', primario)
+  const marca = marcaConSobrescritos(nombre.trim() || 'Nombre de la sala', primario, secundario, acento)
   const colisionSuperficieClara = marca.primario === marca.superficieClara
   const altoLogo = altoDesdeTinta(logoRelacionDeTinta)
 

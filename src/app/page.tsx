@@ -30,6 +30,7 @@ import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinu
 import { AgendarRapido, type SalaParaAgendar, type DatosAgendarRapido } from '@/componentes/hogar/AgendarRapido'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
+import { Seccion } from '@/componentes/Seccion'
 import { colorDeTextoDeMarca } from '@/temas'
 
 /**
@@ -230,6 +231,20 @@ export default async function Hub() {
   // misma rejilla con media tarjeta vacía.
   const salasActivas = salas.filter((s) => s.activa)
   const salasPausadas = salas.filter((s) => !s.activa)
+  /**
+   * CLIENTES SIN PRÓXIMA REUNIÓN — el único trabajo que esta pantalla no
+   * estaba diciendo en voz alta.
+   *
+   * El pulso contaba cinco cosas y ninguna era esta: cuántos clientes están
+   * hoy sin nada agendado. Es la cifra que define el oficio de Marketing
+   * Corporativo —que a ninguna UDN se le pase el estatus— y estaba solo
+   * implícita, repartida en cinco tarjetas que ponen "por agendar" en naranja
+   * y que hay que ir contando a ojo.
+   *
+   * Solo las ACTIVAS: una sala en pausa no tiene próxima reunión a propósito,
+   * y contarla convertiría el freeze en una tarea pendiente.
+   */
+  const sinProxima = salasActivas.filter((s) => !s.proximaReunion).length
   // Ninguno de los dos EXCLUYE al otro (ver el comentario del Promise.all,
   // arriba): un acuerdo destacado que además venció vive en las dos listas
   // que siguen. Quién gana al pintarlo es decisión de `ModuloAcuerdos`, no
@@ -398,34 +413,47 @@ export default async function Hub() {
             <h1 className={estilos.saludo}>Meeting Hub</h1>
             <p className={estilos.saludoSub}>El estado de la relación con cada cliente.</p>
           </div>
+          {/* CADA CIFRA LLEVA A DONDE SE ATIENDE (ronda 12).
+              El pulso decía cinco números y ninguno se podía tocar: se leían,
+              se entendía que algo había que hacer, y para hacerlo tocaba
+              buscar dónde. Un tablero cuyos números no llevan a su trabajo es
+              decoración con datos dentro. Ahora son enlaces —los tres de
+              gestión a su pantalla, los dos de calendario y clientes al
+              bloque de esta misma página que los desarrolla— y se les sumó
+              `sinProxima`, que es la única de las seis que nadie estaba
+              contando (ver arriba). */}
           <div className={estilos.pulsoCifras}>
-            <div className={estilos.pulsoItem}>
+            <Link href="#clientes" className={estilos.pulsoItem}>
               <span className="cifra">{pulso.salas}</span>
               <span className="micro">clientes</span>
-            </div>
-            <div className={estilos.pulsoItem}>
+            </Link>
+            <Link href="#clientes" className={estilos.pulsoItem}>
+              <span className="cifra" data-alerta={sinProxima > 0 ? 'ojo' : undefined}>{sinProxima}</span>
+              <span className="micro">sin próxima reunión</span>
+            </Link>
+            <Link href="#calendario" className={estilos.pulsoItem}>
               <span className="cifra">{pulso.reunionesEsteMes}</span>
               <span className="micro">reuniones este mes</span>
-            </div>
-            <div className={estilos.pulsoItem}>
+            </Link>
+            <Link href="#calendario" className={estilos.pulsoItem}>
               <span className="cifra">{pulso.reunionesDadas}</span>
               {/* Singular/plural (extra de la auditoría UX/UI, ronda 11):
                   decía "1 ya se dieron" con una sola reunión. Mismo criterio
                   que ya usa esta pantalla más abajo, en la píldora de cada
                   tarjeta de sala. */}
               <span className="micro">{pulso.reunionesDadas === 1 ? 'ya se dio' : 'ya se dieron'}</span>
-            </div>
-            <div className={estilos.pulsoItem}>
+            </Link>
+            <Link href="/acuerdos" className={estilos.pulsoItem}>
               <span className="cifra">{pulso.acuerdosAbiertos}</span>
               <span className="micro">acuerdos abiertos</span>
-            </div>
-            <div className={estilos.pulsoItem}>
+            </Link>
+            <Link href="/acuerdos" className={estilos.pulsoItem}>
               <span className="cifra" data-alerta={pulso.acuerdosVencidos > 0 ? 'true' : undefined}>
                 {pulso.acuerdosVencidos}
               </span>
               {/* Mismo arreglo que "ya se dieron", arriba: decía "1 vencidos". */}
               <span className="micro">{pulso.acuerdosVencidos === 1 ? 'vencido' : 'vencidos'}</span>
-            </div>
+            </Link>
           </div>
         </section>
 
@@ -434,22 +462,22 @@ export default async function Hub() {
             que nadie lo haya dicho todavía. Cierra el ciclo que el pulso, un
             poco más arriba, deja abierto: aquí se responde. */}
         {porConfirmar.length > 0 && (
-          <section>
-            <div className={estilos.seccionCabecera}>
-              <h2 className={estilos.seccionTitulo}>Por confirmar</h2>
-              <span className="micro" data-sinpunto>
-                {porConfirmar.length === 1
-                  ? 'una reunión ya pasó su día sin marcar'
-                  : `${porConfirmar.length} reuniones ya pasaron su día sin marcar`}
-              </span>
-            </div>
+          <Seccion
+            icono="reuniones"
+            titulo="Por confirmar"
+            conteo={
+              porConfirmar.length === 1
+                ? 'una ya pasó su día sin marcar'
+                : `${porConfirmar.length} ya pasaron su día sin marcar`
+            }
+          >
             <ReunionesPorConfirmar
               sesiones={porConfirmar}
               marcarPresentadaAction={marcarPresentadaAction}
               marcarNoDadaAction={marcarNoDadaAction}
               desmarcarNoDadaAction={desmarcarNoDadaAction}
             />
-          </section>
+          </Seccion>
         )}
 
         {/* Los módulos: lo que hay que atender y lo que viene. */}
@@ -472,7 +500,7 @@ export default async function Hub() {
               reajustar en `grid-template-rows`, porque `.modulos` sigue
               viendo TRES hijos, exactamente como antes — el mismo hueco de la
               ronda 2 que esas reglas ya resuelven para tres, no para cuatro. */}
-          <div style={{ display: 'grid', gap: '0.9rem', alignContent: 'start' }}>
+          <div id="calendario" style={{ display: 'grid', gap: '0.9rem', alignContent: 'start' }}>
             <AgendarRapido salas={salasParaAgendar} agendar={agendarRapidoAction} />
             <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
           </div>
@@ -487,14 +515,21 @@ export default async function Hub() {
         </div>
 
         {/* Las salas, con su logotipo. */}
-        <section>
-          <div className={estilos.seccionCabecera}>
-            <h2 className={estilos.seccionTitulo}>Los clientes</h2>
-            {/* "Los clientes" es masculino: el adjetivo concuerda con eso, no
-                con "salas" (femenino) — extra de la auditoría UX/UI, ronda 11. */}
-            <span className="micro" data-sinpunto>ordenados por próxima reunión</span>
-          </div>
-
+        <Seccion
+          id="clientes"
+          icono="clientes"
+          titulo="Los clientes"
+          /* Antes decía "ordenados por próxima reunión", que explica el orden
+             pero no dice nada del estado. En el sitio del conteo va lo que hay
+             que atender: cuántos clientes están sin próxima reunión.
+             SOLO ESO, y no también "cuántos hay": el pulso de arriba ya dice
+             "9 clientes" contando la sala en pausa, esta rejilla enseña 8, y
+             dos cifras que se contradicen a media pantalla de distancia es
+             justo lo que hace que un tablero se lea como si no cuadrara. El
+             número de tarjetas se cuenta con los ojos; el de los que se van a
+             quedar sin junta, no. */
+          conteo={sinProxima > 0 && `${sinProxima} por agendar`}
+        >
           <div className={estilos.salas}>
             {salasActivas.map((s) => {
               const t = temperatura(s)
@@ -544,15 +579,30 @@ export default async function Hub() {
                     </span>
                   </div>
 
+                  {/* SIN EMPEZAR NO ES 0%. Con el deck recién creado, esto
+                      pintaba "0 de 8 secciones · 0%" y una barra vacía: dos
+                      ceros y una línea gris que se leen como "esto va mal",
+                      cuando lo único que dicen es que la presentación aún no
+                      se ha tocado. Tres de los ocho clientes salían así.
+                      Empezado, la barra vuelve —ahí sí compara y ahí sí
+                      significa avance. */}
                   {s.enPreparacion && s.seccionesTotales ? (
                     <div className={estilos.salaAvance}>
                       <span className={estilos.salaAvanceTexto}>
-                        <span>{s.seccionesEscritas} de {s.seccionesTotales} secciones</span>
-                        <span>{s.avancePreparacion}%</span>
+                        {!s.seccionesEscritas ? (
+                          <span>sin empezar · {s.seccionesTotales} secciones</span>
+                        ) : (
+                          <>
+                            <span>{s.seccionesEscritas} de {s.seccionesTotales} secciones</span>
+                            <span>{s.avancePreparacion}%</span>
+                          </>
+                        )}
                       </span>
-                      <span className={estilos.salaBarra}>
-                        <span className={estilos.salaBarraRelleno} style={{ width: `${s.avancePreparacion ?? 0}%` }} />
-                      </span>
+                      {(s.seccionesEscritas ?? 0) > 0 && (
+                        <span className={estilos.salaBarra}>
+                          <span className={estilos.salaBarraRelleno} style={{ width: `${s.avancePreparacion ?? 0}%` }} />
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <span />
@@ -568,7 +618,7 @@ export default async function Hub() {
               )
             })}
           </div>
-        </section>
+        </Seccion>
 
         {/* EN PAUSA (tarea 12): aparte de "Los clientes", no mezcladas en la
             misma rejilla. Una sala en freeze no se borra —su historia se
@@ -577,12 +627,11 @@ export default async function Hub() {
             contar, así que la tarjeta dice otra cosa: desde cuándo está en
             pausa. */}
         {salasPausadas.length > 0 && (
-          <section>
-            <div className={estilos.seccionCabecera}>
-              <h2 className={estilos.seccionTitulo}>En pausa</h2>
-              <span className="micro" data-sinpunto>freeze comercial — sin reuniones ni gestión hasta nuevo aviso</span>
-            </div>
-
+          <Seccion
+            icono="pausa"
+            titulo="En pausa"
+            conteo="freeze comercial — sin reuniones ni gestión hasta nuevo aviso"
+          >
             <div className={estilos.salas}>
               {salasPausadas.map((s) => (
                 <Link
@@ -623,7 +672,7 @@ export default async function Hub() {
                 </Link>
               ))}
             </div>
-          </section>
+          </Seccion>
         )}
       </main>
     </div>
