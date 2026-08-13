@@ -13,7 +13,18 @@
  */
 
 .caras { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
-.carasCompactas { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+/* DOS COLUMNAS, no un flex que reparte a su aire (ronda 13): la presentación
+   a la izquierda y la minuta —o el "Sin minuta"— siempre en la misma columna.
+   Con flex, el ancho del título del PPT movía todo lo demás y cada fila
+   alineaba distinto. */
+.carasCompactas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem;
+  align-items: center; gap: 0.45rem;
+}
+/* Un título largo se recorta en vez de empujar su columna. */
+.carasCompactas > .cara { min-width: 0; }
+.carasCompactas > .cara > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Lo que YA HAY: el documento, un archivo, la minuta publicada. Papel elevado
    sobre el fondo hundido de la fila — la misma superficie que .botonAfirmar
@@ -124,4 +135,18 @@
 .caraNo {
   font: inherit; font-size: 0.76rem; color: var(--tinta-2);
   padding: 0.25rem 0.4rem; background: none; border: none; cursor: pointer;
+}
+
+/* ---- "Sin minuta", para quien solo mira (ronda 13) ----
+   Franco: *"que diga Sin Minuta pero no en un botón ni nada así, no
+   resalta"*. Sin fondo, sin borde y en gris: dice lo que falta sin pedir nada.
+   El `min-width` es lo que mantiene las cajas en columna de una fila a otra —
+   ocupa lo mismo que la píldora de "Minuta" que llevan las reuniones que sí la
+   tienen, así que la presentación de la izquierda termina siempre a la misma
+   altura. */
+.caraSinMinuta {
+  display: inline-flex; align-items: center;
+  min-width: 6.5rem;
+  padding: 0.42rem 0.2rem;
+  font-size: 0.82rem; color: var(--tinta-3);
 }

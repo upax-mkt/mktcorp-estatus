@@ -243,7 +243,15 @@
   align-self: center; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.04em; padding: 0.2rem 0.55rem; border-radius: 0.4rem; white-space: nowrap;
 }
-.acuerdoBadge.abierto { background: var(--superficie-2); color: var(--tx-2); }
+/* ABIERTO CON COLOR (ronda 13). Franco: *"en los acuerdos, el botón que
+   muestra Abierto o Vencido, que sí se pinte de color"*. Era gris sobre gris,
+   así que la única señal de estado en la fila era el puntito de la izquierda.
+   Se usa el AZUL del sistema y no la marca de la UDN: el badge convive con la
+   fecha en semáforo —rojo/ámbar/verde— y con el color de la sala; meter un
+   cuarto color de marca ahí sería competir contra los tres que ya significan
+   algo. Con la marca clara de alguna UDN (el amarillo de MU) además no habría
+   contraste. */
+.acuerdoBadge.abierto { background: oklch(0.55 0.15 255 / 0.12); color: oklch(0.45 0.15 255); }
 .acuerdoBadge.cumplido { background: oklch(0.6 0.12 155 / 0.12); color: var(--ok); }
 .acuerdoBadge.vencido { background: var(--alerta-suave); color: var(--alerta); }
 
@@ -311,17 +319,37 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .reunionCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .reuniones { display: flex; flex-direction: column; }
+/* LAS CAJAS DE CADA REUNIÓN, EN COLUMNA (ronda 13). Franco: *"que se
+   reordenen bien las cajitas"*.
+
+   Era un flex con `space-between`, así que cada fila repartía el hueco a su
+   manera: una reunión con presentación, minuta y acuerdos alineaba distinto
+   que otra con solo presentación, y la vista de tres meses se leía torcida.
+   Ahora son tres columnas fijas —lo que se lee, lo que se abre, y los
+   acuerdos— y cada cosa cae siempre bajo la anterior. */
 .reunionFila {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  display: grid;
+  /* Anchos FIJOS en las dos últimas: con `auto`, el ancho de cada celda lo
+     decidía el largo del título del PPT, así que las cajas de una fila no
+     caían bajo las de la anterior — que es justo lo que se veía torcido. */
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 24rem) 7rem;
+  align-items: center; gap: 1rem;
   padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde);
 }
 .reunionFila:last-child { border-bottom: 1px solid var(--borde); }
 .reunionFilaTexto { display: flex; align-items: baseline; gap: 0.7rem; min-width: 0; }
-/* `.reunionFila` es flex con wrap: sin `flex-basis: 100%` la línea de
-   participación competiría por espacio junto a `.carasCompactas` en vez de
-   quedar debajo, en su propia fila. */
-.reunionFilaParticipacion { flex-basis: 100%; }
+/* La línea de participación va DEBAJO, ocupando la fila entera: junto a las
+   cajas competiría por el mismo espacio. Con la rejilla de arriba eso se dice
+   con `grid-column: 1 / -1` (antes era `flex-basis: 100%`, que ya no aplica). */
+.reunionFilaParticipacion { grid-column: 1 / -1; }
 .reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
+
+/* Estrecho: las tres columnas no caben, y una fila de reunión partida en
+   trozos de dos centímetros no se lee. Se apila, que es como se lee en móvil
+   el resto de la sala. */
+@media (max-width: 720px) {
+  .reunionFila { grid-template-columns: 1fr; }
+}
 
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 

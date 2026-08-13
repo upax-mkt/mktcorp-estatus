@@ -402,7 +402,18 @@ function CaraMinuta({
    */
   if (!tienePresentacion(reunion) && reunion.estado !== 'dada') return null
 
-  if (!equipo) return <span className="pildora" data-tono="ojo">Falta la minuta</span>
+  /**
+   * AL DIRECTOR SE LE DICE, NO SE LE ALARMA (ronda 13). Franco: *"cuando una
+   * reunión anterior quedó sin minuta… que diga Sin Minuta, pero no en un
+   * botón ni nada así, no resalta"*.
+   *
+   * Era una píldora ámbar con el mismo peso visual que el PPT de al lado, así
+   * que la fila parecía tener dos cosas que abrir y una era un reproche. Que
+   * falte el acta es información suya —explica por qué no hay acuerdos de esa
+   * junta— pero el pendiente es de Mkt Corp, no de él: es texto, en gris, sin
+   * caja. Al equipo se le sigue ofreciendo el botón de levantarla.
+   */
+  if (!equipo) return <span className={estilos.caraSinMinuta}>Sin minuta</span>
 
   return (
     <Link href={`/deck/${reunion.id}/minuta`} className={estilos.caraAccion}>

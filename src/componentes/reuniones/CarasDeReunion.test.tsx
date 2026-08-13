@@ -279,10 +279,20 @@ describe('CarasDeReunion — minuta ausente', () => {
     expect(enlace).toHaveAttribute('href', `/deck/${conPdf.id}/minuta`)
   })
 
-  it('sin minuta, el director ve que falta pero no puede levantarla', () => {
-    render(<CarasDeReunion reunion={conPdf} equipo={false} onLeerMinuta={() => {}} />)
+  /**
+   * ⚠️ AL DIRECTOR SE LE DICE, NO SE LE ALARMA (ronda 13). Decía "Falta la
+   * minuta" en una píldora ámbar, con el mismo peso que el PPT de al lado —
+   * Franco: *"que diga Sin Minuta pero no en un botón ni nada así, no
+   * resalta"*. Que falte el acta es información suya, pero el pendiente es de
+   * Mkt Corp: texto gris, sin caja.
+   */
+  it('sin minuta, el director ve que falta —en texto, sin caja— y no puede levantarla', () => {
+    const { container } = render(<CarasDeReunion reunion={conPdf} equipo={false} onLeerMinuta={() => {}} />)
     expect(screen.queryByRole('link', { name: /levantar minuta/i })).toBeNull()
-    expect(screen.getByText(/falta la minuta/i)).toBeInTheDocument()
+    expect(screen.getByText(/^sin minuta$/i)).toBeInTheDocument()
+    // Ni píldora ni botón: nada que invite a pulsarlo.
+    expect(container.querySelector('.pildora')).toBeNull()
+    expect(screen.queryByRole('button', { name: /minuta/i })).toBeNull()
   })
 })
 
