@@ -35,6 +35,7 @@ export type NombreIcono =
   | 'reuniones'
   | 'benchmark'
   | 'archivos'
+  | 'prensa'
   | 'clave'
   | 'minuta'
   // Los tres del Home, cuando adoptó esta misma cabecera (ver `Seccion.tsx`).
@@ -79,6 +80,21 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
       return (
         <svg {...COMUNES} className={className}>
           <path d="M4 7.5A2.5 2.5 0 016.5 5h3l2 2.5h6A2.5 2.5 0 0120 10v6.5a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 16.5z" />
+        </svg>
+      )
+
+    // Un periódico: la hoja, su titular y las dos columnas de texto. Es lo
+    // que distingue de un vistazo el módulo de prensa del de material, cuya
+    // carpeta está justo encima.
+    case 'prensa':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M4 6.5A1.5 1.5 0 015.5 5h11A1.5 1.5 0 0118 6.5V17a2 2 0 002 2H6a2 2 0 01-2-2z" />
+          <path d="M7.5 8.5h7" />
+          <path d="M7.5 12h3" />
+          <path d="M7.5 15h3" />
+          <path d="M13 12h1.5" />
+          <path d="M13 15h1.5" />
         </svg>
       )
 

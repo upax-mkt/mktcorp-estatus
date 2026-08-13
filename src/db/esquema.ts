@@ -370,6 +370,22 @@ export const categoriaArchivoEnum = pgEnum('categoria_archivo', [
   'evidencia',
   /** Material de venta de la UDN. Ver la nota de arriba sobre 'interes'. */
   'comercial',
+  /**
+   * UNA NOTA DE PRENSA de la UDN (ronda 13). Franco: *"debemos agregar antes
+   * de archivos de interés, abajo de archivos comerciales, algo que se llame
+   * Notas de Prensa Destacadas… la mayoría son link pero se deben ver
+   * distintas a como se ve el otro módulo de materiales"*.
+   *
+   * Es su propio módulo y no un `grupo` dentro de Materiales Comerciales
+   * porque no se lee igual: un material se ABRE (un PDF, un deck) y una nota
+   * se LEE EN OTRO SITIO — lo que importa de ella es el medio que la publicó
+   * y cuándo, no su formato. Por eso tiene columna `medio` y tarjeta propia.
+   *
+   * ⚠️ ES LA ÚNICA CATEGORÍA QUE PUEDE LLEVAR `enlace` Y `ruta` A LA VEZ: el
+   * enlace es la nota (el destino) y `ruta` es su PORTADA subida, que es
+   * ilustración y no un segundo destino. Ver `registrarArchivo`.
+   */
+  'prensa',
 ])
 
 export const archivos = pgTable('archivos', {
@@ -414,6 +430,16 @@ export const archivos = pgTable('archivos', {
    * Nulo en todo lo que no sea `categoria = 'evidencia'`.
    */
   bloque: text('bloque'),
+  /**
+   * QUIÉN PUBLICÓ la nota: "El Economista", "Expansión", "Merca2.0". Solo en
+   * `categoria = 'prensa'`, nulo en todo lo demás.
+   *
+   * Se guarda aunque se pueda derivar del dominio del enlace porque el
+   * dominio no es el nombre: "eleconomista.com.mx" en la sala de un cliente
+   * se lee como una dirección, no como un periódico. El formulario propone el
+   * dominio y quien sube lo corrige — cero fricción si no lo toca.
+   */
+  medio: text('medio'),
   /**
    * SUBCATEGORÍA dentro de su módulo (migración 0037): "Credenciales",
    * "Casos de éxito", "Notas de prensa"… El nombre lo pone quien sube.

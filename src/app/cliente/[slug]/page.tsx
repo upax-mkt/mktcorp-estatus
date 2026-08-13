@@ -41,6 +41,8 @@ import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
+import { NotasDePrensa } from '@/componentes/NotasDePrensa'
+import { AnadirNotaDePrensa } from '@/componentes/AnadirNotaDePrensa'
 import { ReunionesSala } from '@/componentes/ReunionesSala'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { LevantarMinuta } from '@/componentes/LevantarMinuta'
@@ -235,9 +237,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * tenía nada que cerrar. Ver el `<header>` de más abajo.
    */
   const conSesion = (await sesionActual()) !== null
-  const [benchmark, materialesComerciales, archivosDeInteres, personas] = await Promise.all([
+  const [benchmark, materialesComerciales, notasDePrensa, archivosDeInteres, personas] = await Promise.all([
     obtenerBenchmark(slug),
     listarArchivos(slug, 'comercial'),
+    listarArchivos(slug, 'prensa'),
     listarArchivos(slug, 'interes'),
     /**
      * Para el selector de responsable de NuevoAcuerdoForm/LevantarMinuta —
@@ -762,6 +765,52 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   }
 
   /**
+   * DAR DE ALTA UNA NOTA DE PRENSA (ronda 13).
+   *
+   * No usa `guardarEnlaceDeSala` porque una nota lleva tres cosas que un
+   * enlace de material no tiene —medio, fecha de publicación y una portada
+   * opcional— y porque su regla de validación es la contraria: el enlace es
+   * OBLIGATORIO (es el destino) y la `ruta` es ilustración, no alternativa.
+   * Ver la excepción documentada en `registrarArchivo`.
+   *
+   * El enlace se vuelve a normalizar aquí aunque el navegador ya lo hiciera:
+   * lo de allá es comodidad, esto es la comprobación — sin ella un
+   * `javascript:` llega a la base y de ahí al href que ve la UDN.
+   */
+  async function registrarNotaDePrensaAction(datos: {
+    titulo: string
+    enlace: string
+    medio: string
+    fecha: string | null
+    portada: { ruta: string; nombreOriginal: string; tipoContenido: string | null; tamanoBytes: number | null } | null
+  }): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+    const normalizado = normalizarEnlace(datos.enlace)
+    if ('error' in normalizado) return { error: normalizado.error }
+    try {
+      await registrarArchivo({
+        salaSlug: slug,
+        categoria: 'prensa',
+        titulo: datos.titulo,
+        enlace: normalizado.url,
+        medio: datos.medio,
+        // La fecha de la NOTA, no la de subida: una nota de mayo cargada hoy
+        // se ordena en mayo (ver `porFechaDesc` en src/db/archivos.ts).
+        fecha: datos.fecha ? instanteEnCDMX(datos.fecha, '10:00') : null,
+        ruta: datos.portada?.ruta ?? null,
+        nombreOriginal: datos.portada?.nombreOriginal ?? null,
+        tipoContenido: datos.portada?.tipoContenido ?? null,
+        tamanoBytes: datos.portada?.tamanoBytes ?? null,
+      })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo guardar la nota.' }
+    }
+    revalidatePath(`/cliente/${slug}`)
+    return {}
+  }
+
+  /**
    * `cambios.fecha` es OPCIONAL desde la Tarea 3 de la ronda 11 (antes era
    * obligatorio): `ArchivosSala` (archivos de interés) sigue mandándola
    * siempre —incluso `null`, cuando no aplica—, pero `CarasDeReunion`
@@ -901,6 +950,9 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     ...(benchmark || equipo ? [{ id: 's-benchmark', titulo: 'Benchmark' }] : []),
     ...(materialesComerciales.length > 0 || equipo
       ? [{ id: 's-comercial', titulo: 'Materiales', conteo: materialesComerciales.length > 0 ? `${materialesComerciales.length}` : undefined }]
+      : []),
+    ...(notasDePrensa.length > 0 || equipo
+      ? [{ id: 's-prensa', titulo: 'Prensa', conteo: notasDePrensa.length > 0 ? `${notasDePrensa.length}` : undefined }]
       : []),
     ...(archivosDeInteres.length > 0 || equipo
       ? [{ id: 's-interes', titulo: 'Archivos', conteo: archivosDeInteres.length > 0 ? `${archivosDeInteres.length}` : undefined }]
@@ -1369,6 +1421,31 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             )}
           </MaterialesAgrupados>
         )}
+
+        {/* NOTAS DE PRENSA (ronda 13). Franco: *"debemos agregar antes de
+            archivos de interés, abajo de archivos comerciales, algo que se
+            llame Notas de Prensa Destacadas o algo así; la mayoría son link
+            pero se deben ver distintas a como se ve el otro módulo de
+            materiales"*.
+
+            Va en ese orden y no en otro porque sigue la escala de lo que se
+            usa para vender: primero lo que la UDN enseña (sus materiales),
+            luego lo que otros dijeron de ella (la prensa) y al final lo que
+            conviene tener a mano. El componente es propio —no
+            `MaterialesAgrupados` con otro título— por lo que se explica en su
+            cabecera: una nota se lee por su medio y su fecha, no por su
+            formato. */}
+        <NotasDePrensa
+          id="s-prensa"
+          titulo="Notas de Prensa"
+          notas={notasDePrensa}
+          equipo={equipo}
+          eliminarAction={equipo ? eliminarArchivoAction : undefined}
+        >
+          {equipo && (
+            <AnadirNotaDePrensa salaSlug={slug} registrarAction={registrarNotaDePrensaAction} />
+          )}
+        </NotasDePrensa>
 
         {/* ARCHIVOS DE INTERÉS (Franco: *"después de materiales comerciales
             hay que agregar Archivos de Interés con las mismas

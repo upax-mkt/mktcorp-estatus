@@ -2000,3 +2000,103 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .tableroBanner:hover .tableroBannerFlecha { transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) { .tableroBannerFlecha { transition: none; } }
+
+/* ══ NOTAS DE PRENSA (ronda 13) ═══════════════════════════════════════════
+   Franco: *"la mayoría son link pero se deben ver distintas a como se ve el
+   otro módulo de materiales"*.
+
+   Y son distintas porque se leen distinto: de un material importa QUÉ ES —por
+   eso su carátula dibuja una hoja con su extensión— y de una nota importan
+   QUIÉN LA PUBLICÓ y CUÁNDO. Así que la tarjeta es más ancha, la portada manda
+   arriba, y debajo van medio y fecha ANTES del titular: esa línea es la que
+   convierte un titular en una prueba.
+
+   Tarjetas más grandes que las de material a propósito: aquí el titular es el
+   contenido —hay que poder leerlo— mientras que allí el título es una
+   etiqueta para reconocer un fichero que ya se sabe cuál es. */
+.prensaLista {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 17rem));
+  justify-content: start;
+}
+
+.prensaTarjeta {
+  position: relative;
+  border-radius: var(--r-3); overflow: hidden;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.prensaTarjeta:hover { border-color: var(--borde-fuerte); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .prensaTarjeta { transition: none; }
+  .prensaTarjeta:hover { transform: none; }
+}
+
+.prensaEnlace { display: grid; gap: 0; color: inherit; text-decoration: none; }
+
+/* 16:9 y no 16:10 como el material: la captura de una nota viene casi siempre
+   de una web, y esa es la proporción en la que se recorta sola. */
+.prensaPortada {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  display: grid; place-items: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--borde);
+  /* El color sale del dominio del medio (`--tono`), en una versión muy
+     desaturada: la sala se viste con la marca de SU UDN, y una rejilla de
+     portadas de colores plenos la convertiría en otra cosa. */
+  background: oklch(0.96 0.03 var(--tono, 250));
+}
+.prensaImagen { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Sin portada: el nombre del medio ocupa el hueco, en grande. Es el dato que
+   de todos modos se busca, así que hace de imagen y de información a la vez. */
+.prensaMedioGrande {
+  padding: 0 1rem; text-align: center;
+  font-size: 1.05rem; font-weight: 600; line-height: 1.25;
+  letter-spacing: var(--track-titulo);
+  color: oklch(0.45 0.09 var(--tono, 250));
+}
+
+.prensaTexto { display: grid; gap: 0.35rem; padding: 0.8rem 0.9rem 0.95rem; }
+/* Medio y fecha ARRIBA del titular: es lo que sitúa la nota, y en una lista de
+   ocho es por donde se busca. */
+.prensaFicha {
+  display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;
+  font-size: 0.75rem; color: var(--tx-3);
+}
+.prensaMedio { font-weight: 600; color: var(--tx-2); }
+.prensaTitular {
+  font-size: 0.92rem; font-weight: 500; line-height: 1.4; color: var(--tx);
+  /* Tres líneas: un titular es una frase entera, no una etiqueta — cortarlo en
+     dos como al material lo dejaría a medias justo en lo que hay que leer. */
+  display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
+  -webkit-box-orient: vertical; overflow: hidden;
+  min-height: calc(3 * 1.4 * 0.92rem);
+}
+
+/* Quitar: fuera del enlace (anidar un botón en un <a> es HTML inválido) y
+   escondido hasta que hace falta — esta pantalla también la ve el director de
+   la UDN, y una ✕ permanente en cada tarjeta la convierte en un panel de
+   administración. */
+.prensaQuitar {
+  position: absolute; top: 0.45rem; right: 0.45rem;
+  width: 1.7rem; height: 1.7rem; padding: 0;
+  display: grid; place-items: center;
+  font: inherit; font-size: 0.85rem; line-height: 1;
+  color: var(--tx-2); cursor: pointer;
+  background: color-mix(in oklch, var(--superficie) 88%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--borde); border-radius: var(--r-lleno);
+  opacity: 0; transition: opacity var(--rapido, 0.15s) linear, color var(--rapido, 0.15s) linear;
+}
+.prensaTarjeta:hover .prensaQuitar, .prensaQuitar:focus-visible { opacity: 1; }
+.prensaQuitar:hover { color: var(--alerta); border-color: var(--alerta); }
+.prensaConfirmar {
+  position: absolute; top: 0.45rem; right: 0.45rem;
+  display: inline-flex; gap: 0.3rem; align-items: center;
+  padding: 0.25rem; border-radius: var(--r-2);
+  background: var(--superficie); border: 1px solid var(--borde);
+}

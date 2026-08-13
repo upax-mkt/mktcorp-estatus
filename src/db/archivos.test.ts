@@ -180,3 +180,80 @@ describe('el orden de los materiales', () => {
     expect(lista.find((m) => m.id === a.id)?.grupo).toBeNull()
   })
 })
+
+/**
+ * NOTAS DE PRENSA (ronda 13). Lo que la distingue de cualquier otro material
+ * es que puede llevar las DOS cosas: el enlace a la nota (su destino) y una
+ * portada subida (ilustración). Para el resto de categorías eso sigue siendo
+ * un error — dos destinos y nadie que elija entre ellos.
+ */
+describe('notas de prensa', () => {
+  const NOTA = {
+    salaSlug: 'mexa-creativa',
+    categoria: 'prensa' as const,
+    titulo: 'UPAX lleva la medición al punto de venta',
+    enlace: 'https://www.eleconomista.com.mx/nota',
+    medio: 'El Economista',
+    fecha: new Date('2026-08-12T10:00:00Z'),
+  }
+
+  it('una nota puede tener enlace Y portada a la vez: el destino sigue siendo uno', async () => {
+    const { id } = await registrarArchivo({
+      ...NOTA,
+      ruta: 'salas/mexa-creativa/prensa/uuid-portada.jpg',
+      nombreOriginal: 'portada.jpg',
+    })
+    const guardada = await obtenerArchivo(id)
+    expect(guardada?.enlace).toBe(NOTA.enlace)
+    expect(guardada?.ruta).toContain('uuid-portada.jpg')
+    expect(guardada?.medio).toBe('El Economista')
+  })
+
+  it('y puede no tener portada: es ilustración, no requisito', async () => {
+    const { id } = await registrarArchivo(NOTA)
+    const guardada = await obtenerArchivo(id)
+    expect(guardada?.ruta).toBeNull()
+    expect(guardada?.enlace).toBe(NOTA.enlace)
+  })
+
+  it('sin enlace se rechaza aunque traiga portada: una nota que no lleva a la nota no es nada', async () => {
+    await expect(
+      registrarArchivo({
+        ...NOTA,
+        enlace: null,
+        ruta: 'salas/mexa-creativa/prensa/uuid-portada.jpg',
+        nombreOriginal: 'portada.jpg',
+      }),
+    ).rejects.toThrow(/enlace/i)
+  })
+
+  it('la excepción es SOLO de prensa: un material comercial con las dos cosas se sigue rechazando', async () => {
+    await expect(
+      registrarArchivo({
+        salaSlug: 'mexa-creativa',
+        categoria: 'comercial',
+        titulo: 'Credenciales',
+        fecha: null,
+        enlace: 'https://ejemplo.mx/credenciales',
+        ruta: 'salas/mexa-creativa/comercial/uuid-deck.pdf',
+        nombreOriginal: 'deck.pdf',
+      }),
+    ).rejects.toThrow(/no las dos cosas/i)
+  })
+
+  it('el medio se corrige después, como el título', async () => {
+    const { id } = await registrarArchivo({ ...NOTA, medio: 'eleconomista.com.mx' })
+    await editarArchivo(id, { medio: 'El Economista' })
+    expect((await obtenerArchivo(id))?.medio).toBe('El Economista')
+  })
+
+  it('las notas se listan de la más reciente a la más vieja', async () => {
+    await registrarArchivo({ ...NOTA, titulo: 'Vieja', fecha: new Date('2026-05-01T10:00:00Z') })
+    await registrarArchivo({ ...NOTA, titulo: 'Nueva', fecha: new Date('2026-08-01T10:00:00Z') })
+    await registrarArchivo({ ...NOTA, titulo: 'Media', fecha: new Date('2026-06-01T10:00:00Z') })
+
+    const notas = await listarArchivos('mexa-creativa', 'prensa')
+
+    expect(notas.map((n) => n.titulo)).toEqual(['Nueva', 'Media', 'Vieja'])
+  })
+})

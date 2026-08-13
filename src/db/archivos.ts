@@ -29,7 +29,8 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { slugsDeSalas } from './temas'
 
-export type CategoriaArchivo = 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial'
+export type CategoriaArchivo =
+  'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial' | 'prensa'
 
 export interface ArchivoSala {
   id: string
@@ -59,6 +60,8 @@ export interface ArchivoSala {
   grupo: string | null
   /** Posición dentro de su grupo; null mientras nadie lo haya arrastrado. */
   orden: number | null
+  /** Quién publicó la nota ("El Economista"). Solo en `categoria = 'prensa'`. */
+  medio?: string | null
 }
 
 function isoFecha(d: Date): string {
@@ -82,6 +85,7 @@ function desdeFila(fila: {
   subidoPor: string | null
   grupo?: string | null
   orden?: number | null
+  medio?: string | null
   createdAt: Date
 }): ArchivoSala {
   return {
@@ -100,6 +104,7 @@ function desdeFila(fila: {
     subidoEn: isoFecha(fila.createdAt),
     grupo: fila.grupo ?? null,
     orden: fila.orden ?? null,
+    medio: fila.medio ?? null,
   }
 }
 
@@ -175,6 +180,8 @@ export async function registrarArchivo(datos: {
   lectura?: string | null
   /** Subcategoría dentro de su módulo ("Credenciales", "Casos de éxito"…). */
   grupo?: string | null
+  /** Solo en `categoria: 'prensa'`: qué medio publicó la nota. */
+  medio?: string | null
   tipoContenido?: string | null
   tamanoBytes?: number | null
   subidoPor?: string | null
@@ -192,7 +199,18 @@ export async function registrarArchivo(datos: {
   // destinos y `materialParaVista` tendría que elegir por su cuenta.
   const tieneFichero = Boolean(datos.ruta)
   const tieneEnlace = Boolean(datos.enlace)
-  if (tieneFichero === tieneEnlace) {
+  if (datos.categoria === 'prensa') {
+    /**
+     * LA EXCEPCIÓN, y la única: en una nota de prensa el destino es SIEMPRE
+     * el enlace —la nota vive en el sitio del medio— y la `ruta` guarda su
+     * PORTADA, que es ilustración. No hay dos destinos que desempatar, así
+     * que la regla de arriba no aplica; lo que sí se exige es el enlace, sin
+     * el cual una tarjeta de prensa no lleva a la nota.
+     */
+    if (!tieneEnlace) {
+      throw new Error('Una nota de prensa necesita el enlace a la nota.')
+    }
+  } else if (tieneFichero === tieneEnlace) {
     throw new Error('Un material es un archivo subido o un enlace, no las dos cosas ni ninguna.')
   }
   if (tieneFichero && !datos.nombreOriginal) {
@@ -222,6 +240,7 @@ export async function registrarArchivo(datos: {
       bloque: datos.bloque ?? null,
       lectura: datos.lectura ?? null,
       grupo: datos.grupo?.trim() || null,
+      medio: datos.medio?.trim() || null,
       tipoContenido: datos.tipoContenido ?? null,
       tamanoBytes: datos.tamanoBytes ?? null,
       subidoPor: datos.subidoPor ?? null,
@@ -242,7 +261,8 @@ export async function registrarArchivo(datos: {
       subidoPor: datos.subidoPor ?? null,
       createdAt: ahora,
       updatedAt: ahora,
-    })
+          medio: datos.medio?.trim() || null,
+})
   }
   return { id }
 }
@@ -250,7 +270,7 @@ export async function registrarArchivo(datos: {
 /** Solo el título y la fecha: el binario no se reemplaza, se sube otro. */
 export async function editarArchivo(
   id: string,
-  cambios: { titulo?: string; fecha?: Date | null },
+  cambios: { titulo?: string; fecha?: Date | null; medio?: string | null },
 ): Promise<void> {
   const titulo = cambios.titulo?.trim()
   if (titulo !== undefined && titulo.length === 0) {
@@ -259,6 +279,9 @@ export async function editarArchivo(
   const aplicar = {
     ...(titulo !== undefined ? { titulo } : {}),
     ...(cambios.fecha !== undefined ? { fecha: cambios.fecha } : {}),
+    // El medio se corrige como el título: la sugerencia del formulario es el
+    // dominio, y ponerle su nombre de verdad es lo que se hace después.
+    ...(cambios.medio !== undefined ? { medio: cambios.medio?.trim() || null } : {}),
   }
   if (Object.keys(aplicar).length === 0) return
 

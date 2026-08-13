@@ -288,6 +288,13 @@
       "when": 1786566527413,
       "tag": "0040_tablero_de_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786655997392,
+      "tag": "0041_notas_de_prensa",
+      "breakpoints": true
     }
   ]
 }

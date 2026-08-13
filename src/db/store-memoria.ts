@@ -137,10 +137,12 @@ export interface FilaArchivoMemoria {
   salaSlug: string | null
   /** De qué reunión es, si es una imagen o vídeo incrustado en su documento. Se llamaba `sesionId`. */
   reunionId?: string | null
-  categoria: 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial'
+  categoria: 'presentacion' | 'interes' | 'imagen' | 'video' | 'evidencia' | 'comercial' | 'prensa'
   /** Subcategoría dentro de su módulo, y su posición dentro de ella. */
   grupo?: string | null
   orden?: number | null
+  /** Qué medio publicó la nota. Solo en `categoria: 'prensa'`. */
+  medio?: string | null
   titulo: string
   fecha: Date | null
   ruta: string | null
@@ -429,7 +431,7 @@ export function listarArchivosDeSalaMemoria(salaSlug: string): FilaArchivoMemori
 
 export function actualizarArchivoMemoria(
   id: string,
-  cambios: Partial<Pick<FilaArchivoMemoria, 'titulo' | 'fecha' | 'grupo' | 'orden'>>,
+  cambios: Partial<Pick<FilaArchivoMemoria, 'titulo' | 'fecha' | 'grupo' | 'orden' | 'medio'>>,
 ): void {
   const fila = archivos.get(id)
   if (!fila) return
