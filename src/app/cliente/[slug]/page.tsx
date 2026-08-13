@@ -6,6 +6,7 @@ import { connection } from 'next/server'
 import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
+import { colorDeTextoSobre } from '@/lib/marca'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
@@ -860,6 +861,18 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     // comentario de `.hero`/`.heroSolida` en cliente.module.css.
     '--hero-superficie': tema.superficieOscura,
     '--hero-texto': tema.textoSobreOscura,
+    /**
+     * EL TEXTO DE UNA SECCIÓN PLEGADA, que va sobre el DEGRADADO y no sobre la
+     * superficie sólida (Franco: *"los módulos colapsados deberían estar de un
+     * color como el de la cabecera degradado"*).
+     *
+     * Se calcula contra `gradiente[0]` —la primera parada, que es donde cae el
+     * título— y no se reusa `textoSobreOscura`, que está validado contra otro
+     * color. La diferencia no es teórica: el blanco de Marketing United da
+     * 21:1 sobre su superficie oscura y **1,14 sobre el lima con el que
+     * arranca su degradado**. Ilegible, y solo se ve en las marcas claras.
+     */
+    '--texto-sobre-gradiente': colorDeTextoSobre(tema.gradiente[0]),
     // El alto de la barra global, para que el riel de secciones se pegue justo
     // debajo. CERO cuando no la hay: el director de la UDN no ve el menú de
     // Marketing Corp, y su riel tiene que pegarse arriba del todo (ver

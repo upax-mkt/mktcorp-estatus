@@ -88,9 +88,11 @@
    correcto — allí no hay una marca que vestir. */
 .seccion:has(> .plegable:not([open])) {
   background: var(--gradiente, var(--papel));
-  /* `--hero-texto` es el color validado contra la superficie oscura de esa
-     marca; es el mismo que ya usa la franja de datos bajo el logotipo. */
-  color: var(--hero-texto, var(--tinta));
+  /* CONTRA LA PRIMERA PARADA DEL DEGRADADO, que es donde cae el título — no
+     contra la superficie sólida. No es un matiz: el blanco de Marketing United
+     da 21:1 sobre su superficie oscura y 1,14 sobre el lima con el que arranca
+     su degradado. Lo calcula la página (`colorDeTextoSobre`). */
+  color: var(--texto-sobre-gradiente, var(--hero-texto, var(--tinta)));
 }
 .seccion:has(> .plegable:not([open])) .titulo { color: inherit; }
 .seccion:has(> .plegable:not([open])) .titulo svg { color: inherit; opacity: 0.9; }
