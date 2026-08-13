@@ -16,12 +16,29 @@ import estilos from '@/app/cliente/cliente.module.css'
  * módulo de materiales"*.
  *
  * ───────────────────────────────────────────────────────────────────────────
+ * ⚠️ ESTO NACIÓ COMO REJILLA DE TARJETAS Y ESTABA MAL. Franco, al cargar sus
+ * cinco primeras notas: *"el diseño del módulo de notas no se ve bien, quedó
+ * igual a los otros módulos y con cajas mucho más grandes; tiene que verse
+ * distinto ya que son notas de prensa"*.
+ *
+ * El defecto salió en cuanto entraron datos REALES: **ninguna de sus notas
+ * trae portada** —lo normal, porque una nota se comparte por su enlace— así
+ * que la "carátula" era un rectángulo de color con el nombre del medio, y ese
+ * mismo nombre volvía a aparecer dos centímetros más abajo. Cinco notas
+ * ocupaban 600 px para decir cinco titulares, en la misma rejilla de carátulas
+ * que el módulo de arriba. Estaba diseñado para el caso CON imagen, que es el
+ * que casi nunca ocurre.
+ *
+ * AHORA ES UNA LISTA, que es como se lee la prensa: una fila por nota, con el
+ * medio y la fecha arriba y el TITULAR ocupando el ancho. Cinco notas en un
+ * tercio del alto, y es la única forma del módulo que no se parece a ninguna
+ * otra de la sala — todo lo demás son rejillas de tarjetas.
+ *
  * POR QUÉ NO ES `MaterialesAgrupados` CON OTRO TÍTULO. Una nota no se
  * consulta como un material: de un material importa QUÉ ES (un PDF, un deck,
  * un vídeo) porque eso decide si sirve para lo que hay que hacer ahora; de una
  * nota importan QUIÉN LA PUBLICÓ y CUÁNDO — que es lo que la convierte en
- * prueba. Por eso la tarjeta lleva el medio y la fecha delante, y no una
- * carátula que diga «PDF».
+ * prueba.
  *
  * Y por eso tampoco tiene subcategorías ni arrastre: el orden de una hemeroteca
  * lo pone la fecha, y ordenarla a mano sería trabajo repetido que además
@@ -35,10 +52,10 @@ import estilos from '@/app/cliente/cliente.module.css'
  * revelaría su IP. Es la misma razón por la que las carátulas de material se
  * dibujan en vez de descargarse (ver CaratulaMaterial.tsx).
  *
- * Sin portada, la tarjeta NO deja un rectángulo gris: pone el nombre del medio
- * en grande sobre un color calculado a partir de su dominio —estable, sin
- * guardar nada—, que es lo que ya hace un enlace en el otro módulo. Una
- * hemeroteca sin imágenes tiene que seguir leyéndose como una hemeroteca.
+ * LA PORTADA, CUANDO LA HAY, es una miniatura al principio de la fila —como
+ * el recorte de un periódico—, no una banda de color a media tarjeta. Y sin
+ * portada no falta nada: la fila se lee igual, que es justo lo que una lista
+ * resuelve y una rejilla no.
  */
 
 export interface NotaDePrensa {
@@ -113,7 +130,7 @@ function Nota({
   const tono = tonoDeDominio(dominio)
 
   return (
-    <li className={estilos.prensaTarjeta} style={{ '--tono': tono } as React.CSSProperties}>
+    <li className={estilos.prensaFila} style={{ '--tono': tono } as React.CSSProperties}>
       <a
         className={estilos.prensaEnlace}
         href={nota.enlace ?? '#'}
@@ -122,37 +139,35 @@ function Nota({
         // desde qué sala de qué cliente se abrió su nota.
         rel="noopener noreferrer"
       >
-        <span className={estilos.prensaPortada}>
-          {nota.ruta ? (
-            // `img` a pelo y no `next/image`, por el mismo motivo que en
-            // `MaterialesSala`: la portada sale de `/api/archivo/[id]`, que es
-            // dinámica y privada, y optimizarla en el servidor obligaría a
-            // descargarla en cada render.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className={estilos.prensaImagen}
-              // La sirve la app, con los permisos de la sala: el store de Blob
-              // es privado y su URL no vale sin firma.
-              src={`/api/archivo/${nota.id}`}
-              alt=""
-              loading="lazy"
-            />
-          ) : (
-            <span className={estilos.prensaMedioGrande} aria-hidden="true">{medio}</span>
-          )}
-        </span>
-        <span className={estilos.prensaTexto}>
+        {nota.ruta && (
+          // `img` a pelo y no `next/image`, por el mismo motivo que en
+          // `MaterialesSala`: sale de `/api/archivo/[id]`, que es dinámica y
+          // privada, y optimizarla en el servidor obligaría a descargarla en
+          // cada render.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className={estilos.prensaMiniatura}
+            src={`/api/archivo/${nota.id}`}
+            alt=""
+            loading="lazy"
+          />
+        )}
+        <span className={estilos.prensaCuerpo}>
           <span className={estilos.prensaFicha}>
+            {/* El punto de color es lo único que queda del tono del medio: la
+                sala se viste con la identidad de SU UDN. */}
+            <span className={estilos.prensaPunto} aria-hidden />
             <span className={estilos.prensaMedio}>{medio}</span>
             {nota.fecha && (
               <>
-                <span aria-hidden>·</span>
-                <span>{fechaBreveConAnio(nota.fecha)}</span>
+                <span className={estilos.prensaSeparador} aria-hidden>·</span>
+                <span className={estilos.prensaFecha}>{fechaBreveConAnio(nota.fecha)}</span>
               </>
             )}
           </span>
           <span className={estilos.prensaTitular}>{nota.titulo}</span>
         </span>
+        <span className={estilos.prensaFlecha} aria-hidden>↗</span>
       </a>
 
       {equipo && eliminarAction && <Quitar id={nota.id} eliminarAction={eliminarAction} />}

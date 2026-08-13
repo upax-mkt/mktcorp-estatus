@@ -10,6 +10,15 @@
   border-radius: var(--r-4);
   box-shadow: var(--e-1);
   padding: 1.35rem 1.4rem 1.25rem;
+  /* ⚠️ UN MÓDULO NO ENSANCHA LA COLUMNA (13-ago). Franco: *"cuando se
+     despliega el módulo de data y analytics pareciera que todo se mueve a la
+     derecha y no queda bien centrado"*. Y era medible: al abrirlo, esta
+     sección pasaba de 1000 a 1245 px y arrastraba a las demás.
+     La causa es el `min-width: auto` que todo ítem de grid trae de fábrica:
+     su ancho MÍNIMO lo fija su contenido, y dentro hay un iframe declarado a
+     1200 px. Con `0` la sección se queda en su columna y lo que sobre se
+     recorta donde toca — en el marco del tablero, que ya lo hace. */
+  min-width: 0;
 }
 
 .titulo {

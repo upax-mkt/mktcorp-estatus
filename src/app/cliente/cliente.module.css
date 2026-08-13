@@ -1866,6 +1866,16 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .tableroIframe {
   display: block;
   border: none;
+  /* ⚠️ FUERA DEL FLUJO (13-ago). `transform: scale` encoge lo que se VE pero
+     no lo que el iframe MIDE para el layout: seguía ocupando sus 1200 px de
+     ancho declarados y estirando a su sección —y con ella, a los módulos de
+     al lado—. Es la misma trampa que la ronda 3 anotó al revés (`zoom` sí
+     afecta al layout, `scale` no). Absoluto dentro del marco, que es
+     `position: relative` y lleva el alto ya calculado: así el tablero no
+     puede empujar a nadie, mida lo que mida. */
+  position: absolute;
+  top: 0;
+  left: 0;
   /* Desde la esquina, para que al reducir no quede aire arriba ni a la
      izquierda: escalar desde el centro dejaría el contenido descolocado
      dentro de su propia caja. */
@@ -2003,99 +2013,99 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 
 /* ══ NOTAS DE PRENSA (ronda 13) ═══════════════════════════════════════════
    Franco: *"la mayoría son link pero se deben ver distintas a como se ve el
-   otro módulo de materiales"*.
+   otro módulo de materiales"*. Y al ver la primera versión —una rejilla de
+   tarjetas como la de material—: *"quedó igual a los otros módulos y con
+   cajas mucho más grandes; tiene que verse distinto ya que son notas de
+   prensa"*.
 
-   Y son distintas porque se leen distinto: de un material importa QUÉ ES —por
-   eso su carátula dibuja una hoja con su extensión— y de una nota importan
-   QUIÉN LA PUBLICÓ y CUÁNDO. Así que la tarjeta es más ancha, la portada manda
-   arriba, y debajo van medio y fecha ANTES del titular: esa línea es la que
-   convierte un titular en una prueba.
+   ES UNA LISTA Y NO UNA REJILLA, y esa es toda la diferencia. Con datos
+   reales quedó claro: ninguna nota trae portada —se comparten por su enlace—
+   así que cada tarjeta era un bloque de color con el nombre del medio, que
+   volvía a leerse dos centímetros más abajo. Cinco notas gastaban 600 px para
+   decir cinco titulares.
 
-   Tarjetas más grandes que las de material a propósito: aquí el titular es el
-   contenido —hay que poder leerlo— mientras que allí el título es una
-   etiqueta para reconocer un fichero que ya se sabe cuál es. */
-.prensaLista {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 17rem));
-  justify-content: start;
-}
+   Una fila por nota: medio y fecha arriba, TITULAR ocupando el ancho. Lo que
+   se busca en un dossier de prensa es el titular, y aquí es lo más grande y lo
+   único que no se corta a media línea. El color del medio queda reducido a un
+   punto: la sala se viste con la identidad de su UDN, no con la de cinco
+   periódicos. */
+.prensaLista { list-style: none; margin: 0; padding: 0; display: grid; }
 
-.prensaTarjeta {
+.prensaFila {
   position: relative;
-  border-radius: var(--r-3); overflow: hidden;
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  border-top: 1px solid var(--borde);
 }
-.prensaTarjeta:hover { border-color: var(--borde-fuerte); transform: translateY(-1px); }
-@media (prefers-reduced-motion: reduce) {
-  .prensaTarjeta { transition: none; }
-  .prensaTarjeta:hover { transform: none; }
+/* La primera no lleva línea: el encabezado de la sección ya la separa. */
+.prensaLista > .prensaFila:first-child { border-top: none; }
+
+/* FLEX Y NO GRID, y no es indiferente: con tres columnas declaradas y solo
+   dos hijos —el caso normal, porque casi ninguna nota trae portada— el cuerpo
+   caía en la columna `auto` y la flecha se quedaba pegada al final del
+   titular en vez de al borde de la fila. En flex, lo que sobra lo reparte el
+   `margin-left: auto` de la flecha, haya miniatura o no. */
+.prensaEnlace {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.85rem 0.2rem 0.85rem 0.3rem;
+  color: inherit; text-decoration: none;
+  border-radius: var(--r-2);
 }
+.prensaEnlace:hover { background: var(--superficie-2); }
 
-.prensaEnlace { display: grid; gap: 0; color: inherit; text-decoration: none; }
-
-/* 16:9 y no 16:10 como el material: la captura de una nota viene casi siempre
-   de una web, y esa es la proporción en la que se recorta sola. */
-.prensaPortada {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  display: grid; place-items: center;
-  overflow: hidden;
-  border-bottom: 1px solid var(--borde);
-  /* El color sale del dominio del medio (`--tono`), en una versión muy
-     desaturada: la sala se viste con la marca de SU UDN, y una rejilla de
-     portadas de colores plenos la convertiría en otra cosa. */
-  background: oklch(0.96 0.03 var(--tono, 250));
-}
-.prensaImagen { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-/* Sin portada: el nombre del medio ocupa el hueco, en grande. Es el dato que
-   de todos modos se busca, así que hace de imagen y de información a la vez. */
-.prensaMedioGrande {
-  padding: 0 1rem; text-align: center;
-  font-size: 1.05rem; font-weight: 600; line-height: 1.25;
-  letter-spacing: var(--track-titulo);
-  color: oklch(0.45 0.09 var(--tono, 250));
+/* El recorte: la portada, cuando existe, es una miniatura al principio de la
+   fila. Ni la fila crece por ella ni falta nada cuando no está. */
+.prensaMiniatura {
+  width: 4.6rem; height: 3.2rem; object-fit: cover; display: block;
+  border-radius: var(--r-1); border: 1px solid var(--borde);
 }
 
-.prensaTexto { display: grid; gap: 0.35rem; padding: 0.8rem 0.9rem 0.95rem; }
-/* Medio y fecha ARRIBA del titular: es lo que sitúa la nota, y en una lista de
-   ocho es por donde se busca. */
+.prensaCuerpo { display: grid; gap: 0.15rem; min-width: 0; flex: 1 1 auto; }
+
 .prensaFicha {
-  display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;
-  font-size: 0.75rem; color: var(--tx-3);
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  font-size: 0.74rem; letter-spacing: var(--track-micro); text-transform: uppercase;
 }
-.prensaMedio { font-weight: 600; color: var(--tx-2); }
-.prensaTitular {
-  font-size: 0.92rem; font-weight: 500; line-height: 1.4; color: var(--tx);
-  /* Tres líneas: un titular es una frase entera, no una etiqueta — cortarlo en
-     dos como al material lo dejaría a medias justo en lo que hay que leer. */
-  display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
-  -webkit-box-orient: vertical; overflow: hidden;
-  min-height: calc(3 * 1.4 * 0.92rem);
+.prensaPunto {
+  width: 0.42rem; height: 0.42rem; border-radius: 50%; flex: none;
+  background: oklch(0.6 0.14 var(--tono, 250));
 }
+.prensaMedio { font-weight: 700; color: var(--tx-2); }
+.prensaSeparador { color: var(--tx-4); }
+.prensaFecha { color: var(--tx-3); letter-spacing: 0; text-transform: none; }
 
-/* Quitar: fuera del enlace (anidar un botón en un <a> es HTML inválido) y
+/* El titular manda: es el contenido de la fila, no una etiqueta. Dos líneas
+   como tope —un titular largo cabe entero— y sin `min-height`: en una lista,
+   una fila más corta no descuadra nada. */
+.prensaTitular {
+  font-size: 1rem; font-weight: 500; line-height: 1.35; color: var(--tx);
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.prensaEnlace:hover .prensaTitular { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Sale FUERA, hacia el sitio del medio: la flecha lo dice sin gastar palabras.
+   Al borde de la fila —`margin-left: auto`— y con sitio para el botón de
+   quitar, que se pinta encima de esa esquina cuando eres del equipo. */
+.prensaFlecha { color: var(--tx-4); font-size: 0.9rem; margin-left: auto; flex: none; padding-right: 1.9rem; }
+.prensaEnlace:hover .prensaFlecha { color: var(--marca-texto, var(--marca)); }
+
+/* Quitar: fuera del enlace (un botón dentro de un <a> es HTML inválido) y
    escondido hasta que hace falta — esta pantalla también la ve el director de
-   la UDN, y una ✕ permanente en cada tarjeta la convierte en un panel de
+   la UDN, y una ✕ permanente en cada fila la convierte en un panel de
    administración. */
 .prensaQuitar {
-  position: absolute; top: 0.45rem; right: 0.45rem;
+  position: absolute; top: 50%; right: 0.2rem; transform: translateY(-50%);
   width: 1.7rem; height: 1.7rem; padding: 0;
   display: grid; place-items: center;
-  font: inherit; font-size: 0.85rem; line-height: 1;
-  color: var(--tx-2); cursor: pointer;
-  background: color-mix(in oklch, var(--superficie) 88%, transparent);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--borde); border-radius: var(--r-lleno);
+  font: inherit; font-size: 0.82rem; line-height: 1;
+  color: var(--tx-3); cursor: pointer;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: var(--r-lleno);
   opacity: 0; transition: opacity var(--rapido, 0.15s) linear, color var(--rapido, 0.15s) linear;
 }
-.prensaTarjeta:hover .prensaQuitar, .prensaQuitar:focus-visible { opacity: 1; }
+.prensaFila:hover .prensaQuitar, .prensaQuitar:focus-visible { opacity: 1; }
 .prensaQuitar:hover { color: var(--alerta); border-color: var(--alerta); }
 .prensaConfirmar {
-  position: absolute; top: 0.45rem; right: 0.45rem;
+  position: absolute; top: 50%; right: 0.2rem; transform: translateY(-50%);
   display: inline-flex; gap: 0.3rem; align-items: center;
   padding: 0.25rem; border-radius: var(--r-2);
   background: var(--superficie); border: 1px solid var(--borde);

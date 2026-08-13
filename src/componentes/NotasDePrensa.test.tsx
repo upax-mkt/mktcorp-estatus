@@ -22,11 +22,9 @@ describe('NotasDePrensa', () => {
     expect(enlace).toHaveAttribute('rel', expect.stringContaining('noreferrer'))
   })
 
-  // Sin portada el medio se pinta DOS veces a propósito (en la carátula y en
-  // la ficha), así que se busca en plural — ver el caso de la carátula.
   it('enseña el medio y la fecha, que es lo que sitúa una nota', () => {
     render(<NotasDePrensa titulo="Notas de Prensa" notas={[NOTA]} equipo={false} />)
-    expect(screen.getAllByText('El Economista').length).toBeGreaterThan(0)
+    expect(screen.getByText('El Economista')).toBeInTheDocument()
     expect(screen.getByText(/12 ago/i)).toBeInTheDocument()
   })
 
@@ -35,7 +33,7 @@ describe('NotasDePrensa', () => {
    * imagen al medio: sería una petición a un tercero desde la sala PÚBLICA de
    * un cliente, y le revelaría la IP de quien mira.
    */
-  it('la portada sale de la propia app, nunca del sitio del medio', () => {
+  it('la portada, cuando la hay, sale de la propia app y nunca del sitio del medio', () => {
     const { container } = render(
       <NotasDePrensa
         titulo="Notas de Prensa"
@@ -48,11 +46,18 @@ describe('NotasDePrensa', () => {
     expect(container.innerHTML).not.toContain('eleconomista.com.mx/favicon')
   })
 
-  it('sin portada no deja un hueco gris: pone el medio en grande', () => {
+  /**
+   * ⚠️ LO QUE ESTE CASO FIJA ES EL DEFECTO QUE FRANCO CAZÓ. La primera versión
+   * era una rejilla y, sin portada, pintaba el nombre del medio DOS VECES por
+   * nota (una en la carátula de color, otra en la ficha) dentro de una caja
+   * enorme. Con datos reales —cinco notas, ninguna con portada— eran 600 px
+   * para cinco titulares. En una lista, una nota sin imagen no deja hueco
+   * ninguno y el medio se dice una sola vez.
+   */
+  it('sin portada no falta nada, y el medio se dice UNA vez', () => {
     const { container } = render(<NotasDePrensa titulo="Notas de Prensa" notas={[NOTA]} equipo={false} />)
     expect(container.querySelector('img')).toBeNull()
-    // El nombre del medio aparece dos veces: en la carátula y en la ficha.
-    expect(screen.getAllByText('El Economista').length).toBeGreaterThan(1)
+    expect(screen.getAllByText('El Economista')).toHaveLength(1)
   })
 
   /**
@@ -95,7 +100,7 @@ describe('NotasDePrensa', () => {
 
   it('una nota sin fecha no inventa ninguna', () => {
     render(<NotasDePrensa titulo="Notas de Prensa" notas={[{ ...NOTA, fecha: null }]} equipo={false} />)
-    expect(screen.getAllByText('El Economista').length).toBeGreaterThan(0)
+    expect(screen.getByText('El Economista')).toBeInTheDocument()
     expect(screen.queryByText(/\d+ (ago|sep|ene)/i)).toBeNull()
   })
 })
