@@ -40,7 +40,8 @@ import {
 import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
-import { ordenarAcuerdosDeSala } from '@/dominio/orden-acuerdos'
+import { partirAcuerdosDeSala } from '@/dominio/orden-acuerdos'
+import { equiposPara } from '@/lib/equipos'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { NotasDePrensa } from '@/componentes/NotasDePrensa'
 import { AnadirNotaDePrensa } from '@/componentes/AnadirNotaDePrensa'
@@ -64,6 +65,7 @@ import { PLANTILLAS } from '@/secciones/plantillas'
 import { fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import { puedeVerEstaSala, cerrarSesion, sesionActual } from '@/auth/sesion'
 import { esAdmin, esEditor, esLector, exigirEditor } from '@/auth/roles'
+import { slugsDeSalasPausadas } from '@/db/salas'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
 // La vista de equipo ahora escribe (cambiar estatus, editar fecha) — se
@@ -363,7 +365,17 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const admin = await esAdmin()
   // Los clientes del desplegable de la barra. Prop obligatoria a propósito:
   // así una pantalla nueva no puede montar la barra y olvidarse de ellos.
-  const clientes = await clientesParaBarra()
+  const [clientes, pausadas] = await Promise.all([clientesParaBarra(), slugsDeSalasPausadas()])
+  /**
+   * Los equipos que pueden cargar con un acuerdo (ronda 13): los squads de Mkt
+   * Corp y las salas vivas. Mismo criterio que en `/acuerdos` — si un
+   * compromiso puede ser de RevOps, poder decirlo desde la sala donde se
+   * levantó es lo natural. Las pausadas quedan fuera: a quien está en freeze no
+   * se le encarga trabajo nuevo.
+   */
+  const equipos = equiposPara(
+    clientes.map((c) => ({ nombre: c.nombre, activa: !pausadas.has(c.slug) })),
+  )
   // El director de la UDN mueve los acuerdos de SU sala; el resto de la
   // pantalla sigue siendo de solo lectura para él.
   /**
@@ -953,6 +965,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     '--barra-alta': equipo ? '62px' : '0px',
   } as CSSProperties
 
+  /**
+   * LO VIVO Y LO CUMPLIDO, cada grupo ya ordenado (ronda 13, ver
+   * `dominio/orden-acuerdos.ts`).
+   */
+  const { vivos, cumplidos } = partirAcuerdosDeSala(s.acuerdos)
+
   const abiertos = acuerdosAbiertos(s)
   const vencidos = acuerdosVencidos(s)
 
@@ -1065,6 +1083,82 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     salaColor: s.color,
     noDadaEn: r.noDadaEn,
   }))
+
+  /**
+   * `s` con el `notFound()` ya aplicado. TypeScript no retiene el
+   * estrechamiento de una `const` externa dentro de una función anidada —el
+   * mismo caso que el `reunion!` del editor—, y aquí hace falta porque la fila
+   * se pinta desde una función.
+   */
+  const sala = s
+
+  /**
+   * UNA FILA DE ACUERDO, y las dos listas la usan: la de lo vivo y la de lo
+   * cumplido (plegada). Está aquí y no repetida dos veces porque es el mismo
+   * acuerdo con la misma cara — duplicar el bloque es exactamente lo que dejó
+   * divergir el Home y la sala en su día.
+   *
+   * ⚠️ No viola la regla del cierre de Server Actions: esta función no LLAMA a
+   * ninguna, solo las pasa como props a componentes cliente, y se ejecuta
+   * durante el render del servidor. Lo que no puede hacerse nunca es pasarla a
+   * un componente cliente.
+   */
+  function pintarAcuerdo(a: (typeof sala.acuerdos)[number]) {
+    const origen = a.reunionOrigenId ? origenDeAcuerdo.get(a.reunionOrigenId) : undefined
+    return (
+      <FilaAcuerdo
+        key={a.id}
+        acuerdo={{ ...a, congelado: estaCongelado(a, sala) }}
+        // Con "hoy" la fecha se pinta como semáforo y lo cumplido se apaga
+        // (ver `FilaAcuerdo`).
+        hoyCivil={hoyCivil}
+        // Dentro de una sala no se dice de qué sala es: son todos de la
+        // misma. El Home sí lo pasa — ver `FilaAcuerdo`.
+        origen={origen ? { href: `#r-${origen.id}`, fecha: origen.fecha } : undefined}
+        texto={
+          /* EL LÁPIZ VA FUERA DEL TEXTO, no dentro. Estuvo dentro de
+             `.acuerdoQue` y el glifo pasaba a formar parte del acuerdo al
+             seleccionarlo o copiarlo — me lo demostró un script de prueba que
+             leyó el texto renderizado y guardó "…casos de éxito✎" en la base.
+
+             CORREGIRLO ES SOLO DE ADMIN Y EDITORES (`equipo`), no del director
+             de la UDN — Franco: *"solo el admin y editores pueden hacer
+             cambios en los acuerdos ya publicados"*. Él sigue moviendo estatus
+             y fecha de los suyos, con `AcuerdoControles`, a la derecha. */
+          equipo ? (
+            <EditarAcuerdo
+              acuerdoId={a.id}
+              queInicial={a.que}
+              responsableInicial={a.responsable}
+              personas={personas}
+              equipos={equipos}
+              editarAction={editarAcuerdoTextoAction}
+            />
+          ) : (
+            // El director de la UDN lee el acuerdo; no lo reescribe.
+            <div className={estilos.acuerdoQue}>{a.que}</div>
+          )
+        }
+      >
+        {/* La estrella: SOLO equipo, no `editaAcuerdos` — es Mkt Corp quien
+            cura el Home, el director de la UDN no se auto-destaca. */}
+        {equipo && (
+          <Estrella acuerdoId={a.id} destacado={a.destacado ?? false} destacar={destacarAction} />
+        )}
+        {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
+        {editaAcuerdos && (
+          <AcuerdoControles
+            acuerdoId={a.id}
+            estatusInicial={a.estatus}
+            fechaInicial={a.fechaCompromiso}
+            cambiarEstatusAction={cambiarEstatusAction}
+            editarFechaAction={editarFechaAction}
+            eliminarAction={eliminarAcuerdoAction}
+          />
+        )}
+      </FilaAcuerdo>
+    )
+  }
 
   return (
     <div className={estilos.app} style={estiloMarca}>
@@ -1269,72 +1363,36 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           {s.acuerdos.length === 0 && !equipo ? (
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
           ) : (
-            <div className={estilos.acuerdos}>
-              {/* EL ORDEN LO DECIDE EL DOMINIO (ronda 13): lo que sigue vivo
-                  primero, por lo que vence antes, y lo cumplido al final —
-                  ver `ordenarAcuerdosDeSala`. Antes llegaban en el orden en
-                  que salían de la base, así que un compromiso entregado en
-                  mayo podía estar encima de uno que vence pasado mañana. */}
-              {ordenarAcuerdosDeSala(s.acuerdos).map((a) => {
-                const origen = a.reunionOrigenId ? origenDeAcuerdo.get(a.reunionOrigenId) : undefined
-                return (
-                  <FilaAcuerdo
-                    key={a.id}
-                    acuerdo={{ ...a, congelado: estaCongelado(a, s) }}
-                    // Con "hoy" la fecha se pinta como semáforo y lo cumplido
-                    // se apaga (ver `FilaAcuerdo`).
-                    hoyCivil={hoyCivil}
-                    // Dentro de una sala no se dice de qué sala es: son todos
-                    // de la misma. El Home sí lo pasa — ver `FilaAcuerdo`.
-                    origen={origen ? { href: `#r-${origen.id}`, fecha: origen.fecha } : undefined}
-                    texto={
-                      /* EL LÁPIZ VA FUERA DEL TEXTO, no dentro. Estuvo dentro
-                         de `.acuerdoQue` y el glifo pasaba a formar parte del
-                         acuerdo al seleccionarlo o copiarlo — me lo demostró un
-                         script de prueba que leyó el texto renderizado y guardó
-                         "…casos de éxito✎" en la base. Lo que se lee como el
-                         compromiso tiene que ser SOLO el compromiso.
+            <>
+              {/* EL ORDEN LO DECIDE EL DOMINIO (ronda 13): lo vivo primero,
+                  por lo que vence antes; lo cumplido, aparte y plegado — ver
+                  `partirAcuerdosDeSala`. Antes llegaban en el orden en que
+                  salían de la base, así que un compromiso entregado en mayo
+                  podía estar encima de uno que vence pasado mañana. */}
+              <div className={estilos.acuerdos}>
+                {vivos.map((a) => pintarAcuerdo(a))}
+                {vivos.length === 0 && (
+                  <p className={estilos.benchmarkNota}>
+                    Nada abierto ahora mismo{cumplidos.length > 0 ? ': todo lo acordado está cumplido.' : '.'}
+                  </p>
+                )}
+              </div>
 
-                         CORREGIRLO ES SOLO DE ADMIN Y EDITORES (`equipo`), no
-                         del director de la UDN — Franco: *"solo el admin y
-                         editores pueden hacer cambios en los acuerdos ya
-                         publicados"*. Él sigue moviendo estatus y fecha de los
-                         suyos, con `AcuerdoControles`, a la derecha. */
-                      equipo ? (
-                        <EditarAcuerdo
-                          acuerdoId={a.id}
-                          queInicial={a.que}
-                          responsableInicial={a.responsable}
-                          personas={personas}
-                          editarAction={editarAcuerdoTextoAction}
-                        />
-                      ) : (
-                        // El director de la UDN lee el acuerdo; no lo reescribe.
-                        <div className={estilos.acuerdoQue}>{a.que}</div>
-                      )
-                    }
-                  >
-                    {/* La estrella: SOLO equipo, no `editaAcuerdos` — es Mkt
-                        Corp quien cura el Home, el director de la UDN no se
-                        auto-destaca (ver destacarAction). */}
-                    {equipo && (
-                      <Estrella acuerdoId={a.id} destacado={a.destacado ?? false} destacar={destacarAction} />
-                    )}
-                    {/* El director de la UDN ve el estatus; solo Mkt Corp lo mueve. */}
-                    {editaAcuerdos && (
-                      <AcuerdoControles
-                        acuerdoId={a.id}
-                        estatusInicial={a.estatus}
-                        fechaInicial={a.fechaCompromiso}
-                        cambiarEstatusAction={cambiarEstatusAction}
-                        editarFechaAction={editarFechaAction}
-                        eliminarAction={eliminarAcuerdoAction}
-                      />
-                    )}
-                  </FilaAcuerdo>
-                )
-                            })}
-            </div>
+              {/* LO CUMPLIDO, PLEGADO Y DENTRO DEL MISMO MÓDULO. Franco: *"los
+                  cumplidos déjalos desplegables y colapsados… dentro del mismo
+                  módulo"*. Apagarlos no bastaba: en una sala con historia
+                  siguen siendo una columna larga debajo de lo que importa hoy.
+                  `details` nativo, como el resto de la app: teclado y toque
+                  gratis, y el estado lo anuncia el navegador. */}
+              {cumplidos.length > 0 && (
+                <details className={estilos.cumplidosPlegable}>
+                  <summary className={estilos.cumplidosResumen}>
+                    {cumplidos.length === 1 ? '1 acuerdo cumplido' : `${cumplidos.length} acuerdos cumplidos`}
+                  </summary>
+                  <div className={estilos.acuerdos}>{cumplidos.map((a) => pintarAcuerdo(a))}</div>
+                </details>
+              )}
+            </>
           )}
             {editaAcuerdos && <NuevoAcuerdoForm crearAction={crearAcuerdoAction} personas={personas} />}
         </Seccion>

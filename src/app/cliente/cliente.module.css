@@ -2136,3 +2136,29 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   padding: 0.25rem; border-radius: var(--r-2);
   background: var(--superficie); border: 1px solid var(--borde);
 }
+
+/* ---- lo cumplido, plegado dentro del mismo módulo (ronda 13) ----
+   Franco: *"los cumplidos déjalos desplegables y colapsados… dentro del mismo
+   módulo"*. Apagarlos y bajarlos no bastaba: en una sala con historia siguen
+   siendo una columna larga debajo de las seis cosas que importan hoy.
+
+   El resumen se escribe como TEXTO, no como botón: es el mismo lenguaje que
+   usa la app para plegar (ver `BarraNavegacion.module.css` y el "▶ N acuerdos"
+   de una reunión). Un control nuevo con su propio aspecto es lo que Franco
+   llamó "botones antiguos" cuando el índice de secciones nació con píldoras. */
+.cumplidosPlegable { border-top: 1px solid var(--borde); margin-top: 0.2rem; }
+.cumplidosResumen {
+  cursor: pointer; user-select: none; list-style: none;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.7rem 0.1rem;
+  font-size: 0.82rem; font-weight: 600; color: var(--tx-3);
+}
+.cumplidosResumen::-webkit-details-marker { display: none; }
+/* El triángulo, dibujado: gira al abrir y así el estado se ve sin leer. */
+.cumplidosResumen::before {
+  content: '▸'; font-size: 0.72rem; color: var(--tx-4);
+  transition: transform 140ms ease;
+}
+.cumplidosPlegable[open] > .cumplidosResumen::before { transform: rotate(90deg); }
+.cumplidosResumen:hover { color: var(--tx-2); }
+.cumplidosResumen:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; border-radius: var(--r-1); }

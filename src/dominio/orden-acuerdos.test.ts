@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ordenarAcuerdosDeSala, tonoDeVencimiento } from './orden-acuerdos'
+import { ordenarAcuerdosDeSala, partirAcuerdosDeSala, tonoDeVencimiento } from './orden-acuerdos'
 
 /**
  * CÓMO SE LEE LA LISTA DE ACUERDOS DE UNA SALA (ronda 13). Franco: *"los que
@@ -96,5 +96,40 @@ describe('el semáforo de la fecha', () => {
 
   it('sin fecha no hay semáforo que encender', () => {
     expect(tonoDeVencimiento(null, 'abierto', HOY)).toBe('pordef')
+  })
+})
+
+/**
+ * Franco, al ver lo cumplido apagado al final: *"los cumplidos déjalos
+ * desplegables y colapsados… dentro del mismo módulo"*. Apagarlos no bastaba:
+ * en una sala con historia siguen siendo una columna larga debajo de lo que
+ * importa hoy.
+ */
+describe('lo cumplido va aparte, para plegarlo', () => {
+  it('separa lo vivo de lo cumplido, cada grupo ya ordenado', () => {
+    const { vivos, cumplidos } = partirAcuerdosDeSala([
+      acuerdo({ id: 'cumplido-viejo', estatus: 'cumplido', fechaCompromiso: '2026-01-10' }),
+      acuerdo({ id: 'vence-pronto', fechaCompromiso: '2026-08-15' }),
+      acuerdo({ id: 'cumplido-nuevo', estatus: 'cumplido', fechaCompromiso: '2026-08-01' }),
+      acuerdo({ id: 'vencido', estatus: 'vencido', fechaCompromiso: '2026-07-01' }),
+    ])
+
+    expect(vivos.map((a) => a.id)).toEqual(['vencido', 'vence-pronto'])
+    expect(cumplidos.map((a) => a.id)).toEqual(['cumplido-viejo', 'cumplido-nuevo'])
+  })
+
+  it('sin ninguno cumplido, el grupo queda vacío y no hay nada que plegar', () => {
+    const { vivos, cumplidos } = partirAcuerdosDeSala([acuerdo({ id: 'a' })])
+    expect(vivos).toHaveLength(1)
+    expect(cumplidos).toEqual([])
+  })
+
+  it('una sala donde todo está cumplido no deja lo vivo inventado', () => {
+    const { vivos, cumplidos } = partirAcuerdosDeSala([
+      acuerdo({ id: 'a', estatus: 'cumplido' }),
+      acuerdo({ id: 'b', estatus: 'cumplido' }),
+    ])
+    expect(vivos).toEqual([])
+    expect(cumplidos.map((a) => a.id)).toEqual(['a', 'b'])
   })
 })

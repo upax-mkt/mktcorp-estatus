@@ -94,3 +94,31 @@ function diasEntre(desde: string, hasta: string): number {
   const ms = Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)
   return Math.round(ms / 86_400_000)
 }
+
+/**
+ * LOS ACUERDOS DE LA SALA, PARTIDOS EN DOS: lo que sigue vivo y lo cumplido.
+ *
+ * Franco (13-ago, después de ver lo cumplido apagado al final): *"los
+ * cumplidos déjalos desplegables y colapsados… dentro del mismo módulo"*.
+ *
+ * Apagarlos no bastaba: en una sala con historia, la lista sigue siendo una
+ * columna larga de cosas hechas debajo de las seis que importan hoy. Plegados
+ * ocupan un renglón y se abren cuando alguien pregunta "¿y esto ya se
+ * entregó?" — que es justo cuando se consultan.
+ *
+ * DENTRO DEL MISMO MÓDULO, no en una sección aparte: son acuerdos de esa sala
+ * y su sitio es Acuerdos; sacarlos a otra tarjeta los convertiría en otra cosa.
+ *
+ * Los dos grupos salen ya ordenados por `ordenarAcuerdosDeSala`, así que
+ * dentro del desplegable lo cumplido conserva un orden estable en vez del que
+ * salga de la base.
+ */
+export function partirAcuerdosDeSala<T extends AcuerdoOrdenable>(
+  acuerdos: T[],
+): { vivos: T[]; cumplidos: T[] } {
+  const ordenados = ordenarAcuerdosDeSala(acuerdos)
+  return {
+    vivos: ordenados.filter((a) => a.estatus !== 'cumplido'),
+    cumplidos: ordenados.filter((a) => a.estatus === 'cumplido'),
+  }
+}
