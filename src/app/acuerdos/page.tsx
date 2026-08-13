@@ -1,14 +1,17 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
-import { exigirLectura, esAdmin } from '@/auth/roles'
+import { exigirLectura, esAdmin, esEditor } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
 import { todosLosAcuerdos } from '@/db/consultas'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
+import { slugsDeSalasPausadas } from '@/db/salas'
+import { genteParaResponsable } from '@/db/personas'
+import { equiposPara } from '@/lib/equipos'
 import { ErrorMonday } from '@/monday/cliente'
 import { TablaAcuerdos } from '@/componentes/acuerdos/TablaAcuerdos'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
-import { destacarAction } from './acciones'
+import { destacarAction, editarAcuerdoEnTablaAction, eliminarAcuerdoEnTablaAction } from './acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -63,12 +66,29 @@ export default async function PagAcuerdos() {
 
   await refrescarDesdeMondaySeguro()
 
-  const [acuerdos, pendientes, admin, clientes] = await Promise.all([
+  const [acuerdos, pendientes, admin, clientes, pausadas, personas, editor] = await Promise.all([
     todosLosAcuerdos(),
     acuerdosPendientesDeSubir(),
     esAdmin(),
     clientesParaBarra(),
+    slugsDeSalasPausadas(),
+    // El directorio de Mkt Corp y los equipos son para el editor de la fila
+    // (ronda 13). Un viewer no lo monta, pero la lista se pide igual: cuesta
+    // una consulta a una tabla de 24 filas y evita dos caminos distintos
+    // según el rol en una página que ya es lo bastante condicional.
+    genteParaResponsable(),
+    esEditor(),
   ])
+
+  /**
+   * LOS EQUIPOS QUE PUEDEN CARGAR CON UN ACUERDO: los squads de Mkt Corp
+   * —escritos en src/lib/equipos.ts— y las UDN, que son las salas VIVAS de
+   * esta app. Las pausadas se quedan fuera: a quien está en freeze no se le
+   * encarga trabajo nuevo.
+   */
+  const equipos = equiposPara(
+    clientes.map((c) => ({ nombre: c.nombre, activa: !pausadas.has(c.slug) })),
+  )
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
   // repetido a propósito en cada pantalla que monta `BarraNavegacion`.
@@ -100,7 +120,19 @@ export default async function PagAcuerdos() {
           </Link>
         </div>
 
-        <TablaAcuerdos acuerdos={acuerdos} destacar={destacarAction} />
+        {/* QUIÉN PUEDE QUÉ, decidido aquí y no dentro de la tabla: corregir es
+            trabajo de equipo (editor) y eliminar es de administración (admin),
+            así que cada acción se pasa —o no— según el rol. La tabla solo
+            pinta lo que recibe; la comprobación que manda vive en cada Server
+            Action, porque esconder un botón no protege un endpoint. */}
+        <TablaAcuerdos
+          acuerdos={acuerdos}
+          destacar={destacarAction}
+          editar={editor ? editarAcuerdoEnTablaAction : undefined}
+          personas={personas}
+          equipos={equipos}
+          eliminar={admin ? eliminarAcuerdoEnTablaAction : undefined}
+        />
       </main>
     </div>
   )

@@ -63,6 +63,8 @@ vi.mock('@/auth/roles', () => ({
 const directorioMock = vi.fn()
 vi.mock('@/db/personas', () => ({
   directorio: () => directorioMock(),
+  genteParaResponsable: () => directorioMock(),
+  PREFIJO_APP: 'app:',
 }))
 
 // Mismo motivo que `exigirLectura` arriba: `registrarPresentacion` solo la

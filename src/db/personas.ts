@@ -2,7 +2,7 @@ import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import { personasDeMonday, hayQueRefrescar, type PersonaMonday } from '@/monday/personas'
 import { mondayConectado } from '@/monday/cliente'
-import { notInArray, sql } from 'drizzle-orm'
+import { eq, notInArray, sql } from 'drizzle-orm'
 
 /**
  * El directorio que ve la interfaz.
@@ -86,4 +86,54 @@ export async function directorio(): Promise<PersonaMonday[]> {
   }
 
   return frescas
+}
+
+/**
+ * ---- LA GENTE QUE SE OFRECE PARA RESPONSABLE (ronda 13) ----
+ *
+ * `directorio()` de arriba habla SOLO con Monday, y Monday sigue apagado en
+ * esta app —falta el token del usuario "Meeting Hub"—, así que `personas_monday`
+ * tiene CERO filas. Consecuencia que nadie había mirado: el desplegable "Mkt
+ * Corp" salía vacío en TODAS las pantallas (la sala, la bandeja, la minuta y
+ * la pestaña de acuerdos) con el aviso de "no se pudo cargar la gente de
+ * Monday", y la única forma de poner un responsable era teclearlo. Franco,
+ * 13-ago: *"hay acuerdos que no tienen responsable, y no los puedo editar ni
+ * la persona ni el equipo"*.
+ *
+ * Y la app SÍ conoce a su gente: la tabla `personas` (ronda 9) tiene las 24 de
+ * Mkt Corp con nombre, correo y rol — es la que decide quién entra. Así que
+ * cuando Monday no da nada, el desplegable se llena de ahí.
+ *
+ * ⚠️ EL ID DE ESAS OPCIONES LLEVA EL PREFIJO `app:`, y no es decorativo: la
+ * columna `responsableMondayId` guarda ids DEL TABLERO, y meter ahí un
+ * identificador nuestro sería sembrar un dato falso que algún día alguien
+ * mandaría a Monday. `SelectorResponsable` lo traduce a nulo al emitir, así
+ * que quien recoge el valor nunca ve el prefijo: elegir a alguien del
+ * directorio propio guarda su NOMBRE y ningún id — exactamente lo que ya
+ * pasaba al escribirlo a mano, pero sin erratas ni tres grafías del mismo
+ * nombre.
+ *
+ * ⚠️ Y el prefijo va sobre el NOMBRE, no sobre el correo: el `value` de cada
+ * opción viaja al HTML, y esta pantalla se comparte por enlace firmado — el
+ * correo de las 24 personas no tiene que estar ahí (regla de la ronda 7, con
+ * su test en SelectorResponsable.test.tsx).
+ *
+ * El día que Monday se encienda, `directorio()` devuelve ids de verdad y esta
+ * rama deja de usarse sola, sin tocar nada.
+ */
+export const PREFIJO_APP = 'app:'
+
+export async function genteParaResponsable(): Promise<PersonaMonday[]> {
+  const deMonday = await directorio()
+  if (deMonday.length > 0) return deMonday
+  if (!hayDB()) return []
+
+  const propias = await db()
+    .select({ nombre: esquema.personas.nombre, correo: esquema.personas.correo })
+    .from(esquema.personas)
+    .where(eq(esquema.personas.activa, true))
+
+  return propias
+    .map((p) => ({ id: `${PREFIJO_APP}${p.nombre}`, nombre: p.nombre, correo: p.correo }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 }

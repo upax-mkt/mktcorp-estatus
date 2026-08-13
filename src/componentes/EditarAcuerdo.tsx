@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import type { PersonaMonday } from '@/monday/personas'
+import type { Equipos } from '@/lib/equipos'
 import { SelectorResponsable } from './SelectorResponsable'
 import estilos from '@/app/cliente/cliente.module.css'
 
@@ -33,12 +34,18 @@ export function EditarAcuerdo({
   queInicial,
   responsableInicial,
   personas,
+  equipos,
   editarAction,
 }: {
   acuerdoId: string
   queInicial: string
   responsableInicial: string
   personas: PersonaMonday[]
+  /**
+   * Los squads y las UDN que también pueden ser responsables (13-ago, ver
+   * src/lib/equipos.ts). Opcional: sin ellos el editor se comporta como antes.
+   */
+  equipos?: Equipos
   editarAction: (
     acuerdoId: string,
     cambios: { que: string; responsable: string; responsableMondayId: string | null },
@@ -108,6 +115,7 @@ export function EditarAcuerdo({
       />
       <SelectorResponsable
         personas={personas}
+        equipos={equipos}
         valorInicial={{ nombre: responsableInicial, mondayId: null }}
         onCambiar={setResponsable}
         disabled={pendiente}

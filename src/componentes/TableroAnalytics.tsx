@@ -13,11 +13,11 @@ import estilos from '@/app/cliente/cliente.module.css'
  * solo se deja incrustar desde el dominio que ORBIT tenga en su cabecera
  * `Content-Security-Policy: frame-ancestors`.
  *
- * ⚠️ HOY ESA CABECERA DICE `mktcorp-estatus.vercel.app`, que era el dominio de
- * esta app antes del 12-ago. **Al renombrarla a `mktcorp-upax.vercel.app` el
- * tablero deja de cargar por el dominio nuevo** hasta que RevOps añada el
- * nuevo a su `frame-ancestors`. El viejo se conservó como alias justo para que
- * no se cayera mientras tanto.
+ * ✅ RESUELTO EL 13-ago: esa cabecera nombra ya los DOS dominios de la app
+ * (`frame-ancestors 'self' https://mktcorp-estatus.vercel.app
+ * https://mktcorp-upax.vercel.app`), así que el tablero carga por el nombre
+ * nuevo y el viejo deja de ser imprescindible. Se conserva como alias porque
+ * es la URL que se repartió a las UDNs durante la transición.
  *
  * ⚠️ CONSECUENCIA: **en `localhost:3000` el iframe sale en blanco** y el
  * navegador escribe un error de CSP en consola. No es un fallo de esta
@@ -61,18 +61,47 @@ import estilos from '@/app/cliente/cliente.module.css'
 /** El ancho en el que ORBIT usa su diseño de escritorio. Medido, no supuesto. */
 const ANCHO_UTIL = 1200
 /**
- * Lo que mide de alto a ese ancho: 678 px medidos, redondeados a 700 para que
- * un dato más —una fila que aparezca cuando la UDN cierre otro trato— no vuelva
- * a cortar el tablero.
+ * Lo que mide de alto a ese ancho.
+ *
+ * ⚠️ **EL ALTO NO ES EL MISMO EN TODAS LAS SALAS**, y por eso este número
+ * estuvo mal desde que se encendió la segunda. Se fijó en 700 midiendo House
+ * of Films —la única encendida entonces— y Franco reportó el 13-ago que el de
+ * Marketing United salía cortado. Medido ese día, sala por sala, a 1200 px de
+ * ancho (capturando la página y buscando la última fila de píxeles que no es
+ * el fondo, que es la única forma que funciona — ver el aviso de abajo):
+ *
+ *     House of Films   679      Research Land    765
+ *     UiX              679      Promo Espacio    765
+ *     Marketing United 749      Mexa Creativa    765
+ *                               NeraCode         765
+ *                               Zeus             765
+ *
+ * Así que 700 cortaba SEIS de las ocho: las dos que cabían eran la excepción.
+ * 780 = el más alto medido (765) más un margen del tamaño de una fila, con el
+ * mismo criterio con el que 678 se había redondeado a 700.
+ *
+ * COSTE ACEPTADO: a House of Films y UiX les sobran ~75 px escalados debajo.
+ * Se prefiere papel en blanco en dos salas a contenido cortado en seis — un
+ * corte se lee como un fallo, un margen no.
+ *
+ * ⚠️ ESTE NÚMERO ENVEJECE: el alto de ORBIT lo decide su contenido, así que
+ * crece cuando una UDN cierra otro trato. La solución permanente es que ORBIT
+ * publique su alto con `postMessage` y este módulo lo escuche; mientras no lo
+ * haga, hay que volver a medir. Está pedido a RevOps.
  */
-const ALTO_UTIL = 700
+const ALTO_UTIL = 780
 /**
  * Por debajo de esto no se escala: reducir a menos de ~0,7 convierte el
  * tablero en algo que se ve entero y no se lee.
  */
 const MINIMO_PARA_ESCALAR = 760
-/** Lo que mide apilado en pantallas estrechas (1414 px a 390, medidos). */
-const ALTO_APILADO = 1440
+/**
+ * Lo que mide apilado en pantallas estrechas. Medido a 390 px el 13-ago:
+ * House of Films 1415, Research Land 1677 — la misma dispersión que arriba y
+ * el mismo error de origen (1440 salía de medir solo HoF, y cortaba a las
+ * demás casi 250 px en el móvil). 1700 cubre a la más alta.
+ */
+const ALTO_APILADO = 1700
 /** El hub entero, del que aquí solo se incrusta una vista. */
 const ORBIT = 'https://orbit-hub-fgap.vercel.app/'
 

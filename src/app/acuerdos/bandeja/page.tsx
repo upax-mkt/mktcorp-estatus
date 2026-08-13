@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { exigirLectura } from '@/auth/roles'
 import { acuerdosPendientesDeSubir, refrescarDesdeMonday } from '@/db/acuerdos'
-import { directorio } from '@/db/personas'
+import { genteParaResponsable } from '@/db/personas'
 import {
   elementosDeDelivery, existeElGrupo, grupoDeAcuerdos, mondayConectado, ErrorMonday,
 } from '@/monday/cliente'
@@ -124,7 +124,7 @@ export default async function PagBandeja() {
     // SOLO EQUIPO (exigirLectura() arriba, sin excepción de sala), así que a
     // diferencia de /cliente/[slug] (punto 7) no hace falta condicionar esta
     // carga: nunca se comparte por un enlace firmado con un cliente interno.
-    directorio(),
+    genteParaResponsable(),
   ])
 
   // Por cada sala presente en la bandeja, una sola consulta a Delivery — no

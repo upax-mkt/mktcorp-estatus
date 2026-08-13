@@ -148,6 +148,8 @@ vi.mock('@/db/acuerdos', () => ({
 
 vi.mock('@/db/personas', () => ({
   directorio: vi.fn().mockResolvedValue([]),
+  genteParaResponsable: vi.fn().mockResolvedValue([]),
+  PREFIJO_APP: 'app:',
 }))
 
 vi.mock('@/monday/cliente', () => ({

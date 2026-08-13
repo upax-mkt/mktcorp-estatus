@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import type { PersonaMonday } from '@/monday/personas'
+import { esEquipo, type Equipos } from '@/lib/equipos'
+import { PREFIJO_APP } from '@/db/personas'
 import estilos from './SelectorResponsable.module.css'
 
 interface ValorInicial {
@@ -11,9 +13,12 @@ interface ValorInicial {
 
 interface Props {
   /**
-   * La gente viva de Mkt Corp — ver `directorio()` en src/db/personas.ts.
-   * Vacío cuando Monday está caído y no hay copia local: el aviso lo dice y
-   * el texto libre de la UDN sigue funcionando igual.
+   * La gente de Mkt Corp que se puede elegir — ver `genteParaResponsable()`
+   * en src/db/personas.ts: los usuarios de Monday si el tablero está
+   * conectado y, si no, las personas del directorio propio de la app (con el
+   * prefijo `app:` en el id, que este componente traduce a nulo). Solo llega
+   * vacía si no hay ni una cosa ni la otra; entonces el aviso lo dice y el
+   * texto libre sigue funcionando igual.
    */
   personas: PersonaMonday[]
   /** El responsable actual, al editar un acuerdo que ya lo tenía. Sin esto, arranca en blanco. */
@@ -38,6 +43,26 @@ interface Props {
   onCambiar?: (valor: { responsable: string; responsableMondayId: string | null }) => void
   /** Deshabilita los dos controles — para una fila que no se va a publicar. */
   disabled?: boolean
+  /**
+   * Los equipos que pueden cargar con el acuerdo: los squads de Mkt Corp y
+   * las UDN vivas (ver src/lib/equipos.ts). Sin esta prop el control no se
+   * pinta, y el componente se comporta como antes del 13-ago — así una
+   * pantalla que aún no sepa de equipos no empieza a ofrecerlos por accidente.
+   */
+  equipos?: Equipos
+}
+
+/**
+ * El id que se GUARDA en `responsableMondayId`, a partir de lo elegido en el
+ * desplegable. Las opciones que salen del directorio propio de la app llevan
+ * el prefijo `app:` (ver `genteParaResponsable` en src/db/personas.ts) y NO
+ * son ids del tablero: se traducen a nulo aquí, en el único sitio por el que
+ * pasan todos los consumidores, para que ninguno tenga que saber del prefijo
+ * ni pueda olvidarse de quitarlo.
+ */
+function idDeMonday(valor: string): string | null {
+  if (valor === '' || valor.startsWith(PREFIJO_APP)) return null
+  return valor
 }
 
 /**
@@ -73,35 +98,82 @@ interface Props {
  * recoge el valor (el borde del formulario, o el candado compartido de
  * crearAcuerdo/editarAcuerdo en src/db/acuerdos.ts) — no de este componente.
  */
-export function SelectorResponsable({ personas, valorInicial, sugerencia, onCambiar, disabled = false }: Props) {
+export function SelectorResponsable({
+  personas,
+  valorInicial,
+  sugerencia,
+  onCambiar,
+  disabled = false,
+  equipos,
+}: Props) {
   const tieneMondayIdInicial = Boolean(valorInicial?.mondayId)
+  /**
+   * De qué CLASE es el responsable que llega. Un nombre suelto puede ser un
+   * squad ("RevOps & Analytics") o una persona de la UDN ("Pablo Levy"), y lo
+   * único que los distingue es la lista de equipos: no se guarda ninguna
+   * marca en la base (ver src/lib/equipos.ts). Reabrir en el control correcto
+   * importa porque ese control es lo que le dice a quien edita qué tiene
+   * delante.
+   */
+  const equipoInicial =
+    !tieneMondayIdInicial && equipos && valorInicial && esEquipo(valorInicial.nombre, equipos)
+      ? valorInicial.nombre
+      : ''
   const [mondayId, setMondayId] = useState(tieneMondayIdInicial ? (valorInicial!.mondayId as string) : '')
-  const [libre, setLibre] = useState(tieneMondayIdInicial ? '' : (valorInicial?.nombre ?? ''))
+  const [equipo, setEquipo] = useState(equipoInicial)
+  const [libre, setLibre] = useState(
+    tieneMondayIdInicial || equipoInicial !== '' ? '' : (valorInicial?.nombre ?? ''),
+  )
 
-  function avisar(idNuevo: string, libreNuevo: string) {
+  function avisar(idNuevo: string, libreNuevo: string, equipoNuevo: string) {
     if (!onCambiar) return
     const persona = idNuevo !== '' ? personas.find((p) => p.id === idNuevo) : undefined
-    const nombreResuelto = idNuevo !== '' ? (persona?.nombre ?? valorInicial?.nombre ?? '') : libreNuevo
-    onCambiar({ responsable: nombreResuelto, responsableMondayId: idNuevo !== '' ? idNuevo : null })
+    const nombreResuelto =
+      idNuevo !== ''
+        ? (persona?.nombre ?? valorInicial?.nombre ?? '')
+        : equipoNuevo !== ''
+          ? equipoNuevo
+          : libreNuevo
+    onCambiar({ responsable: nombreResuelto, responsableMondayId: idDeMonday(idNuevo) })
   }
 
   function elegirDeMktCorp(id: string) {
     setMondayId(id)
     const libreNuevo = id !== '' ? '' : libre
-    if (id !== '') setLibre('')
-    avisar(id, libreNuevo)
+    const equipoNuevo = id !== '' ? '' : equipo
+    if (id !== '') { setLibre(''); setEquipo('') }
+    avisar(id, libreNuevo, equipoNuevo)
   }
 
   function escribirLibre(valor: string) {
     setLibre(valor)
     setMondayId('')
-    avisar('', valor)
+    setEquipo('')
+    avisar('', valor, '')
+  }
+
+  /**
+   * UN ACUERDO TIENE UN RESPONSABLE, no tres. Elegir equipo apaga a la persona
+   * y al texto libre por el mismo motivo por el que ya se apagaban entre sí:
+   * dos campos llenos obligarían a decidir en el servidor cuál gana, y esa
+   * decisión no la puede tomar quien no vio la pantalla.
+   */
+  function elegirEquipo(nombre: string) {
+    setEquipo(nombre)
+    const libreNuevo = nombre !== '' ? '' : libre
+    if (nombre !== '') { setLibre(''); setMondayId('') }
+    avisar('', libreNuevo, nombre)
   }
 
   const personaElegida = mondayId !== '' ? personas.find((p) => p.id === mondayId) : undefined
   // Si el id ya no aparece en la lista viva (alguien salió de Monday entre
   // que se guardó y hoy), el nombre que se conocía es mejor que uno vacío.
-  const responsable = mondayId !== '' ? (personaElegida?.nombre ?? valorInicial?.nombre ?? '') : libre
+  const responsable =
+    mondayId !== ''
+      ? (personaElegida?.nombre ?? valorInicial?.nombre ?? '')
+      : equipo !== ''
+        ? equipo
+        : libre
 
   // El botón de aceptar solo tiene sentido mientras nadie ha elegido nada
   // todavía: en cuanto hay un mondayId (venga de aceptar la sugerencia o de
@@ -163,11 +235,46 @@ export function SelectorResponsable({ personas, valorInicial, sugerencia, onCamb
         />
       </label>
 
+      {/* …O UN EQUIPO ENTERO. Va el ÚLTIMO a propósito: lo habitual es que un
+          compromiso tenga dueño con nombre y apellido, y ofrecer el squad
+          primero invita a repartir trabajo a un colectivo, que es la forma
+          educada de que no lo haga nadie. Está para lo que de verdad es del
+          equipo ("lo ve RevOps"), no como atajo. */}
+      {equipos && (
+        <label className={estilos.responsableLibre}>
+          <span className="micro">…o un equipo</span>
+          <select
+            className={estilos.responsableSelect}
+            value={equipo}
+            onChange={(e) => elegirEquipo(e.target.value)}
+            disabled={disabled}
+            aria-label="Equipo responsable"
+          >
+            <option value="">Elegir un equipo…</option>
+            <optgroup label="Squads de Mkt Corp">
+              {equipos.squads.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </optgroup>
+            {equipos.udns.length > 0 && (
+              // "UDN y clientes" y no "UDN" a secas: esta lista son las salas
+              // vivas de la app, y una de ellas —Ceci— no es una UDN. El
+              // rótulo dice lo que la lista es de verdad.
+              <optgroup label="UDN y clientes">
+                {equipos.udns.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </label>
+      )}
+
       {/* Lo único que de verdad lee quien recoge un FormData: siempre
           presentes, nunca deshabilitados, pase lo que pase con la selección
           visual de arriba. */}
       <input type="hidden" name="responsable" value={responsable} />
-      <input type="hidden" name="responsableMondayId" value={mondayId} />
+      <input type="hidden" name="responsableMondayId" value={idDeMonday(mondayId) ?? ''} />
     </div>
   )
 }

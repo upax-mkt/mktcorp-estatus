@@ -122,4 +122,104 @@ describe('SelectorResponsable', () => {
       expect(container.innerHTML).not.toContain(p.correo)
     }
   })
+
+  /**
+   * Monday está apagado en esta app, así que el desplegable se llena del
+   * directorio propio y sus ids llevan el prefijo `app:` — que NO es un id
+   * del tablero y no puede acabar en `responsableMondayId`.
+   */
+  it('elegir a alguien del directorio propio guarda su nombre y ningún id de Monday', async () => {
+    const usuario = userEvent.setup()
+    const { container } = render(
+      <SelectorResponsable personas={[{ id: 'app:Ileana Cruz', nombre: 'Ileana Cruz', correo: 'x@upax.com.mx' }]} />,
+    )
+    await usuario.selectOptions(screen.getByLabelText(/Responsable de Mkt Corp/i), 'app:Ileana Cruz')
+    expect(ocultoDe(container, 'responsable')).toBe('Ileana Cruz')
+    expect(ocultoDe(container, 'responsableMondayId')).toBe('')
+  })
+
+  it('el correo del directorio propio tampoco viaja al HTML: el id va sobre el nombre', () => {
+    const { container } = render(
+      <SelectorResponsable personas={[{ id: 'app:Ileana Cruz', nombre: 'Ileana Cruz', correo: 'ileana@upax.com.mx' }]} />,
+    )
+    expect(container.innerHTML).not.toContain('ileana@upax.com.mx')
+  })
+
+  /**
+   * UN EQUIPO COMO RESPONSABLE (13-ago). Franco: *"no los puedo editar ni la
+   * persona ni el equipo (UDN o Squads de mkt)"*. Un compromiso puede ser de
+   * un squad entero, y hasta hoy la única forma era teclear su nombre en el
+   * campo de la UDN — que produce tres grafías del mismo squad.
+   */
+  describe('con equipos', () => {
+    const EQUIPOS = { squads: ['RevOps & Analytics', 'Inbound Studio'], udns: ['NeraCode'] }
+
+    it('no se ofrece ningún equipo si la pantalla no pasa la lista', () => {
+      render(<SelectorResponsable personas={PERSONAS} />)
+      expect(screen.queryByLabelText(/equipo/i)).toBeNull()
+    })
+
+    it('elegir un equipo manda su nombre y deja el id de Monday vacío: un squad no es un usuario del tablero', async () => {
+      const usuario = userEvent.setup()
+      const { container } = render(<SelectorResponsable personas={PERSONAS} equipos={EQUIPOS} />)
+      await usuario.selectOptions(screen.getByLabelText(/equipo responsable/i), 'RevOps & Analytics')
+      expect(ocultoDe(container, 'responsable')).toBe('RevOps & Analytics')
+      expect(ocultoDe(container, 'responsableMondayId')).toBe('')
+    })
+
+    it('elegir equipo limpia a la persona, y elegir persona limpia al equipo: un acuerdo tiene UN responsable', async () => {
+      const usuario = userEvent.setup()
+      const { container } = render(<SelectorResponsable personas={PERSONAS} equipos={EQUIPOS} />)
+      const equipo = screen.getByLabelText(/equipo responsable/i) as HTMLSelectElement
+
+      await usuario.selectOptions(screen.getByLabelText(/Responsable de Mkt Corp/i), '65476486')
+      await usuario.selectOptions(equipo, 'Inbound Studio')
+      expect(ocultoDe(container, 'responsable')).toBe('Inbound Studio')
+      expect(ocultoDe(container, 'responsableMondayId')).toBe('')
+
+      await usuario.selectOptions(screen.getByLabelText(/Responsable de Mkt Corp/i), '65476486')
+      expect(ocultoDe(container, 'responsable')).toBe('Iris Múgica')
+      expect(equipo.value).toBe('')
+    })
+
+    it('escribir un nombre de la UDN también limpia el equipo elegido', async () => {
+      const usuario = userEvent.setup()
+      const { container } = render(<SelectorResponsable personas={PERSONAS} equipos={EQUIPOS} />)
+      await usuario.selectOptions(screen.getByLabelText(/equipo responsable/i), 'NeraCode')
+      await usuario.type(screen.getByLabelText(/de la UDN/i), 'Pablo Levy')
+      expect(ocultoDe(container, 'responsable')).toBe('Pablo Levy')
+      expect((screen.getByLabelText(/equipo responsable/i) as HTMLSelectElement).value).toBe('')
+    })
+
+    /**
+     * Sin esto, reabrir un acuerdo cuyo responsable es un squad lo enseñaría
+     * en el campo de texto libre —como si alguien lo hubiera tecleado— y
+     * guardarlo sin tocar nada lo dejaría igual pero por otro camino. El
+     * control en el que aparece es lo que le dice a quien edita qué clase de
+     * responsable tiene delante.
+     */
+    it('reabre en el desplegable de equipo lo que se guardó como equipo, no en el texto libre', () => {
+      render(
+        <SelectorResponsable
+          personas={PERSONAS}
+          equipos={EQUIPOS}
+          valorInicial={{ nombre: 'Inbound Studio', mondayId: null }}
+        />,
+      )
+      expect((screen.getByLabelText(/equipo responsable/i) as HTMLSelectElement).value).toBe('Inbound Studio')
+      expect(screen.getByLabelText(/de la UDN/i)).toHaveValue('')
+    })
+
+    it('un nombre que no es de ningún equipo sigue reabriendo en el texto libre', () => {
+      render(
+        <SelectorResponsable
+          personas={PERSONAS}
+          equipos={EQUIPOS}
+          valorInicial={{ nombre: 'Pablo Levy', mondayId: null }}
+        />,
+      )
+      expect(screen.getByLabelText(/de la UDN/i)).toHaveValue('Pablo Levy')
+      expect((screen.getByLabelText(/equipo responsable/i) as HTMLSelectElement).value).toBe('')
+    })
+  })
 })

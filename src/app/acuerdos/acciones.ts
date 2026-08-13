@@ -6,7 +6,7 @@ import * as esquema from '@/db/esquema'
 import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
 import { pausarSala, reactivarSala, salaEstaActiva } from '@/db/salas'
-import { editarAcuerdo } from '@/db/acuerdos'
+import { editarAcuerdo, eliminarAcuerdo, salaDeAcuerdo } from '@/db/acuerdos'
 
 /**
  * Las acciones de la bandeja. Todas empiezan comprobando la sesión: esto
@@ -329,4 +329,73 @@ export async function reactivarSalaAction(slug: string): Promise<void> {
   revalidatePath('/')
   revalidatePath('/acuerdos')
   revalidatePath('/acuerdos/bandeja')
+}
+
+// ---- Corregir y eliminar desde la pestaña de acuerdos (ronda 13) ----
+
+/**
+ * CORREGIR UN ACUERDO DESDE `/acuerdos`, sin entrar a su sala.
+ *
+ * Franco (13-ago): *"hay acuerdos que no tienen responsable, y no los puedo
+ * editar ni la persona ni el equipo (UDN o Squads de mkt)"*. La pantalla que
+ * cruza las nueve salas —la única donde se ven juntos los que están sin
+ * dueño— era de solo lectura: para ponerle responsable a uno había que
+ * abrir su sala, y para repartir cinco, cinco salas.
+ *
+ * Es la MISMA edición que hace la sala (`editarAcuerdo` en src/db/acuerdos.ts,
+ * que ya recalcula la bandeja si el responsable cambia y sincroniza con
+ * Monday cuando toca): aquí no se reimplementa nada, solo cambia desde dónde
+ * se llama. Y `exigirEditor()` como allá — corregir el texto de un acuerdo es
+ * trabajo de equipo, no una decisión de administración.
+ *
+ * La sala a revalidar se PREGUNTA a la base (`salaDeAcuerdo`) en vez de
+ * viajar desde el cliente: esta pantalla es de todas las salas, y un slug que
+ * llega por parámetro es un slug que alguien puede cambiar.
+ */
+export async function editarAcuerdoEnTablaAction(
+  acuerdoId: string,
+  cambios: { que: string; responsable: string; responsableMondayId: string | null },
+): Promise<{ error?: string }> {
+  await exigirEditor()
+  try {
+    await editarAcuerdo(acuerdoId, cambios)
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo guardar' }
+  }
+  await revalidarAcuerdo(acuerdoId)
+  return {}
+}
+
+/**
+ * ELIMINAR UN ACUERDO DESDE `/acuerdos`. Franco: *"como administrador debo
+ * poder eliminar acuerdos desde la pestaña acuerdos"*.
+ *
+ * `exigirAdmin()` y no `exigirEditor()`, que es lo que pide la MISMA acción
+ * dentro de una sala. La diferencia es el alcance de la pantalla: en la sala
+ * se borra un acuerdo mirando el contexto de esa UDN; aquí están los de las
+ * nueve juntos, filtrables, y el borrado es un DELETE sin papelera. Es
+ * también lo que pidió Franco con todas las letras ("como administrador"), y
+ * conceder de menos se corrige en una línea — conceder de más lo paga alguien
+ * que pierde un compromiso que no era suyo.
+ */
+export async function eliminarAcuerdoEnTablaAction(acuerdoId: string): Promise<void> {
+  await exigirAdmin()
+  // El slug se lee ANTES de borrar: después, la fila ya no está y no habría a
+  // qué sala revalidar — la vería con el acuerdo aún puesto hasta que algo
+  // más la tocara.
+  const slug = await salaDeAcuerdo(acuerdoId)
+  await eliminarAcuerdo(acuerdoId)
+  revalidarPantallasDeAcuerdos(slug)
+}
+
+/** Las cuatro pantallas donde un acuerdo puede estar, más su sala. */
+async function revalidarAcuerdo(acuerdoId: string): Promise<void> {
+  revalidarPantallasDeAcuerdos(await salaDeAcuerdo(acuerdoId))
+}
+
+function revalidarPantallasDeAcuerdos(slug: string | null): void {
+  revalidatePath('/acuerdos')
+  revalidatePath('/acuerdos/bandeja')
+  revalidatePath('/')
+  if (slug) revalidatePath(`/cliente/${slug}`)
 }

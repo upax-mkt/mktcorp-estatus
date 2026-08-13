@@ -12,7 +12,7 @@ import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/Docume
 import { puedeVerEstaSala } from '@/auth/sesion'
 import { esLector, exigirLectura } from '@/auth/roles'
 import { registrarPresentacion } from '@/db/participacion'
-import { directorio } from '@/db/personas'
+import { genteParaResponsable } from '@/db/personas'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,7 +87,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
    *
    * A esta página también llega el rol `sala`: es donde aterriza "Ver
    * presentación" desde su propia sala (`puedeVerEstaSala` arriba ya lo
-   * confirmó). `directorio()` trae el nombre Y EL CORREO de las 24 personas
+   * confirmó). `genteParaResponsable()` trae el nombre Y EL CORREO de las 24 personas
    * de Mkt Corp para el selector de responsable, que solo se ofrece a quien
    * es equipo (ver `ModoPresentar` → `MinutaCliente`).
    *
@@ -99,7 +99,7 @@ export default async function PagSesionPublicada({ params }: { params: Promise<{
    * `/cliente/[slug]/page.tsx` (revisión final ronda 7, punto 7) — si vas a
    * "simplificar" este ternario, no: es justo lo que evita la fuga.
    */
-  const personas = equipo ? await directorio() : []
+  const personas = equipo ? await genteParaResponsable() : []
 
   /**
    * Deja constancia de quién abrió el modo presentación (ronda 9, tarea 4).

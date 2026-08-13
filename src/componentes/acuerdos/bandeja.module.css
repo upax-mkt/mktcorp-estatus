@@ -73,6 +73,27 @@
 .lista { list-style: none; margin: 0; padding: 0; display: grid; }
 
 .fila {
+  /* ⚠️ LOS TOKENS DE LA SALA, REPUBLICADOS AQUÍ (13-ago). Desde que esta fila
+     monta `EditarAcuerdo` —el mismo editor que la sala, para no tener dos—
+     entra en esta pantalla CSS escrito contra `cliente.module.css`, que habla
+     en `--tx`/`--borde`/`--alerta`. Esos nombres SOLO existen dentro de `.app`
+     de la sala: aquí saldrían sin definir, y una variable que no existe no da
+     ningún error — pinta el color por defecto del navegador y ya.
+     Es exactamente lo que ya le pasó a la ventana de la minuta, y se cierra
+     igual que allí (ver la cabecera de `.caja` en minuta.module.css): se
+     traducen sobre los tokens compartidos de `sistema.css`, que sí valen en
+     cualquier pantalla. */
+  --superficie: var(--papel);
+  --superficie-2: var(--papel-2);
+  --borde: var(--linea);
+  --borde-fuerte: var(--linea-fuerte);
+  --tx: var(--tinta);
+  --tx-2: var(--tinta-2);
+  --tx-3: var(--tinta-3);
+  --tx-4: var(--tinta-4);
+  --alerta: var(--mal);
+  --alerta-suave: var(--mal-tenue);
+
   display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
   gap: 1.25rem;
   padding: 1.15rem 0 1.15rem 1rem;
@@ -184,3 +205,29 @@
   font-size: 0.98rem; font-weight: 600; margin: 0 0 0.3rem; letter-spacing: var(--track-normal);
 }
 .congeladosNota { font-size: 0.8rem; color: var(--tinta-3); margin: 0 0 0.6rem; line-height: 1.5; }
+
+/* ---- Borrar un acuerdo desde la pestaña (13-ago) ----
+   Franco: *"como administrador debo poder eliminar acuerdos desde la pestaña
+   acuerdos"*. Mismo gesto y mismo aspecto que dentro de una sala
+   (`.botonIconoBorrar` y compañía en cliente.module.css): la × discreta abre
+   la confirmación en el sitio. Se repiten aquí y no se importan de allá
+   porque un CSS Module no se hereda entre pantallas — y copiar CUATRO reglas
+   pequeñas es más honesto que mudar media hoja de estilos de la sala. */
+.botonIconoBorrar {
+  font-family: inherit; font-size: 1rem; line-height: 1;
+  width: 1.6rem; height: 1.6rem; padding: 0;
+  color: var(--tinta-3); background: none; border: none; border-radius: 0.35rem; cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.botonIconoBorrar:hover { color: var(--mal); background: var(--mal-tenue); }
+.confirmarBorrado { display: inline-flex; gap: 0.3rem; align-items: center; }
+.botonBorrar {
+  font-family: inherit; font-size: 0.78rem; font-weight: 600;
+  padding: 0.3rem 0.6rem; border: none; border-radius: 0.35rem; cursor: pointer;
+  color: var(--papel); background: var(--mal);
+}
+.botonCancelarBorrado {
+  font-family: inherit; font-size: 0.78rem;
+  padding: 0.3rem 0.4rem; color: var(--tinta-2);
+  background: none; border: none; cursor: pointer;
+}

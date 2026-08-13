@@ -100,8 +100,16 @@ vi.mock('@/db/salas', () => ({
  * y ese módulo está mockeado arriba con solo tres símbolos.
  */
 const editarAcuerdoMock = vi.fn()
+const eliminarAcuerdoMock = vi.fn()
+const salaDeAcuerdoMock = vi.fn().mockResolvedValue('mexa-creativa')
 vi.mock('@/db/acuerdos', () => ({
   editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
+  // Ronda 13: las dos acciones nuevas de la pestaña (`editarAcuerdoEnTabla` /
+  // `eliminarAcuerdoEnTabla`) delegan aquí. Sin estas dos claves el módulo
+  // doble no exporta lo que acciones.ts importa y el archivo entero revienta
+  // al cargarse.
+  eliminarAcuerdo: (...args: unknown[]) => eliminarAcuerdoMock(...args),
+  salaDeAcuerdo: (...args: unknown[]) => salaDeAcuerdoMock(...args),
 }))
 
 // ---- El doble de fila + db() ----
@@ -536,5 +544,85 @@ describe('pausarSalaAction / reactivarSalaAction exigen admin', () => {
     await reactivarSalaAction('mexa-creativa')
 
     expect(reactivarSalaMock).toHaveBeenCalledWith('mexa-creativa')
+  })
+})
+
+/**
+ * RONDA 13 — corregir y eliminar desde la pestaña `/acuerdos`.
+ *
+ * Lo que se prueba aquí es el REPARTO DE PERMISOS, que es lo único que
+ * distingue estas dos acciones de las que ya existían: corregir es trabajo de
+ * equipo (editor) y eliminar es de administración (admin), aunque dentro de
+ * una sala el mismo borrado lo hace cualquier editor. La diferencia es el
+ * alcance de la pantalla: aquí están los de las nueve salas juntos.
+ */
+describe('editar y eliminar desde la pestaña de acuerdos', () => {
+  beforeEach(() => {
+    editarAcuerdoMock.mockReset()
+    eliminarAcuerdoMock.mockReset()
+    salaDeAcuerdoMock.mockReset().mockResolvedValue('mexa-creativa')
+  })
+
+  it('editar exige editor: sin sesión de equipo no toca la base', async () => {
+    const { editarAcuerdoEnTablaAction } = await import('./acciones')
+    exigirEditorMock.mockRejectedValueOnce(new Error('Hay que entrar para hacer esto.'))
+
+    await expect(
+      editarAcuerdoEnTablaAction('a1', { que: 'x', responsable: 'Iris', responsableMondayId: null }),
+    ).rejects.toThrow('Hay que entrar')
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('editar delega en editarAcuerdo tal cual, sin reimplementar la regla', async () => {
+    const { editarAcuerdoEnTablaAction } = await import('./acciones')
+
+    const r = await editarAcuerdoEnTablaAction('a1', {
+      que: 'Mandar la propuesta',
+      responsable: 'RevOps & Analytics',
+      responsableMondayId: null,
+    })
+
+    expect(r).toEqual({})
+    expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', {
+      que: 'Mandar la propuesta',
+      responsable: 'RevOps & Analytics',
+      responsableMondayId: null,
+    })
+  })
+
+  it('si la base se queja, el error vuelve a la pantalla en vez de romperla', async () => {
+    const { editarAcuerdoEnTablaAction } = await import('./acciones')
+    editarAcuerdoMock.mockRejectedValueOnce(new Error('Acuerdo no encontrado'))
+
+    const r = await editarAcuerdoEnTablaAction('fantasma', { que: 'x', responsable: '', responsableMondayId: null })
+
+    expect(r).toEqual({ error: 'Acuerdo no encontrado' })
+  })
+
+  it('eliminar exige ADMIN, no editor: en esta pantalla están los de las nueve salas', async () => {
+    const { eliminarAcuerdoEnTablaAction } = await import('./acciones')
+    exigirAdminMock.mockRejectedValueOnce(
+      new Error('Esta acción es solo para administradores de Marketing Corporativo.'),
+    )
+
+    await expect(eliminarAcuerdoEnTablaAction('a1')).rejects.toThrow('solo para administradores')
+    expect(eliminarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * El slug se lee ANTES del borrado a propósito: después la fila ya no
+   * existe y no habría a qué sala revalidar — se quedaría enseñando un
+   * acuerdo que ya no está hasta que otra cosa la tocara.
+   */
+  it('eliminar averigua la sala antes de borrar, para poder revalidarla', async () => {
+    const { eliminarAcuerdoEnTablaAction } = await import('./acciones')
+    const orden: string[] = []
+    salaDeAcuerdoMock.mockImplementationOnce(async () => { orden.push('leer sala'); return 'neracode' })
+    eliminarAcuerdoMock.mockImplementationOnce(async () => { orden.push('borrar') })
+
+    await eliminarAcuerdoEnTablaAction('a1')
+
+    expect(orden).toEqual(['leer sala', 'borrar'])
+    expect(eliminarAcuerdoMock).toHaveBeenCalledWith('a1')
   })
 })

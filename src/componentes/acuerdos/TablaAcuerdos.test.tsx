@@ -33,6 +33,61 @@ describe('TablaAcuerdos', () => {
     expect(screen.getByText(/todavía no hay acuerdos/i)).toBeInTheDocument()
   })
 
+  /**
+   * CORREGIR Y BORRAR DESDE LA PESTAÑA (13-ago). Franco pidió las dos cosas:
+   * *"como administrador debo poder eliminar acuerdos desde la pestaña
+   * acuerdos"* y *"hay acuerdos que no tienen responsable, y no los puedo
+   * editar ni la persona ni el equipo"*. Hasta hoy esta pantalla solo
+   * filtraba y destacaba: para tocar un acuerdo había que entrar a su sala.
+   *
+   * Las dos acciones llegan por prop y son OPCIONALES: quien no puede, no las
+   * recibe, y entonces la fila no las pinta. El gate de verdad vive en la
+   * Server Action (`exigirEditor`/`exigirAdmin`) — esto es la interfaz.
+   */
+  describe('editar y eliminar desde la pestaña', () => {
+    it('sin acciones, la fila no ofrece ni corregir ni eliminar', () => {
+      render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} />)
+      expect(screen.queryByRole('button', { name: /corregir/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /eliminar/i })).toBeNull()
+    })
+
+    it('con la acción de editar, la fila ofrece corregir el acuerdo', () => {
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn()}
+          personas={[]}
+          equipos={{ squads: ['RevOps & Analytics'], udns: [] }}
+          editar={vi.fn()}
+        />,
+      )
+      expect(screen.getByRole('button', { name: /corregir/i })).toBeInTheDocument()
+    })
+
+    it('eliminar pide confirmación antes de llamar a nadie: no hay papelera', async () => {
+      const usuario = userEvent.setup()
+      const eliminar = vi.fn().mockResolvedValue(undefined)
+      render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} eliminar={eliminar} />)
+
+      await usuario.click(screen.getByRole('button', { name: /eliminar/i }))
+      expect(eliminar).not.toHaveBeenCalled()
+
+      await usuario.click(screen.getByRole('button', { name: /^borrar$/i }))
+      expect(eliminar).toHaveBeenCalledWith('a1')
+    })
+
+    it('decir que no deja el acuerdo como estaba', async () => {
+      const usuario = userEvent.setup()
+      const eliminar = vi.fn()
+      render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} eliminar={eliminar} />)
+
+      await usuario.click(screen.getByRole('button', { name: /eliminar/i }))
+      await usuario.click(screen.getByRole('button', { name: /^no$/i }))
+      expect(eliminar).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /eliminar/i })).toBeInTheDocument()
+    })
+  })
+
   // Punto menor de la revisión final de la ronda 7: dentro de "Congelados"
   // las filas salían con el badge "Abierto" liso, y el bloque agrupaba TODO
   // lo de una sala en pausa —también lo ya cumplido, para lo que "congelado"

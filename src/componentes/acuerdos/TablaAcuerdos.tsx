@@ -1,10 +1,13 @@
 'use client'
 
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState, useTransition, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { estaCongelado, type AcuerdoConSala } from '@/db/consultas'
 import { fechaBreve } from '@/lib/fecha'
 import { colorDeTextoDeMarca } from '@/temas'
+import type { PersonaMonday } from '@/monday/personas'
+import type { Equipos } from '@/lib/equipos'
+import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
 import { Estrella } from './Estrella'
 import estilos from './bandeja.module.css'
 
@@ -12,6 +15,26 @@ interface Props {
   acuerdos: AcuerdoConSala[]
   /** `destacarAction` — ver la cabecera de Estrella.tsx sobre por qué se recibe por prop. */
   destacar: (id: string, destacado: boolean) => Promise<void>
+  /**
+   * CORREGIR EL ACUERDO desde aquí (13-ago). Opcional: quien no puede editar
+   * no la recibe y la fila no ofrece el lápiz. La comprobación que manda vive
+   * en la Server Action — esconder un botón no protege un endpoint.
+   */
+  editar?: (
+    acuerdoId: string,
+    cambios: { que: string; responsable: string; responsableMondayId: string | null },
+  ) => Promise<{ error?: string }>
+  /** La gente de Mkt Corp para el desplegable de responsable. Solo se usa al editar. */
+  personas?: PersonaMonday[]
+  /** Los squads y las UDN que pueden cargar con el acuerdo (src/lib/equipos.ts). */
+  equipos?: Equipos
+  /**
+   * ELIMINAR, sin papelera. Franco: *"como administrador debo poder eliminar
+   * acuerdos desde la pestaña acuerdos"*. Solo llega si quien mira es admin:
+   * dentro de una sala borra cualquier editor, pero esta pantalla cruza las
+   * nueve y el borrado es un DELETE de verdad.
+   */
+  eliminar?: (acuerdoId: string) => Promise<void>
 }
 
 const ETIQUETA_ESTATUS: Record<AcuerdoConSala['estatus'], string> = {
@@ -37,7 +60,7 @@ const SIN_FILTRO = ''
  * quién puede cargar `/acuerdos` (`exigirLectura()` en la página), no qué
  * fila queda visible después de elegir un filtro.
  */
-export function TablaAcuerdos({ acuerdos, destacar }: Props) {
+export function TablaAcuerdos({ acuerdos, destacar, editar, personas, equipos, eliminar }: Props) {
   const [sala, setSala] = useState(SIN_FILTRO)
   const [responsable, setResponsable] = useState(SIN_FILTRO)
   const [estatus, setEstatus] = useState(SIN_FILTRO)
@@ -111,7 +134,8 @@ export function TablaAcuerdos({ acuerdos, destacar }: Props) {
         ) : (
           <ul className={estilos.lista}>
             {vivos.map((a) => (
-              <Fila key={a.id} acuerdo={a} destacar={destacar} />
+              <Fila key={a.id} acuerdo={a} destacar={destacar} editar={editar}
+                    personas={personas} equipos={equipos} eliminar={eliminar} />
             ))}
           </ul>
         )}
@@ -133,7 +157,8 @@ export function TablaAcuerdos({ acuerdos, destacar }: Props) {
           ) : (
             <ul className={estilos.lista}>
               {congelados.map((a) => (
-                <Fila key={a.id} acuerdo={a} destacar={destacar} />
+                <Fila key={a.id} acuerdo={a} destacar={destacar} editar={editar}
+                    personas={personas} equipos={equipos} eliminar={eliminar} />
               ))}
             </ul>
           )}
@@ -143,7 +168,21 @@ export function TablaAcuerdos({ acuerdos, destacar }: Props) {
   )
 }
 
-function Fila({ acuerdo, destacar }: { acuerdo: AcuerdoConSala; destacar: Props['destacar'] }) {
+function Fila({
+  acuerdo,
+  destacar,
+  editar,
+  personas,
+  equipos,
+  eliminar,
+}: {
+  acuerdo: AcuerdoConSala
+  destacar: Props['destacar']
+  editar?: Props['editar']
+  personas?: Props['personas']
+  equipos?: Props['equipos']
+  eliminar?: Props['eliminar']
+}) {
   const estiloFila = {
     '--marca': acuerdo.salaColor,
     '--marca-texto': colorDeTextoDeMarca(acuerdo.salaColor),
@@ -161,13 +200,32 @@ function Fila({ acuerdo, destacar }: { acuerdo: AcuerdoConSala; destacar: Props[
   return (
     <li className={estilos.fila} style={estiloFila}>
       <div className={estilos.cuerpo}>
-        <p className={estilos.que}>{acuerdo.que}</p>
+        {/* EL MISMO EDITOR QUE LA SALA, no uno parecido: `EditarAcuerdo` ya
+            resuelve corregir el texto y el responsable en sitio, con su lápiz
+            y su cancelar. Escribir aquí otro sería tener dos sitios donde
+            arreglar el mismo defecto —la lección que dejó la ronda 12 con la
+            sección del Home y la de la sala. */}
+        {editar ? (
+          <EditarAcuerdo
+            acuerdoId={acuerdo.id}
+            queInicial={acuerdo.que}
+            responsableInicial={acuerdo.responsable}
+            personas={personas ?? []}
+            equipos={equipos}
+            editarAction={editar}
+          />
+        ) : (
+          <p className={estilos.que}>{acuerdo.que}</p>
+        )}
         <div className={estilos.meta}>
           <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
             {acuerdo.salaNombre}
           </Link>
           <span className={estilos.punto} aria-hidden>·</span>
-          <span>{acuerdo.responsable}</span>
+          {/* "sin dueño" y no un hueco: un acuerdo sin responsable es
+              justamente lo que hay que ver para arreglarlo, y es como lo
+              nombra la sala. */}
+          <span>{acuerdo.responsable || 'sin dueño'}</span>
           <span className={estilos.punto} aria-hidden>·</span>
           <span>{acuerdo.fechaCompromiso ? fechaBreve(acuerdo.fechaCompromiso) : 'sin fecha'}</span>
           {acuerdo.mondayUrl && (
@@ -197,7 +255,53 @@ function Fila({ acuerdo, destacar }: { acuerdo: AcuerdoConSala; destacar: Props[
           {congelado ? 'Congelado' : ETIQUETA_ESTATUS[acuerdo.estatus]}
         </span>
         <Estrella acuerdoId={acuerdo.id} destacado={acuerdo.destacado} destacar={destacar} />
+        {eliminar && <Eliminar acuerdoId={acuerdo.id} eliminar={eliminar} />}
       </div>
     </li>
+  )
+}
+
+/**
+ * BORRAR EN DOS TIEMPOS, con el mismo gesto que la sala (`AcuerdoControles`):
+ * la × abre la confirmación en el propio sitio y "Borrar" la ejecuta. Sin
+ * diálogo del navegador, que bloquea la página entera para preguntar una cosa.
+ *
+ * No es lo mismo que "Cancelado", que sigue siendo un estatus: un acuerdo
+ * cancelado existió y se dejó sin efecto; uno borrado nunca debió existir —un
+ * duplicado, una línea que la IA sacó de una transcripción y no era un
+ * acuerdo—. Por eso no hay papelera y por eso se pregunta.
+ */
+function Eliminar({ acuerdoId, eliminar }: { acuerdoId: string; eliminar: NonNullable<Props['eliminar']> }) {
+  const [confirmando, setConfirmando] = useState(false)
+  const [pendiente, empezar] = useTransition()
+
+  if (!confirmando) {
+    return (
+      <button
+        type="button"
+        className={estilos.botonIconoBorrar}
+        onClick={() => setConfirmando(true)}
+        title="Eliminar acuerdo"
+        aria-label="Eliminar acuerdo"
+      >
+        ×
+      </button>
+    )
+  }
+
+  return (
+    <span className={estilos.confirmarBorrado}>
+      <button
+        type="button"
+        className={estilos.botonBorrar}
+        disabled={pendiente}
+        onClick={() => empezar(async () => { await eliminar(acuerdoId) })}
+      >
+        Borrar
+      </button>
+      <button type="button" className={estilos.botonCancelarBorrado} onClick={() => setConfirmando(false)}>
+        No
+      </button>
+    </span>
   )
 }

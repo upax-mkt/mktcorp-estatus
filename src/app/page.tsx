@@ -18,7 +18,7 @@ import { destacarAction } from '@/app/acuerdos/acciones'
 import { crearReunion, listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
 import { tituloPorDefecto } from '@/db/documentos'
 import { registrarEdicion } from '@/db/participacion'
-import { directorio } from '@/db/personas'
+import { genteParaResponsable } from '@/db/personas'
 import { moldeDeMinuta, guardarMoldeDeMinuta } from '@/db/plantillas'
 import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaBreve, textoDiasDesde, diasHasta, diaCivil, instanteEnCDMX } from '@/lib/fecha'
@@ -213,8 +213,8 @@ export default async function Hub() {
     pulsoDelMes(),
     listarReuniones(),
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
-    // MinutaCliente — directorio() ya aguanta Monday caído.
-    directorio(),
+    // MinutaCliente — genteParaResponsable() ya aguanta Monday caído.
+    genteParaResponsable(),
     // Ronda 9, tarea 3: si quien mira el Home administra Marketing
     // Corporativo, para enseñar el enlace a /personas en la barra — solo
     // cosmética (esa pantalla vuelve a exigir admin ella sola), pero no tiene

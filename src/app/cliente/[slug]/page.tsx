@@ -29,7 +29,7 @@ import {
   moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
   type EstatusAcuerdo,
 } from '@/db/acuerdos'
-import { directorio } from '@/db/personas'
+import { genteParaResponsable } from '@/db/personas'
 import { participantesDe, registrarEdicion, type Participante } from '@/db/participacion'
 import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
@@ -219,7 +219,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const s = await estadoDeSala(slug)
   if (!s) notFound()
   // Se resuelve ANTES del Promise.all de abajo (y no dentro) porque decide
-  // si se pide `directorio()` — necesita el valor YA resuelto, no una
+  // si se pide `genteParaResponsable()` — necesita el valor YA resuelto, no una
   // promesa hermana que todavía no corrió. `esLector()` y no la vieja
   // `esEquipo()` (retirada, corrección post-revisión de la ronda 9): esta
   // variable solo condiciona VISIBILIDAD (qué se pinta, si se carga el
@@ -249,7 +249,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      * `src/proxy.ts`, que canjea `?acceso=<token>` por la cookie de sesión)
      * aunque se GENERE en `cliente/[slug]/ajustes/page.tsx` desde la ronda
      * 11, tarea 4 — las dos mitades son independientes: dónde se firma un
-     * token no cambia cómo se verifica. Antes `directorio()`
+     * token no cambia cómo se verifica. Antes `genteParaResponsable()`
      * —los nombres Y CORREOS de las 24 personas de Mkt Corp— se pedía
      * siempre, sin condicionar a quién mira, y viajaba entero al HTML/RSC de
      * la página en cuanto algo lo renderizaba (`editaAcuerdos` es cierto
@@ -262,7 +262,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      * poder asignar directo a alguien de Mkt Corp, y eso Mkt Corp lo puede
      * corregir después (ver FilaBandeja, ahora editable en sitio).
      */
-    equipo ? directorio() : Promise.resolve([]),
+    equipo ? genteParaResponsable() : Promise.resolve([]),
   ])
   // Fuente única de "qué día es hoy" (src/lib/fecha.ts) — la reutilizan
   // `enPreparacion` (aquí abajo), `pendientesDeMinuta` y `porConfirmar`, más
@@ -913,7 +913,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * QUIÉN PREPARÓ Y QUIÉN PRESENTÓ CADA REUNIÓN, junto a cada una en la sala
    * (ronda 10) — SOLO EQUIPO, con el mismo `equipo` de arriba (`esLector()`).
    *
-   * Mismo razonamiento que `directorio()` unas líneas más arriba, y mismo
+   * Mismo razonamiento que `genteParaResponsable()` unas líneas más arriba, y mismo
    * agujero que ya se cerró en `/reunion/[id]`: la guarda no puede estar
    * solo en lo que se PINTA —`ReunionesSala` es `'use client'`, y lo que
    * un Server Component le pasa de prop se serializa en el payload aunque el
