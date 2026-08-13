@@ -66,3 +66,38 @@
 @media (prefers-reduced-motion: reduce) {
   .plegable > summary::after { transition: none; }
 }
+
+/* ══ UNA SECCIÓN PLEGADA SE VISTE DE SU MARCA ═════════════════════════════
+   Franco: *"los módulos que estén colapsados, como el de analytics, deberían
+   estar de un color como el de la cabecera degradado, y si se expande cambiar
+   al color blanco normal como está ahora"*.
+
+   Cerrada, una sección es UN RENGLÓN: una tarjeta blanca con un título dentro
+   de una página de tarjetas blancas, indistinguible de las que sí tienen
+   contenido a la vista. Con el degradado de la marca se lee de un vistazo qué
+   está guardado y qué está abierto.
+
+   `:has()` y no una clase: quien decide si está abierta es el `<details>`, y
+   el navegador ya lo sabe. Una clase habría que sincronizarla desde React con
+   el estado que el propio elemento ya tiene — y quedaría desfasada en cuanto
+   alguien lo pliegue sin pasar por nuestro código.
+
+   EL DEGRADADO SALE DE LA SALA (`--gradiente`, que pone la página en su
+   `.app`). Fuera de una sala esa variable no existe y el fallback deja la
+   tarjeta como está: en el Home los módulos plegados siguen blancos, que es
+   correcto — allí no hay una marca que vestir. */
+.seccion:has(> .plegable:not([open])) {
+  background: var(--gradiente, var(--papel));
+  /* `--hero-texto` es el color validado contra la superficie oscura de esa
+     marca; es el mismo que ya usa la franja de datos bajo el logotipo. */
+  color: var(--hero-texto, var(--tinta));
+}
+.seccion:has(> .plegable:not([open])) .titulo { color: inherit; }
+.seccion:has(> .plegable:not([open])) .titulo svg { color: inherit; opacity: 0.9; }
+.seccion:has(> .plegable:not([open])) .conteo { color: inherit; opacity: 0.75; }
+.seccion:has(> .plegable:not([open])) > .plegable > summary::after { color: inherit; }
+/* El foco tiene que verse también sobre el degradado, donde `--marca` puede
+   ser justo uno de los colores del fondo. */
+.seccion:has(> .plegable:not([open])) > .plegable > summary:focus-visible {
+  outline-color: currentColor;
+}

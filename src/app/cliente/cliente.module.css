@@ -1853,11 +1853,15 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   border-bottom: 1px solid color-mix(in oklch, var(--linea) 60%, transparent);
 }
 .menuLista {
-  /* El mismo carril que `.main`, para que las pestañas arranquen alineadas
-     con las tarjetas y no floten sobre el papel. */
+  /* El mismo carril que `.main`. */
   max-width: 1080px; margin: 0 auto;
-  padding: 0 clamp(1rem, 4vw, 2.5rem);
-  display: flex; gap: 1.4rem; list-style: none;
+  /* MÁS AIRE Y CENTRADO (Franco: *"al submenú siento que le falta espaciado,
+     está muy pegado, y tal vez debe ir al centro"*). Iba pegado al borde
+     izquierdo del carril con 1,4 rem entre pestañas: seis entradas cortas
+     amontonadas a un lado de una franja de 1080 px. */
+  padding: 0.2rem clamp(1rem, 4vw, 2.5rem);
+  display: flex; gap: 2.2rem; list-style: none;
+  justify-content: center;
   /* NO ENVUELVE: en móvil se desliza. Seis entradas en dos líneas empujarían
      el contenido cada vez que la barra se pega. */
   overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity;
@@ -1874,8 +1878,8 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    misma pestaña, con su conteo al lado. */
 .menuEnlace {
   display: inline-flex; align-items: center; gap: 0.4rem;
-  /* 44 px de alto sumando el padding: objetivo táctil, no decoración. */
-  padding: 0.85rem 0 0.7rem;
+  /* 48 px de alto sumando el padding: objetivo táctil, y el aire que pedía. */
+  padding: 1rem 0 0.85rem;
   font-size: 0.86rem; font-weight: 550; letter-spacing: var(--track-normal);
   color: var(--tx-2); text-decoration: none; white-space: nowrap;
   /* Borde transparente por defecto y no uno que aparezca al activarse:
@@ -1896,6 +1900,13 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .menuEnlace[aria-current] .menuConteo { color: var(--marca-texto, var(--marca)); }
 @media (prefers-reduced-motion: reduce) { .menuEnlace { transition: none; } }
+/* CENTRADO SOLO CUANDO CABE. En una pantalla donde el riel se desliza,
+   `justify-content: center` deja la primera pestaña recortada por la izquierda
+   y sin forma de alcanzarla: el contenido centrado de un contenedor con scroll
+   no se puede llevar a su inicio. Ahí manda el orden de lectura. */
+@media (max-width: 900px) {
+  .menuLista { justify-content: flex-start; gap: 1.5rem; }
+}
 
 /* Que la cabecera de la sección no acabe DEBAJO de las barras al saltar
    (WCAG 2.4.11). 62 de la barra + el alto del riel + aire. */
