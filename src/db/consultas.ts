@@ -27,6 +27,7 @@ import type {
   EstadoSala,
   PulsoDelMes,
 } from '@/dominio/salas'
+import { documentoCuentaComoPresentacion } from '@/dominio/reunion'
 import type { AcuerdoDeReunion, CaraArchivo, Minuta, Reunion } from '@/dominio/reunion'
 
 export type {
@@ -202,6 +203,12 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
 
   const hoyCivil = diaCivil(ahora.toISOString())
 
+  /** Cuántas secciones tiene cada documento, de los items que ya se pidieron. */
+  const seccionesPorDocumento = new Map<string, number>()
+  for (const item of itemsRows) {
+    seccionesPorDocumento.set(item.documentoId, (seccionesPorDocumento.get(item.documentoId) ?? 0) + 1)
+  }
+
   // La base de cada reunión —sin archivos, minuta ni acuerdos todavía—, tal
   // como la pide `reunionesDeSala` (`dominio/reunion.ts`). `documentoListo`,
   // no `Boolean(documentoId)`: en los datos reales casi toda reunión tiene
@@ -216,7 +223,14 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     estado: r.estado,
     noDadaEn: r.noDadaEn ? r.noDadaEn.toISOString() : null,
     documentoId: r.documentoId ?? undefined,
-    documentoListo: r.documentoEstado === 'listo',
+    // `documentoCuentaComoPresentacion` y no `estado === 'listo'` a secas
+    // (ronda 13): un documento LISTO Y VACÍO no es una presentación — ver el
+    // porqué en `dominio/reunion.ts`. Las secciones se cuentan de `itemsRows`,
+    // que esta misma consulta ya trajo para la barra de avance.
+    documentoListo: documentoCuentaComoPresentacion(
+      r.documentoEstado,
+      r.documentoId ? seccionesPorDocumento.get(r.documentoId) ?? 0 : 0,
+    ),
   }))
 
   const archivos: Array<CaraArchivo & { reunionId: string }> = archivosRows.map((a) => ({

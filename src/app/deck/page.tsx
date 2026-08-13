@@ -8,7 +8,7 @@ import { documentoDeReunion, eliminarDocumentoDeReunion, type DocumentoCompleto 
 import { obtenerMinuta } from '@/db/minutas'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
-import { fueDada, type Reunion } from '@/dominio/reunion'
+import { fueDada, documentoCuentaComoPresentacion, type Reunion } from '@/dominio/reunion'
 import { diaCivil, fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
@@ -58,7 +58,10 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
     tipo: r.tipo,
     estado: r.estado,
     noDadaEn: r.noDadaEn,
-    documentoListo: documento?.estado === 'listo',
+    // Ronda 13: un documento LISTO pero SIN secciones no es una presentación
+    // (ver `dominio/reunion.ts`). Aquí el documento llega entero, así que las
+    // secciones son sus items.
+    documentoListo: documentoCuentaComoPresentacion(documento?.estado, documento?.items.length ?? 0),
     archivos: Array.from({ length: r.archivos }, (_, i) => ({
       id: `${r.id}-archivo-${i}`,
       titulo: '',

@@ -494,6 +494,29 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     return {}
   }
 
+  /**
+   * TIRAR EL BORRADOR DE UNA PRESENTACIÓN, sin tocar su reunión (ronda 13).
+   *
+   * Franco: *"aparece un elemento llamado 'documento', no sé qué hace ahí y no
+   * lo puedo eliminar"*. La acción existía —`descartarPresentacionAction`—
+   * pero solo DENTRO del editor, y para llegar allí hay que abrir
+   * `/deck/<id>`, que CREA el documento si no existe: el único camino para
+   * deshacerse de uno pasaba por garantizar que hubiera uno.
+   *
+   * Se comprueba que la reunión sea de ESTA sala en el servidor, como el
+   * borrado de acuerdos y el de reuniones: el id llega del navegador.
+   */
+  async function descartarBorradorAction(reunionId: string) {
+    'use server'
+    await exigirEditor()
+    const reunion = await obtenerReunion(reunionId)
+    if (!reunion || reunion.salaSlug !== slug) return
+    await eliminarDocumentoDeReunion(reunionId)
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/')
+    revalidatePath('/deck')
+  }
+
   async function eliminarAcuerdoAction(acuerdoId: string) {
     'use server'
     await exigirEditor()
@@ -1330,6 +1353,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             registrarArchivoAction={registrarArchivoAction}
             editarArchivoAction={editarArchivoAction}
             eliminarReunionAction={eliminarReunionAction}
+            descartarBorradorAction={equipo ? descartarBorradorAction : undefined}
             marcarDadaAction={marcarPresentadaAction}
           />
 

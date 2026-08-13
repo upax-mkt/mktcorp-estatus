@@ -98,6 +98,12 @@ interface Props {
    * ella no se ofrece el lápiz, ni para equipo.
    */
   editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
+  /**
+   * TIRAR EL BORRADOR DE LA PRESENTACIÓN sin tocar la reunión (ronda 13).
+   * Opcional: sin ella no se ofrece la acción — un botón sin manejador es
+   * peor que no ofrecerla, defecto que esta pantalla ya tuvo una vez.
+   */
+  descartarBorradorAction?: (reunionId: string) => Promise<void>
 }
 
 export function CarasDeReunion({
@@ -107,6 +113,7 @@ export function CarasDeReunion({
   compacta,
   onSubirPresentacion,
   editarArchivoAction,
+  descartarBorradorAction,
 }: Props) {
   return (
     <div className={compacta ? estilos.carasCompactas : estilos.caras}>
@@ -115,6 +122,7 @@ export function CarasDeReunion({
         equipo={equipo}
         onSubirPresentacion={onSubirPresentacion}
         editarArchivoAction={editarArchivoAction}
+        descartarBorradorAction={descartarBorradorAction}
       />
       <CaraMinuta reunion={reunion} equipo={equipo} onLeerMinuta={onLeerMinuta} />
     </div>
@@ -132,12 +140,23 @@ function CaraPresentacion({
   equipo,
   onSubirPresentacion,
   editarArchivoAction,
+  descartarBorradorAction,
 }: {
   reunion: Reunion
   equipo: boolean
   onSubirPresentacion?: () => void
   editarArchivoAction?: (id: string, cambios: { titulo: string }) => Promise<void>
+  descartarBorradorAction?: (reunionId: string) => Promise<void>
 }) {
+  /**
+   * HAY UN BORRADOR QUE NO ES LA PRESENTACIÓN: existe el documento pero no
+   * cuenta como tal —está a medias, o vacío porque alguien abrió el editor y
+   * salió—. Solo entonces se ofrece tirarlo desde aquí; si el documento SÍ es
+   * la presentación, descartarlo es tirar lo que la UDN tiene que ver, y eso
+   * sigue viviendo en el editor, donde se está mirando lo que se borra.
+   */
+  const borradorDescartable =
+    equipo && Boolean(descartarBorradorAction) && seEstaArmando(reunion) && !reunion.documentoListo
   if (!tienePresentacion(reunion)) {
     if (!equipo) return <span className="pildora">Sin presentación</span>
     /**
@@ -148,9 +167,14 @@ function CaraPresentacion({
      */
     if (seEstaArmando(reunion)) {
       return (
-        <Link href={`/deck/${reunion.id}`} className={estilos.caraAccion}>
-          Seguir editando →
-        </Link>
+        <>
+          <Link href={`/deck/${reunion.id}`} className={estilos.caraAccion}>
+            Seguir editando →
+          </Link>
+          {borradorDescartable && (
+            <DescartarBorrador reunionId={reunion.id} descartar={descartarBorradorAction!} />
+          )}
+        </>
       )
     }
     /**
@@ -198,7 +222,62 @@ function CaraPresentacion({
           editarArchivoAction={editarArchivoAction}
         />
       ))}
+      {/* Una reunión puede tener su presentación SUBIDA y además un documento
+          a medias colgando —el caso que reportó Franco en la de junio de
+          Marketing United—. Ahí ese borrador ya no se pinta como presentación,
+          así que sin esto no habría ningún camino para deshacerse de él. */}
+      {borradorDescartable && (
+        <DescartarBorrador reunionId={reunion.id} descartar={descartarBorradorAction!} />
+      )}
     </>
+  )
+}
+
+/**
+ * Tirar el borrador, en dos tiempos. Lo que se pierde es el documento; la
+ * reunión, sus archivos, su minuta y sus acuerdos se quedan — la distinción
+ * que Franco marcó en la ronda anterior: *"si estoy en el editor y quiero
+ * eliminar lo que estoy trabajando no puede eliminar la reunión, son cosas
+ * distintas"*.
+ */
+function DescartarBorrador({
+  reunionId,
+  descartar,
+}: {
+  reunionId: string
+  descartar: (reunionId: string) => Promise<void>
+}) {
+  const [confirmando, setConfirmando] = useState(false)
+  const [pendiente, empezar] = useTransition()
+
+  if (!confirmando) {
+    return (
+      <button
+        type="button"
+        className={estilos.caraDescartar}
+        onClick={() => setConfirmando(true)}
+        title="Tirar el borrador de la presentación; la reunión se queda"
+      >
+        Descartar borrador
+      </button>
+    )
+  }
+
+  return (
+    <span className={estilos.caraConfirmar}>
+      <span className={estilos.caraConfirmarTexto}>¿Tirar el borrador?</span>
+      <button
+        type="button"
+        className={estilos.caraBorrar}
+        disabled={pendiente}
+        onClick={() => empezar(async () => { await descartar(reunionId) })}
+      >
+        Borrar
+      </button>
+      <button type="button" className={estilos.caraNo} onClick={() => setConfirmando(false)}>
+        No
+      </button>
+    </span>
   )
 }
 

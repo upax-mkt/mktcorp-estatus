@@ -139,6 +139,12 @@ interface Props {
    */
   eliminarReunionAction?: (id: string) => Promise<{ error?: string }>
   /**
+   * Tirar el BORRADOR de la presentación sin tocar la reunión (ronda 13). Se
+   * reenvía tal cual a `CarasDeReunion`, que decide cuándo tiene sentido
+   * ofrecerlo — aquí no se duplica esa regla.
+   */
+  descartarBorradorAction?: (reunionId: string) => Promise<void>
+  /**
    * CERRAR EL CICLO: dar por dada una reunión cuya presentación ya está
    * lista (Franco: *"debería ofrecerme… finalizar o marcar como completada,
    * ya que el journey se cumplió, y pasar al grupo que le corresponda"*).
@@ -161,6 +167,7 @@ export function ReunionesSala({
   registrarArchivoAction,
   editarArchivoAction,
   eliminarReunionAction,
+  descartarBorradorAction,
   marcarDadaAction,
 }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
@@ -324,6 +331,7 @@ export function ReunionesSala({
           onLeerMinuta={() => setAbierta(ultima)}
           onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(ultima) : undefined}
           editarArchivoAction={editarArchivoAction}
+          descartarBorradorAction={descartarBorradorAction}
         />
         {subiendoReunionId === ultima.id && (
           <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
@@ -368,6 +376,7 @@ export function ReunionesSala({
                   onLeerMinuta={() => setAbierta(r)}
                   onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
                   editarArchivoAction={editarArchivoAction}
+                  descartarBorradorAction={descartarBorradorAction}
                   compacta
                 />
                 {subiendoReunionId === r.id && (

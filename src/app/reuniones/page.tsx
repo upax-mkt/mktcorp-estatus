@@ -12,7 +12,9 @@ import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacio
 import { PanelAgenda, type SesionAgendada } from '@/componentes/agenda/PanelAgenda'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import type { SesionPorConfirmar } from '@/dominio/salas'
-import { reunionesPorConfirmar, reunionesMinutables, type Reunion } from '@/dominio/reunion'
+import {
+  reunionesPorConfirmar, reunionesMinutables, documentoCuentaComoPresentacion, type Reunion,
+} from '@/dominio/reunion'
 import { fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
 import {
   agendarReunionAction, editarReunionAction,
@@ -124,7 +126,10 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
     tipo: r.tipo,
     estado: r.estado,
     noDadaEn: r.noDadaEn,
-    documentoListo: documento?.estado === 'listo',
+    // Ronda 13: un documento LISTO pero SIN secciones no es una presentación
+    // (ver `dominio/reunion.ts`). Aquí el documento llega entero, así que las
+    // secciones son sus items.
+    documentoListo: documentoCuentaComoPresentacion(documento?.estado, documento?.items.length ?? 0),
     archivos: Array.from({ length: r.archivos }, (_, i) => ({
       id: `${r.id}-archivo-${i}`,
       titulo: '',

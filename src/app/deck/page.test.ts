@@ -75,8 +75,29 @@ function reunion(datos: Partial<ReunionResumen> & { id: string }): ReunionResume
   }
 }
 
+/**
+ * Un documento TERMINADO — y con contenido dentro.
+ *
+ * ⚠️ Llevaba `items: []`, y desde la ronda 13 eso ya no es un documento
+ * terminado sino uno FANTASMA: `documentoCuentaComoPresentacion` exige estado
+ * `listo` Y al menos una sección, justo para que un deck vacío no se ofrezca
+ * como presentación (ver `dominio/reunion.ts` y el caso real de la reunión de
+ * junio de Marketing United). El doble tenía que decir lo que dice su nombre:
+ * un item basta.
+ */
 function documentoListo(): DocumentoCompleto {
-  return { id: 'doc', reunionId: 'r', estado: 'listo', plantilla: null, items: [] }
+  return {
+    id: 'doc',
+    reunionId: 'r',
+    estado: 'listo',
+    plantilla: null,
+    items: [
+      {
+        id: 'i1', orden: 0, tipo: 'texto', titulo: 'Resumen', pregunta: '',
+        contenido: {}, llenado: true, esBase: true, resultado: null,
+      },
+    ] as unknown as DocumentoCompleto['items'],
+  }
 }
 
 // "Hoy" real del sistema (sin fake timers, mismo criterio que

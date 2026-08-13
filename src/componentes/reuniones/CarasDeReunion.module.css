@@ -93,3 +93,35 @@
 }
 .caraCancelarEdicion:hover { color: var(--tinta); }
 .caraCancelarEdicion:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---- descartar el borrador de la presentación (ronda 13) ----
+   Franco, sobre la reunión de junio de Marketing United: *"aparece un elemento
+   llamado 'documento', no sé qué hace ahí y no lo puedo eliminar"*.
+
+   Es la acción MENOS importante de la tarjeta —se usa una vez, para limpiar—
+   así que se pinta como texto y no como las píldoras de al lado: nada de
+   borde ni fondo hasta que se pasa por encima. El peso visual dice para qué
+   está: no compite con "Documento" ni con la minuta, que son lo que la gente
+   viene a abrir. */
+.caraDescartar {
+  font: inherit; font-size: 0.78rem; color: var(--tinta-3);
+  padding: 0.4rem 0.3rem; background: none; border: none; cursor: pointer;
+  text-decoration: none; border-radius: var(--r-2);
+}
+.caraDescartar:hover { color: var(--mal); text-decoration: underline; }
+
+.caraConfirmar {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.25rem 0.3rem 0.25rem 0.6rem; border-radius: var(--r-lleno);
+  background: var(--mal-tenue);
+}
+.caraConfirmarTexto { font-size: 0.78rem; color: var(--tinta-2); }
+.caraBorrar {
+  font: inherit; font-size: 0.76rem; font-weight: 600;
+  padding: 0.25rem 0.6rem; border: none; border-radius: var(--r-lleno);
+  color: var(--papel); background: var(--mal); cursor: pointer;
+}
+.caraNo {
+  font: inherit; font-size: 0.76rem; color: var(--tinta-2);
+  padding: 0.25rem 0.4rem; background: none; border: none; cursor: pointer;
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   reunionesDeSala, fueDada, tienePresentacion, reunionesMinutables, reunionesPorConfirmar,
-  reunionesPorVenir, historialDeReuniones, seEstaArmando,
+  reunionesPorVenir, historialDeReuniones, seEstaArmando, documentoCuentaComoPresentacion,
   type Reunion,
 } from './reunion'
 
@@ -293,5 +293,36 @@ describe('seEstaArmando', () => {
 
   it('un documento a medio armar cuenta, aunque no esté listo', () => {
     expect(seEstaArmando({ ...base, documentoId: 'doc-1', documentoListo: false })).toBe(true)
+  })
+})
+
+/**
+ * EL DOCUMENTO FANTASMA (ronda 13, 13-ago). Franco, sobre la reunión de junio
+ * de Marketing United: *"aparece un elemento llamado 'documento', no sé qué
+ * hace ahí y no lo puedo eliminar"*.
+ *
+ * Lo que había: un documento en estado `listo` con CERO secciones —
+ * `{"items":[],"titulo":"Estatus Mensual Junio"}`, creado el 28-jul y nunca
+ * tocado—. `/deck/<id>` CREA el documento al abrirlo, así que basta con que
+ * alguien entrara a mirar para que la reunión quedara con una presentación
+ * que nadie armó, y la tarjeta la ofrecía como si tuviera contenido porque
+ * solo miraba el estado.
+ */
+describe('un documento vacío no es una presentación', () => {
+  it('listo y con secciones: sí cuenta', () => {
+    expect(documentoCuentaComoPresentacion('listo', 8)).toBe(true)
+  })
+
+  it('listo pero sin una sola sección: NO cuenta — no hay nada que enseñarle a la UDN', () => {
+    expect(documentoCuentaComoPresentacion('listo', 0)).toBe(false)
+  })
+
+  it('con secciones pero a medio armar: tampoco — ese umbral no cambia', () => {
+    expect(documentoCuentaComoPresentacion('borrador', 8)).toBe(false)
+  })
+
+  it('sin documento: no cuenta', () => {
+    expect(documentoCuentaComoPresentacion(null, 0)).toBe(false)
+    expect(documentoCuentaComoPresentacion(undefined, 3)).toBe(false)
   })
 })

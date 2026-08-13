@@ -203,6 +203,33 @@ export function fueDada(r: Reunion, hoyCivil: string): boolean {
 }
 
 /**
+ * ¿EL DOCUMENTO DE UNA REUNIÓN CUENTA COMO SU PRESENTACIÓN? (ronda 13)
+ *
+ * Franco, sobre la reunión de junio de Marketing United: *"aparece un
+ * elemento llamado 'documento', no sé qué hace ahí y no lo puedo eliminar"*.
+ * Y tenía razón en las dos mitades: ese documento estaba en estado `listo`
+ * con CERO secciones, creado el 28-jul y nunca tocado.
+ *
+ * De dónde salen esos fantasmas: **`/deck/<id>` crea el documento al
+ * abrirlo** (así el editor siempre tiene sobre qué escribir), de modo que
+ * basta con que alguien entrara a mirar para que la junta quedara con una
+ * presentación que nadie armó. Hasta aquí el umbral era solo
+ * `estado === 'listo'`, y un documento vacío marcado listo pasaba por
+ * presentación: la tarjeta ofrecía «Documento» y detrás no había nada.
+ *
+ * El estado sigue mandando —un documento a medias no se le enseña a la
+ * UDN—, pero ahora además tiene que **tener algo dentro**. Las dos
+ * condiciones dicen cosas distintas: el estado es una decisión ("con esto se
+ * presenta") y las secciones son un hecho.
+ */
+export function documentoCuentaComoPresentacion(
+  estado: string | null | undefined,
+  secciones: number,
+): boolean {
+  return estado === 'listo' && secciones > 0
+}
+
+/**
  * ¿Hay algo que enseñarle a la UDN como "la presentación de esa junta"? Un
  * documento a medio maquetar todavía no lo es — por eso `documentoListo` y no
  * `documentoId`, igual que en `fueDada`. De esto depende que la Tarea 9 pinte

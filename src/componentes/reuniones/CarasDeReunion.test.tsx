@@ -344,3 +344,72 @@ describe('CarasDeReunion — cuándo se ofrece levantar la minuta', () => {
     expect(screen.getByRole('link', { name: /levantar minuta/i })).toBeInTheDocument()
   })
 })
+
+/**
+ * DESCARTAR EL BORRADOR DESDE LA SALA (ronda 13). Franco, sobre la reunión de
+ * junio de Marketing United: *"aparece un elemento llamado 'documento', no sé
+ * qué hace ahí y no lo puedo eliminar"*.
+ *
+ * Eran dos cosas: un documento vacío se ofrecía como presentación (arreglado
+ * en `dominio/reunion.ts`) y "Descartar presentación" solo existía DENTRO del
+ * editor — para llegar había que entrar a `/deck/<id>`, que además CREA el
+ * documento si no está, así que el camino para deshacerse de uno pasaba por
+ * garantizar que existiera.
+ */
+describe('descartar el borrador desde la sala', () => {
+  const conBorrador = REUNION({
+    documentoId: 'doc-1',
+    documentoListo: false,
+    archivos: [ARCHIVO_PDF],
+  })
+
+  it('a quien solo mira no se le ofrece', () => {
+    render(<CarasDeReunion reunion={conBorrador} equipo={false} onLeerMinuta={vi.fn()} descartarBorradorAction={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: /descartar/i })).toBeNull()
+  })
+
+  it('sin la acción no se pinta el botón: uno sin manejador es peor que ninguno', () => {
+    render(<CarasDeReunion reunion={conBorrador} equipo onLeerMinuta={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: /descartar/i })).toBeNull()
+  })
+
+  it('el equipo lo descarta, y se le pregunta antes', async () => {
+    const usuario = userEvent.setup()
+    const descartar = vi.fn().mockResolvedValue(undefined)
+    render(<CarasDeReunion reunion={conBorrador} equipo onLeerMinuta={vi.fn()} descartarBorradorAction={descartar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /descartar/i }))
+    expect(descartar).not.toHaveBeenCalled()
+    await usuario.click(screen.getByRole('button', { name: /^borrar$/i }))
+    expect(descartar).toHaveBeenCalledWith('r1')
+  })
+
+  /**
+   * Si el documento ES la presentación, descartarlo desde aquí sería tirar lo
+   * que la UDN tiene que ver, a un clic y sin contexto. Eso sigue viviendo en
+   * el editor, donde se está mirando lo que se borra.
+   */
+  it('un documento LISTO no se descarta desde la sala', () => {
+    render(
+      <CarasDeReunion
+        reunion={{ ...conBorrador, documentoListo: true }}
+        equipo
+        onLeerMinuta={vi.fn()}
+        descartarBorradorAction={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /descartar/i })).toBeNull()
+  })
+
+  it('y sin documento tampoco hay nada que descartar', () => {
+    render(
+      <CarasDeReunion
+        reunion={{ ...conBorrador, documentoId: undefined }}
+        equipo
+        onLeerMinuta={vi.fn()}
+        descartarBorradorAction={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /descartar/i })).toBeNull()
+  })
+})
