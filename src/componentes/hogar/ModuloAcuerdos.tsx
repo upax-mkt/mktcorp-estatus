@@ -75,10 +75,16 @@ interface Props {
   destacarAction: (id: string, destacado: boolean) => Promise<void>
   cambiarEstatusAction: (id: string, estatus: EstatusAcuerdo) => Promise<void>
   ponerFechaAction: (id: string, fecha: string | null) => Promise<void>
+  /**
+   * Hoy, en día civil. Para que la fecha se tiña igual que en la sala (ronda
+   * 13): el mismo acuerdo tiene que verse igual en las dos pantallas — es la
+   * razón por la que esta fila se extrajo a un componente compartido.
+   */
+  hoyCivil?: string
 }
 
 export function ModuloAcuerdos({
-  destacados, vencidos, total, destacarAction, cambiarEstatusAction, ponerFechaAction,
+  destacados, vencidos, total, destacarAction, cambiarEstatusAction, ponerFechaAction, hoyCivil,
 }: Props) {
   if (total === 0) {
     return (
@@ -162,6 +168,7 @@ export function ModuloAcuerdos({
                   destacarAction={destacarAction}
                   cambiarEstatusAction={cambiarEstatusAction}
                   ponerFechaAction={ponerFechaAction}
+                  hoyCivil={hoyCivil}
                 />
               ))}
             </ul>
@@ -186,6 +193,7 @@ export function ModuloAcuerdos({
                 destacarAction={destacarAction}
                 cambiarEstatusAction={cambiarEstatusAction}
                 ponerFechaAction={ponerFechaAction}
+                hoyCivil={hoyCivil}
               />
             ))}
           </ul>
@@ -212,11 +220,13 @@ function Fila({
   destacarAction,
   cambiarEstatusAction,
   ponerFechaAction,
+  hoyCivil,
 }: {
   acuerdo: AcuerdoConSala
   destacarAction: Props['destacarAction']
   cambiarEstatusAction: Props['cambiarEstatusAction']
   ponerFechaAction: Props['ponerFechaAction']
+  hoyCivil?: string
 }) {
   const [pendiente, empezar] = useTransition()
   const [editandoFecha, setEditandoFecha] = useState(false)
@@ -224,6 +234,7 @@ function Fila({
   return (
     <FilaAcuerdo
       acuerdo={acuerdo}
+      hoyCivil={hoyCivil}
       // El Home cruza nueve salas: aquí SÍ hace falta decir de quién es.
       sala={{ slug: acuerdo.salaSlug, nombre: acuerdo.salaNombre, color: acuerdo.salaColor }}
       // El ancla de la reunión de origen, con la URL completa de SU sala: la

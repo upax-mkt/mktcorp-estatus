@@ -489,6 +489,7 @@ export default async function Hub() {
             destacarAction={destacarAction}
             cambiarEstatusAction={cambiarEstatusAction}
             ponerFechaAction={ponerFechaAction}
+            hoyCivil={hoyCivil}
           />
           {/* AGENDAR RÁPIDO (tarea 14), junto al calendario — Franco, literal:
               "el calendario (no lo desaparezcas del home), más sí debe haber

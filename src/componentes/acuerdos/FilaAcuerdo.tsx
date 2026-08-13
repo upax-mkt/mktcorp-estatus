@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fechaBreve } from '@/lib/fecha'
+import { tonoDeVencimiento } from '@/dominio/orden-acuerdos'
 import { colorDeTextoDeMarca } from '@/temas'
 import estilos from '@/app/cliente/cliente.module.css'
 import type { ReactNode, CSSProperties } from 'react'
@@ -65,13 +66,27 @@ export const ETIQUETA_ESTADO: Record<DatosFilaAcuerdo['estatus'], string> = {
   vencido: 'Vencido',
 }
 
-/** La fecha del compromiso y con qué tono se escribe. */
-export function textoFechaAcuerdo(a: Pick<DatosFilaAcuerdo, 'fechaCompromiso' | 'estatus'>): {
-  txt: string
-  clase: string
-} {
+/**
+ * La fecha del compromiso y con qué tono se escribe.
+ *
+ * CON `hoy`, LA FECHA ES UN SEMÁFORO (ronda 13). Franco: *"tal vez la fecha
+ * podría ir tiñéndose como semáforo"*. Rojo lo vencido, ámbar lo que cae
+ * dentro de la semana, verde lo que tiene margen — la regla y sus umbrales
+ * viven en `dominio/orden-acuerdos.ts`, no aquí.
+ *
+ * SIN `hoy` se comporta como antes (solo rojo para lo vencido): hay pantallas
+ * que pintan esta fila sin saber qué día es, y encender medio semáforo sería
+ * peor que no encenderlo.
+ */
+export function textoFechaAcuerdo(
+  a: Pick<DatosFilaAcuerdo, 'fechaCompromiso' | 'estatus'>,
+  hoyCivil?: string,
+): { txt: string; clase: string } {
   if (a.fechaCompromiso == null) return { txt: 'por definir', clase: 'pordef' }
-  return { txt: fechaBreve(a.fechaCompromiso), clase: a.estatus === 'vencido' ? 'vencida' : '' }
+  const clase = hoyCivil
+    ? tonoDeVencimiento(a.fechaCompromiso, a.estatus, hoyCivil)
+    : a.estatus === 'vencido' ? 'vencida' : ''
+  return { txt: fechaBreve(a.fechaCompromiso), clase }
 }
 
 interface Props {
@@ -89,15 +104,27 @@ interface Props {
   origen?: { href: string; fecha: string }
   /** Los controles de la derecha: los suyos pone cada pantalla. */
   children?: ReactNode
+  /**
+   * El día de hoy (civil, yyyy-mm-dd). Con él la fecha se pinta como semáforo
+   * y lo cumplido se apaga; sin él, la fila es la de siempre.
+   */
+  hoyCivil?: string
 }
 
-export function FilaAcuerdo({ acuerdo, texto, sala, origen, children }: Props) {
-  const f = textoFechaAcuerdo(acuerdo)
+export function FilaAcuerdo({ acuerdo, texto, sala, origen, children, hoyCivil }: Props) {
+  const f = textoFechaAcuerdo(acuerdo, hoyCivil)
   const claseEstado = acuerdo.congelado ? estilos.congelado : estilos[acuerdo.estatus]
+  /**
+   * LO CUMPLIDO SE APAGA. Franco: *"los que ya están cumplidos deberían pasar
+   * abajito y verse más chiquitos y grises, no como que se vean cumplidos"*.
+   * Bajarlos es cosa del orden (`ordenarAcuerdosDeSala`); esto es la otra
+   * mitad — se siguen leyendo, pero no compiten con lo que sí corre.
+   */
+  const apagado = acuerdo.estatus === 'cumplido'
 
   return (
     <div
-      className={estilos.acuerdo}
+      className={`${estilos.acuerdo}${apagado ? ` ${estilos.acuerdoApagado}` : ''}`}
       // El color de marca solo cuando hay sala que distinguir: dentro de una,
       // el filo de color sería el mismo en las nueve filas.
       style={

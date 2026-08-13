@@ -40,6 +40,7 @@ import {
 import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
+import { ordenarAcuerdosDeSala } from '@/dominio/orden-acuerdos'
 import { BenchmarkSala } from '@/componentes/BenchmarkSala'
 import { NotasDePrensa } from '@/componentes/NotasDePrensa'
 import { AnadirNotaDePrensa } from '@/componentes/AnadirNotaDePrensa'
@@ -1269,12 +1270,20 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             <p className={estilos.benchmarkNota}>Sin acuerdos registrados todavía.</p>
           ) : (
             <div className={estilos.acuerdos}>
-              {s.acuerdos.map((a) => {
+              {/* EL ORDEN LO DECIDE EL DOMINIO (ronda 13): lo que sigue vivo
+                  primero, por lo que vence antes, y lo cumplido al final —
+                  ver `ordenarAcuerdosDeSala`. Antes llegaban en el orden en
+                  que salían de la base, así que un compromiso entregado en
+                  mayo podía estar encima de uno que vence pasado mañana. */}
+              {ordenarAcuerdosDeSala(s.acuerdos).map((a) => {
                 const origen = a.reunionOrigenId ? origenDeAcuerdo.get(a.reunionOrigenId) : undefined
                 return (
                   <FilaAcuerdo
                     key={a.id}
                     acuerdo={{ ...a, congelado: estaCongelado(a, s) }}
+                    // Con "hoy" la fecha se pinta como semáforo y lo cumplido
+                    // se apaga (ver `FilaAcuerdo`).
+                    hoyCivil={hoyCivil}
                     // Dentro de una sala no se dice de qué sala es: son todos
                     // de la misma. El Home sí lo pasa — ver `FilaAcuerdo`.
                     origen={origen ? { href: `#r-${origen.id}`, fecha: origen.fecha } : undefined}

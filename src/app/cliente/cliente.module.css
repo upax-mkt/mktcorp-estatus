@@ -211,8 +211,34 @@
 .acuerdoMeta { font-size: 0.8rem; color: var(--tx-2); margin-top: 0.35rem; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
 .acuerdoMeta .sep { color: var(--borde-fuerte); }
 .acuerdoFecha { font-variant-numeric: tabular-nums; }
+/* EL SEMÁFORO DE LA FECHA (ronda 13). Franco: *"tal vez la fecha podría ir
+   tiñéndose como semáforo"*. Rojo lo vencido, ámbar lo de esta semana, verde
+   lo que tiene margen; los umbrales viven en `dominio/orden-acuerdos.ts`.
+   Solo la fecha se tiñe —no la fila entera—: es el dato que cambia con el
+   tiempo, y pintar el renglón completo convertiría la lista en un arcoíris
+   compitiendo con el color de la UDN. */
 .acuerdoFecha.vencida { color: var(--alerta); font-weight: 600; }
+.acuerdoFecha.urgente { color: var(--tibia); font-weight: 600; }
+.acuerdoFecha.holgada { color: var(--ok); font-weight: 600; }
+/* Cumplida: la fecha ya no corre, así que no enciende ningún color. */
+.acuerdoFecha.apagada { color: var(--tx-3); }
 .acuerdoFecha.pordef { color: var(--tibia); font-weight: 600; }
+
+/* ---- LO CUMPLIDO, APAGADO (ronda 13) ----
+   Franco: *"los que ya están cumplidos deberían pasar abajito y verse más
+   chiquitos y grises, no como que se vean cumplidos"*.
+
+   Bajarlos es cosa del orden; esto es la otra mitad. Se encogen y pierden
+   color, pero NO se esconden: son la prueba de lo que sí se entregó, y en la
+   sala de un cliente eso también se consulta. El punto de estado y la etiqueta
+   pierden su verde por el mismo motivo — un compromiso hecho no necesita
+   celebrarse cada vez que alguien abre la página. */
+.acuerdoApagado { opacity: 0.62; }
+.acuerdoApagado .acuerdoQue { font-size: 0.88rem; font-weight: 450; color: var(--tx-2); }
+.acuerdoApagado .acuerdoMeta { font-size: 0.75rem; color: var(--tx-3); }
+.acuerdoApagado .acuerdoEstado.cumplido { background: var(--tx-4); }
+.acuerdoApagado .acuerdoBadge.cumplido { background: var(--superficie-2); color: var(--tx-3); }
+.acuerdoApagado:hover { opacity: 1; }
 .acuerdoBadge {
   align-self: center; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.04em; padding: 0.2rem 0.55rem; border-radius: 0.4rem; white-space: nowrap;
