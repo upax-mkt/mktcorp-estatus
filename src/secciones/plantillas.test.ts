@@ -30,4 +30,19 @@ describe('el catálogo de plantillas', () => {
       expect(p.items[0].layout).toBe('portada')
     }
   })
+
+  it('toda sección de toda plantilla declara su layout, no solo la primera', () => {
+    // `crearDocumentoConPlantilla` (src/db/documentos.ts) siembra el
+    // documento con `layout: d.layout` tal cual, sin red: un `layout`
+    // ausente nace en el editor como "falta un tipo de sección válido"
+    // desde el minuto uno, no como una sección lista para llenar. El test de
+    // arriba solo miraba `items[0]` (la portada) y por eso no cazó que al
+    // segundo item de `sync-comercial` le faltaba el suyo — este mira los
+    // items completos de las cinco plantillas.
+    for (const p of PLANTILLAS) {
+      for (const item of p.items) {
+        expect(item.layout, `${p.id} → ${item.tipo}`).toBeDefined()
+      }
+    }
+  })
 })

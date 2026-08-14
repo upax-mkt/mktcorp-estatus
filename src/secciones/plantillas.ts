@@ -144,6 +144,14 @@ export const PLANTILLAS: Plantilla[] = [
         tipo: 'acuerdos-pendientes',
         titulo: 'Acuerdos y Pendientes',
         pregunta: 'Qué quedó comprometido y quién lo lleva.',
+        // Mismo layout que ESTATUS_UDN le da a este mismo `tipo` (arriba,
+        // línea ~72): sin él, `crearDocumentoConPlantilla`
+        // (src/db/documentos.ts:586) siembra la sección con
+        // `layout: undefined`, y `tipoDeSeccion(undefined)` en
+        // `src/secciones/borrador.ts` la deja en "falta un tipo de sección
+        // válido" desde que nace la junta, no lista como promete el
+        // comentario de arriba.
+        layout: 'pendientes-semaforo',
       },
     ],
   },
