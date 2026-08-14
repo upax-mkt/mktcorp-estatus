@@ -56,3 +56,33 @@ describe('NuevaSesionSala — título opcional (deuda menor: el tercero de tres 
     )
   })
 })
+
+/**
+ * TASK 2 (ronda 14.2): el formulario pregunta qué junta es, no qué plantilla.
+ *
+ * Antes de esta ronda el desplegable ya no decía "plantilla" en su rótulo
+ * visible ("Qué reunión es"), pero seguía sin decir "junta" y seguía sin
+ * enseñar el `paraQue` del catálogo (`src/secciones/plantillas.ts`) — que es
+ * justo lo que permite elegir sin adivinar por el nombre. Y "Sync Comercial"
+ * (clase nueva, task 1 de esta ronda) tiene que aparecer en la lista: si el
+ * catálogo crece y este desplegable no lo refleja, la sala más usada de la
+ * app se queda un paso atrás del resto.
+ */
+describe('NuevaSesionSala — pregunta la clase de junta, no la plantilla (ronda 14.2, task 2)', () => {
+  it('pregunta qué junta es, no por una plantilla', async () => {
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    expect(screen.getByLabelText(/qué junta es/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/plantilla/i)).toBeNull()
+  })
+
+  it('ofrece el Sync Comercial entre las clases', async () => {
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    expect(screen.getByRole('option', { name: /sync comercial/i })).toBeInTheDocument()
+  })
+})
