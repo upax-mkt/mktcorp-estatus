@@ -1134,18 +1134,46 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
  * que el string llegue a la aserción — es la misma trampa que dejó este
  * defecto invisible meses.
  *
- * (El informe de la Tarea 6, en `.superpowers/sdd/…/task-6-report.md`, deja
- * escrito además que en la sala renderizada de verdad — `MaterialesSala` /
- * `NotasDePrensa`, que pintan `ArchivoSala.fecha` y no el `Date` crudo — esta
- * misma cancelación EN LA LECTURA se combina con el anclaje a mediodía UTC
- * de `instanteDe`, privado en `src/lib/fecha.ts`, para un día civil sin
- * hora: el resultado es que hoy nadie ve el día corrido en pantalla. Estos
- * dos tests no comprueban ESE render — comprueban que el `Date` que se
- * manda a guardar es el correcto, que es lo que pidió Franco y lo que deja
- * a la columna en un estado semánticamente correcto en vez de depender de
- * que dos casualidades de lectura lo sigan compensando.)
+ * NI SIQUIERA ESE RENDER SE VE AFECTADO HOY (ronda de arreglo 1/5, revisión
+ * final): la sala renderizada de verdad — `MaterialesSala` / `NotasDePrensa`,
+ * que pintan `ArchivoSala.fecha` y no el `Date` crudo — está protegida por
+ * DOS capas que se compensan entre sí y que esta tarea NO toca: al LEER,
+ * `desdeFila` (`src/db/archivos.ts:97`) pasa el `Date` guardado por su propio
+ * `isoFecha`, que trunca a día UTC (`d.toISOString().slice(0,10)`) y por
+ * tanto ya descarta la hora corrida; al PINTAR, `instanteDe` (privado,
+ * `src/lib/fecha.ts`) ancla ese día civil sin hora al MEDIODÍA UTC, lejos de
+ * cualquier frontera de día en cualquier zona con la que trabaja esta app.
+ * Esa doble compensación es justo lo que dejó el defecto invisible tanto
+ * tiempo — y es también la razón de que estos dos tests NO verifiquen el
+ * render (ya está a salvo por accidente de diseño): verifican que el `Date`
+ * que se manda a guardar sea el correcto por sí solo, sin depender de que
+ * esas dos casualidades de lectura lo sigan compensando — que es
+ * exactamente lo que pidió Franco y lo que informa
+ * `.superpowers/sdd/…/task-6-report.md`, con el print real que lo confirma.
+ *
+ * DE DÓNDE SALE `categoria: 'prensa'` EN EL PRIMER TEST — Y POR QUÉ NO ES EL
+ * CAMINO DE UNA NOTA DE PRENSA REAL (corrección de revisión, ronda de
+ * arreglo 1/5): el primer test llama a `registrarArchivoAction` —la Server
+ * Action GENÉRICA de la línea ~677, la misma que arregla esta tarea— y no a
+ * `registrarNotaDePrensaAction` (~línea 846), que es la que de verdad crea
+ * una nota de prensa desde `AnadirNotaDePrensa`. Esa segunda acción ya
+ * guardaba bien: usa `instanteEnCDMX(datos.fecha, '10:00')` desde el commit
+ * `8a35206` (ronda 13, cuando nació el módulo de Notas de Prensa) —
+ * confirmado con `git log -S` antes de escribir una sola línea de esta
+ * tarea, y NO se tocó. Y tampoco hay HOY un llamador real que le mande a
+ * `registrarArchivoAction` un día civil puro con `categoria: 'prensa'`: los
+ * materiales y los archivos de interés siempre mandan `fecha: null`
+ * (`registrarMaterialArchivoAction`/`registrarInteresArchivoAction`, arriba
+ * en este archivo) y el único llamador con `fecha` no nula es
+ * `ReunionesSala` ("+ Subir presentación"), que manda un INSTANTE completo,
+ * no un día civil — es justo lo que cubre el tercer test de este describe.
+ * `categoria: 'prensa'` aquí es solo un valor de relleno para el
+ * discriminador que la firma exige; el test ejercita la RAMA de día civil de
+ * la acción genérica, hoy sin ningún llamador real que la dispare — una
+ * comprobación defensiva sobre el código que esta tarea cambió, no una
+ * prueba de que "así se crea una nota de prensa".
  */
-describe('VistaSala (/cliente/[slug]) — la fecha de un archivo no se corre un día', () => {
+describe('VistaSala (/cliente/[slug]) — la rama de día civil de registrarArchivoAction/editarArchivoAction no se corre un día', () => {
   async function accionesCapturadas() {
     render(await invocar())
     const props = reunionesSalaPropsMock.mock.calls[0][0] as {
@@ -1164,14 +1192,17 @@ describe('VistaSala (/cliente/[slug]) — la fecha de un archivo no se corre un 
     return props
   }
 
-  it('la fecha de una nota de prensa se guarda en el día civil que se escribió', async () => {
+  it('registrarArchivoAction (genérica): un día civil YYYY-MM-DD se guarda en el mismo día — no es el camino real de una nota de prensa, ver el docblock de arriba', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
 
     const { registrarArchivoAction } = await accionesCapturadas()
     await registrarArchivoAction({
+      // `categoria: 'prensa'` es un valor de relleno, no el camino real: una
+      // nota de prensa de verdad nace en `registrarNotaDePrensaAction`
+      // (ya arreglada desde ronda 13), no aquí. Ver el docblock del describe.
       categoria: 'prensa',
-      titulo: 'Nota de prueba',
+      titulo: 'Prueba de la rama de día civil',
       fecha: '2026-09-01',
       ruta: '',
       nombreOriginal: '',
@@ -1180,12 +1211,15 @@ describe('VistaSala (/cliente/[slug]) — la fecha de un archivo no se corre un 
     })
 
     const guardada = registrarArchivoMock.mock.calls[0][0].fecha as Date
-    // En CDMX, no en UTC: es donde se pinta y donde se cae hoy.
+    // En CDMX, no en UTC: mismo criterio de aserción que la Tarea 2, aunque
+    // hoy el render de esta columna ya esté a salvo por otro motivo (ver
+    // docblock arriba) — la corrección que se comprueba es la del `Date`
+    // que se manda a guardar.
     expect(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(guardada))
       .toBe('2026-09-01') // NO '2026-08-31'
   })
 
-  it('la fecha de un material se guarda en el día civil que se escribió, se edite desde donde se edite', async () => {
+  it('editarArchivoAction (genérica, camino real de MaterialesSala): un día civil YYYY-MM-DD se guarda en el mismo día', async () => {
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
 

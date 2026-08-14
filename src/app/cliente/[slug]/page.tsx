@@ -737,6 +737,21 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         // trae 'T', ya es un instante y se usa tal cual; si no, es un día
         // civil ('YYYY-MM-DD', el que escribe una persona) y se ancla al
         // mediodía CDMX.
+        //
+        // POR QUÉ ESTE CASO SE ESCAPÓ TANTO TIEMPO (y por qué se arregla
+        // igual aunque hoy nadie lo vea en pantalla): al LEER, `desdeFila`
+        // (`src/db/archivos.ts:97`) pasa el `Date` guardado por su propio
+        // `isoFecha = d.toISOString().slice(0,10)`, que trunca a día UTC y
+        // ya descarta la hora corrida; al PINTAR, `MaterialesSala`/
+        // `NotasDePrensa` usan `fechaBreveConAnio` (`src/lib/fecha.ts`), que
+        // ancla ese día civil sin hora al MEDIODÍA UTC (`instanteDe`,
+        // privado) — lejos de cualquier frontera de día en CDMX. Esas dos
+        // compensaciones se encadenan y dejan el RENDER de hoy sin síntoma
+        // visible (confirmado con un print real contra la sala pausada de
+        // Zeus, ver `.superpowers/sdd/…/task-6-report.md`), pero el `Date`
+        // que queda guardado en la columna sigue significando el día
+        // ANTERIOR por sí solo. Este cambio hace que el instante guardado
+        // sea correcto sin depender de esas dos casualidades de lectura.
         fecha: datos.fecha
           ? (datos.fecha.includes('T') ? new Date(datos.fecha) : instanteEnCDMX(datos.fecha, '12:00'))
           : null,
@@ -903,6 +918,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       // `datos.fecha.includes('T')` que en `registrarArchivoAction` para no
       // dejar este campo genérico expuesto al mismo riesgo si mañana algún
       // llamador nuevo le manda un instante completo.
+      //
+      // Por qué se escapó y por qué se arregla igual sin síntoma visible hoy:
+      // mismo razonamiento que el comentario de `registrarArchivoAction`
+      // (arriba) — `isoFecha` (lectura) trunca a día UTC y `instanteDe`
+      // (pintado, privado en `src/lib/fecha.ts`) ancla ese día sin hora al
+      // mediodía UTC; las dos compensaciones dejan el render de
+      // `MaterialesSala` a salvo hoy, pero el `Date` que quedaba guardado
+      // seguía significando el día anterior por sí solo.
       ...(cambios.fecha !== undefined
         ? { fecha: cambios.fecha ? (cambios.fecha.includes('T') ? new Date(cambios.fecha) : instanteEnCDMX(cambios.fecha, '12:00')) : null }
         : {}),
