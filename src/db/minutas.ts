@@ -35,6 +35,7 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { crearAcuerdo } from './acuerdos'
 import type { AcuerdoPropuesto } from '@/minuta/esquema'
+import { instanteEnCDMX } from '@/lib/fecha'
 
 /**
  * Un acuerdo propuesto que el equipo confirmó (incluyó y, quizá, editó) antes
@@ -153,7 +154,26 @@ export async function guardarMinuta(
         responsableMondayId: acuerdo.responsableMondayId ?? null,
         squad: acuerdo.squad,
         prioridad: acuerdo.prioridad,
-        fechaCompromiso: acuerdo.fechaCompromiso ? new Date(acuerdo.fechaCompromiso) : null,
+        // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo C1 de la revisión
+        // final de la ronda 14). No es cosmética: `crearAcuerdo` deduplica
+        // comparando el INSTANTE EXACTO de esta columna (`IS NOT DISTINCT
+        // FROM` en su `NOT EXISTS`, acuerdos.ts:225). Este escritor guardaba
+        // `new Date('2026-08-20')` = 00:00Z mientras la ronda 14 pasó los
+        // otros cinco a `instanteEnCDMX(dia, '12:00')` = 18:00Z, y con dos
+        // instantes para el MISMO día civil el dedupe deja de reconocer la
+        // fila que él creó: publicar la minuta, tocar la fecha del acuerdo en
+        // `/acuerdos` (basta enfocar y salir del campo) y republicar la misma
+        // minuta insertaba un ACUERDO DUPLICADO — que además entra en la
+        // bandeja y puede subir a un tablero de Monday de 950 filas. Es la
+        // regresión que la ronda 14 metió sobre el defecto que la ronda 11
+        // vino a cerrar; la reproduce de punta a punta
+        // `minutas-republicar-tras-editar-fecha.test.ts`.
+        //
+        // Sin el `includes('T')` que sí llevan los escritores de
+        // `archivos.fecha`: aquí la fecha viene del esquema de la minuta
+        // (`FechaCompromiso`, src/minuta/esquema.ts), que la valida contra
+        // `YYYY-MM-DD` — nunca es un instante completo.
+        fechaCompromiso: acuerdo.fechaCompromiso ? instanteEnCDMX(acuerdo.fechaCompromiso, '12:00') : null,
         reunionOrigenId: reunionId,
       })
     }

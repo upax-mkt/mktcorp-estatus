@@ -54,13 +54,22 @@ const SALA_SLUG = 'neracode'
 let tablaMinutas: Map<string, FilaMinutaToy>
 let filasAcuerdos: FilaAcuerdoToy[]
 
+/** El día UTC de un instante — lo que hace `date_trunc('day', ... AT TIME ZONE 'UTC')` en la sentencia real. */
+const diaUTC = (iso: string | null) => (iso ? iso.slice(0, 10) : null)
+
 function coincideAcuerdo(f: FilaAcuerdoToy, candidato: Omit<FilaAcuerdoToy, 'id' | 'salaSlug'>): boolean {
   return (
     f.reunionOrigenId !== null &&
     f.reunionOrigenId === candidato.reunionOrigenId &&
     f.que === candidato.que &&
     f.responsable === candidato.responsable &&
-    f.fechaCompromiso === candidato.fechaCompromiso
+    // POR DÍA, no por instante exacto (hallazgo C1 de la revisión final de la
+    // ronda 14 — ver la cabecera de `crearAcuerdo`). Este doble no cambia de
+    // veredicto en ninguno de los casos que prueba este archivo, pero un
+    // doble que modela una condición que la sentencia real ya no tiene es una
+    // trampa esperando: el día que alguien escriba aquí el caso de las dos
+    // anclas, el toy diría que sí y Postgres que no.
+    diaUTC(f.fechaCompromiso) === diaUTC(candidato.fechaCompromiso)
   )
 }
 

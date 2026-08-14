@@ -144,6 +144,35 @@ function bandejaTrasEditar(bandejaActual: string, cambios: CambiosAcuerdo): Esta
  * MISMA reunión. Dos UDNs distintas pueden compartir "Mandar propuesta —
  * Pablo Levy" en dos reuniones sin ser el mismo acuerdo; dos publicaciones
  * de LA MISMA reunión con el mismo texto sí lo son.
+ *
+ * LA FECHA SE COMPARA POR DÍA, NO POR INSTANTE (revisión final de la ronda
+ * 14, hallazgo C1 — es lógica de la ronda 11 y solo se toca con evidencia;
+ * esta es la evidencia). `fechaCompromiso` es una fecha CIVIL disfrazada de
+ * `timestamptz`: el día es el dato, la hora es un ancla arbitraria. Mientras
+ * todos los escritores usaron la misma ancla, comparar el instante exacto
+ * daba lo mismo que comparar el día. La ronda 14 rompió esa condición —unos
+ * escritores pasaron a `instanteEnCDMX(dia,'12:00')` = 18:00Z y otros se
+ * quedaron en `new Date(dia)` = 00:00Z— y el dedupe dejó de reconocer sus
+ * propias filas: republicar una minuta insertaba un duplicado, que entra en
+ * la bandeja y puede subir a un tablero de Monday de 950 filas.
+ *
+ * Unificar los seis escritores (hecho, misma tanda) arregla lo que se cree de
+ * ahora en adelante, pero NO BASTA, y está medido contra la base de
+ * producción el 14-ago: las 19 filas que hoy tienen `fecha_compromiso` están
+ * a las 00:00Z y las 19 vienen de una minuta. Con el escritor nuevo
+ * produciendo 18:00Z, republicar cualquiera de esas minutas duplicaría el
+ * acuerdo sin que nadie tocara una sola fecha. Comparar el día hace que las
+ * dos formas de escribir el mismo día civil se reconozcan entre sí, sin
+ * migrar ni una fila.
+ *
+ * `AT TIME ZONE 'UTC'` explícito y no `date_trunc('day', col)` a secas: sobre
+ * un `timestamptz`, `date_trunc` usa el `TimeZone` de la SESIÓN de Postgres,
+ * así que el resultado dependería de la configuración del servidor. Fijarlo
+ * hace la comparación determinista. Y el día UTC es el correcto para las dos
+ * anclas: `D 00:00Z` y `D 18:00Z` caen los dos en el día UTC D, mientras que
+ * dos días civiles distintos —separados por 24 h— nunca colisionan. El
+ * dedupe no se vuelve ciego a la fecha: el día siguiente sigue siendo otro
+ * acuerdo, y hay un test que lo fija.
  */
 export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promise<{ id: string }> {
   await validarSala(salaSlug)
@@ -222,7 +251,8 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
         WHERE ${esquema.acuerdos.reunionOrigenId} = candidato.reunion_origen_id
           AND ${esquema.acuerdos.que} = candidato.que
           AND ${esquema.acuerdos.responsable} = candidato.responsable
-          AND ${esquema.acuerdos.fechaCompromiso} IS NOT DISTINCT FROM candidato.fecha_compromiso
+          AND date_trunc('day', ${esquema.acuerdos.fechaCompromiso} AT TIME ZONE 'UTC')
+              IS NOT DISTINCT FROM date_trunc('day', candidato.fecha_compromiso AT TIME ZONE 'UTC')
       )
       RETURNING id
     `)
@@ -241,8 +271,11 @@ export async function crearAcuerdo(salaSlug: string, datos: NuevoAcuerdo): Promi
           eq(esquema.acuerdos.reunionOrigenId, reunionOrigenId as string),
           eq(esquema.acuerdos.que, datos.que),
           eq(esquema.acuerdos.responsable, datos.responsable),
+          // Mismo criterio de DÍA que el NOT EXISTS de arriba, y no un `eq`
+          // de instante: si los dos no dijeran lo mismo, este respaldo podría
+          // no encontrar la fila que aquel acaba de reconocer como duplicada.
           datos.fechaCompromiso
-            ? eq(esquema.acuerdos.fechaCompromiso, datos.fechaCompromiso)
+            ? sql`date_trunc('day', ${esquema.acuerdos.fechaCompromiso} AT TIME ZONE 'UTC') = date_trunc('day', ${fechaCompromisoIso}::timestamptz AT TIME ZONE 'UTC')`
             : isNull(esquema.acuerdos.fechaCompromiso),
         ),
       )

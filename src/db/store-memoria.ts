@@ -354,7 +354,16 @@ export function buscarAcuerdoDuplicadoMemoria(
   responsable: string,
   fechaCompromiso: Date | null,
 ): FilaAcuerdoMemoria | undefined {
-  const mismaFecha = (a: Date | null, b: Date | null) => (a?.getTime() ?? null) === (b?.getTime() ?? null)
+  // POR DÍA, NO POR INSTANTE — el mismo criterio que el `date_trunc('day',
+  // ... AT TIME ZONE 'UTC')` de la sentencia real (ver la cabecera de
+  // `crearAcuerdo`, src/db/acuerdos.ts, para el porqué medido). `getTime()`
+  // exacto, que es lo que había aquí, hacía que dos formas de guardar EL
+  // MISMO día civil —00:00Z del escritor viejo, 18:00Z del nuevo— contaran
+  // como acuerdos distintos. Si el doble no copia este cambio, vuelve a
+  // mentir: `npm run dev` sin `DATABASE_URL` y la mayoría de los tests de
+  // este repo corren por aquí.
+  const diaUTC = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null)
+  const mismaFecha = (a: Date | null, b: Date | null) => diaUTC(a) === diaUTC(b)
   return Array.from(acuerdos.values()).find(
     (f) =>
       f.reunionOrigenId === reunionOrigenId &&
