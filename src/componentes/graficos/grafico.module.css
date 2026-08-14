@@ -21,7 +21,8 @@
 .titulo {
   font-size: 0.9em;
   font-weight: 600;
-  color: color-mix(in oklch, var(--texto) 75%, transparent);
+  /* 78% y no 75%: ver la nota de contraste en `documento.module.css`. */
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
   margin-bottom: 0.5em;
 }
 
@@ -206,25 +207,60 @@
    que no obedecía a la escala tipográfica, y por eso el gráfico siempre se veía
    "un poco mal" al lado del texto. Aquí sí hereda del documento. */
 
+/* ══════════════════════════════════════════════════════════════════════════
+   `--u`: LA UNIDAD DE ROTULACIÓN DEL GRÁFICO. Un solo mando.
+
+   Todo tamaño de aquí abajo son UNIDADES DEL `viewBox`, no píxeles de
+   pantalla, y el `<svg>` sale con `width="100%"` sobre un lienzo de 960: el
+   factor de escala es k = anchoDeLaColumna / 960, y el texto se dibuja a
+   `--u × k`. Medido en Chrome sobre el documento:
+
+     ancho de pantalla   columna   k       11u se dibujan a
+     320 px              272 px    0.283   3.11 px
+     390 px              342 px    0.356   3.92 px
+     430 px              382 px    0.398   4.38 px
+     1440 px             912 px    0.950   10.45 px   ← el caso para el que se eligió el 11
+
+   O sea: en escritorio los rótulos miden lo que deben, y en un teléfono el
+   eje del gráfico se dibuja a CUATRO PÍXELES. No es que se lea mal: no se lee.
+   Y `overflow-x: clip` no avisa de esto, porque no es un desborde — es un
+   texto correcto dibujado a un tamaño imposible.
+
+   Dentro de un SVG no hay unidad que escape a k (`px`, `rem`, `em`, `vw`: el
+   navegador las resuelve todas a unidades de usuario), y la relación que haría
+   falta —dividir entre el ancho del contenedor— no se puede escribir en
+   `calc`. Así que se compensa por tramos: `--u` sube a medida que k baja, para
+   que el tamaño DIBUJADO se quede en la banda de 9,5 a 13 px en todos los
+   anchos. Los tramos van de más ancho a más estrecho porque a igualdad de
+   peso gana la última regla, y la que tiene que ganar es la más estrecha.
+
+   Por encima de 900 px no se toca nada: el escritorio se queda como estaba. */
 .lienzo {
   font-family: var(--fuente-texto), system-ui, sans-serif;
   display: block;
+  --u: 11px;
 }
 
+@media (max-width: 56.25rem) { .lienzo { --u: 15px; } }  /* ≤900: k 0.66–0.89 →  9.9–13.3 px */
+@media (max-width: 42.5rem)  { .lienzo { --u: 20px; } }  /* ≤680: k 0.49–0.66 →  9.8–13.2 px */
+@media (max-width: 32.5rem)  { .lienzo { --u: 26px; } }  /* ≤520: k 0.39–0.49 → 10.1–12.8 px */
+@media (max-width: 26.25rem) { .lienzo { --u: 30px; } }  /* ≤420: k 0.33–0.39 →  9.8–11.6 px */
+@media (max-width: 22.5rem)  { .lienzo { --u: 34px; } }  /* ≤360: k 0.28–0.33 →  9.6–11.0 px */
+
 .rotuloEje {
-  font-size: 11px;
-  fill: color-mix(in oklch, var(--texto) 68%, transparent);
+  font-size: var(--u);
+  fill: color-mix(in oklch, var(--texto) 78%, transparent);
   font-variant-numeric: tabular-nums;
 }
 
 .rotuloValor {
-  font-size: 11px;
+  font-size: var(--u);
   fill: color-mix(in oklch, var(--texto) 78%, transparent);
   font-variant-numeric: tabular-nums;
 }
 
 .rotuloCategoria {
-  font-size: 12px;
+  font-size: calc(var(--u) * 1.09);
   fill: color-mix(in oklch, var(--texto) 82%, transparent);
 }
 
@@ -232,34 +268,41 @@
    referencia de color. El nombre y su cifra van en dos columnas alineadas, no
    en una sola cadena, para que los números se lean en vertical. */
 .rotuloLeyenda {
-  font-size: 12px;
+  font-size: calc(var(--u) * 1.09);
   fill: color-mix(in oklch, var(--texto) 88%, transparent);
 }
 
 .rotuloValorLeyenda {
-  font-size: 12px;
-  fill: color-mix(in oklch, var(--texto) 62%, transparent);
+  font-size: calc(var(--u) * 1.09);
+  fill: color-mix(in oklch, var(--texto) 78%, transparent);
   font-variant-numeric: tabular-nums;
 }
 
 .totalDona {
-  font-size: 22px;
+  font-size: calc(var(--u) * 2);
   font-weight: 700;
   fill: var(--texto);
   font-variant-numeric: tabular-nums;
 }
 
 .etiquetaTotalDona {
-  font-size: 11px;
-  fill: color-mix(in oklch, var(--texto) 55%, transparent);
+  font-size: var(--u);
+  fill: color-mix(in oklch, var(--texto) 78%, transparent);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
+/* `non-scaling-stroke` por el mismo motivo que `--u`, pero sin necesidad de
+   compensar a mano: el trazo se mide en píxeles de PANTALLA, no en unidades
+   del lienzo. Sin él, la rejilla de 1 unidad se dibujaba a 0,28 px en un
+   teléfono — por debajo del píxel, o sea una mancha gris irregular en vez de
+   una línea. En escritorio pasa de 0,95 a 1 px exacto, que es lo que
+   `shapeRendering="crispEdges"` venía pidiendo. */
 .rejilla {
   stroke: var(--texto);
   stroke-opacity: 0.1;
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 /* La base sobre la que se apoyan las barras: más firme que la rejilla. */
@@ -267,6 +310,7 @@
   stroke: var(--texto);
   stroke-opacity: 0.28;
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 /* ---- leyenda, fuera del SVG ----

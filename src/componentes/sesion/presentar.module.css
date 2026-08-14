@@ -24,6 +24,7 @@
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 500;
+  min-height: 44px;
   padding: 0.5rem 1.1rem;
   border-radius: 0.55rem;
   border: none;
@@ -125,6 +126,13 @@
   z-index: 10;
 }
 
+/* ⚠️ SIN RATÓN, LA BARRA SE QUEDA AL 25 % PARA SIEMPRE. Su opacidad de reposo
+   existe para no estorbar mientras se proyecta, y sube con `:hover` — que en
+   un teléfono no ocurre nunca. Donde no hay puntero fino, se queda visible. */
+@media (hover: none) {
+  .controles { opacity: 1; }
+}
+
 .controles:hover,
 .controles:focus-within,
 /* Un error de grabación o el aviso de "salir corta la grabación" no pueden
@@ -135,10 +143,17 @@
   opacity: 1;
 }
 
+/* 44 px (ronda 13, auditoría móvil): median 26-29 px de alto y son los
+   controles que se usan DURANTE la junta, con el teléfono en la mano. */
 .controles button {
   font-family: inherit;
   font-size: 1rem;
   line-height: 1;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.4rem 0.7rem;
   border: none;
   border-radius: 999px;
@@ -191,6 +206,99 @@
   background: var(--mal) !important;
 }
 
+/*
+ * ⚠️ LA BARRA CRECÍA HACIA LOS LADOS Y SE PERDÍA POR LOS DOS BORDES.
+ *
+ * VA AL FINAL DEL BLOQUE DE `.controles` a propósito, y no arriba junto a la
+ * regla de opacidad: `.contador` y `.salir` se declaran más arriba con la
+ * misma especificidad (y `.salir` con `!important`), así que un bloque puesto
+ * antes NO los pisa aunque esté dentro de una media query. Y los selectores
+ * van anidados bajo `.controles` para ganarle a `.controles button`
+ * (0,1,1) — un `.laserBoton` suelto (0,1,0) pierde y el botón seguía a la
+ * vista. Las dos cosas se descubrieron midiendo, no leyendo.
+ *
+ * Medido en un iPhone emulado de 390 px (14-ago, ronda 13), con la barra
+ * centrada por `transform: translateX(-50%)` — cada píxel que sobra se pierde
+ * MITAD por la izquierda y MITAD por la derecha:
+ *
+ *   director (←  n/N  →  reloj  Láser  Salir) ..... 377,6 px → cabe por 6,2
+ *   + «Grabar» (equipo) ........................... 461,2 px → 35,6 fuera por lado
+ *   + grabando («Parar y minutar» + palabras) ..... 542,6 px → 76,3 fuera por lado
+ *   + «Hay una grabación en curso. Sí, salir/No» .. 771,1 px → 190,6 fuera por lado
+ *   + el aviso de error de micrófono .............. 862,5 px → 236,3 fuera por lado
+ *
+ * Y no había forma de recuperarlo: `html, body { overflow-x: clip }`
+ * (`globals.css`) RECORTA sin dejar scroll ni ninguna señal. En el peor caso
+ * —grabando y confirmando la salida— «Sí, salir» queda fuera de la pantalla:
+ * en un teléfono, con la junta en marcha, la presentación no se puede cerrar.
+ * A 320 px hasta la barra del director se sale (28,8 px por lado).
+ *
+ * La barra deja de ser una píldora que se ensancha y pasa a ser lo que en un
+ * teléfono ya se espera abajo: un ancho FIJO que crece HACIA ARRIBA. Lo que se
+ * usa a ciegas —flechas, contador, reloj, Salir— se queda en la primera línea
+ * y en el mismo sitio pase lo que pase; lo que aparece a media reunión —grabar,
+ * la confirmación de salida, el error— baja a su propia línea (`order` +
+ * `flex-basis: 100%`) en vez de empujar a los demás fuera de la pantalla.
+ *
+ * `max-width` + `margin-inline: auto` para que en una tableta (que también da
+ * `hover: none`) siga siendo una barra centrada y no un listón de 1024 px.
+ */
+@media (hover: none) {
+  .controles {
+    left: 0.5rem;
+    right: 0.5rem;
+    max-width: 34rem;
+    margin-inline: auto;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.35rem;
+    /* Redondeo de barra, no de píldora: con dos o tres líneas, un radio de
+       999 px convierte los extremos en semicírculos gigantes. */
+    border-radius: 1.4rem;
+    /* Hoy suma 0 px: el layout raíz no declara `viewport-fit=cover`, así que
+       `env()` vale cero y la ventana ya viene recortada por el indicador de
+       inicio de iOS (medido: 0 px, meta = `width=device-width, initial-scale=1`).
+       Se deja escrito para que el día que ese meta se añada esta barra no se
+       meta debajo del gesto de inicio — es lo primero que se rompería. */
+    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Cada uno en su línea, y SIEMPRE debajo: `order: 1` los saca del orden del
+     DOM (donde `Grabar` va antes que `Salir`) para que «Salir» no se mueva de
+     sitio cuando aparece la grabación. */
+  .controles .grabar,
+  .controles .confirmarSalida {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  /* `nowrap` en una frase de 228 px dentro de una barra de 374: o se parte o
+     se sale. Aquí ya tiene una línea entera para ella. */
+  .controles .confirmarSalida { white-space: normal; }
+  /* El aviso de error mide 22rem = 352 px y la fila interior da 350: puesto al
+     lado de «Parar y minutar» y del contador de palabras los aplastaba a los
+     tres. Es el mensaje que más importa de esta barra —se pierde la minuta de
+     la reunión si nadie lo lee—, así que se lleva su propia línea entera. */
+  .controles .grabarError { flex-basis: 100%; max-width: 100%; }
+  .controles .grabarParar { white-space: nowrap; }
+
+  /* Los dos textos que se leen a ciegas, con la junta en marcha, medían
+     13,6 px (contador) y 12,8 px («Salir»). El botón ya es de 44 px; lo que
+     hay que poder distinguir de un vistazo es la etiqueta. */
+  .controles .contador { font-size: 0.95rem; }
+  .controles .salir { font-size: 0.9rem !important; }
+}
+
+/* A 320 px la línea de mando pide 291,3 px y la barra ofrece 284,8 de interior:
+   «Salir» se caía a una segunda línea por 6,5 px. El separador es un filo de
+   1 px al 22 % de opacidad —decoración pura— y con su hueco cuesta 9. Se retira
+   solo en los teléfonos pequeños y la línea vuelve a caber entera. */
+@media (hover: none) and (max-width: 22rem) {
+  .controles .separadorControl { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .presentando { scroll-behavior: auto; }
 }
@@ -223,6 +331,28 @@
 .relojMenu button[data-activo='true'] { background: oklch(1 0 0 / 0.18); }
 
 /*
+ * EN UN TELÉFONO, EN COLUMNA.
+ *
+ * Los cinco objetivos en fila miden 284,1 px: a 390 caben (sobran 27,5), a 320
+ * se salen 7,5 por la derecha y «sin objetivo» —el único que quita el aviso de
+ * tiempo— queda cortado. Y no vale con capar el ancho y dejar que envuelva:
+ * este menú es `position: absolute` dentro de `.reloj`, que mide 55 px, así
+ * que su bloque contenedor no sabe nada del ancho de la ventana; centrado con
+ * `left: 50%` sobre un reloj que vive donde le toca en la barra, no hay ningún
+ * `max-width` que garantice que cae dentro de la pantalla.
+ *
+ * En columna sí: el menú pasa a medir lo que mide su opción más larga (~96 px),
+ * y a esa anchura cabe centrado sobre el reloj en cualquier teléfono. Es
+ * además la forma en la que un móvil ya enseña una lista de opciones.
+ */
+@media (hover: none) {
+  .relojMenu {
+    flex-direction: column;
+    width: max-content;
+  }
+}
+
+/*
  * EL LÁSER: un punto brillante con su halo, como el de un puntero de verdad.
  *
  * `pointer-events: none` no es opcional: sin eso se traga los clics de todo lo
@@ -247,6 +377,36 @@
   filter: drop-shadow(0 0 10px oklch(0.60 0.28 25 / 0.55));
 }
 .laser[data-visible='true'] { opacity: 1; }
+
+/*
+ * EL LÁSER ES UN INSTRUMENTO DE RATÓN, y en un teléfono se esconde.
+ *
+ * No es una preferencia: MEDIDO en un iPhone emulado (390 px, `hasTouch`,
+ * 14-ago) el botón no pinta NADA. Se enciende el láser y el punto se queda en
+ * `opacity: 0` con un toque, y sigue en `opacity: 0` arrastrando el dedo ocho
+ * pasos por la pantalla — aunque el `transform` sí se movió a (140, 310), o
+ * sea que `pointermove` llegó y `pintar()` corrió. La causa está en
+ * `PunteroLaser.tsx`: `alMover` hace `setVisible(true)`, pero al levantar el
+ * dedo el navegador destruye el puntero táctil y dispara `pointerleave` sobre
+ * el documento, que llama a `alSalir` → `setVisible(false)`. React agrupa los
+ * dos y el resultado neto es `false`. Un dedo, a diferencia de un ratón, nunca
+ * está "sobre" la pantalla sin tocarla.
+ *
+ * Y aunque se arreglara, seguiría estando mal aquí: el único gesto que podría
+ * moverlo —arrastrar el dedo— es exactamente el que hace scroll de la
+ * presentación, y el dedo tapa lo que va a señalar. Un láser sirve para
+ * señalar SIN tocar.
+ *
+ * Así que se esconde donde no hay puntero fino, y no se toca en el escritorio,
+ * que es donde funciona. De paso libera 70,3 px (62,3 del botón + el hueco) de
+ * una barra que a 320 px no daba de sí: es lo que hace que la línea de mando
+ * —flechas, contador, reloj, Salir— quepa entera en un teléfono pequeño.
+ */
+@media (hover: none) {
+  /* Anidado bajo `.controles` porque `.controles button` (0,1,1) le gana a un
+     `.laserBoton` suelto (0,1,0) y el botón seguía pintándose. */
+  .controles .laserBoton { display: none; }
+}
 
 /* Grabar */
 .grabar { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
@@ -357,6 +517,7 @@
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 500;
+  min-height: 44px;
   padding: 0.5rem 1.1rem;
   border-radius: 0.55rem;
   border: 1px solid var(--linea-fuerte);
@@ -368,6 +529,33 @@
 }
 .reabrirTranscripcion:hover {
   filter: brightness(0.97);
+}
+
+/*
+ * LOS DOS FLOTANTES DE ABAJO SE PISAN EN UN TELÉFONO.
+ *
+ * «Transcripción pendiente de revisar» mide 245 px y vive pegado a la
+ * izquierda; «Presentar» mide 95,2 px y vive pegado a la derecha. Medido:
+ * a 390 px se libran por 1,8 px (o sea, se tocan), y a 320 px se SOLAPAN
+ * 68,2 px — y como `.boton` va después en el DOM con el mismo `z-index: 20`,
+ * es «Presentar» quien tapa al otro. Justo el botón que existe para que una
+ * transcripción sin publicar tenga camino de vuelta.
+ *
+ * Se apilan: el aviso pasa a ocupar el ancho de la pantalla JUSTO ENCIMA de
+ * «Presentar» (24 px de margen + 44 del botón + 8 de separación = 76 px), que
+ * además es donde se lee antes — no compite por la esquina, la anuncia.
+ * El corte es a 26rem = 416 px: cubre los 390 en los que ya se rozaban.
+ */
+@media (max-width: 26rem) {
+  .reabrirTranscripcion {
+    left: 1rem;
+    right: 1rem;
+    bottom: calc(1.5rem + 44px + 0.5rem + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+  }
+  .boton {
+    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* El flotante de «Presentar» no existe en papel. */

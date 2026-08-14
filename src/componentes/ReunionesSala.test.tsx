@@ -520,6 +520,55 @@ describe('ReunionesSala — la minuta publicada conserva su forma', () => {
     // Y el texto crudo con palotes ya no aparece en ninguna parte.
     expect(dialogo!.textContent).not.toContain('Acción | Owner | Fecha')
   })
+
+  /**
+   * ⚠️ EL ENLACE QUE LLEVABA A UN 404 (ronda 13, auditoría móvil).
+   *
+   * "Ver la presentación →" se ofrecía con `tienePresentacion` —"documento
+   * listo O algún archivo"— y lo veía CUALQUIERA que abriera la sala pública.
+   * Pero `/reunion/<id>` pinta EL DOCUMENTO y hace `notFound()` si no tiene
+   * secciones maquetadas: una reunión cuya presentación es un PDF subido
+   * —todas las reales de esta app— mandaba al director a un 404 del servidor.
+   *
+   * El PDF no se pierde: su chip sigue en la tarjeta de la reunión.
+   */
+  it('con la presentación subida como archivo, NO se ofrece "Ver la presentación" (llevaba a un 404)', async () => {
+    const usuario = userEvent.setup()
+    render(
+      <ReunionesSala
+        reuniones={[{
+          ...CON_MINUTA,
+          documentoListo: false,
+          archivos: [{ id: 'a1', titulo: 'PPT | Julio', nombreOriginal: 'julio.pptx', url: '/api/archivo/a1' }],
+        }]}
+        porVenir={[]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /minuta/i }))
+
+    expect(screen.queryByRole('link', { name: /ver la presentación/i })).toBeNull()
+  })
+
+  it('con documento maquetado sí se ofrece: ahí hay algo que pintar', async () => {
+    const usuario = userEvent.setup()
+    render(
+      <ReunionesSala
+        reuniones={[{ ...CON_MINUTA, documentoListo: true }]}
+        porVenir={[]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /minuta/i }))
+
+    expect(screen.getByRole('link', { name: /ver la presentación/i })).toHaveAttribute('href', '/reunion/m1')
+  })
 })
 
 /**
@@ -544,7 +593,26 @@ describe('ReunionesSala — borrar una reunión con historia exige teclearlo', (
   }
   const YA_SE_DIO: Reunion = { ...VACIA, id: 'd1', titulo: 'Quincenal de julio', estado: 'dada' }
 
-  function pintarPorVenir(reunion: Reunion, eliminarReunionAction = vi.fn()) {
+  /**
+   * ⚠️ EL DOBLE TIENE QUE DEVOLVER UNA PROMESA, y no la devolvía.
+   *
+   * `vi.fn()` a secas devuelve `undefined`, y el manejador del botón encadena
+   * `.then().catch().finally()` sobre lo que le den — que es lo correcto: lo
+   * que recibe de verdad es una Server Action. Resultado: los dos tests de
+   * borrado de aquí abajo hacían clic, el manejador reventaba con
+   * «Cannot read properties of undefined (reading 'then')» y aun así salían
+   * VERDES, porque lo que comprueban (la confirmación en dos tiempos) ocurre
+   * antes de la explosión. Vitest lo cantaba como dos «unhandled errors» al
+   * final de la suite entera, lejos de aquí.
+   *
+   * Un doble tiene que representar lo que su nombre promete — la misma regla
+   * que ya nos cobró los fixtures de `/deck` que se decían "listos" con cero
+   * secciones.
+   */
+  function pintarPorVenir(
+    reunion: Reunion,
+    eliminarReunionAction = vi.fn().mockResolvedValue(undefined),
+  ) {
     render(
       <ReunionesSala
         reuniones={[]}

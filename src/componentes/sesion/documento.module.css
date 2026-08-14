@@ -18,7 +18,32 @@
      bloques y separar un rótulo de su contenido no puedan confundirse.
 
    `--escala` multiplica LAS DOS a la vez. Es lo que hace que proyectar
-   funcione: no se reajusta nada, sube todo junto. */
+   funcione: no se reajusta nada, sube todo junto.
+
+   ══════════════════════════════════════════════════════════════════════════
+   EL TEXTO SECUNDARIO VA AL 78% DE LA TINTA, Y NO ES UN NÚMERO DE GUSTO.
+
+   Todo lo que aquí es "secundario" —subtítulo, rótulo de cifra, encabezado de
+   tabla, nota al pie, meta de un acuerdo, rótulos del gráfico— se pintaba con
+   `color-mix(--texto 62…72%, transparent)`. Un color solo está validado
+   contra un fondo CONCRETO, y este documento se viste con diez identidades
+   distintas: la tinta de cada marca es la suya. Medido con el `contraste()`
+   del propio repo (`src/lib/color.ts`), mezcla real sobre la superficie clara
+   de cada tema:
+
+     al 68%  Research Land 3.64 ✗ · Marketing United 4.35 ✗ · Promo Espacio 4.38 ✗
+     al 78%  Research Land 4.67 ✓ · Marketing United 5.83 ✓ · Promo Espacio 5.78 ✓
+             (el resto, de 6.9 a 11.7; House of Films, la más oscura, 11.73)
+
+   O sea: tres de las diez salas leían su encabezado de tabla y su rótulo de
+   cifra por DEBAJO del mínimo AA de 4,5:1, y no se nota mirando porque la
+   marca que peor sale —Research Land, tinta #4D4D4D— es gris sobre blanco y
+   "parece" correcta. El 78% es el suelo que aprueban las diez.
+
+   Lo correcto de verdad sería que `ProveedorTema` publicara un `--texto-2` ya
+   ajustado por marca, como ya hace con `--primario-sobre-superficie`
+   (`ajustarColorParaContraste`); eso vive en `ProveedorTema.tsx` y queda
+   apuntado. Mientras tanto, el 78% cumple en las diez sin depender de nada. */
 
 .documento {
   --escala: 1;
@@ -71,9 +96,18 @@
    y el cuerpo de una tabla a 16px. Dieciséis píxeles a cuatro metros no se
    leen. El atributo lo pone ModoPresentar en un contenedor de fuera, por eso
    el selector es de atributo y no una clase de este módulo. */
+/* ⚠️ LA ESCALA DE PROYECTAR NO CABE EN UN TELÉFONO (ronda 13, auditoría
+   móvil). `--escala: 1.55` estaba fija en todos los anchos, así que en modo
+   Presentar un `h1` salía a 102,9 px y se recortaba a partir de 434 px de
+   ancho — medido a nivel de glifo en 430, 390, 360 y 320. Y el botón
+   "Presentar" se le ofrece al director a propósito, que es justo quien abre
+   esto en el móvil.
+
+   `clamp` en vez de un salto seco: la escala crece con la pantalla y llega a
+   1,55 a partir de ~1400 px, que es donde de verdad se proyecta. */
 [data-presentando='true'] .documento {
   --ancho: min(94vw, 100rem);
-  --escala: 1.55;
+  --escala: clamp(1, 100vw / 900, 1.55);
 }
 
 [data-presentando='true'] .contenido {
@@ -155,7 +189,7 @@
 .subtitulo {
   font-size: var(--t-1);
   line-height: 1.5;
-  color: color-mix(in oklch, var(--texto) 72%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
   margin-bottom: var(--e-5);
   max-width: var(--medida);
 }
@@ -212,7 +246,7 @@
 .portadaSubtitulo {
   font-size: var(--t-1);
   line-height: 1.45;
-  color: color-mix(in oklch, var(--texto) 70%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
   margin-top: var(--e-3);
   max-width: var(--medida);
 }
@@ -314,7 +348,12 @@
 
 .cifras {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  /* `min(11rem, 100%)` y no `11rem` a secas: con cuatro cifras y una columna
+     de 342 px, `minmax(11rem, 1fr)` pide 176 px de mínimo POR PISTA y la
+     rejilla se sale de su caja. Como `overflow-x: clip` es global, el desborde
+     no produce scroll ni aviso — se recorta en silencio. Medido: 941 > 912 px
+     a 1440 con cuatro cifras largas ("$28,235.46"), y peor en móvil. */
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
   gap: 0 var(--e-6);
   margin: var(--e-6) 0;
   /* 1px, no 2. A 2px esto deja de ser una línea que separa y pasa a ser una
@@ -327,6 +366,10 @@
 
 .cifra {
   position: relative;
+  /* Todo ítem de rejilla nace con `min-width: auto`, o sea "no me encojas por
+     debajo de mi contenido": una cifra de 205 px reventaba su pista de 176 y
+     con ella la fila entera. */
+  min-width: 0;
 }
 
 .cifra + .cifra {
@@ -345,7 +388,10 @@
   letter-spacing: -0.03em;
   display: flex;
   align-items: baseline;
-  gap: var(--e-2);
+  /* La variación se va a su propia línea antes que empujar la cifra fuera de
+     su pista: "$28,235.46 +4%" mide 205 px y la pista da 176. */
+  flex-wrap: wrap;
+  gap: 0 var(--e-2);
 }
 
 /* La variación es LA señal que un ejecutivo busca al hojear. Pintarla del
@@ -356,7 +402,7 @@
   font-size: 0.42em;
   font-weight: 600;
   letter-spacing: 0;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .cifraDelta[data-signo='sube'] {
@@ -373,7 +419,7 @@
   line-height: 1.35;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 /* ---- columnas ---- */
@@ -450,7 +496,7 @@
   margin-top: var(--e-2);
   font-size: var(--t--1);
   font-style: normal;
-  color: color-mix(in oklch, var(--texto) 62%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .avisoRevision {
@@ -465,11 +511,114 @@
   border-radius: 0.5rem;
 }
 
-@media (max-width: 720px) {
+/* ══════════════════════════════════════════════════════════════════════════
+   EN UN TELÉFONO (ronda 13, auditoría móvil)
+
+   Este documento se maquetó para 60rem de columna y nunca se adaptó a un
+   móvil, que es donde el director de la UDN lo abre al recibir el enlace.
+   Medido en Chrome sobre las cuatro reuniones reales y sobre un banco con las
+   piezas que ninguna de ellas trae:
+
+   · a 390 px la columna útil mide 342 px (390 − 2×24 de margen de página);
+   · la escala tipográfica seguía siendo la de escritorio: portada 66,4 px,
+     título de sección 41,44 px, cifra 33,12 px — la palabra "Portada" sola se
+     comía 220 px de alto de pantalla antes de que empezara el documento;
+   · los divisores partían el título a un carril fantasma (ver más abajo) y
+     desbordaban 294 > 272 px a 320 px;
+   · las entradas del índice medían 25 px de alto: la mitad del objetivo
+     táctil de 44 px, y son EL elemento con el que se navega el documento.
+
+   La escala se reescribe con `clamp` y no con valores fijos por dos razones:
+   crece sin escalones entre 320 y 720 px, y el TOPE de cada paso es
+   exactamente su valor de escritorio, así que al cruzar los 720 px no hay
+   salto — el escritorio queda bit a bit igual. `var(--escala)` sigue
+   multiplicando por fuera para que Presentar siga funcionando. */
+@media (max-width: 45rem) {
+  .documento {
+    /* Razón ~1,18 entre pasos, con el cuerpo clavado en 17 px: por debajo de
+       eso un director de 50 años con el teléfono en la mano deja de leer. */
+    --t-1: calc(clamp(1.15rem, 5.25vw, 1.33rem) * var(--escala));
+    --t-2: calc(clamp(1.32rem, 6.15vw, 1.66rem) * var(--escala));
+    --t-3: calc(clamp(1.5rem, 6.95vw, 2.07rem) * var(--escala));
+    --t-4: calc(clamp(1.7rem, 7.95vw, 2.59rem) * var(--escala));
+    --t-5: calc(clamp(2.1rem, 10.3vw, 4.15rem) * var(--escala));
+
+    /* Los dos espaciados grandes son los que se notan: 88 px de margen de
+       página y 88 px entre hitos son cuatro pantallas de scroll vacío en un
+       teléfono. Bajan a 48 y 36; los pasos pequeños no se tocan, porque son
+       los que sostienen la relación rótulo–contenido. */
+    --e-7: calc(2.25rem * var(--escala));
+    --e-8: calc(3rem * var(--escala));
+
+    /* El carril de 3,5rem (56 px) se lleva el 16% de una columna de 342 px
+       solo para sostener un número de una cifra. */
+    --rail: 2.25rem;
+  }
+
+  /* Margen de página proporcional: a 320 px, 24 px por lado eran 48 de los
+     320 (15%). Con esto la columna útil pasa de 272 a 288 px. El tope de
+     1.5rem hace que a 720 px valga lo mismo que en escritorio. */
+  .contenido {
+    padding-inline: clamp(1rem, 4.5vw, 1.5rem);
+    /* El botón flotante de Presentar se sienta encima del último renglón: le
+       reserva sitio (medido en la auditoría móvil, a 320 px tapaba el índice). */
+    padding-bottom: 5rem;
+  }
+
   .columnas { grid-template-columns: 1fr; }
+
+  /* EL DIVISOR CON EL TÍTULO A LA DERECHA no era un capricho de alineación:
+     era una rejilla rota. `.titulo` y `.subtitulo` llevan `grid-column: 2`, y
+     al pasar la rejilla a `1fr` la columna 2 dejaba de existir — el navegador
+     creaba una columna IMPLÍCITA de ancho automático a la derecha de la
+     franja y metía ahí el título. De ahí que "REVOPS" saliera pegado al borde
+     derecho con la franja sola a la izquierda, y que a 320 px la sección
+     desbordara 294 > 272 px. Devolverlos a la columna 1 es el arreglo. */
   .seccion[data-layout='divisor-seccion'] { grid-template-columns: 1fr; gap: var(--e-3); }
   .seccion[data-layout='divisor-seccion']::before { width: 4rem; }
-  .cifra + .cifra { border-left: none; padding-left: 0; }
+  .seccion[data-layout='divisor-seccion'] .titulo,
+  .seccion[data-layout='divisor-seccion'] .subtitulo { grid-column: 1; }
+
+  /* Apiladas: el filete vertical que las separaba en escritorio deja de tener
+     sentido, y sin un hueco propio las cuatro cifras se leen como una masa. */
+  .cifra + .cifra { border-left: none; padding-left: 0; margin-top: var(--e-4); }
+
+  /* La portada dejaba 220 px de aire antes del título (88 de página + 76 de
+     campo de marca + 56 de respiro). El campo de marca pasa a medirse contra
+     el ANCHO y no contra el alto: en horizontal, `9vh` daba 38 px y el
+     logotipo salía como un sello. */
+  .portada {
+    --alto-campo: clamp(3.25rem, 13vw, 5rem);
+    padding: calc(var(--alto-campo) + var(--e-5)) 0 var(--e-5);
+  }
+  .portada::before { background-position: left var(--e-4) center; }
+
+  /* ÍNDICE: 44 px de objetivo táctil, que es con lo que se navega esto.
+     El alto lo pone el ENLACE, no la fila, para que el área que responde al
+     dedo sea la misma que se ve subrayada al pulsar. */
+  .indiceFila {
+    align-items: center;
+    padding-block: 0;
+  }
+  .indiceFila::before { min-width: var(--rail); }
+  .indiceEnlace {
+    align-items: center;
+    min-height: 44px;
+    padding-block: var(--e-2);
+  }
+
+  /* La agenda con foto de fondo llevaba 56/36 px de relleno: en 288 px de
+     columna, 72 de ellos eran borde. */
+  .seccion[data-con-fondo='true'] { padding: var(--e-5) var(--e-4); }
+}
+
+/* UN TELÉFONO NO TIENE PUNTERO. `:hover` en táctil se queda PEGADO tras el
+   toque —el navegador lo simula y no lo suelta hasta que tocas otra cosa—,
+   así que la entrada del índice se quedaba desplazada 8 px y sombreada
+   después de usarla. La respuesta al dedo la da `:active`, que sí se suelta. */
+@media (hover: none) {
+  .indiceEnlace:hover { background: none; transform: none; }
+  .indiceEnlace:active { background: color-mix(in oklch, var(--texto) 8%, transparent); }
 }
 
 /* ---- etiqueta de columna y nota al pie ---- */
@@ -481,7 +630,7 @@
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: none;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 /* SIN FILETE PROPIO. Lo tenía, y 43px después llegaba el filete de la
@@ -492,7 +641,7 @@
   margin-top: var(--e-6);
   font-size: var(--t--1);
   line-height: 1.5;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
   max-width: var(--medida);
 }
 

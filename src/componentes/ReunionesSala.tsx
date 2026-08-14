@@ -455,8 +455,19 @@ export function ReunionesSala({
                 <CopiarBoton texto={minutaDe(abierta)!.texto!} formatoCorreo className={estilos.lightboxBoton} />
               )}
               {/* Desde la minuta se llega al documento de SU reunión: es la
-                  pregunta que sigue a leer un acuerdo — "¿qué se presentó?". */}
-              {tienePresentacion(abierta) && (
+                  pregunta que sigue a leer un acuerdo — "¿qué se presentó?".
+
+                  ⚠️ `documentoListo` Y NO `tienePresentacion` (ronda 13). Este
+                  enlace llevaba a un 404 y lo veía CUALQUIERA que abriera la
+                  sala pública: `tienePresentacion` es "documento listo O algún
+                  archivo", y una reunión cuya presentación es un PDF subido
+                  —todas las reales de esta app— cumple esa condición sin tener
+                  documento que `/reunion/<id>` pueda pintar (esa página hace
+                  `notFound()` si no hay secciones maquetadas). El PDF sigue a
+                  un toque: su chip está en la tarjeta de la reunión.
+                  `CarasDeReunion` ya usaba el criterio correcto; era esta la
+                  que se desviaba. */}
+              {abierta.documentoListo && (
                 <Link href={`/reunion/${abierta.id}`} className={estilos.lightboxEnlace}>
                   Ver la presentación →
                 </Link>

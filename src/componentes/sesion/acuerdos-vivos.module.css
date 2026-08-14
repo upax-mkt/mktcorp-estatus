@@ -39,23 +39,32 @@
   gap: 0.2rem;
 }
 
+/* LOS ACUERDOS SE MIDEN CON LA MISMA REGLA QUE EL RESTO DEL DOCUMENTO.
+   Tenían su propia escala en `rem` sueltos —clamp(0.95, 1.5vw, 1.05)— que
+   nació antes que las dos escalas de `documento.module.css`. En escritorio da
+   casi lo mismo (16,8 contra 17 px), pero en un teléfono el `clamp` caía al
+   suelo: 15,2 px para la única sección VIVA del documento, la que el director
+   viene a mirar, dos puntos por debajo del cuerpo que tiene al lado. Al
+   heredar `--t-0` sube a 17 px en móvil y, de paso, crece al proyectar como
+   todo lo demás. El fallback conserva el valor de antes por si la pieza se
+   pinta fuera de `.documento`. */
 .que {
-  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  font-size: var(--t-0, 1.0625rem);
   line-height: 1.4;
 }
 
 .meta {
-  font-size: 0.85rem;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  font-size: var(--t--1, 0.85rem);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .estado {
   flex-shrink: 0;
-  font-size: 0.72rem;
+  font-size: var(--t--2, 0.72rem);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .item[data-estatus='cumplido'] .estado { color: oklch(0.5 0.12 155); }

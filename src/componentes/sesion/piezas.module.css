@@ -27,9 +27,25 @@
 
 /* El scroll horizontal se queda DENTRO de la tabla: una comparativa de ocho
    columnas no puede hacer que el documento entero se mueva de lado. */
+/* LA SOMBRA DE BORDE ES LA AFORDANCIA DEL SCROLL, y se pinta sola.
+   Medido en el estatus de NeraCode a 320 px: la tabla mide 333 px en 272 de
+   caja y se puede arrastrar, pero nada lo dice —en iOS la barra de scroll no
+   se dibuja hasta que ya la estás moviendo—, así que la última columna
+   ("Estatus", justo la que un director busca) simplemente no existía.
+   Las dos capas `local` son tapas del color de la superficie que viajan CON
+   el contenido; las dos `scroll` son las sombras, clavadas a la caja. Donde
+   no hay nada que desplazar, la tapa cubre la sombra y no se ve: la pista
+   aparece solo cuando es verdad. */
 .tablaScroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  background:
+    linear-gradient(to right, var(--superficie) 40%, transparent) left center / 2.5rem 100% no-repeat local,
+    linear-gradient(to left, var(--superficie) 40%, transparent) right center / 2.5rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, color-mix(in oklch, var(--texto) 20%, transparent), transparent)
+      left center / 0.85rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in oklch, var(--texto) 20%, transparent), transparent)
+      right center / 0.85rem 100% no-repeat scroll;
 }
 
 .tabla {
@@ -78,7 +94,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
   border-bottom-color: color-mix(in oklch, var(--texto) 22%, transparent);
   white-space: nowrap;
 }
@@ -127,7 +143,100 @@
   font-size: var(--t--1);
   font-weight: 400;
   white-space: normal;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
+}
+
+/* ---- la tabla en un teléfono ------------------------------------------- */
+
+/* Ver la nota larga de `TablaSeccion.tsx`: el formato lo decide el CONTENIDO.
+   Nada de esto existe por encima de 45rem — el escritorio queda intacto. */
+@media (max-width: 45rem) {
+  /* REJILLA: la comparativa se queda tabla y se desliza. El mínimo es lo que
+     hace honesta la afordancia: sin él, cuatro columnas de cifras cabían
+     estrujadas en 288 px y la sombra de scroll no aparecía nunca. 26rem = 416
+     px, o sea ~104 px por columna en una tabla de cuatro: suficiente para
+     "$28,235.46" sin partir. */
+  .tablaEnvoltorio[data-formato='rejilla'] .tabla { min-width: 26rem; }
+
+  /* FICHAS: cada fila pasa a ser un bloque con sus rótulos. `display: block`
+     sobre los elementos de tabla desarma la rejilla — que es exactamente lo
+     que se quiere aquí, porque la rejilla no era el dato: era el estorbo. */
+  .tablaEnvoltorio[data-formato='fichas'] .tablaScroll {
+    overflow-x: visible;
+    background: none;
+  }
+  .tablaEnvoltorio[data-formato='fichas'] .tabla { display: block; width: 100%; }
+  .tablaEnvoltorio[data-formato='fichas'] thead {
+    /* Fuera de la vista, no fuera del árbol: los lectores de pantalla siguen
+       leyendo la tabla como tabla y `scope="col"` sigue valiendo. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tablaEnvoltorio[data-formato='fichas'] tbody { display: block; }
+
+  .tablaEnvoltorio[data-formato='fichas'] tbody tr {
+    display: block;
+    padding: var(--e-4) 0;
+    border-top: 1px solid color-mix(in oklch, var(--texto) 14%, transparent);
+  }
+  .tablaEnvoltorio[data-formato='fichas'] tbody tr:first-child {
+    border-top: none;
+    padding-top: var(--e-2);
+  }
+
+  /* El nombre del grupo encabeza su ficha. Viene del atributo porque la celda
+     con `rowspan` solo existe en la primera fila del grupo (ver el TSX). */
+  .tablaEnvoltorio[data-formato='fichas'] tbody tr[data-grupo]::before {
+    content: attr(data-grupo);
+    display: block;
+    margin-bottom: var(--e-3);
+    font-size: var(--t--2);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primario-sobre-superficie);
+  }
+  /* …y la celda original se calla, para no decirlo dos veces. */
+  .tablaEnvoltorio[data-formato='fichas'] tbody tr[data-grupo] .celdaGrupo { display: none; }
+
+  /* Rótulo arriba, dato debajo y a plena tinta: en 288 px no caben los dos en
+     una línea sin volver a estrujar el texto, que es el defecto que se venía a
+     arreglar. */
+  .tablaEnvoltorio[data-formato='fichas'] tbody td,
+  .tablaEnvoltorio[data-formato='fichas'] tbody th:not(.celdaGrupo) {
+    display: block;
+    padding: 0 0 var(--e-3);
+    border-bottom: none;
+    text-align: left;
+    white-space: normal;
+  }
+  .tablaEnvoltorio[data-formato='fichas'] tbody tr > :last-child { padding-bottom: 0; }
+
+  .tablaEnvoltorio[data-formato='fichas'] tbody td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    display: block;
+    margin-bottom: var(--e-1);
+    font-size: var(--t--2);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in oklch, var(--texto) 78%, transparent);
+  }
+
+  /* Las cifras dejan de ir a la derecha: en una ficha de una sola columna,
+     alinear a la derecha rompe la bandera izquierda de todo el documento. */
+  .tablaEnvoltorio[data-formato='fichas'] tbody td[data-cifra='true'] { text-align: left; }
+
+  /* La fila de total sigue cerrando: aquí no puede hacerlo con un filete
+     superior porque ya lo llevan todas, así que lo hace con su fondo. */
+  .tablaEnvoltorio[data-formato='fichas'] tbody tr[data-destacada='true'] {
+    padding-inline: var(--e-3);
+    background: color-mix(in oklch, var(--texto) 5%, transparent);
+    border-radius: 0.5rem;
+  }
 }
 
 /* ---- semáforo ---------------------------------------------------------- */
@@ -166,7 +275,7 @@
   gap: var(--e-2) var(--e-5);
   margin-top: var(--e-4);
   font-size: var(--t--1);
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 /* ---- matriz ------------------------------------------------------------ */
@@ -231,7 +340,45 @@
   background: color-mix(in oklch, var(--primario) 8%, transparent);
 }
 .celdaMatriz[data-tono='neutro'] {
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
+}
+
+/* LA MATRIZ EN UN TELÉFONO: se desliza, no se estruja.
+   No se apila en fichas como la tabla de pendientes porque aquí la rejilla SÍ
+   es el dato: lo que se lee es la forma del trimestre, dónde se concentra el
+   esfuerzo. Doce fichas sueltas no tienen forma.
+   Se conserva `table-layout: fixed` —las columnas siguen midiendo lo mismo,
+   que es la condición para que la forma no salga deformada por el largo del
+   nombre del mes— y lo que cambia es el ancho total: en vez de repartir 342 px
+   entre cinco columnas, la tabla mide lo que necesita y el envoltorio la
+   desliza con su sombra de borde. */
+@media (max-width: 45rem) {
+  .matriz {
+    /* 7,5rem de encabezado de fila (cabe "Servicios profesionales, científicos
+       y técnicos" en cuatro renglones) + 6,5rem por periodo, que es lo que
+       mide "SEPTIEMBRE" —el nombre de mes más largo— con el relleno de abajo.
+       Con cuatro meses son 33,5rem = 536 px: un deslizamiento corto, no un
+       mapa. */
+    width: calc(7.5rem + var(--matriz-columnas, 4) * 6.5rem);
+    min-width: 100%;
+    /* Un punto por debajo del cuerpo: la matriz es una rejilla de estados de
+       una palabra, no texto corrido, y a 17 px no cabe ninguna. */
+    font-size: var(--t--1);
+  }
+  .matriz thead th:first-child { width: 7.5rem; }
+  /* El encabezado de periodo cede lo que puede antes que exigir una columna
+     más ancha: menos relleno y menos tracking. Medido, "SEPTIEMBRE" pasa de
+     94 a 87 px de tinta y entra en los 88 que le quedan.
+     `hyphens` es la red de seguridad para un rótulo aún más largo: sin ella,
+     una palabra sola no se parte por mucho `white-space: normal` que lleve, y
+     lo que hace es desbordar en silencio. */
+  .matriz thead th {
+    white-space: normal;
+    padding-inline: var(--e-2);
+    letter-spacing: 0.02em;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
 }
 
 /* ---- bloques numerados ------------------------------------------------- */
@@ -386,7 +533,7 @@
 
 .metaRealRotulo {
   font-size: var(--t--1);
-  color: color-mix(in oklch, var(--texto) 72%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .metaRealCifras {
@@ -399,7 +546,7 @@
 .metaRealMeta {
   font-size: var(--t--1);
   font-weight: 400;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .metaRealBarra {
@@ -435,13 +582,33 @@
 
 @media (max-width: 40rem) {
   /* En pantalla angosta la barra se lleva su propia línea antes que
-     estrujar el rótulo hasta partirlo por sílabas. */
+     estrujar el rótulo hasta partirlo por sílabas.
+     ⚠️ MISMA TRAMPA QUE EL DIVISOR (ronda 13, auditoría móvil): con solo dos
+     columnas declaradas y cuatro hijos, el porcentaje se auto-colocaba en una
+     TERCERA fila implícita, a media anchura y alineado a la derecha de la
+     nada. En el print salía un "82%" flotando en el centro, a un renglón de
+     distancia de la barra que explica. Ahora las cuatro piezas se colocan a
+     mano: rótulo y cifras arriba, barra y porcentaje abajo, el uno junto al
+     otro — que es como se leen. */
+  .metaRealFilas { gap: var(--e-4); }
+  /* Tres columnas y dos filas, con todo colocado a mano:
+       rótulo │ cifras (a la derecha) │ ·
+       ───────── barra ───────────── │ %
+     El porcentaje se reserva su carril de 3,2rem en las DOS filas, así que el
+     borde derecho de la barra y el de las cifras caen en la misma vertical y
+     la barra ocupa todo lo que le queda. Con `1fr auto` la columna de la
+     derecha la dimensionaban las cifras ("$39.4 MDP de $48 MDP", 176 px) y la
+     barra se quedaba a media anchura: una barra de progreso que no llega al
+     borde miente sobre su propia escala. */
   .metaRealFila {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr 3.2rem;
+    gap: var(--e-2) var(--e-4);
+    align-items: center;
   }
-  .metaRealBarra {
-    grid-column: 1 / -1;
-  }
+  .metaRealRotulo { grid-area: 1 / 1; }
+  .metaRealCifras { grid-area: 1 / 2; justify-content: flex-end; }
+  .metaRealBarra { grid-area: 2 / 1 / 3 / 3; }
+  .metaRealPorcentaje { grid-area: 2 / 3; }
 }
 
 /* ---- cifras con desglose ----------------------------------------------- */
@@ -478,7 +645,7 @@
 .desgloseRotulo {
   font-size: var(--t--1);
   line-height: 1.35;
-  color: color-mix(in oklch, var(--texto) 68%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .desgloseValor {
@@ -505,7 +672,7 @@
   display: flex;
   justify-content: space-between;
   gap: 0.8rem;
-  color: color-mix(in oklch, var(--texto) 72%, transparent);
+  color: color-mix(in oklch, var(--texto) 78%, transparent);
 }
 
 .desgloseParteValor {
