@@ -1,0 +1,33 @@
+import { describe, it, expect } from 'vitest'
+import { PLANTILLAS } from './plantillas'
+
+/**
+ * EL CATÁLOGO DE PLANTILLAS, Y SU ORDEN.
+ *
+ * `PLANTILLAS` no es solo una lista de clases de junta: es también el orden
+ * en el que el desplegable las ofrece, y ahí sí importa qué va primero. Estos
+ * tests fijan dos cosas de la ronda 14.2:
+ *
+ * - Que el Sync Comercial —la junta semanal que el equipo ya está llevando en
+ *   las salas— exista en el catálogo.
+ * - Que "En blanco" deje la segunda posición, donde se elige por descuido, y
+ *   pase al final: no es una clase de junta, es la salida de emergencia.
+ */
+
+describe('el catálogo de plantillas', () => {
+  it('el catálogo ofrece Sync Comercial, la junta semanal que el equipo lleva en las salas', () => {
+    const sync = PLANTILLAS.find((p) => p.id === 'sync-comercial')
+    expect(sync).toBeDefined()
+    expect(sync!.seccionesFijas).toBe(false)
+  })
+
+  it('"En blanco" va al final: es la salida de emergencia, no una clase de junta', () => {
+    expect(PLANTILLAS[PLANTILLAS.length - 1].id).toBe('en-blanco')
+  })
+
+  it('toda plantilla nace al menos con su portada', () => {
+    for (const p of PLANTILLAS) {
+      expect(p.items[0].layout).toBe('portada')
+    }
+  })
+})

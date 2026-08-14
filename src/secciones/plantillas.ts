@@ -112,16 +112,38 @@ export const PLANTILLAS: Plantilla[] = [
     items: ESTATUS_UDN,
   },
   {
-    id: 'en-blanco',
-    nombre: 'En blanco',
-    paraQue: 'Una portada y nada más. Para armar la reunión desde cero.',
+    id: 'sync-comercial',
+    nombre: 'Sync Comercial',
+    paraQue: 'La junta semanal de seguimiento comercial con una unidad de negocio.',
     seccionesFijas: false,
+    /**
+     * ⚠️ NACE CORTA A PROPÓSITO, y no es pereza: es la regla de la ronda 9.
+     * Qué bloques lleva un Sync Comercial lo sabe quien lo da, no quien
+     * construye la herramienta — escribir aquí ocho secciones inventadas
+     * sería comprometer al equipo con una estructura que nadie acordó, que es
+     * exactamente lo que se evitó con las plantillas por sala.
+     *
+     * Van solo las dos que la app SABE que toda junta tiene: su portada, y
+     * los acuerdos, que son entidad propia en este producto y se arrastran
+     * solos. El resto lo añade en el editor quien la prepare, y el día que
+     * la forma se estabilice se escribe aquí.
+     */
     items: [
       {
         tipo: 'portada',
         titulo: 'Portada',
-        pregunta: 'De qué trata esta reunión.',
+        pregunta: 'De qué sync se trata y qué semana cubre.',
         layout: 'portada',
+      },
+      {
+        // 'acuerdos-pendientes', NO 'acuerdos': es el mismo `tipo` que usa
+        // ESTATUS_UDN arriba. Es el que reconoce `itemDeAcuerdosPendientes`
+        // (src/db/documentos.ts) para aterrizar los acuerdos retomados de la
+        // sesión pasada — un `tipo` distinto crea una sección que el render
+        // no sabe pintar y que ese lookup nunca encuentra.
+        tipo: 'acuerdos-pendientes',
+        titulo: 'Acuerdos y Pendientes',
+        pregunta: 'Qué quedó comprometido y quién lo lleva.',
       },
     ],
   },
@@ -211,6 +233,20 @@ export const PLANTILLAS: Plantilla[] = [
         titulo: 'Quién hace qué',
         pregunta: 'Responsables y fechas.',
         layout: 'pendientes-semaforo',
+      },
+    ],
+  },
+  {
+    id: 'en-blanco',
+    nombre: 'En blanco',
+    paraQue: 'Una portada y nada más. Para armar la reunión desde cero.',
+    seccionesFijas: false,
+    items: [
+      {
+        tipo: 'portada',
+        titulo: 'Portada',
+        pregunta: 'De qué trata esta reunión.',
+        layout: 'portada',
       },
     ],
   },
