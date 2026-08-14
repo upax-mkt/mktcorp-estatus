@@ -32,41 +32,53 @@ contra el servidor local el 14-ago, no de leer el código.
 
 ---
 
-## 1 · Las tres palabras que hoy se confunden
+## 1 · La clase de junta ya existe. Se llama `plantilla`
 
-El encargo pide "una etiqueta con respecto al tipo de reunión". Ese dato **no
-existe**, y hay dos candidatos que parecen serlo y no lo son:
+**REVISADO EL 14-ago, DESPUÉS DE APROBAR ESTE SPEC.** La primera versión de
+esta sección mandaba crear una columna `reuniones.clase`. Estaba mal, y lo
+destapó mirar el código antes de escribir el plan.
 
-- **`tipo` es la CADENCIA** — cada cuánto se repite (`mensual`, `quincenal`,
-  `semanal`). Ya costó una vez confundirlos: el título por defecto describía
-  la cadencia y por eso la Quincenal de Research Land perdió su "Comercial".
-- **`plantilla` es CON QUÉ NACE SU DECK** — qué secciones trae la
-  presentación al armarse (`estatus-udn`, `seguimiento`, `comite`,
-  `arranque`, `en-blanco`). Está **vacía en 6 de 14** reuniones, y un Sync
-  Comercial normalmente no lleva presentación: usarla como etiqueta
-  significaría *"una junta sin deck no tiene tipo"*, que es justo al revés.
+**La app YA pregunta qué clase de junta es**, y guarda la respuesta en
+`reuniones.plantilla`. El comentario de esa columna empieza, literalmente, con
+*"QUÉ CLASE DE JUNTA ES —estatus de UDN, comité, arranque de campaña— y, por
+tanto, con qué secciones nace su presentación"*. Su catálogo
+(`src/secciones/plantillas.ts`) son cinco entradas cuyos nombres son clases de
+junta: **Estatus de UDN · Comité o dirección · Arranque de campaña ·
+Seguimiento de proyecto**, más **En blanco**, que no lo es.
 
-Nace entonces la **CLASE**: qué junta es. Tres ejes, tres columnas, y una
-relación de una dirección: **la clase propone la plantilla, y nunca al revés.**
+Crear una `clase` aparte habría obligado a contestar **dos preguntas para lo
+mismo** al crear una reunión desde una sala —"clase: Sync Comercial" y
+"plantilla: En blanco"—, que es exactamente el defecto que este spec venía a
+evitar con `tipo`. *(Decisión de Franco, 14-ago, entre las dos opciones.)*
 
-### El dato
+Así que **no hay columna nueva ni migración**. Lo que hay que arreglar es que
+esa pregunta hoy es de segunda:
 
-- Columna nueva `reuniones.clase` (texto, nullable).
-- Catálogo en código, `src/lib/clases-de-reunion.ts` — mismo patrón que
-  `src/lib/equipos.ts` y `src/secciones/plantillas.ts`, que ya resuelven este
-  problema en este repo: `estatus` (Estatus de UDN) · `sync-comercial` (Sync
-  Comercial) · `seguimiento` · `comite` · `arranque`. Cada entrada declara su
-  nombre, su orden y su plantilla por defecto.
-- **Por qué catálogo y no tabla:** una tabla obliga a construir la pantalla
-  que la administra antes de que la etiqueta sirva de nada. Cuando haga falta
-  que Franco añada clases sin desplegar, se promueve — el `string` en la
-  columna no cambia.
-- **Relleno de las 14 existentes:** por título y plantilla (las 12 que dicen
-  "Estatus…" o traen `estatus-udn` → `estatus`). Lo que no se pueda deducir
-  se queda en `null` y se pinta como "sin clasificar": inventar la clase de
-  una junta pasada sería inventar de qué se habló.
+1. **Solo se hace desde la sala.** Agendar desde el calendario de `/reuniones`
+   no la pregunta —su propio código lo dice: *"Este formulario no pregunta la
+   plantilla"*— y por eso **6 de 14 reuniones la tienen vacía**.
+2. **Se llama como no es.** "Plantilla" nombra la consecuencia (con qué
+   secciones nace el deck) en vez de la decisión (qué junta es). En la
+   interfaz pasa a preguntarse por lo que es: **¿qué junta es?**
+3. **Le falta la clase que motivó todo:** `sync-comercial`.
+4. **"En blanco" no es una clase**, es la salida de emergencia. Se queda, al
+   final y tras un separador: *"Otra (deck en blanco)"*.
 
----
+Y queda dicho para siempre lo que sí son tres cosas distintas:
+
+- **`tipo` es la CADENCIA** — cada cuánto (`mensual`, `quincenal`, `semanal`).
+  Ya costó una vez confundirlos: el título por defecto describía la cadencia y
+  por eso la Quincenal de Research Land perdió su "Comercial".
+- **`plantilla` es la CLASE de junta**, y de ella se derivan las secciones.
+- **El deck** es lo que se arma después, y puede tocarse sin que la clase
+  cambie.
+
+### Las seis sin clasificar
+
+Las seis con `plantilla` nula se titulan todas "Estatus…". Rellenarlas es un
+`UPDATE` sobre producción, así que **no se hace por cuenta propia**: se
+propone a Franco con la lista delante. Mientras tanto se pintan como **"sin
+clasificar"**, que es la verdad.
 
 ## 2 · `/acuerdos`: editar de verdad
 
