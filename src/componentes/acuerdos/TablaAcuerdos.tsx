@@ -493,6 +493,22 @@ function Fila({
               </label>
             )}
             {errorSala && <p className={estilos.errorSala} role="alert">{errorSala}</p>}
+            {/* DOS MODELOS DE CONFIRMACIÓN EN UN MISMO PANEL, y esta línea es
+                la mitad que faltaba (revisión final de la ronda, hallazgo I2).
+                Arriba, `EditarAcuerdo` confirma el texto y el responsable con
+                "Guardar" y los revierte con "Cancelar". Aquí abajo, estatus,
+                fecha y sala se aplican en el acto — y eso NO es un descuido:
+                la app reserva la confirmación en dos tiempos para lo
+                irreversible (borrar, ver `AcuerdoControles`) y compromete al
+                vuelo lo que se deshace repitiendo el gesto. Lo que sí era un
+                problema es que los dos modelos compartieran panel sin decirlo:
+                un "Cancelar" bien visible que solo deshace la mitad, con ocho
+                directores editando datos reales. La caja con borde de
+                `.acuerdoEditor` delimita ahora qué gobiernan esos botones, y
+                esta línea nombra lo que hace el resto. */}
+            <p className={estilos.edicionExtraPista}>
+              Estatus, fecha y sala se aplican al momento; «Guardar» y «Cancelar» son solo del texto y el responsable.
+            </p>
           </div>
         )}
       </div>

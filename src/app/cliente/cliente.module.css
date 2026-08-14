@@ -1003,6 +1003,39 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
     display: inline-flex;
     align-items: center;
   }
+
+  /* EL OBJETIVO TÁCTIL SE QUEDÓ EN LA PUERTA (revisión final de la ronda 14,
+     hallazgo I4). La regla de arriba costó una ronda entera para que "✎
+     Corregir" fuera alcanzable con el dedo — y luego la tarea 4 metió DETRÁS
+     de ese botón los cuatro controles que de verdad editan, sin que ninguno
+     heredara nada. MEDIDO a 390 px con `getBoundingClientRect`, con el panel
+     abierto: Corregir 76,2×44 ✅, pero estatus 90,2×25,4 · fecha 136×30,4 ·
+     borrar 25,6×25,6 · sala 121×19,8 (esta última, en bandeja.module.css). Se
+     llegaba a un panel donde TODO volvía a ser un objetivo de ratón, incluido
+     el de borrar, que además es un DELETE sin papelera.
+     `min-height` y `align-items: center` como arriba: crece la zona sensible
+     sin agrandar la letra ni desbordar la fila.
+     ACOTADO A `.controlesEquipo` a propósito: `.botonIconoBorrar` lo comparten
+     las filas de reuniones (`.reunionFila`, `.porVenirFila`), donde vive
+     escondido en `opacity: 0` dentro de una fila de otra altura — engordarlo
+     ahí es otro problema, con otra medición, y no el que este hallazgo abre. */
+  .controlesEquipo .selectEstatus,
+  .controlesEquipo .inputFechaChica {
+    min-height: 44px;
+  }
+  .controlesEquipo .botonIconoBorrar {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Guardar y Cancelar del editor de texto (28,8 px medidos) están en ese
+     mismo panel y se tocan con el mismo dedo. `.acuerdoEditorAcciones` solo lo
+     pinta `EditarAcuerdo`, así que la regla no sale de este editor. */
+  .acuerdoEditorAcciones button {
+    min-height: 44px;
+  }
 }
 
 /* El texto y su lápiz, hermanos y no anidados: dentro, el glifo formaba parte
@@ -1024,7 +1057,26 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .acuerdoOrigen::after { content: ''; position: absolute; inset-block: -14px -10px; inset-inline: -6px; }
 .acuerdoOrigen:hover { color: var(--marca-texto, var(--marca)); }
 .acuerdoLinea { display: flex; align-items: flex-start; gap: 0.1rem; }
-.acuerdoEditor { display: grid; gap: 0.5rem; margin: 0.25rem 0 0.1rem; }
+
+/* UNA CAJA, Y NO UN GRID SUELTO (revisión final de la ronda 14, hallazgo I2).
+   Dentro del panel que abre "✎ Corregir" en `/acuerdos` conviven DOS modelos
+   de confirmación: texto y responsable se confirman con "Guardar" y "Cancelar"
+   los revierte; estatus, fecha y sala se aplican solos al cambiarlos. Con el
+   editor pintado como un grid transparente, ese "Cancelar" bien visible
+   parecía gobernar todo el panel — y ocho directores editando datos reales
+   iban a creer que los devolvía al punto de partida, cuando solo deshace la
+   mitad.
+   NO ES UN CONTROL NUEVO NI UN TERCER ESTILO: es exactamente el patrón que la
+   app ya usa 250 líneas más abajo en `.nuevoAcuerdo` —el alta de un acuerdo en
+   la sala—, donde una caja con borde encierra sus campos JUNTO A su
+   Guardar/Cancelar y deja claro qué gobiernan. Aquí hace el mismo trabajo: lo
+   que está dentro de la caja es lo que esos dos botones deshacen; los
+   controles que se aplican al momento quedan visiblemente FUERA, y lo dicen
+   con su propia línea de ayuda (`.edicionExtraPista`, bandeja.module.css). */
+.acuerdoEditor {
+  display: grid; gap: 0.5rem; margin: 0.25rem 0 0.1rem; padding: 0.7rem;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: 0.7rem;
+}
 .acuerdoEditorTexto {
   width: 100%; font: inherit; font-size: 0.9rem; line-height: 1.5;
   padding: 0.5rem 0.65rem; border-radius: var(--r-2);

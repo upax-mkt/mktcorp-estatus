@@ -156,6 +156,24 @@ export function EditarAcuerdo({
         disabled={pendiente}
       />
       {error && <p className={estilos.subirError} role="alert">{error}</p>}
+      {/* "GUARDAR"/"CANCELAR" GOBIERNAN ESTA CAJA Y NADA MÁS — por qué
+          conviven dos modelos (revisión final de la ronda 14, hallazgo I2).
+
+          El texto y el responsable se editan en un BORRADOR: se teclean, se
+          corrigen, y solo al pulsar "Guardar" salen de aquí. Cancelar puede
+          revertirlos porque todavía no habían salido. Los otros tres campos
+          del panel de `/acuerdos` —estatus, fecha y sala— no tienen borrador:
+          cambiarlos ES la operación, se aplican al vuelo y se deshacen
+          repitiendo el gesto (poner de vuelta el estatus, la fecha o la sala
+          anterior). Es la misma distinción que la app ya defiende en
+          `AcuerdoControles`: dos tiempos solo para lo irreversible (borrar),
+          al vuelo lo reversible.
+          Lo que faltaba no era unificarlos, era DECIRLO: `.acuerdoEditor`
+          pinta ahora una caja con borde —el mismo patrón que `.nuevoAcuerdo`
+          en la sala— para que se vea que estos dos botones alcanzan hasta
+          aquí, y `TablaAcuerdos` añade una línea de ayuda bajo los otros
+          controles. Sin esto, un "Cancelar" bien visible parecía devolver el
+          panel entero al punto de partida y solo deshacía la mitad. */}
       <div className={estilos.acuerdoEditorAcciones}>
         <button
           type="button"

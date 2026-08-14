@@ -244,6 +244,42 @@
 .selectSala:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
 .selectSala:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* 44 PX CON EL DEDO (revisión final de la ronda 14, hallazgo I4). Medido a
+   390 px con el panel abierto: este `<select>` quedaba en 121×19,8 px — el
+   más pequeño de los cuatro controles que "✎ Corregir" destapa, y el único
+   que MUEVE UN ACUERDO DE CLIENTE. Mismo patrón `(pointer: coarse)` que ya
+   fija el objetivo táctil de `.acuerdoCorregir` en cliente.module.css:
+   pregunta cómo se toca, no cuánto mide la pantalla. */
+@media (pointer: coarse) {
+  .selectSala {
+    min-height: 44px;
+    /* EL SUBRAYADO PASA A SER UN BORDE ENTERO, y no por gusto: con 44 px de
+       alto el `border-bottom` se queda 12 px por debajo del texto —el
+       navegador centra el contenido del `<select>` en su caja— y la línea
+       punteada aparece suelta, como un subrayado roto (visto en el print de
+       390 px antes de este ajuste). El borde completo mantiene el objetivo
+       táctil Y la lectura de "esto es editable, no un enlace" que el
+       punteado aporta, y de paso lo iguala con el `<select>` de estatus, que
+       en este mismo panel queda justo encima. */
+    border: 1px dashed currentColor; border-radius: 0.4rem;
+    padding: 0 0.45rem;
+  }
+}
+
+/* LA LÍNEA QUE DICE QUE ESTOS SÍ SE APLICAN SOLOS (hallazgo I2). En este
+   panel conviven dos modelos de confirmación —texto y responsable esperan a
+   "Guardar"; estatus, fecha y sala se aplican al cambiarlos— y el "Cancelar"
+   del editor solo deshace el primero. La caja con borde de `.acuerdoEditor`
+   ya delimita qué gobiernan esos botones; esto cierra la otra mitad diciendo
+   en una línea lo que estos controles hacen. Mismo recurso, y mismo peso
+   visual, que `.enlacePista` en el bloque del enlace público de la agenda
+   ("deja de servir en el acto"): la app avisa de lo inmediato con una frase
+   pegada al control, no con un diálogo. */
+.edicionExtraPista {
+  flex-basis: 100%; margin: 0;
+  font-size: 0.74rem; color: var(--tinta-3); line-height: 1.4;
+}
+
 /* El error de moverDeSala (destino inválido, sala pausada, etc.): mismo tono
    que `.avisoDesvinculado`/`.truncado` en cuanto a tamaño, pero en rojo — es
    un fallo real, no un aviso informativo. */
