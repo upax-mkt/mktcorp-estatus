@@ -190,9 +190,26 @@
 }
 .filtro { display: grid; gap: 0.35rem; min-width: 11rem; }
 
-/* La derecha de una fila del espacio de acuerdos: estatus + link a Monday +
-   estrella, en vez de las acciones de subir/descartar de la bandeja. */
-.filaDcha { display: flex; align-items: center; gap: 0.7rem; flex: none; }
+/* La derecha de una fila del espacio de acuerdos: pildora + estrella +
+   `AcuerdoControles` (estatus, fecha, eliminar), en vez de las acciones de
+   subir/descartar de la bandeja.
+   `flex-wrap: wrap` (ronda 14, tarea 4): con solo pildora+estrella esta fila
+   cabía de sobra en 390px sin envolver. `AcuerdoControles` añadió tres
+   controles más (~230px él solo, medido en el print de esta tarea) y sin
+   wrap la fila los CORTABA —el botón "Corregir", el select de fecha y el ×
+   de eliminar quedaban fuera del viewport, no solo apretados—, que es
+   exactamente el defecto que esta tarea existe para no repetir: sin
+   manejador ALCANZABLE no se ofrece la acción. La sala resuelve el mismo
+   problema apilando en columna (`.acuerdoDcha` en cliente.module.css); aquí
+   basta con envolver, porque en desktop las seis piezas ya caben en una
+   sola línea. */
+/* `max-width: 100%` es lo que de verdad activa el wrap de arriba: `flex: none`
+   (flex-shrink: 0) hace que esta caja nunca ceda ancho por su cuenta, así
+   que sin un tope explícito crecía más allá del viewport en vez de partir
+   línea —medido en el print de esta tarea: el × de eliminar quedaba fuera
+   de los 390px del móvil aun con `flex-wrap: wrap` puesto—. Con el tope, el
+   navegador sí tiene un ancho contra el cual decidir cuándo partir. */
+.filaDcha { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.6rem; flex: none; max-width: 100%; }
 .enlaceMonday {
   font-size: 0.78rem; color: var(--tinta-3); text-decoration: none; white-space: nowrap;
 }
@@ -206,28 +223,35 @@
 }
 .congeladosNota { font-size: 0.8rem; color: var(--tinta-3); margin: 0 0 0.6rem; line-height: 1.5; }
 
-/* ---- Borrar un acuerdo desde la pestaña (13-ago) ----
+/* ---- Estatus, fecha y eliminar desde la pestaña (ronda 14, tarea 4) ----
    Franco: *"como administrador debo poder eliminar acuerdos desde la pestaña
-   acuerdos"*. Mismo gesto y mismo aspecto que dentro de una sala
-   (`.botonIconoBorrar` y compañía en cliente.module.css): la × discreta abre
-   la confirmación en el sitio. Se repiten aquí y no se importan de allá
-   porque un CSS Module no se hereda entre pantallas — y copiar CUATRO reglas
-   pequeñas es más honesto que mudar media hoja de estilos de la sala. */
-.botonIconoBorrar {
-  font-family: inherit; font-size: 1rem; line-height: 1;
-  width: 1.6rem; height: 1.6rem; padding: 0;
-  color: var(--tinta-3); background: none; border: none; border-radius: 0.35rem; cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+   acuerdos"*. Hasta la ronda 14 esta fila tenía su PROPIO borrado en dos
+   tiempos aquí mismo (`.botonIconoBorrar`/`.confirmarBorrado`/`.botonBorrar`/
+   `.botonCancelarBorrado`), duplicado del de `AcuerdoControles` en la sala.
+   Se retiró: ahora `AcuerdoControles` se monta también aquí (mismo
+   componente, no uno parecido — ver la cabecera de `Fila` en
+   TablaAcuerdos.tsx) y pinta su propio borrado con las clases de
+   `cliente.module.css`, que ya heredan de `--tx`/`--borde`/`--alerta`
+   republicados en `.fila` (ver esa regla, arriba) exactamente igual que ya
+   hacía `EditarAcuerdo`. Nada que repetir aquí. */
+
+/* MOVER DE SALA (tarea 3): reemplaza al `<Link>` de siempre dentro de
+   `.meta` cuando llega `moverDeSala`. Mismo color que `.metaSala` —sigue
+   siendo "el dato de la sala", ahora editable— pero con un borde punteado en
+   vez de subrayado al pasar el mouse: un `<select>` no se lee como un
+   enlace, y el punteado es la señal de "esto se puede tocar" que ya usa
+   `.opcion input` más arriba (el radio de destino en la bandeja). */
+.selectSala {
+  font: inherit; font-size: 0.8rem; font-weight: 600;
+  color: var(--marca-texto, var(--marca));
+  background: none; border: none; border-bottom: 1px dashed currentColor;
+  padding: 0 0 0.05rem; margin: 0; cursor: pointer; max-width: 11rem;
 }
-.botonIconoBorrar:hover { color: var(--mal); background: var(--mal-tenue); }
-.confirmarBorrado { display: inline-flex; gap: 0.3rem; align-items: center; }
-.botonBorrar {
-  font-family: inherit; font-size: 0.78rem; font-weight: 600;
-  padding: 0.3rem 0.6rem; border: none; border-radius: 0.35rem; cursor: pointer;
-  color: var(--papel); background: var(--mal);
-}
-.botonCancelarBorrado {
-  font-family: inherit; font-size: 0.78rem;
-  padding: 0.3rem 0.4rem; color: var(--tinta-2);
-  background: none; border: none; cursor: pointer;
-}
+.selectSala:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+.selectSala:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* El error de moverDeSala (destino inválido, sala pausada, etc.): mismo tono
+   que `.avisoDesvinculado`/`.truncado` en cuanto a tamaño, pero en rojo — es
+   un fallo real, no un aviso informativo. Debajo de `.meta`, a todo el ancho
+   del cuerpo, para no forzar el breadcrumb a partirse en dos líneas. */
+.errorSala { margin: 0.3rem 0 0; font-size: 0.76rem; color: var(--mal); line-height: 1.4; }

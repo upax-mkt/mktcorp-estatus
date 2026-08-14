@@ -11,7 +11,14 @@ import { equiposPara } from '@/lib/equipos'
 import { ErrorMonday } from '@/monday/cliente'
 import { TablaAcuerdos } from '@/componentes/acuerdos/TablaAcuerdos'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
-import { destacarAction, editarAcuerdoEnTablaAction, eliminarAcuerdoEnTablaAction } from './acciones'
+import {
+  destacarAction,
+  editarAcuerdoEnTablaAction,
+  eliminarAcuerdoEnTablaAction,
+  cambiarEstatusEnTablaAction,
+  editarFechaEnTablaAction,
+  moverDeSalaAction,
+} from './acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -120,11 +127,15 @@ export default async function PagAcuerdos() {
           </Link>
         </div>
 
-        {/* QUIÉN PUEDE QUÉ, decidido aquí y no dentro de la tabla: corregir es
-            trabajo de equipo (editor) y eliminar es de administración (admin),
-            así que cada acción se pasa —o no— según el rol. La tabla solo
-            pinta lo que recibe; la comprobación que manda vive en cada Server
-            Action, porque esconder un botón no protege un endpoint. */}
+        {/* QUIÉN PUEDE QUÉ, decidido aquí y no dentro de la tabla: corregir
+            texto, estatus, fecha y sala son trabajo de equipo (editor) —las
+            cuatro llaman `exigirEditor()`, ver ./acciones.ts— y eliminar es
+            de administración (admin), así que cada acción se pasa —o no—
+            según el rol. La tabla solo pinta lo que recibe; la comprobación
+            que manda vive en cada Server Action, porque esconder un botón no
+            protege un endpoint. `salas` son las VIVAS (`pausadas` ya vino
+            cargada arriba, mismo criterio que `equiposPara`): a quien está
+            en freeze no se le encarga trabajo. */}
         <TablaAcuerdos
           acuerdos={acuerdos}
           destacar={destacarAction}
@@ -132,6 +143,10 @@ export default async function PagAcuerdos() {
           personas={personas}
           equipos={equipos}
           eliminar={admin ? eliminarAcuerdoEnTablaAction : undefined}
+          cambiarEstatus={editor ? cambiarEstatusEnTablaAction : undefined}
+          editarFecha={editor ? editarFechaEnTablaAction : undefined}
+          moverDeSala={editor ? moverDeSalaAction : undefined}
+          salas={editor ? clientes.filter((c) => !pausadas.has(c.slug)) : undefined}
         />
       </main>
     </div>

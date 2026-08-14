@@ -8,6 +8,7 @@ import { colorDeTextoDeMarca } from '@/temas'
 import type { PersonaMonday } from '@/monday/personas'
 import type { Equipos } from '@/lib/equipos'
 import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
+import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { Estrella } from './Estrella'
 import estilos from './bandeja.module.css'
 
@@ -33,8 +34,40 @@ interface Props {
    * acuerdos desde la pestaña acuerdos"*. Solo llega si quien mira es admin:
    * dentro de una sala borra cualquier editor, pero esta pantalla cruza las
    * nueve y el borrado es un DELETE de verdad.
+   *
+   * Se entrega a `AcuerdoControles` (más abajo), que ya sabe pedir
+   * confirmación en dos tiempos y ya sabe NO pintar su × cuando esta acción
+   * no llega — no hay un botón de eliminar aparte en esta fila.
    */
   eliminar?: (acuerdoId: string) => Promise<void>
+  /**
+   * CAMBIAR ESTADO Y FECHA DESDE AQUÍ (ronda 14, tarea 4 — la costura de las
+   * tareas 2 y 3: las Server Actions ya existían, sin llamador). Opcionales,
+   * como `editar`/`eliminar`: quien no puede editar no las recibe y la fila
+   * no ofrece el control. La comprobación que manda vive en cada Server
+   * Action (`exigirEditor()`, ver src/app/acuerdos/acciones.ts) — esconder
+   * el control aquí es cosmética, no protección.
+   */
+  cambiarEstatus?: (acuerdoId: string, estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado') => Promise<void>
+  editarFecha?: (acuerdoId: string, fecha: string | null) => Promise<void>
+  /**
+   * MOVER DE SALA DESDE AQUÍ (tarea 3). Un acuerdo capturado en la sala
+   * equivocada hoy solo se arreglaba borrándolo y creándolo de nuevo —perdía
+   * su origen y su historia—; esto lo corrige en sitio. También de editor,
+   * por el mismo motivo que `cambiarEstatus`: corrige un dato mal capturado,
+   * no es una decisión de administración.
+   */
+  moverDeSala?: (acuerdoId: string, salaSlug: string) => Promise<{ error?: string }>
+  /**
+   * Las salas VIVAS a las que se puede mover un acuerdo — solo se usa junto
+   * con `moverDeSala`. Las pausadas quedan fuera por el mismo criterio que ya
+   * aplica `equiposPara`: a quien está en freeze no se le encarga trabajo
+   * nuevo. Eso es sobre DESTINOS, no sobre orígenes — un acuerdo YA congelado
+   * puede seguir saliendo de ahí (`Fila` añade su propia sala a las opciones
+   * si hace falta, para que el `<select>` nunca muestre un valor que no es el
+   * real; ver esa función).
+   */
+  salas?: Array<{ slug: string; nombre: string }>
 }
 
 const ETIQUETA_ESTATUS: Record<AcuerdoConSala['estatus'], string> = {
@@ -60,7 +93,22 @@ const SIN_FILTRO = ''
  * quién puede cargar `/acuerdos` (`exigirLectura()` en la página), no qué
  * fila queda visible después de elegir un filtro.
  */
-export function TablaAcuerdos({ acuerdos, destacar, editar, personas, equipos, eliminar }: Props) {
+export function TablaAcuerdos({
+  acuerdos,
+  destacar,
+  editar,
+  personas,
+  equipos,
+  eliminar,
+  cambiarEstatus,
+  editarFecha,
+  moverDeSala,
+  // Alias: esta función YA tiene un `salas` local (las que aparecen en el
+  // filtro "Sala" de arriba, derivadas de `acuerdos`) — es una lista
+  // distinta con un propósito distinto (destinos VIVOS a los que mover, no
+  // "qué salas hay en esta tabla"), así que no pueden compartir nombre.
+  salas: salasParaMover,
+}: Props) {
   const [sala, setSala] = useState(SIN_FILTRO)
   const [responsable, setResponsable] = useState(SIN_FILTRO)
   const [estatus, setEstatus] = useState(SIN_FILTRO)
@@ -135,7 +183,9 @@ export function TablaAcuerdos({ acuerdos, destacar, editar, personas, equipos, e
           <ul className={estilos.lista}>
             {vivos.map((a) => (
               <Fila key={a.id} acuerdo={a} destacar={destacar} editar={editar}
-                    personas={personas} equipos={equipos} eliminar={eliminar} />
+                    personas={personas} equipos={equipos} eliminar={eliminar}
+                    cambiarEstatus={cambiarEstatus} editarFecha={editarFecha}
+                    moverDeSala={moverDeSala} salas={salasParaMover} />
             ))}
           </ul>
         )}
@@ -157,8 +207,16 @@ export function TablaAcuerdos({ acuerdos, destacar, editar, personas, equipos, e
           ) : (
             <ul className={estilos.lista}>
               {congelados.map((a) => (
+                // `moverDeSala`/`salas` SÍ llegan aquí también: un congelado
+                // puede estar mal capturado igual que un vivo, y "a quien
+                // está en freeze no se le encarga trabajo" es sobre no
+                // OFRECERLE trabajo nuevo, no sobre negarle salir de ahí. `Fila`
+                // ya cuida que el `<select>` no mienta cuando la sala propia
+                // —pausada— no está entre las opciones VIVAS (ver ahí el porqué).
                 <Fila key={a.id} acuerdo={a} destacar={destacar} editar={editar}
-                    personas={personas} equipos={equipos} eliminar={eliminar} />
+                    personas={personas} equipos={equipos} eliminar={eliminar}
+                    cambiarEstatus={cambiarEstatus} editarFecha={editarFecha}
+                    moverDeSala={moverDeSala} salas={salasParaMover} />
               ))}
             </ul>
           )}
@@ -175,6 +233,10 @@ function Fila({
   personas,
   equipos,
   eliminar,
+  cambiarEstatus,
+  editarFecha,
+  moverDeSala,
+  salas,
 }: {
   acuerdo: AcuerdoConSala
   destacar: Props['destacar']
@@ -182,6 +244,10 @@ function Fila({
   personas?: Props['personas']
   equipos?: Props['equipos']
   eliminar?: Props['eliminar']
+  cambiarEstatus?: Props['cambiarEstatus']
+  editarFecha?: Props['editarFecha']
+  moverDeSala?: Props['moverDeSala']
+  salas?: Props['salas']
 }) {
   const estiloFila = {
     '--marca': acuerdo.salaColor,
@@ -196,6 +262,31 @@ function Fila({
   // plazo que congelar), así que se comprueba POR FILA, no por bloque: es lo
   // mismo que ya hace src/app/cliente/[slug]/page.tsx.
   const congelado = estaCongelado(acuerdo, { activa: acuerdo.salaActiva })
+
+  const [pendienteSala, empezarSala] = useTransition()
+  const [errorSala, setErrorSala] = useState<string | null>(null)
+  // Fuerza el remonte del `<select>` de sala tras un error (ver su uso más
+  // abajo): es un control NO CONTROLADO (`defaultValue`, no `value`) a
+  // propósito —moverDeSala ya revalida la página entera, y controlarlo
+  // reintroduciría la carrera que `defaultValue` evita en `AcuerdoControles`—,
+  // así que si el POST falla el navegador se queda mostrando el destino que
+  // el usuario tocó, no el real. Cambiar la `key` es la única forma de que
+  // React vuelva a aplicar `defaultValue` sobre el valor que sí quedó guardado.
+  const [intentoSala, setIntentoSala] = useState(0)
+
+  // LA PROPIA SALA, SIEMPRE ENTRE LAS OPCIONES. `salas` (prop) son las
+  // VIVAS —a quien está en freeze no se le encarga trabajo nuevo, así que la
+  // congelada nunca es un DESTINO—, pero eso no significa que no pueda ser el
+  // ORIGEN: un acuerdo de una sala en pausa también puede estar mal
+  // capturado. Sin este parche, el `<select>` de un congelado se abriría sin
+  // su propia sala en la lista y `defaultValue` no encontraría con qué
+  // coincidir — el navegador cae al primer `<option>`, mostrando una sala
+  // que NO es la del acuerdo. Se antepone solo si de verdad falta.
+  const opcionesSala = moverDeSala
+    ? (salas ?? []).some((s) => s.slug === acuerdo.salaSlug)
+      ? (salas ?? [])
+      : [{ slug: acuerdo.salaSlug, nombre: acuerdo.salaNombre }, ...(salas ?? [])]
+    : []
 
   return (
     <li className={estilos.fila} style={estiloFila}>
@@ -219,9 +310,49 @@ function Fila({
           <p className={estilos.que}>{acuerdo.que}</p>
         )}
         <div className={estilos.meta}>
-          <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
-            {acuerdo.salaNombre}
-          </Link>
+          {/* MOVER DE SALA (tarea 3, ronda 14): un acuerdo capturado bajo el
+              cliente equivocado solo se corregía borrándolo y creándolo de
+              nuevo —perdía origen e historia—. El `<select>` reemplaza al
+              enlace de siempre SOLO cuando llega `moverDeSala`; sin él, la
+              sala se sigue leyendo como enlace, igual que hoy.
+
+              SIN CONFIRMACIÓN, a propósito, y no por descuido: la app ya
+              reserva la confirmación en dos tiempos para lo IRREVERSIBLE —
+              ver el comentario de `AcuerdoControles` sobre borrar—, y mueve
+              en el acto lo reversible: el `<select>` de estatus, aquí mismo,
+              ya dispara al cambiar sin preguntar. Mover un acuerdo se
+              deshace moviéndolo de vuelta y queda registrado en `historia`
+              (ver `moverAcuerdoDeSala`, src/db/acuerdos.ts); ponerle
+              confirmación lo igualaría a un borrado y desdibujaría una
+              distinción que la app defiende adrede. */}
+          {moverDeSala ? (
+            <select
+              key={`${acuerdo.salaSlug}-${intentoSala}`}
+              className={estilos.selectSala}
+              aria-label={`Sala del acuerdo ${acuerdo.que}`}
+              defaultValue={acuerdo.salaSlug}
+              disabled={pendienteSala}
+              onChange={(e) => {
+                const destino = e.target.value
+                setErrorSala(null)
+                empezarSala(async () => {
+                  const r = await moverDeSala(acuerdo.id, destino)
+                  if (r.error) {
+                    setErrorSala(r.error)
+                    setIntentoSala((n) => n + 1)
+                  }
+                })
+              }}
+            >
+              {opcionesSala.map((s) => (
+                <option key={s.slug} value={s.slug}>{s.nombre}</option>
+              ))}
+            </select>
+          ) : (
+            <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
+              {acuerdo.salaNombre}
+            </Link>
+          )}
           <span className={estilos.punto} aria-hidden>·</span>
           {/* "sin dueño" y no un hueco: un acuerdo sin responsable es
               justamente lo que hay que ver para arreglarlo, y es como lo
@@ -249,6 +380,7 @@ function Fila({
             </>
           )}
         </div>
+        {errorSala && <p className={estilos.errorSala} role="alert">{errorSala}</p>}
       </div>
 
       <div className={estilos.filaDcha}>
@@ -256,53 +388,28 @@ function Fila({
           {congelado ? 'Congelado' : ETIQUETA_ESTATUS[acuerdo.estatus]}
         </span>
         <Estrella acuerdoId={acuerdo.id} destacado={acuerdo.destacado} destacar={destacar} />
-        {eliminar && <Eliminar acuerdoId={acuerdo.id} eliminar={eliminar} />}
+        {/* ESTATUS, FECHA Y ELIMINAR, JUNTOS EN `AcuerdoControles` — el mismo
+            componente que ya usa la sala (`src/app/cliente/[slug]/page.tsx`),
+            no uno nuevo: es la lección de `EditarAcuerdo` de arriba, repetida.
+            Antes esta fila tenía su PROPIO borrado en dos tiempos, duplicado
+            del de la sala; se retira aquí y `eliminar` pasa derecho a
+            `AcuerdoControles`, que ya sabe no pintar su × cuando no llega
+            (ver la cabecera de `Props` ahí). Se monta solo si llegan las DOS
+            acciones que necesita de verdad —estatus y fecha—: en la práctica
+            `eliminar` nunca llega sin ellas (`esAdmin()` implica
+            `esEditor()`, ver src/auth/roles.ts), así que esta condición no
+            le quita el botón de borrar a nadie que deba tenerlo. */}
+        {cambiarEstatus && editarFecha && (
+          <AcuerdoControles
+            acuerdoId={acuerdo.id}
+            estatusInicial={acuerdo.estatus}
+            fechaInicial={acuerdo.fechaCompromiso ?? null}
+            cambiarEstatusAction={cambiarEstatus}
+            editarFechaAction={editarFecha}
+            eliminarAction={eliminar}
+          />
+        )}
       </div>
     </li>
-  )
-}
-
-/**
- * BORRAR EN DOS TIEMPOS, con el mismo gesto que la sala (`AcuerdoControles`):
- * la × abre la confirmación en el propio sitio y "Borrar" la ejecuta. Sin
- * diálogo del navegador, que bloquea la página entera para preguntar una cosa.
- *
- * No es lo mismo que "Cancelado", que sigue siendo un estatus: un acuerdo
- * cancelado existió y se dejó sin efecto; uno borrado nunca debió existir —un
- * duplicado, una línea que la IA sacó de una transcripción y no era un
- * acuerdo—. Por eso no hay papelera y por eso se pregunta.
- */
-function Eliminar({ acuerdoId, eliminar }: { acuerdoId: string; eliminar: NonNullable<Props['eliminar']> }) {
-  const [confirmando, setConfirmando] = useState(false)
-  const [pendiente, empezar] = useTransition()
-
-  if (!confirmando) {
-    return (
-      <button
-        type="button"
-        className={estilos.botonIconoBorrar}
-        onClick={() => setConfirmando(true)}
-        title="Eliminar acuerdo"
-        aria-label="Eliminar acuerdo"
-      >
-        ×
-      </button>
-    )
-  }
-
-  return (
-    <span className={estilos.confirmarBorrado}>
-      <button
-        type="button"
-        className={estilos.botonBorrar}
-        disabled={pendiente}
-        onClick={() => empezar(async () => { await eliminar(acuerdoId) })}
-      >
-        Borrar
-      </button>
-      <button type="button" className={estilos.botonCancelarBorrado} onClick={() => setConfirmando(false)}>
-        No
-      </button>
-    </span>
   )
 }

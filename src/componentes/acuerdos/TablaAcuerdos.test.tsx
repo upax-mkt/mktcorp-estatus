@@ -84,10 +84,26 @@ describe('TablaAcuerdos', () => {
       expect(control.textContent).toMatch(/corregir/i)
     })
 
+    /**
+     * ELIMINAR SE MUDÓ A `AcuerdoControles` (ronda 14, tarea 4): esta fila ya
+     * no tiene su propio borrado en dos tiempos duplicado del de la sala, así
+     * que estos dos tests ahora pasan `cambiarEstatus`/`editarFecha` también
+     * —lo mismo que hace `page.tsx` de verdad, porque `esAdmin()` implica
+     * `esEditor()` (src/auth/roles.ts): nadie llega con `eliminar` y sin las
+     * otras dos—. El gesto de confirmar que prueban no cambió un pixel.
+     */
     it('eliminar pide confirmación antes de llamar a nadie: no hay papelera', async () => {
       const usuario = userEvent.setup()
       const eliminar = vi.fn().mockResolvedValue(undefined)
-      render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} eliminar={eliminar} />)
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn()}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={vi.fn().mockResolvedValue(undefined)}
+          eliminar={eliminar}
+        />,
+      )
 
       await usuario.click(screen.getByRole('button', { name: /eliminar/i }))
       expect(eliminar).not.toHaveBeenCalled()
@@ -99,12 +115,82 @@ describe('TablaAcuerdos', () => {
     it('decir que no deja el acuerdo como estaba', async () => {
       const usuario = userEvent.setup()
       const eliminar = vi.fn()
-      render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} eliminar={eliminar} />)
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn()}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={vi.fn().mockResolvedValue(undefined)}
+          eliminar={eliminar}
+        />,
+      )
 
       await usuario.click(screen.getByRole('button', { name: /eliminar/i }))
       await usuario.click(screen.getByRole('button', { name: /^no$/i }))
       expect(eliminar).not.toHaveBeenCalled()
       expect(screen.getByRole('button', { name: /eliminar/i })).toBeInTheDocument()
+    })
+  })
+
+  /**
+   * LOS TRES CONTROLES DESDE LA FILA (ronda 14, tarea 4): las Server Actions
+   * de estatus, fecha y sala ya existían (tareas 2 y 3) sin llamador — esta
+   * tarea es la costura. Los tres son opcionales, como `editar`/`eliminar`
+   * de arriba: sin manejador NO se ofrece la acción.
+   */
+  describe('estatus, fecha y sala desde la pestaña', () => {
+    it('cambia el estatus desde la fila, sin entrar a la sala', async () => {
+      const cambiarEstatus = vi.fn().mockResolvedValue(undefined)
+      const usuario = userEvent.setup()
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn().mockResolvedValue(undefined)}
+          cambiarEstatus={cambiarEstatus}
+          editarFecha={vi.fn().mockResolvedValue(undefined)}
+        />,
+      )
+
+      // `/estatus/i` a secas matcheaba DOS controles: el filtro "Estatus" de
+      // arriba (siempre montado, filtra la lista) y este, el de
+      // `AcuerdoControles` (mueve UN acuerdo). Se usa el nombre accesible
+      // completo del segundo para no chocar con el primero.
+      await usuario.selectOptions(screen.getByLabelText(/cambiar estatus/i), 'cumplido')
+
+      expect(cambiarEstatus).toHaveBeenCalledWith(base.id, 'cumplido')
+    })
+
+    it('mueve el acuerdo de sala desde la fila', async () => {
+      const moverDeSala = vi.fn().mockResolvedValue({})
+      const usuario = userEvent.setup()
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn().mockResolvedValue(undefined)}
+          moverDeSala={moverDeSala}
+          salas={[{ slug: 'house-of-films', nombre: 'House of Films' }, { slug: 'neracode', nombre: 'NeraCode' }]}
+        />,
+      )
+
+      await usuario.selectOptions(screen.getByLabelText(/sala del acuerdo/i), 'neracode')
+
+      expect(moverDeSala).toHaveBeenCalledWith(base.id, 'neracode')
+    })
+
+    it('sin permiso de edición no se ofrece ningún control que no se pueda usar', () => {
+      render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn().mockResolvedValue(undefined)} />)
+
+      // La regla que dejó la revisión de la ronda 10: sin manejador NO se
+      // ofrece la acción. Un botón muerto es peor que la ausencia del botón —
+      // y hubo uno que llegó a producción con un test que lo bendecía.
+      // (El filtro "Estatus" de arriba SÍ sigue montado —filtra la lista, no
+      // edita nada—, por eso se comprueba el nombre accesible completo del
+      // control de `AcuerdoControles` y no `/estatus/i` a secas.)
+      expect(screen.queryByLabelText(/cambiar estatus/i)).toBeNull()
+      expect(screen.queryByRole('button', { name: /corregir/i })).toBeNull()
+      expect(screen.queryByLabelText(/sala del acuerdo/i)).toBeNull()
+      // Y la sala sigue leyéndose y llevando a su pantalla.
+      expect(screen.getByRole('link', { name: base.salaNombre })).toBeInTheDocument()
     })
   })
 

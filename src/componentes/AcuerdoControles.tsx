@@ -11,7 +11,19 @@ interface Props {
   fechaInicial: string | null // yyyy-mm-dd
   cambiarEstatusAction: (acuerdoId: string, estatus: EstatusAcuerdo) => Promise<void>
   editarFechaAction: (acuerdoId: string, fecha: string | null) => Promise<void>
-  eliminarAction: (acuerdoId: string) => Promise<void>
+  /**
+   * ELIMINAR, OPCIONAL (ronda 14, tarea 4). En la sala el equipo entero que
+   * llega aquí puede borrar (`editaAcuerdos` ya es admin+editor juntos), pero
+   * `/acuerdos` reparte los roles distinto — Franco: *"como administrador
+   * debo poder eliminar acuerdos"*, y corregir estatus/fecha es de editor.
+   * Un editor sin admin monta igual este componente para mover estatus y
+   * fecha, y NO tiene que recibir una × que no hace nada: mismo criterio que
+   * `eliminar` en `TablaAcuerdos` — un botón sin manejador es peor que la
+   * ausencia del botón. Por eso, sin esta acción, el componente NO PINTA su
+   * ×. La sala la sigue pasando siempre (ver `src/app/cliente/[slug]/page.tsx`),
+   * así que su comportamiento no cambia un pixel.
+   */
+  eliminarAction?: (acuerdoId: string) => Promise<void>
 }
 
 /**
@@ -67,31 +79,37 @@ export function AcuerdoControles({
           propio sitio, sin un diálogo del navegador que bloquea la página.
           Cancelar es distinto de borrar y sigue estando en el desplegable: un
           acuerdo cancelado existió y se dejó sin efecto; uno borrado nunca
-          debió existir (un duplicado, un error de dedo). */}
-      {confirmando ? (
-        <span className={estilos.confirmarBorrado}>
+          debió existir (un duplicado, un error de dedo).
+
+          Y TODO ESTE BLOQUE es condicional a que llegue `eliminarAction`
+          (ver el porqué en la cabecera de `Props`): sin ella, ni el botón ni
+          la confirmación se pintan — no solo se deshabilitan. */}
+      {eliminarAction && (
+        confirmando ? (
+          <span className={estilos.confirmarBorrado}>
+            <button
+              type="button"
+              className={estilos.botonBorrar}
+              disabled={pending}
+              onClick={() => startTransition(() => eliminarAction(acuerdoId))}
+            >
+              Borrar
+            </button>
+            <button type="button" className={estilos.botonCancelarBorrado} onClick={() => setConfirmando(false)}>
+              No
+            </button>
+          </span>
+        ) : (
           <button
             type="button"
-            className={estilos.botonBorrar}
-            disabled={pending}
-            onClick={() => startTransition(() => eliminarAction(acuerdoId))}
+            className={estilos.botonIconoBorrar}
+            onClick={() => setConfirmando(true)}
+            title="Eliminar acuerdo"
+            aria-label="Eliminar acuerdo"
           >
-            Borrar
+            ×
           </button>
-          <button type="button" className={estilos.botonCancelarBorrado} onClick={() => setConfirmando(false)}>
-            No
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          className={estilos.botonIconoBorrar}
-          onClick={() => setConfirmando(true)}
-          title="Eliminar acuerdo"
-          aria-label="Eliminar acuerdo"
-        >
-          ×
-        </button>
+        )
       )}
     </div>
   )
