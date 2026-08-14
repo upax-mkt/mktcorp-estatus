@@ -413,7 +413,15 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function editarFechaAction(acuerdoId: string, fecha: string | null) {
     'use server'
     await exigirEditor()
-    await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
+    // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo de ronda 14, tarea 2):
+    // medido antes de tocar esta línea, `new Date('2026-09-01')` guarda el
+    // día civil "2026-08-31" — medianoche UTC son las 18:00 del día anterior
+    // en México — así que el acuerdo quedaba venciendo un día antes de lo
+    // tecleado. La pestaña `/acuerdos` (`editarFechaEnTablaAction`, en
+    // src/app/acuerdos/acciones.ts) escribe esta MISMA columna
+    // (`fechaCompromiso`) con `instanteEnCDMX`; sin este cambio, el mismo
+    // acuerdo mostraría un día distinto según por dónde se le tocó la fecha.
+    await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
@@ -432,7 +440,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       responsable: datos.responsable,
       responsableMondayId: datos.responsableMondayId,
       squad: datos.squad,
-      fechaCompromiso: datos.fechaCompromiso ? new Date(datos.fechaCompromiso) : null,
+      // Misma columna, mismo arreglo que `editarFechaAction` arriba: un
+      // acuerdo NUEVO no puede nacer con el día corrido solo porque se dio de
+      // alta desde el formulario de la sala en vez de editado después.
+      fechaCompromiso: datos.fechaCompromiso ? instanteEnCDMX(datos.fechaCompromiso, '12:00') : null,
     })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')

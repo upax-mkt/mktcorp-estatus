@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createElement } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
 import { PLANTILLAS } from '@/secciones/plantillas'
+import { diaCivil } from '@/lib/fecha'
 
 /**
  * EL AGUJERO MÁS GRAVE DE LA RONDA 9, Y EL ÚNICO SIN UN TEST QUE SE CAYERA SI
@@ -134,11 +135,16 @@ vi.mock('@/db/participacion', async (importarOriginal) => {
 })
 
 const editarAcuerdoMock = vi.fn()
+const crearAcuerdoMock = vi.fn()
 const salaDeAcuerdoMock = vi.fn()
 vi.mock('@/db/acuerdos', () => ({
   moverEstatus: vi.fn(),
   editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
-  crearAcuerdo: vi.fn(),
+  // Con nombre desde la ronda 14, tarea 2 (ronda de arreglo): el describe de
+  // "la fecha compromiso no se corre un día" comprueba CON QUÉ `Date` se
+  // llamó `crearAcuerdo` — antes bastaba con que se llamara, un `vi.fn()`
+  // anónimo no lo permite.
+  crearAcuerdo: (...args: unknown[]) => crearAcuerdoMock(...args),
   eliminarAcuerdo: vi.fn(),
   // De qué sala es un acuerdo: lo pregunta la acción de corregir, para
   // rechazar el id de otro cliente.
@@ -1399,6 +1405,75 @@ describe('VistaSala (/cliente/[slug]) — la vista compartida es de solo lectura
     expect(screen.getByText('Mandar el reporte')).toBeInTheDocument()
     expect(document.querySelectorAll('select')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: /añadir acuerdo/i })).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * RONDA 14, TAREA 2 (ronda de arreglo) — LA FECHA COMPROMISO NO SE CORRE UN
+ * DÍA, SE EDITE DESDE DONDE SE EDITE.
+ *
+ * `editarFechaAction`/`crearAcuerdoAction` (arriba, dentro de `VistaSala`)
+ * hacían `new Date(fecha)` sobre un string `YYYY-MM-DD` — medianoche UTC, que
+ * en México (UTC-6) son las 18:00 del día ANTERIOR. Medido antes de tocar el
+ * código: `new Date('2026-09-01')` da el día civil "2026-08-31". La pestaña
+ * `/acuerdos` (`editarFechaEnTablaAction`, src/app/acuerdos/acciones.ts) ya
+ * escribe esta MISMA columna (`fechaCompromiso`) con `instanteEnCDMX`; sin
+ * este test, un cambio futuro en cualquiera de las dos pantallas podría
+ * volver a desalinearlas sin que nada se cayera.
+ *
+ * Los dos tests ejercitan el camino REAL, de punta a punta — un input de
+ * fecha de verdad, no la Server Action llamada a mano — porque el bug nunca
+ * estuvo en `AcuerdoControles`/`NuevoAcuerdoForm` (mandan el string tal cual
+ * tecleado): estaba en cómo `page.tsx` convertía ese string a `Date` antes de
+ * guardarlo.
+ */
+describe('VistaSala (/cliente/[slug]) — la fecha compromiso no se corre un día', () => {
+  const CON_ACUERDO_SIN_FECHA: EstadoSala = {
+    ...SALA_BASE,
+    acuerdos: [{
+      id: 'ac-1', que: 'Mandar el reporte', responsable: 'Ana', estatus: 'abierto',
+      fechaCompromiso: null, destacado: false,
+    } as EstadoSala['acuerdos'][number]],
+  }
+
+  it('editar la fecha desde la sala guarda el mismo día civil que se tecleó', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDO_SIN_FECHA)
+    esLectorMock.mockResolvedValue(true)
+    esEditorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    const campoFecha = screen.getByLabelText('Editar fecha compromiso')
+    fireEvent.change(campoFecha, { target: { value: '2026-09-01' } })
+    fireEvent.blur(campoFecha) // dispara el onBlur que llama a editarFechaAction
+
+    await waitFor(() => expect(editarAcuerdoMock).toHaveBeenCalled())
+    const guardada = editarAcuerdoMock.mock.calls[0][1].fechaCompromiso as Date
+    expect(diaCivil(guardada.toISOString())).toBe('2026-09-01') // NO '2026-08-31'
+  })
+
+  it('crear un acuerdo con fecha desde la sala guarda el mismo día civil que se tecleó', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_BASE) // sin acuerdos: no estorba el formulario
+    esLectorMock.mockResolvedValue(true)
+    esEditorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    const usuario = userEvent.setup()
+
+    render(await invocar())
+
+    await usuario.click(screen.getByRole('button', { name: /añadir acuerdo/i }))
+    await usuario.type(screen.getByPlaceholderText('Qué se acordó'), 'Enviar la propuesta')
+    const campoFecha = document.querySelector<HTMLInputElement>('input[name="fecha"][type="date"]')
+    if (!campoFecha) throw new Error('No se encontró el campo de fecha del alta de acuerdo.')
+    fireEvent.change(campoFecha, { target: { value: '2026-09-01' } })
+    await usuario.click(screen.getByRole('button', { name: 'Añadir' }))
+
+    await waitFor(() => expect(crearAcuerdoMock).toHaveBeenCalled())
+    const datos = crearAcuerdoMock.mock.calls[0][1] as { fechaCompromiso: Date | null }
+    const guardada = datos.fechaCompromiso
+    if (!guardada) throw new Error('fechaCompromiso llegó null: el campo no se leyó.')
+    expect(diaCivil(guardada.toISOString())).toBe('2026-09-01') // NO '2026-08-31'
   })
 })
 

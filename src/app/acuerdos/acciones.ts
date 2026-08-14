@@ -425,16 +425,6 @@ export async function cambiarEstatusEnTablaAction(
  * "2026-09-01", que es lo correcto. Las 12:00 y no las 00:00: un mediodía
  * civil no cambia de día por ningún desfase de zona ni por el horario de
  * verano.
- *
- * ⚠️ `src/app/cliente/[slug]/page.tsx:416` (`editarFechaAction`, la misma
- * edición pero desde la sala) SÍ hace `new Date(fecha)` a secas y por tanto
- * SÍ corre la fecha un día — confirmado con la misma medición de arriba, no
- * es una sospecha. Las dos pantallas escriben hoy la misma columna con
- * criterios distintos: un acuerdo editado desde la sala queda un día antes
- * del que se ve si se edita desde aquí. No se toca en esta tarea —
- * `page.tsx` es de otra pantalla y no es parte del alcance de esta— pero
- * queda dicho para quien la toque después: el arreglo es cambiar esa línea
- * por `instanteEnCDMX(fecha, '12:00')`, igual que aquí.
  */
 export async function editarFechaEnTablaAction(
   acuerdoId: string,
