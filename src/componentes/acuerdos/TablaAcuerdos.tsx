@@ -212,6 +212,7 @@ function Fila({
             responsableInicial={acuerdo.responsable}
             personas={personas ?? []}
             equipos={equipos}
+            siempreVisible
             editarAction={editar}
           />
         ) : (

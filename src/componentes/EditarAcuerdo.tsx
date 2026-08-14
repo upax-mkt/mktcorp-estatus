@@ -35,6 +35,7 @@ export function EditarAcuerdo({
   responsableInicial,
   personas,
   equipos,
+  siempreVisible,
   editarAction,
 }: {
   acuerdoId: string
@@ -46,6 +47,17 @@ export function EditarAcuerdo({
    * src/lib/equipos.ts). Opcional: sin ellos el editor se comporta como antes.
    */
   equipos?: Equipos
+  /**
+   * El control de corregir se pinta SIEMPRE, con su etiqueta, en vez de
+   * asomar al pasar el ratón.
+   *
+   * En la sala el lápiz discreto está bien: la fila se lee, y quien va a
+   * corregir ya sabe que puede. En `/acuerdos` la pantalla ES para trabajar
+   * los acuerdos, y Franco reportó que "no se puede editar" teniéndolo
+   * montado desde la ronda 13 — porque `opacity: 0` + `:hover` es invisible
+   * al llegar e INALCANZABLE en un teléfono, donde no existe el hover.
+   */
+  siempreVisible?: boolean
   editarAction: (
     acuerdoId: string,
     cambios: { que: string; responsable: string; responsableMondayId: string | null },
@@ -79,12 +91,12 @@ export function EditarAcuerdo({
         <div className={estilos.acuerdoQue}>{queInicial}</div>
         <button
           type="button"
-          className={estilos.acuerdoLapiz}
+          className={siempreVisible ? estilos.acuerdoCorregir : estilos.acuerdoLapiz}
           onClick={() => setEditando(true)}
           aria-label={`Corregir el acuerdo ${queInicial}`}
           title="Corregir"
         >
-          ✎
+          {siempreVisible ? '✎ Corregir' : '✎'}
         </button>
       </div>
     )

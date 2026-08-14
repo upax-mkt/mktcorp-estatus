@@ -971,6 +971,21 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .acuerdoLapiz:hover { color: var(--marca-texto, var(--marca)); background: var(--superficie-2); }
 .acuerdoLapiz:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
 
+/* EL MISMO CONTROL, PERO QUE SE VE. `/acuerdos` es la pantalla donde se
+   trabajan los acuerdos: ahí el lápiz que asoma al acercarse no es
+   discreción, es un control escondido. Hereda todo lo demás de `.acuerdoLapiz`
+   —tipografía, radio, foco— y solo cambia lo que lo hace visible. */
+.acuerdoCorregir {
+  font: inherit; font-size: 0.75rem; font-weight: 600; line-height: 1;
+  margin-left: 0.45rem; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--borde); background: none; border-radius: 6px;
+  color: var(--tx-2); cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--rapido, 0.15s) linear, border-color var(--rapido, 0.15s) linear;
+}
+.acuerdoCorregir:hover { color: var(--marca-texto, var(--marca)); border-color: currentColor; }
+.acuerdoCorregir:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
+
 /* El texto y su lápiz, hermanos y no anidados: dentro, el glifo formaba parte
    del acuerdo al seleccionarlo o copiarlo.
    `acuerdoLinea` y NO `acuerdoQueFila`: el segundo contiene "acuerdoQue" como

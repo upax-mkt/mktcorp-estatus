@@ -64,6 +64,26 @@ describe('TablaAcuerdos', () => {
       expect(screen.getByRole('button', { name: /corregir/i })).toBeInTheDocument()
     })
 
+    it('ofrece el control de corregir con un nombre accesible, sin depender del hover', async () => {
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn().mockResolvedValue(undefined)}
+          editar={vi.fn().mockResolvedValue({})}
+          personas={[]}
+          equipos={{ squads: [], udns: [] }}
+        />,
+      )
+
+      // `getByRole` solo encuentra lo que está en el árbol; que se VEA sin
+      // hover lo fija la clase, que se comprueba en el navegador (Step 6 del
+      // brief, jsdom no evalúa CSS de módulos). Aquí se fija que el control
+      // existe y se llama por su nombre y no por un glifo.
+      const control = screen.getByRole('button', { name: /corregir/i })
+      expect(control).toBeInTheDocument()
+      expect(control.textContent).toMatch(/corregir/i)
+    })
+
     it('eliminar pide confirmación antes de llamar a nadie: no hay papelera', async () => {
       const usuario = userEvent.setup()
       const eliminar = vi.fn().mockResolvedValue(undefined)
