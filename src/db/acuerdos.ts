@@ -389,6 +389,60 @@ export async function editarAcuerdo(acuerdoId: string, cambiosCrudos: CambiosAcu
 }
 
 /**
+ * MUEVE UN ACUERDO A OTRA SALA (ronda 14, tarea 3). Franco: un acuerdo
+ * registrado en la sala equivocada hoy solo se arregla borrándolo y
+ * volviéndolo a crear — pierde su origen (`reunionOrigenId`) y su historia.
+ * Esta función es el arreglo real: la fila sigue siendo la MISMA, solo
+ * cambia de qué cliente cuelga.
+ *
+ * `validarSala` (arriba, la misma que usa `crearAcuerdo`) valida contra
+ * `slugsDeSalas()` —las salas de cliente de verdad—, NO contra "¿existe la
+ * fila en `salas`?": `grupo-upax` tiene fila y dejó de ser una sala el 24-jul
+ * (ver la cabecera de `slugsDeSalas`, src/db/temas.ts). Aceptar ese slug aquí
+ * dejaría un acuerdo colgado de un cliente que ya no es tal.
+ *
+ * NO se toca `reunionOrigenId`: el acuerdo se acordó donde se acordó, y
+ * moverlo de sala no reescribe de qué junta salió.
+ *
+ * NO SE REUSA `editarAcuerdo` ni se ensancha `CambiosAcuerdo` con `salaSlug`:
+ * mover de sala no es "corregir un campo" del acuerdo, es una operación con
+ * nombre propio, y `editarAcuerdo` además llama a `sincronizarDespuesDeEditar`
+ * (empuja a Monday). Mover de sala no cambia ningún dato que le importe al
+ * tablero (ni el texto, ni el dueño, ni la fecha) — mismo criterio con el que
+ * `retomarAcuerdo`, arriba, tampoco sincroniza. Lo que sí se conserva es la
+ * entrada en `historia`: quedarse sin rastro de que un compromiso cambió de
+ * cliente sería peor que no poder moverlo.
+ *
+ * SIN DB, delega en `moverAcuerdoDeSalaMemoria` (store-memoria.ts) y NO en
+ * `actualizarAcuerdoMemoria`: ese actualizador general excluye `salaSlug` de
+ * su tipo A PROPÓSITO (ver su cabecera) — la misma razón de arriba, aplicada
+ * al doble en memoria. `historiaConEntrada` se calcula aquí, no en el store,
+ * porque es la única fuente de qué forma tiene una entrada de historia.
+ */
+export async function moverAcuerdoDeSala(acuerdoId: string, salaSlug: string): Promise<void> {
+  await validarSala(salaSlug)
+  const ahora = new Date()
+  const cambios = { salaSlug }
+
+  if (hayDB()) {
+    const conexion = db()
+    const actual = (await conexion.select().from(esquema.acuerdos).where(eq(esquema.acuerdos.id, acuerdoId)))[0]
+    if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+    const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
+    await conexion
+      .update(esquema.acuerdos)
+      .set({ salaSlug, historia, updatedAt: ahora })
+      .where(eq(esquema.acuerdos.id, acuerdoId))
+    return
+  }
+
+  const actual = memoria.obtenerAcuerdoMemoria(acuerdoId)
+  if (!actual) throw new Error(`Acuerdo no encontrado: "${acuerdoId}"`)
+  const historia = historiaConEntrada(actual.historia, { en: ahora.toISOString(), cambios })
+  memoria.moverAcuerdoDeSalaMemoria(acuerdoId, salaSlug, historia)
+}
+
+/**
  * Deja constancia de que `reunionId` RETOMA `acuerdoId` — ronda 9, tarea 6.
  * Franco pidió poder "arrastrar" un acuerdo abierto de la sala a la reunión
  * que se está preparando. NO CREA UN ACUERDO NUEVO: darlo de alta otra vez

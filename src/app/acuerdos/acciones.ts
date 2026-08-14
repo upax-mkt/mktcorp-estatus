@@ -6,7 +6,14 @@ import * as esquema from '@/db/esquema'
 import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
 import { pausarSala, reactivarSala, salaEstaActiva } from '@/db/salas'
-import { editarAcuerdo, eliminarAcuerdo, moverEstatus, salaDeAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import {
+  editarAcuerdo,
+  eliminarAcuerdo,
+  moverAcuerdoDeSala,
+  moverEstatus,
+  salaDeAcuerdo,
+  type EstatusAcuerdo,
+} from '@/db/acuerdos'
 import { instanteEnCDMX } from '@/lib/fecha'
 
 /**
@@ -435,6 +442,40 @@ export async function editarFechaEnTablaAction(
     fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null,
   })
   await revalidarAcuerdo(acuerdoId)
+}
+
+/**
+ * MOVER UN ACUERDO DE SALA DESDE `/acuerdos` (ronda 14, tarea 3). Franco: un
+ * acuerdo registrado en la sala equivocada hoy solo se arregla borrándolo y
+ * volviéndolo a crear, y eso pierde su origen y su historia.
+ *
+ * `exigirEditor()` y no `exigirAdmin()` — igual que corregir el texto
+ * (`editarAcuerdoEnTablaAction`) o el estatus (`cambiarEstatusEnTablaAction`):
+ * mover de sala corrige un dato mal capturado, es trabajo de equipo. Solo
+ * ELIMINAR pide admin en esta pantalla, y por un motivo que no aplica aquí —
+ * es un DELETE sin papelera.
+ *
+ * ⚠️ SE REVALIDAN LAS DOS SALAS, y el origen se lee ANTES del `await
+ * moverAcuerdoDeSala`. Después de mover, `salaDeAcuerdo` ya devuelve la de
+ * destino, así que la de origen se quedaría pintando un acuerdo que ya no
+ * tiene — el mismo cuidado que `eliminarAcuerdoEnTablaAction` documenta para
+ * el borrado, aplicado aquí porque hay DOS pantallas de sala en juego, no
+ * una que deja de existir.
+ */
+export async function moverDeSalaAction(
+  acuerdoId: string,
+  salaSlug: string,
+): Promise<{ error?: string }> {
+  await exigirEditor()
+  const origen = await salaDeAcuerdo(acuerdoId)
+  try {
+    await moverAcuerdoDeSala(acuerdoId, salaSlug)
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo mover' }
+  }
+  revalidarPantallasDeAcuerdos(origen)
+  revalidarPantallasDeAcuerdos(salaSlug)
+  return {}
 }
 
 /** Las cuatro pantallas donde un acuerdo puede estar, más su sala. */

@@ -110,6 +110,7 @@ vi.mock('@/db/salas', () => ({
 const editarAcuerdoMock = vi.fn()
 const eliminarAcuerdoMock = vi.fn()
 const moverEstatusMock = vi.fn()
+const moverAcuerdoDeSalaMock = vi.fn()
 const salaDeAcuerdoMock = vi.fn().mockResolvedValue('mexa-creativa')
 vi.mock('@/db/acuerdos', () => ({
   editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
@@ -124,6 +125,10 @@ vi.mock('@/db/acuerdos', () => ({
   // esta, el módulo doble no la exporta y el archivo entero revienta al
   // cargarse, no solo el test que la usa.
   moverEstatus: (...args: unknown[]) => moverEstatusMock(...args),
+  // Ronda 14, tarea 3: `moverDeSalaAction` importa `moverAcuerdoDeSala`. Mismo
+  // motivo que las claves de arriba — sin esta, el módulo doble no la
+  // exporta y el archivo entero revienta al cargarse.
+  moverAcuerdoDeSala: (...args: unknown[]) => moverAcuerdoDeSalaMock(...args),
 }))
 
 // ---- El doble de fila + db() ----
@@ -711,5 +716,83 @@ describe('cambiar estatus y fecha desde la pestaña de acuerdos', () => {
 
     const guardada = editarAcuerdoMock.mock.calls[0][1].fechaCompromiso as Date
     expect(diaCivil(guardada.toISOString())).toBe('2026-09-01')
+  })
+})
+
+/**
+ * RONDA 14, TAREA 3 — mover un acuerdo de sala desde `/acuerdos`.
+ *
+ * `exigirEditor()`, no `exigirAdmin()`: corregir la sala de un acuerdo mal
+ * capturado es trabajo de equipo, igual que corregir el texto o el estatus.
+ */
+describe('moverDeSalaAction', () => {
+  beforeEach(() => {
+    moverAcuerdoDeSalaMock.mockReset().mockResolvedValue(undefined)
+    salaDeAcuerdoMock.mockReset().mockResolvedValue('mexa-creativa')
+    // Sin esto, "el rechazo no revalida nada" vería llamadas acumuladas de
+    // los describes anteriores (este mock no se limpia en el beforeEach
+    // global) y el `.not.toHaveBeenCalled()` de ese test sería falso siempre.
+    revalidatePathMock.mockClear()
+  })
+
+  it('exige editor: sin sesión de equipo no llega a mover nada', async () => {
+    const { moverDeSalaAction } = await import('./acciones')
+    exigirEditorMock.mockRejectedValueOnce(new Error('no autorizado'))
+
+    await expect(moverDeSalaAction('a1', 'zeus')).rejects.toThrow('no autorizado')
+    expect(moverAcuerdoDeSalaMock).not.toHaveBeenCalled()
+  })
+
+  it('al mover, revalida la sala de ORIGEN y la de DESTINO', async () => {
+    const { moverDeSalaAction } = await import('./acciones')
+    salaDeAcuerdoMock.mockResolvedValue('house-of-films')
+
+    await moverDeSalaAction('a1', 'zeus')
+
+    expect(revalidatePathMock).toHaveBeenCalledWith('/cliente/house-of-films')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/cliente/zeus')
+  })
+
+  it('lee la sala de ORIGEN antes de mover: después, salaDeAcuerdo ya respondería la de destino', async () => {
+    const { moverDeSalaAction } = await import('./acciones')
+    const orden: string[] = []
+    salaDeAcuerdoMock.mockImplementationOnce(async () => {
+      orden.push('leer origen')
+      return 'house-of-films'
+    })
+    moverAcuerdoDeSalaMock.mockImplementationOnce(async () => {
+      orden.push('mover')
+    })
+
+    await moverDeSalaAction('a1', 'zeus')
+
+    expect(orden).toEqual(['leer origen', 'mover'])
+  })
+
+  it('mueve el acuerdo pedido a la sala pedida', async () => {
+    const { moverDeSalaAction } = await import('./acciones')
+
+    await moverDeSalaAction('a1', 'zeus')
+
+    expect(moverAcuerdoDeSalaMock).toHaveBeenCalledWith('a1', 'zeus')
+  })
+
+  it('si la base se queja (p. ej. sala desconocida), el error vuelve a la pantalla en vez de romperla', async () => {
+    const { moverDeSalaAction } = await import('./acciones')
+    moverAcuerdoDeSalaMock.mockRejectedValueOnce(new Error('Sala desconocida: "sala-inventada"'))
+
+    const r = await moverDeSalaAction('a1', 'sala-inventada')
+
+    expect(r).toEqual({ error: 'Sala desconocida: "sala-inventada"' })
+    // El rechazo no revalida nada: no hubo movimiento que reflejar en pantalla.
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+
+  it('un movimiento exitoso no devuelve error', async () => {
+    const { moverDeSalaAction } = await import('./acciones')
+
+    const r = await moverDeSalaAction('a1', 'zeus')
+
+    expect(r).toEqual({})
   })
 })

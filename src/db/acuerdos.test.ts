@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { SQL } from 'drizzle-orm'
-import { crearAcuerdo, editarAcuerdo, moverEstatus, retomarAcuerdo } from './acuerdos'
+import { crearAcuerdo, editarAcuerdo, moverAcuerdoDeSala, moverEstatus, retomarAcuerdo } from './acuerdos'
 import { obtenerAcuerdoMemoria, actualizarAcuerdoMemoria, reiniciarStoreMemoria } from './store-memoria'
 import * as sincronizarMod from '@/monday/sincronizar'
 import * as clienteDB from './cliente'
@@ -164,6 +164,89 @@ describe('retomarAcuerdo', () => {
 
   it('un acuerdo que no existe revienta con un mensaje claro, no en silencio', async () => {
     await expect(retomarAcuerdo('no-existe', 'sesion-1')).rejects.toThrow('Acuerdo no encontrado')
+  })
+})
+
+/**
+ * `moverAcuerdoDeSala` (ronda 14, tarea 3): mover un acuerdo registrado en la
+ * sala equivocada, sin borrarlo y volverlo a crear (lo que perdería su
+ * `reunionOrigenId` y su historia).
+ *
+ * RULING de esta ronda, no reabrir: el store en memoria NO modela la sala
+ * dentro de `actualizarAcuerdoMemoria` (su `Omit` excluye `salaSlug` a
+ * propósito), así que estos tests corren contra `moverAcuerdoDeSalaMemoria`
+ * —la función con nombre propio de `store-memoria.ts`— y no contra un
+ * `actualizarAcuerdoMemoria` ensanchado.
+ */
+describe('moverAcuerdoDeSala', () => {
+  it('rechaza una sala que no existe, en vez de dejar el acuerdo huérfano', async () => {
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar propuesta de staffing',
+      responsable: 'Franco Cruzat',
+      fechaCompromiso: null,
+    })
+
+    await expect(moverAcuerdoDeSala(id, 'sala-inventada')).rejects.toThrow(/desconocida/i)
+
+    // Y el acuerdo se queda tal como estaba: el rechazo pasó ANTES de tocar la fila.
+    expect(obtenerAcuerdoMemoria(id)?.salaSlug).toBe('neracode')
+  })
+
+  it('rechaza "grupo-upax": tiene fila en el registro de temas pero dejó de ser una sala el 24-jul', async () => {
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar propuesta de staffing',
+      responsable: 'Franco Cruzat',
+      fechaCompromiso: null,
+    })
+
+    await expect(moverAcuerdoDeSala(id, 'grupo-upax')).rejects.toThrow(/desconocida/i)
+  })
+
+  it('un acuerdo que no existe revienta con un mensaje claro', async () => {
+    await expect(moverAcuerdoDeSala('no-existe', 'zeus')).rejects.toThrow('Acuerdo no encontrado')
+  })
+
+  it('mueve el acuerdo a la sala nueva, sin tocar reunionOrigenId', async () => {
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar propuesta de staffing',
+      responsable: 'Franco Cruzat',
+      fechaCompromiso: null,
+      reunionOrigenId: 'reunion-1',
+    })
+
+    await moverAcuerdoDeSala(id, 'zeus')
+
+    const guardado = obtenerAcuerdoMemoria(id)
+    expect(guardado?.salaSlug).toBe('zeus')
+    expect(guardado?.reunionOrigenId).toBe('reunion-1') // el acuerdo se acordó donde se acordó
+  })
+
+  it('deja constancia del movimiento en la historia, con la sala nueva', async () => {
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar propuesta de staffing',
+      responsable: 'Franco Cruzat',
+      fechaCompromiso: null,
+    })
+
+    await moverAcuerdoDeSala(id, 'zeus')
+
+    const guardado = obtenerAcuerdoMemoria(id)
+    expect(guardado?.historia).toContainEqual(expect.objectContaining({ cambios: { salaSlug: 'zeus' } }))
+  })
+
+  it('NO llama a Monday: mover de sala no cambia ningún dato que le importe al tablero', async () => {
+    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
+    const { id } = await crearAcuerdo('neracode', {
+      que: 'Mandar propuesta de staffing',
+      responsable: 'Franco Cruzat',
+      fechaCompromiso: null,
+      responsableMondayId: '65476480',
+    })
+
+    await moverAcuerdoDeSala(id, 'zeus')
+
+    expect(espia).not.toHaveBeenCalled()
+    espia.mockRestore()
   })
 })
 

@@ -375,6 +375,30 @@ export function actualizarAcuerdoMemoria(
 }
 
 /**
+ * MUEVE UN ACUERDO DE SALA en memoria — el ÚNICO punto que toca `salaSlug`
+ * en este store (ronda 14, tarea 3).
+ *
+ * `actualizarAcuerdoMemoria` EXCLUYE `salaSlug` de su `Omit` a propósito
+ * (ver su firma justo arriba), y esa exclusión no se toca aquí: ensancharla
+ * convertiría la sala en un campo editable más para CUALQUIER llamador del
+ * actualizador general —hoy son las ediciones de texto, responsable y fecha
+ * (`editarAcuerdo`)—, y mover un acuerdo de cliente no es "editar un campo":
+ * es una operación con nombre propio (`moverAcuerdoDeSala`,
+ * src/db/acuerdos.ts) que además dejar constancia en `historia` es parte de
+ * lo que hace, no un efecto secundario opcional. Por eso `historia` entra ya
+ * calculada (con `historiaConEntrada`, privado de acuerdos.ts) en vez de que
+ * esta función arme su propia entrada: la única fuente de qué va en una
+ * entrada de historia sigue siendo esa, no una copia aquí.
+ */
+export function moverAcuerdoDeSalaMemoria(id: string, salaSlug: string, historia: HistoriaAcuerdoMemoria[]): void {
+  const fila = acuerdos.get(id)
+  if (!fila) return
+  fila.salaSlug = salaSlug
+  fila.historia = historia
+  fila.updatedAt = new Date()
+}
+
+/**
  * Anula `reunionOrigenId` en todos los acuerdos que apuntaban a `reunionId`
  * — espejo en memoria de la parte de `eliminarReunion` (ver
  * src/db/reuniones.ts) que suelta la referencia ANTES de borrar la reunión:
