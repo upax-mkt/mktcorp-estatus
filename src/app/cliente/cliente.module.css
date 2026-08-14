@@ -986,6 +986,25 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .acuerdoCorregir:hover { color: var(--marca-texto, var(--marca)); border-color: currentColor; }
 .acuerdoCorregir:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
 
+/* MEDIDO en `/acuerdos` (ronda de arreglo 1, `getBoundingClientRect`): el
+ * control quedaba en 76 × 24 px con `opacity: 1` y visible, en las 19 filas,
+ * a 1440 y a 390 — pero 24 px de alto es un objetivo de ratón, no de dedo, y
+ * esta tarea existe justo para dejar de depender de un gesto que la mitad de
+ * los dispositivos no tienen. `(pointer: coarse)` y no un ancho: pregunta
+ * cómo se toca, no cuánto mide la pantalla —el mismo criterio que ya fija el
+ * objetivo táctil de 44 px en `.cerrar`/`.cambiar` de minuta.module.css—, así
+ * que con ratón a cualquier ancho el control se queda en 24 px (diecinueve
+ * filas de una lista que se lee no necesitan engordar) y solo sube donde se
+ * toca con el dedo. `align-items: center` en vez de más padding: crece la
+ * ZONA sensible sin agrandar la letra ni desbordar la fila. */
+@media (pointer: coarse) {
+  .acuerdoCorregir {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 /* El texto y su lápiz, hermanos y no anidados: dentro, el glifo formaba parte
    del acuerdo al seleccionarlo o copiarlo.
    `acuerdoLinea` y NO `acuerdoQueFila`: el segundo contiene "acuerdoQue" como
