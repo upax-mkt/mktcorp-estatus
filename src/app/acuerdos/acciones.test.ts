@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin, exigirEditor } from '@/auth/roles'
+import { revalidatePath } from 'next/cache'
+import { diaCivil } from '@/lib/fecha'
 
 /**
  * CONCURRENCIA DE LA BANDEJA (revisión de Franco a la tarea 8).
@@ -63,6 +65,12 @@ vi.mock('@/auth/roles', () => ({
 // falta resetearlo en beforeEach.
 const exigirEditorMock = vi.mocked(exigirEditor)
 const exigirAdminMock = vi.mocked(exigirAdmin)
+// Ronda 14, tarea 2: el único describe de este archivo que necesita
+// comprobar CON QUÉ ruta se llamó `revalidatePath` (todos los anteriores solo
+// comprueban que la acción hizo o no lo que tenía que hacer, nunca la ruta
+// exacta) — de ahí que sea el primero en capturar el mock con nombre en vez
+// de dejarlo anónimo dentro de `vi.mock('next/cache', ...)`.
+const revalidatePathMock = vi.mocked(revalidatePath)
 
 const existeElGrupoMock = vi.fn()
 const crearElementoEnDeliveryMock = vi.fn()
@@ -101,6 +109,7 @@ vi.mock('@/db/salas', () => ({
  */
 const editarAcuerdoMock = vi.fn()
 const eliminarAcuerdoMock = vi.fn()
+const moverEstatusMock = vi.fn()
 const salaDeAcuerdoMock = vi.fn().mockResolvedValue('mexa-creativa')
 vi.mock('@/db/acuerdos', () => ({
   editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
@@ -110,6 +119,11 @@ vi.mock('@/db/acuerdos', () => ({
   // al cargarse.
   eliminarAcuerdo: (...args: unknown[]) => eliminarAcuerdoMock(...args),
   salaDeAcuerdo: (...args: unknown[]) => salaDeAcuerdoMock(...args),
+  // Ronda 14, tarea 2: `cambiarEstatusEnTablaAction` importa `moverEstatus`.
+  // Mismo motivo que las dos claves de arriba (comentario de ronda 13) — sin
+  // esta, el módulo doble no la exporta y el archivo entero revienta al
+  // cargarse, no solo el test que la usa.
+  moverEstatus: (...args: unknown[]) => moverEstatusMock(...args),
 }))
 
 // ---- El doble de fila + db() ----
@@ -560,6 +574,7 @@ describe('editar y eliminar desde la pestaña de acuerdos', () => {
   beforeEach(() => {
     editarAcuerdoMock.mockReset()
     eliminarAcuerdoMock.mockReset()
+    moverEstatusMock.mockReset()
     salaDeAcuerdoMock.mockReset().mockResolvedValue('mexa-creativa')
   })
 
@@ -624,5 +639,77 @@ describe('editar y eliminar desde la pestaña de acuerdos', () => {
 
     expect(orden).toEqual(['leer sala', 'borrar'])
     expect(eliminarAcuerdoMock).toHaveBeenCalledWith('a1')
+  })
+})
+
+/**
+ * RONDA 14, TAREA 2 — estatus y fecha compromiso desde la pestaña de
+ * acuerdos. `AcuerdoControles` ya resuelve las dos cosas dentro de la sala;
+ * aquí solo faltaban sus Server Actions equivalentes para `/acuerdos`.
+ *
+ * Mismo idioma que el describe de arriba: `exigirEditorMock`,
+ * `editarAcuerdoMock`, `salaDeAcuerdoMock` (más `moverEstatusMock`, nuevo
+ * aquí). `cambiarEstatusEnTablaAction`/`editarFechaEnTablaAction` exigen
+ * EDITOR, no admin — corregir el estado o la fecha es trabajo de equipo,
+ * igual que corregir el texto (`editarAcuerdoEnTablaAction`). Solo eliminar
+ * pide admin en esta pantalla.
+ */
+describe('cambiar estatus y fecha desde la pestaña de acuerdos', () => {
+  beforeEach(() => {
+    moverEstatusMock.mockReset()
+    editarAcuerdoMock.mockReset()
+    salaDeAcuerdoMock.mockReset().mockResolvedValue('mexa-creativa')
+  })
+
+  it('cambiar el estatus exige editor', async () => {
+    const { cambiarEstatusEnTablaAction } = await import('./acciones')
+    exigirEditorMock.mockRejectedValueOnce(new Error('no autorizado'))
+
+    await expect(cambiarEstatusEnTablaAction('a1', 'cumplido')).rejects.toThrow('no autorizado')
+    expect(moverEstatusMock).not.toHaveBeenCalled()
+  })
+
+  it('cambiar el estatus lo guarda y revalida la sala del acuerdo', async () => {
+    const { cambiarEstatusEnTablaAction } = await import('./acciones')
+    salaDeAcuerdoMock.mockResolvedValue('zeus')
+
+    await cambiarEstatusEnTablaAction('a1', 'cumplido')
+
+    expect(moverEstatusMock).toHaveBeenCalledWith('a1', 'cumplido')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/cliente/zeus')
+  })
+
+  it('editar la fecha exige editor', async () => {
+    const { editarFechaEnTablaAction } = await import('./acciones')
+    exigirEditorMock.mockRejectedValueOnce(new Error('no autorizado'))
+
+    await expect(editarFechaEnTablaAction('a1', '2026-09-01')).rejects.toThrow('no autorizado')
+    expect(editarAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('una fecha vacía se guarda como null: "sin fecha" es un valor, no un error', async () => {
+    const { editarFechaEnTablaAction } = await import('./acciones')
+    salaDeAcuerdoMock.mockResolvedValue('zeus')
+
+    await editarFechaEnTablaAction('a1', null)
+
+    expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', { fechaCompromiso: null })
+  })
+
+  /**
+   * ESTE TEST ES EL QUE IMPORTA (brief de la tarea, no ceremonia):
+   * `fechaCompromiso` es un `Date`, no un string, y `new Date('2026-09-01')`
+   * es medianoche UTC — las 18:00 del 31 de agosto en México. La acción debe
+   * usar `instanteEnCDMX`, anclada a America/Mexico_City, para que el día
+   * civil guardado sea el mismo que se tecleó.
+   */
+  it('el 1 de septiembre guardado es el 1 de septiembre en México, no el 31 de agosto', async () => {
+    const { editarFechaEnTablaAction } = await import('./acciones')
+    salaDeAcuerdoMock.mockResolvedValue('zeus')
+
+    await editarFechaEnTablaAction('a1', '2026-09-01')
+
+    const guardada = editarAcuerdoMock.mock.calls[0][1].fechaCompromiso as Date
+    expect(diaCivil(guardada.toISOString())).toBe('2026-09-01')
   })
 })

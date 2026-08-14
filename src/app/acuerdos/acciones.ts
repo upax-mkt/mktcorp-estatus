@@ -6,7 +6,8 @@ import * as esquema from '@/db/esquema'
 import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
 import { pausarSala, reactivarSala, salaEstaActiva } from '@/db/salas'
-import { editarAcuerdo, eliminarAcuerdo, salaDeAcuerdo } from '@/db/acuerdos'
+import { editarAcuerdo, eliminarAcuerdo, moverEstatus, salaDeAcuerdo, type EstatusAcuerdo } from '@/db/acuerdos'
+import { instanteEnCDMX } from '@/lib/fecha'
 
 /**
  * Las acciones de la bandeja. Todas empiezan comprobando la sesión: esto
@@ -386,6 +387,64 @@ export async function eliminarAcuerdoEnTablaAction(acuerdoId: string): Promise<v
   const slug = await salaDeAcuerdo(acuerdoId)
   await eliminarAcuerdo(acuerdoId)
   revalidarPantallasDeAcuerdos(slug)
+}
+
+// ---- Estatus y fecha desde la pestaña de acuerdos (ronda 14, tarea 2) ----
+
+/**
+ * CAMBIAR EL ESTADO DE UN ACUERDO DESDE `/acuerdos`.
+ *
+ * `exigirEditor()` y no `exigirAdmin()`: corregir el estado es trabajo de
+ * equipo, igual que corregir el texto (`editarAcuerdoEnTablaAction`). Solo
+ * ELIMINAR pide admin en esta pantalla, y por un motivo distinto — es un
+ * DELETE sin papelera sobre las nueve salas a la vez.
+ */
+export async function cambiarEstatusEnTablaAction(
+  acuerdoId: string,
+  estatus: EstatusAcuerdo,
+): Promise<void> {
+  await exigirEditor()
+  await moverEstatus(acuerdoId, estatus)
+  await revalidarAcuerdo(acuerdoId)
+}
+
+/**
+ * LA FECHA COMPROMISO, DESDE `/acuerdos`.
+ *
+ * `null` no es un fallo de validación: "sin fecha" es un estado legítimo y la
+ * app ya lo pinta como tal ("sin fecha"), además de ordenarlo aparte — lo
+ * abierto sin fecha va al final de lo vivo (`dominio/orden-acuerdos.ts`).
+ * Vaciar el campo tiene que poder significar eso, o no habría forma de
+ * deshacer una fecha puesta por error.
+ *
+ * `instanteEnCDMX` y NO `new Date(fecha)`: `fechaCompromiso` es un `Date` y
+ * `new Date('2026-09-01')` es medianoche UTC — las 18:00 del 31 de agosto en
+ * México, así que el acuerdo se guardaría con un día de menos. Medido para
+ * esta tarea (sin tocar la base): `new Date('2026-09-01')` da
+ * `diaCivil` = "2026-08-31"; `instanteEnCDMX('2026-09-01', '12:00')` da
+ * "2026-09-01", que es lo correcto. Las 12:00 y no las 00:00: un mediodía
+ * civil no cambia de día por ningún desfase de zona ni por el horario de
+ * verano.
+ *
+ * ⚠️ `src/app/cliente/[slug]/page.tsx:416` (`editarFechaAction`, la misma
+ * edición pero desde la sala) SÍ hace `new Date(fecha)` a secas y por tanto
+ * SÍ corre la fecha un día — confirmado con la misma medición de arriba, no
+ * es una sospecha. Las dos pantallas escriben hoy la misma columna con
+ * criterios distintos: un acuerdo editado desde la sala queda un día antes
+ * del que se ve si se edita desde aquí. No se toca en esta tarea —
+ * `page.tsx` es de otra pantalla y no es parte del alcance de esta— pero
+ * queda dicho para quien la toque después: el arreglo es cambiar esa línea
+ * por `instanteEnCDMX(fecha, '12:00')`, igual que aquí.
+ */
+export async function editarFechaEnTablaAction(
+  acuerdoId: string,
+  fecha: string | null,
+): Promise<void> {
+  await exigirEditor()
+  await editarAcuerdo(acuerdoId, {
+    fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null,
+  })
+  await revalidarAcuerdo(acuerdoId)
 }
 
 /** Las cuatro pantallas donde un acuerdo puede estar, más su sala. */
