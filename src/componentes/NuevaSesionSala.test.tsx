@@ -85,4 +85,28 @@ describe('NuevaSesionSala — pregunta la clase de junta, no la plantilla (ronda
 
     expect(screen.getByRole('option', { name: /sync comercial/i })).toBeInTheDocument()
   })
+
+  // RONDA DE ARREGLO 1/5: la revisión encontró un hueco real. `plantillaElegida`
+  // se deriva de `plantilla` en cada render (`obtenerPlantilla(plantilla)`),
+  // así que la línea de ayuda NO se queda pegada a la primera opción — pero
+  // eso solo estaba verificado leyendo el código, no probándolo: ni el test
+  // de arriba ni el print (que solo mira el estado inicial) cambian de
+  // opción. Si mañana alguien memoiza mal ese valor o lo calcula una sola vez
+  // al montar, la ayuda mentiría bajo la opción elegida y la suite seguiría
+  // en verde. Este test lo cierra: elige "Sync Comercial" y exige que el
+  // `paraQue` que se ve sea el de esa clase, no el de "Estatus de UDN".
+  it('recalcula la línea de ayuda al cambiar de clase — no se queda pegada a la primera', async () => {
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    // Arranca en "Estatus de UDN" (PLANTILLAS[0]): su `paraQue` es el que se ve.
+    expect(screen.getByText(/los ocho bloques acordados/i)).toBeInTheDocument()
+
+    await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'sync-comercial')
+
+    // Cambia la clase → cambia el `paraQue` mostrado, y el de antes desaparece.
+    expect(screen.getByText(/junta semanal de seguimiento comercial/i)).toBeInTheDocument()
+    expect(screen.queryByText(/los ocho bloques acordados/i)).toBeNull()
+  })
 })
