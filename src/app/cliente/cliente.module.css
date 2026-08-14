@@ -48,7 +48,20 @@
      llegar. Lo que sí hace falta a mitad de página es saltar de sección, y de
      eso se encarga el riel (`.menuSecciones`), que ocupa el sitio pegado que
      esta dejó. */
-  position: relative; z-index: 30;
+  /* ⚠️ Y POR ESO MISMO YA NO LLEVA `z-index`: era el residuo de cuando SÍ se
+     pegaba, y tapaba el desplegable «Clientes ▾» de la barra global.
+     El mecanismo, que no se ve leyendo ninguna de las dos hojas por separado:
+     `BarraNavegacion` es `sticky` con `z-index: 30`, así que **crea su propio
+     contexto de apilamiento**, y el `z-index: 40` de su desplegable solo
+     compite DENTRO de ella — hacia fuera, el menú vale lo que valga su barra.
+     Esta barra declaraba el MISMO 30 y va después en el DOM, así que ganaba el
+     empate y pintaba encima del menú entero. Comprobado con
+     `elementFromPoint` en mitad del menú abierto: devolvía este `<header>`.
+     Sin `z-index` se apila por orden de documento, y un positivo (la barra
+     global) siempre pinta por encima de eso.
+     REGLA: dos barras hermanas no pueden declarar el mismo `z-index`; y un
+     desplegable nunca vale más que el contexto de apilamiento que lo contiene. */
+  position: relative;
   display: flex; align-items: center; gap: 1rem;
   padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
   /* 94 % Y NO 78 %: hasta la ronda 12 esta barra NUNCA SE PEGÓ —`overflow-x:
