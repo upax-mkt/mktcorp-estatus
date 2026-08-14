@@ -839,3 +839,115 @@ git commit -m "La estrella fija un acuerdo arriba, y ya no promete el Home"
   desaparece.
 - El punto negro de House of Films y Marketing United: pendiente de decisión
   de marca de Franco.
+
+---
+
+### Task 6: La fecha de un archivo (encargo directo de Franco, 14-ago)
+
+**Por qué:** al arreglar la fecha compromiso (Tarea 2) salieron otros dos sitios
+con `new Date(<día civil>)`, sobre otra columna: `archivos.fecha` — la fecha de
+una **nota de prensa** y de un **material**. Franco pidió arreglarlo también.
+
+⚠️ **No es el mismo defecto que el de la Tarea 2, y la diferencia importa.**
+Medido el 14-ago:
+
+```
+escrito por el usuario  : 2026-09-01
+guardado (instante)     : 2026-09-01T00:00:00.000Z   (new Date del día civil)
+leído con isoFecha()    : 2026-09-01   ✓ coincide
+ese ISO pintado en CDMX : 31 ago 2026  ✗ un día menos
+```
+
+La ida y vuelta **dentro de la capa de datos es correcta**: `archivos.ts:67`
+lee con `isoFecha = d.toISOString().slice(0,10)`, que también piensa en UTC,
+así que los dos sesgos se cancelan. El día solo se corre **al pintarse**,
+porque la app pinta anclada a `America/Mexico_City`. Por eso ningún test lo
+vio: los tests comparan el string que devuelve la capa de datos, y ese string
+está bien.
+
+**Files:**
+- Modify: `src/app/cliente/[slug]/page.tsx` (`registrarArchivoAction` ~línea
+  723, `editarArchivoAction` ~línea 877)
+- Test: `src/app/cliente/[slug]/page.test.ts`
+
+**Interfaces:**
+- Consumes: `instanteEnCDMX(diaCivilTexto, horaMinuto)` de `@/lib/fecha`, ya
+  importada en ese archivo por la Tarea 2.
+- Produces: nada que consuman tareas posteriores.
+
+- [ ] **Step 1: Medir dónde se pinta, antes de tocar nada**
+
+El defecto vive en el RENDER, así que hay que confirmar que el render existe y
+falla. Notas de prensa y materiales muestran su fecha en la sala. Saca el print
+con `node /Users/19022467/.claude/tools/webshot/_sesion-local.mjs 1440 900` y
+compara lo que se ve con lo que hay en la base, en **solo lectura**. House of
+Films tiene cinco notas de prensa cargadas por Franco. Si la fecha pintada es
+un día menor que la guardada, está confirmado. **Escribe los dos números en el
+informe.** Si NO se corre, para y dilo: significaría que ese render no está
+anclado a CDMX y el arreglo sería otro.
+
+- [ ] **Step 2: Escribir el test que falla**
+
+En `src/app/cliente/[slug]/page.test.ts`, junto a los dos que la Tarea 2 ya
+dejó para la fecha compromiso y con su mismo idioma (ejercitar la Server
+Action real, capturar el `Date` con el mock de la capa de datos):
+
+```ts
+  it('la fecha de una nota de prensa se guarda en el día civil que se escribió', async () => {
+    // Mismo montaje que los tests de fecha compromiso de esta suite:
+    // se ejercita `registrarArchivoAction` de verdad y se captura el Date.
+    await registrarArchivoAction({ /* …los campos que exija la firma real… */ fecha: '2026-09-01' })
+
+    const guardada = registrarArchivoMock.mock.calls[0][0].fecha as Date
+    // En CDMX, no en UTC: es donde se pinta y donde se cae hoy.
+    expect(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(guardada))
+      .toBe('2026-09-01')
+  })
+```
+
+⚠️ **La aserción va en CDMX y no con `isoFecha`.** Con `isoFecha` el test
+PASARÍA hoy, con el bug puesto — porque la ida y vuelta en UTC se cancela. Un
+test que pasa con el defecto no demuestra nada. Escribe el equivalente para
+`editarArchivoAction`.
+
+- [ ] **Step 3: Correr los dos tests y verlos fallar**
+
+```bash
+npx vitest run "src/app/cliente/[slug]/page.test.ts" -t "día civil"
+```
+
+Esperado: FALLAN, con `'2026-08-31'` donde se espera `'2026-09-01'`.
+
+- [ ] **Step 4: Implementar**
+
+En las dos acciones, cambiar `new Date(<día>)` por
+`instanteEnCDMX(<día>, '12:00')`, con un comentario que diga el número medido
+y **por qué este caso se escapó**: que la capa de datos lo lee con un
+`isoFecha` propio en UTC, así que los dos sesgos se cancelan y el día solo se
+corre al pintarlo.
+
+- [ ] **Step 5: Correr los tests y verlos pasar**
+
+```bash
+npx vitest run "src/app/cliente/[slug]/page.test.ts" && npx vitest run && npx tsc --noEmit && npx eslint
+```
+
+- [ ] **Step 6: Comprobar que ya no se corre**
+
+Repetir el Step 1 **contra la sala PAUSADA de Zeus**, no contra las de Franco:
+dar de alta una nota con fecha conocida, mirarla pintada, y borrarla después
+comprobando que la fila desaparece.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add -A
+git commit -m "La fecha de una nota de prensa y de un material deja de correrse un día"
+```
+
+**Lo que NO entra:** unificar los dos `isoFecha` caseros
+(`src/db/archivos.ts:67` y `src/db/consultas.ts:89`) con la fuente única de
+`src/lib/fecha.ts`. Es la misma familia de defecto —un ayudante de fecha
+duplicado ya costó en la ronda 10 que los acuerdos vencieran 6 h antes cada
+tarde— pero toca dos módulos de datos y todos sus llamadores. Queda anotado
+para la revisión final.

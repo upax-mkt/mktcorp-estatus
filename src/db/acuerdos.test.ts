@@ -442,6 +442,47 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
     expect(fila.estatus).toBe('abierto')
     expect(fila.historia).toContainEqual(expect.objectContaining({ cambios: { retomadoEnSesion: 'sesion-1' } }))
   })
+
+  /**
+   * `moverAcuerdoDeSala` — rama Postgres (ronda de arreglo 1/5 sobre la
+   * tarea 3: hallazgo de revisión. Era la única función de escritura de este
+   * archivo cuya rama `hayDB()` no ejercitaba ningún test — sus tres
+   * hermanas, arriba, sí). NIDO dentro de este describe a propósito, no un
+   * describe hermano con su propio doble duplicado: `fila`/`dobleDB` de
+   * arriba son closures de ESTE bloque (no visibles fuera de él), y son
+   * EXACTAMENTE el doble mínimo de `db()` que hace falta aquí también — un
+   * describe nuevo "al lado" habría significado copiar otra vez la interfaz
+   * `FilaDB`, `claveDeColumna` y `dobleDB()`, cuando anidar los reusa tal
+   * cual, con el mismo `beforeEach` que ya deja `hayDB()`/`db()` mockeados.
+   */
+  describe('moverAcuerdoDeSala', () => {
+    beforeEach(() => {
+      // `moverAcuerdoDeSala` pasa por `validarSala` → `slugsDeSalas()`
+      // (src/db/temas.ts), que a su vez llama a `cargarTemas()` — y ESA sí
+      // golpea `db()` con una forma de consulta (`.select().from(esquema.salas)`,
+      // sin `.where()`) que el `dobleDB()` de este bloque no modela (solo
+      // sabe responder `select().from().where()`). Mismo mockeo directo que
+      // ya usa el describe de "crearAcuerdo — no duplica..." más abajo, y por
+      // el mismo motivo: sin esto no se prueba la escritura de este describe,
+      // se prueba si `slugsDeSalas` sabe leer un doble que no es el suyo.
+      vi.spyOn(temasDB, 'slugsDeSalas').mockResolvedValue(['neracode', 'zeus'])
+    })
+
+    it('escribe salaSlug y deja la entrada de historia sobre la fila real', async () => {
+      await moverAcuerdoDeSala('a1', 'zeus')
+
+      expect(fila.salaSlug).toBe('zeus')
+      expect(fila.historia).toContainEqual(expect.objectContaining({ cambios: { salaSlug: 'zeus' } }))
+    })
+
+    it('NO llama a la sincronización con Monday: mover de sala no le importa al tablero', async () => {
+      const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
+
+      await moverAcuerdoDeSala('a1', 'zeus')
+
+      expect(espia).not.toHaveBeenCalled()
+    })
+  })
 })
 
 /**
