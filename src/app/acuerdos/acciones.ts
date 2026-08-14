@@ -264,20 +264,27 @@ export async function editarEnBandejaAction(
   revalidatePath(`/cliente/${salaSlug}`)
 }
 
-// ---- La estrella (tarea 11, ronda 7) ----
+// ---- La estrella (tarea 11, ronda 7; su significado cambió en la ronda 14, tarea 5) ----
 
 /**
- * Marca o quita un acuerdo de los destacados: los pocos que se ven en el
- * Home, cruzando las diez salas. Es la ÚNICA acción detrás de la estrella —
- * `Estrella.tsx` no sabe nada de Drizzle, solo recibe esta función por prop—
- * así que el mismo botón sirve en el espacio de acuerdos, el Home y la sala
- * (tarea 12) sin que ninguna pantalla reimplemente la regla por su cuenta.
+ * Fija o quita un acuerdo arriba en `/acuerdos`, cruzando las diez salas. Es
+ * la ÚNICA acción detrás de la estrella — `Estrella.tsx` no sabe nada de
+ * Drizzle, solo recibe esta función por prop — así que el mismo botón sirve
+ * en el espacio de acuerdos y en la sala sin que ninguna pantalla
+ * reimplemente la regla por su cuenta.
  *
- * `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`: destacar decide qué
- * se ve en una vitrina COMPARTIDA por las diez salas, no el estatus de un
+ * Hasta la ronda 14 destacar quería decir "sale en el Home" y el plan era
+ * cablear un tercer sitio ahí (tarea 12, nunca escrita); el Home dejó de
+ * listar acuerdos (§4 del spec) antes de que esa tarea existiera, así que ya
+ * no hay un tercer sitio que cablear — se queda en dos, y esta acción no
+ * cambió de firma ni de guarda, solo lo que su resultado significa en
+ * pantalla (ver Estrella.tsx y `ordenarDestacadoArriba` en TablaAcuerdos.tsx).
+ *
+ * `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`: fijar decide el
+ * orden de una vitrina COMPARTIDA por las diez salas, no el estatus de un
  * compromiso dentro de la sala de su propio dueño. Es Mkt Corp quien cura esa
  * vitrina — el director de la UDN sigue pudiendo mover el estatus y la fecha
- * de los suyos, pero no auto-destacarse en el Home de todos.
+ * de los suyos, pero no fijarse arriba por su cuenta para todos.
  */
 export async function destacarAction(id: string, destacado: boolean): Promise<void> {
   await exigirEditor()

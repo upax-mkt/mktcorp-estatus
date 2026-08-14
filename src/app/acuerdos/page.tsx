@@ -47,9 +47,13 @@ async function refrescarDesdeMondaySeguro(): Promise<void> {
  *
  * Hoy un acuerdo solo se ve dentro de su propia sala, así que no hay forma de
  * contestar "qué le debemos a quién esta semana" sin entrar sala por sala.
- * Esta pantalla es esa respuesta, y desde aquí se destaca lo poco que se
- * quiere ver en el Home (tarea 12) con la misma estrella que ahí y en la
- * sala — ver Estrella.tsx.
+ * Esta pantalla es esa respuesta, y desde aquí se fija arriba lo que más
+ * importa mirar primero, con la misma estrella que en la sala — ver
+ * Estrella.tsx. Hasta la ronda 14 destacar quería decir "sale en el Home"
+ * (tarea 12, pendiente, iba a cablearlo ahí); el Home dejó de listar
+ * acuerdos (§4 del spec) antes de que esa tarea llegara a escribirse, así
+ * que la estrella cambió lo que DICE sin tocar el gesto ni la columna que lo
+ * guarda.
  *
  * SOLO EQUIPO. El proxy ya la niega por defecto a una sesión de sala —
  * `puedeVerRuta` en src/auth/politica.ts es lista blanca estricta y `/acuerdos`
@@ -114,8 +118,8 @@ export default async function PagAcuerdos() {
           <div>
             <h1 className={estilos.titulo}>Acuerdos</h1>
             <p className={estilos.subtitulo}>
-              Los de las nueve salas, juntos: qué le debemos a quién esta semana. La estrella marca
-              los que se ven en el Home.
+              Los de las nueve salas, juntos: qué le debemos a quién esta semana. La estrella fija
+              un acuerdo arriba.
             </p>
           </div>
           <Link

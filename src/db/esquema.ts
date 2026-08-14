@@ -266,7 +266,12 @@ export const acuerdos = pgTable('acuerdos', {
    * suyos ya no existen y uno se asigna a la persona equivocada.
    */
   responsableMondayId: text('responsable_monday_id'),
-  /** Prioritario: es lo que se ve en el Home. */
+  /**
+   * Fija el acuerdo arriba en `/acuerdos` (ronda 14, tarea 5). Hasta
+   * entonces era "sale en el Home" — el Home dejó de listar acuerdos, pero
+   * la columna y el gesto de la estrella no cambiaron, solo su significado.
+   * No hay migración: mismo nombre, mismo tipo, mismo default.
+   */
   destacado: boolean('destacado').notNull().default(false),
   /** 'elemento' | 'subelemento' — de qué tablero es `mondayId`, y por tanto qué columnas leerle. */
   mondayTipo: text('monday_tipo'),

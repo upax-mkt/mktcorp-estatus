@@ -34,10 +34,12 @@ export interface Acuerdo {
   fechaCompromiso: string | null // ISO, o null = "por definir"
   estatus: EstatusAcuerdo
   /**
-   * Si está destacado en el Home (tarea 11). Opcional porque solo la capa de
-   * DB lo sabe poblar: el store en memoria (sin DATABASE_URL) no modela
-   * `acuerdos.destacado`, igual que no modela `salas.activa` — ver la
-   * cabecera de `todosLosAcuerdos` en src/db/consultas.ts.
+   * Si está fijado arriba en `/acuerdos` (tarea 11; su significado cambió en
+   * la ronda 14, tarea 5 — antes era "destacado en el Home", y el Home dejó
+   * de listar acuerdos). Opcional porque solo la capa de DB lo sabe poblar:
+   * el store en memoria (sin DATABASE_URL) no modela `acuerdos.destacado`,
+   * igual que no modela `salas.activa` — ver la cabecera de
+   * `todosLosAcuerdos` en src/db/consultas.ts.
    */
   destacado?: boolean
   /**

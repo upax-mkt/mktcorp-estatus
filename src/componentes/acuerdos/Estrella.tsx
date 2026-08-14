@@ -8,18 +8,27 @@ interface Props {
   destacado: boolean
   /**
    * `destacarAction` (src/app/acuerdos/acciones.ts), recibida por prop y no
-   * importada aquí a propósito: este componente es el MISMO en las tres
-   * pantallas donde se puede destacar (el espacio de acuerdos, el Home y la
-   * sala — tarea 12 cablea las dos últimas). La estrella es un dato, no tres
-   * listas que se puedan desincronizar entre sí. La acción exige sesión de
-   * equipo del lado servidor (ver su comentario); este botón no decide quién
-   * puede verlo, eso lo resuelve quien lo pinta.
+   * importada aquí a propósito: este componente es el MISMO en las dos
+   * pantallas donde se puede fijar (el espacio de acuerdos y la sala). La
+   * estrella es un dato, no dos listas que se puedan desincronizar entre sí.
+   * Iban a ser tres pantallas —el Home, tarea 12 pendiente—, pero el Home
+   * dejó de listar acuerdos (§4 del spec) antes de que esa tarea llegara a
+   * escribirse, así que ya no hay un tercer sitio que cablear. La acción
+   * exige sesión de equipo del lado servidor (ver su comentario); este botón
+   * no decide quién puede verlo, eso lo resuelve quien lo pinta.
    */
   destacar: (id: string, destacado: boolean) => Promise<void>
 }
 
 /**
- * LA ESTRELLA: destaca o quita un acuerdo de lo que se ve en el Home.
+ * LA ESTRELLA: fija un acuerdo arriba en `/acuerdos`.
+ *
+ * Hasta la ronda 14 significaba "sale en el Home" —y el Home dejó de listar
+ * acuerdos (§4 del spec)—, así que se corrigió lo que la estrella DICE antes
+ * de que existiera un solo despliegue donde prometiera algo que ya no
+ * ocurre. El gesto y la columna `acuerdos.destacado` no se tocan: cambia el
+ * texto y lo que produce el orden (ver `ordenarDestacadoArriba` en
+ * TablaAcuerdos.tsx), no el dato.
  *
  * Sin estado local optimista a propósito: `destacar` revalida la ruta al
  * terminar (mismo patrón que FilaBandeja con `subir`/`descartar`), así que el
@@ -52,8 +61,8 @@ export function Estrella({ acuerdoId, destacado, destacar }: Props) {
         data-activa={destacado || undefined}
         disabled={pendiente}
         aria-pressed={destacado}
-        aria-label={destacado ? 'Quitar de destacados' : 'Destacar en el Home'}
-        title={destacado ? 'Quitar de destacados' : 'Destacar en el Home'}
+        aria-label={destacado ? 'Quitar de arriba' : 'Fijar arriba en Acuerdos'}
+        title={destacado ? 'Quitar de arriba' : 'Fijar arriba en Acuerdos'}
         onClick={manejarClic}
       >
         <svg

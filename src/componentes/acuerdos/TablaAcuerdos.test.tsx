@@ -382,6 +382,61 @@ describe('TablaAcuerdos', () => {
  * componente que tiene lógica propia de verdad (partir en congelados/vivos ya
  * lo cubre el primer test).
  */
+/**
+ * LO FIJADO, ARRIBA (ronda 14, tarea 5): desde que la estrella dejó de
+ * prometer "sale en el Home" —el Home dejó de listar acuerdos, §4 del
+ * spec—, lo único que dice es "esto va primero en /acuerdos". Sin este par
+ * de tests, `destacado` seguiría siendo una columna que se guarda pero que
+ * la pantalla no usa para nada — la mentira que esta tarea vino a cerrar.
+ */
+describe('TablaAcuerdos, lo destacado se fija arriba', () => {
+  it('lo destacado se ordena arriba, que es lo que la estrella promete ahora', () => {
+    render(
+      <TablaAcuerdos
+        acuerdos={[{ ...base, id: 'normal', que: 'Un acuerdo cualquiera', destacado: false },
+                   { ...base, id: 'fijado', que: 'Un acuerdo fijado', destacado: true }]}
+        destacar={vi.fn().mockResolvedValue(undefined)}
+      />,
+    )
+
+    const textos = screen.getAllByRole('listitem').map((li) => li.textContent ?? '')
+    expect(textos[0]).toContain('Un acuerdo fijado')
+  })
+
+  /**
+   * REGRESIÓN DE ESTABILIDAD (contexto que el brief no traía): la lista ya
+   * llega ordenada por lo que vence antes (`todosLosAcuerdos`,
+   * src/db/consultas.ts) — subir lo fijado no puede barajar ese orden para
+   * el resto. `Array.prototype.sort` es estable en todo motor moderno
+   * (spec ES2019+), así que comparar solo por `destacado` basta — pero sin
+   * este test, un cambio futuro que metiera un criterio de desempate extra
+   * (por ejemplo, ordenar también por `que`) podría barajar lo demás sin que
+   * ningún otro test de este archivo lo note: un acuerdo vencido acabaría
+   * enterrado entre acuerdos sin urgencia y nadie se enteraría hasta tarde.
+   */
+  it('al fijar uno arriba, el resto conserva su orden relativo (sort estable)', () => {
+    render(
+      <TablaAcuerdos
+        acuerdos={[
+          { ...base, id: 'a', que: 'Primero en llegar, sin fijar' },
+          { ...base, id: 'b', que: 'Segundo en llegar, sin fijar' },
+          { ...base, id: 'c', que: 'Tercero en llegar, y este sí fijado', destacado: true },
+          { ...base, id: 'd', que: 'Cuarto en llegar, sin fijar' },
+        ]}
+        destacar={vi.fn().mockResolvedValue(undefined)}
+      />,
+    )
+
+    const textos = screen.getAllByRole('listitem').map((li) => li.textContent ?? '')
+    // El fijado sube al frente; los otros tres siguen en el mismo orden
+    // relativo en que llegaron (Primero, Segundo, Cuarto) — no se
+    // reordenaron entre sí solo porque uno de en medio se movió.
+    expect(textos.map((t) =>
+      t.includes('Primero') ? 'a' : t.includes('Segundo') ? 'b' : t.includes('Tercero') ? 'c' : 'd',
+    )).toEqual(['c', 'a', 'b', 'd'])
+  })
+})
+
 describe('TablaAcuerdos, filtros', () => {
   const otraSala = { ...base, id: 'a2', que: 'Cerrar creativos', responsable: 'Diego Razo', salaSlug: 'zeus', salaNombre: 'Zeus' }
 

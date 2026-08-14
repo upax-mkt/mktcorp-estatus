@@ -97,6 +97,28 @@ const TONO_ESTATUS: Partial<Record<AcuerdoConSala['estatus'], string>> = {
 const SIN_FILTRO = ''
 
 /**
+ * Lo fijado, arriba. Es lo único que la estrella significa desde la ronda
+ * 14: antes quería decir "sale en el Home", y el Home dejó de listar
+ * acuerdos (§4 del spec). Se conserva el gesto y su columna en vez de
+ * retirarla, así que no hay dato que borrar ni migración que escribir — ver
+ * Estrella.tsx.
+ *
+ * `sort` es ESTABLE en todos los motores modernos (spec ES2019+): comparar
+ * solo por `destacado` basta para subir lo fijado sin barajar el resto, que
+ * ya llega ordenado por lo que vence antes (`todosLosAcuerdos`, ver su
+ * comentario en src/db/consultas.ts) — desordenarlo aquí escondería un
+ * acuerdo vencido bajo uno fijado sin urgencia y nadie lo notaría hasta que
+ * fuera tarde (fijado en un test de regresión, TablaAcuerdos.test.tsx).
+ *
+ * Recibe una lista ya filtrada —una copia propia de `.filter`, no el
+ * `acuerdos` que llegó por prop— así que ordenar en el sitio no muta nada
+ * que otro dueño esté mirando.
+ */
+function ordenarDestacadoArriba(lista: AcuerdoConSala[]): AcuerdoConSala[] {
+  return lista.sort((a, b) => Number(b.destacado) - Number(a.destacado))
+}
+
+/**
  * EL ESPACIO DE ACUERDOS: las diez salas juntas, filtrables, con la sala en
  * pausa aparte y apagada.
  *
@@ -153,8 +175,8 @@ export function TablaAcuerdos({
     (estatus === SIN_FILTRO || a.estatus === estatus)
 
   const congeladosTodos = acuerdos.filter((a) => !a.salaActiva)
-  const vivos = acuerdos.filter((a) => a.salaActiva && coincide(a))
-  const congelados = congeladosTodos.filter(coincide)
+  const vivos = ordenarDestacadoArriba(acuerdos.filter((a) => a.salaActiva && coincide(a)))
+  const congelados = ordenarDestacadoArriba(congeladosTodos.filter(coincide))
 
   return (
     <>

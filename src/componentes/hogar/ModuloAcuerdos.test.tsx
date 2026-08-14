@@ -117,7 +117,7 @@ describe('ModuloAcuerdos, con contenido', () => {
     // Sin dueño se dice así, no con la etiqueta interna "por asignar".
     expect(screen.getAllByText('sin dueño')).toHaveLength(2)
     // Una estrella por fila.
-    expect(screen.getAllByRole('button', { name: /destacar en el home|quitar de destacados/i })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: /fijar arriba en acuerdos|quitar de arriba/i })).toHaveLength(2)
   })
 
   it('un destacado ya cumplido no ofrece el botón "Cumplido": no hay nada que marcar de nuevo', () => {
@@ -185,7 +185,7 @@ describe('ModuloAcuerdos, el solapamiento destacado + vencido (crítico de la au
     expect(screen.getByText('1 vencido')).toBeInTheDocument()
     // Nada se pierde: sigue destacado. La estrella rellena (con su
     // aria-label de "quitar", no "destacar") es esa marca.
-    expect(screen.getByRole('button', { name: /quitar de destacados/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /quitar de arriba/i })).toBeInTheDocument()
   })
 
   /**
