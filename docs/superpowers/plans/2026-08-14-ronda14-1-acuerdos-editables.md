@@ -54,6 +54,8 @@ corregir un acuerdo era invisible **y** inalcanzable.
 **Files:**
 - Modify: `src/componentes/EditarAcuerdo.tsx` (el bloque `if (!editando)`,
   ~líneas 76-90)
+- Modify: `src/componentes/acuerdos/TablaAcuerdos.tsx` (una línea: pasar
+  `siempreVisible` — Ruling 1 del escaneo previo)
 - Modify: `src/app/cliente/cliente.module.css` (`.acuerdoLapiz`, líneas
   939-959)
 - Test: `src/componentes/acuerdos/TablaAcuerdos.test.tsx`
@@ -158,7 +160,22 @@ la línea 959, dentro del mismo bloque temático):
 .acuerdoCorregir:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
 ```
 
-- [ ] **Step 4: Correr el test y verlo pasar**
+- [ ] **Step 4: Cablearlo, o el test no puede pasar**
+
+⚠️ **Esto es parte de ESTA tarea, no de la 4** (Ruling 1 del escaneo previo).
+Crear la prop sin que nadie la ponga en `true` es dejar una pieza construida
+que nadie monta — el defecto que llegó dos veces a producción en la ronda 10.
+El test de arriba renderiza `TablaAcuerdos`, así que hasta que no reciba la
+prop seguirá viendo el lápiz fantasma.
+
+En `src/componentes/acuerdos/TablaAcuerdos.tsx`, en el `<EditarAcuerdo …>` que
+ya monta la fila, añadir:
+
+```tsx
+            siempreVisible
+```
+
+- [ ] **Step 5: Correr el test y verlo pasar**
 
 ```bash
 npx vitest run src/componentes/acuerdos/TablaAcuerdos.test.tsx
@@ -166,7 +183,7 @@ npx vitest run src/componentes/acuerdos/TablaAcuerdos.test.tsx
 
 Esperado: PASA, y ningún otro test de ese archivo se pone en rojo.
 
-- [ ] **Step 5: Comprobarlo en el navegador, que es donde vive el defecto**
+- [ ] **Step 6: Comprobarlo en el navegador, que es donde vive el defecto**
 
 Un test de jsdom **no evalúa CSS de módulos**, así que no puede demostrar que
 el control se ve. Hay que medirlo:
@@ -179,10 +196,10 @@ Abrir `d-acuerdos.png` con Read y comprobar que **cada fila muestra "✎
 Corregir" sin pasar el ratón**. Repetir a 390 px (`node ./_sesion-local.mjs
 390 844`) — es donde el defecto era total.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/componentes/EditarAcuerdo.tsx src/app/cliente/cliente.module.css src/componentes/acuerdos/TablaAcuerdos.test.tsx
+git add src/componentes/EditarAcuerdo.tsx src/componentes/acuerdos/TablaAcuerdos.tsx src/app/cliente/cliente.module.css src/componentes/acuerdos/TablaAcuerdos.test.tsx
 git commit -m "El control de corregir un acuerdo deja de esconderse tras el hover"
 ```
 
@@ -316,10 +333,21 @@ export async function editarFechaEnTablaAction(
   fecha: string | null,
 ): Promise<void> {
   await exigirEditor()
-  await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha })
+  // ⚠️ `instanteEnCDMX` y NO `new Date(fecha)`: `fechaCompromiso` es un `Date`
+  // y `new Date('2026-09-01')` es medianoche UTC — las 18:00 del 31 de agosto
+  // en México, así que el acuerdo se guardaría venciendo un día antes. La
+  // fuente única de días civiles es `src/lib/fecha.ts`, anclada a
+  // America/Mexico_City, y este repo ya pagó dos veces por saltársela.
+  // Las 12:00 y no las 00:00: un mediodía civil no cambia de día por ningún
+  // desfase de zona ni por el horario de verano.
+  await editarAcuerdo(acuerdoId, {
+    fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null,
+  })
   await revalidarAcuerdo(acuerdoId)
 }
 ```
+
+Importar `instanteEnCDMX` desde `@/lib/fecha`.
 
 Añadir a los imports de la cabecera lo que falte: `moverEstatus` y el tipo
 `EstatusAcuerdo` desde `@/db/acuerdos`.
