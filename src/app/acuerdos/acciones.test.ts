@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as esquema from '@/db/esquema'
 import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { revalidatePath } from 'next/cache'
-import { diaCivil } from '@/lib/fecha'
+import { diaCivil, instanteEnCDMX } from '@/lib/fecha'
 
 /**
  * CONCURRENCIA DE LA BANDEJA (revisión de Franco a la tarea 8).
@@ -471,15 +471,28 @@ describe('editarEnBandejaAction', () => {
     expect(editarAcuerdoMock).not.toHaveBeenCalled()
   })
 
-  it('llama a editarAcuerdo con el id y los tres campos, convirtiendo la fecha a Date', async () => {
+  /**
+   * LA ASERCIÓN DECÍA `new Date('2026-08-20')` (arreglo I3 de la revisión
+   * final de la ronda 14). Esta suite protegía LAS DOS REGLAS OPUESTAS sobre
+   * la MISMA columna: aquí exigía medianoche UTC y en el describe de
+   * `editarFechaEnTablaAction` (más abajo) exige el día civil de CDMX. La que
+   * manda es la segunda —`new Date('2026-08-20')` es el 19 de agosto en
+   * México—, así que este test cimentaba la forma vieja y habría bloqueado el
+   * arreglo de la propia acción.
+   */
+  it('llama a editarAcuerdo con el id y los tres campos, con la fecha anclada al día civil de CDMX', async () => {
     await editarEnBandejaAction('a1', 'mexa-creativa', CAMBIOS)
 
     expect(editarAcuerdoMock).toHaveBeenCalledWith('a1', {
       que: 'Enviar propuesta revisada',
       responsable: 'Iris Múgica',
       responsableMondayId: '65476486',
-      fechaCompromiso: new Date('2026-08-20'),
+      fechaCompromiso: instanteEnCDMX('2026-08-20', '12:00'),
     })
+    // Y lo que de verdad importa, dicho sin depender del helper: el día
+    // guardado es el que se tecleó, mirado desde México.
+    const guardada = editarAcuerdoMock.mock.calls[0][1].fechaCompromiso as Date
+    expect(diaCivil(guardada.toISOString())).toBe('2026-08-20')
   })
 
   it('sin fecha (null), manda fechaCompromiso: null — no una cadena vacía ni Invalid Date', async () => {

@@ -255,7 +255,15 @@ export async function editarEnBandejaAction(
     que: cambios.que,
     responsable: cambios.responsable,
     responsableMondayId: cambios.responsableMondayId,
-    fechaCompromiso: cambios.fechaCompromiso ? new Date(cambios.fechaCompromiso) : null,
+    // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo I1 de la revisión
+    // final de la ronda 14): esta acción escribe la MISMA columna que
+    // `editarFechaEnTablaAction`, 190 líneas más abajo en este mismo archivo,
+    // y se quedó fuera del arreglo de la tarea 2. Ver ahí el porqué medido —
+    // `new Date('2026-09-01')` da día civil "2026-08-31" en CDMX. Aquí pesa
+    // además que este es el camino de la BANDEJA: la fecha que sale de aquí
+    // viaja a Monday por `sincronizarDespuesDeEditar`, así que un día corrido
+    // no se queda en nuestra base, aparece en el tablero del equipo.
+    fechaCompromiso: cambios.fechaCompromiso ? instanteEnCDMX(cambios.fechaCompromiso, '12:00') : null,
   })
   // Las tres pantallas donde este acuerdo puede aparecer: la bandeja misma,
   // el espacio de acuerdos (mismo `que`/fecha si ya se ve ahí) y su sala.
@@ -439,6 +447,18 @@ export async function cambiarEstatusEnTablaAction(
  * "2026-09-01", que es lo correcto. Las 12:00 y no las 00:00: un mediodía
  * civil no cambia de día por ningún desfase de zona ni por el horario de
  * verano.
+ *
+ * LOS SEIS ESCRITORES DE ESTA COLUMNA, no dos (corregido en la revisión final
+ * de la ronda 14: la tarea 2 unificó tres y dejó tres con `new Date`). Hoy
+ * escriben `fechaCompromiso` con `instanteEnCDMX(dia, '12:00')`: esta acción,
+ * `editarEnBandejaAction` (arriba, en este mismo archivo), `editarFechaAction`
+ * y `crearAcuerdoAction` de la sala (src/app/cliente/[slug]/page.tsx),
+ * `ponerFechaAction` del Home (src/app/page.tsx) y la publicación de minuta
+ * (`guardarMinuta`, src/db/minutas.ts). Que coincidan no es orden por el
+ * orden: `crearAcuerdo` deduplica los acuerdos de una minuta comparando el
+ * INSTANTE exacto de esta columna, así que dos instantes para el mismo día
+ * civil le hacían insertar duplicados (hallazgo C1; la secuencia completa,
+ * en src/db/minutas.ts y en su test de regresión).
  */
 export async function editarFechaEnTablaAction(
   acuerdoId: string,

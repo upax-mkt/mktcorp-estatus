@@ -417,10 +417,20 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     // medido antes de tocar esta línea, `new Date('2026-09-01')` guarda el
     // día civil "2026-08-31" — medianoche UTC son las 18:00 del día anterior
     // en México — así que el acuerdo quedaba venciendo un día antes de lo
-    // tecleado. La pestaña `/acuerdos` (`editarFechaEnTablaAction`, en
-    // src/app/acuerdos/acciones.ts) escribe esta MISMA columna
-    // (`fechaCompromiso`) con `instanteEnCDMX`; sin este cambio, el mismo
-    // acuerdo mostraría un día distinto según por dónde se le tocó la fecha.
+    // tecleado.
+    //
+    // NO SON DOS PANTALLAS, SON SEIS ESCRITORES (corregido en la revisión
+    // final de la ronda: este comentario decía "la pestaña /acuerdos escribe
+    // esta MISMA columna", y era verdad a medias — la ronda 14 solo unificó
+    // tres de los seis). `fechaCompromiso` la escriben: esta acción, el alta
+    // de la sala (`crearAcuerdoAction`, abajo), `editarFechaEnTablaAction` y
+    // `editarEnBandejaAction` (src/app/acuerdos/acciones.ts), `ponerFechaAction`
+    // del Home (src/app/page.tsx) y la publicación de minuta
+    // (`guardarMinuta`, src/db/minutas.ts). Los seis usan hoy
+    // `instanteEnCDMX(dia, '12:00')`, y eso no es solo estética: mientras
+    // convivieron dos instantes para el mismo día civil, el dedupe de
+    // `crearAcuerdo` —que compara el instante EXACTO— dejaba de reconocer sus
+    // propias filas y republicar una minuta duplicaba acuerdos (hallazgo C1).
     await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')

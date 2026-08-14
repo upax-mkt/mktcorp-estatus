@@ -90,7 +90,15 @@ export default async function Hub() {
   async function ponerFechaAction(id: string, fecha: string | null) {
     'use server'
     await exigirEditor()
-    await editarAcuerdo(id, { fechaCompromiso: fecha ? new Date(fecha) : null })
+    // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo I1 de la revisión
+    // final de la ronda 14): el módulo de acuerdos en riesgo del Home escribe
+    // la MISMA columna `fechaCompromiso` que la sala y que `/acuerdos`, y era
+    // el tercer escritor que se quedó fuera del arreglo de la tarea 2. Con
+    // `new Date('2026-09-01')` —medianoche UTC, las 18:00 del 31 de agosto en
+    // México— el día de un acuerdo dependía de en cuál de las tres pantallas
+    // se le hubiera tocado la fecha. Ver el porqué medido en
+    // `editarFechaEnTablaAction` (src/app/acuerdos/acciones.ts).
+    await editarAcuerdo(id, { fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null })
     revalidatePath('/')
   }
 
