@@ -3,8 +3,9 @@ import { createElement } from 'react'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
+import type { CategoriaArchivo } from '@/db/archivos'
 import { PLANTILLAS } from '@/secciones/plantillas'
-import { diaCivil } from '@/lib/fecha'
+import { diaCivil, instanteEnCDMX } from '@/lib/fecha'
 
 /**
  * EL AGUJERO MÁS GRAVE DE LA RONDA 9, Y EL ÚNICO SIN UN TEST QUE SE CAYERA SI
@@ -1093,9 +1094,15 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
     const editarArchivoAction = await editarArchivoActionCapturada()
     await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: '2026-08-01' })
 
+    // `instanteEnCDMX` y NO `new Date('2026-08-01')` (arreglo ronda 14, tarea
+    // 6): con el bug puesto este `toHaveBeenCalledWith` seguía en verde
+    // porque comparaba contra el mismo `new Date` mal calculado — exactamente
+    // la trampa que describe el informe de la Tarea 6. Ver el describe de
+    // abajo ("la fecha de un archivo no se corre un día") para el test que sí
+    // hubiera fallado con el bug puesto.
     expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', {
       titulo: 'Catálogo 2026',
-      fecha: new Date('2026-08-01'),
+      fecha: instanteEnCDMX('2026-08-01', '12:00'),
     })
   })
 
@@ -1107,6 +1114,123 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
     await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
 
     expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
+  })
+})
+
+/**
+ * RONDA 14, TAREA 6 (encargo directo de Franco, 14-ago) — LA FECHA DE UN
+ * ARCHIVO (nota de prensa, material) NO SE CORRE UN DÍA.
+ *
+ * Misma columna (`archivos.fecha`) que la Tarea 2 arregló para
+ * `fechaCompromiso`, mismo `new Date(<día civil>)` mal calculado — pero NO
+ * el mismo defecto. La ida y vuelta DENTRO de la capa de datos es correcta:
+ * se escribe con `new Date(<día civil>)` (medianoche UTC) y `archivos.ts:67`
+ * lo lee de vuelta con su propio `isoFecha = d.toISOString().slice(0,10)`,
+ * que TAMBIÉN piensa en UTC — los dos sesgos se cancelan y el string que
+ * sale de la capa de datos es el día correcto. Por eso la aserción de estos
+ * dos tests va en CDMX sobre el `Date` que se manda a guardar, y NO con
+ * `isoFecha` ni comparando el string de vuelta: con `isoFecha` el test
+ * pasaría HOY, con el bug puesto, porque esa cancelación ya ocurrió antes de
+ * que el string llegue a la aserción — es la misma trampa que dejó este
+ * defecto invisible meses.
+ *
+ * (El informe de la Tarea 6, en `.superpowers/sdd/…/task-6-report.md`, deja
+ * escrito además que en la sala renderizada de verdad — `MaterialesSala` /
+ * `NotasDePrensa`, que pintan `ArchivoSala.fecha` y no el `Date` crudo — esta
+ * misma cancelación EN LA LECTURA se combina con el anclaje a mediodía UTC
+ * de `instanteDe`, privado en `src/lib/fecha.ts`, para un día civil sin
+ * hora: el resultado es que hoy nadie ve el día corrido en pantalla. Estos
+ * dos tests no comprueban ESE render — comprueban que el `Date` que se
+ * manda a guardar es el correcto, que es lo que pidió Franco y lo que deja
+ * a la columna en un estado semánticamente correcto en vez de depender de
+ * que dos casualidades de lectura lo sigan compensando.)
+ */
+describe('VistaSala (/cliente/[slug]) — la fecha de un archivo no se corre un día', () => {
+  async function accionesCapturadas() {
+    render(await invocar())
+    const props = reunionesSalaPropsMock.mock.calls[0][0] as {
+      registrarArchivoAction: (datos: {
+        categoria: CategoriaArchivo
+        titulo: string
+        fecha: string | null
+        ruta: string
+        nombreOriginal: string
+        tipoContenido: string | null
+        tamanoBytes: number | null
+        reunionId?: string | null
+      }) => Promise<{ error?: string }>
+      editarArchivoAction: (id: string, cambios: { titulo: string; fecha?: string | null }) => Promise<void>
+    }
+    return props
+  }
+
+  it('la fecha de una nota de prensa se guarda en el día civil que se escribió', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const { registrarArchivoAction } = await accionesCapturadas()
+    await registrarArchivoAction({
+      categoria: 'prensa',
+      titulo: 'Nota de prueba',
+      fecha: '2026-09-01',
+      ruta: '',
+      nombreOriginal: '',
+      tipoContenido: null,
+      tamanoBytes: null,
+    })
+
+    const guardada = registrarArchivoMock.mock.calls[0][0].fecha as Date
+    // En CDMX, no en UTC: es donde se pinta y donde se cae hoy.
+    expect(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(guardada))
+      .toBe('2026-09-01') // NO '2026-08-31'
+  })
+
+  it('la fecha de un material se guarda en el día civil que se escribió, se edite desde donde se edite', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const { editarArchivoAction } = await accionesCapturadas()
+    await editarArchivoAction('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: '2026-09-01' })
+
+    const [, cambios] = editarArchivoMock.mock.calls[0]
+    const guardada = (cambios as { fecha: Date }).fecha
+    expect(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(guardada))
+      .toBe('2026-09-01') // NO '2026-08-31'
+  })
+
+  /**
+   * EL REGRESIÓN QUE ESTE MISMO ARREGLO PODÍA CAUSAR, Y NO LA CUBRE NINGÚN
+   * OTRO TEST DE ESTE ARCHIVO CONTRA EL BUG DE VERDAD: `registrarArchivoAction`
+   * es POLIMÓRFICA — `ReunionesSala` ("+ Subir presentación", Tarea 9b, ver el
+   * describe de ese nombre más abajo) le manda el INSTANTE COMPLETO de la
+   * reunión, no un día civil. Aplicar `instanteEnCDMX(fecha, '12:00')` a
+   * ciegas sobre ese valor concatenaría una hora fija a una fecha que YA la
+   * trae y produciría una fecha inválida — el arreglo de esta tarea tenía que
+   * distinguir los dos casos, no solo cambiar `new Date` por `instanteEnCDMX`.
+   * Este test fija esa distinción con un caso muy plano: un instante que NO
+   * cae a mediodía ni a medianoche, para que un `instanteEnCDMX` aplicado por
+   * error se note incluso si por casualidad cayera en el mismo día civil.
+   */
+  it('un fecha que ya es un instante completo (el de una reunión) NO se reprocesa con instanteEnCDMX', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
+
+    const { registrarArchivoAction } = await accionesCapturadas()
+    await registrarArchivoAction({
+      categoria: 'presentacion',
+      titulo: 'Quincenal de junio',
+      fecha: '2026-06-15T22:47:00.000Z',
+      ruta: 'salas/neracode/presentacion/archivo.pdf',
+      nombreOriginal: 'archivo.pdf',
+      tipoContenido: 'application/pdf',
+      tamanoBytes: 100,
+      reunionId: 'reunion-de-neracode',
+    })
+
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ fecha: new Date('2026-06-15T22:47:00.000Z') }),
+    )
   })
 })
 

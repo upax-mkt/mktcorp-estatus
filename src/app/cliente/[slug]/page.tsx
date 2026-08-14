@@ -720,7 +720,26 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         reunionId: datos.reunionId ?? null,
         categoria: datos.categoria,
         titulo: datos.titulo,
-        fecha: datos.fecha ? new Date(datos.fecha) : null,
+        // `instanteEnCDMX` y NO `new Date(fecha)` a secas (arreglo de ronda
+        // 14, tarea 6 — encargo directo de Franco): medido el 14-ago,
+        // `new Date('2026-09-01')` guarda el día civil "2026-08-31" —
+        // medianoche UTC son las 18:00 del día anterior en México. Es la
+        // MISMA columna que la Tarea 2 arregló para `fechaCompromiso`
+        // (`archivos.fecha`, nota de prensa y material), pero NO el mismo
+        // arreglo a secas: a diferencia de `fechaCompromiso`, `datos.fecha`
+        // aquí es POLIMÓRFICO. `ReunionesSala` (Tarea 9b, "+ Subir
+        // presentación") manda el INSTANTE COMPLETO de la reunión
+        // (`reunion.fecha`, p. ej. "2026-06-15T10:00:00.000Z") y no un día
+        // civil — pasarlo por `instanteEnCDMX(fecha, '12:00')` concatenaría
+        // una hora fija a una fecha que YA la trae y produciría una fecha
+        // inválida. El criterio para distinguir los dos casos es el mismo
+        // que usa `instanteDe` (privado, `src/lib/fecha.ts`): si el string
+        // trae 'T', ya es un instante y se usa tal cual; si no, es un día
+        // civil ('YYYY-MM-DD', el que escribe una persona) y se ancla al
+        // mediodía CDMX.
+        fecha: datos.fecha
+          ? (datos.fecha.includes('T') ? new Date(datos.fecha) : instanteEnCDMX(datos.fecha, '12:00'))
+          : null,
         ruta: datos.ruta,
         nombreOriginal: datos.nombreOriginal,
         tipoContenido: datos.tipoContenido,
@@ -874,7 +893,19 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await exigirEditor()
     await editarArchivo(id, {
       titulo: cambios.titulo,
-      ...(cambios.fecha !== undefined ? { fecha: cambios.fecha ? new Date(cambios.fecha) : null } : {}),
+      // `instanteEnCDMX` y NO `new Date(fecha)` a secas (arreglo de ronda 14,
+      // tarea 6): mismo bug y mismo número medido que en `registrarArchivoAction`
+      // (arriba) — `new Date('2026-09-01')` guarda "2026-08-31". El único
+      // llamador real de este campo (`MaterialesSala`, botón "Renombrar")
+      // manda `material.fecha`, que ya sale de la base como día civil puro
+      // ('YYYY-MM-DD', ver `isoFecha` en `src/db/archivos.ts`) — nunca un
+      // instante con hora — pero se guarda el mismo criterio de
+      // `datos.fecha.includes('T')` que en `registrarArchivoAction` para no
+      // dejar este campo genérico expuesto al mismo riesgo si mañana algún
+      // llamador nuevo le manda un instante completo.
+      ...(cambios.fecha !== undefined
+        ? { fecha: cambios.fecha ? (cambios.fecha.includes('T') ? new Date(cambios.fecha) : instanteEnCDMX(cambios.fecha, '12:00')) : null }
+        : {}),
     })
     revalidatePath(`/cliente/${slug}`)
   }
