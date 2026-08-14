@@ -130,6 +130,15 @@ Orden nuevo:
 4. **Minutas** (generar una, editar el molde).
 5. **En pausa**.
 
+⚠️ **DEUDA HEREDADA DEL MILESTONE 1, que se salda aquí.** La estrella ya
+cambió de significado (§2): su botón dice "Fijar arriba en Acuerdos". Pero
+mientras el Home siga pintando su bloque **Destacados**, ese control hace MÁS
+de lo que su etiqueta promete — dentro del Home, "Fijar arriba en Acuerdos" no
+describe el efecto que el usuario ve ahí mismo (entrar o salir de ese bloque).
+Se aceptó a sabiendas para que la estrella no siguiera prometiendo un Home que
+va a desaparecer, con la condición de anotarlo aquí. **Retirar el bloque
+Destacados del Home cierra las dos mitades.** (`ModuloAcuerdos.tsx:156`.)
+
 **Los acuerdos salen del Home** *(decisión de Franco: "solo una cifra")*. El
 módulo desaparece; las dos cifras que el pulso YA pinta —"13 acuerdos
 abiertos · 1 vencido"— se vuelven pinchables hacia `/acuerdos`, que a partir
