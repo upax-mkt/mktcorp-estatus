@@ -37,6 +37,8 @@ export function EditarAcuerdo({
   equipos,
   siempreVisible,
   editarAction,
+  editando: editandoControlado,
+  onEditandoChange,
 }: {
   acuerdoId: string
   queInicial: string
@@ -62,8 +64,29 @@ export function EditarAcuerdo({
     acuerdoId: string,
     cambios: { que: string; responsable: string; responsableMondayId: string | null },
   ) => Promise<{ error?: string }>
+  /**
+   * ABRIR/CERRAR CONTROLADO DESDE FUERA (ronda 14, tarea 4 — arreglo del
+   * ruling de consolidar estatus/fecha/sala detrás de "Corregir").
+   *
+   * Por defecto este componente es dueño de su propio abrir/cerrar (como
+   * siempre) — la sala lo sigue usando así, sin tocar una línea. Pero
+   * `/acuerdos` necesita abrir MÁS que el texto al mismo tiempo (estatus,
+   * fecha, sala viven fuera de este componente, en `TablaAcuerdos.tsx`), así
+   * que ese padre necesita ENTERARSE de cada clic en "Corregir"/"Guardar"/
+   * "Cancelar" para abrir y cerrar todo junto. Híbrido controlado/no
+   * controlado, mismo patrón que un `<input>` de React: si llegan los dos,
+   * el padre decide; si no, el estado es interno y nada cambia para nadie
+   * que no los pase.
+   */
+  editando?: boolean
+  onEditandoChange?: (editando: boolean) => void
 }) {
-  const [editando, setEditando] = useState(false)
+  const [editandoInterno, setEditandoInterno] = useState(false)
+  const editando = editandoControlado ?? editandoInterno
+  function cambiarEditando(valor: boolean) {
+    if (onEditandoChange) onEditandoChange(valor)
+    else setEditandoInterno(valor)
+  }
   const [que, setQue] = useState(queInicial)
   const [responsable, setResponsable] = useState({
     responsable: responsableInicial,
@@ -92,7 +115,7 @@ export function EditarAcuerdo({
         <button
           type="button"
           className={siempreVisible ? estilos.acuerdoCorregir : estilos.acuerdoLapiz}
-          onClick={() => setEditando(true)}
+          onClick={() => cambiarEditando(true)}
           aria-label={`Corregir el acuerdo ${queInicial}`}
           title="Corregir"
         >
@@ -111,7 +134,7 @@ export function EditarAcuerdo({
         responsableMondayId: responsable.responsableMondayId,
       })
       if (r.error) { setError(r.error); return }
-      setEditando(false)
+      cambiarEditando(false)
     })
   }
 
@@ -152,7 +175,7 @@ export function EditarAcuerdo({
             setQue(queInicial)
             setResponsable({ responsable: responsableInicial, responsableMondayId: null })
             setError(null)
-            setEditando(false)
+            cambiarEditando(false)
           }}
         >
           Cancelar

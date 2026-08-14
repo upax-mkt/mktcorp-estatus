@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TablaAcuerdos } from './TablaAcuerdos'
 
@@ -85,12 +85,15 @@ describe('TablaAcuerdos', () => {
     })
 
     /**
-     * ELIMINAR SE MUDÓ A `AcuerdoControles` (ronda 14, tarea 4): esta fila ya
-     * no tiene su propio borrado en dos tiempos duplicado del de la sala, así
-     * que estos dos tests ahora pasan `cambiarEstatus`/`editarFecha` también
-     * —lo mismo que hace `page.tsx` de verdad, porque `esAdmin()` implica
-     * `esEditor()` (src/auth/roles.ts): nadie llega con `eliminar` y sin las
-     * otras dos—. El gesto de confirmar que prueban no cambió un pixel.
+     * ELIMINAR SE MUDÓ A `AcuerdoControles` (ronda 14, tarea 4), y desde la
+     * ronda de arreglo 1 vive DETRÁS de "✎ Corregir" — junto con
+     * estatus/fecha/sala, ya no suelto siempre visible (ver el porqué en la
+     * cabecera de `Fila`, TablaAcuerdos.tsx). Estos dos tests ahora abren el
+     * editor primero, y pasan `cambiarEstatus`/`editarFecha` además de
+     * `eliminar` —lo mismo que hace `page.tsx` de verdad, porque `esAdmin()`
+     * implica `esEditor()` (src/auth/roles.ts): nadie llega con `eliminar` y
+     * sin las otras dos—. El gesto de confirmar que prueban no cambió un
+     * pixel, solo dónde vive.
      */
     it('eliminar pide confirmación antes de llamar a nadie: no hay papelera', async () => {
       const usuario = userEvent.setup()
@@ -99,12 +102,15 @@ describe('TablaAcuerdos', () => {
         <TablaAcuerdos
           acuerdos={[base]}
           destacar={vi.fn()}
+          editar={vi.fn()}
+          personas={[]}
           cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
           editarFecha={vi.fn().mockResolvedValue(undefined)}
           eliminar={eliminar}
         />,
       )
 
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
       await usuario.click(screen.getByRole('button', { name: /eliminar/i }))
       expect(eliminar).not.toHaveBeenCalled()
 
@@ -119,24 +125,80 @@ describe('TablaAcuerdos', () => {
         <TablaAcuerdos
           acuerdos={[base]}
           destacar={vi.fn()}
+          editar={vi.fn()}
+          personas={[]}
           cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
           editarFecha={vi.fn().mockResolvedValue(undefined)}
           eliminar={eliminar}
         />,
       )
 
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
       await usuario.click(screen.getByRole('button', { name: /eliminar/i }))
       await usuario.click(screen.getByRole('button', { name: /^no$/i }))
       expect(eliminar).not.toHaveBeenCalled()
       expect(screen.getByRole('button', { name: /eliminar/i })).toBeInTheDocument()
     })
+
+    /**
+     * H1/H2 de la revisión (ronda de arreglo 1): el botón de borrar cuelga de
+     * `{cambiarEstatus && editarFecha && …}` con `eliminar` viajando DENTRO
+     * de `AcuerdoControles` — correcto (un editor sin admin nunca debe verlo),
+     * pero invisible sin un test que lo fije. Sin este par, alguien podría
+     * romper el gate (por ejemplo, pasar `eliminar` directo a `AcuerdoControles`
+     * sin pasar por `cambiarEstatus && editarFecha`) y la suite seguiría verde
+     * — la ronda 10 al revés.
+     */
+    it('editor sin admin (estatus y fecha, sin eliminar): el editor completo no ofrece borrar', async () => {
+      const usuario = userEvent.setup()
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn()}
+          editar={vi.fn()}
+          personas={[]}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={vi.fn().mockResolvedValue(undefined)}
+          // Sin `eliminar`: es el caso de un editor que no es admin.
+        />,
+      )
+
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
+
+      // El editor SÍ se abrió (estatus está ahí)...
+      expect(screen.getByLabelText(/cambiar estatus/i)).toBeInTheDocument()
+      // ...pero sin rastro de un control de borrar.
+      expect(screen.queryByRole('button', { name: /eliminar/i })).toBeNull()
+    })
+
+    it('admin (estatus, fecha y eliminar): el editor completo sí ofrece borrar', async () => {
+      const usuario = userEvent.setup()
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn()}
+          editar={vi.fn()}
+          personas={[]}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={vi.fn().mockResolvedValue(undefined)}
+          eliminar={vi.fn().mockResolvedValue(undefined)}
+        />,
+      )
+
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
+
+      expect(screen.getByRole('button', { name: /eliminar/i })).toBeInTheDocument()
+    })
   })
 
   /**
-   * LOS TRES CONTROLES DESDE LA FILA (ronda 14, tarea 4): las Server Actions
-   * de estatus, fecha y sala ya existían (tareas 2 y 3) sin llamador — esta
-   * tarea es la costura. Los tres son opcionales, como `editar`/`eliminar`
-   * de arriba: sin manejador NO se ofrece la acción.
+   * LOS CUATRO CONTROLES DETRÁS DE "✎ Corregir" (ronda 14, tarea 4, y su
+   * ronda de arreglo 1): las Server Actions de estatus, fecha y sala ya
+   * existían (tareas 2 y 3) sin llamador — esta tarea es la costura. Los
+   * tres son opcionales, como `editar`/`eliminar`: sin manejador NO se
+   * ofrece la acción. Y desde el ruling de la revisión, los tres viven
+   * DENTRO del editor completo —no sueltos y siempre visibles—, así que
+   * cada test abre "Corregir" primero: es el mismo gesto que usaría Franco.
    */
   describe('estatus, fecha y sala desde la pestaña', () => {
     it('cambia el estatus desde la fila, sin entrar a la sala', async () => {
@@ -146,10 +208,14 @@ describe('TablaAcuerdos', () => {
         <TablaAcuerdos
           acuerdos={[base]}
           destacar={vi.fn().mockResolvedValue(undefined)}
+          editar={vi.fn()}
+          personas={[]}
           cambiarEstatus={cambiarEstatus}
           editarFecha={vi.fn().mockResolvedValue(undefined)}
         />,
       )
+
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
 
       // `/estatus/i` a secas matcheaba DOS controles: el filtro "Estatus" de
       // arriba (siempre montado, filtra la lista) y este, el de
@@ -160,6 +226,38 @@ describe('TablaAcuerdos', () => {
       expect(cambiarEstatus).toHaveBeenCalledWith(base.id, 'cumplido')
     })
 
+    /**
+     * H3 de la revisión: de los seis controles de esta tarea, la fecha era
+     * el único sin una red propia — si se caía la prop o el `<input
+     * type="date">` dejaba de pintarse, la suite seguía en verde. Mismo
+     * patrón que ya usa `page.test.ts` de la sala para este control
+     * (`fireEvent.change` + `fireEvent.blur`, no `userEvent.type`: un
+     * `input[type=date]` no se teclea carácter a carácter de forma fiable
+     * en jsdom).
+     */
+    it('cambia la fecha compromiso desde la fila, sin entrar a la sala', async () => {
+      const editarFecha = vi.fn().mockResolvedValue(undefined)
+      const usuario = userEvent.setup()
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn().mockResolvedValue(undefined)}
+          editar={vi.fn()}
+          personas={[]}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={editarFecha}
+        />,
+      )
+
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
+
+      const campoFecha = screen.getByLabelText('Editar fecha compromiso')
+      fireEvent.change(campoFecha, { target: { value: '2026-09-01' } })
+      fireEvent.blur(campoFecha) // dispara el onBlur que llama a editarFechaAction
+
+      await waitFor(() => expect(editarFecha).toHaveBeenCalledWith(base.id, '2026-09-01'))
+    })
+
     it('mueve el acuerdo de sala desde la fila', async () => {
       const moverDeSala = vi.fn().mockResolvedValue({})
       const usuario = userEvent.setup()
@@ -167,10 +265,14 @@ describe('TablaAcuerdos', () => {
         <TablaAcuerdos
           acuerdos={[base]}
           destacar={vi.fn().mockResolvedValue(undefined)}
+          editar={vi.fn()}
+          personas={[]}
           moverDeSala={moverDeSala}
           salas={[{ slug: 'house-of-films', nombre: 'House of Films' }, { slug: 'neracode', nombre: 'NeraCode' }]}
         />,
       )
+
+      await usuario.click(screen.getByRole('button', { name: /corregir/i }))
 
       await usuario.selectOptions(screen.getByLabelText(/sala del acuerdo/i), 'neracode')
 
@@ -183,14 +285,47 @@ describe('TablaAcuerdos', () => {
       // La regla que dejó la revisión de la ronda 10: sin manejador NO se
       // ofrece la acción. Un botón muerto es peor que la ausencia del botón —
       // y hubo uno que llegó a producción con un test que lo bendecía.
-      // (El filtro "Estatus" de arriba SÍ sigue montado —filtra la lista, no
-      // edita nada—, por eso se comprueba el nombre accesible completo del
-      // control de `AcuerdoControles` y no `/estatus/i` a secas.)
-      expect(screen.queryByLabelText(/cambiar estatus/i)).toBeNull()
+      // Sin `editar` no hay "Corregir" que pulsar, así que ninguno de los
+      // controles de dentro del editor puede llegar a existir — se comprueba
+      // igual, por si acaso.
       expect(screen.queryByRole('button', { name: /corregir/i })).toBeNull()
+      expect(screen.queryByLabelText(/cambiar estatus/i)).toBeNull()
+      expect(screen.queryByLabelText('Editar fecha compromiso')).toBeNull()
       expect(screen.queryByLabelText(/sala del acuerdo/i)).toBeNull()
       // Y la sala sigue leyéndose y llevando a su pantalla.
       expect(screen.getByRole('link', { name: base.salaNombre })).toBeInTheDocument()
+    })
+
+    /**
+     * EL "✎ Corregir" ABRE LOS CUATRO A LA VEZ (ruling de la revisión): no
+     * son tres aperturas independientes. Sin este test, alguien podría
+     * romper `editando`/`onEditandoChange` (por ejemplo, dejar que
+     * `AcuerdoControles` se pinte siempre en vez de tras el clic) y ningún
+     * otro test de este archivo lo notaría — cada uno prueba UN control a la
+     * vez, ninguno prueba que los cuatro dependen del MISMO estado.
+     */
+    it('antes de pulsar "Corregir", el editor completo no está en el árbol', () => {
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn().mockResolvedValue(undefined)}
+          editar={vi.fn()}
+          personas={[]}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={vi.fn().mockResolvedValue(undefined)}
+          moverDeSala={vi.fn().mockResolvedValue({})}
+          salas={[{ slug: 'house-of-films', nombre: 'House of Films' }]}
+          eliminar={vi.fn().mockResolvedValue(undefined)}
+        />,
+      )
+
+      expect(screen.queryByLabelText(/cambiar estatus/i)).toBeNull()
+      expect(screen.queryByLabelText('Editar fecha compromiso')).toBeNull()
+      expect(screen.queryByLabelText(/sala del acuerdo/i)).toBeNull()
+      expect(screen.queryByRole('button', { name: /eliminar/i })).toBeNull()
+      // Y "Corregir" sí, siempre — el spec pide un control de edición
+      // permanente, no que todos lo sean.
+      expect(screen.getByRole('button', { name: /corregir/i })).toBeInTheDocument()
     })
   })
 

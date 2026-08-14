@@ -35,9 +35,10 @@ interface Props {
    * dentro de una sala borra cualquier editor, pero esta pantalla cruza las
    * nueve y el borrado es un DELETE de verdad.
    *
-   * Se entrega a `AcuerdoControles` (más abajo), que ya sabe pedir
-   * confirmación en dos tiempos y ya sabe NO pintar su × cuando esta acción
-   * no llega — no hay un botón de eliminar aparte en esta fila.
+   * Se entrega a `AcuerdoControles`, que ya sabe pedir confirmación en dos
+   * tiempos y ya sabe NO pintar su × cuando esta acción no llega. Vive
+   * dentro del editor completo (detrás de "✎ Corregir"), no suelto en la
+   * fila — ver `cambiarEstatus` más abajo sobre el porqué de la consolidación.
    */
   eliminar?: (acuerdoId: string) => Promise<void>
   /**
@@ -47,6 +48,15 @@ interface Props {
    * no ofrece el control. La comprobación que manda vive en cada Server
    * Action (`exigirEditor()`, ver src/app/acuerdos/acciones.ts) — esconder
    * el control aquí es cosmética, no protección.
+   *
+   * ⚠️ NO SE PINTAN EN REPOSO (ronda de arreglo 1 sobre esta tarea). La
+   * primera versión los ponía siempre visibles en `filaDcha`, junto con el
+   * `<select>` de sala en `.meta` — la revisión midió que eso le costaba a
+   * la columna de lectura (el texto del acuerdo) ~225px en TODAS las filas
+   * para todo el que puede editar (~700px → ~475px). Ahora viven detrás del
+   * mismo "✎ Corregir" que ya abre texto/responsable: un editor completo, un
+   * solo gesto, en vez de tres controles sueltos siempre encendidos. Ver
+   * `Fila` para el detalle.
    */
   cambiarEstatus?: (acuerdoId: string, estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado') => Promise<void>
   editarFecha?: (acuerdoId: string, fecha: string | null) => Promise<void>
@@ -55,7 +65,9 @@ interface Props {
    * equivocada hoy solo se arreglaba borrándolo y creándolo de nuevo —perdía
    * su origen y su historia—; esto lo corrige en sitio. También de editor,
    * por el mismo motivo que `cambiarEstatus`: corrige un dato mal capturado,
-   * no es una decisión de administración.
+   * no es una decisión de administración. Mismo criterio de arriba: vive
+   * dentro del editor completo, no sustituyendo al enlace de la sala en
+   * reposo (eso fue el error de la primera versión de esta tarea).
    */
   moverDeSala?: (acuerdoId: string, salaSlug: string) => Promise<{ error?: string }>
   /**
@@ -263,6 +275,19 @@ function Fila({
   // mismo que ya hace src/app/cliente/[slug]/page.tsx.
   const congelado = estaCongelado(acuerdo, { activa: acuerdo.salaActiva })
 
+  // ABRIR/CERRAR, LEVANTADO AQUÍ (ronda de arreglo 1 sobre esta tarea —
+  // ruling del coordinador). El brief original hacía que el `<select>` de
+  // sala SUSTITUYERA al enlace en reposo, y estatus/fecha vivieran sueltos
+  // en `filaDcha` siempre visibles: medido por la revisión, eso le costaba a
+  // la columna de lectura ~225px (de ~700 a ~475) EN TODAS LAS FILAS, para
+  // TODO el que puede editar — el texto del acuerdo es lo que se lee a
+  // diario; el estatus/fecha/sala se tocan de vez en cuando. Ahora los tres
+  // viven detrás del mismo "✎ Corregir" que ya abre texto+responsable
+  // (`EditarAcuerdo`, controlado desde aquí vía `editando`/
+  // `onEditandoChange` — ver su cabecera): un solo gesto deliberado abre EL
+  // EDITOR COMPLETO, y en reposo la fila vuelve a ser una lista que se LEE.
+  const [editando, setEditando] = useState(false)
+
   const [pendienteSala, empezarSala] = useTransition()
   const [errorSala, setErrorSala] = useState<string | null>(null)
   // Fuerza el remonte del `<select>` de sala tras un error (ver su uso más
@@ -295,7 +320,12 @@ function Fila({
             resuelve corregir el texto y el responsable en sitio, con su lápiz
             y su cancelar. Escribir aquí otro sería tener dos sitios donde
             arreglar el mismo defecto —la lección que dejó la ronda 12 con la
-            sección del Home y la de la sala. */}
+            sección del Home y la de la sala.
+
+            `editando`/`onEditandoChange`: el abrir/cerrar se LEVANTA a esta
+            fila (ver el porqué arriba) para que "✎ Corregir" abra, en el
+            mismo gesto, también estatus/fecha/sala más abajo — no serían tres
+            aperturas independientes, es UN editor completo. */}
         {editar ? (
           <EditarAcuerdo
             acuerdoId={acuerdo.id}
@@ -305,54 +335,27 @@ function Fila({
             equipos={equipos}
             siempreVisible
             editarAction={editar}
+            editando={editando}
+            onEditandoChange={setEditando}
           />
         ) : (
           <p className={estilos.que}>{acuerdo.que}</p>
         )}
         <div className={estilos.meta}>
-          {/* MOVER DE SALA (tarea 3, ronda 14): un acuerdo capturado bajo el
-              cliente equivocado solo se corregía borrándolo y creándolo de
-              nuevo —perdía origen e historia—. El `<select>` reemplaza al
-              enlace de siempre SOLO cuando llega `moverDeSala`; sin él, la
-              sala se sigue leyendo como enlace, igual que hoy.
-
-              SIN CONFIRMACIÓN, a propósito, y no por descuido: la app ya
-              reserva la confirmación en dos tiempos para lo IRREVERSIBLE —
-              ver el comentario de `AcuerdoControles` sobre borrar—, y mueve
-              en el acto lo reversible: el `<select>` de estatus, aquí mismo,
-              ya dispara al cambiar sin preguntar. Mover un acuerdo se
-              deshace moviéndolo de vuelta y queda registrado en `historia`
-              (ver `moverAcuerdoDeSala`, src/db/acuerdos.ts); ponerle
-              confirmación lo igualaría a un borrado y desdibujaría una
-              distinción que la app defiende adrede. */}
-          {moverDeSala ? (
-            <select
-              key={`${acuerdo.salaSlug}-${intentoSala}`}
-              className={estilos.selectSala}
-              aria-label={`Sala del acuerdo ${acuerdo.que}`}
-              defaultValue={acuerdo.salaSlug}
-              disabled={pendienteSala}
-              onChange={(e) => {
-                const destino = e.target.value
-                setErrorSala(null)
-                empezarSala(async () => {
-                  const r = await moverDeSala(acuerdo.id, destino)
-                  if (r.error) {
-                    setErrorSala(r.error)
-                    setIntentoSala((n) => n + 1)
-                  }
-                })
-              }}
-            >
-              {opcionesSala.map((s) => (
-                <option key={s.slug} value={s.slug}>{s.nombre}</option>
-              ))}
-            </select>
-          ) : (
-            <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
-              {acuerdo.salaNombre}
-            </Link>
-          )}
+          {/* EN REPOSO, LA SALA ES UN ENLACE — como toda esta franja de meta.
+              Antes de este ajuste el `<select>` de mover de sala vivía AQUÍ,
+              sustituyendo al enlace siempre que llegaba `moverDeSala`: medido
+              por la revisión, eso —sumado a estatus/fecha sueltos en
+              `filaDcha`, más abajo— le costaba a esta columna ~225px en TODAS
+              las filas (de ~700 a ~475), para todo el que puede editar. La
+              fila se CONSULTA a diario y se corrige de vez en cuando —la
+              misma regla de la ronda 12 que ya pagó este repo con el
+              arrastre—, así que el peso de "corregir" no puede vivir en el
+              estado de reposo. El `<select>` se mudó dentro del editor
+              completo, más abajo. */}
+          <Link href={`/cliente/${acuerdo.salaSlug}`} className={estilos.metaSala}>
+            {acuerdo.salaNombre}
+          </Link>
           <span className={estilos.punto} aria-hidden>·</span>
           {/* "sin dueño" y no un hueco: un acuerdo sin responsable es
               justamente lo que hay que ver para arreglarlo, y es como lo
@@ -380,7 +383,96 @@ function Fila({
             </>
           )}
         </div>
-        {errorSala && <p className={estilos.errorSala} role="alert">{errorSala}</p>}
+
+        {/* EL EDITOR COMPLETO: estatus, fecha, sala y eliminar, detrás del
+            MISMO "✎ Corregir" que abre texto/responsable arriba —comparten
+            `editando`—. Antes vivían sueltos y siempre visibles (estatus+
+            fecha+eliminar en `filaDcha`, sala en `.meta`); ahora solo se
+            pintan cuando se pidió corregir, de propósito: mover de sala deja
+            de ser un `onChange` que cualquier roce dispara, y pasa a ser un
+            gesto deliberado (abrir el editor primero) — sin inventar una
+            confirmación nueva que igualaría mover con borrar (ver la
+            cabecera del `<select>`, más abajo, sobre por qué NO se pide
+            confirmación aun así). */}
+        {editando && (cambiarEstatus || moverDeSala) && (
+          <div className={estilos.edicionExtra}>
+            {/* ESTATUS, FECHA Y ELIMINAR, JUNTOS EN `AcuerdoControles` — el
+                mismo componente que ya usa la sala
+                (`src/app/cliente/[slug]/page.tsx`), no uno nuevo: es la
+                lección de `EditarAcuerdo`, repetida. `eliminar` pasa
+                derecho, y `AcuerdoControles` ya sabe no pintar su × cuando no
+                llega. Se monta solo si llegan las DOS acciones que necesita
+                de verdad —estatus y fecha—: en la práctica `eliminar` nunca
+                llega sin ellas (`esAdmin()` implica `esEditor()`, ver
+                src/auth/roles.ts), así que esta condición no le quita el
+                botón de borrar a nadie que deba tenerlo. */}
+            {cambiarEstatus && editarFecha && (
+              <AcuerdoControles
+                acuerdoId={acuerdo.id}
+                estatusInicial={acuerdo.estatus}
+                fechaInicial={acuerdo.fechaCompromiso ?? null}
+                cambiarEstatusAction={cambiarEstatus}
+                editarFechaAction={editarFecha}
+                eliminarAction={eliminar}
+              />
+            )}
+            {/* MOVER DE SALA (tarea 3, ronda 14): un acuerdo capturado bajo
+                el cliente equivocado solo se corregía borrándolo y creándolo
+                de nuevo —perdía origen e historia—.
+
+                SIN CONFIRMACIÓN, a propósito, y no por descuido: la app
+                reserva la confirmación en dos tiempos para lo IRREVERSIBLE —
+                ver el comentario de `AcuerdoControles` sobre borrar—, y
+                mueve en el acto lo reversible (el `<select>` de estatus, dos
+                líneas arriba, también dispara al cambiar sin preguntar).
+                Mover un acuerdo se deshace moviéndolo de vuelta y queda
+                registrado en `historia` (`moverAcuerdoDeSala`,
+                src/db/acuerdos.ts) — **salvo cuando el ORIGEN era una sala
+                PAUSADA**: `salas` (prop) solo ofrece destinos VIVOS, así que
+                en cuanto un congelado se mueve a una sala viva, la pausada de
+                la que salió ya no vuelve a estar entre las opciones de
+                ningún `<select>`. La vuelta atrás en ESE caso concreto es
+                manual (por base, o pidiendo a un admin que reactive la sala
+                antes). Y no es un movimiento inocuo para un congelado en
+                ningún caso: sacarlo de una sala en pausa lo DESCONGELA en el
+                acto —`estatusEfectivo` (src/db/consultas.ts) recalcula con
+                la sala nueva (VIVA), así que un `abierto` con fecha ya
+                pasada puede aparecer `vencido` de inmediato y volver a
+                contar en el Home—. Ponerle confirmación de todos modos
+                igualaría mover con borrar y desdibujaría una distinción que
+                la app defiende a propósito; en vez de eso, se pidió que
+                abrir el editor fuera ya el gesto deliberado (este bloque
+                entero solo se pinta tras pulsar "Corregir"). */}
+            {moverDeSala && (
+              <label className={estilos.edicionSalaEtiqueta}>
+                <span className="micro" data-sinpunto>Sala</span>
+                <select
+                  key={`${acuerdo.salaSlug}-${intentoSala}`}
+                  className={estilos.selectSala}
+                  aria-label={`Sala del acuerdo ${acuerdo.que}`}
+                  defaultValue={acuerdo.salaSlug}
+                  disabled={pendienteSala}
+                  onChange={(e) => {
+                    const destino = e.target.value
+                    setErrorSala(null)
+                    empezarSala(async () => {
+                      const r = await moverDeSala(acuerdo.id, destino)
+                      if (r.error) {
+                        setErrorSala(r.error)
+                        setIntentoSala((n) => n + 1)
+                      }
+                    })
+                  }}
+                >
+                  {opcionesSala.map((s) => (
+                    <option key={s.slug} value={s.slug}>{s.nombre}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {errorSala && <p className={estilos.errorSala} role="alert">{errorSala}</p>}
+          </div>
+        )}
       </div>
 
       <div className={estilos.filaDcha}>
@@ -388,27 +480,6 @@ function Fila({
           {congelado ? 'Congelado' : ETIQUETA_ESTATUS[acuerdo.estatus]}
         </span>
         <Estrella acuerdoId={acuerdo.id} destacado={acuerdo.destacado} destacar={destacar} />
-        {/* ESTATUS, FECHA Y ELIMINAR, JUNTOS EN `AcuerdoControles` — el mismo
-            componente que ya usa la sala (`src/app/cliente/[slug]/page.tsx`),
-            no uno nuevo: es la lección de `EditarAcuerdo` de arriba, repetida.
-            Antes esta fila tenía su PROPIO borrado en dos tiempos, duplicado
-            del de la sala; se retira aquí y `eliminar` pasa derecho a
-            `AcuerdoControles`, que ya sabe no pintar su × cuando no llega
-            (ver la cabecera de `Props` ahí). Se monta solo si llegan las DOS
-            acciones que necesita de verdad —estatus y fecha—: en la práctica
-            `eliminar` nunca llega sin ellas (`esAdmin()` implica
-            `esEditor()`, ver src/auth/roles.ts), así que esta condición no
-            le quita el botón de borrar a nadie que deba tenerlo. */}
-        {cambiarEstatus && editarFecha && (
-          <AcuerdoControles
-            acuerdoId={acuerdo.id}
-            estatusInicial={acuerdo.estatus}
-            fechaInicial={acuerdo.fechaCompromiso ?? null}
-            cambiarEstatusAction={cambiarEstatus}
-            editarFechaAction={editarFecha}
-            eliminarAction={eliminar}
-          />
-        )}
       </div>
     </li>
   )
