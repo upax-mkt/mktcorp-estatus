@@ -246,8 +246,9 @@ details[open] > .cerradasResumen::before { transform: rotate(90deg); }
    —`<select>`/leyenda/tarjetas los tres en x=1352—), y el PRIMER track pasa
    a `1fr` (el calendario se lleva lo que sobra) con el SEGUNDO acotado a
    `minmax(18rem, 21rem)` (filtros/leyenda no necesitan más para leerse
-   cómodos; un primer intento con `26rem` —de más, sin medir tras el cambio—
-   seguía dejando "Marketing United" truncado por 76px). MEDIDO tras este
+   cómodos; un primer intento con `26rem` —de más, sin medir tras el
+   cambio— dejaba el calendario en 820px, 80px menos que con `21rem`, y
+   "Marketing United" seguía truncando). MEDIDO tras este
    arreglo, a 1440px: calendario en 900px (56.25rem) —4px por encima de los
    896px (56rem) a los que ya se leían los cinco nombres completos ANTES de
    que existiera el `<aside>`, ver `antes-1440.png` del informe de esta tarea—,
