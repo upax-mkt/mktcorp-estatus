@@ -323,6 +323,17 @@ export default async function PagReuniones() {
       estado: r.estado,
       alcance: r.alcance,
       tipo: r.tipo,
+      // CRÍTICO C2 (ronda 14-2, fix 3/4): faltaba esta línea. `ReunionResumen`
+      // SÍ trae `plantilla` (`src/db/reuniones.ts`) pero este mapeo no la
+      // copiaba, así que `PanelAgenda` recibía la fila SIN la clave en
+      // absoluto — ni `null` ni el valor real — y su `inicial={{...}}` para
+      // editar tampoco podía incluirla. `?? null`, no un `|| null`: una
+      // clase real nunca es cadena vacía, así que no hay valor "falsy pero
+      // válido" que perder aquí, y `?? null` deja claro que lo único que se
+      // normaliza es `undefined` (el campo opcional de `ReunionResumen`) a
+      // `null` (el "sin clase" que sí entiende `plantillaInicial`,
+      // `FormularioSesion.tsx`).
+      plantilla: r.plantilla ?? null,
       lugar: r.lugar,
       participantes: r.participantes,
       itemsLlenados: doc?.items.filter((it) => it.llenado).length ?? 0,

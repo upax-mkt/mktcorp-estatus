@@ -187,10 +187,20 @@ export function listarReunionesMemoria(): FilaReunionMemoria[] {
   return Array.from(reuniones.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 }
 
-/** Espejo en memoria de `editarReunion` (ver src/db/reuniones.ts). */
+/**
+ * Espejo en memoria de `editarReunion` (ver src/db/reuniones.ts).
+ *
+ * `plantilla` se sumó al `Pick` en el arreglo del Crítico C1 (ronda 14-2,
+ * fix 3/4): antes de eso este tipo cerraba la puerta en compilación a que
+ * `editarReunion` pudiera pasar la columna aquí, aunque su propio bloque de
+ * `columnas` tampoco la armara — las dos mitades del mismo bug, una en cada
+ * archivo.
+ */
 export function actualizarDatosReunionMemoria(
   reunionId: string,
-  cambios: Partial<Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>,
+  cambios: Partial<
+    Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'plantilla' | 'alcance' | 'participantes' | 'lugar'>
+  >,
 ): void {
   const fila = reuniones.get(reunionId)
   if (!fila) return

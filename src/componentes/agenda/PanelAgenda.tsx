@@ -81,6 +81,20 @@ export interface SesionAgendada extends SesionEnCalendario {
    * interfaz" es trabajo de otra tarea, fuera de esta migración).
    */
   tipo: 'semanal' | 'quincenal' | 'mensual'
+  /**
+   * Qué clase de junta es (`src/secciones/plantillas.ts`) — `null` cuando la
+   * reunión no tiene clase (las 6 reales sin clasificar). AÑADIDO EN EL
+   * ARREGLO DEL CRÍTICO C2 (ronda 14-2, fix 3/4): sin este campo, el
+   * `inicial={{...}}` de "Editar" (más abajo) no podía distinguir "esta
+   * junta no tiene clase" de "no sé qué clase tiene" — y `plantillaInicial`
+   * (`FormularioSesion.tsx`), que usa el operador `in` para esa misma
+   * distinción, caía SIEMPRE al valor por defecto del catálogo
+   * (`PLANTILLA_POR_DEFECTO`) por falta de la clave, sin importar la clase
+   * real de la reunión. `string | null`, no opcional: `page.tsx` (`paraElPanel`)
+   * siempre la manda, normalizada con `?? null` desde el campo opcional de
+   * `ReunionResumen` — mismo criterio que `lugar`, dos líneas abajo.
+   */
+  plantilla: string | null
   lugar: string | null
   participantes: string[]
   itemsLlenados: number
@@ -212,6 +226,17 @@ export function PanelAgenda({
                     alcance: editando.alcance,
                     lugar: editando.lugar ?? '',
                     participantes: editando.participantes.join(', '),
+                    // CRÍTICO C2 (ronda 14-2, fix 3/4): faltaba esta línea.
+                    // `editando.plantilla` YA es `string | null` (nunca
+                    // `undefined` — ver el comentario de `SesionAgendada`,
+                    // arriba), así que se pasa TAL CUAL: la prop `inicial`
+                    // de `FormularioSesion` acepta `plantilla?: string | null`
+                    // justo para poder distinguir "vino `null`" (sin clase,
+                    // se respeta) de "no vino la clave" (reunión nueva, cae
+                    // al default) — ver `plantillaInicial`, en ese archivo.
+                    // Ponerla aquí, aunque sea `null`, es lo que hace que la
+                    // clave SIEMPRE "venga".
+                    plantilla: editando.plantilla,
                   }}
                   enviarAction={async (datos) => {
                     const r = await editarAction(editando.id, datos)

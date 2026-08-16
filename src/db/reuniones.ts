@@ -372,6 +372,20 @@ export async function editarReunion(
   if (cambios.fecha !== undefined) columnas.fecha = cambios.fecha
   if (titulo !== undefined) columnas.titulo = titulo
   if (cambios.tipo !== undefined) columnas.tipo = cambios.tipo
+  /**
+   * CRÍTICO C1 (ronda 14-2, fix 3/4) — faltaba esta línea. El TIPO de esta
+   * función (`Omit<Partial<DatosDeReunion>, 'salaSlug'>`, en la firma de
+   * arriba) ya admitía `plantilla` desde que se escribió; que el tipo lo
+   * deje pasar en compilación no significa que este bloque la escribiera en
+   * runtime — y no lo hacía: corregir la clase de una junta ya creada era un
+   * no-op silencioso, sin error. `cambios.plantilla` puede llegar `null`
+   * explícito (una junta que se queda sin clase, o que nunca la tuvo y
+   * alguien edita otro campo — ver `editarReunionAction`,
+   * `src/app/reuniones/acciones.ts`, que traduce `'' → null` ANTES de llegar
+   * aquí), así que la guarda es `!== undefined`, no un `if (cambios.plantilla)`
+   * que trataría `null` como "no tocar" y dejaría la clase vieja pegada.
+   */
+  if (cambios.plantilla !== undefined) columnas.plantilla = cambios.plantilla
   if (cambios.alcance !== undefined) columnas.alcance = cambios.alcance
   if (cambios.participantes !== undefined) {
     // Sin nombres vacíos ni repetidos (deuda de la Tarea 4: se perdió al
@@ -391,7 +405,7 @@ export async function editarReunion(
     await db().update(esquema.reuniones).set(columnas).where(eq(esquema.reuniones.id, id))
     return
   }
-  memoria.actualizarDatosReunionMemoria(id, columnas as Partial<Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>)
+  memoria.actualizarDatosReunionMemoria(id, columnas as Partial<Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'plantilla' | 'alcance' | 'participantes' | 'lugar'>>)
 }
 
 /**
