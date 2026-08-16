@@ -491,14 +491,73 @@ describe('Hub (/) — el pulso es navegable', () => {
  * quien navega con teclado o lector de pantalla seguiría topándose primero
  * con acuerdos aunque a la vista se vea distinto — por eso el primer test lee
  * `getAllByRole('heading', { level: 2 })`, que recorre el DOM, no el layout.
+ *
+ * EL FIXTURE ERA MUDO (re-revisión, hallazgo I1): con `estadoDeSalas=[]`,
+ * `listarReuniones=[]` y `ModuloCalendario`/`ModuloMinutas` dobladas a
+ * `null`, `getAllByRole('heading', { level: 2 })` devolvía UN SOLO elemento
+ * —"Los clientes"—, así que `secciones[0]` pasaba estuviera "Los clientes"
+ * donde estuviera en el documento. El test SÍ falló contra el `page.tsx`
+ * original (Step 3 del brief, cuando `ModuloAcuerdos` todavía pintaba su
+ * propio `<h2>`) pero perdió esa capacidad al borrarse ese componente: nadie
+ * lo volvió a poner a prueba. Comprobado moviendo la sección a mano (ver el
+ * informe de esta ronda) — con el fixture viejo NO caía; con este, sí.
+ *
+ * Ahora el fixture arma TRES secciones reales — "Por confirmar" (una reunión
+ * con respaldo cuyo día ya pasó), "Los clientes" (una sala activa) y "En
+ * pausa" (una sala pausada, la mínima que pide el hallazgo) — y el test
+ * COMPARA ÍNDICES, no asume que el primer elemento de la lista es el
+ * ganador por ser el único. Eso además fija, de una vez, el hallazgo I2: que
+ * "Por confirmar" —antes el primer `<h2>` del documento— quede por debajo de
+ * "Los clientes", con los demás módulos generales, tal como pide el spec §4
+ * (pulso → clientes → calendario y agendar → minutas → en pausa; "Por
+ * confirmar" no va delante de clientes).
  */
 describe('Hub (/) — el Home se invierte: los clientes primero, los acuerdos solo una cifra (ronda 14.5)', () => {
-  it('lo primero que se ve son los clientes, no los acuerdos', async () => {
+  beforeEach(() => {
+    // Sala activa con una reunión pasada y con respaldo (documentoListo) →
+    // dispara "Por confirmar" (`reunionesPorConfirmar`, dominio/reunion.ts).
+    // Sala pausada → dispara "En pausa". Entre las dos, `getAllByRole` deja
+    // de devolver una lista de uno: el test recupera dientes.
+    estadoDeSalasMock.mockResolvedValue([
+      {
+        ...SALA_BASE,
+        slug: 'activa',
+        nombre: 'Activa',
+        activa: true,
+        reuniones: [{ ...REUNION_BASE, id: 'r-por-confirmar', documentoListo: true }],
+      },
+      {
+        ...SALA_BASE,
+        slug: 'pausada',
+        nombre: 'Pausada',
+        activa: false,
+        pausadaDesde: '2026-01-01',
+      },
+    ])
+  })
+
+  it('lo primero que se ve son los clientes, no los acuerdos ni "Por confirmar"', async () => {
     render(await Hub())
 
-    // El orden en el DOM es el orden de lectura y el del teclado.
-    const secciones = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(secciones[0]).toMatch(/clientes/i)
+    // El orden en el DOM es el orden de lectura y el del teclado: se afirma
+    // sobre el documento, no sobre el CSS.
+    const secciones = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent ?? '')
+    // Con el fixture de arriba esto NO puede ser una lista de uno: si lo
+    // fuera, este `expect` estaría mintiendo sobre lo que comprueba.
+    expect(secciones.length).toBeGreaterThanOrEqual(3)
+
+    const iClientes = secciones.findIndex((t) => /clientes/i.test(t))
+    const iConfirmar = secciones.findIndex((t) => /confirmar/i.test(t))
+    const iPausa = secciones.findIndex((t) => /en pausa/i.test(t))
+    expect(iClientes).toBeGreaterThanOrEqual(0)
+    expect(iConfirmar).toBeGreaterThanOrEqual(0)
+    expect(iPausa).toBeGreaterThanOrEqual(0)
+
+    // La comparación es por ÍNDICE, no por "es el primero del arreglo": lo
+    // que importa es la posición relativa a las otras secciones, no que
+    // "Los clientes" sea casualmente la única.
+    expect(iClientes).toBeLessThan(iConfirmar) // I2: "Por confirmar" ya no va delante.
+    expect(iClientes).toBeLessThan(iPausa)
   })
 
   it('los acuerdos son una cifra que lleva a su pestaña, no una lista', async () => {

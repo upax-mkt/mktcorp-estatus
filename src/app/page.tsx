@@ -65,11 +65,18 @@ function instanteDe(dia: string, hora: string): Date {
  * empezaban a mitad de página (medido: el píxel 1.140 de 2.238 a 1440px).
  *
  * El orden ahora, de arriba abajo: el pulso (las cifras, incluidas las DOS de
- * acuerdos, que llevan a `/acuerdos`), lo que exige confirmar, **los
- * clientes**, calendario y agendar, minutas, y en pausa. Los acuerdos ya NO
+ * acuerdos, que llevan a `/acuerdos`), **los clientes**, lo que exige
+ * confirmar, calendario y agendar, minutas, y en pausa. Los acuerdos ya NO
  * tienen su propio bloque aquí —decisión de Franco, textual: *"solo una
  * cifra"*, no un módulo más chico— así que ese trabajo se resuelve en
  * `/acuerdos`, no en el Home.
+ *
+ * RE-REVISIÓN (hallazgo I2): "Por confirmar" vivía delante de "Los clientes"
+ * —se quedó ahí cuando se retiró `ModuloAcuerdos`, nadie la movió— así que el
+ * primer `<h2>` del documento seguía sin ser el de las salas. Ahora baja,
+ * junto con los demás módulos generales, tal como enumera el spec §4: pulso →
+ * clientes → calendario y agendar → minutas → en pausa; "Por confirmar" no
+ * va delante de clientes.
  */
 export default async function Hub() {
   // El Home era la ÚNICA pantalla de equipo sin guarda de página (revisión
@@ -432,41 +439,30 @@ export default async function Hub() {
           </div>
         </section>
 
-        {/* POR CONFIRMAR (punto 2/3): las reuniones que la deducción
-            automática de `fueDada` ya está contando como dadas —o casi—, sin
-            que nadie lo haya dicho todavía. Cierra el ciclo que el pulso, un
-            poco más arriba, deja abierto: aquí se responde. */}
-        {porConfirmar.length > 0 && (
-          <Seccion
-            icono="reuniones"
-            titulo="Por confirmar"
-            conteo={
-              porConfirmar.length === 1
-                ? 'una ya pasó su día sin marcar'
-                : `${porConfirmar.length} ya pasaron su día sin marcar`
-            }
-          >
-            <ReunionesPorConfirmar
-              sesiones={porConfirmar}
-              marcarPresentadaAction={marcarPresentadaAction}
-              marcarNoDadaAction={marcarNoDadaAction}
-              desmarcarNoDadaAction={desmarcarNoDadaAction}
-            />
-          </Seccion>
-        )}
-
         {/* LAS SALAS, LO PRIMERO QUE SE VE (ronda 14.5, tarea 1).
             Franco, textual: "el lugar donde lo primero que ves son las salas
             y luego otros módulos de interés agnósticos y generales" — hasta
             esta ronda esta sección vivía después del pulso, Por confirmar,
             Acuerdos y Calendario/Minutas, empezando a mitad de página
             (medido: el píxel 1.140 de 2.238 a 1440px). Ahora es la SEGUNDA
-            cosa que se lee, justo después de lo que exige confirmar — antes
-            de los módulos generales de más abajo. Movida en el DOCUMENTO, no
-            con `order` de CSS: quien navega con teclado o lector de pantalla
-            tiene que toparse con "Los clientes" en el mismo orden que se ve
-            (deuda que `/reuniones` dejó viva con el calendario; aquí no se
-            repite). */}
+            cosa que se lee, justo después del pulso — antes de "Por
+            confirmar" y de los módulos generales de más abajo. Movida en el
+            DOCUMENTO, no con `order` de CSS: quien navega con teclado o
+            lector de pantalla tiene que toparse con "Los clientes" en el
+            mismo orden que se ve (deuda que `/reuniones` dejó viva con el
+            calendario; aquí no se repite).
+
+            RE-REVISIÓN (hallazgo I2): hasta esta corrección "Por confirmar"
+            seguía siendo el primer `<h2>` del documento —quedó donde estaba
+            cuando se retiró `ModuloAcuerdos`, sin que nadie la moviera—, así
+            que con datos reales el DOM (y el teclado, y un lector de
+            pantalla) topaban con ella antes que con las salas, aunque el
+            test se llamara "lo primero que se ve son los clientes". Decisión
+            de Franco, textual: *"lo primero que ves son las salas y luego
+            otros módulos de interés agnósticos y generales"* — "Por
+            confirmar" es justo uno de esos módulos generales, no una excepción,
+            así que baja con el resto: ver más abajo, ya después de esta
+            sección. */}
         <Seccion
           id="clientes"
           icono="clientes"
@@ -571,6 +567,38 @@ export default async function Hub() {
             })}
           </div>
         </Seccion>
+
+        {/* POR CONFIRMAR (punto 2/3): las reuniones que la deducción
+            automática de `fueDada` ya está contando como dadas —o casi—, sin
+            que nadie lo haya dicho todavía. Cierra el ciclo que el pulso
+            deja abierto: aquí se responde.
+
+            RE-REVISIÓN (hallazgo I2): vive AQUÍ, después de "Los clientes" y
+            junto a los demás módulos generales —no antes de las salas—.
+            Franco, textual, es sobre las salas: *"lo primero que ves son las
+            salas y luego otros módulos de interés agnósticos y
+            generales"*; "Por confirmar" es uno de esos módulos, así que baja
+            con ellos. Movida en el JSX, no con `order` de CSS (mismo
+            criterio que "Los clientes", arriba): el orden del documento es
+            el de lectura y el del teclado. */}
+        {porConfirmar.length > 0 && (
+          <Seccion
+            icono="reuniones"
+            titulo="Por confirmar"
+            conteo={
+              porConfirmar.length === 1
+                ? 'una ya pasó su día sin marcar'
+                : `${porConfirmar.length} ya pasaron su día sin marcar`
+            }
+          >
+            <ReunionesPorConfirmar
+              sesiones={porConfirmar}
+              marcarPresentadaAction={marcarPresentadaAction}
+              marcarNoDadaAction={marcarNoDadaAction}
+              desmarcarNoDadaAction={desmarcarNoDadaAction}
+            />
+          </Seccion>
+        )}
 
         {/* LOS MÓDULOS GENERALES: calendario + agendar, y minutas.
             ACUERDOS YA NO VIVE AQUÍ (ronda 14.5, tarea 1) — decisión de
