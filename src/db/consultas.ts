@@ -140,6 +140,14 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
         tipo: esquema.reuniones.tipo,
         estado: esquema.reuniones.estado,
         noDadaEn: esquema.reuniones.noDadaEn,
+        // ⚠️ SIN ESTA LÍNEA `Reunion.plantilla` LLEGA `undefined` EN
+        // PRODUCCIÓN Y `tsc` NO DICE NADA (ronda 14.3, tarea 1): el tipo ya
+        // lo exige (`dominio/reunion.ts`), pero un `select` que no la pida no
+        // revienta en compilación — es el MISMO defecto, verificado contra
+        // este mismo repo, que dejó a `editarReunion` sin escribir la
+        // columna (dos Críticos, milestone 2). Fijado por
+        // `db/consultas.test.ts` (describe "plantilla viaja...").
+        plantilla: esquema.reuniones.plantilla,
         documentoId: esquema.documentos.id,
         documentoEstado: esquema.documentos.estado,
       })
@@ -222,6 +230,10 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     tipo: r.tipo,
     estado: r.estado,
     noDadaEn: r.noDadaEn ? r.noDadaEn.toISOString() : null,
+    // `?? null`, no `r.plantilla` a secas: dice "sin clasificar" con la
+    // misma palabra que el resto del dominio usa para ese estado, en vez de
+    // dejar pasar el `undefined` crudo que devolvería una columna nula.
+    plantilla: r.plantilla ?? null,
     documentoId: r.documentoId ?? undefined,
     // `documentoCuentaComoPresentacion` y no `estado === 'listo'` a secas
     // (ronda 13): un documento LISTO Y VACÍO no es una presentación — ver el

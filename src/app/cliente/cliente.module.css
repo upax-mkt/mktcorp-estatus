@@ -358,6 +358,18 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3);
   background: var(--papel-hundido);
 }
+/* ── "LA ÚLTIMA", UNA POR CLASE (ronda 14.3) ──────────────────────────────
+   Antes había una sola `.reunionDestacada` suelta; ahora hay una por clase
+   de junta presente, en esta rejilla. Con una sola (el caso de HOY en TODAS
+   las salas) `minmax(min(22rem,100%),1fr)` la estira a lo ancho completo —
+   mismo aspecto que la tarjeta suelta de antes, sin una regla `:only-child`
+   aparte — y con varias se reparten y se apilan solas en pantallas
+   angostas, mismo mecanismo que `.columnasAnteriores`, más abajo. */
+.ultimasPorClase {
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+}
+.ultimasPorClase .reunionDestacada { margin-bottom: 0; }
 .reunionCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .reuniones { display: flex; flex-direction: column; }
 /* LAS CAJAS DE CADA REUNIÓN, EN COLUMNA (ronda 13). Franco: *"que se
@@ -391,6 +403,25 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 @media (max-width: 720px) {
   .reunionFila { grid-template-columns: 1fr; }
 }
+
+/* ── LAS ANTERIORES, EN UNA COLUMNA POR CLASE (ronda 14.3) ────────────────
+   MISMO mecanismo que `.bmCompetidores` (benchmark, más abajo en esta hoja)
+   y que `.ultimasPorClase`, arriba: `minmax(min(20rem,100%),1fr)` hace que
+   una sola columna —hoy, en todas las salas— se estire a lo ancho completo
+   (igual que la lista plana de antes) y que dos o más se repartan sin un
+   ancho fijo. EN MÓVIL SE APILAN SOLAS por el mismo `minmax` —su cota
+   inferior nunca pasa del 100% del contenedor—, sin un `@media` propio: es
+   la respuesta a "busca cómo lo resuelven los módulos vecinos" antes de
+   escribir uno nuevo. `.grupoMaterial`/`.grupoCabecera`/`.grupoNombre` son
+   las MISMAS clases que agrupan los materiales de la sala
+   (`MaterialesAgrupados.tsx`, ver su comentario "SUBCATEGORÍAS DENTRO DE UN
+   MÓDULO DE MATERIALES" más abajo): una etiqueta y un conteo por grupo es
+   la misma idea en los dos módulos, no dos hojas de estilo para lo mismo. */
+.columnasAnteriores {
+  display: grid; gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+}
+.columnasAnteriores .grupoMaterial { min-width: 0; }
 
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 

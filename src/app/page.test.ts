@@ -138,6 +138,7 @@ const REUNION_BASE: Reunion = {
   tipo: 'mensual',
   estado: 'agendada',
   noDadaEn: null,
+  plantilla: null,
   documentoListo: false,
   archivos: [],
   acuerdos: [],

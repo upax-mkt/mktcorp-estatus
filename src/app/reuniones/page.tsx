@@ -126,6 +126,10 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
     tipo: r.tipo,
     estado: r.estado,
     noDadaEn: r.noDadaEn,
+    // Ronda 14.3: `Reunion.plantilla` pasó a requerido — `ReunionResumen` ya
+    // la trae (`db/reuniones.ts`), así que es el mismo dato real, no uno
+    // inventado para satisfacer el tipo.
+    plantilla: r.plantilla ?? null,
     // Ronda 13: un documento LISTO pero SIN secciones no es una presentación
     // (ver `dominio/reunion.ts`). Aquí el documento llega entero, así que las
     // secciones son sus items.

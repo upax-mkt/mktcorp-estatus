@@ -95,7 +95,7 @@ const SALA_BASE: EstadoSala = {
 // con ella `reuniones` sale `[]` y la pregunta "¿se llamó participantesDe?"
 // nunca se ejercitaría de verdad.
 const REUNION_BASE = {
-  tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: true, archivos: [], acuerdos: [],
+  tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, plantilla: null, documentoListo: true, archivos: [], acuerdos: [],
 }
 const SALA_CON_REUNIONES: EstadoSala = {
   ...SALA_BASE,
@@ -620,7 +620,7 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
  */
 describe('VistaSala (/cliente/[slug]) — "+ Subir presentación" de una reunión (ronda 10, tarea 9b)', () => {
   const REUNION_SIN_PRESENTACION_BASE = {
-    tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: false, archivos: [], acuerdos: [],
+    tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, plantilla: null, documentoListo: false, archivos: [], acuerdos: [],
   }
   const SALA_SIN_PRESENTACIONES: EstadoSala = {
     ...SALA_BASE,
@@ -816,12 +816,12 @@ describe('VistaSala (/cliente/[slug]) — el acceso del director (clave + link f
 describe('VistaSala (/cliente/[slug]) — "Levantar minuta" no exige confirmar a mano (hallazgo 1)', () => {
   const REUNION_AGENDADA_MAQUETADA = {
     id: 'reunion-maquetada', titulo: 'Quincenal julio', fecha: '2026-07-15T10:00:00.000Z',
-    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, plantilla: null,
     documentoListo: true, archivos: [], acuerdos: [],
   }
   const REUNION_AGENDADA_SIN_RESPALDO = {
     id: 'reunion-sin-respaldo', titulo: 'Standup sin nada encima', fecha: '2026-07-10T10:00:00.000Z',
-    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, plantilla: null,
     documentoListo: false, archivos: [], acuerdos: [],
   }
   const SALA_CON_MAQUETADA_SIN_CONFIRMAR: EstadoSala = {

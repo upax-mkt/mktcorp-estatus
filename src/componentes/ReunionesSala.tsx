@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { seEstaArmando, tienePresentacion, type Reunion } from '@/dominio/reunion'
+import { obtenerPlantilla, PLANTILLAS } from '@/secciones/plantillas'
 import type { Participante } from '@/db/participacion'
 import type { CategoriaArchivo } from '@/db/archivos'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
@@ -56,7 +57,68 @@ import caras from './reuniones/CarasDeReunion.module.css'
  * segundo camino. `categoria` siempre `'presentacion'`; `reunionId` y
  * `fecha` siempre los de la reunión que abrió el selector — la fecha se
  * hereda de la reunión, nunca se le vuelve a pedir a quien sube.
+ *
+ * ═══ LA CLASE DE JUNTA AGRUPA EL MÓDULO (ronda 14.3, tarea 1) ═════════════
+ * `reuniones.plantilla` (`src/secciones/plantillas.ts`) ya se guardaba desde
+ * ayer; lo que faltaba era que este módulo la usara. Doce Sync Comerciales al
+ * trimestre, sin agrupar, ahogaban el estatus mensual en la misma lista.
+ *
+ * Tres funciones puras, module-scope (no dependen de nada del componente,
+ * así que no hace falta `useMemo` para probarlas sueltas):
+ * `etiquetaDeClase` (cómo se llama), `ordenDeClase` (en qué orden va) y
+ * `agruparPorClase` (quién cae en qué grupo). El componente las usa para
+ * partir `reuniones` en "la más reciente DE CADA CLASE" (antes: una sola,
+ * "la última" a secas) y "las demás, en una columna por clase".
  */
+
+/**
+ * LA ETIQUETA DE UNA CLASE, para pintarla — nunca para preguntarle al
+ * catálogo sin tratar `null` ANTES. `obtenerPlantilla(null)` cae a la
+ * PRIMERA entrada del catálogo POR DISEÑO (es lo que necesita un
+ * `<select>` que nunca puede quedar vacío, ver `SelectorClaseDeJunta.tsx`)
+ * — usarla a secas aquí pintaría "Estatus de UDN" sobre una junta sin
+ * clasificar: un dato inventado, en una pantalla que ve el director de la
+ * UDN. Por eso el `null` se resuelve ANTES de tocar el catálogo, no con su
+ * fallback.
+ */
+function etiquetaDeClase(clave: string | null): string {
+  return clave === null ? 'Sin clasificar' : obtenerPlantilla(clave).nombre
+}
+
+/**
+ * Dónde cae una clase en el orden de columnas: el orden del catálogo
+ * (`PLANTILLAS`), y "Sin clasificar" siempre al final — las 6 reuniones
+ * reales sin clase de hoy no se esconden, pero tampoco compiten por el
+ * primer lugar con una clase de verdad. Un id que el catálogo no reconoce
+ * —no debería pasar nunca: `crearReunion`/`editarReunion` ya lo rechazan,
+ * ver `esPlantillaConocida` en `src/db/reuniones.ts`— se manda al final
+ * también, en vez de reventar el orden.
+ */
+function ordenDeClase(clave: string | null): number {
+  if (clave === null) return PLANTILLAS.length
+  const indice = PLANTILLAS.findIndex((p) => p.id === clave)
+  return indice === -1 ? PLANTILLAS.length : indice
+}
+
+/**
+ * Agrupa por clase (`plantilla`, `null` = sin clasificar) y ordena cada
+ * grupo de la reunión más reciente a la más antigua — con eso, el primer
+ * elemento de cada grupo YA es "la última de esa clase", sin tener que
+ * confiar en que `reuniones` llegara ordenada por fecha (en producción
+ * siempre llega así, ver `reunionesDeSala` en `dominio/reunion.ts`, pero
+ * este componente no depende de esa garantía del llamador).
+ */
+function agruparPorClase(reuniones: Reunion[]): Map<string | null, Reunion[]> {
+  const grupos = new Map<string | null, Reunion[]>()
+  for (const r of reuniones) {
+    const clave = r.plantilla ?? null
+    const lista = grupos.get(clave)
+    if (lista) lista.push(r)
+    else grupos.set(clave, [r])
+  }
+  for (const lista of grupos.values()) lista.sort((a, b) => b.fecha.localeCompare(a.fecha))
+  return grupos
+}
 
 interface Props {
   /** El historial: lo que ya ocurrió, con su documento, minuta y acuerdos. */
@@ -238,11 +300,25 @@ export function ReunionesSala({
   // función entera — se decide más abajo, dentro del render.
   const hayHistorial = reuniones.length > 0
 
-  // Con historial vacío no hay `ultima`: el bloque destacado no se pinta (ver
-  // `hayHistorial`, abajo), pero el destructuring corre igual y `ultima` sería
-  // `undefined`. Se le da una reunión vacía para que los accesos de más abajo
-  // —dentro de un condicional que no se cumple— no revienten al evaluarse.
-  const [ultima, ...anteriores] = reuniones
+  /**
+   * `reuniones` partido por clase (ronda 14.3, tarea 1): un grupo por
+   * `plantilla` (`null` = sin clasificar), cada uno de la más reciente a la
+   * más antigua — ver `agruparPorClase`, arriba. `clases` fija el ORDEN de
+   * las columnas (el del catálogo, sin clasificar al final); de ahí salen
+   * las dos listas que antes eran `[ultima, ...anteriores]`:
+   *
+   * - `ultimasPorClase`: la cabeza de cada grupo — antes era una reunión
+   *   sola, ahora una por clase presente.
+   * - `anterioresPorClase`: el resto de cada grupo, ya sin su cabeza, y SIN
+   *   las clases que se quedan vacías al quitarla (una columna vacía es
+   *   ruido, no información).
+   */
+  const gruposPorClase = agruparPorClase(reuniones)
+  const clases = [...gruposPorClase.keys()].sort((a, b) => ordenDeClase(a) - ordenDeClase(b))
+  const ultimasPorClase = clases.map((clave) => gruposPorClase.get(clave)![0])
+  const anterioresPorClase = clases
+    .map((clave) => ({ clave, etiqueta: etiquetaDeClase(clave), lista: gruposPorClase.get(clave)!.slice(1) }))
+    .filter((grupo) => grupo.lista.length > 0)
   const minutaDe = (r: Reunion) => r.minuta
   /**
    * Quién tocó ESTA reunión, o `undefined` si no hay nada que decir.
@@ -253,7 +329,6 @@ export function ReunionesSala({
    */
   const participantesDeReunion = (r: Reunion): Participante[] | undefined =>
     equipo ? participacionPorReunion[r.id] : undefined
-  const participantesUltima = ultima ? participantesDeReunion(ultima) : undefined
 
   return (
     <>
@@ -308,39 +383,65 @@ export function ReunionesSala({
 
       {/* `id` en cada fila: para poder llegar hasta una reunión desde el
           acuerdo que salió de ella (ver `origenDeAcuerdo`, en la página de la
-          sala) — que es donde está su minuta, a un clic. */}
+          sala) — que es donde está su minuta, a un clic.
+
+          ═══ LA ÚLTIMA, DE CADA CLASE (ronda 14.3) ═══ Antes era una sola
+          tarjeta destacada; ahora es una POR CLASE presente en el
+          historial —`ultimasPorClase` ya trae solo la cabeza de cada grupo,
+          ver su comentario más arriba—. Con la única clase que tiene HOY
+          cada sala (o ninguna) esto sigue siendo una tarjeta sola, a lo
+          ancho completo: el grid de `.ultimasPorClase` se estira solo
+          cuando hay una, mismo mecanismo que `.columnasAnteriores` más
+          abajo. */}
       {hayHistorial && (
-      <div className={estilos.reunionDestacada} id={`r-${ultima.id}`}>
-        <div className={estilos.reunionCabecera}>
-          <div>
-            <div className={estilos.presTag}>La última</div>
-            <h3 className={estilos.presTitulo}>{ultima.titulo}</h3>
-            <div className={estilos.presFecha}>{fechaCompleta(ultima.fecha)}</div>
-          </div>
-          {/* La salida, también en el historial: la reunión que sobra puede
-              ser una vieja tanto como una por venir. */}
-          {equipo && (
-            <div className={estilos.reunionBorrar}>
-              <BorrarReunion reunion={ultima} eliminarAction={eliminarReunionAction} />
+      <div className={estilos.ultimasPorClase} data-testid="ultimas-por-clase">
+        {ultimasPorClase.map((r) => {
+          const participantes = participantesDeReunion(r)
+          return (
+            <div className={estilos.reunionDestacada} id={`r-${r.id}`} key={r.id}>
+              <div className={estilos.reunionCabecera}>
+                <div>
+                  <div className={estilos.presTag}>La última</div>
+                  <h3 className={estilos.presTitulo}>{r.titulo}</h3>
+                  {/* La clase va PEGADA a la fecha, no en una píldora aparte:
+                      con la única clase de hoy esto sigue leyéndose como
+                      antes ("15 jul 2026"), solo que un poco más largo
+                      ("15 jul 2026 · Estatus de UDN") — no un elemento nuevo
+                      que aprender. `?? null`: `Reunion.plantilla` es
+                      requerido en el TIPO, pero un fixture o un dato viejo
+                      podría llegar `undefined` en runtime; tratarlo igual
+                      que `null` es lo mismo que ya hace `agruparPorClase`. */}
+                  <div className={estilos.presFecha}>
+                    {fechaCompleta(r.fecha)} · {etiquetaDeClase(r.plantilla ?? null)}
+                  </div>
+                </div>
+                {/* La salida, también en el historial: la reunión que sobra
+                    puede ser una vieja tanto como una por venir. */}
+                {equipo && (
+                  <div className={estilos.reunionBorrar}>
+                    <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
+                  </div>
+                )}
+              </div>
+              <CarasDeReunion
+                reunion={r}
+                equipo={equipo}
+                onLeerMinuta={() => setAbierta(r)}
+                onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+                editarArchivoAction={editarArchivoAction}
+                descartarBorradorAction={descartarBorradorAction}
+              />
+              {subiendoReunionId === r.id && (
+                <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
+              )}
+              {errorSubida?.reunionId === r.id && (
+                <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
+              )}
+              <AcuerdosDeReunion acuerdos={r.acuerdos} />
+              {participantes && <ParticipantesSesion participantes={participantes} />}
             </div>
-          )}
-        </div>
-        <CarasDeReunion
-          reunion={ultima}
-          equipo={equipo}
-          onLeerMinuta={() => setAbierta(ultima)}
-          onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(ultima) : undefined}
-          editarArchivoAction={editarArchivoAction}
-          descartarBorradorAction={descartarBorradorAction}
-        />
-        {subiendoReunionId === ultima.id && (
-          <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
-        )}
-        {errorSubida?.reunionId === ultima.id && (
-          <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
-        )}
-        <AcuerdosDeReunion acuerdos={ultima.acuerdos} />
-        {participantesUltima && <ParticipantesSesion participantes={participantesUltima} />}
+          )
+        })}
       </div>
       )}
 
@@ -348,49 +449,80 @@ export function ReunionesSala({
           que agregar la subsección de Reuniones Anteriores dentro del mismo
           módulo"*. La lista ya estaba —debajo de "La última", sin rótulo— y
           por eso se leía como una continuación de esa tarjeta en vez de como
-          lo que es: la historia de la relación. Mismo rótulo y mismo conteo
-          que "Lo que viene", que es el otro bloque del módulo. */}
-      {anteriores.length > 0 && (
+          lo que es: la historia de la relación. Mismo rótulo que "Lo que
+          viene", que es el otro bloque del módulo — SIN el conteo que
+          llevaba antes: el número ya vive en la cabecera de cada columna
+          (`.grupoCabecera`, más abajo), y repetirlo aquí arriba sería el
+          mismo total dicho dos veces con una sola clase, que es justo el
+          caso de HOY en todas las salas.
+
+          ═══ EN COLUMNAS, POR CLASE (ronda 14.3) ═══ `anterioresPorClase` ya
+          viene sin las clases vacías (una columna vacía es ruido) y en el
+          orden del catálogo, "Sin clasificar" al final (`ordenDeClase`,
+          arriba). `.columnasAnteriores` es el MISMO mecanismo de rejilla que
+          ya resuelve `.bmCompetidores` (benchmark) en esta hoja: con una
+          columna se estira a lo ancho completo —el caso de hoy—, con varias
+          se reparten, y en móvil se apilan solas por el propio `minmax`, sin
+          un `@media` nuevo. `.grupoMaterial`/`.grupoCabecera`/`.grupoNombre`
+          son las MISMAS clases que ya agrupan los materiales de la sala
+          (`MaterialesAgrupados.tsx`): la misma idea —una etiqueta y un
+          conteo por grupo— no se reinventa aquí. */}
+      {anterioresPorClase.length > 0 && (
         <>
         <div className={estilos.porVenirRotulo} style={{ marginTop: '1.4rem' }}>
           Reuniones anteriores
-          <span className={estilos.conteo}>{anteriores.length}</span>
         </div>
-        <div className={estilos.reuniones}>
-          {anteriores.map((r) => {
-            const participantes = participantesDeReunion(r)
+        <div className={estilos.columnasAnteriores}>
+          {anterioresPorClase.map(({ clave, etiqueta, lista }) => {
+            // `role="group"` + `aria-labelledby`: un lector de pantalla
+            // anuncia "Estatus de UDN, grupo de 2" al entrar, en vez de una
+            // lista de filas sin ningún contexto de a qué clase pertenecen.
+            const tituloId = `clase-anteriores-${salaSlug}-${clave ?? 'sin-clasificar'}`
             return (
-              <div key={r.id} className={estilos.reunionFila} id={`r-${r.id}`}>
-                <div className={estilos.reunionFilaTexto}>
-                  <span className={estilos.presFilaTitulo}>{r.titulo}</span>
-                  <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
-                  {equipo && (
-                    <span className={estilos.reunionBorrar}>
-                      <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
-                    </span>
-                  )}
+              <div key={clave ?? 'sin-clasificar'} role="group" aria-labelledby={tituloId} className={estilos.grupoMaterial}>
+                <div className={estilos.grupoCabecera}>
+                  <h3 id={tituloId} className={estilos.grupoNombre}>{etiqueta}</h3>
+                  <span className={estilos.conteo}>{lista.length}</span>
                 </div>
-                <CarasDeReunion
-                  reunion={r}
-                  equipo={equipo}
-                  onLeerMinuta={() => setAbierta(r)}
-                  onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
-                  editarArchivoAction={editarArchivoAction}
-                  descartarBorradorAction={descartarBorradorAction}
-                  compacta
-                />
-                {subiendoReunionId === r.id && (
-                  <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
-                )}
-                {errorSubida?.reunionId === r.id && (
-                  <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
-                )}
-                <AcuerdosDeReunion acuerdos={r.acuerdos} />
-                {participantes && (
-                  <div className={estilos.reunionFilaParticipacion}>
-                    <ParticipantesSesion participantes={participantes} />
-                  </div>
-                )}
+                <div className={estilos.reuniones}>
+                  {lista.map((r) => {
+                    const participantes = participantesDeReunion(r)
+                    return (
+                      <div key={r.id} className={estilos.reunionFila} id={`r-${r.id}`}>
+                        <div className={estilos.reunionFilaTexto}>
+                          <span className={estilos.presFilaTitulo}>{r.titulo}</span>
+                          <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
+                          {equipo && (
+                            <span className={estilos.reunionBorrar}>
+                              <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
+                            </span>
+                          )}
+                        </div>
+                        <CarasDeReunion
+                          reunion={r}
+                          equipo={equipo}
+                          onLeerMinuta={() => setAbierta(r)}
+                          onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+                          editarArchivoAction={editarArchivoAction}
+                          descartarBorradorAction={descartarBorradorAction}
+                          compacta
+                        />
+                        {subiendoReunionId === r.id && (
+                          <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
+                        )}
+                        {errorSubida?.reunionId === r.id && (
+                          <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
+                        )}
+                        <AcuerdosDeReunion acuerdos={r.acuerdos} />
+                        {participantes && (
+                          <div className={estilos.reunionFilaParticipacion}>
+                            <ParticipantesSesion participantes={participantes} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )
           })}
