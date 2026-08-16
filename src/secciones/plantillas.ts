@@ -287,7 +287,22 @@ export const PLANTILLAS: Plantilla[] = [
   },
 ]
 
-export const PLANTILLA_POR_DEFECTO = 'estatus-udn'
+/**
+ * La clase con la que arranca un desplegable "¿Qué junta es?" cuando la junta
+ * nace (no un id escrito a mano, ver el hallazgo I2 de la revisión final de
+ * la ronda 14.2): `PLANTILLAS[0].id`, no la cadena `'estatus-udn'` suelta.
+ *
+ * Antes esta constante SÍ era la cadena a mano, y `NuevaSesionSala.tsx` leía
+ * `PLANTILLAS[0].id` por su cuenta con un comentario que argumentaba en
+ * contra de exactamente eso ("un id escrito a mano... se desincroniza del
+ * catálogo el día que alguien reordene"). Las dos formas coincidían solo
+ * porque nadie había reordenado el catálogo todavía — un reordenamiento las
+ * habría separado en silencio, cada una apuntando a una plantilla distinta.
+ * Ahora `PLANTILLA_POR_DEFECTO` ES `PLANTILLAS[0].id`: una sola fuente, y los
+ * dos consumidores (`NuevaSesionSala.tsx`, `FormularioSesion.tsx`) importan
+ * ESTA constante, nunca el índice del catálogo directamente.
+ */
+export const PLANTILLA_POR_DEFECTO = PLANTILLAS[0].id
 
 export function obtenerPlantilla(id: string | null | undefined): Plantilla {
   return PLANTILLAS.find((p) => p.id === id) ?? PLANTILLAS[0]

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { PLANTILLAS } from '@/secciones/plantillas'
+import { PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 import estilos from '@/app/cliente/cliente.module.css'
 
@@ -58,12 +58,14 @@ interface Props {
 
 export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
   const [abierto, setAbierto] = useState(false)
-  // PLANTILLAS[0].id y no un id escrito a mano: el orden del catálogo puede
-  // moverse (task 1 ya movió "en-blanco" al final) y el primero de la lista
-  // sigue siendo "estatus-udn" —la reunión mensual con una UDN, el valor por
-  // defecto correcto para una sala—. Escribirlo a pelo aquí lo desincroniza
-  // del catálogo el día que alguien reordene de nuevo.
-  const [plantilla, setPlantilla] = useState(PLANTILLAS[0].id)
+  // `PLANTILLA_POR_DEFECTO` (`src/secciones/plantillas.ts`), no
+  // `PLANTILLAS[0].id` leído aquí: es la MISMA constante que usa
+  // `FormularioSesion.tsx` para esta misma pregunta (hallazgo I2, revisión
+  // final de la ronda 14.2) — antes cada archivo llegaba al mismo valor por
+  // su cuenta (uno leyendo el índice 0 del catálogo, el otro con la constante
+  // ya escrita), y un reordenamiento del catálogo las habría separado en
+  // silencio. Una sola fuente, importada en los dos sitios.
+  const [plantilla, setPlantilla] = useState(PLANTILLA_POR_DEFECTO)
   const [dia, setDia] = useState('')
   const [titulo, setTitulo] = useState('')
   const [error, setError] = useState<string | null>(null)
