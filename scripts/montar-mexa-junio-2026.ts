@@ -128,16 +128,71 @@ const SECCIONES: Seccion[] = [
       // sección (SeccionDocumento.tsx), así que este punto no enlazará y los
       // otros tres sí. Se prefiere copiar lo que el equipo escribió antes que
       // reescribirle la agenda para ganar un enlace.
+      // Los cuatro puntos del original, con las dos secciones que esta réplica
+      // añade en su sitio: la lectura del mes abre y los siguientes pasos
+      // cierran. Sin ellas, la agenda mentiría sobre el recorrido.
       cuerpo: [
+        'Junio en una lectura',
         'Pendientes del mes pasado',
         'Portafolio & ecosistema',
         'Performance & conversión',
         'Outbound & pipeline',
+        'Lo que sigue en julio',
       ],
     },
   },
 
-  // ── 3-4. Acuerdos y pendientes de la sesión pasada ──────────────────────
+  // ── 3. El mes, de una lectura ───────────────────────────────────────────
+  // NO ESTÁ EN EL ORIGINAL, y es la mayor adición de esta réplica. El estatus
+  // del equipo arranca en pendientes administrativos: un director llega al
+  // final del documento sin que nadie le haya dicho cómo le fue el mes, y lo
+  // arma él con cifras repartidas en cinco secciones. Esta sección hace ese
+  // trabajo antes, que es lo que pide el producto ("cada pantalla comunica una
+  // lectura, no un volcado de datos").
+  //
+  // No hay un solo dato nuevo: las cuatro cifras y los ocho puntos salen de
+  // secciones posteriores de este mismo deck. Lo único calculado son las
+  // sumas y variaciones, y cada una se puede rehacer con las tablas de más
+  // abajo: sesiones 3,591 → 2,519 (−29.9%); orgánico 1,000 contra meta 807
+  // (+23.9%); MQLs 6+6 → 4+3; SQLs 1 contra meta 7.
+  {
+    nombre: 'Junio en una lectura',
+    borrador: {
+      layout: 'kpis-fila-dos-columnas',
+      titulo: 'Junio en una lectura',
+      subtitulo: 'El mes cierra con menos volumen y mejor orgánico, y con la conversión a SQL como el problema',
+      kpis: [
+        { valor: '2,519', delta: '-30%', rotulo: 'Sesiones del sitio' },
+        { valor: '1,000', delta: '+24%', rotulo: 'Sesiones orgánicas' },
+        { valor: '7', delta: '-5', rotulo: 'MQLs del mes' },
+        { valor: '1', delta: 'de 7', rotulo: 'SQLs del mes' },
+      ],
+      columnas: [
+        {
+          titulo: 'Lo que sostiene',
+          puntos: [
+            { texto: 'El orgánico cerró junio en 1,000 sesiones: 24% por encima de la meta del mes y 46% más que junio de 2025. La caída del total viene de otros canales.' },
+            { texto: 'Home, "Consultoría de marca" e "Isotipo/Imagotipo/Isologo" mejoraron posición y amortiguaron la caída de búsqueda.' },
+            { texto: 'El kit comercial quedó cerrado: cinco piezas aprobadas para producción el 16 de junio, sobre los contenidos entregados el 29 de mayo.' },
+            { texto: 'Q3 abre con cuatro industrias en ventana de venta y un ciclo de 1 a 1.5 meses, que alcanza para cerrar dentro del trimestre.' },
+          ],
+        },
+        {
+          titulo: 'Lo que preocupa',
+          puntos: [
+            { texto: 'Un SQL contra una meta de siete. Paid no aportó ninguno y el único del mes, Mutuus, llegó por el sitio.' },
+            { texto: 'Los MQLs bajaron de 12 a 7 con la inversión de paid casi igual: el costo por MQL pasa de $4,706 a $9,824.' },
+            { texto: 'De los cuatro MQLs del sitio, ninguno resultó aprovechable, y 13 de los 25 de paid siguen sin calificar.' },
+            { texto: 'Momcozy, que estaba en cierre por $5,000,000, se detuvo: el proyecto queda postergado hasta que definan su operación en México.' },
+            { texto: 'Cinco de las siete tareas de la sesión del 12 de mayo llegan sin estatus reportado.' },
+          ],
+        },
+      ],
+      notaPie: 'Esta lectura resume las secciones que siguen: no trae ningún dato que no esté en ellas.',
+    },
+  },
+
+  // ── 4-5. Acuerdos y pendientes de la sesión pasada ──────────────────────
   {
     nombre: 'Divisor · Acuerdos',
     borrador: { layout: 'divisor-seccion', titulo: 'Acuerdos y pendientes sesión pasada' },
@@ -147,7 +202,7 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'pendientes-semaforo',
       titulo: 'Pendientes',
-      subtitulo: 'De la sesión del 12 de mayo',
+      subtitulo: 'Sesión del 12 de mayo · 2 de 7 cerradas',
       tablas: [
         {
           columnas: ['Responsable', 'Tarea', 'Estatus'],
@@ -183,48 +238,59 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'texto-multicolumna',
       titulo: 'Herramientas comerciales',
+      subtitulo: 'Kit entregado el 29 de mayo · 5 piezas aprobadas para producción el 16 de junio',
+      // TRES COLUMNAS Y NO DOS. Con dos, la izquierda corría dieciséis líneas
+      // a tres niveles de anidación y la derecha se acababa en cinco: media
+      // sección en blanco y una lista que había que recorrer entera para
+      // encontrar nada. Los one sheets son un bloque propio —son el grueso del
+      // kit y se leen como catálogo, no como continuación de los contactos— y
+      // separarlos equilibra la sección y la vuelve escaneable. Ni una pieza
+      // cambia de sitio en el inventario: solo se agrupan como ya estaban.
       columnas: [
         {
-          titulo: 'Contenidos entregados',
-          etiqueta: '29-05-26',
+          titulo: 'Entregado',
+          etiqueta: '29 de mayo',
           puntos: [
             { texto: 'Credenciales Ejecutivas (para envío 5 slides)' },
             { texto: 'Thought Leadership Deck: "Cómo cambio el consumidor Mexicano?"' },
+            { texto: '1er contacto' },
+            { texto: '2do contacto' },
+            { texto: 'Invitación a presentación de credenciales' },
+            // En el original, "2 versiones de cada uno: Short y Long versión"
+            // va suelto entre las piezas y no se entiende a qué aplica. Aquí
+            // cierra la lista, que es lo que dice: cada pieza va en dos
+            // versiones.
+            { texto: 'Cada pieza en dos versiones: short y long' },
+          ],
+        },
+        {
+          titulo: 'One sheets',
+          etiqueta: 'Entregados el 29 de mayo',
+          puntos: [
+            { texto: 'De agencia: One sheet de Mexa Creativa' },
             {
-              // En el original, "2 versiones de cada uno: Short y Long versión"
-              // va suelto y no se entiende de qué cuelga lo que sigue. Aquí es
-              // el encabezado real de su lista, que es lo que dice el contenido.
-              texto: '2 versiones de cada uno: Short y Long versión',
+              texto: 'Por servicio',
               hijos: [
-                { texto: '1er contacto' },
-                { texto: '2do contacto' },
-                { texto: 'Invitación a presentación de credenciales' },
-                { texto: 'One sheet de Mexa Creativa' },
-                {
-                  texto: 'One sheets por servicio',
-                  hijos: [
-                    { texto: 'Social content' },
-                    { texto: 'Producción' },
-                    { texto: 'Performance' },
-                    { texto: 'Creatividad y Branding.' },
-                  ],
-                },
-                {
-                  texto: 'One sheets por industria',
-                  hijos: [
-                    { texto: 'Automotriz' },
-                    { texto: 'Belleza y cuidado personal' },
-                    { texto: 'Consumo masivo' },
-                    { texto: 'Retail' },
-                  ],
-                },
+                { texto: 'Social content' },
+                { texto: 'Producción' },
+                { texto: 'Performance' },
+                { texto: 'Creatividad y Branding.' },
+              ],
+            },
+            {
+              texto: 'Por industria',
+              hijos: [
+                { texto: 'Automotriz' },
+                { texto: 'Belleza y cuidado personal' },
+                { texto: 'Consumo masivo' },
+                { texto: 'Retail' },
               ],
             },
           ],
         },
         {
-          titulo: 'Contenidos aprobados para producción',
-          etiqueta: '16-06-26',
+          titulo: 'Aprobado para producción',
+          etiqueta: '16 de junio',
           puntos: [
             { texto: 'One sheet de agencia' },
             { texto: 'Invitación presentación' },
@@ -247,7 +313,7 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'comparativa-periodos',
       titulo: 'Performance sitio web | Tráfico',
-      subtitulo: 'Mayo contra junio 2026',
+      subtitulo: 'El tráfico total cae 30%, pero el orgánico cierra 24% por encima de meta',
       tablas: [
         {
           // La columna de etiquetas no se titula: por eso el primer encabezado
@@ -320,7 +386,7 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'kpis-fila-dos-columnas',
       titulo: 'Performance sitio web | Búsqueda orgánica',
-      subtitulo: 'Junio 2026',
+      subtitulo: 'La caída se concentra en el contenido educativo que absorbió AI Overviews',
       kpis: [
         { valor: '9.8', delta: '-0.2', rotulo: 'Posición media' },
         { valor: '79.8k', delta: '-10%', rotulo: 'Impresiones' },
@@ -359,7 +425,7 @@ const SECCIONES: Seccion[] = [
       // salía en tipo de nota al pie, que es donde nadie la busca.
       layout: 'grafico-y-tabla',
       titulo: 'Performance paid media',
-      subtitulo: 'Mayo contra junio 2026',
+      subtitulo: 'Misma inversión, la mitad de MQLs: el costo por MQL pasa de $4,706 a $9,824',
       kpis: [
         { valor: '$6,785,920', rotulo: 'Venta atribuida a paid media' },
       ],
@@ -446,6 +512,7 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'meta-real-porcentaje',
       titulo: 'Outbound & Pipeline | Junio 2026',
+      subtitulo: '1 SQL de 7 · el pipeline externo generado en el año llega a $39.4 MDP',
       metaReal: {
         titulo: 'SQLs',
         filas: [
@@ -513,7 +580,7 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'tarjetas-numeradas',
       titulo: 'Outbound & Pipeline | Focos Q3',
-      subtitulo: 'Cinco industrias priorizadas para el trimestre',
+      subtitulo: 'Cuatro industrias con ventana abierta en Q3 y una táctica, por orden de prioridad',
       bloques: [
         {
           titulo: 'Comercio al por menor',
@@ -647,7 +714,56 @@ const SECCIONES: Seccion[] = [
     },
   },
 
-  // ── 15. Cierre ──────────────────────────────────────────────────────────
+  // ── Lo que sigue ────────────────────────────────────────────────────────
+  // TAMPOCO ESTÁ EN EL ORIGINAL. El estatus del equipo termina en el
+  // calendario de prospección: en un mes con un SQL de siete y un negocio de
+  // $5 MDP caído, la última idea que se lleva el director es en qué mes
+  // conviene prospectar. Esta sección recoge lo que el propio deck ya propone
+  // y lo pone junto, que es lo que se acuerda en la junta.
+  //
+  // SIN DUEÑO NI FECHA a propósito: el deck no los trae y ponerlos sería
+  // repartir trabajo ajeno. Se dejan para acordarse en la sesión, y así lo
+  // dice la nota al pie.
+  {
+    nombre: 'Lo que sigue en julio',
+    borrador: {
+      layout: 'texto-multicolumna',
+      titulo: 'Lo que sigue en julio',
+      subtitulo: 'Lo que este estatus deja sobre la mesa, para cerrar con dueño y fecha',
+      columnas: [
+        {
+          titulo: 'Recuperar búsqueda',
+          puntos: [
+            { texto: 'Actualizar "Identidad de marca" con información y ejemplos de 2026, y reforzar los enlaces internos desde las páginas que sí funcionan.' },
+            { texto: 'Replicar en el blog educativo lo que funcionó en las páginas ganadoras: FAQs, E-E-A-T y ejemplos de marcas mexicanas.' },
+            { texto: 'Capitalizar presta-prenda y consultoria-marca con casos de éxito y páginas de servicio.' },
+            { texto: 'Cerrar la auditoría de Core Web Vitals y usabilidad móvil, que ya está en curso.' },
+          ],
+        },
+        {
+          titulo: 'Arreglar la conversión',
+          puntos: [
+            { texto: 'Calificar los 13 MQLs de paid que siguen pendientes y devolver el criterio de descalificación a la pauta.' },
+            { texto: 'Revisar la segmentación de paid: la inversión se sostuvo y los MQLs se partieron a la mitad.' },
+            { texto: 'Cerrar los cinco pendientes de la sesión del 12 de mayo que siguen sin estatus.' },
+            { texto: 'Confirmar en HubSpot si Momcozy sigue contando dentro de los negocios vivos.' },
+          ],
+        },
+        {
+          titulo: 'Abrir Q3',
+          puntos: [
+            { texto: 'Prospectar comercio al por menor y al por mayor, que están en venta en julio y repiten en septiembre.' },
+            { texto: 'Abrir conversación en manufactura y servicios profesionales durante julio, para llegar a la ventana de agosto.' },
+            { texto: 'Tomar alojamiento y alimentos solo como táctico: cuentas calientes o campañas de temporada.' },
+            { texto: 'Poner a trabajar el kit comercial aprobado en las cuentas en warm.' },
+          ],
+        },
+      ],
+      notaPie: 'Ninguna de estas líneas trae dueño ni fecha: salen de las acciones que este estatus ya propone y se cierran en la sesión.',
+    },
+  },
+
+  // ── Cierre ──────────────────────────────────────────────────────────────
   {
     // El cierre del original es la lámina de Grupo UPAX con las ocho marcas.
     // Aquí no se copia como imagen: el documento se viste solo con la identidad
