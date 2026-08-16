@@ -162,33 +162,29 @@ const SECCIONES: Seccion[] = [
       titulo: 'Junio en una lectura',
       subtitulo: 'El mes cierra con menos volumen y mejor orgánico, y con la conversión a SQL como el problema',
       kpis: [
-        { valor: '2,519', delta: '-30%', rotulo: 'Sesiones del sitio' },
-        { valor: '1,000', delta: '+24%', rotulo: 'Sesiones orgánicas' },
+        { valor: '1 de 7', delta: '-6', rotulo: 'SQLs contra meta' },
         { valor: '7', delta: '-5', rotulo: 'MQLs del mes' },
-        { valor: '1', delta: 'de 7', rotulo: 'SQLs del mes' },
+        { valor: '2,519', delta: '-30%', rotulo: 'Sesiones del sitio' },
+        { valor: '1,000', delta: '+24%', rotulo: 'Orgánicas sobre meta' },
       ],
       columnas: [
         {
           titulo: 'Lo que sostiene',
           puntos: [
-            { texto: 'El orgánico cerró junio en 1,000 sesiones: 24% por encima de la meta del mes y 46% más que junio de 2025. La caída del total viene de otros canales.' },
-            { texto: 'Home, "Consultoría de marca" e "Isotipo/Imagotipo/Isologo" mejoraron posición y amortiguaron la caída de búsqueda.' },
-            { texto: 'El kit comercial quedó cerrado: cinco piezas aprobadas para producción el 16 de junio, sobre los contenidos entregados el 29 de mayo.' },
-            { texto: 'Q3 abre con cuatro industrias en ventana de venta y un ciclo de 1 a 1.5 meses, que alcanza para cerrar dentro del trimestre.' },
+            { texto: 'La caída del tráfico no viene del orgánico: ese canal superó su meta y creció 46% contra junio del año pasado.' },
+            { texto: 'El kit comercial quedó cerrado y listo para producción, así que outbound entra a Q3 con material.' },
+            { texto: 'Q3 abre con cuatro industrias en ventana de venta y el ciclo de Mexa alcanza para cerrar dentro del trimestre.' },
           ],
         },
         {
           titulo: 'Lo que preocupa',
           puntos: [
-            { texto: 'Un SQL contra una meta de siete. Paid no aportó ninguno y el único del mes, Mutuus, llegó por el sitio.' },
-            { texto: 'Los MQLs bajaron de 12 a 7 con la inversión de paid casi igual: el costo por MQL pasa de $4,706 a $9,824.' },
-            { texto: 'De los cuatro MQLs del sitio, ninguno resultó aprovechable, y 13 de los 25 de paid siguen sin calificar.' },
-            { texto: 'Momcozy, que estaba en cierre por $5,000,000, se detuvo: el proyecto queda postergado hasta que definan su operación en México.' },
-            { texto: 'Cinco de las siete tareas de la sesión del 12 de mayo llegan sin estatus reportado.' },
+            { texto: 'El problema no es el volumen sino la calidad: de los cuatro MQLs del sitio ninguno resultó aprovechable, y 13 de los 25 de paid siguen sin calificar.' },
+            { texto: 'Paid sostuvo la inversión y entregó la mitad de MQLs y ningún SQL: cada MQL costó el doble que en mayo.' },
+            { texto: 'Momcozy, que estaba en cierre por $5,000,000, se detuvo hasta que definan su operación en México.' },
           ],
         },
       ],
-      notaPie: 'Esta lectura resume las secciones que siguen: no trae ningún dato que no esté en ellas.',
     },
   },
 
@@ -350,13 +346,18 @@ const SECCIONES: Seccion[] = [
           mostrarValores: true,
         },
       ],
+      // Los "Insights" del original son una sola lista donde conviven dos cosas
+      // distintas: QUÉ entró (pipeline, leads y su estado) y POR DÓNDE entró
+      // (las páginas). Juntas eran media pantalla de viñetas planas y el dato
+      // que importa —ninguno de los cuatro MQLs resultó aprovechable— quedaba
+      // enterrado a media lista. Separadas, cada columna sostiene una idea.
       columnas: [
         {
-          titulo: 'Insights',
+          titulo: 'Lo que entró',
+          etiqueta: 'Pipeline 2026 con fuente website: $1.1M',
           puntos: [
-            { texto: 'Pipeline generado 2026 con fuente website: $1.1M' },
             {
-              texto: 'MQLs',
+              texto: '4 MQLs, ninguno aprovechable',
               hijos: [
                 { texto: 'CreatorPlace (Descalificado | Ofreció servicios de "influencer marketing")' },
                 { texto: 'LizBetSoft (Pendiente de calificar)' },
@@ -365,16 +366,17 @@ const SECCIONES: Seccion[] = [
               ],
             },
             { texto: 'SQL: Mutuus (Reunión de acercamiento, 12 jun.)' },
-            {
-              texto: 'Las páginas más visitadas fueron',
-              hijos: [
-                { texto: 'Home (30%)' },
-                { texto: 'LP Paid media "Desarrollo de campaña" (19%)' },
-                { texto: 'Guía "Verano sin clichés" (5%)' },
-                { texto: 'Blog "Tendencias redes sociales 2026" (4%)' },
-                { texto: 'Blog "Libros cultura mexicana" (3%)' },
-              ],
-            },
+          ],
+        },
+        {
+          titulo: 'Por dónde entró',
+          etiqueta: 'Páginas más visitadas',
+          puntos: [
+            { texto: 'Home (30%)' },
+            { texto: 'LP Paid media "Desarrollo de campaña" (19%)' },
+            { texto: 'Guía "Verano sin clichés" (5%)' },
+            { texto: 'Blog "Tendencias redes sociales 2026" (4%)' },
+            { texto: 'Blog "Libros cultura mexicana" (3%)' },
           ],
         },
       ],
@@ -427,7 +429,9 @@ const SECCIONES: Seccion[] = [
       titulo: 'Performance paid media',
       subtitulo: 'Misma inversión, la mitad de MQLs: el costo por MQL pasa de $4,706 a $9,824',
       kpis: [
-        { valor: '$6,785,920', rotulo: 'Venta atribuida a paid media' },
+        { valor: '0', delta: '-1', rotulo: 'SQLs de paid' },
+        { valor: '3', delta: '-3', rotulo: 'MQLs de paid' },
+        { valor: '$9,824', delta: 'x2.1', rotulo: 'Costo por MQL' },
       ],
       tablas: [
         {
@@ -492,6 +496,7 @@ const SECCIONES: Seccion[] = [
       columnas: [
         {
           titulo: 'Venta',
+          etiqueta: 'Facturado, Ganado por facturar y cierre: $6,785,920 acumulados',
           puntos: [
             { texto: 'Momcozy que estuvo en cierre por $5,000,000 se detuvo' },
             { texto: 'El proyecto está postergado para más adelante ya que hoy en día solo tienen una pop store en México y están viendo si funciona o no. En cuanto tengan el proyecto más avanzado en méxico nos vuelven a contactar.' },
@@ -512,7 +517,7 @@ const SECCIONES: Seccion[] = [
     borrador: {
       layout: 'meta-real-porcentaje',
       titulo: 'Outbound & Pipeline | Junio 2026',
-      subtitulo: '1 SQL de 7 · el pipeline externo generado en el año llega a $39.4 MDP',
+      subtitulo: 'De los $39.4 MDP de pipeline generados en el año se perdieron $37.2, y junio cerró con 1 SQL de 7',
       metaReal: {
         titulo: 'SQLs',
         filas: [
@@ -524,11 +529,11 @@ const SECCIONES: Seccion[] = [
       cifrasDesglosadas: [
         { rotulo: 'Pipeline ideal', valor: '$15.6 MDP' },
         {
-          rotulo: 'Pipeline generado YTD', valor: '$39.4 MDP', destacada: true,
+          rotulo: 'Pipeline generado YTD', valor: '$39.4 MDP',
           partes: [{ rotulo: 'Mkt', valor: '$36.1 MDP' }, { rotulo: 'Comercial', valor: '$3.4 MDP' }],
         },
         {
-          rotulo: 'Negocios perdidos YTD', valor: '$37.2 MDP',
+          rotulo: 'Negocios perdidos YTD', valor: '$37.2 MDP', destacada: true,
           partes: [{ rotulo: 'Mkt', valor: '$34.08 MDP' }, { rotulo: 'Comercial', valor: '$3.1 MDP' }],
         },
         {
@@ -573,6 +578,64 @@ const SECCIONES: Seccion[] = [
         },
       ],
       notaPie: 'Datos extraídos de Hubspot: venta externa gestionada por Marketing Corp, sin la venta al grupo. Dos cifras vienen sin reconciliar del corte original y se reproducen tal cual: las partes de "Negocios vivos" ($191 K y $290 K) no suman su total de $5.5 MDP, y perdidos, ganados y vivos suman por encima del pipeline generado YTD.',
+    },
+  },
+  {
+    nombre: 'Focos Q3 · calendario',
+    borrador: {
+      layout: 'matriz-estados',
+      // "Brújula Q3" y no "Focos Q3": el original titula IGUAL las dos láminas
+      // de focos, y al hojear el documento parecían contenido duplicado. El
+      // subtítulo dice el trimestre que la matriz cubre de verdad — el
+      // "jul–dic" del original es el encabezado de la leyenda del calendario
+      // completo, no el rango de esta rejilla, que es Q3.
+      titulo: 'Outbound & Pipeline | Brújula Q3',
+      subtitulo: '¿En qué industrias prospectar de julio a septiembre?',
+      matriz: {
+        columnas: ['JUL', 'AGO', 'SEP'],
+        // El orden es el de los CINCO FOCOS numerados de la sección anterior
+        // (menor, mayor, manufactureras, profesionales, alojamiento), no el del
+        // original, que en la brújula intercambia mayor y manufactureras. Son
+        // las mismas cinco industrias a una pantalla de distancia: cruzarlas
+        // con dos órdenes distintos hace tropezar. No cambia ni un estado.
+        filas: [
+          {
+            encabezado: 'Comercio al por menor',
+            celdas: [{ texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }, { texto: 'Vende', tono: 'alto' }],
+            // La barra del original marca un TRAMO (prospección → cierre), no
+            // una fecha de cierre: se redacta como tramo. Y corta, porque el
+            // carril de encabezados de la matriz es estrecho y una nota larga
+            // estira la fila y descuadra la rejilla; la fuente va una sola vez,
+            // en la nota al pie.
+            nota: 'Mexa · Campañas de marca — ciclo de prospección a cierre: agosto.',
+          },
+          {
+            encabezado: 'Comercio al por mayor',
+            celdas: [{ texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }, { texto: 'Vende', tono: 'alto' }],
+          },
+          {
+            encabezado: 'Industrias manufactureras',
+            celdas: [{ texto: 'Espera', tono: 'neutro' }, { texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }],
+          },
+          {
+            encabezado: 'Servicios profesionales, científicos y técnicos',
+            celdas: [{ texto: 'Espera', tono: 'neutro' }, { texto: 'Vende', tono: 'alto' }, { texto: 'Explora', tono: 'bajo' }],
+            nota: 'Mexa · Consultoría de marca — ciclo de prospección a cierre: agosto y septiembre.',
+          },
+          {
+            encabezado: 'Servicios de alojamiento temporal y de preparación de alimentos y bebidas',
+            celdas: [{ texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }, { texto: 'Espera', tono: 'neutro' }],
+          },
+        ],
+        leyenda: [
+          'Explora · Sector despertando · primeros contactos',
+          'Prepara · Actividad subiendo · califica y agenda propuestas',
+          'Vende · Pico de actividad · máxima disposición de compra',
+          'Espera · Actividad baja · monitorear, no priorizar',
+          'CICLO: Explora → Prepara → Vende → Espera. El sector repite este ciclo cada temporada según su comportamiento económico.',
+        ],
+      },
+      notaPie: '¿En qué industrias deberías prospectar este mes? La brújula responde por trimestre; el ciclo estimado de prospección a cierre de Mexa se anota bajo la industria a la que aplica. Fuente de los ciclos: HubSpot 2024, 6Sense 2025 y datos de UiX y Marketing United.',
     },
   },
   {
@@ -655,64 +718,6 @@ const SECCIONES: Seccion[] = [
       ],
     },
   },
-  {
-    nombre: 'Focos Q3 · calendario',
-    borrador: {
-      layout: 'matriz-estados',
-      // "Brújula Q3" y no "Focos Q3": el original titula IGUAL las dos láminas
-      // de focos, y al hojear el documento parecían contenido duplicado. El
-      // subtítulo dice el trimestre que la matriz cubre de verdad — el
-      // "jul–dic" del original es el encabezado de la leyenda del calendario
-      // completo, no el rango de esta rejilla, que es Q3.
-      titulo: 'Outbound & Pipeline | Brújula Q3',
-      subtitulo: '¿En qué industrias prospectar de julio a septiembre?',
-      matriz: {
-        columnas: ['JUL', 'AGO', 'SEP'],
-        // El orden es el de los CINCO FOCOS numerados de la sección anterior
-        // (menor, mayor, manufactureras, profesionales, alojamiento), no el del
-        // original, que en la brújula intercambia mayor y manufactureras. Son
-        // las mismas cinco industrias a una pantalla de distancia: cruzarlas
-        // con dos órdenes distintos hace tropezar. No cambia ni un estado.
-        filas: [
-          {
-            encabezado: 'Comercio al por menor',
-            celdas: [{ texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }, { texto: 'Vende', tono: 'alto' }],
-            // La barra del original marca un TRAMO (prospección → cierre), no
-            // una fecha de cierre: se redacta como tramo. Y corta, porque el
-            // carril de encabezados de la matriz es estrecho y una nota larga
-            // estira la fila y descuadra la rejilla; la fuente va una sola vez,
-            // en la nota al pie.
-            nota: 'Mexa · Campañas de marca — ciclo de prospección a cierre: agosto.',
-          },
-          {
-            encabezado: 'Comercio al por mayor',
-            celdas: [{ texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }, { texto: 'Vende', tono: 'alto' }],
-          },
-          {
-            encabezado: 'Industrias manufactureras',
-            celdas: [{ texto: 'Espera', tono: 'neutro' }, { texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }],
-          },
-          {
-            encabezado: 'Servicios profesionales, científicos y técnicos',
-            celdas: [{ texto: 'Espera', tono: 'neutro' }, { texto: 'Vende', tono: 'alto' }, { texto: 'Explora', tono: 'bajo' }],
-            nota: 'Mexa · Consultoría de marca — ciclo de prospección a cierre: agosto y septiembre.',
-          },
-          {
-            encabezado: 'Servicios de alojamiento temporal y de preparación de alimentos y bebidas',
-            celdas: [{ texto: 'Vende', tono: 'alto' }, { texto: 'Prepara', tono: 'medio' }, { texto: 'Espera', tono: 'neutro' }],
-          },
-        ],
-        leyenda: [
-          'Explora · Sector despertando · primeros contactos',
-          'Prepara · Actividad subiendo · califica y agenda propuestas',
-          'Vende · Pico de actividad · máxima disposición de compra',
-          'Espera · Actividad baja · monitorear, no priorizar',
-          'CICLO: Explora → Prepara → Vende → Espera. El sector repite este ciclo cada temporada según su comportamiento económico.',
-        ],
-      },
-      notaPie: '¿En qué industrias deberías prospectar este mes? La brújula responde por trimestre; el ciclo estimado de prospección a cierre de Mexa se anota bajo la industria a la que aplica. Fuente de los ciclos: HubSpot 2024, 6Sense 2025 y datos de UiX y Marketing United.',
-    },
-  },
 
   // ── Lo que sigue ────────────────────────────────────────────────────────
   // TAMPOCO ESTÁ EN EL ORIGINAL. El estatus del equipo termina en el
@@ -759,7 +764,6 @@ const SECCIONES: Seccion[] = [
           ],
         },
       ],
-      notaPie: 'Ninguna de estas líneas trae dueño ni fecha: salen de las acciones que este estatus ya propone y se cierran en la sesión.',
     },
   },
 
