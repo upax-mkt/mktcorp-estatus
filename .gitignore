@@ -16,3 +16,4 @@ next-env.d.ts
 .env*
 .revision/
 .env.local.respaldo
+.gstack/
