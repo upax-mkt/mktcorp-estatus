@@ -22,6 +22,7 @@ import * as esquema from './esquema'
 import * as memoria from './store-memoria'
 import { salaEstaActiva } from './salas'
 import { cargarTemas, slugsDeSalas } from './temas'
+import { PLANTILLAS } from '@/secciones/plantillas'
 import type { Tema } from '@/temas'
 import { diaCivil, horaBreve, instanteEnCDMX } from '@/lib/fecha'
 import type { FilaReunionMemoria } from './store-memoria'
@@ -200,6 +201,47 @@ function resumenDeFilaReunion(
   }
 }
 
+/**
+ * ¿`id` es una clase de junta que el catálogo reconoce? (`PLANTILLAS`,
+ * `src/secciones/plantillas.ts`). `null`, `undefined` y `''` SIGUEN SIENDO
+ * VÁLIDOS —significan "sin clasificar", el estado de las 6 reuniones reales
+ * que hoy no tienen clase— así que esto NUNCA los rechaza: solo corta una
+ * cadena no vacía que no es ninguna de las del catálogo.
+ *
+ * VIVE EN LA CAPA DE DATOS, no en cada Server Action (hallazgo I3, revisión
+ * final de la ronda 14.2). Había dos sitios candidatos:
+ *
+ * 1. EN CADA ACCIÓN, como ya hace `crearSesionAction`
+ *    (`src/app/cliente/[slug]/page.tsx`): `if (!PLANTILLAS.some(...)) return
+ *    { error: ... }`. Da un mensaje amable de formulario, pero HAY QUE
+ *    REPETIRLO en cada Server Action que escriba `plantilla` — y ya había DOS
+ *    que no lo hacían (`agendarReunionAction`, `editarReunionAction`,
+ *    `src/app/reuniones/acciones.ts`) mientras otras dos sí (`crearSesionAction`,
+ *    `/deck/nueva`). Cuatro copias del mismo `if` es la forma exacta en la que
+ *    este hallazgo nació: alguien añade una quinta acción —o `crearReunionConDocumento`
+ *    llama a `crearReunion` sin pasar por ninguna acción de formulario— y
+ *    vuelve a faltar.
+ *
+ * 2. AQUÍ, en `crearReunion`/`editarReunion`: las dos únicas puertas por las
+ *    que `plantilla` llega a la base (`crearReunionConDocumento`,
+ *    `publicarMinutaAction` y cualquier acción nueva pasan, sí o sí, por una
+ *    de estas dos). Un solo guardián cubre a TODOS los llamadores de una vez,
+ *    presentes y futuros, sin que cada Server Action tenga que acordarse de
+ *    poner el suyo.
+ *
+ * Se elige (2): es el mismo principio que ya dejó escrito este repo sobre
+ * botones — "esconder un botón no protege un endpoint"
+ * (`src/app/cliente/[slug]/ajustes/page.tsx`,
+ * `src/componentes/acuerdos/TablaAcuerdos.tsx`) — llevado un paso más allá:
+ * un `if` que solo vive en ALGUNAS de las puertas tampoco protege la casa.
+ * `crearSesionAction` conserva el suyo (mensaje de formulario más específico,
+ * y falla un paso antes de tocar la base) — queda redundante pero inofensivo,
+ * no se toca aquí.
+ */
+function esPlantillaConocida(id: string | null | undefined): boolean {
+  return !id || PLANTILLAS.some((p) => p.id === id)
+}
+
 // ---- Escritura ----
 
 export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string }> {
@@ -208,6 +250,16 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
   // `d5396be`) para esta misma comprobación.
   if (datos.salaSlug && !(await slugsDeSalas()).includes(datos.salaSlug)) {
     throw new Error(`Sala desconocida: "${datos.salaSlug}"`)
+  }
+  // I3 (revisión final, ronda 14.2): `agendarReunionAction`/`editarReunionAction`
+  // (`src/app/reuniones/acciones.ts`) son Server Actions alcanzables por
+  // cualquier `editor` y escribían la cadena que llegara sin comprobar nada
+  // — un valor basura se pintaba luego como "Estatus de UDN" por el fallback
+  // de `obtenerPlantilla`, un dato inventado presentado como real. Ver el
+  // comentario de `esPlantillaConocida`, arriba, para por qué la validación
+  // vive aquí y no en cada acción.
+  if (!esPlantillaConocida(datos.plantilla)) {
+    throw new Error(`Plantilla desconocida: "${datos.plantilla}"`)
   }
   /**
    * UNA SALA EN FREEZE NO ADMITE REUNIONES NUEVAS — PERO SÍ ADMITE REGISTRAR
@@ -365,6 +417,13 @@ export async function editarReunion(
   const titulo = cambios.titulo?.trim()
   if (titulo !== undefined && titulo.length === 0) {
     throw new Error('La reunión necesita un título.')
+  }
+  // I3 (revisión final, ronda 14.2): misma validación que `crearReunion`,
+  // arriba — `editarReunionAction` corregía la clase de una junta ya creada
+  // sin comprobar nada, alcanzable por cualquier `editor`. Ver el comentario
+  // de `esPlantillaConocida` para el porqué de validar aquí y no en la acción.
+  if (!esPlantillaConocida(cambios.plantilla)) {
+    throw new Error(`Plantilla desconocida: "${cambios.plantilla}"`)
   }
 
   const ahora = new Date()

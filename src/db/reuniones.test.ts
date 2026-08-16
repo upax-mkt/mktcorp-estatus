@@ -81,6 +81,39 @@ describe('crearReunion', () => {
     expect(salaEstaActivaMock).not.toHaveBeenCalled()
   })
 
+  /**
+   * I3 (revisión final, ronda 14.2). `agendarReunionAction`
+   * (`src/app/reuniones/acciones.ts`) manda `datos.plantilla` CRUDO, tal cual
+   * llega del formulario — sin este guardián, una cadena basura (o el `id` de
+   * una vieja plantilla que se haya borrado del catálogo) se guardaba tal
+   * cual y luego se pintaba como "Estatus de UDN" por el fallback de
+   * `obtenerPlantilla`: un dato inventado presentado como real.
+   */
+  it('I3: una clase de junta que el catálogo no reconoce se rechaza, no se guarda', async () => {
+    await expect(
+      crearReunion({ salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: 'no-existe' }),
+    ).rejects.toThrow('Plantilla desconocida: "no-existe"')
+  })
+
+  /**
+   * I3: `null` y `''` NO son "una plantilla basura" — son el estado "sin
+   * clasificar" de las 6 reuniones reales que hoy no tienen clase. El
+   * guardián de arriba tiene que dejarlos pasar tal cual, sin rechazarlos.
+   * (Que `''` se guarde tal cual o se traduzca a `null` es cosa de quien
+   * llama — `agendarReunionAction` ya lo hace, `'' || null` — no de esta
+   * validación, que solo decide "¿se admite?", no "¿cómo se normaliza?".)
+   */
+  it('I3: `null` y `\'\'` siguen siendo clases válidas — "sin clasificar", no un rechazo', async () => {
+    const { id: idNulo } = await crearReunion({
+      salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: null,
+    })
+    expect((await obtenerReunion(idNulo))!.plantilla).toBeNull()
+
+    await expect(
+      crearReunion({ salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: '' }),
+    ).resolves.toBeDefined()
+  })
+
   it('nace agendada, no dada: agendar no es haber ocurrido', async () => {
     const { id } = await crearReunion({ salaSlug: 'neracode', fecha: new Date(), titulo: 'Mensual', tipo: 'mensual' })
     expect((await obtenerReunion(id))!.estado).toBe('agendada')
@@ -370,6 +403,22 @@ describe('editarReunion', () => {
     })
     await editarReunion(id, { plantilla: null })
     expect((await obtenerReunion(id))!.plantilla).toBeNull()
+  })
+
+  /**
+   * I3 (revisión final, ronda 14.2). `editarReunionAction`
+   * (`src/app/reuniones/acciones.ts`) es una Server Action alcanzable por
+   * cualquier `editor` y escribía la cadena que llegara sin comprobar nada —
+   * corregir la clase de una junta YA CREADA con un valor basura se guardaba
+   * tal cual. Mismo guardián que `crearReunion`, ver `esPlantillaConocida`.
+   */
+  it('I3: editar hacia una clase de junta que el catálogo no reconoce se rechaza — la clase anterior no se toca', async () => {
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'),
+      titulo: 'Estatus de agosto', plantilla: 'sync-comercial',
+    })
+    await expect(editarReunion(id, { plantilla: 'no-existe' })).rejects.toThrow('Plantilla desconocida: "no-existe"')
+    expect((await obtenerReunion(id))!.plantilla).toBe('sync-comercial')
   })
 
   /**
