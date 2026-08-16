@@ -349,21 +349,44 @@ describe('editarReunion', () => {
   })
 
   /**
-   * COSTURA COMPLETA (C1 + C2 juntos): lo que Franco pidió como tercer test,
-   * tras los dos arreglos. Una junta que nace SIN clase (`plantilla: null`,
-   * como las 6 reuniones reales sin clasificar) y a la que solo se le corrige
-   * el lugar —el formulario de edición, una vez arreglado C2, manda
-   * `plantilla: null` tal cual (nunca `PLANTILLA_POR_DEFECTO`, nunca `''`
-   * suelta hasta aquí, ver `editarReunionAction`)— debe seguir SIN clase
-   * después de guardar. Un dato que falta es un hecho; convertirlo en un dato
-   * inventado ("estatus-udn") es peor que dejarlo vacío. Se compara
-   * explícitamente contra los DOS valores que un fallo de reintroducción de
-   * este bug produciría: 'estatus-udn' (la clase por defecto del catálogo,
-   * si el arreglo de C1 escribiera cualquier `plantilla` no-undefined con un
-   * fallback) y `''` (si algo dejara pasar la cadena vacía del `<select>`
-   * cruda, sin traducir a `null`, hasta la base).
+   * CRÍTICO C1 — EL CASO QUE DE VERDAD CAZA UN GUARD ROTO (ronda de arreglo
+   * 2/5: hueco señalado por la re-revisión). El test de arriba mueve
+   * 'sync-comercial' → 'comite' (no-nulo a no-nulo); el de "costura
+   * completa", más abajo, arranca en `null` y espera `null` — mismo valor al
+   * principio y al final, así que pasa igual con el guard entero, con un
+   * guard truthy (`if (cambios.plantilla)`, que trataría `null` como
+   * "no tocar") o sin guard alguno: nada distingue ahí "no toqué el campo" de
+   * "sí lo toqué, a lo mismo que ya tenía". Ninguno de los dos cubre la
+   * transición que SÍ separa un `!== undefined` correcto de uno que se coma
+   * el `null` (`??`/`||`/truthy): no-nulo → `null` explícito, "quítale la
+   * clase" en el sentido estricto. Con el guard borrado, este test cae
+   * (`'sync-comercial'` se queda pegado); con el guard real, `null` gana
+   * porque `null !== undefined`.
    */
-  it('COSTURA COMPLETA: editar el lugar de una junta SIN clase la deja SIN clase — null, no "estatus-udn" ni cadena vacía', async () => {
+  it('CRÍTICO C1: un `plantilla: null` explícito SÍ borra una clase existente — no se queda pegada a la anterior', async () => {
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'),
+      titulo: 'Estatus de agosto', plantilla: 'sync-comercial',
+    })
+    await editarReunion(id, { plantilla: null })
+    expect((await obtenerReunion(id))!.plantilla).toBeNull()
+  })
+
+  /**
+   * NO ES UN TEST DE REGRESIÓN DE C1 (renombrado y re-anotado en la ronda de
+   * arreglo 2/5, hallazgo de la re-revisión: "un test tiene que representar
+   * lo que su nombre promete"). Arranca en `plantilla: null` y termina en
+   * `plantilla: null` — el mismo valor al principio y al final — así que
+   * PASA con el guard de C1 entero, roto o borrado por completo: no hay
+   * ninguna mutación de ese guard que este `expect` pueda cazar por sí sola
+   * (la prueba que sí puede caer es la de arriba, "un `plantilla: null`
+   * explícito SÍ borra una clase existente"). Lo que SÍ verifica, y para lo
+   * que sigue siendo útil, es que editar OTRO campo (`lugar`) junto con un
+   * `plantilla: null` explícito no deja que ese `null` se sustituya por algo
+   * inventado en el camino — el escenario literal que motivó el encargo
+   * original ("editar el lugar de una junta SIN clase la deja SIN clase").
+   */
+  it('editar OTRO campo (lugar) de una junta sin clase no le pega una clase inventada — no protege contra un guard de C1 roto, ver el test de arriba para eso', async () => {
     const { id } = await crearReunion({
       salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'), titulo: 'Sin clasificar',
       // Sin `plantilla`: nace `null`, igual que las 6 reuniones reales sin clase.
