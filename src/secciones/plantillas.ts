@@ -45,6 +45,24 @@ export interface Plantilla {
    * todo se puede quitar.
    */
   seccionesFijas: boolean
+  /**
+   * Si esta entrada es una CLASE DE JUNTA de verdad —una de las que
+   * responden "¿qué junta es?" (Estatus de UDN, Sync Comercial, Comité o
+   * dirección, Arranque de campaña, Seguimiento de proyecto)— o la salida de
+   * emergencia ("En blanco") para cuando ninguna clase encaja.
+   *
+   * Ronda 14.2, tarea 2: antes esto se adivinaba comparando el `id` contra
+   * `'en-blanco'` a mano en cada `<select>` que ofrecía el catálogo. Frágil
+   * por partida doble: `Plantilla` no distinguía una clase de junta de una
+   * plantilla de deck, así que el compilador no protegía nada; y si ese id
+   * cambiara de sentido, la entrada aparecería duplicada como clase real Y
+   * como salida de emergencia, con la línea de ayuda mostrando el `paraQue`
+   * de otra por el fallback de `obtenerPlantilla`. Filtrar por
+   * `esClaseDeJunta` —no por `id !== 'en-blanco'`— es lo que cierra ese
+   * hueco: el catálogo declara qué es cada cosa, en vez de que cada
+   * consumidor la adivine.
+   */
+  esClaseDeJunta: boolean
   items: DefinicionItem[]
 }
 
@@ -109,6 +127,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Estatus de UDN',
     paraQue: 'La reunión mensual con una unidad de negocio. Los ocho bloques acordados.',
     seccionesFijas: true,
+    esClaseDeJunta: true,
     items: ESTATUS_UDN,
   },
   {
@@ -116,6 +135,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Sync Comercial',
     paraQue: 'La junta semanal de seguimiento comercial con una unidad de negocio.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     /**
      * ⚠️ NACE CORTA A PROPÓSITO, y no es pereza: es la regla de la ronda 9.
      * Qué bloques lleva un Sync Comercial lo sabe quien lo da, no quien
@@ -160,6 +180,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Seguimiento de proyecto',
     paraQue: 'Avance, lo que bloquea y qué sigue. Sirve para un squad o un proyecto.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     items: [
       { tipo: 'portada', titulo: 'Portada', pregunta: 'Qué proyecto y qué periodo.', layout: 'portada' },
       { tipo: 'agenda', titulo: 'Agenda', pregunta: 'Los puntos de la reunión.', layout: 'agenda' },
@@ -188,6 +209,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Comité o dirección',
     paraQue: 'Pocas cifras, una decisión que tomar y lo que se pide aprobar.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     items: [
       { tipo: 'portada', titulo: 'Portada', pregunta: 'De qué se decide hoy.', layout: 'portada' },
       {
@@ -216,6 +238,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Arranque de campaña',
     paraQue: 'Kickoff: objetivo, territorio, plan y quién hace qué.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     items: [
       { tipo: 'portada', titulo: 'Portada', pregunta: 'Qué campaña y para quién.', layout: 'portada' },
       {
@@ -249,6 +272,10 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'En blanco',
     paraQue: 'Una portada y nada más. Para armar la reunión desde cero.',
     seccionesFijas: false,
+    // NO es una clase de junta: es la salida de emergencia para cuando
+    // ninguna clase real encaja. Ver el comentario de `esClaseDeJunta` en la
+    // interfaz `Plantilla`, arriba.
+    esClaseDeJunta: false,
     items: [
       {
         tipo: 'portada',

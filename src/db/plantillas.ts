@@ -64,6 +64,11 @@ export async function plantillasDeSesion(salaSlug: string | null): Promise<Plant
     // de Marketing Corp con las UDNs, no algo que se herede por copiar una
     // estructura.
     seccionesFijas: false,
+    // Siempre `true` (ronda 14.2, tarea 2, campo nuevo en `Plantilla`): una
+    // plantilla guardada por el equipo es una estructura real que alguien
+    // eligió y quedó bien — nunca la salida de emergencia ("En blanco"),
+    // que solo existe en el catálogo fijo del código.
+    esClaseDeJunta: true,
     items: (f.contenido as DefinicionItem[]) ?? [],
     propia: true,
     salaSlug: f.salaSlug,

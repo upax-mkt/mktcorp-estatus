@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import estilos from '@/app/agenda/agenda.module.css'
-import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
+import { PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
+import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 
 /**
  * Agendar una reunión, o corregir la que ya está.
@@ -221,34 +222,23 @@ export function FormularioSesion({
           </select>
         </label>
 
-        <label className={estilos.campo}>
-          <span className={estilos.etiqueta}>¿Qué junta es?</span>
-          <select
-            className={estilos.entrada}
-            value={datos.plantilla}
-            onChange={(e) => campo('plantilla', e.target.value)}
-          >
-            {/* Solo se enseña mientras el valor siga vacío: es el estado de
-                una reunión ya existente sin clase (ver `plantillaInicial`),
-                no una opción para "desclasificar" una junta que ya la
-                tiene — ofrecerla siempre invitaría a eso por accidente. */}
-            {datos.plantilla === '' && <option value="">Sin clasificar</option>}
-            {/* 'en-blanco' se saca del recorrido normal y se reinserta abajo
-                en su propio `<optgroup>` — mismo tratamiento que le da la
-                tarea 2 en `NuevaSesionSala`: no es una clase de junta, es la
-                salida para cuando ninguna clase real aplica, y necesita
-                leerse aparte del resto (mismo orden del catálogo, separador
-                nativo antes de la última). */}
-            {PLANTILLAS.filter((p) => p.id !== 'en-blanco').map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre}
-              </option>
-            ))}
-            <optgroup label="Otra">
-              <option value="en-blanco">Otra (deck en blanco)</option>
-            </optgroup>
-          </select>
-        </label>
+        {/* El desplegable de CLASE DE JUNTA es el compartido con
+            `NuevaSesionSala` (`src/componentes`) — ver
+            `SelectorClaseDeJunta.tsx` para el porqué de la extracción. Antes
+            este formulario preguntaba distinto: sin `<optgroup>` para las
+            clases, sin la línea de ayuda del `paraQue` elegido y sin
+            `aria-label`. El estado "Sin clasificar" (ver `plantillaInicial`,
+            arriba) sigue siendo cosa de ESTE llamador — el componente
+            compartido solo sabe enseñar la opción cuando `value` llega
+            vacío, no de dónde sale ese vacío. */}
+        <SelectorClaseDeJunta
+          value={datos.plantilla}
+          onChange={(v) => campo('plantilla', v)}
+          className={estilos.campo}
+          etiquetaClassName={estilos.etiqueta}
+          selectClassName={estilos.entrada}
+          pistaClassName={estilos.campoPista}
+        />
       </div>
 
       <label className={estilos.campoAncho}>

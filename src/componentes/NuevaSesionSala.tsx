@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { PLANTILLAS, obtenerPlantilla } from '@/secciones/plantillas'
+import { PLANTILLAS } from '@/secciones/plantillas'
+import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
@@ -63,7 +64,6 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
   // defecto correcto para una sala—. Escribirlo a pelo aquí lo desincroniza
   // del catálogo el día que alguien reordene de nuevo.
   const [plantilla, setPlantilla] = useState(PLANTILLAS[0].id)
-  const plantillaElegida = obtenerPlantilla(plantilla)
   const [dia, setDia] = useState('')
   const [titulo, setTitulo] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -94,44 +94,22 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
       }}
     >
       <div className={estilos.subirCampos}>
-        {/* El desplegable de CLASE DE JUNTA es solo de este formulario: no se
-            extrae a un componente compartido aunque `deck/nueva` vaya a
-            necesitar el mismo select más adelante. Hay otro agente montando
-            ese formulario en paralelo ahora mismo, y dos agentes creando el
-            mismo componente compartido a la vez es una colisión garantizada.
-            Se unifica cuando existan los DOS llamadores de verdad —que es
-            cuando la extracción está justificada—, no antes. */}
-        <label className={estilos.subirCampo}>
-          <span className={estilos.subirEtiqueta}>¿Qué junta es?</span>
-          <select
-            className={estilos.archivoInput}
-            value={plantilla}
-            onChange={(e) => setPlantilla(e.target.value)}
-            aria-label="¿Qué junta es?"
-          >
-            {/* `optgroup`, no un separador de guiones dibujado a mano: es el
-                mecanismo nativo del <select> para agrupar opciones, y el que
-                un lector de pantalla anuncia como grupo en vez de leer texto
-                suelto. Las clases van en el orden del catálogo; "en-blanco"
-                sale de ahí porque NO es una clase de junta —es la salida de
-                emergencia para cuando ninguna encaja— y por eso vive en su
-                propio grupo, al final, con una etiqueta que dice las dos
-                cosas: que no es una clase, y qué hace si se elige. */}
-            <optgroup label="Clases de junta">
-              {PLANTILLAS.filter((p) => p.id !== 'en-blanco').map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Otra">
-              <option value="en-blanco">Otra (deck en blanco)</option>
-            </optgroup>
-          </select>
-          {/* La línea que faltaba: el catálogo ya trae un `paraQue` por
-              plantilla —una frase de cuándo elegir esa y no otra— y hasta
-              hoy no se enseñaba en ningún sitio. Sin esto, elegir era
-              adivinar por el nombre. */}
-          <p className={estilos.subirPista}>{plantillaElegida.paraQue}</p>
-        </label>
+        {/* El desplegable de CLASE DE JUNTA es ahora el compartido con
+            `FormularioSesion` (`src/componentes/agenda`) — ver
+            `SelectorClaseDeJunta.tsx` para el porqué de la extracción y de
+            qué se protege filtrando por `esClaseDeJunta` en vez de por el id
+            `'en-blanco'` escrito a mano. Nace tal cual entre los dos
+            campos de esta fila (`.subirCampo` está pensado como hijo de un
+            flex-row) y usa las clases de ESTE módulo (`cliente.module.css`),
+            no las de `FormularioSesion`: el estilo es del consumidor. */}
+        <SelectorClaseDeJunta
+          value={plantilla}
+          onChange={setPlantilla}
+          className={estilos.subirCampo}
+          etiquetaClassName={estilos.subirEtiqueta}
+          selectClassName={estilos.archivoInput}
+          pistaClassName={estilos.subirPista}
+        />
         <label className={estilos.subirCampo}>
           <span className={estilos.subirEtiqueta}>Cuándo</span>
           <input

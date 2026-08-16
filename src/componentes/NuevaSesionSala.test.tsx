@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NuevaSesionSala } from './NuevaSesionSala'
+import { obtenerPlantilla } from '@/secciones/plantillas'
 
 /**
  * EL TERCERO DE TRES FORMULARIOS QUE MANDABAN EL TÍTULO VACÍO (deuda menor,
@@ -95,18 +96,33 @@ describe('NuevaSesionSala — pregunta la clase de junta, no la plantilla (ronda
   // al montar, la ayuda mentiría bajo la opción elegida y la suite seguiría
   // en verde. Este test lo cierra: elige "Sync Comercial" y exige que el
   // `paraQue` que se ve sea el de esa clase, no el de "Estatus de UDN".
+  //
+  // RONDA 14.2 (arreglo de revisión, tarea 4): las dos aserciones comparaban
+  // el texto contra frases escritas a mano en este archivo. La positiva se
+  // protegía sola —si alguien reescribe el `paraQue` de "Estatus de UDN", la
+  // frase a mano deja de aparecer y el test se pone rojo—, pero la NEGATIVA
+  // (`queryByText(...).toBeNull()`) se quedaba vacía de sentido: pasaría
+  // igual por no encontrar un texto que ya no existe EN NINGÚN SITIO, no por
+  // haber comprobado que el `paraQue` viejo desapareció al cambiar de clase.
+  // Leer los dos textos del catálogo (`obtenerPlantilla`, la misma fuente que
+  // usa `SelectorClaseDeJunta`) hace que la negativa vuelva a probar algo: si
+  // el `paraQue` de "Estatus de UDN" cambiara, esta aserción seguiría
+  // comprobando que ESE texto —el real, no uno fosilizado aquí— desaparece.
   it('recalcula la línea de ayuda al cambiar de clase — no se queda pegada a la primera', async () => {
+    const paraQueEstatus = obtenerPlantilla('estatus-udn').paraQue
+    const paraQueSync = obtenerPlantilla('sync-comercial').paraQue
+
     const usuario = userEvent.setup()
     render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
     await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
 
     // Arranca en "Estatus de UDN" (PLANTILLAS[0]): su `paraQue` es el que se ve.
-    expect(screen.getByText(/los ocho bloques acordados/i)).toBeInTheDocument()
+    expect(screen.getByText(paraQueEstatus)).toBeInTheDocument()
 
     await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'sync-comercial')
 
     // Cambia la clase → cambia el `paraQue` mostrado, y el de antes desaparece.
-    expect(screen.getByText(/junta semanal de seguimiento comercial/i)).toBeInTheDocument()
-    expect(screen.queryByText(/los ocho bloques acordados/i)).toBeNull()
+    expect(screen.getByText(paraQueSync)).toBeInTheDocument()
+    expect(screen.queryByText(paraQueEstatus)).toBeNull()
   })
 })

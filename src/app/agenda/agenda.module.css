@@ -196,6 +196,10 @@
   background: var(--superficie);
 }
 .entrada:focus { outline: none; border-color: var(--acento); }
+/* Línea de ayuda bajo "¿Qué junta es?" (`SelectorClaseDeJunta`, ronda 14.2):
+   el `paraQue` de la clase elegida. Mismo tratamiento que `.subirPista` en
+   `cliente.module.css` — la otra mitad del mismo componente compartido. */
+.campoPista { font-size: 0.8rem; color: var(--tx-3); margin: 0; }
 .formularioError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
 .formularioAcciones { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.2rem; }
 .botonPrimario {
