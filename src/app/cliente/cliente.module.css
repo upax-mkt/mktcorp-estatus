@@ -398,9 +398,28 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
 
 /* Estrecho: las tres columnas no caben, y una fila de reunión partida en
-   trozos de dos centímetros no se lee. Se apila, que es como se lee en móvil
-   el resto de la sala. */
-@media (max-width: 720px) {
+   trozos de dos centímetros no se lee. Se apila.
+   ⚠️ CORREGIDO EN LA REVISIÓN DE LA RONDA 14.3 (Crítico C1): esto era un
+   `@media (max-width: 720px)` — de VIEWPORT, no de contenedor. Con una sola
+   columna de anteriores (el caso de antes de esta tarea, y el único que
+   existía cuando se escribió el `@media`) viewport angosto y fila angosta
+   eran la misma cosa, así que daba igual. Desde que `.columnasAnteriores`
+   (abajo) puede partir el módulo en DOS columnas, dejan de serlo: a 1440px
+   de viewport con dos clases, cada columna mide ~470px —bien por debajo de
+   lo que esta fila necesita— y el `@media` de viewport nunca se disparaba
+   porque 1440 sigue siendo "ancho" aunque la fila, adentro, no lo sea. Esto
+   rompía HOY en producción (`marketing-united`, pública): título en tres
+   renglones, fecha en tres, el chip de la presentación cortado en "P…".
+   `@container`, no `@media`: la pregunta correcta es el ancho de LA FILA,
+   no el de la ventana — la contención la declara `.grupoMaterial` de
+   `.columnasAnteriores`, más abajo. El umbral (660px) sale de medir el
+   propio contenedor real: una columna sola mide ≥617px incluso en el
+   viewport más angosto donde el módulo YA apiló sus columnas por su cuenta
+   (720px, ver `.columnasAnteriores`), así que 660 dispara el colapso justo
+   entre "una columna sola" (nunca se apila) y "dos columnas" (siempre se
+   apila) — medido contra el DOM real, no a ojo (ver el informe de la
+   tarea). */
+@container (max-width: 660px) {
   .reunionFila { grid-template-columns: 1fr; }
 }
 
@@ -421,7 +440,15 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   display: grid; gap: 1.4rem;
   grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
 }
-.columnasAnteriores .grupoMaterial { min-width: 0; }
+/* `container-type: inline-size` es lo que hace posible el `@container` de
+   arriba: SIN esto, `.reunionFila` no tiene de qué contenedor preguntar su
+   ancho y la consulta simplemente no aplica nunca. Escopado a
+   `.columnasAnteriores .grupoMaterial` y no a `.grupoMaterial` a secas: esa
+   clase también la usa `MaterialesAgrupados.tsx` para un layout que no
+   tiene nada de esto adentro — declarar contención ahí no rompería nada
+   (nadie más la consulta hoy), pero tampoco aporta, y esta regla es de
+   Reuniones, no de Materiales. */
+.columnasAnteriores .grupoMaterial { min-width: 0; container-type: inline-size; }
 
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 

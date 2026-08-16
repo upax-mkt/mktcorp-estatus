@@ -276,6 +276,49 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
     // Una sola columna: no hay una segunda clase de la que distinguirse.
     expect(screen.getAllByRole('group')).toHaveLength(1)
   })
+
+  /**
+   * I3 (revisión de la ronda 14.3): las tarjetas "La última" se ordenaban
+   * por CATÁLOGO —el mismo orden que usan las columnas de "Anteriores"—, así
+   * que con dos clases la tarjeta de la izquierda no era necesariamente la
+   * más nueva. `estatus-udn` va primero en `PLANTILLAS`, pero aquí la de
+   * `sync-comercial` es dos días más reciente: tiene que encabezar.
+   */
+  it('las tarjetas "La última" se ordenan por fecha, no por el orden del catálogo', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-12T10:00:00Z', titulo: 'Estatus Julio' },
+          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-14T10:00:00Z', titulo: 'Sync Semana 33' },
+        ]}
+      />,
+    )
+
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    const titulos = within(ultimas).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(titulos).toEqual(['Sync Semana 33', 'Estatus Julio'])
+  })
+
+  /**
+   * `esClaseDeJunta` (revisión de la ronda 14.3, hallazgo menor): 'en-blanco'
+   * es la salida de emergencia del catálogo, no una clase de junta —ver su
+   * comentario en `secciones/plantillas.ts`—, así que una reunión con esa
+   * plantilla se agrupa y se etiqueta EXACTAMENTE igual que una sin clase:
+   * "Sin clasificar", nunca "En blanco". El dato es real (`mexa-creativa`
+   * tiene reuniones así hoy en producción, verificado contra la base).
+   */
+  it('"en-blanco" no es una clase de junta: se ve y se agrupa como "Sin clasificar"', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[{ ...BASE, id: 'b1', plantilla: 'en-blanco', fecha: '2026-08-01T10:00:00.000Z', titulo: 'Deck libre' }]}
+      />,
+    )
+
+    expect(screen.getByText(/sin clasificar/i)).toBeInTheDocument()
+    expect(screen.queryByText(/en blanco/i)).toBeNull()
+  })
 })
 
 /**

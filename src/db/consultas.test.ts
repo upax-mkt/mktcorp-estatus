@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { EstadoSala } from '@/dominio/salas'
 import type { Reunion } from '@/dominio/reunion'
+// SOLO para comparar la PROYECCIÓN del `select()` contra la columna real
+// (ver el describe "el select() SÍ pide `plantilla`", más abajo) — `esquema`
+// no toca la base por sí solo (son objetos Drizzle en memoria), así que
+// importarlo aquí no rompe el aislamiento que el resto del archivo cuida
+// mockeando `./cliente`.
+import * as esquema from './esquema'
 
 /**
  * `construirPulso` es un derivado puro (no toca Postgres) y no necesita nada
@@ -451,6 +457,26 @@ describe('estadoDeSala — `plantilla` viaja del select hasta Reunion (riesgo pr
     const reunion = sala?.reuniones.find((r) => r.id === SIN_CLASE_ID)
     expect(reunion?.plantilla).toBe(null)
     expect(reunion?.plantilla).not.toBe(undefined)
+  })
+
+  /**
+   * I2 (revisión de la ronda 14.3): los dos tests de arriba fijan el `?? null`
+   * del MAPEO (`reunionesBase` en `consultas.ts`), pero NO fijan que el
+   * `select()` en sí pida la columna — `chainable(filas)` ignora por completo
+   * el objeto de proyección con el que se llamó a `select()`; las filas
+   * mockeadas de este describe YA traen `plantilla` a mano, así que si
+   * alguien borra `plantilla: esquema.reuniones.plantilla` de la consulta
+   * real (`consultas.ts`), este archivo entero sigue en verde. Esta es la
+   * aserción que de verdad cierra el riesgo principal de la tarea: compara
+   * el objeto de proyección de la SEGUNDA llamada a `select()` (`reunionesRows`,
+   * ver el orden comentado en `estadoDeSalaDB`) contra la columna real del
+   * esquema. Verificado a mano quitando esa línea de `consultas.ts`: este
+   * test —y SOLO este— pasa a fallar; los dos de arriba siguen en verde.
+   */
+  it('el `select()` de reunionesRows SÍ pide la columna `plantilla` — sin esto, los dos tests de arriba pueden mentir', async () => {
+    await estadoDeSala('mexa-creativa')
+    const proyeccionReunionesRows = selectMock.mock.calls[1]?.[0] as Record<string, unknown> | undefined
+    expect(proyeccionReunionesRows?.plantilla).toBe(esquema.reuniones.plantilla)
   })
 })
 
