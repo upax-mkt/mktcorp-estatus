@@ -65,6 +65,10 @@ function sesion(datos: Partial<SesionAgendada> & { id: string }): SesionAgendada
     estado: 'agendada',
     alcance: 'todos',
     tipo: 'mensual',
+    // `null` por defecto (sin clase) — mismo default honesto que `lugar`,
+    // dos líneas abajo: la mayoría de los tests de este archivo no le
+    // importa la clase de la junta, así que no inventan una.
+    plantilla: null,
     lugar: null,
     participantes: [],
     itemsLlenados: 0,
@@ -309,6 +313,76 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
 
     expect(editarAction).toHaveBeenCalledExactlyOnceWith('s1', expect.objectContaining({ titulo: 'Estatus a corregir' }))
     expect(agendarAction).not.toHaveBeenCalled()
+  })
+
+  /**
+   * CRÍTICO C2 (ronda 14-2, fix 3/4). `SesionAgendada` (arriba en este mismo
+   * archivo) NO DECLARA `plantilla`, y el `inicial={{...}}` que arma la
+   * edición (más abajo, en el propio `PanelAgenda`) tampoco la incluye — así
+   * que `plantillaInicial()` (`FormularioSesion.tsx`), que distingue "vino la
+   * clave" de "no vino" con el operador `in`, nunca ve la clave puesta y cae
+   * SIEMPRE a `PLANTILLA_POR_DEFECTO` ('estatus-udn'), sea cual sea la clase
+   * real de la reunión. La sala/día/hora/tipo SÍ llegan bien (ver el test de
+   * arriba, "clic en 'Editar' abre el formulario... prellenado"): esto no es
+   * un fallo del cableado en general, es específico de `plantilla`.
+   *
+   * `sesion(...)` (el helper de arriba) construye un `SesionAgendada` — el
+   * tipo real, sin `plantilla` todavía — así que el campo se añade por fuera
+   * con un cast: es exactamente la forma real que trae `ReunionResumen`
+   * (`src/db/reuniones.ts`, que SÍ declara `plantilla` desde la tarea 3) una
+   * vez que `page.tsx`/`PanelAgenda.tsx` terminen de cargarla hasta aquí —
+   * el cast no inventa nada que el arreglo no vaya a producir de verdad.
+   */
+  it('CRÍTICO C2: al editar una junta YA clasificada, el formulario arranca en su clase real, no en "Estatus de UDN" por defecto', async () => {
+    const usuario = userEvent.setup()
+    const s = sesion({ id: 's1', titulo: 'Sync mensual', plantilla: 'sync-comercial' })
+    render(<PanelAgenda sesiones={[s]} salas={SALAS} hoy={HOY} idsProximas={['s1']} {...acciones()} />)
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar' }))
+
+    expect(screen.getByLabelText(/qué junta es/i)).toHaveValue('sync-comercial')
+  })
+
+  /**
+   * COSTURA COMPLETA, mitad UI (el resto vive en `src/db/reuniones.test.ts`,
+   * describe "editarReunion", test "COSTURA COMPLETA"): una junta SIN clase
+   * (`plantilla: null`, como las 6 reuniones reales sin clasificar) a la que
+   * solo se le corrige OTRO campo —aquí, el lugar— no debe mandar una clase
+   * inventada a `editarAction`. Antes del arreglo de C2 esto manda
+   * `'estatus-udn'` (el `<select>` cae al default del catálogo, igual que el
+   * test de arriba); después, `''` — que es como esta pantalla representa
+   * "sin clase" hasta que `editarReunionAction` (`src/app/reuniones/
+   * acciones.ts`, ya arreglado y sin tocar en esta tarea) la traduce a
+   * `null` antes de escribirla. Mismo test, en espíritu, que ya tiene
+   * `FormularioSesion.test.tsx` ("editar otro campo de una junta sin clase no
+   * la clasifica de rebote") — aquí se repite un nivel más arriba, con el
+   * `inicial` de verdad que arma `PanelAgenda`, no uno escrito a mano.
+   */
+  it('COSTURA: editar SOLO el lugar de una junta sin clase no la clasifica de rebote (a través de PanelAgenda, no solo de FormularioSesion)', async () => {
+    const usuario = userEvent.setup()
+    const { editarAction, agendarAction } = acciones()
+    const s = sesion({ id: 's1', titulo: 'Sin clasificar', lugar: '', plantilla: null })
+    render(
+      <PanelAgenda
+        sesiones={[s]}
+        salas={SALAS}
+        hoy={HOY}
+        idsProximas={['s1']}
+        agendarAction={agendarAction}
+        editarAction={editarAction}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar' }))
+    expect(screen.getByLabelText(/qué junta es/i)).toHaveValue('')
+
+    await usuario.type(screen.getByLabelText(/dónde/i), 'Sala 4')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(editarAction).toHaveBeenCalledExactlyOnceWith(
+      's1',
+      expect.objectContaining({ lugar: 'Sala 4', plantilla: '' }),
+    )
   })
 
   it('editar una fila de "Próximas" con muchas reuniones en la lista sigue encontrando la fila correcta, no la primera', async () => {
