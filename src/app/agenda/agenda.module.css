@@ -187,7 +187,13 @@
 
 /* ---- formulario ---- */
 .formulario { display: grid; gap: 0.8rem; }
-.campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.7rem; }
+/* `align-items: start`, no el `stretch` por defecto de grid (M5, revisión
+   final de la ronda 14.2): la celda de "¿Qué junta es?" (`SelectorClaseDeJunta`)
+   crece cuando enseña la línea de ayuda del `paraQue` elegido, y sin esto el
+   `stretch` estiraba a lo alto TODAS sus vecinas de fila (Sala/Día/Hora/Tipo)
+   para igualar esa altura — un `<input type="date">` más alto de lo que le
+   corresponde, sin que nada en ese campo lo pidiera. */
+.campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.7rem; align-items: start; }
 .campo, .campoAncho { display: grid; gap: 0.3rem; min-width: 0; }
 .etiqueta { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); font-weight: 700; }
 .entrada {
