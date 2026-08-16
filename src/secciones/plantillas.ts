@@ -320,3 +320,57 @@ export function tiposFijosDe(plantillaId: string | null | undefined): Set<string
   const p = obtenerPlantilla(plantillaId)
   return p.seccionesFijas ? new Set(p.items.map((i) => i.tipo)) : new Set()
 }
+
+/**
+ * LA CLAVE DE CLASE de una reunión — no siempre `plantilla` tal cual.
+ *
+ * MOVIDA AQUÍ (ronda 14.4, tarea 1) desde `ReunionesSala.tsx`, que la definía
+ * módulo-scope sin exportarla: `/reuniones` necesitaba EXACTAMENTE la misma
+ * regla para pintar la clase de cada tarjeta del ciclo, y este repo ya se
+ * comió una lección por copiar un patrón en dos sitios en vez de compartirlo
+ * (ver el comentario de `claveDeAgrupacion` original, ronda 14.3). Firma
+ * generalizada de `(r: Reunion)` a `(plantillaId: string | null)`: lo único
+ * que la función mira es ese campo, y así también sirve para `ReunionEnCiclo`
+ * (`src/app/reuniones/page.tsx`) y `SesionAgendada`
+ * (`src/componentes/agenda/PanelAgenda.tsx`), que no son `Reunion` pero sí
+ * traen `plantilla: string | null`.
+ *
+ * 'en-blanco' NO es una clase de junta —es la salida de emergencia del
+ * catálogo para cuando ninguna clase real encaja, ver `esClaseDeJunta` en la
+ * interfaz `Plantilla`, arriba—, así que agruparla en su propia clase "En
+ * blanco" inventaría una clase que el catálogo mismo dice que no existe. Se
+ * trata IGUAL que `null`: sin clase real, es "sin clasificar". Consultar
+ * `esClaseDeJunta` aquí —y no solo comparar contra `'en-blanco'` a mano— es
+ * lo que el catálogo pide: una entrada futura con `esClaseDeJunta: false` cae
+ * en el mismo sitio sin tocar este archivo.
+ */
+export function claveDeClase(plantillaId: string | null): string | null {
+  if (plantillaId === null) return null
+  const plantilla = PLANTILLAS.find((p) => p.id === plantillaId)
+  return plantilla?.esClaseDeJunta ? plantillaId : null
+}
+
+/**
+ * LA ETIQUETA DE UNA CLASE YA NORMALIZADA (la que devuelve `claveDeClase`,
+ * NUNCA `plantilla` crudo sin tratar) — para pintarla, jamás para
+ * preguntarle al catálogo sin resolver `null` ANTES.
+ *
+ * ⚠️ `obtenerPlantilla(null)` cae a la PRIMERA entrada del catálogo POR
+ * DISEÑO (es lo que necesita un `<select>` que nunca puede quedar vacío, ver
+ * `SelectorClaseDeJunta.tsx`) — usarla a secas aquí pintaría "Estatus de
+ * UDN" sobre una junta sin clasificar: un dato inventado, en una pantalla
+ * que puede ver el director de la UDN. Por eso el `null` se resuelve ANTES
+ * de tocar el catálogo, no con su fallback. Mismo motivo que
+ * `claveDeClase`, arriba: movida aquí desde `ReunionesSala.tsx` para no
+ * repetir esta misma trampa en cada consumidor nuevo.
+ *
+ * Un id que el catálogo no reconoce —no debería pasar nunca:
+ * `crearReunion`/`editarReunion` ya lo rechazan— se pinta TAL CUAL: ni la
+ * primera del catálogo (fingiría una clase real) ni "Sin clasificar"
+ * (fingiría que no tiene ninguna, cuando sí trae un valor, solo que uno raro).
+ */
+export function etiquetaDeClase(clave: string | null): string {
+  if (clave === null) return 'Sin clasificar'
+  const plantilla = PLANTILLAS.find((p) => p.id === clave)
+  return plantilla ? plantilla.nombre : clave
+}

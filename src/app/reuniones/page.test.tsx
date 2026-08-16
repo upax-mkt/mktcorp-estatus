@@ -134,7 +134,21 @@ const panelAgendaPropsMock = vi.fn()
 vi.mock('@/componentes/agenda/PanelAgenda', () => ({
   PanelAgenda: (props: unknown) => {
     panelAgendaPropsMock(props)
-    return <div data-testid="panel-agenda-stub">calendario + agendar (stub)</div>
+    return (
+      <div data-testid="panel-agenda-stub">
+        calendario + agendar (stub)
+        {/* "Próximas" vive DE VERDAD dentro de `PanelAgenda` (no se mudó —
+            ver el comentario de archivo de ese componente sobre por qué:
+            ahí vive "editar"). Su contenido real (tarjetas, filtros, orden)
+            lo prueba `PanelAgenda.test.tsx`, que la monta sin mockear. Este
+            encabezado aquí es un CENTINELA, no una simulación de su UI: solo
+            protege el test "los cuatro módulos siguen existiendo" (más
+            abajo) de que alguien borre el módulo del componente real sin que
+            ningún test de ESTA suite —que mockea `PanelAgenda` entero— se
+            entere. */}
+        <h2>Próximas</h2>
+      </div>
+    )
   },
 }))
 
@@ -559,7 +573,14 @@ describe('cicloDeReuniones — "próximas" (bajó de PanelAgenda a este ciclo, r
     const ciclo = cicloDeReuniones([r], [null], new Set(), HOY_CIVIL)
 
     expect(ciclo.proximas).toEqual([
-      { id: 'r-futura-simple', titulo: 'Planeación Q4', fecha: '2026-09-01T18:00:00.000Z', salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa', salaColor: '#c0392b' },
+      {
+        id: 'r-futura-simple', titulo: 'Planeación Q4', fecha: '2026-09-01T18:00:00.000Z',
+        salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa', salaColor: '#c0392b',
+        // `plantilla`/`documentoListo` (ronda 14.4, tarea 1): `r` no fijó
+        // `plantilla` (queda `undefined` → `null`) y su documento es `null`
+        // (sin documento en absoluto → no cuenta como listo).
+        plantilla: null, documentoListo: false,
+      },
     ])
   })
 
@@ -768,17 +789,36 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
     expect(link).toHaveAttribute('href', `/deck/${R_SIN_MINUTA.id}/minuta`)
   })
 
-  it('"Cerradas" pinta cada fila, enlazada a su cliente cuando tiene sala', async () => {
+  /**
+   * REESCRITO (ronda 14.4, tarea 1): "Cerradas" dejó de ser un cementerio —
+   * antes la tarjeta ENTERA era un único `<a>` a `/cliente/<slug>` (un salto
+   * indirecto); ahora ofrece sus dos destinos reales, "Ver su minuta →"
+   * (siempre) y "Ver su documento →" (solo con `documentoListo`), y la sala
+   * —cuando existe— es SU PROPIO enlace, no el de toda la tarjeta. Ver el
+   * comentario de esta sección en `page.tsx`.
+   */
+  it('"Cerradas" pinta cada fila con un enlace a su minuta y, si el documento está listo, a su documento', async () => {
     listarReunionesMock.mockResolvedValue([R_COMPLETA])
 
     render(await PagReuniones())
 
     const seccion = screen.getByText('Cerradas').closest('section')!
-    const link = within(seccion).getByText(R_COMPLETA.titulo).closest('a')
-    expect(link).toHaveAttribute('href', `/cliente/${R_COMPLETA.salaSlug}`)
+    const fila = within(seccion).getByText(R_COMPLETA.titulo).closest('div')!
+    // `R_COMPLETA` (fixture) tiene documento 'listo' con 5 secciones
+    // (`DOCUMENTOS_POR_ID`) → `documentoListo` es `true`.
+    expect(within(fila).getByRole('link', { name: /ver su minuta/i })).toHaveAttribute(
+      'href', `/deck/${R_COMPLETA.id}/minuta`,
+    )
+    expect(within(fila).getByRole('link', { name: /ver su documento/i })).toHaveAttribute(
+      'href', `/reunion/${R_COMPLETA.id}`,
+    )
+    // La sala es SU PROPIO enlace, mismo tratamiento que `FilaAcuerdo.tsx`.
+    expect(within(fila).getByRole('link', { name: 'NeraCode' })).toHaveAttribute(
+      'href', `/cliente/${R_COMPLETA.salaSlug}`,
+    )
   })
 
-  it('una reunión CERRADA sin sala (comité) se lee igual, sin enlace roto', async () => {
+  it('una reunión CERRADA sin sala (comité) lleva a su minuta igual — solo la sala es la que falta', async () => {
     const cerradaSinSala = reunion({
       id: 'r-cerrada-sin-sala', titulo: 'Comité cerrado', fecha: '2026-08-05T18:00:00.000Z',
       estado: 'dada', tieneMinuta: true, salaSlug: null, salaNombre: 'Marketing Corp',
@@ -789,7 +829,13 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
 
     const seccion = screen.getByText('Cerradas').closest('section')!
     expect(within(seccion).getByText('Comité cerrado')).toBeInTheDocument()
-    expect(within(seccion).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(seccion).getByRole('link', { name: /ver su minuta/i })).toHaveAttribute(
+      'href', `/deck/${cerradaSinSala.id}/minuta`,
+    )
+    // Sin sala no hay a dónde volver — ese es el único enlace ausente, no
+    // "ningún enlace" (documento tampoco: sin `documentoDeReunion` mockeado
+    // para este id, `documentoListo` es `false`).
+    expect(within(seccion).queryByRole('link', { name: /marketing corp/i })).not.toBeInTheDocument()
   })
 
   it('las etiquetas viejas —"Ya dadas este mes", "Sin presentación"— ya no existen', async () => {
@@ -808,5 +854,80 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
     expect(screen.getByText(/nada pendiente de minutar/i)).toBeInTheDocument()
     expect(screen.getByText('Cerradas')).toBeInTheDocument()
     expect(screen.getByText(/ninguna reuni.n cerrada/i)).toBeInTheDocument()
+  })
+})
+
+/**
+ * LA TARJETA DICE QUÉ ES (ronda 14.4, tarea 1, brief §2 Step 2) — el defecto
+ * medido: catorce tarjetas de la misma forma, sin color de sala ni clase de
+ * junta, y "Cerradas" sin ningún enlace útil. Estos tests usan "Se dieron,
+ * falta su minuta" y "Cerradas" —las dos secciones que `page.tsx` pinta
+ * directamente, sin delegar a un componente mockeado— porque son las que
+ * este archivo puede probar de verdad; "Por confirmar" (`ReunionesPorConfirmar`)
+ * y "Próximas" (`PanelAgenda`) están fuera de los dos archivos de esta tarea
+ * y se mockean arriba.
+ */
+describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, tarea 1)', () => {
+  it('cada tarjeta dice de qué sala y de qué clase es', async () => {
+    listarReunionesMock.mockResolvedValue([
+      reunion({
+        id: 'r-neracode-sync', titulo: 'Sync semanal de agosto', fecha: '2026-08-05T18:00:00.000Z',
+        estado: 'dada', tieneMinuta: false, plantilla: 'sync-comercial',
+        salaSlug: 'neracode', salaNombre: 'NeraCode', salaColor: '#101010',
+      }),
+    ])
+
+    render(await PagReuniones())
+
+    expect(screen.getByText(/neracode/i)).toBeInTheDocument()
+    expect(screen.getByText(/sync comercial/i)).toBeInTheDocument()
+  })
+
+  it('una reunión sin clase lo dice, y no se le pega la primera del catálogo', async () => {
+    listarReunionesMock.mockResolvedValue([
+      reunion({
+        id: 'r-sin-clase', titulo: 'Standup rápido', fecha: '2026-08-05T18:00:00.000Z',
+        estado: 'dada', tieneMinuta: false, plantilla: null,
+      }),
+    ])
+
+    render(await PagReuniones())
+
+    expect(screen.getByText(/sin clasificar/i)).toBeInTheDocument()
+    expect(screen.queryByText(/estatus de udn/i)).toBeNull()
+  })
+
+  it('una reunión cerrada lleva a su minuta y a su documento', async () => {
+    listarReunionesMock.mockResolvedValue([R_COMPLETA])
+
+    render(await PagReuniones())
+
+    const seccion = screen.getByText('Cerradas').closest('section')!
+    expect(within(seccion).getByRole('link', { name: /ver su minuta/i })).toHaveAttribute(
+      'href', `/deck/${R_COMPLETA.id}/minuta`,
+    )
+    expect(within(seccion).getByRole('link', { name: /ver su documento/i })).toHaveAttribute(
+      'href', `/reunion/${R_COMPLETA.id}`,
+    )
+  })
+
+  it('una reunión cerrada SIN documento maquetado (el caso real: PDF subido) no ofrece "Ver su documento" — solo su minuta', async () => {
+    listarReunionesMock.mockResolvedValue([R_SIN_PRESENTACION])
+
+    render(await PagReuniones())
+
+    const seccion = screen.getByText('Cerradas').closest('section')!
+    expect(within(seccion).getByRole('link', { name: /ver su minuta/i })).toBeInTheDocument()
+    expect(within(seccion).queryByRole('link', { name: /ver su documento/i })).not.toBeInTheDocument()
+  })
+
+  it('los cuatro módulos siguen existiendo, y con sus nombres', async () => {
+    listarReunionesMock.mockResolvedValue([R_CANCELADA, R_SIN_MINUTA, R_COMPLETA])
+
+    render(await PagReuniones())
+
+    for (const n of [/próximas/i, /por confirmar/i, /falta su minuta/i, /cerradas/i]) {
+      expect(screen.getByRole('heading', { name: n })).toBeInTheDocument()
+    }
   })
 })
