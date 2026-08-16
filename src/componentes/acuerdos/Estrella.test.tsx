@@ -7,15 +7,21 @@ import { Estrella } from './Estrella'
  * ESTE es el componente que se reutiliza en las dos pantallas donde se puede
  * fijar un acuerdo arriba (el espacio de acuerdos y la sala), así que lo que
  * hace al pulsarla importa más que en un botón cualquiera: si aquí decide mal
- * qué mandar a `destacar`, las dos pantallas heredan el mismo error. El Home
- * también la usa hoy (`ModuloAcuerdos`), pero solo mientras siga listando
- * acuerdos — es la tercera que ronda 14 dejó de prometer (ver la cabecera de
- * Estrella.tsx) y que su propio milestone, pendiente, se encarga de retirar.
+ * qué mandar a `destacar`, las dos pantallas heredan el mismo error.
+ *
+ * EL HOME YA NO ES UNA TERCERA (ronda 14.5, tarea 1): hasta esa ronda
+ * `ModuloAcuerdos` también montaba esta estrella dentro de su bloque
+ * Destacados, y mientras lo hizo, "Fijar arriba en Acuerdos" prometía dentro
+ * del Home un efecto que ahí mismo hacía MÁS de lo que decía —entrar o salir
+ * de ESE bloque, no solo fijar arriba en `/acuerdos`— (deuda anotada en el
+ * spec §4 desde el milestone 1). Con `ModuloAcuerdos` retirado del Home por
+ * completo (y su test con él), la etiqueta vuelve a describir exactamente lo
+ * único que este botón hace, en las dos pantallas que le quedan.
  *
  * `/destacar/i` en los dos primeros tests matchea "Fijar arriba en Acuerdos"
  * igual que matchearía "Destacar": ninguno de los dos afirma el texto exacto,
  * solo que EXISTE un botón para marcar. El texto exacto se fija en los tests
- * de abajo y en TablaAcuerdos.test.tsx / ModuloAcuerdos.test.tsx.
+ * de abajo y en TablaAcuerdos.test.tsx.
  */
 describe('Estrella', () => {
   it('sin destacar: un clic la destaca', async () => {
