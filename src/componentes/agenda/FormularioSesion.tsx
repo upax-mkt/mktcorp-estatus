@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import estilos from '@/app/agenda/agenda.module.css'
+import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 
 /**
  * Agendar una reunión, o corregir la que ya está.
@@ -53,11 +54,28 @@ export interface DatosFormulario {
   lugar: string
   /** Nombres separados por coma, tal como se escriben. */
   participantes: string
+  /**
+   * Qué clase de junta es (`src/secciones/plantillas.ts`, tarea 1 de esta
+   * ronda) — el id de una `Plantilla` del catálogo, o `''` para "sin
+   * clasificar". Un `<select>` no tiene `null`: eso es solo cómo se guarda
+   * la ausencia en la base (`DatosDeReunion.plantilla`,
+   * `src/db/reuniones.ts`); en esta pantalla la ausencia es una cadena
+   * vacía, y las acciones (`src/app/reuniones/acciones.ts`) son las que
+   * traducen una forma a la otra antes de tocar la base.
+   */
+  plantilla: string
 }
 
 interface Props {
   salas: SalaElegible[]
-  inicial?: Partial<DatosFormulario>
+  /**
+   * `plantilla` se ensancha aparte del resto: `Partial<DatosFormulario>` no
+   * admite `null` en un campo tipado `string`, y una reunión real SÍ puede
+   * traer `plantilla: null` (sin clasificar). Distinguir "vino en `null`" de
+   * "no vino" es justo lo que decide el valor con el que arranca el
+   * desplegable — ver `plantillaInicial`, más abajo.
+   */
+  inicial?: Partial<Omit<DatosFormulario, 'plantilla'>> & { plantilla?: string | null }
   /** Qué dice el botón: "Agendar" al crear, "Guardar cambios" al corregir. */
   etiquetaEnviar: string
   enviarAction: (datos: DatosFormulario) => Promise<{ error?: string }>
@@ -80,6 +98,33 @@ function capitalizar(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
+/**
+ * El valor con el que arranca el desplegable "¿Qué junta es?".
+ *
+ * Agendar una reunión NUEVA (no llega `inicial`, o llega sin la clave
+ * `plantilla`) arranca en la clase por defecto del catálogo
+ * (`PLANTILLA_POR_DEFECTO`) — igual que ya hace `NuevaSesionSala` (tarea 2 de
+ * esta ronda) para la misma pregunta: una junta que nace debería nacer
+ * clasificada, no en blanco.
+ *
+ * Editar una reunión que YA EXISTE es una pregunta distinta. Si esa reunión
+ * no tiene clase, llega con `inicial.plantilla` en `null` — y ahí NO se
+ * puede caer a la clase por defecto: guardar cualquier otro campo (el lugar,
+ * el título…) dejaría la junta marcada como "Estatus de UDN" sin que nadie
+ * lo haya decidido. Es la "clasificación de rebote" que esta tarea existe
+ * para evitar — un dato que falta es un hecho, y convertirlo en un dato
+ * inventado es peor que dejarlo vacío.
+ *
+ * Por eso se distingue si `plantilla` VINO en `inicial` —con el operador
+ * `in`, que sí ve una clave puesta a `null`, a diferencia de `?.`— de si
+ * simplemente no vino. Solo en el primer caso se respeta tal cual (y `null`
+ * se vuelve `''`, el valor de "Sin clasificar" en este `<select>`).
+ */
+function plantillaInicial(inicial: Props['inicial']): string {
+  if (inicial && 'plantilla' in inicial) return inicial.plantilla ?? ''
+  return PLANTILLA_POR_DEFECTO
+}
+
 export function FormularioSesion({
   salas,
   inicial,
@@ -97,6 +142,7 @@ export function FormularioSesion({
     alcance: inicial?.alcance ?? 'todos',
     lugar: inicial?.lugar ?? '',
     participantes: inicial?.participantes ?? '',
+    plantilla: plantillaInicial(inicial),
   })
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
@@ -172,6 +218,35 @@ export function FormularioSesion({
                 {capitalizar(t)}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label className={estilos.campo}>
+          <span className={estilos.etiqueta}>¿Qué junta es?</span>
+          <select
+            className={estilos.entrada}
+            value={datos.plantilla}
+            onChange={(e) => campo('plantilla', e.target.value)}
+          >
+            {/* Solo se enseña mientras el valor siga vacío: es el estado de
+                una reunión ya existente sin clase (ver `plantillaInicial`),
+                no una opción para "desclasificar" una junta que ya la
+                tiene — ofrecerla siempre invitaría a eso por accidente. */}
+            {datos.plantilla === '' && <option value="">Sin clasificar</option>}
+            {/* 'en-blanco' se saca del recorrido normal y se reinserta abajo
+                en su propio `<optgroup>` — mismo tratamiento que le da la
+                tarea 2 en `NuevaSesionSala`: no es una clase de junta, es la
+                salida para cuando ninguna clase real aplica, y necesita
+                leerse aparte del resto (mismo orden del catálogo, separador
+                nativo antes de la última). */}
+            {PLANTILLAS.filter((p) => p.id !== 'en-blanco').map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+            <optgroup label="Otra">
+              <option value="en-blanco">Otra (deck en blanco)</option>
+            </optgroup>
           </select>
         </label>
       </div>
