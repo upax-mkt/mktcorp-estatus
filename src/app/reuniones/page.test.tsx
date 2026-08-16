@@ -134,23 +134,26 @@ const panelAgendaPropsMock = vi.fn()
 vi.mock('@/componentes/agenda/PanelAgenda', () => ({
   PanelAgenda: (props: unknown) => {
     panelAgendaPropsMock(props)
-    return (
-      <div data-testid="panel-agenda-stub">
-        calendario + agendar (stub)
-        {/* "Próximas" vive DE VERDAD dentro de `PanelAgenda` (no se mudó —
-            ver el comentario de archivo de ese componente sobre por qué:
-            ahí vive "editar"). Su contenido real (tarjetas, filtros, orden)
-            lo prueba `PanelAgenda.test.tsx`, que la monta sin mockear. Este
-            encabezado aquí es un CENTINELA, no una simulación de su UI: solo
-            protege el test "los cuatro módulos siguen existiendo" (más
-            abajo) de que alguien borre el módulo del componente real sin que
-            ningún test de ESTA suite —que mockea `PanelAgenda` entero— se
-            entere. */}
-        <h2>Próximas</h2>
-      </div>
-    )
+    return <div data-testid="panel-agenda-stub">calendario + agendar (stub)</div>
   },
 }))
+// ⚠️ SIN un `<h2>Próximas</h2>` fijo aquí adentro (revisión C1, hallazgo
+// I6). Hasta esta revisión el mock lo pintaba como "centinela" —para que el
+// test "los cuatro módulos siguen existiendo", más abajo, pudiera comprobar
+// las CUATRO cabeceras sin desmockear `PanelAgenda`—, pero un texto fijo
+// dentro de un mock ES el mismo defecto que ese test dice vigilar: se probó
+// borrando de verdad el `<h2>Próximas</h2>` real de `PanelAgenda.tsx` y los
+// 34 tests de ESTE archivo siguieron en verde, porque ninguno mira el
+// componente real. El guardia de verdad —que "Próximas" es uno de los
+// cuatro módulos que Franco cerró (6-ago) y que su encabezado sigue siendo
+// un `<h2>` de verdad— vive en `PanelAgenda.test.tsx`, que SÍ monta el
+// componente sin mockear (ver su descripción de archivo). Este archivo ya
+// no puede protegerlo sin desmockear `PanelAgenda` —que existe
+// deliberadamente por el router de App Router, ver el comentario de arriba
+// (motivo 1)— así que el test de "los cuatro módulos" (más abajo) se ajustó
+// para comprobar SOLO lo que este archivo sí controla de verdad: que
+// `page.tsx` monta el componente real (no un `<div>` vacío) donde debería
+// vivir "Próximas", y las tres cabeceras que SÍ pinta `page.tsx` en persona.
 
 // `ReunionesPorConfirmar` (tarea 18) SE MOCKEA aquí por el mismo motivo que
 // `PanelAgenda`: es un Client Component con `useState`/`useTransition` propio,
@@ -921,13 +924,31 @@ describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, t
     expect(within(seccion).queryByRole('link', { name: /ver su documento/i })).not.toBeInTheDocument()
   })
 
-  it('los cuatro módulos siguen existiendo, y con sus nombres', async () => {
+  /**
+   * REESCRITO (revisión C1, hallazgo I6): antes comprobaba las CUATRO
+   * cabeceras vía `getByRole('heading', ...)`, "Próximas" incluida — pero
+   * `PanelAgenda` está MOCKEADO en este archivo (ver el `vi.mock`, arriba),
+   * así que esa comprobación solo veía el `<h2>Próximas</h2>` que el propio
+   * mock fabricaba, no el real. Un guardia que solo puede fallar si SU
+   * PROPIO mock cambia no protege nada del componente de verdad — se probó
+   * borrando el `<h2>Próximas</h2>` real de `PanelAgenda.tsx` y este test
+   * (con la versión vieja) seguía en verde. Ahora este test solo afirma lo
+   * que ESTE archivo controla de verdad: que `page.tsx` sigue montando el
+   * componente real donde debería vivir "Próximas" (no lo fundió con otro,
+   * no lo borró) y las TRES cabeceras que `page.tsx` pinta en persona. El
+   * guardia real de que "Próximas" es un `<h2>` de verdad —la decisión
+   * cerrada de Franco (6-ago) que este test protege— vive en
+   * `PanelAgenda.test.tsx` (guardia dedicado, "GUARDIA I6"), que monta el
+   * componente sin mockear.
+   */
+  it('los otros tres módulos siguen existiendo con sus nombres, y "Próximas" sigue viviendo en el componente real (no un stub vacío)', async () => {
     listarReunionesMock.mockResolvedValue([R_CANCELADA, R_SIN_MINUTA, R_COMPLETA])
 
     render(await PagReuniones())
 
-    for (const n of [/próximas/i, /por confirmar/i, /falta su minuta/i, /cerradas/i]) {
+    for (const n of [/por confirmar/i, /falta su minuta/i, /cerradas/i]) {
       expect(screen.getByRole('heading', { name: n })).toBeInTheDocument()
     }
+    expect(screen.getByTestId('panel-agenda-stub')).toBeInTheDocument()
   })
 })

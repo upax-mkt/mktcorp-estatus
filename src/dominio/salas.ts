@@ -289,6 +289,20 @@ export interface SesionPorConfirmar {
   salaColor?: string
   /** `null` = pendiente de decir algo; con fecha, ya se marcó "no se dio". */
   noDadaEn: string | null
+  /**
+   * LA CLASE DE JUNTA (revisión C1, ronda 14.4 tarea 1 — cierre de la
+   * "Cumplimiento": "Por confirmar" era una de las 4 tarjetas de 14 sin
+   * clase pintada). OPCIONAL, no `string | null` a secas: este tipo lo arma
+   * también el Home y la sala (`src/app/page.tsx`,
+   * `src/app/cliente/[slug]/page.tsx`), que no pintan la clase en esta ronda
+   * — quedan sin poblarlo, `undefined`, y `ReunionesPorConfirmar` no pinta
+   * nada para esas dos pantallas. `undefined` = "esta pantalla no manda el
+   * dato" (no aplica); `null` = "la reunión SÍ trae el campo, y no tiene
+   * clase" — misma distinción de tres estados que ya usa `plantilla` en
+   * `SesionAgendada` (`PanelAgenda.tsx`) y en `ReunionEnCiclo`
+   * (`src/app/reuniones/page.tsx`).
+   */
+  plantilla?: string | null
 }
 
 /** Temperatura de atención: cuánto se ha desatendido la relación. */

@@ -49,6 +49,32 @@ describe('ReunionesPorConfirmar — una fila pendiente', () => {
     expect(screen.queryByText('NeraCode')).toBeNull()
   })
 
+  /**
+   * CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): "Por confirmar" era 1 de
+   * las 4 tarjetas de 14 sin clase de junta pintada. `plantilla` es OPCIONAL
+   * en `SesionPorConfirmar` (`dominio/salas.ts`) porque el Home y la sala
+   * también arman este tipo sin mandarla — `SESION()` (fixture de arriba) no
+   * la fija, así que por defecto es `undefined`, el caso "esta pantalla no
+   * manda el dato": sin pintar nada, ver el segundo test de este bloque.
+   */
+  it('con plantilla definida, pinta también la clase de junta — y una junta sin clase dice "Sin clasificar", nunca la primera del catálogo', () => {
+    render(
+      <ReunionesPorConfirmar
+        sesiones={[SESION({ id: 's1', titulo: 'Uno', plantilla: 'sync-comercial' }), SESION({ id: 's2', titulo: 'Dos', plantilla: null })]}
+        {...acciones()}
+      />,
+    )
+    expect(screen.getByText(/sync comercial/i)).toBeInTheDocument()
+    expect(screen.getByText(/sin clasificar/i)).toBeInTheDocument()
+    expect(screen.queryByText(/estatus de udn/i)).toBeNull()
+  })
+
+  it('sin plantilla en absoluto (Home/sala, que no mandan este dato — SESION() por defecto), no pinta ninguna clase', () => {
+    render(<ReunionesPorConfirmar sesiones={[SESION()]} {...acciones()} />)
+    expect(screen.queryByText(/sin clasificar/i)).toBeNull()
+    expect(screen.queryByText(/estatus de udn/i)).toBeNull()
+  })
+
   it('empieza neutral: las dos preguntas a la vista, sin marca de "no se dio"', () => {
     render(<ReunionesPorConfirmar sesiones={[SESION()]} {...acciones()} />)
     expect(screen.getByRole('button', { name: 'Ya se dio' })).toBeInTheDocument()

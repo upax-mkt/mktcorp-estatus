@@ -108,8 +108,9 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
     const aside = container.querySelector('aside')
     expect(aside).not.toBeNull()
     // Filtros (sala + clase) y leyenda —no el formulario, que solo aparece
-    // agendando/editando (siguiente test)—.
-    expect(within(aside!).getByText('Filtros')).toBeInTheDocument()
+    // agendando/editando (siguiente test)—. Rótulo con su alcance real
+    // (revisión C1, I3): "Filtros" a secas no decía a qué alcanzaba.
+    expect(within(aside!).getByText('Filtros — calendario y Próximas')).toBeInTheDocument()
     expect(within(aside!).getByLabelText('Sala')).toBeInTheDocument()
     expect(within(aside!).getByLabelText('Clase de junta')).toBeInTheDocument()
     expect(within(aside!).getByText('Leyenda')).toBeInTheDocument()
@@ -158,6 +159,37 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
 })
 
 describe('PanelAgenda — "Próximas" bajó del panel lateral al flujo, debajo del calendario', () => {
+  /**
+   * GUARDIA I6 (revisión C1): "Próximas" es uno de los CUATRO módulos que
+   * Franco cerró (6-ago: "en la pestaña Reuniones ahí debe vivir el módulo
+   * Se dieron pero falta su minuta, reuniones cerradas, reuniones
+   * pendientes..." + la costumbre de fundir módulos que este repo ya pagó
+   * antes) — su encabezado tiene que ser un `<h2>` REAL, no solo un texto
+   * cualquiera. `page.test.tsx` MOCKEA `PanelAgenda` entero (Client
+   * Component con `useRouter()`, ver su comentario de archivo), así que no
+   * puede vigilar esto de verdad: hasta esta revisión el mock ahí fabricaba
+   * un `<h2>Próximas</h2>` fijo que se auto-validaba —se borró el
+   * encabezado real y los 34 tests de esa suite siguieron en verde—. ESTE
+   * test SÍ monta el componente real (sin mock de `PanelAgenda` — solo
+   * `next/navigation`, arriba) y es el único guardia contra fundir o
+   * renombrar "Próximas" con role="heading" de verdad.
+   *
+   * COMPROBADO ROMPIÉNDOLO (como pide la revisión): con
+   * `<h2 className={estilosCiclo.cicloTitulo}>` cambiado a un `<p>` a mano
+   * en `PanelAgenda.tsx`, `npx vitest run` tumbó ESTE test (y solo este,
+   * más los que ya usaban `getByText('Próximas')` para navegar al
+   * `<section>` — ver el resto de este describe) — restaurado después.
+   */
+  it('GUARDIA I6: "Próximas" tiene un encabezado real, con role="heading" — no solo un texto', () => {
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    // Regex, no la cadena exacta: el `<h2>` lleva el conteo pegado adentro
+    // (`<span>{proximas.length}</span>`), así que su nombre accesible es
+    // "Próximas 0", no "Próximas" a secas — mismo criterio que ya usa el
+    // guardia original de los cuatro módulos en `page.test.tsx`.
+    expect(screen.getByRole('heading', { name: /próximas/i, level: 2 })).toBeInTheDocument()
+  })
+
   it('la sección "Próximas" NO está dentro del <aside> (ya no es un panel lateral) — ni siquiera con el formulario abierto', async () => {
     const usuario = userEvent.setup()
     const s = sesion({ id: 's1', titulo: 'Estatus de septiembre' })
@@ -214,6 +246,31 @@ describe('PanelAgenda — nada se pierde: idsProximas se cruza contra sesiones, 
     expect(within(seccion).getByText(/Sala 4/)).toBeInTheDocument()
     const link = within(seccion).getByText('Preparar →').closest('a')
     expect(link).toHaveAttribute('href', '/deck/s1')
+  })
+
+  /**
+   * CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): "Próximas" era 3 de las
+   * 4 tarjetas de 14 sin clase de junta pintada (la cuarta, "Por confirmar",
+   * se prueba en `ReunionesPorConfirmar.test.tsx`) — las otras diez
+   * secciones (Falta su minuta/Cerradas, `page.test.tsx`) ya la pintaban.
+   * Las dos reuniones a la vez, no cada una por separado: un arreglo a
+   * medias podría aprobar "sí pinta la clase" con una junta clasificada y
+   * fallar silenciosamente con `null` (mismo criterio que el test gemelo de
+   * `page.test.tsx`, "una reunión sin clase lo dice…").
+   */
+  it('CUMPLIMIENTO: cada tarjeta de "Próximas" dice también su clase de junta, y una sin clase dice "Sin clasificar" (nunca la primera del catálogo)', () => {
+    const clasificada = sesion({
+      id: 's1', titulo: 'Sync semanal', plantilla: 'sync-comercial', fecha: '2026-08-25T18:00:00.000Z',
+    })
+    const sinClase = sesion({ id: 's2', titulo: 'Standup rápido', plantilla: null, fecha: '2026-08-26T18:00:00.000Z' })
+    render(
+      <PanelAgenda sesiones={[clasificada, sinClase]} salas={SALAS} hoy={HOY} idsProximas={['s1', 's2']} {...acciones()} />,
+    )
+
+    const seccion = screen.getByText('Próximas').closest('section')!
+    expect(within(seccion).getByText(/sync comercial/i)).toBeInTheDocument()
+    expect(within(seccion).getByText(/sin clasificar/i)).toBeInTheDocument()
+    expect(within(seccion).queryByText(/estatus de udn/i)).toBeNull()
   })
 
   it('con avance de secciones (totalItems > 0), lo muestra; sin avance, no pinta esa línea', () => {
@@ -486,5 +543,68 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4
     expect(screen.queryByText('Por confirmar')).not.toBeInTheDocument()
     expect(screen.queryByText('Se dieron, falta su minuta')).not.toBeInTheDocument()
     expect(screen.queryByText('Cerradas')).not.toBeInTheDocument()
+  })
+
+  /**
+   * EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): con un filtro
+   * puesto, abrir "+ Agendar una reunión" sustituye Filtros/Leyenda por el
+   * formulario — los `<select>` (y su valor elegido) dejan de estar a la
+   * vista, pero `filtroSala`/`filtroClase` NO se resetean: el calendario de
+   * al lado sigue filtrado sin ningún control visible que lo diga, justo
+   * mientras se elige un día. El "al menos un aviso visible" que pide la
+   * revisión (subir a `searchParams` queda anotado como siguiente paso).
+   */
+  it('sin filtro activo, abrir el formulario NO pinta ningún aviso — no hay nada que avisar', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
+  })
+
+  it('con un filtro activo, EN REPOSO tampoco pinta el aviso — los propios <select> ya muestran su valor', () => {
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
+  })
+
+  it('con un filtro de sala activo, abrir el formulario SÍ pinta el aviso, nombrando la sala', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'mexa-creativa')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    // El aviso mismo, no `screen` a secas: con el formulario abierto, SU
+    // PROPIO `<select>` "Sala" también ofrece "Mexa Creativa" como opción —
+    // `getByText` a nivel de documento encontraría las dos.
+    expect(screen.getByText(/filtro activo/i)).toHaveTextContent(/mexa creativa/i)
+  })
+
+  it('con filtro de sala Y de clase activos a la vez, el aviso nombra las dos', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'neracode')
+    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sin clasificar')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    const aviso = screen.getByText(/filtro activo/i)
+    expect(aviso).toHaveTextContent(/neracode/i)
+    expect(aviso).toHaveTextContent(/sin clasificar/i)
+  })
+
+  it('al cerrar el formulario con un filtro activo, el aviso desaparece junto con él (los <select> vuelven a estar a la vista)', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'neracode')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+    expect(screen.getByText(/filtro activo/i)).toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
   })
 })

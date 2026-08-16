@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { seEstaArmando, tienePresentacion, type Reunion } from '@/dominio/reunion'
-import { PLANTILLAS } from '@/secciones/plantillas'
+import { PLANTILLAS, claveDeClase, etiquetaDeClase } from '@/secciones/plantillas'
 import type { Participante } from '@/db/participacion'
 import type { CategoriaArchivo } from '@/db/archivos'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
@@ -63,13 +63,25 @@ import caras from './reuniones/CarasDeReunion.module.css'
  * ayer; lo que faltaba era que este módulo la usara. Doce Sync Comerciales al
  * trimestre, sin agrupar, ahogaban el estatus mensual en la misma lista.
  *
- * Cuatro funciones puras, module-scope (no dependen de nada del componente,
- * así que no hace falta `useMemo` para probarlas sueltas): `claveDeAgrupacion`
- * (por qué se agrupa de verdad), `etiquetaDeClase` (cómo se llama),
- * `ordenDeClase` (en qué orden va) y `agruparPorClase` (quién cae en qué
- * grupo). El componente las usa para partir `reuniones` en "la más reciente
- * DE CADA CLASE" (antes: una sola, "la última" a secas) y "las demás, en una
- * columna por clase".
+ * DOS funciones puras, module-scope (no dependen de nada del componente, así
+ * que no hace falta `useMemo` para probarlas sueltas): `ordenDeClase` (en qué
+ * orden van las columnas) y `agruparPorClase` (quién cae en qué grupo). El
+ * componente las usa para partir `reuniones` en "la más reciente DE CADA
+ * CLASE" (antes: una sola, "la última" a secas) y "las demás, en una columna
+ * por clase".
+ *
+ * ⚠️ `claveDeAgrupacion`/`etiquetaDeClase` YA NO VIVEN AQUÍ (revisión C1,
+ * ronda 14.4 tarea 1 — cierre I5): eran copia LETRA POR LETRA de
+ * `claveDeClase`/`etiquetaDeClase` (`src/secciones/plantillas.ts`), que este
+ * mismo trabajo extrajo para que `/reuniones` pudiera pintar la misma regla
+ * — dos copias de "qué clase ve un director" es exactamente la lección que
+ * este repo ya pagó una vez (ver el comentario de `claveDeClase` en
+ * `plantillas.ts`). Se importan de ahí; la única diferencia de firma es que
+ * la de este archivo recibía la `Reunion` entera (`claveDeAgrupacion(r)`) y
+ * la compartida recibe directo el campo (`claveDeClase(r.plantilla)`) —
+ * mismo dato, `Reunion.plantilla` es REQUERIDO (`string | null`, nunca
+ * `undefined`, ver `dominio/reunion.ts`), así que no hace falta un `?? null`
+ * en la llamada.
  *
  * ⚠️ CORREGIDO EN LA REVISIÓN DE LA RONDA 14.3 (Importante I3): las tarjetas
  * "LA ÚLTIMA" se pintaban en el orden de `ordenDeClase` —el del catálogo—,
@@ -80,50 +92,6 @@ import caras from './reuniones/CarasDeReunion.module.css'
  * por FECHA, no por catálogo. Ver dónde se ordenan cada una, más abajo en
  * el componente.
  */
-
-/**
- * LA CLAVE DE AGRUPACIÓN de una reunión — no siempre es `plantilla` tal
- * cual. ⚠️ CORREGIDO EN LA REVISIÓN (menor, ronda 14.3): 'en-blanco' NO es
- * una clase de junta —es la salida de emergencia del catálogo para cuando
- * ninguna clase real encaja, ver `esClaseDeJunta` en
- * `src/secciones/plantillas.ts`—, así que agruparla en su propia columna
- * "En blanco" inventaría una clase que el catálogo mismo dice que no existe:
- * la misma pregunta que "¿qué junta es?" no tiene esa respuesta. Se trata
- * IGUAL que `null`: sin clase real, va a "Sin clasificar". Consultar
- * `esClaseDeJunta` aquí —y no solo comparar contra `'en-blanco'` a mano— es
- * lo que el catálogo pide (ver su propio comentario): una entrada futura con
- * `esClaseDeJunta: false` cae en el mismo sitio sin tocar este archivo.
- */
-function claveDeAgrupacion(r: Reunion): string | null {
-  const id = r.plantilla ?? null
-  if (id === null) return null
-  const plantilla = PLANTILLAS.find((p) => p.id === id)
-  return plantilla?.esClaseDeJunta ? id : null
-}
-
-/**
- * LA ETIQUETA DE UNA CLASE YA NORMALIZADA (la que devuelve
- * `claveDeAgrupacion`, nunca `Reunion.plantilla` crudo) — para pintarla,
- * jamás para preguntarle al catálogo sin tratar `null` ANTES.
- * `obtenerPlantilla(null)` cae a la PRIMERA entrada del catálogo POR DISEÑO
- * (es lo que necesita un `<select>` que nunca puede quedar vacío, ver
- * `SelectorClaseDeJunta.tsx`) — usarla a secas aquí pintaría "Estatus de
- * UDN" sobre una junta sin clasificar: un dato inventado, en una pantalla
- * que ve el director de la UDN. Por eso el `null` se resuelve ANTES de
- * tocar el catálogo, no con su fallback.
- *
- * Un id que el catálogo no reconoce —no debería pasar nunca:
- * `crearReunion`/`editarReunion` ya lo rechazan, ver `esPlantillaConocida`
- * en `src/db/reuniones.ts`— se pinta TAL CUAL, igual que `identidadDe` en
- * `src/db/reuniones.ts` con una sala sin tema: ni la primera del catálogo
- * (fingiría una clase real) ni "Sin clasificar" (fingiría que no tiene
- * ninguna, cuando sí trae un valor, solo que uno raro).
- */
-function etiquetaDeClase(clave: string | null): string {
-  if (clave === null) return 'Sin clasificar'
-  const plantilla = PLANTILLAS.find((p) => p.id === clave)
-  return plantilla ? plantilla.nombre : clave
-}
 
 /**
  * Dónde cae una clase en el orden de columnas: el orden del catálogo
@@ -140,7 +108,7 @@ function ordenDeClase(clave: string | null): number {
 }
 
 /**
- * Agrupa por `claveDeAgrupacion` (`null` = sin clasificar, incluido
+ * Agrupa por `claveDeClase(r.plantilla)` (`null` = sin clasificar, incluido
  * 'en-blanco') y ordena cada grupo de la reunión más reciente a la más
  * antigua — con eso, el primer elemento de cada grupo YA es "la última de
  * esa clase", sin tener que confiar en que `reuniones` llegara ordenada por
@@ -151,7 +119,7 @@ function ordenDeClase(clave: string | null): number {
 function agruparPorClase(reuniones: Reunion[]): Map<string | null, Reunion[]> {
   const grupos = new Map<string | null, Reunion[]>()
   for (const r of reuniones) {
-    const clave = claveDeAgrupacion(r)
+    const clave = claveDeClase(r.plantilla)
     const lista = grupos.get(clave)
     if (lista) lista.push(r)
     else grupos.set(clave, [r])
@@ -342,8 +310,9 @@ export function ReunionesSala({
 
   /**
    * `reuniones` partido por clase (ronda 14.3, tarea 1): un grupo por
-   * `claveDeAgrupacion` (`null` = sin clasificar, ver su comentario arriba),
-   * cada uno de la más reciente a la más antigua — ver `agruparPorClase`,
+   * `claveDeClase(r.plantilla)` (`null` = sin clasificar, ver el comentario
+   * de `claveDeClase` en `src/secciones/plantillas.ts`), cada uno de la más
+   * reciente a la más antigua — ver `agruparPorClase`,
    * arriba. `clases` fija el ORDEN DE LAS COLUMNAS (el del catálogo, sin
    * clasificar al final); de ahí salen las dos listas que antes eran
    * `[ultima, ...anteriores]`:
@@ -455,16 +424,16 @@ export function ReunionesSala({
                       con la única clase de hoy esto sigue leyéndose como
                       antes ("15 jul 2026"), solo que un poco más largo
                       ("15 jul 2026 · Estatus de UDN") — no un elemento nuevo
-                      que aprender. `claveDeAgrupacion(r)`, NO `r.plantilla`
-                      crudo: esta tarjeta tiene que decir la MISMA clase que
-                      la columna de "Anteriores" donde caería si dejara de
-                      ser "la última" — si aquí se leyera el dato crudo, una
-                      reunión 'en-blanco' diría "En blanco" en su tarjeta
-                      pero aparecería bajo "Sin clasificar" en su columna: la
-                      misma reunión, dos respuestas distintas a "¿qué junta
-                      es?". */}
+                      que aprender. `claveDeClase(r.plantilla)`, NO
+                      `r.plantilla` crudo: esta tarjeta tiene que decir la
+                      MISMA clase que la columna de "Anteriores" donde caería
+                      si dejara de ser "la última" — si aquí se leyera el
+                      dato crudo, una reunión 'en-blanco' diría "En blanco"
+                      en su tarjeta pero aparecería bajo "Sin clasificar" en
+                      su columna: la misma reunión, dos respuestas distintas
+                      a "¿qué junta es?". */}
                   <div className={estilos.presFecha}>
-                    {fechaCompleta(r.fecha)} · {etiquetaDeClase(claveDeAgrupacion(r))}
+                    {fechaCompleta(r.fecha)} · {etiquetaDeClase(claveDeClase(r.plantilla))}
                   </div>
                 </div>
                 {/* La salida, también en el historial: la reunión que sobra

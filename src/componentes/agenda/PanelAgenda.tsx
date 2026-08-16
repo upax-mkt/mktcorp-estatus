@@ -223,6 +223,23 @@ export function PanelAgenda({
   // mutuamente excluyentes, no una OR ya calculada.
   const formularioAbierto = Boolean(agendando || editando)
 
+  // EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): al abrir el
+  // formulario, `.hueco` deja de pintar los `<select>` —pasan a "Agendar una
+  // reunión"— pero `filtroSala`/`filtroClase` NO se resetean: el calendario
+  // de al lado sigue filtrado, sin ningún control a la vista que lo diga,
+  // justo mientras se elige un día. `hayFiltroActivo` + las dos etiquetas
+  // resueltas (no el `slug`/`id` crudo) son lo que arma un aviso legible —
+  // ver dónde se pinta, más abajo, antes de `.filaSuperior`.
+  const hayFiltroActivo = filtroSala !== SIN_FILTRO || filtroClase !== SIN_FILTRO
+  const etiquetaFiltroSala = filtroSala !== SIN_FILTRO ? (salas.find((s) => s.slug === filtroSala)?.nombre ?? filtroSala) : null
+  const etiquetaFiltroClase =
+    filtroClase === SIN_CLASIFICAR
+      ? etiquetaDeClase(null)
+      : filtroClase !== SIN_FILTRO
+        ? (clasesDelCatalogo.find((p) => p.id === filtroClase)?.nombre ?? filtroClase)
+        : null
+  const piezasFiltro = [etiquetaFiltroSala, etiquetaFiltroClase].filter((p): p is string => p !== null)
+
   return (
     <>
       {/* CABECERA: ver el comentario de archivo, arriba, para el porqué vive
@@ -244,6 +261,21 @@ export function PanelAgenda({
           + Agendar una reunión
         </button>
       </div>
+
+      {/* AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3) — ver el
+          comentario de `hayFiltroActivo`, arriba. Fuera de `.filaSuperior` a
+          propósito (no dentro de su primera columna): esa fila es un grid de
+          DOS columnas ya ocupadas por el calendario y el `<aside>` — meter un
+          tercer hijo ahí antes del calendario lo habría corrido a la segunda
+          columna en vez de avisar por encima de él. Solo se pinta con el
+          formulario abierto: en reposo los propios `<select>` ya muestran su
+          valor elegido, repetirlo aquí sería el mismo dato dicho dos veces. */}
+      {formularioAbierto && hayFiltroActivo && (
+        <p className={estilosCiclo.avisoFiltro} role="status">
+          Filtro activo — {piezasFiltro.join(' · ')}: el calendario de abajo solo enseña lo que
+          coincide, aunque el formulario tape los controles.
+        </p>
+      )}
 
       {/* `.filaSuperior` (reuniones.module.css) reemplaza a `.panel`/
           `data-activo` (agenda.module.css) como el grid que reparte
@@ -326,9 +358,18 @@ export function PanelAgenda({
               {/* FILTROS — sala y clase, sobre `sesiones` (ver el comentario
                   de archivo). "Todas las salas"/"Todas las clases" son el
                   valor vacío, mismo criterio que `SIN_FILTRO` en
-                  `TablaAcuerdos.tsx`. */}
+                  `TablaAcuerdos.tsx`.
+
+                  EL RÓTULO DICE SU ALCANCE REAL (revisión C1, hallazgo I3):
+                  antes decía solo "Filtros", sin decir a qué — y filtrar
+                  "NeraCode" aquí deja intactas las tarjetas de otra sala en
+                  "Por confirmar"/"Falta su minuta"/"Cerradas" (`page.tsx`,
+                  Server Component, fuera de este filtro de cliente — ver el
+                  comentario de archivo). El rótulo ahora dice exactamente lo
+                  que SÍ cubre, para que esa diferencia no haya que
+                  descubrirla comparando listas. */}
               <div>
-                <p className={estilosCiclo.huecoTitulo}>Filtros</p>
+                <p className={estilosCiclo.huecoTitulo}>Filtros — calendario y Próximas</p>
                 <div className={estilosCiclo.filtros}>
                   <label className={estilosCiclo.filtro}>
                     <span className="micro" data-sinpunto>Sala</span>
@@ -408,10 +449,21 @@ export function PanelAgenda({
                 style={{ '--sala': s.salaColor } as React.CSSProperties}
               >
                 <span className={estilosCiclo.filaCicloTitulo}>{s.titulo}</span>
+                {/* CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): a "Próximas"
+                    le faltaba la clase de junta — 3 de las 4 tarjetas de 14
+                    sin ella eran de aquí (la cuarta, "Por confirmar", ver
+                    `page.tsx`). `etiquetaDeClase(claveDeClase(...))`, NUNCA
+                    `obtenerPlantilla(s.plantilla).nombre` a secas — ver el
+                    comentario de `SesionAgendada.plantilla`, arriba: esa
+                    llamada cae a "Estatus de UDN" con `null` por diseño (la
+                    necesita un `<select>`), y una junta sin clase mentiría.
+                    `.filaCicloMetaPieza`, no `.sep`: ver su comentario en
+                    `reuniones.module.css` (el separador quedaba huérfano al
+                    envolver). */}
                 <span className={estilosCiclo.filaCicloMeta}>
-                  <span>{s.salaNombre}</span>
-                  <span className={estilosCiclo.sep}>·</span>
-                  <span>
+                  <span className={estilosCiclo.filaCicloMetaPieza}>{s.salaNombre}</span>
+                  <span className={estilosCiclo.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(s.plantilla))}</span>
+                  <span className={estilosCiclo.filaCicloMetaPieza}>
                     {fechaCompleta(s.fecha)} · {horaBreve(s.fecha)}
                     {s.lugar && <> · {s.lugar}</>}
                   </span>

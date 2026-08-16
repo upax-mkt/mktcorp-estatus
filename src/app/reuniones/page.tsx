@@ -264,6 +264,18 @@ export function cicloDeReuniones(
       salaNombre: original.salaNombre,
       salaColor: original.salaColor,
       noDadaEn: r.noDadaEn,
+      // CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): faltaba esta línea —
+      // "Por confirmar" era 1 de las 4 tarjetas de 14 sin clase de junta
+      // pintada (las otras tres eran "Próximas", ver PanelAgenda.tsx).
+      // `r` es `Reunion` (`reunionesPorConfirmar`, dominio/reunion.ts):
+      // `plantilla` ahí es REQUERIDO (`string | null`, nunca `undefined`),
+      // así que se copia tal cual — `SesionPorConfirmar.plantilla` es
+      // OPCIONAL (dominio/salas.ts) porque el Home y la sala, que también
+      // arman este mismo tipo, no tienen esta ronda pintando la clase; ahí
+      // se queda `undefined` y `ReunionesPorConfirmar` no pinta nada, mismo
+      // criterio que ya usa `plantilla` en `SesionAgendada` para distinguir
+      // "no aplica aquí" de "sin clase".
+      plantilla: r.plantilla,
     }
   })
 
@@ -480,12 +492,14 @@ export default async function PagReuniones() {
                   style={{ '--sala': r.salaColor } as React.CSSProperties}
                 >
                   <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                  {/* MENOR BARATO (revisión C1): el "·" ya no es un `<span>`
+                      suelto (`.sep`) — ver el comentario de `.filaCicloMetaPieza`
+                      en `reuniones.module.css` para el porqué (el separador
+                      quedaba huérfano al envolver a 390px). */}
                   <span className={estilos.filaCicloMeta}>
-                    <span>{r.salaNombre}</span>
-                    <span className={estilos.sep}>·</span>
-                    <span>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
-                    <span className={estilos.sep}>·</span>
-                    <span>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                    <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
+                    <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
+                    <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
                   </span>
                   <span className={estilos.filaCicloAccion}>Generar su minuta →</span>
                 </Link>
@@ -512,44 +526,64 @@ export default async function PagReuniones() {
             un único `<a>` —dos enlaces no pueden anidarse— así que la sala,
             cuando existe, se vuelve SU PROPIO enlace (mismo tratamiento que
             `FilaAcuerdo.tsx`: el nombre de la sala, no la tarjeta entera, es
-            el camino de vuelta a ella). */}
+            el camino de vuelta a ella).
+
+            SE PLIEGA (revisión C1, hallazgo I2): requisito literal del brief
+            (Step 4.2) que se quedó fuera de la primera pasada. `<h2
+            className={estilos.cicloTitulo}>` pasa a ser el ÚNICO hijo de
+            `<summary>` —el HTML lo permite cuando es el primer hijo de un
+            `<details>`— para no perder el rol `heading` que protege el
+            guardia "los cuatro módulos siguen existiendo" (`page.test.tsx`):
+            `estilos.cerradasResumen` (el `<summary>`) pone el cursor, el
+            marcador y el foco; `estilos.cicloTitulo` (el `<h2>` de adentro)
+            sigue siendo la MISMA tipografía que ya usan las otras tres
+            cabeceras, sin duplicarla. `open` fijo, no `useState`: página
+            Server Component, el navegador ya sabe abrir/cerrar un `<details>`
+            sin JavaScript — mismo criterio que los acuerdos cumplidos de la
+            sala (`cliente/[slug]/page.tsx`). */}
         <section className={`${estilos.cicloSeccion} ${estilos.ordenCerradas}`}>
-          <h2 className={estilos.cicloTitulo}>
-            Cerradas
-            <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
-          </h2>
-          {ciclo.cerradas.length === 0 ? (
-            <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
-          ) : (
-            <div className={estilos.listaCiclo}>
-              {ciclo.cerradas.map((r) => (
-                <div key={r.id} className={estilos.filaCiclo} style={{ '--sala': r.salaColor } as React.CSSProperties}>
-                  <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
-                  <span className={estilos.filaCicloMeta}>
-                    {r.salaSlug ? (
-                      <Link href={`/cliente/${r.salaSlug}`} className={estilos.filaCicloSala}>{r.salaNombre}</Link>
-                    ) : (
-                      <span>{r.salaNombre}</span>
-                    )}
-                    <span className={estilos.sep}>·</span>
-                    <span>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
-                    <span className={estilos.sep}>·</span>
-                    <span>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
-                  </span>
-                  <span className={estilos.filaCicloAcciones}>
-                    <Link href={`/deck/${r.id}/minuta`} className={estilos.filaCicloAccion}>
-                      Ver su minuta →
-                    </Link>
-                    {r.documentoListo && (
-                      <Link href={`/reunion/${r.id}`} className={estilos.filaCicloAccion}>
-                        Ver su documento →
+          <details open>
+            <summary className={estilos.cerradasResumen}>
+              <h2 className={estilos.cicloTitulo}>
+                Cerradas
+                <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
+              </h2>
+            </summary>
+            {ciclo.cerradas.length === 0 ? (
+              <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
+            ) : (
+              <div className={estilos.listaCiclo}>
+                {ciclo.cerradas.map((r) => (
+                  <div key={r.id} className={estilos.filaCiclo} style={{ '--sala': r.salaColor } as React.CSSProperties}>
+                    <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                    {/* MENOR BARATO (revisión C1): `.filaCicloMetaPieza`, no
+                        `.sep` — ver el comentario en `reuniones.module.css`. */}
+                    <span className={estilos.filaCicloMeta}>
+                      {r.salaSlug ? (
+                        <Link href={`/cliente/${r.salaSlug}`} className={`${estilos.filaCicloSala} ${estilos.filaCicloMetaPieza}`}>
+                          {r.salaNombre}
+                        </Link>
+                      ) : (
+                        <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
+                      )}
+                      <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
+                      <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                    </span>
+                    <span className={estilos.filaCicloAcciones}>
+                      <Link href={`/deck/${r.id}/minuta`} className={estilos.filaCicloAccion}>
+                        Ver su minuta →
                       </Link>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+                      {r.documentoListo && (
+                        <Link href={`/reunion/${r.id}`} className={estilos.filaCicloAccion}>
+                          Ver su documento →
+                        </Link>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </details>
         </section>
       </main>
     </div>

@@ -145,7 +145,20 @@
 a.filaCiclo:hover { border-left-color: var(--acento); }
 .filaCicloTitulo { font-size: 0.95rem; font-weight: 600; }
 .filaCicloMeta { font-size: 0.8rem; color: var(--tx-3); display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
-.filaCicloMeta .sep { color: var(--borde-fuerte); }
+/* PUNTO HUÉRFANO (revisión C1, hallazgo "menor barato"): el "·" vivía en su
+   PROPIO `<span className={sep}>`, un hijo de flex más entre los datos — así
+   que al envolver a 390px (medido: "Research Land · Sin clasificar ·" en una
+   línea, la fecha en la siguiente) el navegador podía dejar el separador
+   solo al final de la línea, sin el dato que le seguía. `flex-wrap` decide
+   por ITEM completo, no le importa que uno sea "solo un punto": si cabe, se
+   queda, aunque lo de después no quepa. El arreglo: el "·" pasa a ser un
+   `::before` DENTRO del dato que le sigue (`.filaCicloMetaPieza`, más abajo)
+   — mismo elemento, mismo item de flex, así que ya no hay forma de que se
+   separen al envolver. Ya no queda ningún `<span className={sep}>` en
+   `page.tsx`/`PanelAgenda.tsx`: los tres huecos de "sala · clase · fecha" (y
+   el cuarto de "Próximas", que ganó su clase en esta misma revisión — ver
+   Cumplimiento) usan `.filaCicloMetaPieza` para las tres piezas. */
+.filaCicloMetaPieza:not(:first-child)::before { content: '·'; margin-right: 0.35rem; color: var(--borde-fuerte); }
 /* La sala, COMO SU PROPIO ENLACE (ronda 14.4, tarea 1) — mismo tratamiento
    que `.acuerdoSala` en `FilaAcuerdo.tsx` (`cliente.module.css`): ahí donde
    una tarjeta ya no es un único `<a>` (Cerradas, más abajo), la sala sigue
@@ -159,6 +172,39 @@ a.filaCiclo:hover { border-left-color: var(--acento); }
    no puede ser el `<a>` entero de la tarjeta (ver el comentario de la
    sección "Cerradas" en `page.tsx`). */
 .filaCicloAcciones { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+/* "CERRADAS" SE PLIEGA (revisión C1, hallazgo I2): requisito LITERAL del
+   brief (Step 4, punto 2: "el módulo se pliega, al final") que la primera
+   pasada dejó fuera — ni en el código ni en su propio informe. El mecanismo
+   YA EXISTÍA en el repo: `details`/`summary` nativos, el mismo que ya usa la
+   sala para sus acuerdos cumplidos (`.cumplidosPlegable`/`.cumplidosResumen`,
+   `cliente.module.css`) — seis tarjetas de junta ya cerrada son justo el
+   "archivo muerto al final de la página" que el plegado viene a resolver.
+   `page.tsx` pone el `<h2>` de siempre COMO PRIMER (Y ÚNICO) HIJO del
+   `<summary>` —el HTML lo permite: "si es el primer hijo de un `<details>`,
+   un elemento de encabezado"— para no perder el rol `heading` que ya usan
+   los otros tres módulos y el guardia "los cuatro módulos siguen
+   existiendo" (`page.test.tsx`): `.cerradasResumen` es el `<summary>`
+   (cursor, marcador, foco) y `.cicloTitulo` (arriba) sigue siendo la
+   tipografía del `<h2>` de adentro, sin duplicarla. Abierto por defecto
+   (`open`, en `page.tsx`) — mismo criterio que `Seccion.tsx`
+   (`abierta = true`, "se colapsa quien quiera"): nadie pierde de un día
+   para otro las tarjetas que hoy ve sin hacer nada. */
+.cerradasResumen {
+  display: flex; align-items: center; gap: 0.5rem;
+  cursor: pointer; list-style: none; width: fit-content;
+}
+.cerradasResumen::-webkit-details-marker { display: none; }
+.cerradasResumen::before {
+  content: '▸'; order: -1; font-size: 0.85rem; color: var(--tx-3);
+  transition: transform 140ms ease;
+}
+/* `details[open]` (elemento, no una clase propia): el `<details>` de
+   `page.tsx` no lleva clase —nada más lo distingue, no hace falta— así que
+   el selector cuelga directo del atributo nativo. */
+details[open] > .cerradasResumen::before { transform: rotate(90deg); }
+.cerradasResumen:hover::before { color: var(--tx); }
+.cerradasResumen:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: var(--r-2); }
 
 /* ---- el calendario adelgaza; su hueco (ronda 14.4, tarea 1) ----
    El defecto medido (informe de la tarea, Step 1): a 1440px el calendario en
@@ -176,21 +222,43 @@ a.filaCiclo:hover { border-left-color: var(--acento); }
    `.lateral` propias de `agenda.module.css` (sin tocar ese archivo: el
    `<aside>` pasa a renderizarse SIEMPRE, con contenido distinto según haya
    o no formulario abierto — antes era condicional entero). */
-/* ⚠️ MEDIDO EN EL STEP 6 DE ESTA TAREA: la primera versión dejaba el segundo
-   track en `1fr` (crece sin tope) y el contenido del hueco con
-   `max-width:22rem` — el track se estiraba a ~724px pero el contenido adentro
-   seguía angosto, así que el hueco muerto simplemente SE MOVIÓ (de junto al
-   calendario a junto a los filtros) en vez de cerrarse. El arreglo: LOS DOS
-   tracks acotados (`24rem` el segundo, no `1fr`) y `.filaSuperior` con su
-   propio `max-width` —igual que ya hacía `.panel` antes de esta tarea, solo
-   que ahora cubre calendario+hueco juntos—, para que lo que sobra de `.main`
-   quede como margen de página normal, no como una segunda caja vacía. */
+/* ⚠️ MEDIDO EN EL STEP 6 DE ESTA TAREA (primera pasada): la primera versión
+   dejaba el segundo track en `1fr` (crece sin tope) y el contenido del hueco
+   con `max-width:22rem` — el track se estiraba a ~724px pero el contenido
+   adentro seguía angosto, así que el hueco muerto simplemente SE MOVIÓ (de
+   junto al calendario a junto a los filtros) en vez de cerrarse. El intento
+   siguiente puso LOS DOS tracks acotados (`32rem`/`28rem` fijos) con
+   `.filaSuperior` topado a `max-width: 63rem` — pero eso abrió el defecto que
+   BLOQUEÓ la revisión (C1/I4, ronda 14.4): un `max-width` propio, más
+   angosto que el de `.main` (84rem, el mismo que usan las tarjetas de abajo),
+   le quitó al calendario los píxeles que necesitaba para sus nombres de
+   sala. Medido en el print que bloqueó: calendario a 512px (32rem) — 73px
+   por columna de día, menos el padding de `.marca` — truncaba los cinco
+   nombres largos ("Research Land" → "Resea…", "House of Films" → "House
+   …"), y la fila entera (`<select>` hasta x=1075, leyenda hasta x=964)
+   cortaba 277px antes que las tarjetas (x=1352): dos anchos de contenido
+   distintos en la misma página.
+   ⚠️ EL ARREGLO (cierra C1 e I4 a la vez): SIN `max-width` propio —esta fila
+   llena el mismo ancho que `.main` (84rem de CAJA, pero `box-sizing:
+   border-box` — su padding, `clamp(1rem,4vw,2.5rem)`, se resta de esos
+   84rem, así que el ANCHO DE CONTENIDO real a 1440px es 79rem/1264px, no
+   84rem: el mismo que ya usan las tarjetas de abajo, MEDIDO tras el arreglo
+   —`<select>`/leyenda/tarjetas los tres en x=1352—), y el PRIMER track pasa
+   a `1fr` (el calendario se lleva lo que sobra) con el SEGUNDO acotado a
+   `minmax(18rem, 21rem)` (filtros/leyenda no necesitan más para leerse
+   cómodos; un primer intento con `26rem` —de más, sin medir tras el cambio—
+   seguía dejando "Marketing United" truncado por 76px). MEDIDO tras este
+   arreglo, a 1440px: calendario en 900px (56.25rem) —4px por encima de los
+   896px (56rem) a los que ya se leían los cinco nombres completos ANTES de
+   que existiera el `<aside>`, ver `antes-1440.png` del informe de esta tarea—,
+   los SEIS nombres de sala del calendario (incluida "Marketing United", el
+   más largo) sin truncar, y sin margen muerto entre la fila y las tarjetas.
+   `scrollWidth === clientWidth` en 1440 y 390: sin desborde horizontal. */
 .filaSuperior {
   display: grid;
-  grid-template-columns: minmax(0, 32rem) minmax(16rem, 28rem);
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 21rem);
   gap: 1.75rem;
   align-items: start;
-  max-width: 63rem;
 }
 /* Sin `max-width` propio: llena el track de `.filaSuperior` (arriba) en vez
    de quedarse angosto dentro de un `<aside>` más ancho — ver el comentario
@@ -200,6 +268,21 @@ a.filaCiclo:hover { border-left-color: var(--acento); }
   display: flex; align-items: baseline; gap: 0.6rem;
   font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--tx-3); font-weight: 700; margin: 0 0 0.75rem;
+}
+
+/* AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): con el formulario
+   abierto, el `<aside>` sustituye Filtros/Leyenda por "Agendar una reunión"
+   —los `<select>` siguen aplicados (`PanelAgenda.tsx` no los resetea), pero
+   dejan de estar a la vista mientras se elige un día. Sin nada que lo diga,
+   el calendario se ve filtrado sin ningún control visible que lo explique
+   —justo mientras se agenda—. Este aviso es el "al menos" que pide la
+   revisión (subir el filtro a `searchParams` y cubrir las cuatro secciones
+   queda anotado como siguiente paso, fuera de esta ronda): una línea corta,
+   visible SOLO si hay un filtro activo Y el formulario está abierto —en
+   reposo los propios `<select>` ya muestran su valor, repetirlo sería ruido. */
+.avisoFiltro {
+  margin: 0 0 1.1rem; padding: 0.55rem 0.8rem; border-radius: var(--r-3);
+  background: var(--tibia-suave); color: var(--tx-2); font-size: 0.82rem;
 }
 
 /* FILTROS — mismo patrón que `.filtros`/`.filtro`/`.select` de
@@ -246,7 +329,11 @@ a.filaCiclo:hover { border-left-color: var(--acento); }
    ronda (Step 6): a 390px la leyenda seguía en dos columnas de 171px, sin
    apilarse. */
 @media (max-width: 62rem) {
-  .filaSuperior { grid-template-columns: minmax(0, 1fr); max-width: none; }
+  /* `.filaSuperior` YA NO TIENE `max-width` PROPIO (arreglo C1/I4, ver su
+     comentario) — nada que resetear aquí con `max-width: none`; el único
+     cambio que sigue haciendo falta a este ancho es volver el grid a una
+     columna. */
+  .filaSuperior { grid-template-columns: minmax(0, 1fr); }
   /* Apilado a una columna: los dos `<select>` de `.filtros` (y la leyenda)
      vuelven a una sola columna — a dos, con el hueco ya de ancho completo en
      un teléfono, cada `<select>` se quedaría sin sitio para su texto. */
