@@ -11,7 +11,7 @@ import { moldeODefecto, MOLDE_POR_DEFECTO, type MoldeMinuta } from '@/minuta/mol
  * preparados; por ejemplo la Estatus Mensual con RL debería tener una
  * estructura predefinida".
  *
- * QUIÉN LAS DEFINE, y por qué importa: las cinco de código son genéricas a
+ * QUIÉN LAS DEFINE, y por qué importa: las seis de código son genéricas a
  * propósito. Qué lleva exactamente el estatus mensual de Research Land lo sabe
  * quien lo da; escribirlo yo sería inventar un compromiso entre Marketing
  * Corporativo y una unidad. Por eso el camino principal no es un catálogo más

@@ -498,7 +498,7 @@ export const benchmarks = pgTable('benchmarks', {
  * `tipo` distingue si lo que se fija es la ESTRUCTURA de la presentación o el
  * MOLDE de la minuta.
  *
- * LAS DEFINE EL EQUIPO, no el sistema. Las cinco plantillas de código son
+ * LAS DEFINE EL EQUIPO, no el sistema. Las seis plantillas de código son
  * genéricas a propósito; qué lleva exactamente el estatus mensual de Research
  * Land lo sabe quien lo da, y adivinarlo aquí sería inventar un compromiso.
  * Por eso el camino principal es "guarda ESTA estructura como plantilla".

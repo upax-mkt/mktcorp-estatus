@@ -63,7 +63,7 @@ describe('el catálogo de plantillas', () => {
     // desde el minuto uno, no como una sección lista para llenar. El test de
     // arriba solo miraba `items[0]` (la portada) y por eso no cazó que al
     // segundo item de `sync-comercial` le faltaba el suyo — este mira los
-    // items completos de las cinco plantillas.
+    // items completos de las seis plantillas.
     for (const p of PLANTILLAS) {
       for (const item of p.items) {
         expect(item.layout, `${p.id} → ${item.tipo}`).toBeDefined()

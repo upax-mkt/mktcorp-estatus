@@ -316,22 +316,17 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
   })
 
   /**
-   * CRÍTICO C2 (ronda 14-2, fix 3/4). `SesionAgendada` (arriba en este mismo
-   * archivo) NO DECLARA `plantilla`, y el `inicial={{...}}` que arma la
-   * edición (más abajo, en el propio `PanelAgenda`) tampoco la incluye — así
-   * que `plantillaInicial()` (`FormularioSesion.tsx`), que distingue "vino la
-   * clave" de "no vino" con el operador `in`, nunca ve la clave puesta y cae
-   * SIEMPRE a `PLANTILLA_POR_DEFECTO` ('estatus-udn'), sea cual sea la clase
-   * real de la reunión. La sala/día/hora/tipo SÍ llegan bien (ver el test de
-   * arriba, "clic en 'Editar' abre el formulario... prellenado"): esto no es
-   * un fallo del cableado en general, es específico de `plantilla`.
+   * CRÍTICO C2 (ronda 14-2, fix 3/4) — YA CORREGIDO, este test es su
+   * regresión. `SesionAgendada` (`PanelAgenda.tsx`) SÍ declara `plantilla:
+   * string | null`, y el `inicial={{...}}` que arma la edición (en el propio
+   * `PanelAgenda`) SÍ la incluye — así que `plantillaInicial()`
+   * (`FormularioSesion.tsx`), que distingue "vino la clave" de "no vino" con
+   * el operador `in`, ve la clave puesta y arranca en la clase real de la
+   * reunión, no en `PLANTILLA_POR_DEFECTO` ('estatus-udn') por defecto.
    *
-   * `sesion(...)` (el helper de arriba) construye un `SesionAgendada` — el
-   * tipo real, sin `plantilla` todavía — así que el campo se añade por fuera
-   * con un cast: es exactamente la forma real que trae `ReunionResumen`
-   * (`src/db/reuniones.ts`, que SÍ declara `plantilla` desde la tarea 3) una
-   * vez que `page.tsx`/`PanelAgenda.tsx` terminen de cargarla hasta aquí —
-   * el cast no inventa nada que el arreglo no vaya a producir de verdad.
+   * `sesion(...)` (el helper de arriba) ya construye un `SesionAgendada` con
+   * `plantilla` incluida de fábrica (`plantilla: null` por defecto, línea
+   * ~71) — sin cast: es un campo más del tipo, no un añadido por fuera.
    */
   it('CRÍTICO C2: al editar una junta YA clasificada, el formulario arranca en su clase real, no en "Estatus de UDN" por defecto', async () => {
     const usuario = userEvent.setup()

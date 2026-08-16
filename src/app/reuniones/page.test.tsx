@@ -302,21 +302,18 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
   })
 
   /**
-   * CRÍTICO C2 (ronda 14-2, fix 3/4), mitad `page.tsx`. `paraElPanel`
-   * (`page.tsx`, ~314-331) mapea `ReunionResumen` → `SesionAgendada` campo
-   * por campo, y no incluye `r.plantilla` — que sí existe en el objeto de
-   * origen (`ReunionResumen.plantilla`, `src/db/reuniones.ts`) desde la
-   * tarea 3 de esta misma ronda. `PanelAgenda` recibe entonces una fila SIN
-   * la clave `plantilla` en absoluto (ni `null` ni el valor real): es la
-   * otra mitad de por qué el formulario de edición cae siempre al default
-   * del catálogo (ver `PanelAgenda.test.tsx`, describe "Editar").
+   * CRÍTICO C2 (ronda 14-2, fix 3/4), mitad `page.tsx` — YA CORREGIDO, este
+   * test es su regresión. `paraElPanel` (`page.tsx`, ~314-336) SÍ incluye
+   * `plantilla: r.plantilla ?? null` en el mapeo de `ReunionResumen` a
+   * `SesionAgendada`, así que `PanelAgenda` recibe la clave con el valor real
+   * (o `null`), nunca ausente.
    *
    * Se prueban las DOS reuniones a la vez —una clasificada, una sin clase—
    * porque son casos distintos que un arreglo a medias podría aprobar por
    * separado: copiar el campo pero con un `?? ''`/`?? 'estatus-udn'` en vez
    * de `?? null` pasaría el primer `expect` y fallaría el segundo.
    */
-  it('CRÍTICO C2: paraElPanel copia la clase real (plantilla) de cada reunión a SesionAgendada — hoy se pierde en el mapeo', async () => {
+  it('CRÍTICO C2: paraElPanel copia la clase real (plantilla) de cada reunión a SesionAgendada', async () => {
     listarReunionesMock.mockResolvedValue([
       reunion({ id: 'r-clasificada', plantilla: 'sync-comercial' }),
       reunion({ id: 'r-sin-clase', plantilla: null }),
