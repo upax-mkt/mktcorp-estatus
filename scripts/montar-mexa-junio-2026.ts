@@ -601,7 +601,11 @@ const SECCIONES: Seccion[] = [
       subtitulo: '¿En qué industrias prospectar de julio a septiembre?',
       matriz: {
         columnas: ['JUL', 'AGO', 'SEP'],
-        // El orden es el del original, de arriba abajo.
+        // El orden es el de los CINCO FOCOS numerados de la sección anterior
+        // (menor, mayor, manufactureras, profesionales, alojamiento), no el del
+        // original, que en la brújula intercambia mayor y manufactureras. Son
+        // las mismas cinco industrias a una pantalla de distancia: cruzarlas
+        // con dos órdenes distintos hace tropezar. No cambia ni un estado.
         filas: [
           {
             encabezado: 'Comercio al por menor',
