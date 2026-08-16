@@ -638,82 +638,77 @@ const SECCIONES: Seccion[] = [
       notaPie: '¿En qué industrias deberías prospectar este mes? La brújula responde por trimestre; el ciclo estimado de prospección a cierre de Mexa se anota bajo la industria a la que aplica. Fuente de los ciclos: HubSpot 2024, 6Sense 2025 y datos de UiX y Marketing United.',
     },
   },
+  // CINCO BLOQUES EN UNA PANTALLA, no en tres. Cada foco traía seis o siete
+  // viñetas de servicios: treinta líneas que repetían "Campañas de marca" en
+  // cuatro de las cinco industrias y empujaban el bloque a tres pantallas de
+  // estructura idéntica. Lo que un director decide aquí es a QUÉ industria
+  // entrar y CON QUÉ frase, y eso es el racional y la oferta gancho. El
+  // catálogo de servicios es material de venta: no se pierde, va al anexo que
+  // sigue, donde se lee de un golpe en vez de repartido en cinco listas.
+  //
+  // La etiqueta ahora carga la ventana que dice la brújula de la sección
+  // anterior, para que las dos pantallas se lean juntas.
   {
     nombre: 'Focos Q3',
     borrador: {
       layout: 'tarjetas-numeradas',
       titulo: 'Outbound & Pipeline | Focos Q3',
-      subtitulo: 'Cuatro industrias con ventana abierta en Q3 y una táctica, por orden de prioridad',
+      subtitulo: 'A qué industria entrar y con qué frase, en el orden en que conviene atacarlas',
       bloques: [
         {
           titulo: 'Comercio al por menor',
-          etiqueta: 'Prioridad alta',
+          etiqueta: 'Prioridad alta · vende en julio y septiembre',
           parrafo: 'Es una de las mejores industrias para Mexa porque combina dos ventanas verdes en Q3. Con ciclo de 1–1.5 meses, lo que abramos hoy puede llegar a cierre en agosto o estar listo para septiembre.',
-          puntos: [
-            { texto: 'Campañas de marca.' },
-            { texto: 'Estrategia creativa.' },
-            { texto: 'Posicionamiento.' },
-            { texto: 'Campañas de temporada.' },
-            { texto: 'Lanzamientos.' },
-            { texto: 'Conceptualización de campañas 360.' },
-          ],
           pie: { rotulo: 'Oferta gancho', texto: 'Ayudamos a marcas de retail a convertir temporada, promociones o lanzamientos en campañas con narrativa clara, presencia consistente y mejor recordación en el mercado mexicano.' },
         },
         {
           titulo: 'Comercio al por mayor',
-          etiqueta: 'Prioridad alta',
+          etiqueta: 'Prioridad alta · vende en julio y septiembre',
           parrafo: 'También tiene doble verde en Q3 y puede tener mucha necesidad de marca, campañas comerciales y comunicación para canales.',
-          puntos: [
-            { texto: 'Campañas de marca.' },
-            { texto: 'Estrategia de comunicación B2B/B2B2C.' },
-            { texto: 'Materiales para canal.' },
-            { texto: 'Campañas para distribuidores.' },
-            { texto: 'Branding comercial.' },
-            { texto: 'Comunicación para empujar sell-out.' },
-          ],
           pie: { rotulo: 'Oferta gancho', texto: 'Fortalecemos la presencia de marca frente a canales, distribuidores y clientes finales para apoyar objetivos comerciales y acelerar demanda.' },
         },
         {
           titulo: 'Industrias manufactureras',
-          etiqueta: 'Prioridad alta para agosto',
+          etiqueta: 'Prioridad alta para agosto · abrir en julio',
           parrafo: 'Agosto está en verde, entonces julio es justo el mes para abrir conversación. Para Mexa, esta industria puede ser potente si abordamos desde marca, producto, lanzamiento, comunicación institucional o campañas comerciales.',
-          puntos: [
-            { texto: 'Campañas de producto.' },
-            { texto: 'Branding o reposicionamiento.' },
-            { texto: 'Lanzamientos.' },
-            { texto: 'Comunicación de innovación.' },
-            { texto: 'Estrategia para entrada a nuevos mercados.' },
-            { texto: 'Campañas B2B / trade.' },
-          ],
           pie: { rotulo: 'Oferta gancho', texto: 'Ayudamos a transformar productos, capacidades industriales o propuestas técnicas en campañas claras, relevantes y comercialmente accionables.' },
         },
         {
           titulo: 'Servicios profesionales',
-          etiqueta: 'Prioridad alta para agosto',
+          etiqueta: 'Prioridad alta para agosto · abrir en julio',
           parrafo: 'Agosto está en verde, y además en la brújula aparece directamente relacionado con Consultoría de marca.',
-          puntos: [
-            { texto: 'Consultoría de marca.' },
-            { texto: 'Estrategia de posicionamiento.' },
-            { texto: 'Narrativa comercial.' },
-            { texto: 'Rebranding.' },
-            { texto: 'Arquitectura de marca.' },
-            { texto: 'Campañas de autoridad / thought leadership.' },
-            { texto: 'Comunicación para servicios complejos.' },
-          ],
           pie: { rotulo: 'Oferta gancho', texto: 'Convertimos servicios complejos en una propuesta de marca clara, diferenciada y fácil de entender para el mercado mexicano.' },
         },
         {
           titulo: 'Servicios de alojamiento temporal y preparación de alimentos y bebidas',
-          etiqueta: 'Prioridad media / táctica',
+          etiqueta: 'Prioridad media · solo táctico, vende en julio',
           parrafo: 'Julio está en verde, pero el ciclo de Mexa es de 1–1.5 meses. Solo foco si son oportunidades rápidas, cuentas calientes o campañas muy tácticas.',
-          puntos: [
-            { texto: 'Campañas de marca.' },
-            { texto: 'Campañas promocionales.' },
-            { texto: 'Lanzamientos de temporada.' },
-            { texto: 'Comunicación para restaurantes, hoteles, grupos gastronómicos o turismo.' },
-            { texto: 'Campañas para tráfico, awareness o experiencia.' },
-          ],
           pie: { rotulo: 'Oferta gancho', texto: '"Diseñamos campañas que conectan y son ágiles para aumentar visibilidad, tráfico y recordación en momentos clave de consumo."' },
+        },
+      ],
+    },
+  },
+
+  // El catálogo que salió de los cinco focos, entero y en una tabla. Aquí se
+  // ve lo que repartido en cinco listas no se veía: cuatro de las cinco
+  // industrias abren con "Campañas de marca", y lo que de verdad distingue a
+  // cada una son las dos o tres últimas de su fila.
+  {
+    nombre: 'Servicios por industria',
+    borrador: {
+      layout: 'grafico-y-tabla',
+      titulo: 'Focos Q3 | Servicios por industria',
+      subtitulo: 'El catálogo con el que se entra a cada una',
+      tablas: [
+        {
+          columnas: ['Industria', 'Servicios'],
+          filas: [
+            { celdas: ['Comercio al por menor', 'Campañas de marca · Estrategia creativa · Posicionamiento · Campañas de temporada · Lanzamientos · Conceptualización de campañas 360'] },
+            { celdas: ['Comercio al por mayor', 'Campañas de marca · Estrategia de comunicación B2B/B2B2C · Materiales para canal · Campañas para distribuidores · Branding comercial · Comunicación para empujar sell-out'] },
+            { celdas: ['Industrias manufactureras', 'Campañas de producto · Branding o reposicionamiento · Lanzamientos · Comunicación de innovación · Estrategia para entrada a nuevos mercados · Campañas B2B / trade'] },
+            { celdas: ['Servicios profesionales', 'Consultoría de marca · Estrategia de posicionamiento · Narrativa comercial · Rebranding · Arquitectura de marca · Campañas de autoridad / thought leadership · Comunicación para servicios complejos'] },
+            { celdas: ['Alojamiento temporal y alimentos', 'Campañas de marca · Campañas promocionales · Lanzamientos de temporada · Comunicación para restaurantes, hoteles, grupos gastronómicos o turismo · Campañas para tráfico, awareness o experiencia'] },
+          ],
         },
       ],
     },
@@ -805,19 +800,38 @@ async function main() {
 
   // Modo actualizar: reescribe el contenido de una reunión YA montada, sin
   // crear otra. El id no cambia, así que un enlace ya compartido sigue
-  // sirviendo. Exige que la estructura coincida —mismo número de secciones,
-  // mismo orden— porque eso es lo que hace segura la correspondencia por
-  // posición; si alguien añadió o quitó secciones a mano, se para.
+  // sirviendo.
+  //
+  // RECONCILIA EL NÚMERO DE SECCIONES en vez de exigir que coincida. La
+  // versión anterior se paraba si el guion había crecido, y rediseñar el deck
+  // —que es justo cuando aparecen o desaparecen secciones— obligaba a crear
+  // una reunión nueva y a tirar el enlace anterior. Ahora añade las que
+  // falten, borra las que sobren y reescribe todo por posición.
   const iActualizar = process.argv.indexOf('--actualizar')
   if (iActualizar >= 0) {
     const reunionId = process.argv[iActualizar + 1]
     if (!reunionId) { console.error('Falta el id tras --actualizar'); process.exit(1) }
-    const { documentoDeReunion } = await import('../src/db/documentos')
-    const doc = await documentoDeReunion(reunionId)
+    const { documentoDeReunion, eliminarSeccion } = await import('../src/db/documentos')
+    let doc = await documentoDeReunion(reunionId)
     if (!doc) { console.error(`La reunión ${reunionId} no tiene documento`); process.exit(1) }
 
+    // Sobran: se borran desde el final, para no mover a las que se quedan.
+    for (let i = doc.items.length - 1; i >= SECCIONES.length; i--) {
+      await eliminarSeccion(doc.id, doc.items[i].id)
+      console.log(`  − sección ${i + 1} eliminada`)
+    }
+    // Faltan: se añaden con el layout que les toca; el contenido se escribe
+    // después, en la pasada por posición.
+    for (let i = doc.items.length; i < SECCIONES.length; i++) {
+      await anadirSeccion(doc.id, SECCIONES[i].borrador.layout, SECCIONES[i].nombre)
+      console.log(`  + ${SECCIONES[i].nombre}`)
+    }
     if (doc.items.length !== SECCIONES.length) {
-      console.error(`La estructura no coincide: el documento tiene ${doc.items.length} secciones y el guion ${SECCIONES.length}. No se toca nada.`)
+      doc = await documentoDeReunion(reunionId)
+      if (!doc) { console.error('El documento desapareció al reconciliar'); process.exit(1) }
+    }
+    if (doc.items.length !== SECCIONES.length) {
+      console.error(`No se pudo reconciliar: el documento quedó con ${doc.items.length} secciones y el guion tiene ${SECCIONES.length}.`)
       process.exit(1)
     }
     for (let i = 0; i < SECCIONES.length; i++) {
