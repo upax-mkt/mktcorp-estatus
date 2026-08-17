@@ -186,16 +186,24 @@
 }
 
 /* Quien pidió menos movimiento lo ve completo y quieto, sin excepciones. */
+/* ⚠️ `!important`, COMO EN EL BLOQUE DE IMPRESIÓN DE ARRIBA, Y NO ES ADORNO:
+   sin él estas reglas PIERDEN y la preferencia se ignora en silencio.
+   Las que esconden el gráfico para animarlo son `.animado[data-animar='true']
+   :is(...)` — con un selector de atributo, o sea más específicas que
+   `.animado :is(...)`. Empatar en especificidad no basta contra un atributo;
+   el bloque de impresión ya lo había resuelto así y este se quedó atrás.
+   Quien pide reducir movimiento no está pidiendo una animación más suave:
+   está pidiendo que no la haya. */
 @media (prefers-reduced-motion: reduce) {
   .animado :is(text, [data-testid='barra'], [data-testid='sector'], [data-testid='punto'], [data-testid='area']) {
-    opacity: 1;
-    animation: none;
-    transform: none;
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
   }
   .animado :is([data-testid='linea'], [data-testid='linea-meta']) {
-    stroke-dasharray: none;
-    stroke-dashoffset: 0;
-    animation: none;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
   }
 }
 
