@@ -132,9 +132,30 @@ vi.mock('@/db/salas', () => ({
 
 const panelAgendaPropsMock = vi.fn()
 vi.mock('@/componentes/agenda/PanelAgenda', () => ({
-  PanelAgenda: (props: unknown) => {
+  // El stub RENDERIZA `entreCalendarioYProximas`/`despuesDeProximas` (ronda
+  // 15, cierre de la deuda B) — antes esas tres secciones ("Por confirmar"/
+  // "Falta su minuta"/"Cerradas") eran HIJAS DIRECTAS de `<main>` en
+  // `page.tsx`, hermanas de `<PanelAgenda>`, así que aparecían en el árbol
+  // aunque el mock ignorara sus props. Desde que `page.tsx` las arma como
+  // JSX y se las PASA a `PanelAgenda` (para que el componente real las
+  // coloque en el orden correcto del DOM — ver su comentario de archivo), un
+  // stub que las ignore las borraría del todo y tumbaría cada test de más
+  // abajo que busca "Por confirmar"/"Se dieron, falta su minuta"/"Cerradas"
+  // en pantalla. El stub no necesita saber el ORDEN real entre ellas (eso lo
+  // prueba `PanelAgenda.test.tsx`, que monta el componente de verdad) — solo
+  // que las tres SIGAN existiendo cuando este archivo las busca.
+  PanelAgenda: (props: {
+    entreCalendarioYProximas?: React.ReactNode
+    despuesDeProximas?: React.ReactNode
+  }) => {
     panelAgendaPropsMock(props)
-    return <div data-testid="panel-agenda-stub">calendario + agendar (stub)</div>
+    return (
+      <div data-testid="panel-agenda-stub">
+        calendario + agendar (stub)
+        {props.entreCalendarioYProximas}
+        {props.despuesDeProximas}
+      </div>
+    )
   },
 }))
 // ⚠️ SIN un `<h2>Próximas</h2>` fijo aquí adentro (revisión C1, hallazgo
@@ -169,6 +190,20 @@ vi.mock('@/componentes/ReunionesPorConfirmar', () => ({
 }))
 
 const { default: PagReuniones, cicloDeReuniones } = await import('./page')
+
+/**
+ * `PagReuniones` recibe `searchParams` como PROMESA (ronda 15, cierre de la
+ * deuda B — mismo contrato que ya usan `/entrar` y `/salas` en esta versión
+ * de Next: ver el comentario de la firma en `page.tsx`), así que ya no se
+ * puede llamar sin argumento. Este helper es el único sitio que envuelve
+ * `Promise.resolve(...)`: los ~15 `render(await pagina())` de este archivo
+ * que NO les importa el filtro llaman `pagina()` a secas (mismo `{}` de
+ * siempre); los que sí prueban el filtro (más abajo) pasan `{ sala }`/
+ * `{ clase }` explícito.
+ */
+function pagina(params: { sala?: string; clase?: string } = {}) {
+  return PagReuniones({ searchParams: Promise.resolve(params) })
+}
 
 // ---- fixtures ----
 
@@ -275,7 +310,7 @@ describe('PagReuniones (/reuniones) — la lectura se exige antes de listar nada
   it('sin exigirLectura(), la página rechaza y listarReuniones ni se llama', async () => {
     exigirLecturaMock.mockRejectedValueOnce(new Error('Necesitas una cuenta de Marketing Corporativo para ver esto.'))
 
-    await expect(PagReuniones()).rejects.toThrow('Necesitas una cuenta')
+    await expect(pagina()).rejects.toThrow('Necesitas una cuenta')
 
     expect(listarReunionesMock).not.toHaveBeenCalled()
   })
@@ -283,7 +318,7 @@ describe('PagReuniones (/reuniones) — la lectura se exige antes de listar nada
 
 describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) se mudan tal cual', () => {
   it('renderiza PanelAgenda con TODAS las reuniones sin filtrar (el calendario las necesita todas) MÁS idsProximas ya deduplicados', async () => {
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.getByTestId('panel-agenda-stub')).toBeInTheDocument()
     expect(panelAgendaPropsMock).toHaveBeenCalledTimes(1)
@@ -308,7 +343,7 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
   it('agendarAction/editarAction que recibe PanelAgenda son las de ./acciones (mudadas a su propio archivo)', async () => {
     const { agendarReunionAction, editarReunionAction } = await import('./acciones')
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const props = panelAgendaPropsMock.mock.calls[0][0] as {
       agendarAction: unknown
@@ -336,7 +371,7 @@ describe('PagReuniones (/reuniones) — el calendario y "agendar" (PanelAgenda) 
       reunion({ id: 'r-sin-clase', plantilla: null }),
     ])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const props = panelAgendaPropsMock.mock.calls[0][0] as {
       sesiones: Array<{ id: string; plantilla?: string | null }>
@@ -757,7 +792,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
     const { marcarPresentadaAction, marcarNoDadaAction, desmarcarNoDadaAction } = await import('./acciones')
     listarReunionesMock.mockResolvedValue([R_CANCELADA])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.getByText('Por confirmar')).toBeInTheDocument()
     expect(reunionesPorConfirmarPropsMock).toHaveBeenCalledTimes(1)
@@ -776,7 +811,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
   it('sin nada por confirmar, la sección ni se monta (mismo criterio que el Home)', async () => {
     listarReunionesMock.mockResolvedValue([])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.queryByText('Por confirmar')).not.toBeInTheDocument()
     expect(reunionesPorConfirmarPropsMock).not.toHaveBeenCalled()
@@ -785,7 +820,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
   it('"Se dieron, falta su minuta" pinta cada fila enlazada a /deck/{id}/minuta', async () => {
     listarReunionesMock.mockResolvedValue([R_SIN_MINUTA])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const seccion = screen.getByText('Se dieron, falta su minuta').closest('section')!
     const link = within(seccion).getByText(R_SIN_MINUTA.titulo).closest('a')
@@ -803,7 +838,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
   it('"Cerradas" pinta cada fila con un enlace a su minuta y, si el documento está listo, a su documento', async () => {
     listarReunionesMock.mockResolvedValue([R_COMPLETA])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const seccion = screen.getByText('Cerradas').closest('section')!
     const fila = within(seccion).getByText(R_COMPLETA.titulo).closest('div')!
@@ -828,7 +863,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
     })
     listarReunionesMock.mockResolvedValue([cerradaSinSala])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const seccion = screen.getByText('Cerradas').closest('section')!
     expect(within(seccion).getByText('Comité cerrado')).toBeInTheDocument()
@@ -842,7 +877,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
   })
 
   it('las etiquetas viejas —"Ya dadas este mes", "Sin presentación"— ya no existen', async () => {
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.queryByText(/ya dadas este mes/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Sin presentación')).not.toBeInTheDocument()
@@ -851,7 +886,7 @@ describe('PagReuniones (/reuniones) — el ciclo de vida entero, en pantalla', (
   it('sin nada pendiente, "falta su minuta" y "cerradas" leen un vacío explícito, no una sección en blanco', async () => {
     listarReunionesMock.mockResolvedValue([])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.getByText('Se dieron, falta su minuta')).toBeInTheDocument()
     expect(screen.getByText(/nada pendiente de minutar/i)).toBeInTheDocument()
@@ -880,7 +915,7 @@ describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, t
       }),
     ])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.getByText(/neracode/i)).toBeInTheDocument()
     expect(screen.getByText(/sync comercial/i)).toBeInTheDocument()
@@ -894,7 +929,7 @@ describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, t
       }),
     ])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     expect(screen.getByText(/sin clasificar/i)).toBeInTheDocument()
     expect(screen.queryByText(/estatus de udn/i)).toBeNull()
@@ -903,7 +938,7 @@ describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, t
   it('una reunión cerrada lleva a su minuta y a su documento', async () => {
     listarReunionesMock.mockResolvedValue([R_COMPLETA])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const seccion = screen.getByText('Cerradas').closest('section')!
     expect(within(seccion).getByRole('link', { name: /ver su minuta/i })).toHaveAttribute(
@@ -917,7 +952,7 @@ describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, t
   it('una reunión cerrada SIN documento maquetado (el caso real: PDF subido) no ofrece "Ver su documento" — solo su minuta', async () => {
     listarReunionesMock.mockResolvedValue([R_SIN_PRESENTACION])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     const seccion = screen.getByText('Cerradas').closest('section')!
     expect(within(seccion).getByRole('link', { name: /ver su minuta/i })).toBeInTheDocument()
@@ -944,11 +979,175 @@ describe('PagReuniones (/reuniones) — cada tarjeta dice qué es (ronda 14.4, t
   it('los otros tres módulos siguen existiendo con sus nombres, y "Próximas" sigue viviendo en el componente real (no un stub vacío)', async () => {
     listarReunionesMock.mockResolvedValue([R_CANCELADA, R_SIN_MINUTA, R_COMPLETA])
 
-    render(await PagReuniones())
+    render(await pagina())
 
     for (const n of [/por confirmar/i, /falta su minuta/i, /cerradas/i]) {
       expect(screen.getByRole('heading', { name: n })).toBeInTheDocument()
     }
     expect(screen.getByTestId('panel-agenda-stub')).toBeInTheDocument()
+  })
+})
+
+/**
+ * EL FILTRO SUBE A `searchParams` Y ALCANZA LAS CUATRO SECCIONES (ronda 15,
+ * cierre de la deuda B). Hasta esta ronda `sala`/`clase` eran un `useState`
+ * DENTRO de `PanelAgenda` y solo angostaban el calendario y "Próximas" —el
+ * síntoma que reportó Franco: "eliges 'NeraCode' y abajo siguen apareciendo
+ * juntas de otras salas". Estos tests prueban lo que `PanelAgenda.test.tsx`
+ * NO puede probar (ese archivo mockea `next/navigation` y no ve `page.tsx`):
+ * que `PagReuniones` LEE `searchParams`, VALIDA lo que trae, y FILTRA
+ * `reuniones` antes de repartirlas a `paraElPanel`/`idsProximas` (vía
+ * `panelAgendaPropsMock`) y a "Por confirmar"/"Falta su minuta"/"Cerradas"
+ * (rendered de verdad, salvo `ReunionesPorConfirmar` — mockeada, ver arriba).
+ *
+ * Fixtures nuevas, cada una con el día YA PASADO (antes de `HOY_CIVIL`, more
+ * abajo) para caer en un módulo distinto de los tres que `page.tsx` pinta
+ * directamente — así un test que filtra por sala puede comprobar las TRES a
+ * la vez, no solo una.
+ */
+describe('PagReuniones (/reuniones) — el filtro sube a searchParams y alcanza las cuatro secciones (ronda 15, cierre de la deuda B)', () => {
+  const F_NERACODE_POR_CONFIRMAR = reunion({
+    id: 'f-neracode-porconfirmar', titulo: 'NeraCode por confirmar', fecha: '2026-08-10T18:00:00.000Z',
+    estado: 'agendada', salaSlug: 'neracode', salaNombre: 'NeraCode', salaColor: '#101010',
+  })
+  const F_NERACODE_FALTA_MINUTA = reunion({
+    id: 'f-neracode-falta', titulo: 'NeraCode falta minuta', fecha: '2026-08-10T18:00:00.000Z',
+    estado: 'dada', tieneMinuta: false, plantilla: 'sync-comercial',
+    salaSlug: 'neracode', salaNombre: 'NeraCode', salaColor: '#101010',
+  })
+  const F_MEXA_CERRADA = reunion({
+    id: 'f-mexa-cerrada', titulo: 'Mexa cerrada', fecha: '2026-08-05T18:00:00.000Z',
+    estado: 'dada', tieneMinuta: true,
+    salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa', salaColor: '#c0392b',
+  })
+  const F_COMITE_FALTA_MINUTA = reunion({
+    id: 'f-comite-falta', titulo: 'Comité sin sala', fecha: '2026-08-07T18:00:00.000Z',
+    estado: 'dada', tieneMinuta: false, plantilla: null,
+    salaSlug: null, salaNombre: 'Marketing Corp', salaColor: '#E34714',
+  })
+  const TODAS_FILTRO = [F_NERACODE_POR_CONFIRMAR, F_NERACODE_FALTA_MINUTA, F_MEXA_CERRADA, F_COMITE_FALTA_MINUTA]
+
+  /**
+   * `ReunionesPorConfirmar` está MOCKEADA en este archivo (ver el `vi.mock`,
+   * arriba) — su stub no pinta ningún título, así que "¿está `F_NERACODE_POR_
+   * CONFIRMAR` en 'Por confirmar'?" no se puede leer con `screen.getByText`
+   * como las otras tres fixtures. Se lee de `reunionesPorConfirmarPropsMock`,
+   * mismo patrón que ya usa el test "Por confirmar monta ReunionesPorConfirmar…"
+   * más arriba en este archivo.
+   */
+  function idsPorConfirmar(): string[] {
+    const ultimaLlamada = reunionesPorConfirmarPropsMock.mock.calls.at(-1)
+    if (!ultimaLlamada) return []
+    const props = ultimaLlamada[0] as { sesiones: Array<{ id: string }> }
+    return props.sesiones.map((s) => s.id)
+  }
+
+  beforeEach(() => {
+    // `reunionesPorConfirmarPropsMock`/`panelAgendaPropsMock` ya se limpian
+    // en el `beforeEach` de archivo (arriba) — este solo fija los datos que
+    // le hacen falta a ESTE describe.
+    listarReunionesMock.mockResolvedValue(TODAS_FILTRO)
+    // `F_NERACODE_POR_CONFIRMAR` necesita respaldo (`tieneRespaldo`,
+    // `dominio/reunion.ts`) para que `reunionesPorConfirmar` la acepte —
+    // mismo patrón que la fixture `r1` de "cicloDeReuniones — la regla dura",
+    // arriba. Las otras tres no lo necesitan (`tieneMinuta` ya trae su
+    // propio respaldo, o ninguna lo pide para "falta su minuta"/"cerradas").
+    documentoDeReunionMock.mockReset().mockImplementation((id: string) =>
+      Promise.resolve(id === F_NERACODE_POR_CONFIRMAR.id ? documento('listo', 5, 5) : null),
+    )
+  })
+
+  it('sin ningún filtro en la URL, las cuatro salen todas — cada una en su módulo', async () => {
+    render(await pagina())
+
+    expect(idsPorConfirmar()).toEqual([F_NERACODE_POR_CONFIRMAR.id]) // Por confirmar
+    expect(screen.getByText('NeraCode falta minuta')).toBeInTheDocument() // Falta su minuta
+    expect(screen.getByText('Mexa cerrada')).toBeInTheDocument() // Cerradas
+    expect(screen.getByText('Comité sin sala')).toBeInTheDocument() // Falta su minuta, sin sala
+  })
+
+  it('"?sala=neracode" deja SOLO lo de NeraCode — en las tres secciones, no solo el calendario', async () => {
+    render(await pagina({ sala: 'neracode' }))
+
+    expect(idsPorConfirmar()).toEqual([F_NERACODE_POR_CONFIRMAR.id])
+    expect(screen.getByText('NeraCode falta minuta')).toBeInTheDocument()
+    expect(screen.queryByText('Mexa cerrada')).not.toBeInTheDocument()
+    expect(screen.queryByText('Comité sin sala')).not.toBeInTheDocument()
+
+    // Y también el calendario/"Próximas" (`PanelAgenda`, vía el stub): la
+    // lista que le llega ya viene angostada, mismo criterio que las otras
+    // tres — la prueba de que las CUATRO comparten el mismo filtro.
+    const props = panelAgendaPropsMock.mock.calls[0][0] as { sesiones: Array<{ id: string }> }
+    expect(props.sesiones.map((s) => s.id)).toEqual([F_NERACODE_POR_CONFIRMAR.id, F_NERACODE_FALTA_MINUTA.id])
+  })
+
+  it('"?sala=sin-sala" deja SOLO el comité — ninguna sala real lo representaba antes de este marcador', async () => {
+    render(await pagina({ sala: 'sin-sala' }))
+
+    expect(screen.getByText('Comité sin sala')).toBeInTheDocument()
+    expect(idsPorConfirmar()).toEqual([])
+    expect(screen.queryByText('NeraCode falta minuta')).not.toBeInTheDocument()
+    expect(screen.queryByText('Mexa cerrada')).not.toBeInTheDocument()
+  })
+
+  it('"?sala=" con un slug que no existe se ignora — cae a "sin filtro", no revienta la pantalla', async () => {
+    render(await pagina({ sala: 'esta-sala-no-existe' }))
+
+    expect(idsPorConfirmar()).toEqual([F_NERACODE_POR_CONFIRMAR.id])
+    expect(screen.getByText('Mexa cerrada')).toBeInTheDocument()
+    expect(screen.getByText('Comité sin sala')).toBeInTheDocument()
+  })
+
+  it('"?clase=sync-comercial" deja solo esa clase', async () => {
+    render(await pagina({ clase: 'sync-comercial' }))
+
+    expect(screen.getByText('NeraCode falta minuta')).toBeInTheDocument()
+    // `F_NERACODE_POR_CONFIRMAR` no tiene clase (`plantilla` sin fijar =
+    // `null`), así que "sync-comercial" la deja fuera de "Por confirmar".
+    expect(idsPorConfirmar()).toEqual([])
+    expect(screen.queryByText('Mexa cerrada')).not.toBeInTheDocument()
+    expect(screen.queryByText('Comité sin sala')).not.toBeInTheDocument()
+  })
+
+  it('"?clase=sin-clasificar" deja solo las juntas SIN clase — el comité (plantilla: null) entre ellas', async () => {
+    render(await pagina({ clase: 'sin-clasificar' }))
+
+    expect(screen.getByText('Comité sin sala')).toBeInTheDocument()
+    expect(screen.queryByText('NeraCode falta minuta')).not.toBeInTheDocument() // esa SÍ tiene clase
+    // `F_NERACODE_POR_CONFIRMAR` (sin clase) SÍ pasa este filtro.
+    expect(idsPorConfirmar()).toEqual([F_NERACODE_POR_CONFIRMAR.id])
+  })
+
+  it('"?clase=" con un id que no existe en el catálogo se ignora — cae a "sin filtro"', async () => {
+    render(await pagina({ clase: 'esta-clase-no-existe' }))
+
+    expect(screen.getByText('NeraCode falta minuta')).toBeInTheDocument()
+    expect(screen.getByText('Mexa cerrada')).toBeInTheDocument()
+    expect(idsPorConfirmar()).toEqual([F_NERACODE_POR_CONFIRMAR.id])
+  })
+
+  it('sala Y clase a la vez: los dos filtros se aplican juntos (AND, no OR)', async () => {
+    render(await pagina({ sala: 'neracode', clase: 'sync-comercial' }))
+
+    // Solo `F_NERACODE_FALTA_MINUTA` es de NeraCode Y "Sync Comercial" a la
+    // vez — `F_NERACODE_POR_CONFIRMAR` es de NeraCode pero sin clase.
+    expect(screen.getByText('NeraCode falta minuta')).toBeInTheDocument()
+    expect(idsPorConfirmar()).toEqual([])
+  })
+
+  it('PanelAgenda recibe filtroSala/filtroClase YA VALIDADOS — un valor de la URL que no existe llega como cadena vacía, no tal cual', async () => {
+    render(await pagina({ sala: 'esta-sala-no-existe', clase: 'sync-comercial' }))
+
+    const props = panelAgendaPropsMock.mock.calls[0][0] as { filtroSala: string; filtroClase: string }
+    expect(props.filtroSala).toBe('')
+    expect(props.filtroClase).toBe('sync-comercial')
+  })
+
+  it('con un filtro activo, documentoDeReunion NO se llama para lo que quedó fuera (filtrar antes es más barato)', async () => {
+    render(await pagina({ sala: 'neracode' }))
+
+    const idsConsultados = documentoDeReunionMock.mock.calls.map((c) => c[0])
+    expect(idsConsultados).not.toContain(F_MEXA_CERRADA.id)
+    expect(idsConsultados).not.toContain(F_COMITE_FALTA_MINUTA.id)
   })
 })

@@ -56,34 +56,31 @@
    hoja (`page.tsx` y `PanelAgenda.tsx`, que la usa como `estilosCiclo`)
    antes de borrar. */
 
-/* `display:flex; flex-direction:column` (ronda 14.4, tarea 1) — antes era un
-   bloque normal (los hijos ya se apilaban solos, en orden de documento); el
-   cambio no es visual, es lo que habilita `order` en `.ordenPorConfirmar`/
-   `.ordenFaltaMinuta`/`.ordenProximas`/`.ordenCerradas`, más abajo — ver su
-   comentario para el porqué hace falta reordenar sin tocar el DOM. */
 .main {
   max-width: 84rem; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem;
-  display: flex; flex-direction: column;
 }
 
-/* EL ORDEN PASA A SER EL DEL TRABAJO (ronda 14.4, tarea 1, Step 4.5): primero
-   lo que exige una acción (Por confirmar, Falta su minuta), luego Próximas,
-   Cerradas al final. "Próximas" SIGUE viviendo dentro de `PanelAgenda.tsx`
-   (ahí vive "editar" — ver su comentario de archivo), así que en el
-   DOCUMENTO sigue naciendo ANTES que "Por confirmar"/"Falta su minuta" (ese
-   componente se monta primero, junto al calendario). `order` es lo que
-   separa POSICIÓN VISUAL de POSICIÓN EN EL DOM sin mover "Próximas" fuera de
-   donde vive de verdad su estado de edición — más barato y más seguro que
-   partir `PanelAgenda` en dos componentes solo para poder intercalar
-   secciones de Server Component entre sus piezas. `PanelAgenda.tsx` importa
-   ESTA hoja como `estilosCiclo` y le pone `.ordenProximas` a su sección
-   "Próximas" — ver ahí. Cabecera y el calendario (`.filaSuperior`, ver más
-   abajo en agenda.module.css/PanelAgenda) se quedan en el `order` por
-   defecto (0): son lo primero, y ya nacen primero en el DOM. */
-.ordenPorConfirmar { order: 1; }
-.ordenFaltaMinuta { order: 2; }
-.ordenProximas { order: 3; }
-.ordenCerradas { order: 4; }
+/* EL ORDEN VISUAL YA ES EL ORDEN DEL DOM (ronda 15, cierre de la deuda B —
+   antes, `.ordenPorConfirmar`/`.ordenFaltaMinuta`/`.ordenProximas`/
+   `.ordenCerradas`, con `order: 1..4` sobre un `.main` puesto en
+   `display:flex; flex-direction:column` SOLO para habilitarlo). El defecto
+   que eso escondía: quien navega con teclado o con lector de pantalla sigue
+   el DOM, no el `order` de CSS — salía del calendario y caía en "Próximas"
+   (la tercera visualmente, la primera en el documento porque nace dentro de
+   `PanelAgenda`), antes de llegar a "Por confirmar"/"Falta su minuta" (que
+   sí estaban primero en pantalla). El anti-patrón clásico de `flex order`:
+   reordena lo que se VE, no lo que se RECORRE.
+   El arreglo no es CSS — es `page.tsx`, que ahora arma "Por confirmar" y
+   "Falta su minuta" y se las pasa a `PanelAgenda` como
+   `entreCalendarioYProximas` (JSX, no una clase), para que ese componente
+   las coloque en su propio `return` DESPUÉS del calendario y ANTES de
+   "Próximas" — y "Cerradas" como `despuesDeProximas`, al final. El orden que
+   pidió Franco (lo que exige acción primero: Por confirmar · Falta su
+   minuta; luego Próximas; Cerradas al final) es ahora el orden LITERAL del
+   DOM, así que `.main` volvió a ser un bloque normal (sin `display:flex`):
+   sus hijos se apilan solos, en el orden en que nacen — ver el comentario de
+   `entreCalendarioYProximas`/`despuesDeProximas` en `PanelAgenda.tsx`
+   (`Props`) para el mecanismo completo. */
 
 /* Fila título + "agendar" (auditoría UX/UI, ronda 11 — arreglo del hueco
    muerto): mismo patrón que "+ Nueva reunión" en /deck (deck.module.css
@@ -271,28 +268,33 @@ details[open] > .cerradasResumen::before { transform: rotate(90deg); }
   color: var(--tx-3); font-weight: 700; margin: 0 0 0.75rem;
 }
 
-/* AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): con el formulario
-   abierto, el `<aside>` sustituye Filtros/Leyenda por "Agendar una reunión"
-   —los `<select>` siguen aplicados (`PanelAgenda.tsx` no los resetea), pero
-   dejan de estar a la vista mientras se elige un día. Sin nada que lo diga,
-   el calendario se ve filtrado sin ningún control visible que lo explique
-   —justo mientras se agenda—. Este aviso es el "al menos" que pide la
-   revisión (subir el filtro a `searchParams` y cubrir las cuatro secciones
-   queda anotado como siguiente paso, fuera de esta ronda): una línea corta,
-   visible SOLO si hay un filtro activo Y el formulario está abierto —en
-   reposo los propios `<select>` ya muestran su valor, repetirlo sería ruido. */
+/* AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3 — SIGUE VIVO tras subir el
+   filtro a `searchParams`, ronda 15): con el formulario abierto, el
+   `<aside>` sustituye Filtros/Leyenda por "Agendar una reunión" —el filtro de
+   la URL sigue aplicado, pero sus `<select>` dejan de estar a la vista
+   mientras se elige un día. Sin nada que lo diga, LA PANTALLA ENTERA (ya no
+   solo el calendario: desde esta ronda el filtro cubre las cuatro secciones)
+   se ve filtrada sin ningún control visible que lo explique —justo mientras
+   se agenda—. Una línea corta, visible SOLO si hay un filtro activo Y el
+   formulario está abierto —en reposo los propios `<select>` ya muestran su
+   valor, repetirlo sería ruido. */
 .avisoFiltro {
   margin: 0 0 1.1rem; padding: 0.55rem 0.8rem; border-radius: var(--r-3);
   background: var(--tibia-suave); color: var(--tx-2); font-size: 0.82rem;
 }
 
-/* FILTROS — mismo patrón que `.filtros`/`.filtro`/`.select` de
-   `bandeja.module.css` (`/acuerdos`, `TablaAcuerdos.tsx`): `<select>` de
-   cliente sobre una lista ya autorizada, sin ida y vuelta al servidor. Hoja
-   propia (no una importación cruzada) por el mismo motivo que ya explica la
-   cabecera de este archivo sobre el bloque de alias de `.app`: esta pantalla
-   declara sus propios tokens (`--superficie`, `--borde`...) y una hoja
-   ajena no los conoce. */
+/* FILTROS. HASTA LA RONDA 15 esta hoja decía "mismo patrón que
+   `.filtros`/`.filtro`/`.select` de `bandeja.module.css`
+   (`/acuerdos`, `TablaAcuerdos.tsx`): `<select>` de cliente sobre una lista
+   ya autorizada, sin ida y vuelta al servidor" — ya no es cierto: el filtro
+   de `/reuniones` SÍ vuelve al servidor desde esa ronda (sube a
+   `searchParams`, ver `PanelAgenda.tsx`), justo para poder alcanzar a las
+   otras tres secciones del ciclo, que `/acuerdos` no tiene. Las CLASES se
+   quedan igual (mismas reglas visuales) — es la mecánica de detrás la que
+   cambió. Hoja propia (no una importación cruzada) por el mismo motivo que
+   ya explica la cabecera de este archivo sobre el bloque de alias de
+   `.app`: esta pantalla declara sus propios tokens (`--superficie`,
+   `--borde`...) y una hoja ajena no los conoce. */
 /* Dos columnas a este ancho: `.hueco` mide siempre lo mismo (lo fija el
    track de `.filaSuperior`, arriba, no el viewport), así que —a diferencia
    de `.reunionFila`, que sí necesitó `@container` (ver ese comentario)— aquí

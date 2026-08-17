@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Calendario, type SesionEnCalendario } from './Calendario'
 import { FormularioSesion, type DatosFormulario, type SalaElegible } from './FormularioSesion'
 import { fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
@@ -41,9 +41,12 @@ import estilosCiclo from '@/app/reuniones/reuniones.module.css'
  * — cerrando el solape que existía cuando una reunión de HOY, con
  * presentación lista pero sin confirmar, contaba a la vez como "próxima" y
  * como "falta su minuta". Este componente solo CRUZA esos ids contra su
- * propio `sesiones` (que sigue llegando COMPLETO, sin filtrar: el calendario
- * necesita verlas todas) para pintar cada fila con sus datos completos —no
- * vuelve a decidir quién es "próxima", solo la pinta.
+ * propio `sesiones` para pintar cada fila con sus datos completos —no vuelve
+ * a decidir quién es "próxima", solo la pinta. `sesiones` YA LLEGA FILTRADA
+ * por sala/clase desde la ronda 15 (ver `LOS FILTROS SUBIERON A
+ * searchParams`, más abajo) — antes llegaba completa y el filtro se aplicaba
+ * aquí adentro; el calendario y "Próximas" reciben hoy exactamente la misma
+ * lista, ya angostada por `page.tsx`.
  *
  * AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO Y POR QUÉ LA CABECERA VIVE
  * AQUÍ: con "Próximas" ya en el flujo (arriba), el <aside> de 22rem junto al
@@ -79,15 +82,26 @@ import estilosCiclo from '@/app/reuniones/reuniones.module.css'
  * `.panel`/`data-activo` de esta hoja como el grid que reparte calendario y
  * `<aside>` — SIEMPRE a dos columnas en desktop, nunca una sola. Con
  * `agendando`/`editando`, el `<aside>` sigue mostrando el formulario, tal
- * cual. En reposo, en vez de nada, muestra FILTROS (sala/clase, sobre
- * `sesiones` — mismo patrón de cliente que `TablaAcuerdos.tsx` en
- * `/acuerdos`) y una LEYENDA de qué sala es cada color. Los filtros afectan
- * lo que este mismo componente pinta —el calendario y "Próximas"—, que es lo
- * único que vive de este lado del límite cliente/servidor; "Por confirmar"/
- * "Falta su minuta"/"Cerradas" (`page.tsx`, Server Component) no los ven —
- * filtrar esas tres desde aquí habría exigido subir su estado al servidor
- * (`searchParams`) solo para esto, más ceremonia que la que pide una mejora
- * de UX del calendario y su hueco. */
+ * cual. En reposo, en vez de nada, muestra FILTROS (sala/clase) y una
+ * LEYENDA de qué sala es cada color.
+ *
+ * LOS FILTROS SUBIERON A `searchParams` (ronda 15, cierre de la deuda B).
+ * Hasta esa ronda eran un `useState` de cliente sobre `sesiones` —mismo
+ * patrón que `TablaAcuerdos.tsx` en `/acuerdos`— y por eso solo alcanzaban a
+ * lo que este componente pinta (el calendario y "Próximas"): "Por
+ * confirmar"/"Falta su minuta"/"Cerradas" viven en `page.tsx`, un Server
+ * Component, y un `useState` de aquí nunca les llegaba. El rótulo del hueco
+ * lo confesaba ("Filtros — calendario y Próximas"). Ahora `page.tsx` lee
+ * `sala`/`clase` de `searchParams`, los valida contra las salas reales y el
+ * catálogo de clases, y filtra `reuniones` ANTES de repartirlas a las cuatro
+ * secciones —incluida `sesiones`/`idsProximas`, lo que este componente
+ * recibe—: `filtroSala`/`filtroClase` (props, abajo) llegan YA RESUELTOS,
+ * solo para fijar el `value` de los `<select>` y armar el aviso de filtro
+ * activo; este componente NO vuelve a filtrar nada por su cuenta. Elegir un
+ * valor nuevo en cualquiera de los dos navega —`router.replace`, sin recargar
+ * la app entera— a la misma ruta con la URL actualizada, y `page.tsx` vuelve
+ * a filtrar con el valor nuevo: el rótulo vuelve a decir solo "Filtros"
+ * porque ahora sí cubre las cuatro. */
 
 export interface SesionAgendada extends SesionEnCalendario {
   alcance: string
@@ -121,10 +135,16 @@ export interface SesionAgendada extends SesionEnCalendario {
 
 interface Props {
   /**
-   * TODAS las reuniones QUE AUTORIZÓ EL SERVIDOR, sin filtrar — la fuente de
-   * la que "Próximas" y el calendario del mes parten. Los filtros del hueco
-   * (ronda 14.4, tarea 1: sala/clase) son de CLIENTE, sobre ESTA lista —
-   * angostan lo que se pinta, nunca lo que llegó autorizado.
+   * Las reuniones QUE AUTORIZÓ EL SERVIDOR — la fuente de la que "Próximas"
+   * y el calendario del mes parten.
+   *
+   * YA LLEGA FILTRADA (ronda 15, cierre de la deuda B): hasta esa ronda esta
+   * lista llegaba COMPLETA y los filtros del hueco (sala/clase) la angostaban
+   * aquí adentro, de cliente, con un `useState`. Ahora `page.tsx` filtra
+   * `reuniones` contra `searchParams` ANTES de construir esta prop —mismo
+   * criterio que usa para las otras tres secciones del ciclo, ver su
+   * comentario— así que lo que llega aquí ya es lo que le toca ver a la URL
+   * actual. Este componente no vuelve a filtrar: solo pinta.
    */
   sesiones: SesionAgendada[]
   salas: SalaElegible[]
@@ -134,9 +154,26 @@ interface Props {
    * orden (la más próxima primero) por `cicloDeReuniones`
    * (`src/app/reuniones/page.tsx`) — ahí se explica por qué el cálculo no
    * puede vivir aquí adentro sin repetir el mismo solape que ya cerraron
-   * "falta su minuta"/"cerradas" contra "por confirmar".
+   * "falta su minuta"/"cerradas" contra "por confirmar". Ya salen de
+   * `reuniones` filtradas (ver `sesiones`, arriba), así que tampoco hace
+   * falta filtrarlos aquí.
    */
   idsProximas: string[]
+  /**
+   * EL FILTRO ACTIVO, YA VALIDADO POR EL SERVIDOR (ronda 15, cierre de la
+   * deuda B) — `SIN_FILTRO` (nada elegido), un slug real de sala o
+   * `SIN_SALA`, y un id real del catálogo de clases o `SIN_CLASIFICAR`.
+   * `page.tsx` es quien valida contra las salas reales y el catálogo antes
+   * de mandarlos —un `?sala=` con basura en la URL nunca llega hasta aquí—,
+   * así que este componente los usa tal cual: para fijar el `value` de cada
+   * `<select>`, para el aviso de "filtro activo" (`hayFiltroActivo`, más
+   * abajo) y para armar la URL nueva cuando cambia uno de los dos. Opcional,
+   * con `SIN_FILTRO` como default, para que los ~30 `render(...)` de
+   * `PanelAgenda.test.tsx` que no les importa el filtro no tengan que
+   * repetirlos — mismo criterio que `titulo`/`subtitulo`, abajo.
+   */
+  filtroSala?: string
+  filtroClase?: string
   agendarAction: (datos: DatosFormulario) => Promise<{ error?: string }>
   editarAction: (id: string, datos: DatosFormulario) => Promise<{ error?: string }>
   /**
@@ -148,22 +185,77 @@ interface Props {
    */
   titulo?: string
   subtitulo?: string
+  /**
+   * "POR CONFIRMAR" Y "FALTA SU MINUTA" —Server Components de `page.tsx`—
+   * YA ARMADOS: EL ORDEN DEL TRABAJO, EN EL DOM, NO EN CSS (ronda 15, cierre
+   * de la deuda B). Hasta esa ronda estas dos secciones vivían como HERMANAS
+   * de `<PanelAgenda>` en `page.tsx`, y un `order: 1`/`order: 2` en CSS
+   * (`.ordenPorConfirmar`/`.ordenFaltaMinuta`, `reuniones.module.css`) las
+   * subía visualmente por encima de "Próximas" (que nace DENTRO de este
+   * componente, y por eso queda antes que ellas en el documento) sin mover
+   * un solo nodo del DOM — el anti-patrón clásico de `flex order`: quien
+   * navega con teclado o con lector de pantalla sigue saliendo del
+   * calendario hacia "Próximas" (la tercera visualmente, la primera en el
+   * DOM) antes de llegar aquí, y luego salta hacia arriba para volver.
+   *
+   * El arreglo: `page.tsx` arma estas dos secciones (Server Components de
+   * verdad — este archivo no importa `cicloDeReuniones` ni
+   * `ReunionesPorConfirmar`, ni sabe nada de su contenido) y se las pasa
+   * COMO JSX, y este componente las coloca DESPUÉS del calendario y ANTES de
+   * "Próximas" en su propio `return` — el orden del documento ya es el orden
+   * de lectura, sin CSS que lo reordene. `despuesDeProximas`, abajo, es la
+   * mitad que falta ("Cerradas", al final).
+   */
+  entreCalendarioYProximas?: React.ReactNode
+  /**
+   * "CERRADAS" —Server Component de `page.tsx`— YA ARMADA, al final del DOM
+   * (mismo arreglo que `entreCalendarioYProximas`, arriba). Prop APARTE —no
+   * el mismo `entreCalendarioYProximas`, ni `children`— porque tiene que
+   * aparecer DESPUÉS de "Próximas", que vive DENTRO de este componente entre
+   * las dos: si las dos vinieran juntas en una sola prop no habría forma de
+   * intercalar "Próximas" entre ellas sin partirlas.
+   */
+  despuesDeProximas?: React.ReactNode
 }
 
 const TITULO_POR_DEFECTO = 'Reuniones'
 const SUBTITULO_POR_DEFECTO =
   'El calendario del mes, agendar rápido, y las próximas — más el ciclo completo de las que ya pasaron su día: por confirmar, con la minuta pendiente, y cerradas.'
 
-// Filtros del hueco (ronda 14.4, tarea 1) — module-scope, no dependen del
-// componente: mismo motivo que `TITULO_POR_DEFECTO`, arriba.
+/**
+ * LOS MARCADORES DEL FILTRO — DUPLICADOS A PROPÓSITO, NO IMPORTADOS.
+ *
+ * `page.tsx` valida `searchParams` contra estos MISMOS tres valores
+ * (`''`/`'sin-sala'`/`'sin-clasificar'`) antes de filtrar `reuniones` — ver
+ * su comentario, junto a donde los usa. Los dos archivos necesitan la MISMA
+ * cadena exacta (page.tsx la lee de la URL, este componente la escribe), así
+ * que en cualquier otro par de archivos esto viviría en un módulo compartido
+ * — pero `page.tsx` importa `@/db/reuniones` (Postgres) y compañía, y este
+ * archivo ('use client', arriba) va al bundle del NAVEGADOR: un módulo
+ * compartido tendría que vivir fuera de los dos archivos de esta tarea, y el
+ * brief pide avisar en el informe antes de tocar un archivo ajeno, no crear
+ * uno nuevo por conveniencia. Tres constantes de una palabra, con el mismo
+ * comentario en los dos lados: el costo de mantenerlas iguales es un `grep`,
+ * no una migración.
+ *
+ * Valor legible a propósito (no `__sin-sala__` con guiones bajos, como tenía
+ * `SIN_CLASIFICAR` antes de esta ronda): desde ahora viven en la URL, y una
+ * URL que alguien puede leer o teclear a mano es parte de "enlazable".
+ */
 const SIN_FILTRO = ''
-const SIN_CLASIFICAR = '__sin-clasificar__'
+const SIN_SALA = 'sin-sala'
+const SIN_CLASIFICAR = 'sin-clasificar'
+const ETIQUETA_SIN_SALA = 'Sin sala'
 
 export function PanelAgenda({
-  sesiones, salas, hoy, idsProximas, agendarAction, editarAction,
+  sesiones, salas, hoy, idsProximas,
+  filtroSala = SIN_FILTRO, filtroClase = SIN_FILTRO,
+  agendarAction, editarAction,
   titulo = TITULO_POR_DEFECTO, subtitulo = SUBTITULO_POR_DEFECTO,
+  entreCalendarioYProximas, despuesDeProximas,
 }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
   const [agendando, setAgendando] = useState<{ dia?: string } | null>(null)
   const [editando, setEditando] = useState<SesionAgendada | null>(null)
   // El mes que enseña el calendario. Cambia al agendar: si no, se agenda algo
@@ -172,15 +264,6 @@ export function PanelAgenda({
   // que es cómo se reinicia estado en React sin un efecto que lo sincronice.
   const [mesFoco, setMesFoco] = useState<string | null>(null)
 
-  // FILTROS DEL HUECO (ronda 14.4, tarea 1) — sala y clase, de CLIENTE sobre
-  // `sesiones` (la lista ya autorizada que este componente recibió), mismo
-  // patrón que `TablaAcuerdos.tsx` en `/acuerdos`: `useState` por dimensión,
-  // sin ida y vuelta al servidor. Solo afectan lo que ESTE componente pinta
-  // —el calendario y "Próximas"—, ver el comentario de archivo para el
-  // porqué no llegan a "Por confirmar"/"Falta su minuta"/"Cerradas".
-  const [filtroSala, setFiltroSala] = useState(SIN_FILTRO)
-  const [filtroClase, setFiltroClase] = useState(SIN_FILTRO)
-
   // Opciones de "clase": el CATÁLOGO (`PLANTILLAS`), no lo que hay hoy en
   // `sesiones` — a diferencia de `TablaAcuerdos` (que si derivara de una
   // lista vacía se quedaría sin opciones), aquí el catálogo siempre existe,
@@ -188,32 +271,46 @@ export function PanelAgenda({
   // render, no solo las que ya tienen alguna reunión.
   const clasesDelCatalogo = PLANTILLAS.filter((p) => p.esClaseDeJunta)
 
-  const coincideConFiltros = (s: SesionAgendada) =>
-    (filtroSala === SIN_FILTRO || s.salaSlug === filtroSala) &&
-    (filtroClase === SIN_FILTRO ||
-      (filtroClase === SIN_CLASIFICAR ? claveDeClase(s.plantilla) === null : claveDeClase(s.plantilla) === filtroClase))
-
-  const sesionesFiltradas = sesiones.filter(coincideConFiltros)
-
-  // "Próximas" (ronda 11, tarea 4): `idsProximas` ya llega deduplicado y en
-  // orden desde `cicloDeReuniones` — aquí solo se cruza contra `sesiones`
-  // (por id, en un Map para no ser O(n²) con volumen) para recuperar los
-  // datos completos de cada fila. El `.filter` final descarta un id que no
-  // aparezca en `sesiones` en vez de reventar: no debería pasar en
-  // producción (las dos listas salen de la misma consulta, en `page.tsx`),
-  // pero un componente de UI no es el lugar para lanzar si pasa. Los filtros
-  // del hueco (arriba) se aplican DESPUÉS de cruzar: así siguen respetando
-  // el orden que ya trae `idsProximas`, sin recalcularlo.
+  // "Próximas" (ronda 11, tarea 4): `idsProximas` ya llega deduplicado, en
+  // orden y FILTRADO (ver el comentario de `sesiones`, arriba) desde
+  // `cicloDeReuniones` — aquí solo se cruza contra `sesiones` (por id, en un
+  // Map para no ser O(n²) con volumen) para recuperar los datos completos de
+  // cada fila. El `.filter` final descarta un id que no aparezca en
+  // `sesiones` en vez de reventar: no debería pasar en producción (las dos
+  // listas salen de la misma consulta filtrada, en `page.tsx`), pero un
+  // componente de UI no es el lugar para lanzar si pasa.
   const porId = new Map(sesiones.map((s) => [s.id, s]))
   const proximas = idsProximas
     .map((id) => porId.get(id))
     .filter((s): s is SesionAgendada => s != null)
-    .filter(coincideConFiltros)
 
   function cerrar() {
     setAgendando(null)
     setEditando(null)
     router.refresh()
+  }
+
+  /**
+   * NAVEGA A LA MISMA RUTA CON EL FILTRO NUEVO (ronda 15, cierre de la deuda
+   * B) — lo que hace cada `<select>` del hueco al cambiar, más abajo.
+   * `router.replace`, no `push`: cambiar un filtro no es una parada de
+   * navegación que valga la pena en el historial — encadenar "sala A" → "sala
+   * B" → "sala C" no debería inflar el botón "atrás" con tres pasos que nadie
+   * quiere recorrer uno por uno para volver a donde estaba. `{ scroll: false
+   * }` porque sin él Next sube la página al tope en cada cambio, aunque el
+   * usuario siga viendo el mismo `<select>` bajo el dedo. Recibe los DOS
+   * valores completos (no uno con el otro implícito por closure) porque cada
+   * `<select>` cambia UNO de los dos ejes y tiene que mandar el OTRO tal cual
+   * está — mismo problema que ya resolvía `coincideConFiltros` cuando vivía
+   * aquí, solo que ahora es la URL la que carga los dos valores, no un
+   * `useState` por dimensión.
+   */
+  function irAFiltro(sala: string, clase: string) {
+    const params = new URLSearchParams()
+    if (sala !== SIN_FILTRO) params.set('sala', sala)
+    if (clase !== SIN_FILTRO) params.set('clase', clase)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
   // Antes decidía si el <aside> existía SIQUIERA (ver el comentario de
@@ -223,15 +320,26 @@ export function PanelAgenda({
   // mutuamente excluyentes, no una OR ya calculada.
   const formularioAbierto = Boolean(agendando || editando)
 
-  // EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): al abrir el
-  // formulario, `.hueco` deja de pintar los `<select>` —pasan a "Agendar una
-  // reunión"— pero `filtroSala`/`filtroClase` NO se resetean: el calendario
-  // de al lado sigue filtrado, sin ningún control a la vista que lo diga,
-  // justo mientras se elige un día. `hayFiltroActivo` + las dos etiquetas
-  // resueltas (no el `slug`/`id` crudo) son lo que arma un aviso legible —
-  // ver dónde se pinta, más abajo, antes de `.filaSuperior`.
+  // EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3 — SIGUE HACIENDO
+  // FALTA tras subir el filtro a la URL, ronda 15): al abrir el formulario,
+  // `.hueco` deja de pintar los `<select>` —pasan a "Agendar una reunión"—
+  // pero el filtro de la URL no se borra: la pantalla entera sigue filtrada,
+  // sin ningún control a la vista que lo diga, justo mientras se elige un
+  // día. Antes de la ronda 15 este aviso solo advertía sobre "el calendario
+  // de abajo" (lo único que el filtro alcanzaba); ahora que `page.tsx`
+  // filtra las cuatro secciones con el mismo `sala`/`clase` de la URL, el
+  // aviso vale más que antes, no menos —esconde el filtro de MÁS pantalla,
+  // no de menos—, así que se queda, con el texto ajustado a lo que de verdad
+  // cubre. `hayFiltroActivo` + las dos etiquetas resueltas (no el
+  // `slug`/`id` crudo) son lo que arma un aviso legible — ver dónde se
+  // pinta, más abajo, antes de `.filaSuperior`.
   const hayFiltroActivo = filtroSala !== SIN_FILTRO || filtroClase !== SIN_FILTRO
-  const etiquetaFiltroSala = filtroSala !== SIN_FILTRO ? (salas.find((s) => s.slug === filtroSala)?.nombre ?? filtroSala) : null
+  const etiquetaFiltroSala =
+    filtroSala === SIN_FILTRO
+      ? null
+      : filtroSala === SIN_SALA
+        ? ETIQUETA_SIN_SALA
+        : (salas.find((s) => s.slug === filtroSala)?.nombre ?? filtroSala)
   const etiquetaFiltroClase =
     filtroClase === SIN_CLASIFICAR
       ? etiquetaDeClase(null)
@@ -272,22 +380,22 @@ export function PanelAgenda({
           valor elegido, repetirlo aquí sería el mismo dato dicho dos veces. */}
       {formularioAbierto && hayFiltroActivo && (
         <p className={estilosCiclo.avisoFiltro} role="status">
-          Filtro activo — {piezasFiltro.join(' · ')}: el calendario de abajo solo enseña lo que
-          coincide, aunque el formulario tape los controles.
+          Filtro activo — {piezasFiltro.join(' · ')}: la pantalla completa —el calendario,
+          Próximas, Por confirmar, Falta su minuta y Cerradas— solo enseña lo que coincide,
+          aunque el formulario tape los controles.
         </p>
       )}
 
       {/* `.filaSuperior` (reuniones.module.css) reemplaza a `.panel`/
           `data-activo` (agenda.module.css) como el grid que reparte
           calendario y `<aside>` — ver el comentario de archivo, arriba,
-          para el porqué. El calendario recibe `sesionesFiltradas` (no
-          `sesiones` a secas): con un filtro activo, el mes también enseña
-          solo lo que coincide — coherente con lo que ya hace "Próximas",
-          más abajo, con la misma lista. */}
+          para el porqué. El calendario recibe `sesiones` tal cual: ya llega
+          filtrada desde `page.tsx` (ver el comentario de esa prop) — desde
+          la ronda 15 este componente no vuelve a angostarla por su cuenta. */}
       <div className={estilosCiclo.filaSuperior}>
         <Calendario
           key={mesFoco ?? 'hoy'}
-          sesiones={sesionesFiltradas}
+          sesiones={sesiones}
           hoy={hoy}
           mesInicial={mesFoco}
           alElegirDia={(dia) => {
@@ -355,33 +463,45 @@ export function PanelAgenda({
             </section>
           ) : (
             <div className={estilosCiclo.hueco}>
-              {/* FILTROS — sala y clase, sobre `sesiones` (ver el comentario
-                  de archivo). "Todas las salas"/"Todas las clases" son el
-                  valor vacío, mismo criterio que `SIN_FILTRO` en
-                  `TablaAcuerdos.tsx`.
+              {/* FILTROS — sala y clase. "Todas las salas"/"Todas las
+                  clases" son el valor vacío, mismo criterio que `SIN_FILTRO`
+                  en `TablaAcuerdos.tsx`. Elegir cualquiera de los dos llama
+                  `irAFiltro` (arriba), que navega a la misma ruta con la URL
+                  actualizada — `page.tsx` vuelve a filtrar con el valor
+                  nuevo y manda `filtroSala`/`filtroClase` de vuelta, ya
+                  validados, como props.
 
-                  EL RÓTULO DICE SU ALCANCE REAL (revisión C1, hallazgo I3):
-                  antes decía solo "Filtros", sin decir a qué — y filtrar
-                  "NeraCode" aquí deja intactas las tarjetas de otra sala en
-                  "Por confirmar"/"Falta su minuta"/"Cerradas" (`page.tsx`,
-                  Server Component, fuera de este filtro de cliente — ver el
-                  comentario de archivo). El rótulo ahora dice exactamente lo
-                  que SÍ cubre, para que esa diferencia no haya que
-                  descubrirla comparando listas. */}
+                  EL RÓTULO YA VUELVE A DECIR SOLO "FILTROS" (ronda 15,
+                  cierre de la deuda B): hasta esa ronda decía "Filtros —
+                  calendario y Próximas" (revisión C1, hallazgo I3), porque
+                  filtrar "NeraCode" aquí dejaba intactas las tarjetas de
+                  otra sala en "Por confirmar"/"Falta su minuta"/"Cerradas"
+                  (`page.tsx`, Server Component, fuera del filtro de cliente
+                  de entonces). Con el filtro subido a `searchParams` las
+                  cuatro secciones lo ven — el alcance real del rótulo YA ES
+                  la pantalla entera, así que decirlo aparte dejó de sumar.
+
+                  "SIN SALA" (ronda 15): un comité o una interna de Mkt Corp
+                  no es de ninguna sala real (`salaSlug: null`) — sin esta
+                  opción, esas juntas desaparecían con CUALQUIER filtro de
+                  sala activo, porque ningún `<option>` las representaba. Va
+                  al final de la lista, después de las salas reales: es la
+                  salida para "ninguna de las de arriba", no una sala más. */}
               <div>
-                <p className={estilosCiclo.huecoTitulo}>Filtros — calendario y Próximas</p>
+                <p className={estilosCiclo.huecoTitulo}>Filtros</p>
                 <div className={estilosCiclo.filtros}>
                   <label className={estilosCiclo.filtro}>
                     <span className="micro" data-sinpunto>Sala</span>
                     <select
                       className={estilosCiclo.select}
                       value={filtroSala}
-                      onChange={(e) => setFiltroSala(e.target.value)}
+                      onChange={(e) => irAFiltro(e.target.value, filtroClase)}
                     >
                       <option value={SIN_FILTRO}>Todas las salas</option>
                       {salas.map((s) => (
                         <option key={s.slug} value={s.slug}>{s.nombre}</option>
                       ))}
+                      <option value={SIN_SALA}>{ETIQUETA_SIN_SALA}</option>
                     </select>
                   </label>
                   <label className={estilosCiclo.filtro}>
@@ -389,7 +509,7 @@ export function PanelAgenda({
                     <select
                       className={estilosCiclo.select}
                       value={filtroClase}
-                      onChange={(e) => setFiltroClase(e.target.value)}
+                      onChange={(e) => irAFiltro(filtroSala, e.target.value)}
                     >
                       <option value={SIN_FILTRO}>Todas las clases</option>
                       {clasesDelCatalogo.map((p) => (
@@ -422,15 +542,33 @@ export function PanelAgenda({
         </aside>
       </div>
 
+      {/* "POR CONFIRMAR" Y "FALTA SU MINUTA" (`page.tsx`, ya armadas) — EL
+          ORDEN DEL TRABAJO, AHORA EN EL DOM (ronda 15, cierre de la deuda
+          B): van AQUÍ, entre el calendario y "Próximas", porque las dos
+          EXIGEN una acción y por eso van primero en el orden de lectura —
+          ver el comentario de `entreCalendarioYProximas` (arriba, en
+          `Props`) para el porqué ya no es un `order` de CSS. */}
+      {/* `<Fragment key=...>`, no `{entreCalendarioYProximas}` a secas: sin la
+          `key` explícita, React avisa "Each child in a list should have a
+          unique key prop... Check the top-level render call using
+          <PanelAgenda>" en cuanto CUALQUIER nodo llega por esta prop —
+          comprobado con un `<p>` trivial, no depende del contenido real.
+          `page.tsx` es un Server Component; lo que manda por esta prop cruza
+          el límite RSC hacia este Client Component, y ese cruce es lo que
+          hace que React trate este hueco del `return` como una posición de
+          lista — la misma razón por la que `despuesDeProximas`, más abajo,
+          lleva el mismo tratamiento. */}
+      <Fragment key="entre-calendario-y-proximas">{entreCalendarioYProximas}</Fragment>
+
       {/* PRÓXIMAS (ronda 11, tarea 4): antes "Lo que viene", dentro del
           <aside> de arriba — bajó a una sección de ancho completo, con el
           mismo tratamiento (`estilosCiclo`) que "Por confirmar"/"Falta su
           minuta"/"Cerradas" en `/reuniones`. `idsProximas` ya llega
-          deduplicado (ver el comentario del archivo) — aquí solo se pinta.
-          `.ordenProximas` (ronda 14.4, tarea 1): el ORDEN VISUAL de las
-          cuatro secciones del ciclo ya no es su orden en el documento — ver
-          el comentario de esa clase en `reuniones.module.css`. */}
-      <section className={`${estilosCiclo.cicloSeccion} ${estilosCiclo.ordenProximas}`}>
+          deduplicado y filtrado (ver el comentario del archivo) — aquí solo
+          se pinta. Sin clase de `order` (ronda 15): su posición aquí, entre
+          `entreCalendarioYProximas` y `despuesDeProximas`, YA ES su orden
+          visual — el documento no necesita que CSS lo corrija. */}
+      <section className={estilosCiclo.cicloSeccion}>
         <h2 className={estilosCiclo.cicloTitulo}>
           Próximas
           <span className={estilosCiclo.conteo}>{proximas.length}</span>
@@ -497,6 +635,14 @@ export function PanelAgenda({
           </div>
         )}
       </section>
+
+      {/* "CERRADAS" (`page.tsx`, ya armada) — al final, en el DOM (mismo
+          arreglo de arriba). Ver el comentario de `despuesDeProximas`
+          (`Props`) para el porqué es una prop aparte de
+          `entreCalendarioYProximas`, y el de `entreCalendarioYProximas` más
+          arriba (en este `return`) para el porqué de `<Fragment key=...>` en
+          vez de `{despuesDeProximas}` a secas. */}
+      <Fragment key="despues-de-proximas">{despuesDeProximas}</Fragment>
     </>
   )
 }

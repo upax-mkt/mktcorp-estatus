@@ -25,6 +25,65 @@ import {
 export const dynamic = 'force-dynamic'
 
 /**
+ * LOS MARCADORES DEL FILTRO — DUPLICADOS A PROPÓSITO, NO IMPORTADOS.
+ *
+ * `PanelAgenda.tsx` escribe la URL con estos MISMOS tres valores
+ * (`''`/`'sin-sala'`/`'sin-clasificar'`) — ver su comentario, junto a donde
+ * los declara. Los dos archivos necesitan la cadena EXACTA (este archivo la
+ * lee de `searchParams`, `PanelAgenda` la escribe desde sus `<select>`), así
+ * que en cualquier otro par de archivos esto viviría en un módulo
+ * compartido — pero este archivo importa `@/db/reuniones` (Postgres) y
+ * compañía, y `PanelAgenda.tsx` ('use client') va al bundle del NAVEGADOR:
+ * un módulo compartido tendría que vivir fuera de los dos archivos de esta
+ * tarea, y el brief pide avisar en el informe antes de tocar un archivo
+ * ajeno, no crear uno nuevo por conveniencia. Tres constantes de una
+ * palabra, con el mismo comentario en los dos lados: el costo de
+ * mantenerlas iguales es un `grep`, no una migración.
+ */
+const SIN_FILTRO = ''
+const SIN_SALA = 'sin-sala'
+const SIN_CLASIFICAR = 'sin-clasificar'
+
+/**
+ * ¿ESTA REUNIÓN PASA LOS DOS FILTROS? Misma pregunta que hacía el
+ * `useState` de `PanelAgenda` hasta la ronda 14.4 (mudado y adaptado aquí,
+ * ronda 15, cierre de la deuda B: ahora corre sobre `ReunionResumen`, del
+ * lado del servidor, no sobre `SesionAgendada` de cliente).
+ *
+ * `claveDeClase` (nunca `plantilla` crudo) para el lado de la clase: una
+ * reunión con un `plantilla` que el catálogo no reconoce como clase de
+ * junta —no debería pasar nunca en producción— no se queda huérfana de los
+ * dos filtros de clase; `claveDeClase` ya decide que eso es "sin
+ * clasificar" (ver su comentario, `secciones/plantillas.ts`).
+ */
+function coincideConFiltros(r: ReunionResumen, filtroSala: string, filtroClase: string): boolean {
+  const salaOk =
+    filtroSala === SIN_FILTRO ||
+    (filtroSala === SIN_SALA ? r.salaSlug === null : r.salaSlug === filtroSala)
+  const claseOk =
+    filtroClase === SIN_FILTRO ||
+    (filtroClase === SIN_CLASIFICAR
+      ? claveDeClase(r.plantilla ?? null) === null
+      : claveDeClase(r.plantilla ?? null) === filtroClase)
+  return salaOk && claseOk
+}
+
+/**
+ * Un `sala`/`clase` de `searchParams` es texto CRUDO de la URL — nadie
+ * impide que alguien escriba "…/reuniones?sala=basura" a mano. Sin validar,
+ * ese valor se colaría hasta `PanelAgenda` (el `value` de un `<select>` que
+ * no coincide con ninguna `<option>`) y hasta `coincideConFiltros` (que
+ * comparado contra un slug que no existe simplemente no encontraría nada,
+ * pero silenciosamente: la pantalla se vería "vacía" sin decir por qué). Un
+ * valor inválido cae a `SIN_FILTRO` — "no se pudo aplicar ese filtro" se lee
+ * igual que "no hay filtro", que es lo más honesto que se puede decir de un
+ * parámetro que no reconoce nada.
+ */
+function filtroValido(valor: string | undefined, esValido: (v: string) => boolean): string {
+  return valor !== undefined && esValido(valor) ? valor : SIN_FILTRO
+}
+
+/**
  * EL CICLO DE VIDA ENTERO DE UNA REUNIÓN, en una sola pestaña (Tarea 13,
  * ronda 10; ampliada en la Tarea 18; "Próximas" bajó al flujo en la ronda 11,
  * tarea 4). El calendario del mes y "agendar" — `PanelAgenda`, MUDADO TAL
@@ -63,8 +122,8 @@ export const dynamic = 'force-dynamic'
  * en "Próximas" y en "Falta su minuta" (el solape que encontró el intento
  * anterior de esta tarea). `page.tsx` le pasa la lista de ids ya resuelta
  * (`idsProximas`) a `PanelAgenda`, que la cruza contra su propio `sesiones`
- * (la lista completa, sin filtrar — la sigue necesitando el calendario)
- * para pintar cada fila con sus datos completos.
+ * para pintar cada fila con sus datos completos (`sesiones` YA LLEGA
+ * FILTRADA desde la ronda 15 — ver el párrafo de esa ronda, más abajo).
  *
  * AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO: la tarea 4 (arriba) bajó
  * "Próximas" del `<aside>` de `PanelAgenda` al flujo, y con eso ese `<aside>`
@@ -78,6 +137,35 @@ export const dynamic = 'force-dynamic'
  * comentario de archivo de `PanelAgenda.tsx` para el resto (por qué el
  * `<aside>` de 22rem ahora es condicional, y por qué el calendario en reposo
  * se queda capado a su ancho de siempre en vez de estirarse).
+ *
+ * RONDA 15 (CIERRE DE LA DEUDA B) — DOS ARREGLOS, LOS DOS EN ESTOS DOS
+ * ARCHIVOS (`page.tsx`/`PanelAgenda.tsx`), NINGUNO EN CSS:
+ *
+ *   1. EL FILTRO SUBE A `searchParams`. Hasta esta ronda el filtro de sala/
+ *      clase era un `useState` DENTRO de `PanelAgenda` (ronda 14.4, tarea 1)
+ *      y solo alcanzaba al calendario y a "Próximas" —lo único que ese
+ *      componente pinta—; el rótulo lo confesaba ("Filtros — calendario y
+ *      Próximas"). Ahora esta función lee `sala`/`clase` de `searchParams`
+ *      (`filtroValido`, arriba), los valida contra las salas reales y el
+ *      catálogo de clases, y filtra `reuniones` con `coincideConFiltros`
+ *      ANTES de repartirlas a las CUATRO secciones del ciclo —incluida la
+ *      construcción de `documentos`/`paraElPanel`/`ciclo`, todas más abajo—:
+ *      el filtro ahora sobrevive a la recarga, es enlazable, y cubre las
+ *      cuatro, así que el rótulo del hueco vuelve a decir solo "Filtros".
+ *      Ver `coincideConFiltros`/`SIN_SALA` (arriba) para "sin sala" —un
+ *      comité o una interna de Mkt Corp— y `claveDeClase`/`SIN_CLASIFICAR`
+ *      para "sin clasificar", los dos ofrecidos como opción explícita en el
+ *      `<select>` de `PanelAgenda`, no perdidos con cualquier filtro activo.
+ *   2. EL ORDEN VISUAL DEJA DE SER UN `order` DE CSS. "Por confirmar" y
+ *      "Falta su minuta" (más abajo, en el JSX) ya no son hermanas de
+ *      `<PanelAgenda>` reordenadas con `.ordenPorConfirmar`/
+ *      `.ordenFaltaMinuta` (`reuniones.module.css`, retiradas en esta
+ *      ronda): se le pasan como la prop `entreCalendarioYProximas`, y
+ *      `PanelAgenda` las coloca en su propio `return`, físicamente entre el
+ *      calendario y "Próximas" — el orden del DOM (y del tabulador, y de un
+ *      lector de pantalla) ya es el orden de lectura que pidió Franco. Ver
+ *      el comentario de `entreCalendarioYProximas`/`despuesDeProximas` en
+ *      `PanelAgenda.tsx` (`Props`) para el mecanismo completo.
  *
  * "Agenda" desaparece como nombre de sección: en pantalla todo se llama
  * "reunión".
@@ -320,7 +408,21 @@ export function cicloDeReuniones(
   return { proximas, porConfirmar, faltaMinuta, cerradas }
 }
 
-export default async function PagReuniones() {
+export default async function PagReuniones({
+  searchParams,
+}: {
+  /**
+   * `sala`/`clase` (ronda 15, cierre de la deuda B) — el filtro, crudo de la
+   * URL. `Promise`: mismo contrato que ya usan `/entrar` y `/salas` para
+   * `searchParams` en esta versión de Next (`node_modules/next/dist/docs`,
+   * "Rendering with search params" — una página con `searchParams` es
+   * dinámica por diseño, aunque esta ya lo era por `connection()`/`dynamic`,
+   * abajo). Nunca se confía en este texto tal cual: `filtroValido` (arriba)
+   * lo valida contra las salas reales y el catálogo de clases antes de que
+   * llegue a filtrar una sola reunión.
+   */
+  searchParams: Promise<{ sala?: string; clase?: string }>
+}) {
   // Esta página SOLO MUESTRA el mes, "agendar" y el ciclo de vida; escribir
   // (agendar/editar/marcar dada/marcar no dada/desmarcar) son Server Actions
   // aparte (src/app/reuniones/acciones.ts), cada una con su propia exigencia
@@ -332,7 +434,7 @@ export default async function PagReuniones() {
   await connection()
   const hoy = new Date()
 
-  const [reuniones, slugsReales, registro, pausadas, admin, clientes] = await Promise.all([
+  const [reuniones, slugsReales, registro, pausadas, admin, clientes, searchParamsResueltos] = await Promise.all([
     listarReuniones(),
     slugsDeSalas(),
     cargarTemas(),
@@ -346,6 +448,10 @@ export default async function PagReuniones() {
     // hasta ahora.
     esAdmin(),
     clientesParaBarra(),
+    // `searchParams` (ronda 15, cierre de la deuda B): no depende de nada de
+    // lo anterior, así que se resuelve en el mismo `Promise.all` en vez de
+    // un `await` aparte después — una espera menos en la cascada.
+    searchParams,
   ])
 
   const salas = slugsReales.map((slug) => {
@@ -354,16 +460,38 @@ export default async function PagReuniones() {
   })
 
   /**
+   * EL FILTRO, RESUELTO Y APLICADO (ronda 15, cierre de la deuda B) — ANTES
+   * de construir `documentos`/`paraElPanel`/`ciclo`, así que las CUATRO
+   * secciones de esta pantalla parten de la misma lista ya filtrada, nunca
+   * de la completa. `filtroValido` (arriba) es quien decide si lo que trae
+   * la URL es real: `sala` contra `slugsReales` (más `SIN_SALA`, el
+   * marcador de "sin ninguna sala" — ver `coincideConFiltros`) y `clase`
+   * contra el catálogo (`claveDeClase(v) === v` es cierto solo para un id
+   * real de clase de junta — mismo criterio que ya usa esa función para
+   * decidir "esto es una clase", ver `secciones/plantillas.ts`; más
+   * `SIN_CLASIFICAR`).
+   *
+   * Filtrar AQUÍ —antes de `documentoDeReunion` por reunión, más abajo— es
+   * también más barato: con un filtro activo, `Promise.all` deja de pedir
+   * el documento de reuniones que ni siquiera van a pintarse.
+   */
+  const filtroSala = filtroValido(searchParamsResueltos.sala, (v) => v === SIN_SALA || slugsReales.includes(v))
+  const filtroClase = filtroValido(searchParamsResueltos.clase, (v) => v === SIN_CLASIFICAR || claveDeClase(v) === v)
+  const reunionesFiltradas = reuniones.filter((r) => coincideConFiltros(r, filtroSala, filtroClase))
+
+  /**
    * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
    * documento, no de la reunión — spec §1): se resuelven aquí, una consulta
    * por reunión en paralelo. La lista de reuniones es de decenas, no miles,
    * así que esto no es el problema de N+1 que sería en una lista sin cota.
    * El mismo `documentos` sirve también para `cicloDeReuniones` (abajo) —
-   * una sola pasada, no dos.
+   * una sola pasada, no dos. Sobre `reunionesFiltradas` (arriba), no
+   * `reuniones`: las cuatro secciones de esta pantalla solo necesitan el
+   * documento de lo que de verdad van a pintar.
    */
-  const documentos = await Promise.all(reuniones.map((r) => documentoDeReunion(r.id)))
+  const documentos = await Promise.all(reunionesFiltradas.map((r) => documentoDeReunion(r.id)))
 
-  const paraElPanel: SesionAgendada[] = reuniones.map((r, i) => {
+  const paraElPanel: SesionAgendada[] = reunionesFiltradas.map((r, i) => {
     const doc = documentos[i]
     return {
       id: r.id,
@@ -394,11 +522,16 @@ export default async function PagReuniones() {
   })
 
   const hoyCivil = diaCivil(hoy.toISOString())
-  const ciclo = cicloDeReuniones(reuniones, documentos, pausadas, hoyCivil)
+  // `reunionesFiltradas`, no `reuniones`: `cicloDeReuniones` en sí no sabe
+  // nada de filtros (su propia suite la prueba sin ellos, y sigue sin
+  // tocarse) — el filtro ya se aplicó arriba, así que lo único que le llega
+  // es lo que le toca ver a la URL actual.
+  const ciclo = cicloDeReuniones(reunionesFiltradas, documentos, pausadas, hoyCivil)
   // Solo los ids, ya deduplicados y en orden (la más próxima primero) —
-  // `PanelAgenda` los cruza contra su propio `sesiones` (sin filtrar, con
-  // TODOS los campos) para pintar cada fila. Ver el comentario de arriba
-  // ("RONDA 11, TAREA 4") para el porqué de este reparto.
+  // `PanelAgenda` los cruza contra su propio `sesiones` (ya filtrada, con
+  // TODOS los campos de lo que quedó) para pintar cada fila. Ver el
+  // comentario de arriba ("RONDA 11, TAREA 4") para el porqué de este
+  // reparto.
   const idsProximas = ciclo.proximas.map((r) => r.id)
 
   // Mismo patrón que `salir` en `src/app/page.tsx` / `src/app/deck/page.tsx`:
@@ -408,6 +541,161 @@ export default async function PagReuniones() {
     await cerrarSesion()
     redirect('/entrar')
   }
+
+  /**
+   * "POR CONFIRMAR" Y "FALTA SU MINUTA" (tarea 18), ARMADAS AQUÍ COMO JSX EN
+   * VEZ DE HERMANAS DE `<PanelAgenda>` (ronda 15, cierre de la deuda B — ver
+   * el párrafo de esa ronda, arriba, y el comentario de
+   * `entreCalendarioYProximas` en `PanelAgenda.tsx`). Esta constante NO es
+   * una optimización de lectura: es lo que permite que `PanelAgenda` las
+   * coloque DESPUÉS del calendario y ANTES de "Próximas" en su propio
+   * `return`, sin que este archivo tenga que saber nada de dónde vive
+   * "Próximas" ni `PanelAgenda` tenga que importar `cicloDeReuniones` ni
+   * `ReunionesPorConfirmar`. Sigue siendo exactamente el mismo JSX que antes
+   * —mismas clases, mismas condiciones de vacío— solo que ahora es una
+   * expresión, no directamente hijos de `<main>`.
+   */
+  const seccionPorConfirmar = ciclo.porConfirmar.length > 0 && (
+    // POR CONFIRMAR (tarea 18): la pregunta más básica del ciclo — "¿se dio?"
+    // — antes solo en el Home y en cada sala, ahora también aquí. Mismo
+    // componente, mismas tres acciones. Oculta cuando está vacía, mismo
+    // criterio que el Home.
+    <section className={estilos.cicloSeccion}>
+      <h2 className={estilos.cicloTitulo}>
+        Por confirmar
+        <span className={estilos.conteo}>{ciclo.porConfirmar.length}</span>
+      </h2>
+      <ReunionesPorConfirmar
+        sesiones={ciclo.porConfirmar}
+        marcarPresentadaAction={marcarPresentadaAction}
+        marcarNoDadaAction={marcarNoDadaAction}
+        desmarcarNoDadaAction={desmarcarNoDadaAction}
+      />
+    </section>
+  )
+
+  // SE DIERON, FALTA SU MINUTA: ocurrió (confirmada, o con presentación y día
+  // pasado) y todavía no tiene acta. Mudada de `/deck` (tarea 18) — antes
+  // vivía ahí por herencia, de cuando la reunión no existía como entidad
+  // aparte de su documento. SIEMPRE visible, con vacío explícito: mismo
+  // criterio que "Cerradas", justo abajo.
+  //
+  // LA TARJETA DICE QUÉ ES (ronda 14.4, tarea 1): sala (ya lo hacía) + CLASE
+  // de junta, ahora también — `etiquetaDeClase(claveDeClase(...))`, nunca
+  // `r.plantilla` crudo ni `obtenerPlantilla(r.plantilla).nombre` (esa cae a
+  // "Estatus de UDN" con `null`, ver el comentario de `ReunionEnCiclo.plantilla`).
+  const seccionFaltaMinuta = (
+    <section className={estilos.cicloSeccion}>
+      <h2 className={estilos.cicloTitulo}>
+        Se dieron, falta su minuta
+        <span className={estilos.conteo}>{ciclo.faltaMinuta.length}</span>
+      </h2>
+      {ciclo.faltaMinuta.length === 0 ? (
+        <p className={estilos.vacio}>Nada pendiente de minutar.</p>
+      ) : (
+        <div className={estilos.listaCiclo}>
+          {ciclo.faltaMinuta.map((r) => (
+            <Link
+              key={r.id}
+              href={`/deck/${r.id}/minuta`}
+              className={estilos.filaCiclo}
+              style={{ '--sala': r.salaColor } as React.CSSProperties}
+            >
+              <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+              {/* MENOR BARATO (revisión C1): el "·" ya no es un `<span>`
+                  suelto (`.sep`) — ver el comentario de `.filaCicloMetaPieza`
+                  en `reuniones.module.css` para el porqué (el separador
+                  quedaba huérfano al envolver a 390px). */}
+              <span className={estilos.filaCicloMeta}>
+                <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
+                <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
+                <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+              </span>
+              <span className={estilos.filaCicloAccion}>Generar su minuta →</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+
+  // CERRADAS: dada y minutada, nada pendiente. Mudada de `/deck` (tarea 18),
+  // misma razón que la anterior.
+  //
+  // YA NO ES UN CEMENTERIO (ronda 14.4, tarea 1). Antes la tarjeta ENTERA era
+  // un único `<Link>` a `/cliente/<slug>` —un salto indirecto, nunca al
+  // destino que de verdad se busca al mirar una reunión cerrada— y sin sala
+  // (comité) ni siquiera eso: puro texto, sin ningún enlace. Ahora cada
+  // tarjeta ofrece sus DOS destinos reales, iguales a los que ya ofrece
+  // `ReunionesSala` en la sala ("Ver la presentación →"/"Corregir el texto
+  // →"): su MINUTA (`/deck/<id>/minuta`, funciona con o sin sala — una
+  // reunión de comité también tiene minuta) y, solo si hay un documento
+  // MAQUETADO de verdad (`documentoListo` — mismo umbral que
+  // `ReunionesSala`, no `tienePresentacion`: un PDF subido no tiene
+  // `/reunion/<id>` que enseñar), su DOCUMENTO. La tarjeta deja de ser un
+  // único `<a>` —dos enlaces no pueden anidarse— así que la sala, cuando
+  // existe, se vuelve SU PROPIO enlace (mismo tratamiento que
+  // `FilaAcuerdo.tsx`: el nombre de la sala, no la tarjeta entera, es el
+  // camino de vuelta a ella).
+  //
+  // SE PLIEGA (revisión C1, hallazgo I2): requisito literal del brief (Step
+  // 4.2) que se quedó fuera de la primera pasada. `<h2
+  // className={estilos.cicloTitulo}>` pasa a ser el ÚNICO hijo de
+  // `<summary>` —el HTML lo permite cuando es el primer hijo de un
+  // `<details>`— para no perder el rol `heading` que protege el guardia "los
+  // cuatro módulos siguen existiendo" (`page.test.tsx`):
+  // `estilos.cerradasResumen` (el `<summary>`) pone el cursor, el marcador y
+  // el foco; `estilos.cicloTitulo` (el `<h2>` de adentro) sigue siendo la
+  // MISMA tipografía que ya usan las otras tres cabeceras, sin duplicarla.
+  // `open` fijo, no `useState`: página Server Component, el navegador ya
+  // sabe abrir/cerrar un `<details>` sin JavaScript — mismo criterio que los
+  // acuerdos cumplidos de la sala (`cliente/[slug]/page.tsx`).
+  const seccionCerradas = (
+    <section className={estilos.cicloSeccion}>
+      <details open>
+        <summary className={estilos.cerradasResumen}>
+          <h2 className={estilos.cicloTitulo}>
+            Cerradas
+            <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
+          </h2>
+        </summary>
+        {ciclo.cerradas.length === 0 ? (
+          <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
+        ) : (
+          <div className={estilos.listaCiclo}>
+            {ciclo.cerradas.map((r) => (
+              <div key={r.id} className={estilos.filaCiclo} style={{ '--sala': r.salaColor } as React.CSSProperties}>
+                <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                {/* MENOR BARATO (revisión C1): `.filaCicloMetaPieza`, no
+                    `.sep` — ver el comentario en `reuniones.module.css`. */}
+                <span className={estilos.filaCicloMeta}>
+                  {r.salaSlug ? (
+                    <Link href={`/cliente/${r.salaSlug}`} className={`${estilos.filaCicloSala} ${estilos.filaCicloMetaPieza}`}>
+                      {r.salaNombre}
+                    </Link>
+                  ) : (
+                    <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
+                  )}
+                  <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
+                  <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                </span>
+                <span className={estilos.filaCicloAcciones}>
+                  <Link href={`/deck/${r.id}/minuta`} className={estilos.filaCicloAccion}>
+                    Ver su minuta →
+                  </Link>
+                  {r.documentoListo && (
+                    <Link href={`/reunion/${r.id}`} className={estilos.filaCicloAccion}>
+                      Ver su documento →
+                    </Link>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </details>
+    </section>
+  )
 
   return (
     <div className={estilos.app}>
@@ -427,7 +715,18 @@ export default async function PagReuniones() {
       <BarraNavegacion seccionActiva="reuniones" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
 
       <main className={estilos.main}>
-        {/* Título + "agendar" ya no se pintan aquí (auditoría UX/UI, ronda 11
+        {/* UN SOLO HIJO DE `<main>` (ronda 15, cierre de la deuda B) —antes,
+            `<PanelAgenda>` iba seguido de las tres secciones del ciclo como
+            HERMANAS suyas, con `order` de CSS reordenándolas visualmente por
+            encima de "Próximas" (que nace dentro de `PanelAgenda`). Ahora
+            "Por confirmar"/"Falta su minuta" (`entreCalendarioYProximas`) y
+            "Cerradas" (`despuesDeProximas`) se pasan como JSX ya armado, y es
+            `PanelAgenda` quien decide dónde caen en su propio `return` — el
+            orden del DOM ya es el orden visual, sin CSS que lo corrija. Ver
+            el párrafo de esta ronda, arriba, y el comentario de esas dos
+            props en `PanelAgenda.tsx`.
+
+            Título + "agendar" ya no se pintan aquí (auditoría UX/UI, ronda 11
             — arreglo del hueco muerto que dejaba el <aside> del calendario
             una vez que "Próximas" bajó al flujo): los pinta `PanelAgenda`,
             que es quien tiene el estado que el botón necesita compartir con
@@ -440,151 +739,18 @@ export default async function PagReuniones() {
           salas={salas}
           hoy={hoy.toISOString()}
           idsProximas={idsProximas}
+          filtroSala={filtroSala}
+          filtroClase={filtroClase}
           agendarAction={agendarReunionAction}
           editarAction={editarReunionAction}
-        />
-
-        {/* POR CONFIRMAR (tarea 18): la pregunta más básica del ciclo — "¿se
-            dio?" — antes solo en el Home y en cada sala, ahora también aquí.
-            Mismo componente, mismas tres acciones. Oculta cuando está vacía,
-            mismo criterio que el Home. */}
-        {ciclo.porConfirmar.length > 0 && (
-          <section className={`${estilos.cicloSeccion} ${estilos.ordenPorConfirmar}`}>
-            <h2 className={estilos.cicloTitulo}>
-              Por confirmar
-              <span className={estilos.conteo}>{ciclo.porConfirmar.length}</span>
-            </h2>
-            <ReunionesPorConfirmar
-              sesiones={ciclo.porConfirmar}
-              marcarPresentadaAction={marcarPresentadaAction}
-              marcarNoDadaAction={marcarNoDadaAction}
-              desmarcarNoDadaAction={desmarcarNoDadaAction}
-            />
-          </section>
-        )}
-
-        {/* SE DIERON, FALTA SU MINUTA: ocurrió (confirmada, o con
-            presentación y día pasado) y todavía no tiene acta. Mudada de
-            `/deck` (tarea 18) — antes vivía ahí por herencia, de cuando la
-            reunión no existía como entidad aparte de su documento. SIEMPRE
-            visible, con vacío explícito: mismo criterio que "Cerradas", justo
-            abajo.
-
-            LA TARJETA DICE QUÉ ES (ronda 14.4, tarea 1): sala (ya lo hacía) +
-            CLASE de junta, ahora también — `etiquetaDeClase(claveDeClase(...))`,
-            nunca `r.plantilla` crudo ni `obtenerPlantilla(r.plantilla).nombre`
-            (esa cae a "Estatus de UDN" con `null`, ver el comentario de
-            `ReunionEnCiclo.plantilla`). */}
-        <section className={`${estilos.cicloSeccion} ${estilos.ordenFaltaMinuta}`}>
-          <h2 className={estilos.cicloTitulo}>
-            Se dieron, falta su minuta
-            <span className={estilos.conteo}>{ciclo.faltaMinuta.length}</span>
-          </h2>
-          {ciclo.faltaMinuta.length === 0 ? (
-            <p className={estilos.vacio}>Nada pendiente de minutar.</p>
-          ) : (
-            <div className={estilos.listaCiclo}>
-              {ciclo.faltaMinuta.map((r) => (
-                <Link
-                  key={r.id}
-                  href={`/deck/${r.id}/minuta`}
-                  className={estilos.filaCiclo}
-                  style={{ '--sala': r.salaColor } as React.CSSProperties}
-                >
-                  <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
-                  {/* MENOR BARATO (revisión C1): el "·" ya no es un `<span>`
-                      suelto (`.sep`) — ver el comentario de `.filaCicloMetaPieza`
-                      en `reuniones.module.css` para el porqué (el separador
-                      quedaba huérfano al envolver a 390px). */}
-                  <span className={estilos.filaCicloMeta}>
-                    <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
-                    <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
-                    <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
-                  </span>
-                  <span className={estilos.filaCicloAccion}>Generar su minuta →</span>
-                </Link>
-              ))}
-            </div>
+          entreCalendarioYProximas={(
+            <>
+              {seccionPorConfirmar}
+              {seccionFaltaMinuta}
+            </>
           )}
-        </section>
-
-        {/* CERRADAS: dada y minutada, nada pendiente. Mudada de `/deck`
-            (tarea 18), misma razón que la anterior.
-
-            YA NO ES UN CEMENTERIO (ronda 14.4, tarea 1). Antes la tarjeta
-            ENTERA era un único `<Link>` a `/cliente/<slug>` —un salto
-            indirecto, nunca al destino que de verdad se busca al mirar una
-            reunión cerrada— y sin sala (comité) ni siquiera eso: puro texto,
-            sin ningún enlace. Ahora cada tarjeta ofrece sus DOS destinos
-            reales, iguales a los que ya ofrece `ReunionesSala` en la sala
-            ("Ver la presentación →"/"Corregir el texto →"): su MINUTA
-            (`/deck/<id>/minuta`, funciona con o sin sala — una reunión de
-            comité también tiene minuta) y, solo si hay un documento
-            MAQUETADO de verdad (`documentoListo` — mismo umbral que
-            `ReunionesSala`, no `tienePresentacion`: un PDF subido no tiene
-            `/reunion/<id>` que enseñar), su DOCUMENTO. La tarjeta deja de ser
-            un único `<a>` —dos enlaces no pueden anidarse— así que la sala,
-            cuando existe, se vuelve SU PROPIO enlace (mismo tratamiento que
-            `FilaAcuerdo.tsx`: el nombre de la sala, no la tarjeta entera, es
-            el camino de vuelta a ella).
-
-            SE PLIEGA (revisión C1, hallazgo I2): requisito literal del brief
-            (Step 4.2) que se quedó fuera de la primera pasada. `<h2
-            className={estilos.cicloTitulo}>` pasa a ser el ÚNICO hijo de
-            `<summary>` —el HTML lo permite cuando es el primer hijo de un
-            `<details>`— para no perder el rol `heading` que protege el
-            guardia "los cuatro módulos siguen existiendo" (`page.test.tsx`):
-            `estilos.cerradasResumen` (el `<summary>`) pone el cursor, el
-            marcador y el foco; `estilos.cicloTitulo` (el `<h2>` de adentro)
-            sigue siendo la MISMA tipografía que ya usan las otras tres
-            cabeceras, sin duplicarla. `open` fijo, no `useState`: página
-            Server Component, el navegador ya sabe abrir/cerrar un `<details>`
-            sin JavaScript — mismo criterio que los acuerdos cumplidos de la
-            sala (`cliente/[slug]/page.tsx`). */}
-        <section className={`${estilos.cicloSeccion} ${estilos.ordenCerradas}`}>
-          <details open>
-            <summary className={estilos.cerradasResumen}>
-              <h2 className={estilos.cicloTitulo}>
-                Cerradas
-                <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
-              </h2>
-            </summary>
-            {ciclo.cerradas.length === 0 ? (
-              <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
-            ) : (
-              <div className={estilos.listaCiclo}>
-                {ciclo.cerradas.map((r) => (
-                  <div key={r.id} className={estilos.filaCiclo} style={{ '--sala': r.salaColor } as React.CSSProperties}>
-                    <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
-                    {/* MENOR BARATO (revisión C1): `.filaCicloMetaPieza`, no
-                        `.sep` — ver el comentario en `reuniones.module.css`. */}
-                    <span className={estilos.filaCicloMeta}>
-                      {r.salaSlug ? (
-                        <Link href={`/cliente/${r.salaSlug}`} className={`${estilos.filaCicloSala} ${estilos.filaCicloMetaPieza}`}>
-                          {r.salaNombre}
-                        </Link>
-                      ) : (
-                        <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
-                      )}
-                      <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
-                      <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
-                    </span>
-                    <span className={estilos.filaCicloAcciones}>
-                      <Link href={`/deck/${r.id}/minuta`} className={estilos.filaCicloAccion}>
-                        Ver su minuta →
-                      </Link>
-                      {r.documentoListo && (
-                        <Link href={`/reunion/${r.id}`} className={estilos.filaCicloAccion}>
-                          Ver su documento →
-                        </Link>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </details>
-        </section>
+          despuesDeProximas={seccionCerradas}
+        />
       </main>
     </div>
   )

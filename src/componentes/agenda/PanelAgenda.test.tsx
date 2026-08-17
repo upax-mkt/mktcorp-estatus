@@ -27,8 +27,8 @@ import type { SalaElegible } from './FormularioSesion'
  * de verdad — `Calendario`/`FormularioSesion` incluidos, sin mock — porque
  * es exactamente lo que hace falta probar: que el calendario y "agendar"
  * sigan intactos y que "próximas" aterrice bien alineada a su lado.
- * `next/navigation` sí se mockea (`useRouter`), igual que ya hace
- * `MinutaCliente.test.tsx`: montarlo de verdad exige un contexto de App
+ * `next/navigation` sí se mockea (`useRouter`/`usePathname`), igual que ya
+ * hace `MinutaCliente.test.tsx`: montarlo de verdad exige un contexto de App
  * Router que Vitest no arma solo.
  *
  * AUDITORÍA UX/UI (ronda 11) — EL HUECO MUERTO: con "Próximas" ya en el
@@ -40,11 +40,27 @@ import type { SalaElegible } from './FormularioSesion'
  * `editando`, reflejado en `data-activo` sobre `.panel`). Los tests de más
  * abajo que antes comprobaban "el botón vive dentro del `<aside>`" ahora
  * comprueban lo contrario a propósito: en reposo el `<aside>` NI SE MONTA.
+ *
+ * RONDA 15 (CIERRE DE LA DEUDA B) — LOS FILTROS DEJAN DE FILTRAR AQUÍ
+ * ADENTRO. Hasta esta ronda `filtroSala`/`filtroClase` eran `useState` de
+ * este componente, y las suites de más abajo comprobaban que elegir una
+ * opción angostaba `sesiones`/`proximas` en el propio render. Ahora ese
+ * cálculo vive en `page.tsx` (filtra `reuniones` contra `searchParams` antes
+ * de construir las props) — este componente solo RECIBE `filtroSala`/
+ * `filtroClase` ya resueltos (para el `value` de cada `<select>` y el aviso)
+ * y ESCRIBE la URL nueva con `router.replace` al elegir una opción distinta.
+ * Por eso las suites de filtro, más abajo, ya no comprueban "elegir X quita Y
+ * de la pantalla" (esa lógica se mudó a `page.test.tsx`, sobre
+ * `coincideConFiltros`) sino "elegir X llama a `replace` con la URL
+ * correcta" y "con `filtroSala`/`filtroClase` ya puestos como prop, el
+ * `<select>` y el aviso los reflejan".
  */
 
 const refreshMock = vi.fn()
+const replaceMock = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: refreshMock }),
+  useRouter: () => ({ refresh: refreshMock, replace: replaceMock }),
+  usePathname: () => '/reuniones',
 }))
 
 const SALAS: SalaElegible[] = [
@@ -86,6 +102,7 @@ function acciones() {
 
 beforeEach(() => {
   refreshMock.mockReset()
+  replaceMock.mockReset()
 })
 
 describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreglo del hueco muerto)', () => {
@@ -108,9 +125,12 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
     const aside = container.querySelector('aside')
     expect(aside).not.toBeNull()
     // Filtros (sala + clase) y leyenda —no el formulario, que solo aparece
-    // agendando/editando (siguiente test)—. Rótulo con su alcance real
-    // (revisión C1, I3): "Filtros" a secas no decía a qué alcanzaba.
-    expect(within(aside!).getByText('Filtros — calendario y Próximas')).toBeInTheDocument()
+    // agendando/editando (siguiente test)—. RÓTULO SIN CALIFICAR (ronda 15):
+    // hasta esa ronda decía "Filtros — calendario y Próximas" (revisión C1,
+    // I3, "Filtros" a secas no decía a qué alcanzaba); con el filtro subido a
+    // `searchParams` cubre las cuatro secciones, así que el calificativo
+    // dejó de sumar — ver el comentario del rótulo en `PanelAgenda.tsx`.
+    expect(within(aside!).getByText('Filtros')).toBeInTheDocument()
     expect(within(aside!).getByLabelText('Sala')).toBeInTheDocument()
     expect(within(aside!).getByLabelText('Clase de junta')).toBeInTheDocument()
     expect(within(aside!).getByText('Leyenda')).toBeInTheDocument()
@@ -477,15 +497,26 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
 })
 
 /**
- * EL HUECO DEL CALENDARIO (ronda 14.4, tarea 1): en reposo, filtros (sala +
- * clase) y leyenda ocupan el `<aside>` que antes se quedaba vacío. Los
- * filtros son de CLIENTE, sobre `sesiones` — mismo patrón que
- * `TablaAcuerdos.tsx` en `/acuerdos` — y solo afectan lo que este componente
- * pinta: el calendario (`Calendario` recibe `sesionesFiltradas`) y
- * "Próximas". "Por confirmar"/"Falta su minuta"/"Cerradas" viven en
- * `page.tsx` y no los ven — eso lo prueba `page.test.tsx`, no este archivo.
+ * EL HUECO DEL CALENDARIO — FILTROS Y LEYENDA (ronda 14.4, tarea 1;
+ * REESCRITO en la ronda 15, cierre de la deuda B).
+ *
+ * EL FILTRO YA NO FILTRA AQUÍ ADENTRO. Hasta la ronda 15 `filtroSala`/
+ * `filtroClase` eran `useState` de este componente, y elegir una opción
+ * angostaba `sesiones`/`proximas` en el mismo render — de ahí salían tests
+ * como "filtrar por sala deja 'Próximas' solo con esa sala". Ahora el
+ * filtro sube a `searchParams`: `page.tsx` es quien filtra `reuniones`
+ * (`coincideConFiltros`, probado en `page.test.tsx`) y le pasa a este
+ * componente `sesiones` YA FILTRADA más `filtroSala`/`filtroClase` YA
+ * RESUELTOS. El trabajo de ESTE componente se reduce a dos cosas, y son las
+ * que prueba esta suite:
+ *   1. Elegir una opción llama a `router.replace` con la URL correcta —no
+ *      cambia lo que se ve en el propio render (`sesiones` no cambia: viene
+ *      fija por prop, el mock de `next/navigation` no navega de verdad).
+ *   2. Con `filtroSala`/`filtroClase` ya puestos como prop (simulando que la
+ *      URL ya trae un filtro), el `<select>` correspondiente y el aviso de
+ *      "filtro activo" lo reflejan.
  */
-describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4, tarea 1)', () => {
+describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, cierre de la deuda B)', () => {
   it('la leyenda pinta cada sala con su color', () => {
     render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
@@ -494,50 +525,86 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4
     expect(within(leyenda).getByText('Mexa Creativa')).toBeInTheDocument()
   })
 
-  it('filtrar por sala deja "Próximas" solo con esa sala', async () => {
+  it('elegir una sala en el filtro navega (router.replace) a la misma ruta con "?sala=<slug>"', async () => {
     const usuario = userEvent.setup()
-    const deNeraCode = sesion({ id: 's1', titulo: 'Sync NeraCode', salaSlug: 'neracode', salaNombre: 'NeraCode' })
-    const deMexa = sesion({
-      id: 's2', titulo: 'Sync Mexa', salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa',
-      fecha: '2026-08-26T18:00:00.000Z',
-    })
-    render(
-      <PanelAgenda sesiones={[deNeraCode, deMexa]} salas={SALAS} hoy={HOY} idsProximas={['s1', 's2']} {...acciones()} />,
-    )
-
-    expect(screen.getByText('Sync NeraCode')).toBeInTheDocument()
-    expect(screen.getByText('Sync Mexa')).toBeInTheDocument()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
     await usuario.selectOptions(screen.getByLabelText('Sala'), 'mexa-creativa')
 
-    expect(screen.queryByText('Sync NeraCode')).not.toBeInTheDocument()
-    expect(screen.getByText('Sync Mexa')).toBeInTheDocument()
-    const seccion = screen.getByText('Próximas').closest('section')!
-    expect(within(seccion).getByText('1')).toBeInTheDocument()
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?sala=mexa-creativa', { scroll: false })
   })
 
-  it('filtrar por clase "Sin clasificar" deja solo las reuniones sin clase', async () => {
+  it('"Sin sala" está entre las opciones del filtro de sala, y elegirla navega con "?sala=sin-sala"', async () => {
     const usuario = userEvent.setup()
-    const conClase = sesion({ id: 's1', titulo: 'Sync clasificado', plantilla: 'sync-comercial' })
-    const sinClase = sesion({
-      id: 's2', titulo: 'Junta sin clase', plantilla: null, fecha: '2026-08-26T18:00:00.000Z',
-    })
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    expect(within(screen.getByLabelText('Sala')).getByRole('option', { name: 'Sin sala' })).toBeInTheDocument()
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'Sin sala')
+
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?sala=sin-sala', { scroll: false })
+  })
+
+  it('elegir una clase navega con "?clase=<id>", conservando la sala si ya había una elegida', async () => {
+    const usuario = userEvent.setup()
     render(
-      <PanelAgenda sesiones={[conClase, sinClase]} salas={SALAS} hoy={HOY} idsProximas={['s1', 's2']} {...acciones()} />,
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="neracode" {...acciones()} />,
     )
+
+    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sync Comercial')
+
+    // Los DOS ejes en la URL nueva —no solo el que cambió—: `irAFiltro`
+    // recibe siempre los dos valores completos (ver su comentario en
+    // `PanelAgenda.tsx`), así que la sala que ya estaba puesta sobrevive al
+    // cambio de clase.
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?sala=neracode&clase=sync-comercial', { scroll: false })
+  })
+
+  it('elegir "Sin clasificar" navega con "?clase=sin-clasificar"', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
     await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sin clasificar')
 
-    expect(screen.queryByText('Sync clasificado')).not.toBeInTheDocument()
-    expect(screen.getByText('Junta sin clase')).toBeInTheDocument()
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?clase=sin-clasificar', { scroll: false })
   })
 
-  it('los filtros no le llegan a "Por confirmar"/"Falta su minuta"/"Cerradas": viven en page.tsx, fuera de este componente', () => {
-    // Guardia de diseño, no de comportamiento: este componente ni siquiera
-    // recibe esas tres listas como prop — solo `sesiones`/`idsProximas`. Si
-    // algún día alguien intenta filtrar "Falta su minuta" desde aquí, la
-    // firma de `Props` (arriba, en PanelAgenda.tsx) tendría que cambiar
-    // primero, y ese cambio rompería esta lectura del archivo.
+  it('volver a "Todas las salas" navega SIN el parámetro "sala" en la URL', async () => {
+    const usuario = userEvent.setup()
+    render(
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="neracode" {...acciones()} />,
+    )
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'Todas las salas')
+
+    // Sin `?`: `irAFiltro` no arma una URL con un `URLSearchParams` vacío
+    // colgando — vuelve a la ruta desnuda.
+    expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones', { scroll: false })
+  })
+
+  it('con "filtroSala"/"filtroClase" puestos como prop, los <select> arrancan en ese valor', () => {
+    render(
+      <PanelAgenda
+        sesiones={[]}
+        salas={SALAS}
+        hoy={HOY}
+        idsProximas={[]}
+        filtroSala="mexa-creativa"
+        filtroClase="sync-comercial"
+        {...acciones()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Sala')).toHaveValue('mexa-creativa')
+    expect(screen.getByLabelText('Clase de junta')).toHaveValue('sync-comercial')
+  })
+
+  it('los filtros no le llegan a "Por confirmar"/"Falta su minuta"/"Cerradas" por su cuenta: este componente solo las coloca donde `page.tsx` se las manda', () => {
+    // Guardia de diseño, no de comportamiento: sin `entreCalendarioYProximas`/
+    // `despuesDeProximas`, este componente no inventa esas tres secciones —
+    // el filtrado de sus datos (`coincideConFiltros`) vive en `page.tsx`,
+    // antes de que exista ningún JSX que pasarle. Ver `page.test.tsx` para el
+    // guardia de que SÍ llegan ya filtradas cuando `page.tsx` las arma.
     render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
     expect(screen.queryByText('Por confirmar')).not.toBeInTheDocument()
@@ -546,13 +613,13 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4
   })
 
   /**
-   * EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): con un filtro
-   * puesto, abrir "+ Agendar una reunión" sustituye Filtros/Leyenda por el
-   * formulario — los `<select>` (y su valor elegido) dejan de estar a la
-   * vista, pero `filtroSala`/`filtroClase` NO se resetean: el calendario de
-   * al lado sigue filtrado sin ningún control visible que lo diga, justo
-   * mientras se elige un día. El "al menos un aviso visible" que pide la
-   * revisión (subir a `searchParams` queda anotado como siguiente paso).
+   * EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3 — SIGUE VIVO tras la
+   * ronda 15): con un filtro puesto (ahora, vía prop —simulando la URL—, no
+   * `useState`), abrir "+ Agendar una reunión" sustituye Filtros/Leyenda por
+   * el formulario — los `<select>` (y su valor elegido) dejan de estar a la
+   * vista, pero el filtro de la URL sigue aplicado. Ver el comentario de
+   * `hayFiltroActivo` en `PanelAgenda.tsx` para el porqué el aviso sigue
+   * haciendo falta (y vale para MÁS pantalla que antes, no para menos).
    */
   it('sin filtro activo, abrir el formulario NO pinta ningún aviso — no hay nada que avisar', async () => {
     const usuario = userEvent.setup()
@@ -564,16 +631,19 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4
   })
 
   it('con un filtro activo, EN REPOSO tampoco pinta el aviso — los propios <select> ya muestran su valor', () => {
-    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+    render(
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="neracode" {...acciones()} />,
+    )
 
     expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
   })
 
-  it('con un filtro de sala activo, abrir el formulario SÍ pinta el aviso, nombrando la sala', async () => {
+  it('con un filtro de sala activo (prop), abrir el formulario SÍ pinta el aviso, nombrando la sala', async () => {
     const usuario = userEvent.setup()
-    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+    render(
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="mexa-creativa" {...acciones()} />,
+    )
 
-    await usuario.selectOptions(screen.getByLabelText('Sala'), 'mexa-creativa')
     await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
 
     // El aviso mismo, no `screen` a secas: con el formulario abierto, SU
@@ -582,12 +652,20 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4
     expect(screen.getByText(/filtro activo/i)).toHaveTextContent(/mexa creativa/i)
   })
 
-  it('con filtro de sala Y de clase activos a la vez, el aviso nombra las dos', async () => {
+  it('con filtro de sala Y de clase activos a la vez (props), el aviso nombra las dos', async () => {
     const usuario = userEvent.setup()
-    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+    render(
+      <PanelAgenda
+        sesiones={[]}
+        salas={SALAS}
+        hoy={HOY}
+        idsProximas={[]}
+        filtroSala="neracode"
+        filtroClase="sin-clasificar"
+        {...acciones()}
+      />,
+    )
 
-    await usuario.selectOptions(screen.getByLabelText('Sala'), 'neracode')
-    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sin clasificar')
     await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
 
     const aviso = screen.getByText(/filtro activo/i)
@@ -595,16 +673,82 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4
     expect(aviso).toHaveTextContent(/sin clasificar/i)
   })
 
-  it('al cerrar el formulario con un filtro activo, el aviso desaparece junto con él (los <select> vuelven a estar a la vista)', async () => {
+  it('con el filtro de sala en "Sin sala" (prop), el aviso dice "Sin sala", no el marcador crudo', async () => {
     const usuario = userEvent.setup()
-    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+    render(
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="sin-sala" {...acciones()} />,
+    )
 
-    await usuario.selectOptions(screen.getByLabelText('Sala'), 'neracode')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    expect(screen.getByText(/filtro activo/i)).toHaveTextContent(/sin sala/i)
+  })
+
+  it('al cerrar el formulario con un filtro activo (prop), el aviso desaparece junto con él (los <select> vuelven a estar a la vista)', async () => {
+    const usuario = userEvent.setup()
+    render(
+      <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="neracode" {...acciones()} />,
+    )
+
     await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
     expect(screen.getByText(/filtro activo/i)).toBeInTheDocument()
 
     await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
 
     expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * "ENTRE CALENDARIO Y PRÓXIMAS" / "DESPUÉS DE PRÓXIMAS" — EL ORDEN DEL DOM,
+ * NO DE CSS (ronda 15, cierre de la deuda B). `page.tsx` deja de reordenar
+ * "Por confirmar"/"Falta su minuta"/"Cerradas" con `order` de CSS y en su
+ * lugar se las pasa a este componente como JSX ya armado; este componente
+ * las coloca físicamente en su propio `return` — ver el comentario de esas
+ * dos props (`Props`, en `PanelAgenda.tsx`) para el porqué.
+ */
+describe('PanelAgenda — entreCalendarioYProximas / despuesDeProximas: el orden del trabajo, en el DOM (ronda 15)', () => {
+  it('"entreCalendarioYProximas" aparece DESPUÉS del calendario y ANTES de "Próximas" en el orden del documento', () => {
+    render(
+      <PanelAgenda
+        sesiones={[]}
+        salas={SALAS}
+        hoy={HOY}
+        idsProximas={[]}
+        entreCalendarioYProximas={<p data-testid="marcador-entre">Por confirmar (stub)</p>}
+        {...acciones()}
+      />,
+    )
+
+    const rejillaCalendario = screen.getByRole('grid')
+    const marcador = screen.getByTestId('marcador-entre')
+    const encabezadoProximas = screen.getByRole('heading', { name: /próximas/i, level: 2 })
+
+    expect(Boolean(rejillaCalendario.compareDocumentPosition(marcador) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
+    expect(Boolean(marcador.compareDocumentPosition(encabezadoProximas) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
+  })
+
+  it('"despuesDeProximas" aparece DESPUÉS de "Próximas" en el orden del documento', () => {
+    render(
+      <PanelAgenda
+        sesiones={[]}
+        salas={SALAS}
+        hoy={HOY}
+        idsProximas={[]}
+        despuesDeProximas={<p data-testid="marcador-despues">Cerradas (stub)</p>}
+        {...acciones()}
+      />,
+    )
+
+    const encabezadoProximas = screen.getByRole('heading', { name: /próximas/i, level: 2 })
+    const marcador = screen.getByTestId('marcador-despues')
+
+    expect(Boolean(encabezadoProximas.compareDocumentPosition(marcador) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
+  })
+
+  it('sin las dos props, no se pinta nada de más — el resto del componente queda exactamente igual', () => {
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    expect(screen.getByRole('heading', { name: /próximas/i, level: 2 })).toBeInTheDocument()
   })
 })
