@@ -359,7 +359,7 @@ describe('Hub (/) — "Agendar rápido" agenda la reunión y nada más', () => {
   function agendarDesdeElHome() {
     const { agendar } = agendarRapidoPropsMock.mock.calls[0][0] as {
       agendar: (datos: {
-        salaSlug: string; dia: string; hora: string; tipo: string; titulo: string
+        salaSlug: string; dia: string; hora: string; tipo: string; titulo: string; plantilla?: string
       }) => Promise<{ error?: string }>
     }
     return agendar
@@ -390,6 +390,38 @@ describe('Hub (/) — "Agendar rápido" agenda la reunión y nada más', () => {
 
     const enviado = crearReunionMock.mock.calls.at(-1)?.[0] as { titulo: string }
     expect(enviado.titulo.trim().length).toBeGreaterThan(0)
+  })
+
+  /**
+   * "¿QUÉ JUNTA ES?" (cierre de deuda técnica): `AgendarRapido` ahora la
+   * pregunta (ver su test propio), y esto fija la otra mitad — que
+   * `agendarRapidoAction` la reenvía a `crearReunion` traducida a `null`
+   * cuando llega vacía, NUNCA la primera clase del catálogo. Antes de esta
+   * tarea el atajo del Home ni siquiera mandaba el campo, así que toda
+   * reunión creada aquí nacía sin clase por OMISIÓN — este test fija que
+   * sigue naciendo sin clase, ahora por una DECISIÓN explícita del código, no
+   * por un campo que faltaba.
+   */
+  it('sin clase elegida, crearReunion recibe plantilla: null — no la primera del catálogo', async () => {
+    render(await Hub())
+    crearReunionMock.mockClear()
+
+    await agendarDesdeElHome()({
+      salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual', titulo: '', plantilla: '',
+    })
+
+    expect(crearReunionMock).toHaveBeenCalledWith(expect.objectContaining({ plantilla: null }))
+  })
+
+  it('con una clase elegida, crearReunion recibe ese id tal cual', async () => {
+    render(await Hub())
+    crearReunionMock.mockClear()
+
+    await agendarDesdeElHome()({
+      salaSlug: 'neracode', dia: '2026-08-19', hora: '10:00', tipo: 'mensual', titulo: '', plantilla: 'comite',
+    })
+
+    expect(crearReunionMock).toHaveBeenCalledWith(expect.objectContaining({ plantilla: 'comite' }))
   })
 })
 

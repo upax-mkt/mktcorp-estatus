@@ -57,6 +57,7 @@ describe('AgendarRapido', () => {
       hora: '10:00',
       tipo: 'quincenal',
       titulo: '',
+      plantilla: '',
     })
   })
 
@@ -149,5 +150,65 @@ describe('AgendarRapido — título opcional (auditoría UX/UI, ronda 11)', () =
     expect(agendar).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ titulo: 'Estatus Comercial Quincenal' }),
     )
+  })
+})
+
+/**
+ * "¿QUÉ JUNTA ES?" (cierre de deuda técnica): agendar desde el Home era el
+ * único de los tres sitios que crean una reunión sin preguntar la clase —
+ * `NuevaSesionSala` y `FormularioSesion` ya la piden con
+ * `SelectorClaseDeJunta`. Este describe fija que AHORA sí la pregunta, con el
+ * MISMO componente compartido (no un tercer `<select>` a mano), y que arranca
+ * SIN elegir — nunca en la primera clase del catálogo — porque este
+ * formulario SOLO CREA, no edita.
+ */
+describe('AgendarRapido — "¿Qué junta es?" (cierre de deuda técnica)', () => {
+  it('ofrece el selector de clase de junta, con su mismo rótulo', async () => {
+    const usuario = userEvent.setup()
+    render(<AgendarRapido salas={salas} agendar={vi.fn()} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+
+    expect(screen.getByLabelText('¿Qué junta es?')).toBeInTheDocument()
+  })
+
+  it('arranca en "Sin clasificar", no en la primera clase del catálogo', async () => {
+    const usuario = userEvent.setup()
+    render(<AgendarRapido salas={salas} agendar={vi.fn()} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+
+    const selector = screen.getByLabelText('¿Qué junta es?') as HTMLSelectElement
+    expect(selector.value).toBe('')
+    expect(within(selector).getByRole('option', { name: 'Sin clasificar' })).toBeInTheDocument()
+  })
+
+  it('si nadie elige clase, agendar() recibe plantilla: \'\' — no la primera del catálogo', async () => {
+    const usuario = userEvent.setup()
+    const agendar = vi.fn().mockResolvedValue({})
+    render(<AgendarRapido salas={salas} agendar={agendar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+    fireEvent.change(screen.getByLabelText(/día/i), { target: { value: '2026-08-19' } })
+    await usuario.click(screen.getByRole('button', { name: /^agendar$/i }))
+
+    expect(agendar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ plantilla: '' }))
+  })
+
+  it('si se elige una clase, agendar() recibe ese id — y "En blanco" no aparece como clase real', async () => {
+    const usuario = userEvent.setup()
+    const agendar = vi.fn().mockResolvedValue({})
+    render(<AgendarRapido salas={salas} agendar={agendar} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+    fireEvent.change(screen.getByLabelText(/día/i), { target: { value: '2026-08-19' } })
+    // "Otra (deck en blanco)" está en su propio grupo — no se lee como una
+    // clase de junta más entre las cinco reales. Comprobado ANTES de enviar:
+    // un envío exitoso cierra el diálogo y se lleva sus opciones con él.
+    expect(screen.getByRole('option', { name: 'Otra (deck en blanco)' })).toBeInTheDocument()
+    await usuario.selectOptions(screen.getByLabelText('¿Qué junta es?'), 'sync-comercial')
+    await usuario.click(screen.getByRole('button', { name: /^agendar$/i }))
+
+    expect(agendar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ plantilla: 'sync-comercial' }))
   })
 })

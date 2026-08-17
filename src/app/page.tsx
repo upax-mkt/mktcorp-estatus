@@ -176,6 +176,14 @@ export default async function Hub() {
    * pausa no se ofrece" es cortesía de interfaz: el rechazo de verdad, contra
    * el freeze de la base, lo hace `crearReunion` por dentro. El try/catch
    * convierte esa excepción en un mensaje legible en vez de tumbar la página.
+   *
+   * `datos.plantilla` LLEGA `''` CUANDO NADIE TOCÓ EL DESPLEGABLE (cierre de
+   * deuda técnica): `''` → `null`, nunca la primera clase del catálogo. Es la
+   * misma traducción "cadena vacía en el formulario, `null` en la base" que ya
+   * hacen las acciones de `src/app/reuniones/acciones.ts` para
+   * `FormularioSesion`, y `crearReunion` valida la que sí venga con
+   * `esPlantillaConocida` (`src/db/reuniones.ts`) — un id que no exista en el
+   * catálogo se rechaza ahí, no aquí.
    */
   async function agendarRapidoAction(datos: DatosAgendarRapido): Promise<{ error?: string }> {
     'use server'
@@ -187,6 +195,7 @@ export default async function Hub() {
         tipo: datos.tipo,
         fecha: cuando,
         titulo: datos.titulo.trim() || tituloPorDefecto(datos.tipo, cuando),
+        plantilla: datos.plantilla || null,
       })
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo agendar la reunión.' }

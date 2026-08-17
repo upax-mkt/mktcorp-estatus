@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 import estilos from './AgendarRapido.module.css'
 
 /**
@@ -51,6 +52,26 @@ import estilos from './AgendarRapido.module.css'
  * con la reunión creada, como antes. Mismo nombre de campo ("Título") que
  * `FormularioSesion.tsx` (`DatosFormulario.titulo`) — un solo vocabulario
  * entre los dos formularios, aunque resuelvan obligatorio/opcional distinto.
+ *
+ * "¿QUÉ JUNTA ES?" (cierre de deuda técnica): este era el ÚNICO de los tres
+ * sitios que crean una reunión sin preguntar la clase — `NuevaSesionSala` y
+ * `FormularioSesion` (`componentes/agenda`) ya la piden. Toda reunión nacida
+ * aquí engordaba en silencio la columna "Sin clasificar" de su sala y de
+ * `/reuniones`. Se suma el mismo `SelectorClaseDeJunta` que ya usan los otros
+ * dos —no un tercer `<select>` escrito a mano, que es como este repo se comió
+ * la lección la primera vez (ver el comentario del propio componente)—, y
+ * OPCIONAL, con el mismo criterio que el Título: quien tiene prisa lo deja
+ * sin tocar.
+ *
+ * ARRANCA VACÍO ("" = sin clasificar), NUNCA en la primera clase del catálogo.
+ * Esta pantalla SOLO CREA —no hay "editar" que abra en su clase ya puesta,
+ * al revés de `FormularioSesion`—, así que aquí no hay ambigüedad que
+ * resolver: si nadie toca el desplegable, `agendarRapidoAction` (`app/page.tsx`)
+ * manda `plantilla: null` y la reunión nace tal como nacía antes de que este
+ * campo existiera — sin clase, que es la verdad, no "Estatus de UDN" porque
+ * esa fuera la primera fila del catálogo. Un dato que falta es un hecho;
+ * convertirlo en un dato inventado por el orden del `<select>` es peor que
+ * dejarlo vacío.
  */
 
 export interface SalaParaAgendar {
@@ -76,6 +97,15 @@ export interface DatosAgendarRapido {
    * sola forma de decir "no lo llenaron".
    */
   titulo: string
+  /**
+   * Qué clase de junta es (`src/secciones/plantillas.ts`) — el id de una
+   * `Plantilla` del catálogo, o `''` para "sin clasificar". Mismo tipo y
+   * mismo significado de `''` que `DatosFormulario.plantilla`
+   * (`FormularioSesion.tsx`): un `<select>` no tiene `null`, así que la
+   * ausencia se representa como cadena vacía aquí, y es `agendarRapidoAction`
+   * (`app/page.tsx`) quien la traduce a `null` antes de tocar la base.
+   */
+  plantilla: string
 }
 
 interface Props {
@@ -109,6 +139,10 @@ export function AgendarRapido({ salas, agendar }: Props) {
     hora: HORA_POR_DEFECTO,
     tipo: 'mensual',
     titulo: '',
+    // '' = sin clasificar, SIEMPRE al crear — ver el comentario de "¿Qué
+    // junta es?" arriba. Nunca `PLANTILLA_POR_DEFECTO`: esta pantalla no
+    // edita, solo crea, así que no hay una clase previa que respetar.
+    plantilla: '',
   })
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
@@ -230,6 +264,24 @@ export function AgendarRapido({ salas, agendar }: Props) {
                     </select>
                   </label>
                 </div>
+
+                {/* "¿QUÉ JUNTA ES?", OPCIONAL (ver el comentario del
+                    archivo): el mismo `SelectorClaseDeJunta` que ya usan
+                    `NuevaSesionSala` y `FormularioSesion` — no un tercer
+                    `<select>` escrito a mano. Fuera de la rejilla 2x2, a todo
+                    lo ancho, mismo criterio que el Título de aquí abajo: no
+                    bloquea "Agendar", `.campo` es la MISMA clase que ya
+                    estiliza cada label de esta rejilla (descendant selector
+                    `.campo select` en AgendarRapido.module.css), y "micro" es
+                    la clase global que ya usan Sala/Día/Hora/Tipo — un
+                    formulario, un solo vocabulario visual. */}
+                <SelectorClaseDeJunta
+                  value={datos.plantilla}
+                  onChange={(v) => campo('plantilla', v)}
+                  className={estilos.campo}
+                  etiquetaClassName="micro"
+                  pistaClassName={estilos.pista}
+                />
 
                 {/* OPCIONAL (ver el comentario del archivo): fuera de la rejilla
                     2x2 de arriba, a todo lo ancho — mismo criterio visual que

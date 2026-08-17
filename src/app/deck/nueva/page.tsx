@@ -7,10 +7,11 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import { crearReunionConDocumento } from '@/db/documentos'
 import type { TipoReunion } from '@/db/reuniones'
 import { slugsDeSalasPausadas } from '@/db/salas'
-import { PLANTILLAS, PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
+import { PLANTILLAS } from '@/secciones/plantillas'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
+import { CampoClaseDeJunta } from './CampoClaseDeJunta'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,17 @@ export default async function PagNuevaSesion() {
     await exigirEditor()
 
     const salaSlug = String(formData.get('salaSlug') ?? '')
-    const plantilla = String(formData.get('plantilla') ?? PLANTILLA_POR_DEFECTO)
+    // '' CUANDO NADIE ELIGIÓ (cierre de deuda técnica): el `<input type="hidden">`
+    // de `CampoClaseDeJunta.tsx` arranca vacío y ESE `''` SIGUE SIENDO VÁLIDO
+    // al enviar — no cae al default del catálogo (`PLANTILLA_POR_DEFECTO`).
+    // Antes esto SIEMPRE traía un id real —el radio "Estatus de UDN" nacía
+    // marcado (`defaultChecked={i === 0}`)—, así que toda reunión creada aquí
+    // nacía clasificada aunque nadie hubiera elegido nada: el mismo dato
+    // inventado por el orden del catálogo que ya se cerró en `AgendarRapido`
+    // (ver su comentario, `componentes/hogar/AgendarRapido.tsx`). Un dato que
+    // falta es un hecho; convertirlo en un dato inventado es peor que dejarlo
+    // vacío.
+    const plantillaCampo = String(formData.get('plantilla') ?? '').trim()
     const tipo = (String(formData.get('tipo') ?? 'mensual')) as TipoReunion
     const alcanceModo = String(formData.get('alcanceModo') ?? 'todos')
     const alcanceTema = String(formData.get('alcanceTema') ?? '').trim()
@@ -72,8 +83,13 @@ export default async function PagNuevaSesion() {
     if (!salaSlug || !(await slugsDeSalas()).includes(salaSlug)) {
       throw new Error(`Elige una sala válida (recibido: "${salaSlug}")`)
     }
-    if (!PLANTILLAS.some((p) => p.id === plantilla)) {
-      throw new Error(`Plantilla desconocida: "${plantilla}"`)
+    // Vacío SIGUE siendo válido (arriba); solo se rechaza una cadena no vacía
+    // que el catálogo no reconoce — mismo criterio que `esPlantillaConocida`
+    // (`src/db/reuniones.ts`), que valida esto MISMO otra vez del lado de la
+    // base. Redundante a propósito, no se toca: ver el comentario de esa
+    // función sobre por qué `crearSesionAction` conserva el suyo.
+    if (plantillaCampo && !PLANTILLAS.some((p) => p.id === plantillaCampo)) {
+      throw new Error(`Plantilla desconocida: "${plantillaCampo}"`)
     }
 
     const alcance = alcanceModo === 'tema' && alcanceTema.length > 0 ? alcanceTema : 'todos'
@@ -86,8 +102,16 @@ export default async function PagNuevaSesion() {
     // fijo y toda reunión creada aquí caía a `tituloPorDefecto`. Vacío sigue
     // siendo válido —el default lo cubre— pero ya no es lo único posible.
     const titulo = String(formData.get('titulo') ?? '').trim()
+    // `plantilla` SE OMITE (no `null`) cuando nadie eligió: `DatosDeReunion`
+    // la tipa `string | null | undefined`, y `crearReunionConDocumento` la
+    // reenvía tal cual a `crearReunion` (que guarda `null` si no vino) Y a
+    // `crearDocumentoConPlantilla` (que sí sigue sembrando el documento con
+    // las 8 secciones del estatus por defecto cuando no llega ninguna — ese
+    // fallback es de la capa de documentos, anterior a esta tarea y fuera de
+    // su alcance: ver la "preocupación" en el informe de esta ronda).
     const { reunionId } = await crearReunionConDocumento({
-      salaSlug, plantilla, tipo, alcance, titulo, fecha: new Date(),
+      salaSlug, tipo, alcance, titulo, fecha: new Date(),
+      ...(plantillaCampo ? { plantilla: plantillaCampo } : {}),
     })
     redirect(`/deck/${reunionId}`)
   }
@@ -151,24 +175,28 @@ export default async function PagNuevaSesion() {
             </div>
           </div>
 
-          {/* LA PLANTILLA va primero: decide con qué secciones nace la
-              reunión, y es lo que hace que esto sirva para un comité o un
-              arranque de campaña y no solo para el estatus de una UDN. */}
-          <div className={estilos.campo}>
-            <span className={estilos.campoTitulo}>Qué reunión es</span>
-            <div className={estilos.plantillas}>
-              {PLANTILLAS.map((p, i) => (
-                <label key={p.id} className={estilos.plantilla}>
-                  <input type="radio" name="plantilla" value={p.id} defaultChecked={i === 0} />
-                  <span className={estilos.plantillaNombre}>{p.nombre}</span>
-                  <span className={estilos.plantillaParaQue}>{p.paraQue}</span>
-                  <span className={estilos.plantillaCuenta}>
-                    {p.items.length} {p.items.length === 1 ? 'sección' : 'secciones'}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+          {/* "¿QUÉ JUNTA ES?" (cierre de deuda técnica): esta pantalla era
+              UNA DE LAS TRES que crean una reunión, y la ÚNICA que la
+              preguntaba con una forma propia —radios rotulados "Qué reunión
+              es", sin el rótulo "¿Qué junta es?", sin filtrar por
+              `esClaseDeJunta` y sin la opción "Otra (deck en blanco)"—, en
+              vez de reusar `SelectorClaseDeJunta` como ya hacían
+              `NuevaSesionSala` y `FormularioSesion`. Tres pantallas
+              preguntando lo mismo de tres maneras es cómo este repo se
+              desincronizó la primera vez (ver el comentario del propio
+              componente compartido).
+
+              `CampoClaseDeJunta` (este mismo directorio) es el puente hacia
+              el `FormData` nativo de este `<form>`: `SelectorClaseDeJunta` es
+              controlado (`value`/`onChange`, sin `name`), así que el puente
+              guarda el valor en un `<input type="hidden" name="plantilla">`
+              sincronizado. Lo elegido sigue decidiendo con qué secciones
+              nace la reunión —sigue siendo lo que hace que esto sirva para
+              un comité o un arranque de campaña y no solo para el estatus de
+              una UDN—, pero ahora arranca SIN ELEGIR: ver el comentario de
+              `crear`, más arriba, para por qué ya no cae a la primera del
+              catálogo. */}
+          <CampoClaseDeJunta />
 
           <div className={estilos.campo}>
             <span className={estilos.campoTitulo}>Tipo</span>
