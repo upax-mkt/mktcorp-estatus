@@ -76,19 +76,64 @@ let filasAcuerdos: FilaAcuerdoToy[]
 /** El día UTC de un instante — lo que hace `date_trunc('day', ... AT TIME ZONE 'UTC')` en la sentencia real. */
 const diaUTC = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : null)
 
-/** Lo que evalúa el `NOT EXISTS` de `crearAcuerdo`, con su misma semántica. */
+/**
+ * HALLAZGO QUE ESTA VERSIÓN CIERRA: el doble ANTES reimplementaba "comparar
+ * por día" fijo en JS (un `diaUTC(...) === diaUTC(...)` que no dependía de lo
+ * que `crearAcuerdo` mandara a Postgres). Con eso, revertir el `date_trunc`
+ * de `acuerdos.ts:254` a comparar el INSTANTE exacto —el bug real de la
+ * ronda 14, el que este archivo existe para impedir que vuelva— no cambiaba
+ * NADA en este doble: los 1.997 tests seguían en verde. Se demostró a mano:
+ * revertir el `date_trunc` y correr la suite deja todo en verde igual.
+ *
+ * EL ARREGLO: la granularidad de la comparación NO se decide aquí. Se LEE de
+ * la sentencia SQL que `crearAcuerdo` acaba de emitir de verdad
+ * (`dialect.sqlToQuery(query).sql`, la misma que Postgres ejecutaría). Si esa
+ * sentencia sigue truncando a día (`date_trunc('day', ...)`), el doble
+ * compara por día. Si alguien revierte `crearAcuerdo` a comparar el instante
+ * (quita el `date_trunc`), el texto que el doble lee ya no lo contiene, y el
+ * doble pasa a comparar por instante — exactamente el comportamiento que
+ * Postgres tendría con esa sentencia revertida, así que el duplicado que C1
+ * arregló vuelve a aparecer y el test que lo prueba se pone rojo.
+ *
+ * POR QUÉ ESTE CAMINO Y NO LOS OTROS DOS (Franco pidió valorarlos):
+ *   - "Afirmar sobre el SQL emitido" (un `expect(sqlTexto).toContain(...)`)
+ *     es más barato pero prueba la FORMA de la sentencia, no su
+ *     comportamiento: pasaría igual si `date_trunc('day', ...)` apareciera en
+ *     la sentencia pero el resto de la lógica de dedupe estuviera rota. Este
+ *     archivo prueba el resultado (¿se duplicó el acuerdo o no?), y la
+ *     granularidad leída del SQL solo alimenta esa evaluación real.
+ *   - "Hacer que el doble se comporte como Postgres" del todo —parsear y
+ *     evaluar el WHERE como un motor SQL real— pediría una dependencia nueva
+ *     (pg-mem o similar; no hay ninguna en este repo) para un único WHERE.
+ *     Este archivo hace el equivalente MÍNIMO que hace falta para este caso:
+ *     en vez de adivinar la granularidad, la toma del único lugar donde
+ *     `date_trunc('day'` puede aparecer en esta sentencia (la comparación de
+ *     `fecha_compromiso` del dedupe) y evalúa el NOT EXISTS real con esa
+ *     granularidad — no una tercera comparación inventada, la MISMA que la
+ *     sentencia real dice tener.
+ */
+function granularidadDeLaSentencia(sqlTexto: string): 'dia' | 'instante' {
+  return sqlTexto.includes('date_trunc(') ? 'dia' : 'instante'
+}
+
+/** Lo que evalúa el `NOT EXISTS` de `crearAcuerdo`, con la granularidad que su sentencia real diga tener. */
 function coincideAcuerdo(
   f: FilaAcuerdoToy,
   candidato: { que: string; responsable: string; fechaCompromisoIso: string | null; reunionOrigenId: string | null },
+  granularidad: 'dia' | 'instante',
 ): boolean {
+  const fechaFila = f.fechaCompromiso?.toISOString() ?? null
+  const fechaCoincide =
+    granularidad === 'dia'
+      ? diaUTC(fechaFila) === diaUTC(candidato.fechaCompromisoIso)
+      : fechaFila === candidato.fechaCompromisoIso
+
   return (
     f.reunionOrigenId !== null &&
     f.reunionOrigenId === candidato.reunionOrigenId &&
     f.que === candidato.que &&
     f.responsable === candidato.responsable &&
-    // POR DÍA. Antes de C1 esto comparaba el INSTANTE exacto, y era justo esa
-    // condición la que dejaba de reconocer una fila del escritor viejo.
-    diaUTC(f.fechaCompromiso?.toISOString()) === diaUTC(candidato.fechaCompromisoIso)
+    fechaCoincide
   )
 }
 
@@ -151,7 +196,7 @@ function dobleDB() {
     },
     /** El INSERT ... WHERE NOT EXISTS de `crearAcuerdo`, evaluado de verdad. */
     execute: (query: unknown) => {
-      const { params } = dialect.sqlToQuery(query as SQL)
+      const { sql: sqlTexto, params } = dialect.sqlToQuery(query as SQL)
       const [id, salaSlug, que, responsable, , , fechaCompromisoIso, reunionOrigenId] = params as (string | null)[]
       const candidato = {
         que: que as string,
@@ -159,7 +204,11 @@ function dobleDB() {
         fechaCompromisoIso: fechaCompromisoIso ?? null,
         reunionOrigenId: reunionOrigenId ?? null,
       }
-      if (filasAcuerdos.some((f) => coincideAcuerdo(f, candidato))) return Promise.resolve({ rows: [] })
+      // La granularidad viene de la sentencia real emitida en ESTA llamada,
+      // no de una constante del archivo — ver la cabecera de
+      // `granularidadDeLaSentencia` sobre por qué.
+      const granularidad = granularidadDeLaSentencia(sqlTexto)
+      if (filasAcuerdos.some((f) => coincideAcuerdo(f, candidato, granularidad))) return Promise.resolve({ rows: [] })
       filasAcuerdos.push({
         id: id as string,
         salaSlug: salaSlug as string,

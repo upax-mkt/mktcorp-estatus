@@ -258,6 +258,39 @@ describe('TablaAcuerdos', () => {
       await waitFor(() => expect(editarFecha).toHaveBeenCalledWith(base.id, '2026-09-01'))
     })
 
+    /**
+     * DEUDA TÉCNICA (ronda de arreglo): el `onBlur` de `AcuerdoControles`
+     * disparaba `editarFechaAction` con solo enfocar y salir del campo, sin
+     * comprobar si el valor había cambiado — enfocar y salir de la fecha de
+     * un acuerdo escribía en la base, dejaba una entrada en su `historia` y
+     * disparaba una llamada a Monday. Tabular por una lista entera escribía
+     * una vez por fila. Sin este test, revertir el guard de
+     * `AcuerdoControles.tsx` (comparar contra `fechaGuardada.current`) no
+     * pondría nada en rojo.
+     */
+    it('enfocar y salir del campo de fecha sin tocar el valor NO escribe nada', async () => {
+      const editarFecha = vi.fn().mockResolvedValue(undefined)
+      render(
+        <TablaAcuerdos
+          acuerdos={[base]}
+          destacar={vi.fn().mockResolvedValue(undefined)}
+          editar={vi.fn()}
+          personas={[]}
+          cambiarEstatus={vi.fn().mockResolvedValue(undefined)}
+          editarFecha={editarFecha}
+        />,
+      )
+
+      await userEvent.setup().click(screen.getByRole('button', { name: /corregir/i }))
+
+      const campoFecha = screen.getByLabelText('Editar fecha compromiso')
+      // Sin `fireEvent.change` de por medio: es exactamente "enfocar y salir".
+      fireEvent.focus(campoFecha)
+      fireEvent.blur(campoFecha)
+
+      expect(editarFecha).not.toHaveBeenCalled()
+    })
+
     it('mueve el acuerdo de sala desde la fila', async () => {
       const moverDeSala = vi.fn().mockResolvedValue({})
       const usuario = userEvent.setup()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import estilos from '@/app/cliente/cliente.module.css'
 
 type EstatusAcuerdo = 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
@@ -50,6 +50,13 @@ export function AcuerdoControles({
   const [pending, startTransition] = useTransition()
   const [fecha, setFecha] = useState(fechaInicial ?? '')
   const [confirmando, setConfirmando] = useState(false)
+  // Lo último que de verdad se mandó a guardar (mismo patrón que
+  // `ultimoGuardado` en EditorSeccion.tsx): enfocar y salir del campo sin
+  // tocar el valor dispara el `onBlur` igual que si se hubiera editado — sin
+  // esta referencia no hay forma de distinguir "no cambió nada" de "cambió y
+  // ya se guardó", y cada blur reescribía la fecha (entrada nueva en
+  // `historia`, llamada a Monday) aunque el día siguiera siendo el mismo.
+  const fechaGuardada = useRef(fechaInicial ?? '')
 
   return (
     <div className={estilos.controlesEquipo} title="Solo equipo Mkt Corp">
@@ -72,7 +79,14 @@ export function AcuerdoControles({
         disabled={pending}
         aria-label="Editar fecha compromiso"
         onChange={(e) => setFecha(e.target.value)}
-        onBlur={() => startTransition(() => editarFechaAction(acuerdoId, fecha || null))}
+        onBlur={() => {
+          // Nada que guardar: es exactamente el caso de enfocar y salir sin
+          // tocar el valor — tabular por una fila entera de acuerdos no debe
+          // escribir una vez por celda.
+          if (fecha === fechaGuardada.current) return
+          fechaGuardada.current = fecha
+          startTransition(() => editarFechaAction(acuerdoId, fecha || null))
+        }}
       />
 
       {/* Borrar es irreversible y no hay papelera: se pide confirmación en el
