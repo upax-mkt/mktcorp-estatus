@@ -104,10 +104,29 @@
    esto en el móvil.
 
    `clamp` en vez de un salto seco: la escala crece con la pantalla y llega a
-   1,55 a partir de ~1400 px, que es donde de verdad se proyecta. */
+   1,55 a partir de ~1400 px, que es donde de verdad se proyecta.
+
+   OJO CON LA UNIDAD DEL DIVISOR, que es de donde salió el peor fallo que ha
+   tenido esta pantalla. Esto estuvo escrito `clamp(1, 100vw / 900, 1.55)`, sin
+   `px`, y así mezcla dos tipos: los topes son <number> y el valor de en medio
+   es una <length> (vw entre número sigue siendo longitud). `clamp` exige los
+   tres del mismo tipo, así que la expresión es inválida — el navegador lo
+   confirma: `CSS.supports('font-size', 'calc(2.59rem * clamp(1, 100vw / 900,
+   1.55))')` da false, y con `900px` da true.
+
+   Y como `--escala` es una custom property, el error no salta al declararla:
+   se guarda el token tal cual y revienta más tarde, en cada uno de los
+   dieciséis `calc()` que la usan. Con todos esos `calc()` inválidos, la
+   tipografía y el espaciado caían al valor por defecto del navegador: en modo
+   Presentar el título salía a 16 px y las viñetas, sin sangría, encima de la
+   primera letra. Solo se veía al presentar, porque solo ahí aplica esta regla.
+
+   Dividir longitud entre LONGITUD da el número que `clamp` espera: a 1437 px
+   de ancho, 1437/900 = 1,59 → topa en 1,55; en un móvil de 430, 0,48 → topa
+   en 1. Que es justo lo que dice el párrafo de arriba. */
 [data-presentando='true'] .documento {
   --ancho: min(94vw, 100rem);
-  --escala: clamp(1, 100vw / 900, 1.55);
+  --escala: clamp(1, 100vw / 900px, 1.55);
 }
 
 [data-presentando='true'] .contenido {
