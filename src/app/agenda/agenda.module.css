@@ -118,7 +118,27 @@
    todavía no hay nada dentro. */
 .marca[data-estado='agendada'] { background: none; border-left-style: dashed; }
 .marcaHora { font-size: 0.66rem; color: var(--tx-3); font-variant-numeric: tabular-nums; }
-.marcaSala { font-size: 0.72rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marcaSala { font-size: 0.72rem; font-weight: 600; min-width: 0; }
+.marcaSalaLarga, .marcaSalaCorta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Por defecto se enseña el nombre completo (escritorio) y el corto se queda
+   fuera del flujo — ver la media query, más abajo, y el porqué completo en
+   `nombreCortoDeSala`, `Calendario.tsx`: a 390px el chip no tiene los ~90px
+   que pide un nombre como "Marketing United" entero. */
+.marcaSalaCorta { display: none; }
+
+/* DEFECTO REPORTADO POR FRANCO (17-ago): a 390px "Res…"/"Ne…"/"Ho…"/"Ma…" no
+   dicen nada — el nombre de sala es lo único que el chip tiene que decir.
+   Medido con Playwright contra `/reuniones` real, no a ojo: a 390px el chip
+   (`.marca`) mide 34px y el hueco del nombre (`.marcaSalaLarga`) 28px —
+   "Research Land" pide 77px, "NeraCode" 53px — así que CUALQUIER nombre
+   completo se corta ahí. 40rem (640px) cubre cualquier teléfono; por encima
+   la rejilla vive dentro de `.panel` (tope 56rem) con margen de sobra: a
+   1440px el chip mide 112px y hasta "Marketing United" cabe entero (medido:
+   91px de 101px disponibles), así que el escritorio no cambia. */
+@media (max-width: 40rem) {
+  .marcaSalaLarga { display: none; }
+  .marcaSalaCorta { display: block; }
+}
 
 /* La leyenda reproduce la marca REAL del calendario, no un cuadradito de
    adorno: si la muestra no se parece a lo que hay dentro del cuadro, hay que
