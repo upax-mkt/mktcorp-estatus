@@ -595,7 +595,7 @@ export async function crearDocumentoConPlantilla(
   // `editarReunion` ya lo rechazan, pero esta función no vuelve a confiar en
   // eso para inventar 'estatus-udn' en silencio), se siembra con las
   // secciones de 'en-blanco' —la misma plantilla mínima, una portada, que
-  // usa quien elige a propósito "Otra (deck en blanco)"— SIN escribir
+  // usa quien elige a propósito "En blanco"— SIN escribir
   // 'en-blanco' como la clase del documento: esa sí es una clase real y
   // distinta (la que elige quien pulsa esa opción), y confundirla con "sin
   // clasificar" sería inventar una clase distinta a la misma velocidad que
@@ -611,10 +611,16 @@ export async function crearDocumentoConPlantilla(
     documentoId,
     orden: i,
     tipo: d.tipo,
-    // Nace solo con su tipo de sección elegido. El TÍTULO no se siembra: si
-    // lo hiciera, la sección contaría como escrita y un documento recién
-    // creado diría "8/8 listas" sin que nadie haya tocado nada.
-    contenidoCrudo: { seccion: { layout: d.layout } } as ContenidoItemCrudo,
+    // Nace con el CONTENIDO de la plantilla si lo declara (`d.contenido`,
+    // ronda 15, tarea 1 — ver su comentario en `src/secciones/plantillas.ts`),
+    // o solo con su tipo de sección elegido si no lo declara — el
+    // comportamiento de siempre. Sin `d.contenido`, sembrar el título contaría
+    // la sección como escrita y un documento recién creado diría "8/8 listas"
+    // sin que nadie haya tocado nada; con `d.contenido` es justo lo contrario
+    // lo que se busca — una plantilla-galería como "Plantilla completa" nace
+    // YA llena, a propósito, para que el equipo la edite en vez de partir de
+    // cero.
+    contenidoCrudo: { seccion: d.contenido ?? { layout: d.layout } } as ContenidoItemCrudo,
     decisionMaquetacion: null as unknown,
   }))
 

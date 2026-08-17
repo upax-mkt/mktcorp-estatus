@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event'
  * hallazgo que cierra esta ronda de deuda técnica: era la ÚNICA de las tres
  * pantallas que crean una reunión con una forma propia para "¿qué junta
  * es?" —radios rotulados "Qué reunión es", sin el rótulo compartido, sin
- * filtrar por `esClaseDeJunta` y sin la opción "Otra (deck en blanco)"—, y la
+ * filtrar por `esClaseDeJunta` y sin la opción "En blanco"—, y la
  * ÚNICA que nacía con una clase elegida por nadie (el radio "Estatus de UDN"
  * traía `defaultChecked`). Ahora reusa `SelectorClaseDeJunta`
  * (`@/componentes/comunes/SelectorClaseDeJunta`) a través del puente
@@ -84,11 +84,11 @@ describe('PagNuevaSesion (/deck/nueva) — "¿Qué junta es?" reusa el selector 
     expect(within(selector).getByRole('option', { name: 'Sin clasificar' })).toBeInTheDocument()
   })
 
-  it('filtra por clase de junta: "Otra (deck en blanco)" vive aparte, no como una clase más', async () => {
+  it('filtra por clase de junta: "En blanco" vive aparte, no como una clase más', async () => {
     render(await PagNuevaSesion())
 
     const selector = screen.getByLabelText('¿Qué junta es?')
-    expect(within(selector).getByRole('option', { name: 'Otra (deck en blanco)' })).toBeInTheDocument()
+    expect(within(selector).getByRole('option', { name: 'En blanco' })).toBeInTheDocument()
     // Cinco clases reales — mismo catálogo que ya prueba `SelectorClaseDeJunta.test.tsx`,
     // esto solo fija que ESTA pantalla lo usa filtrado, no la lista cruda.
     expect(within(selector).getByRole('option', { name: 'Estatus de UDN' })).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('PagNuevaSesion (/deck/nueva) — una junta nueva no nace clasificada p
     )
   })
 
-  it('eligiendo "Otra (deck en blanco)", viaja "en-blanco" — sigue siendo una opción válida, no una clase', async () => {
+  it('eligiendo "En blanco", viaja "en-blanco" — sigue siendo una opción válida, no una clase', async () => {
     const usuario = userEvent.setup()
     render(await PagNuevaSesion())
 

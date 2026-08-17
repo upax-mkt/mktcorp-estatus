@@ -98,6 +98,47 @@ describe('crear una reunión con plantilla', () => {
   })
 })
 
+describe('sembrar contenido inicial de plantilla (ronda 15, tarea 1)', () => {
+  /**
+   * REGRESIÓN: las plantillas de antes de esta ronda no declaran `contenido`
+   * en ninguno de sus items, y su comportamiento al sembrar NO PUEDE cambiar
+   * — es la condición explícita de la tarea. Sin `contenido`, el sembrador
+   * tiene que seguir cayendo a `{ layout: d.layout }` a secas, byte a byte,
+   * igual que antes de que este campo existiera: ni título, ni subtítulo, ni
+   * nada más, y el item nace `llenado: false`.
+   */
+  it('sin `contenido` en la plantilla, un item sigue naciendo solo con su layout — igual que siempre', async () => {
+    for (const idPlantilla of ['estatus-udn', 'sync-comercial', 'seguimiento', 'comite', 'arranque', 'en-blanco']) {
+      reiniciarStoreMemoria()
+      const { reunionId } = await crearReunionConDocumento({
+        salaSlug: 'neracode', plantilla: idPlantilla, tipo: 'mensual', titulo: '', fecha: new Date(),
+      })
+      const documento = (await documentoDeReunion(reunionId))!
+      for (const item of documento.items) {
+        expect(item.contenido, `"${idPlantilla}" → "${item.tipo}"`).toEqual({
+          seccion: { layout: item.contenido.seccion?.layout },
+        })
+        expect(item.llenado, `"${idPlantilla}" → "${item.tipo}" no debería nacer llenado`).toBe(false)
+      }
+    }
+  })
+
+  it('con `contenido` en la plantilla ("Plantilla completa"), las 18 secciones nacen YA llenas', async () => {
+    const { reunionId } = await crearReunionConDocumento({
+      salaSlug: 'neracode', plantilla: 'plantilla-completa', tipo: 'mensual', titulo: '', fecha: new Date(),
+    })
+    const documento = (await documentoDeReunion(reunionId))!
+    expect(documento.items).toHaveLength(18)
+    for (const item of documento.items) {
+      expect(item.llenado, `"${item.titulo}" debería nacer llena`).toBe(true)
+    }
+    // El contenido sembrado es el de la plantilla, no una copia: el título
+    // real de la primera lámina (la portada) tiene que llegar tal cual, no
+    // quedarse en el nombre de respaldo ("Portada").
+    expect(documento.items[0].contenido.seccion?.titulo).toBe('Lorem ipsum dolor sit amet')
+  })
+})
+
 describe('una sala que no existe', () => {
   it('sigue reventando al crear la reunión', async () => {
     await expect(

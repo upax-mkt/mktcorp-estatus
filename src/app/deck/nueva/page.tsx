@@ -179,7 +179,7 @@ export default async function PagNuevaSesion() {
               UNA DE LAS TRES que crean una reunión, y la ÚNICA que la
               preguntaba con una forma propia —radios rotulados "Qué reunión
               es", sin el rótulo "¿Qué junta es?", sin filtrar por
-              `esClaseDeJunta` y sin la opción "Otra (deck en blanco)"—, en
+              `esClaseDeJunta` y sin la opción "En blanco"—, en
               vez de reusar `SelectorClaseDeJunta` como ya hacían
               `NuevaSesionSala` y `FormularioSesion`. Tres pantallas
               preguntando lo mismo de tres maneras es cómo este repo se

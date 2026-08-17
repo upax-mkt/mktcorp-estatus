@@ -35,13 +35,29 @@ describe('SelectorClaseDeJunta', () => {
     expect(opciones).not.toContain('en-blanco')
   })
 
-  it('"en-blanco" vive en su propio grupo "Otra", no entre las clases', () => {
+  it('"en-blanco" y "plantilla-completa" viven en su propio grupo "Otras plantillas", no entre las clases', () => {
     render(<SelectorClaseDeJunta value="estatus-udn" onChange={vi.fn()} />)
-    const grupo = screen.getByRole('group', { name: 'Otra' })
+    const grupo = screen.getByRole('group', { name: 'Otras plantillas' })
     const opciones = within(grupo)
       .getAllByRole('option')
       .map((o) => (o as HTMLOptionElement).value)
-    expect(opciones).toEqual(['en-blanco'])
+    // El orden es el del catálogo (`PLANTILLAS`): "plantilla-completa" antes
+    // que "en-blanco", que sigue siendo la última entrada de todo el catálogo.
+    expect(opciones).toEqual(['plantilla-completa', 'en-blanco'])
+  })
+
+  it('las dos opciones de "Otras plantillas" se distinguen por su propio nombre, no por un texto fijo repetido', () => {
+    // Regresión del bug real que motivó renombrar el grupo: antes CADA opción
+    // de `OTRAS` se pintaba con el texto fijo "Otra (deck en blanco)" sin
+    // mirar `p.nombre` — con una sola entrada nadie lo notaba, pero una
+    // segunda habría aparecido con el MISMO texto que la primera.
+    render(<SelectorClaseDeJunta value="estatus-udn" onChange={vi.fn()} />)
+    const grupo = screen.getByRole('group', { name: 'Otras plantillas' })
+    const nombres = within(grupo)
+      .getAllByRole('option')
+      .map((o) => o.textContent)
+    expect(nombres).toEqual(['Plantilla completa', 'En blanco'])
+    expect(new Set(nombres).size).toBe(nombres.length)
   })
 
   it('ofrece el Sync Comercial entre las clases', () => {

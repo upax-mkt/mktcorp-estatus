@@ -1,4 +1,5 @@
 import type { DecisionSlide } from '@/decision/esquema'
+import type { BorradorSeccion } from '@/secciones/borrador'
 
 /**
  * PLANTILLAS DE REUNIÓN.
@@ -31,6 +32,35 @@ export interface DefinicionItem {
   layout?: DecisionSlide['layout']
   /** El `tipo` de la sección base que la contiene, si es una subsección. */
   padre?: string
+  /**
+   * CONTENIDO INICIAL de la sección — opcional, y nuevo (ronda 15, tarea 1).
+   *
+   * Hasta ahora una plantilla solo podía llevar ESTRUCTURA: `crearDocumentoConPlantilla`
+   * (`src/db/documentos.ts`) sembraba cada item con `{ seccion: { layout: d.layout } }`
+   * a secas, sin mirar nada más — el sitio ideal para meter contenido de ejemplo (una
+   * plantilla-galería, "Plantilla completa" más abajo) no tenía dónde ponerlo.
+   *
+   * Cuando este campo está presente, el sembrador lo usa TAL CUAL como `contenido.seccion`
+   * del item recién creado — es la misma forma que ya escribe el equipo a mano en el
+   * editor (`BorradorSeccion`, `src/secciones/borrador.ts`), así que un item sembrado con
+   * `contenido` nace exactamente como si alguien lo hubiera llenado un segundo antes de
+   * guardar: `llenado: true` desde el minuto uno, listo para maquetar sin tocar nada.
+   *
+   * AUSENTE = comportamiento de siempre, byte a byte: el sembrador cae a
+   * `{ layout: d.layout }`, la misma sección vacía que las cinco plantillas de antes de
+   * esta ronda (`estatus-udn`, `sync-comercial`, `seguimiento`, `comite`, `arranque`,
+   * `en-blanco`) siguen produciendo — ninguna de ellas declara `contenido`, y no tienen
+   * por qué: sus secciones las llena el equipo, no la plantilla. Ver el test de
+   * regresión en `src/db/plantillas.test.ts`.
+   *
+   * `layout` sigue siendo obligatorio de todos modos (arriba): aunque `contenido.layout`
+   * ya lo trae —`BorradorSeccion.layout` es requerido—, `layout` es lo que exige el test
+   * "toda sección de toda plantilla declara su layout" y lo que usa el resto del código
+   * fuera del sembrador (por ejemplo, para decidir dónde entra una sección nueva). Los
+   * dos valores deben coincidir; que no lo hagan es un error de quien escribe la
+   * plantilla, no algo que este tipo valide por sí solo.
+   */
+  contenido?: BorradorSeccion
 }
 
 export interface Plantilla {
@@ -118,6 +148,614 @@ const ESTATUS_UDN: DefinicionItem[] = [
     titulo: 'Outbound & Pipeline',
     pregunta: 'Prospección, cumplimiento y pipeline.',
     layout: 'divisor-seccion',
+  },
+]
+
+/**
+ * LAS 18 SECCIONES DE "PLANTILLA COMPLETA" (ronda 15, tarea 2).
+ *
+ * Mismo orden y mismos 12 layouts que el estatus mensual de Mexa Creativa —
+ * Junio 2026 (documento `8c9c6082-7aa3-4fc6-a5ca-ba22d144e078`, sala
+ * `mexa-creativa`, montado por `scripts/montar-mexa-junio-2026.ts`, que es
+ * la fuente que se leyó para replicar la COMPOSICIÓN). Lo que viaja de ese
+ * deck es la FORMA: qué tipo de sección sigue a cuál, y qué campos usa cada
+ * una (una tabla aquí, dos gráficos allá, una matriz de estados más
+ * adelante). Ni una cifra, ni un nombre, ni una fecha de ese deck viaja —
+ * todo el contenido es lorem ipsum, a propósito (pidió Franco: "deja todo
+ * en lorem ipsum mejor"), porque ese deck es de un cliente real y sus
+ * números no pueden aparecer presentándose en la sala de otro.
+ *
+ * DOS FUENTES DE TEXTO DISTINTAS EN CADA ITEM, y no por descuido:
+ * - `titulo` (arriba, en el `DefinicionItem`) es el nombre de respaldo en la
+ *   lista de secciones del editor — el que usa `documentoCompletoDeFilas`
+ *   SOLO si la sección se queda sin título propio. Aquí se deja en
+ *   español y describe el ROL de la sección ("Divisor · Portafolio",
+ *   "Pendientes", "Focos del trimestre"): es orientación de navegación,
+ *   no contenido que se vaya a presentar, y es la misma clase de etiqueta
+ *   que ya usa `montar-mexa-junio-2026.ts` en su campo `nombre` para las
+ *   mismas 18 secciones.
+ * - `contenido.titulo` es el TÍTULO QUE SE VE en la lámina — contenido de
+ *   verdad, y por eso lorem ipsum, EXCEPTO en las etiquetas que son
+ *   perennes (dicen lo mismo sin importar qué reemplace el resto de la
+ *   sección): "Agenda", "El mes en una lectura", "Lo que sigue", "Cierre",
+ *   y los cuatro divisores, que reusan el vocabulario que YA es compartido
+ *   entre las ocho UDN en `ESTATUS_UDN` más arriba ("Acuerdos y
+ *   Pendientes", "Portafolio & Ecosistema", "Performance & Conversión",
+ *   "Outbound & Pipeline") — no es texto inventado para Mexa, es la misma
+ *   taxonomía que el catálogo ya usaba antes de esta ronda. La portada SÍ
+ *   va en lorem ipsum también: a diferencia de "Agenda", su titular es
+ *   el nombre DE ESE documento en particular, no una etiqueta perenne, y
+ *   dejaría de serlo en cuanto alguien lo reemplace.
+ *
+ * MARCADORES, NO CIFRAS ("00", "—", "0%"): un KPI o una meta-contra-real
+ * sin nada en el campo que exige se pinta degradada ("con-problema" en
+ * `estadoDeSeccion`, `src/secciones/borrador.ts`) — la plantilla completa
+ * existe justo para que las 18 nazcan LISTAS, no a medio llenar. Pero un
+ * marcador tiene que leerse como "reemplázame", nunca como un dato real: por
+ * eso "00", "—" y "0%" y no un número plausible tipo "2,519". En las series
+ * de gráfico (`SerieDatos.valores`), que el esquema exige `number` y no
+ * admite texto, el marcador es CERO en todo el periodo — una línea plana en
+ * cero no se puede confundir con una tendencia real.
+ */
+const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
+  {
+    tipo: 'portada',
+    titulo: 'Portada',
+    pregunta: 'De qué trata esta presentación y qué periodo cubre.',
+    layout: 'portada',
+    contenido: {
+      layout: 'portada',
+      titulo: 'Lorem ipsum dolor sit amet',
+      subtitulo: 'Consectetur adipiscing elit, sed do eiusmod tempor',
+    },
+  },
+  {
+    tipo: 'agenda',
+    titulo: 'Agenda',
+    pregunta: 'Los bloques de la sesión. En el documento se vuelven un índice navegable.',
+    layout: 'agenda',
+    contenido: {
+      layout: 'agenda',
+      titulo: 'Agenda',
+      cuerpo: [
+        'Lorem ipsum dolor sit amet',
+        'Consectetur adipiscing elit',
+        'Sed do eiusmod tempor incididunt',
+        'Ut labore et dolore magna',
+        'Aliqua ut enim ad minim',
+        'Veniam quis nostrud exercitation',
+      ],
+    },
+  },
+  {
+    tipo: 'mes-en-lectura',
+    titulo: 'El mes en una lectura',
+    pregunta: 'Las cifras que más importan y qué sostiene y qué preocupa, antes de entrar al detalle.',
+    layout: 'kpis-fila-dos-columnas',
+    contenido: {
+      layout: 'kpis-fila-dos-columnas',
+      titulo: 'El mes en una lectura',
+      subtitulo: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit',
+      kpis: [
+        { valor: '00', delta: '—', rotulo: 'Lorem ipsum' },
+        { valor: '00', delta: '—', rotulo: 'Dolor sit amet' },
+        { valor: '0%', delta: '—', rotulo: 'Consectetur adipiscing' },
+        { valor: '—', delta: '—', rotulo: 'Sed do eiusmod' },
+      ],
+      columnas: [
+        {
+          titulo: 'Lo que sostiene',
+          puntos: [
+            { texto: 'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.' },
+            { texto: 'Duis aute irure dolor in reprehenderit in voluptate velit esse.' },
+            { texto: 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui.' },
+          ],
+        },
+        {
+          titulo: 'Lo que preocupa',
+          puntos: [
+            { texto: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem.' },
+            { texto: 'Totam rem aperiam, eaque ipsa quae ab illo inventore veritatis.' },
+            { texto: 'Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    tipo: 'divisor-acuerdos-pendientes',
+    titulo: 'Divisor · Acuerdos y Pendientes',
+    pregunta: 'Separa el bloque de la sesión del siguiente. Sin contenido: solo el nombre.',
+    layout: 'divisor-seccion',
+    contenido: { layout: 'divisor-seccion', titulo: 'Acuerdos y Pendientes' },
+  },
+  {
+    // 'acuerdos-pendientes', el mismo `tipo` que usa `ESTATUS_UDN`: es el que
+    // reconoce `itemDeAcuerdosPendientes` (src/db/documentos.ts) para
+    // aterrizar ahí los acuerdos retomados de la sesión pasada.
+    tipo: 'acuerdos-pendientes',
+    titulo: 'Pendientes',
+    pregunta: 'La tabla de lo que quedó de la sesión pasada, con su semáforo.',
+    layout: 'pendientes-semaforo',
+    contenido: {
+      layout: 'pendientes-semaforo',
+      titulo: 'Lorem Ipsum Dolor Sit Amet',
+      subtitulo: 'Consectetur adipiscing elit sed do eiusmod tempor',
+      tablas: [
+        {
+          columnas: ['Responsable', 'Tarea', 'Estatus'],
+          agruparPrimeraColumna: true,
+          filas: [
+            { celdas: ['Lorem Ipsum', 'Dolor sit amet consectetur adipiscing elit sed do eiusmod.', 'Listo'], estado: 'listo' },
+            { celdas: ['Lorem Ipsum', 'Tempor incididunt ut labore et dolore magna aliqua ut enim.', 'Listo'], estado: 'listo' },
+            { celdas: ['Dolor Sit Amet', 'Ad minim veniam quis nostrud exercitation ullamco laboris nisi.', ''] },
+            { celdas: ['Consectetur Adipiscing', 'Ut aliquip ex ea commodo consequat duis aute irure dolor.', 'En proceso'], estado: 'en-proceso' },
+            { celdas: ['Sed Do Eiusmod', 'In reprehenderit in voluptate velit esse cillum dolore eu fugiat.', ''] },
+            { celdas: ['Ut Labore Et', 'Nulla pariatur excepteur sint occaecat cupidatat non proident sunt.', ''] },
+            { celdas: ['Dolore Magna Aliqua', 'In culpa qui officia deserunt mollit anim id est laborum.', 'No realizado'], estado: 'no-realizado' },
+          ],
+        },
+      ],
+      notaPie: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt.',
+    },
+  },
+  {
+    tipo: 'divisor-portafolio-ecosistema',
+    titulo: 'Divisor · Portafolio & Ecosistema',
+    pregunta: 'Separa el bloque de la sesión del siguiente. Sin contenido: solo el nombre.',
+    layout: 'divisor-seccion',
+    contenido: { layout: 'divisor-seccion', titulo: 'Portafolio & Ecosistema' },
+  },
+  {
+    tipo: 'herramientas-comerciales',
+    titulo: 'Herramientas comerciales',
+    pregunta: 'Contenido cualitativo repartido en columnas paralelas. Admite listas anidadas.',
+    layout: 'texto-multicolumna',
+    contenido: {
+      layout: 'texto-multicolumna',
+      titulo: 'Consectetur Adipiscing Elit',
+      subtitulo: 'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua',
+      columnas: [
+        {
+          titulo: 'Lorem ipsum',
+          etiqueta: 'Dolor sit amet',
+          puntos: [
+            { texto: 'Ut enim ad minim veniam.' },
+            { texto: 'Quis nostrud exercitation ullamco.' },
+            { texto: 'Laboris nisi ut aliquip ex ea.' },
+            { texto: 'Commodo consequat duis aute irure.' },
+          ],
+        },
+        {
+          titulo: 'Dolor sit amet',
+          etiqueta: 'Consectetur adipiscing',
+          puntos: [
+            { texto: 'Reprehenderit in voluptate velit esse.' },
+            {
+              texto: 'Cillum dolore eu fugiat nulla pariatur',
+              hijos: [
+                { texto: 'Excepteur sint occaecat' },
+                { texto: 'Cupidatat non proident' },
+                { texto: 'Sunt in culpa qui' },
+                { texto: 'Officia deserunt mollit' },
+              ],
+            },
+            {
+              texto: 'Anim id est laborum et dolorum',
+              hijos: [
+                { texto: 'Neque porro quisquam' },
+                { texto: 'Est qui dolorem ipsum' },
+                { texto: 'Quia dolor sit amet' },
+                { texto: 'Consectetur adipisci velit' },
+              ],
+            },
+          ],
+        },
+        {
+          titulo: 'Consectetur adipiscing',
+          etiqueta: 'Sed do eiusmod',
+          puntos: [
+            { texto: 'Sed quia non numquam eius modi.' },
+            { texto: 'Tempora incidunt ut labore et dolore.' },
+            { texto: 'Magnam aliquam quaerat voluptatem ut enim.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    tipo: 'divisor-performance-conversion',
+    titulo: 'Divisor · Performance & Conversión',
+    pregunta: 'Separa el bloque de la sesión del siguiente. Sin contenido: solo el nombre.',
+    layout: 'divisor-seccion',
+    contenido: { layout: 'divisor-seccion', titulo: 'Performance & Conversión' },
+  },
+  {
+    tipo: 'performance-trafico',
+    titulo: 'Performance del sitio web · Tráfico',
+    pregunta: 'Una tabla de un periodo contra otro, con la lectura de qué subió y qué bajó.',
+    layout: 'comparativa-periodos',
+    contenido: {
+      layout: 'comparativa-periodos',
+      titulo: 'Sed Do Eiusmod Tempor',
+      subtitulo: 'Incididunt ut labore et dolore magna aliqua ut enim ad minim',
+      tablas: [
+        {
+          columnas: ['', 'Periodo 1', 'Periodo 2'],
+          filas: [
+            { celdas: ['Lorem ipsum dolor', '00', '00'] },
+            { celdas: ['Sit amet consectetur', '0.00', '0.00'] },
+            { celdas: ['Adipiscing elit sed', '0.0', '0.0'] },
+            { celdas: ['Do eiusmod tempor', '00', '00'] },
+            { celdas: ['Incididunt ut labore', '00', '00'] },
+          ],
+        },
+      ],
+      graficos: [
+        {
+          tipo: 'combo-barras-lineas',
+          titulo: 'Lorem ipsum',
+          periodos: ['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5', 'Periodo 6'],
+          series: [
+            { etiqueta: 'Lorem ipsum', valores: [0, 0, 0, 0, 0, 0], forma: 'barra', eje: 'derecho' },
+            { etiqueta: 'Dolor sit amet', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'izquierdo' },
+            { etiqueta: 'Consectetur adipiscing', valores: [0, 0, 0, 0, 0, 0], forma: 'linea-punteada', eje: 'izquierdo' },
+            { etiqueta: 'Sed do eiusmod', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'izquierdo' },
+          ],
+          mostrarValores: true,
+        },
+      ],
+      columnas: [
+        {
+          titulo: 'Lo que entró',
+          etiqueta: 'Lorem ipsum dolor sit amet',
+          puntos: [
+            {
+              texto: 'Ut enim ad minim veniam quis nostrud',
+              hijos: [
+                { texto: 'Exercitation ullamco laboris' },
+                { texto: 'Nisi ut aliquip ex' },
+                { texto: 'Ea commodo consequat' },
+              ],
+            },
+            { texto: 'Duis aute irure dolor in reprehenderit.' },
+          ],
+        },
+        {
+          titulo: 'Por dónde entró',
+          etiqueta: 'Consectetur adipiscing elit',
+          puntos: [
+            { texto: 'Voluptate velit esse cillum.' },
+            { texto: 'Dolore eu fugiat nulla.' },
+            { texto: 'Pariatur excepteur sint occaecat.' },
+            { texto: 'Cupidatat non proident sunt.' },
+          ],
+        },
+      ],
+      notaPie: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.',
+    },
+  },
+  {
+    tipo: 'performance-busqueda-organica',
+    titulo: 'Performance del sitio web · Búsqueda orgánica',
+    pregunta: 'Hasta 4 cifras con su variación, y el análisis en columnas debajo.',
+    layout: 'kpis-fila-dos-columnas',
+    contenido: {
+      layout: 'kpis-fila-dos-columnas',
+      titulo: 'Incididunt Ut Labore Et Dolore',
+      subtitulo: 'Ut enim ad minim veniam quis nostrud exercitation ullamco laboris',
+      kpis: [
+        { valor: '0.0', delta: '—', rotulo: 'Lorem ipsum' },
+        { valor: '00.0k', delta: '0%', rotulo: 'Dolor sit amet' },
+        { valor: '000', delta: '0%', rotulo: 'Consectetur adipiscing' },
+        { valor: '0.0%', delta: '—', rotulo: 'Sed do eiusmod' },
+      ],
+      columnas: [
+        {
+          titulo: 'Principales hallazgos',
+          puntos: [
+            { texto: 'Nisi ut aliquip ex ea commodo consequat duis aute irure.' },
+            { texto: 'Dolor in reprehenderit in voluptate velit esse cillum dolore.' },
+            { texto: 'Eu fugiat nulla pariatur excepteur sint occaecat cupidatat non.' },
+            { texto: 'Proident sunt in culpa qui officia deserunt mollit anim.' },
+          ],
+        },
+        {
+          titulo: 'Acciones prioritarias',
+          puntos: [
+            { texto: 'Id est laborum et dolorum fuga et harum quidem rerum.' },
+            { texto: 'Facilis est et expedita distinctio nam libero tempore cum.' },
+            { texto: 'Soluta nobis est eligendi optio cumque nihil impedit quo.' },
+            { texto: 'Minus id quod maxime placeat facere possimus omnis voluptas.' },
+          ],
+        },
+      ],
+      notaPie: 'Lorem ipsum dolor sit amet consectetur adipiscing elit, sed do eiusmod tempor incididunt.',
+    },
+  },
+  {
+    tipo: 'performance-paid-media',
+    titulo: 'Performance de paid media',
+    pregunta: 'Cuando el dato exacto y la tendencia importan por igual. Hasta 2 gráficos y 3 tablas.',
+    layout: 'grafico-y-tabla',
+    contenido: {
+      layout: 'grafico-y-tabla',
+      titulo: 'Ut Enim Ad Minim Veniam',
+      subtitulo: 'Quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea',
+      kpis: [
+        { valor: '0', delta: '—', rotulo: 'Lorem ipsum' },
+        { valor: '0', delta: '—', rotulo: 'Dolor sit amet' },
+        { valor: '$0', delta: '—', rotulo: 'Consectetur adipiscing' },
+      ],
+      tablas: [
+        {
+          columnas: ['', 'Periodo 1', 'Periodo 2'],
+          filas: [
+            { celdas: ['Lorem ipsum', '$0.00', '$0.00'] },
+            { celdas: ['Dolor sit amet', '0', '0'] },
+            { celdas: ['Consectetur adipiscing', '0', '0'] },
+            { celdas: ['Sed do eiusmod', '0', '0'] },
+            { celdas: ['Tempor incididunt', '0', '0'] },
+          ],
+        },
+        {
+          titulo: 'Lorem ipsum dolor',
+          columnas: ['Estado', 'Total', '%'],
+          filas: [
+            { celdas: ['Lorem ipsum', '0', '0%'] },
+            { celdas: ['Dolor sit amet', '0', '0%'] },
+            { celdas: ['Consectetur adipiscing', '0', '0%'] },
+            { celdas: ['Sed do eiusmod', '0', '0%'] },
+            { celdas: ['Total', '0', '0%'], destacada: true },
+          ],
+        },
+      ],
+      graficos: [
+        {
+          tipo: 'lineas-multiples',
+          titulo: 'Lorem ipsum',
+          periodos: ['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5', 'Periodo 6'],
+          series: [
+            { etiqueta: 'Lorem ipsum', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'izquierdo', prefijo: '$' },
+            { etiqueta: 'Dolor sit amet', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'derecho' },
+          ],
+          mostrarValores: true,
+        },
+        {
+          tipo: 'barras',
+          titulo: 'Consectetur adipiscing',
+          periodos: ['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5'],
+          series: [{ etiqueta: 'Lorem ipsum', valores: [0, 0, 0, 0, 0], forma: 'barra' }],
+          mostrarValores: true,
+        },
+      ],
+      columnas: [
+        {
+          titulo: 'Lorem ipsum',
+          etiqueta: 'Dolor sit amet consectetur',
+          puntos: [
+            { texto: 'Adipiscing elit sed do eiusmod tempor incididunt ut labore.' },
+            { texto: 'Et dolore magna aliqua ut enim ad minim veniam.' },
+          ],
+        },
+      ],
+      notaPie: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore.',
+    },
+  },
+  {
+    tipo: 'divisor-outbound-pipeline',
+    titulo: 'Divisor · Outbound & Pipeline',
+    pregunta: 'Separa el bloque de la sesión del siguiente. Sin contenido: solo el nombre.',
+    layout: 'divisor-seccion',
+    contenido: { layout: 'divisor-seccion', titulo: 'Outbound & Pipeline' },
+  },
+  {
+    tipo: 'outbound-pipeline-cumplimiento',
+    titulo: 'Outbound & Pipeline · Cumplimiento',
+    pregunta: 'Cumplimiento por equipo y, si aplica, cifras grandes abiertas en sus partes.',
+    layout: 'meta-real-porcentaje',
+    contenido: {
+      layout: 'meta-real-porcentaje',
+      titulo: 'Quis Nostrud Exercitation Ullamco',
+      subtitulo: 'Laboris nisi ut aliquip ex ea commodo consequat duis aute irure',
+      metaReal: {
+        titulo: 'Lorem ipsum',
+        filas: [
+          { rotulo: 'Total', meta: '00', real: '00', porcentaje: '0%' },
+          { rotulo: 'Dolor sit amet', meta: '00', real: '00', porcentaje: '0%' },
+          { rotulo: 'Consectetur adipiscing', meta: '00', real: '00', porcentaje: '0%' },
+        ],
+      },
+      cifrasDesglosadas: [
+        { rotulo: 'Lorem ipsum', valor: '—' },
+        { rotulo: 'Dolor sit amet', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
+        { rotulo: 'Consectetur adipiscing', valor: '—', destacada: true, partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
+        { rotulo: 'Sed do eiusmod', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
+        { rotulo: 'Tempor incididunt', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
+        { rotulo: 'Ut labore et dolore', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
+      ],
+      columnas: [
+        {
+          titulo: 'Lorem ipsum',
+          puntos: [
+            { texto: 'Dolor sit amet' },
+            { texto: 'Consectetur adipiscing' },
+            { texto: 'Elit sed do eiusmod' },
+          ],
+        },
+        {
+          titulo: 'Dolor sit amet',
+          puntos: [
+            { texto: 'Lorem: 000' },
+            { texto: 'Ipsum: 000' },
+          ],
+        },
+      ],
+      notaPie: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    },
+  },
+  {
+    tipo: 'brujula-trimestre',
+    titulo: 'Brújula del trimestre',
+    pregunta: 'Una rejilla de conceptos por periodos: en cada cruce, qué toca hacer.',
+    layout: 'matriz-estados',
+    contenido: {
+      layout: 'matriz-estados',
+      titulo: 'Duis Aute Irure Dolor',
+      subtitulo: 'In reprehenderit in voluptate velit esse cillum dolore eu fugiat',
+      matriz: {
+        columnas: ['Periodo 1', 'Periodo 2', 'Periodo 3'],
+        filas: [
+          {
+            encabezado: 'Lorem ipsum dolor',
+            celdas: [{ texto: 'Lorem', tono: 'alto' }, { texto: 'Ipsum', tono: 'medio' }, { texto: 'Dolor', tono: 'alto' }],
+            nota: 'Sit amet consectetur adipiscing elit sed do eiusmod.',
+          },
+          {
+            encabezado: 'Sit amet consectetur',
+            celdas: [{ texto: 'Lorem', tono: 'alto' }, { texto: 'Ipsum', tono: 'medio' }, { texto: 'Dolor', tono: 'alto' }],
+          },
+          {
+            encabezado: 'Adipiscing elit sed',
+            celdas: [{ texto: 'Sit', tono: 'neutro' }, { texto: 'Amet', tono: 'alto' }, { texto: 'Consectetur', tono: 'medio' }],
+          },
+          {
+            encabezado: 'Do eiusmod tempor',
+            celdas: [{ texto: 'Sit', tono: 'neutro' }, { texto: 'Amet', tono: 'alto' }, { texto: 'Consectetur', tono: 'bajo' }],
+            nota: 'Incididunt ut labore et dolore magna aliqua ut enim.',
+          },
+          {
+            encabezado: 'Incididunt ut labore',
+            celdas: [{ texto: 'Lorem', tono: 'alto' }, { texto: 'Ipsum', tono: 'medio' }, { texto: 'Dolor', tono: 'neutro' }],
+          },
+        ],
+        leyenda: [
+          'Lorem · ipsum dolor sit amet',
+          'Ipsum · dolor sit amet consectetur',
+          'Dolor · sit amet consectetur adipiscing',
+          'Sit · amet consectetur adipiscing elit',
+          'CICLO: Lorem → Ipsum → Dolor → Sit.',
+        ],
+      },
+      notaPie: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore.',
+    },
+  },
+  {
+    tipo: 'focos-trimestre',
+    titulo: 'Focos del trimestre',
+    pregunta: 'Frentes de igual peso, cada uno con su detalle. El sistema los numera.',
+    layout: 'tarjetas-numeradas',
+    contenido: {
+      layout: 'tarjetas-numeradas',
+      titulo: 'Reprehenderit In Voluptate Velit',
+      subtitulo: 'Esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat',
+      bloques: [
+        {
+          titulo: 'Lorem ipsum dolor',
+          etiqueta: 'Sit amet',
+          parrafo: 'Consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+          pie: { rotulo: 'Lorem ipsum', texto: 'Ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi.' },
+        },
+        {
+          titulo: 'Sit amet consectetur',
+          etiqueta: 'Adipiscing elit',
+          parrafo: 'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim.',
+          pie: { rotulo: 'Lorem ipsum', texto: 'Veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea.' },
+        },
+        {
+          titulo: 'Dolor sit amet',
+          etiqueta: 'Consectetur elit',
+          parrafo: 'Ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip.',
+          pie: { rotulo: 'Lorem ipsum', texto: 'Ex ea commodo consequat duis aute irure dolor in reprehenderit.' },
+        },
+        {
+          titulo: 'Adipiscing elit sed',
+          etiqueta: 'Do eiusmod',
+          parrafo: 'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat.',
+          pie: { rotulo: 'Lorem ipsum', texto: 'Nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa.' },
+        },
+        {
+          titulo: 'Tempor incididunt ut',
+          etiqueta: 'Labore et',
+          parrafo: 'Qui officia deserunt mollit anim id est laborum et dolorum fuga et harum quidem.',
+          pie: { rotulo: 'Lorem ipsum', texto: 'Rerum facilis est et expedita distinctio nam libero tempore cum soluta.' },
+        },
+      ],
+    },
+  },
+  {
+    tipo: 'servicios-por-industria',
+    titulo: 'Servicios por industria',
+    pregunta: 'Cuando el dato exacto y la tendencia importan por igual. Hasta 2 gráficos y 3 tablas.',
+    layout: 'grafico-y-tabla',
+    contenido: {
+      layout: 'grafico-y-tabla',
+      titulo: 'Esse Cillum Dolore Eu Fugiat',
+      subtitulo: 'Nulla pariatur excepteur sint occaecat cupidatat non proident sunt',
+      tablas: [
+        {
+          columnas: ['Lorem ipsum', 'Dolor sit amet'],
+          filas: [
+            { celdas: ['Consectetur adipiscing', 'Elit sed do eiusmod · Tempor incididunt · Ut labore et dolore · Magna aliqua'] },
+            { celdas: ['Ut enim ad minim', 'Veniam quis nostrud · Exercitation ullamco · Laboris nisi ut · Aliquip ex ea'] },
+            { celdas: ['Commodo consequat', 'Duis aute irure · Dolor in reprehenderit · In voluptate velit · Esse cillum'] },
+            { celdas: ['Dolore eu fugiat', 'Nulla pariatur · Excepteur sint occaecat · Cupidatat non · Proident sunt'] },
+            { celdas: ['In culpa qui', 'Officia deserunt · Mollit anim id · Est laborum · Et dolorum fuga'] },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    tipo: 'lo-que-sigue',
+    titulo: 'Lo que sigue',
+    pregunta: 'Los próximos pasos, para cerrar con dueño y fecha en la sesión.',
+    layout: 'texto-multicolumna',
+    contenido: {
+      layout: 'texto-multicolumna',
+      titulo: 'Lo que sigue',
+      subtitulo: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod',
+      columnas: [
+        {
+          titulo: 'Lorem ipsum',
+          puntos: [
+            { texto: 'Tempor incididunt ut labore et dolore magna aliqua.' },
+            { texto: 'Ut enim ad minim veniam quis nostrud exercitation.' },
+            { texto: 'Ullamco laboris nisi ut aliquip ex ea commodo.' },
+            { texto: 'Consequat duis aute irure dolor in reprehenderit.' },
+          ],
+        },
+        {
+          titulo: 'Dolor sit amet',
+          puntos: [
+            { texto: 'In voluptate velit esse cillum dolore eu fugiat.' },
+            { texto: 'Nulla pariatur excepteur sint occaecat cupidatat non.' },
+            { texto: 'Proident sunt in culpa qui officia deserunt.' },
+            { texto: 'Mollit anim id est laborum et dolorum fuga.' },
+          ],
+        },
+        {
+          titulo: 'Consectetur adipiscing',
+          puntos: [
+            { texto: 'Et harum quidem rerum facilis est et expedita.' },
+            { texto: 'Distinctio nam libero tempore cum soluta nobis.' },
+            { texto: 'Est eligendi optio cumque nihil impedit quo minus.' },
+            { texto: 'Id quod maxime placeat facere possimus omnis.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    tipo: 'cierre',
+    titulo: 'Cierre',
+    pregunta: 'Con qué se cierra la sesión.',
+    layout: 'cierre',
+    contenido: {
+      layout: 'cierre',
+      titulo: 'Cierre',
+      subtitulo: 'Lorem ipsum · Dolor sit amet · Consectetur adipiscing · Elit sed · Eiusmod tempor · Incididunt ut · Labore et · Dolore magna',
+    },
   },
 ]
 
@@ -266,6 +904,21 @@ export const PLANTILLAS: Plantilla[] = [
         layout: 'pendientes-semaforo',
       },
     ],
+  },
+  {
+    id: 'plantilla-completa',
+    nombre: 'Plantilla completa',
+    paraQue:
+      'Las 18 secciones y los 12 tipos de contenido, ya armadas en lorem ipsum — para partir de un documento lleno y solo reemplazar texto, cifras e imágenes.',
+    seccionesFijas: false,
+    // NO es una clase de junta: es una GALERÍA de plantilla de presentación,
+    // la otra cosa (además de "En blanco") que el catálogo hace doble papel
+    // de clase-de-junta-y-plantilla-de-deck y que en realidad no es ninguna
+    // clase real — ver `esClaseDeJunta` en la interfaz `Plantilla`, arriba, y
+    // el comentario de `SelectorClaseDeJunta.tsx` sobre por qué su `<optgroup>`
+    // dejó de llamarse "Otra" al tener dos entradas distintas que agrupar.
+    esClaseDeJunta: false,
+    items: PLANTILLA_COMPLETA_ITEMS,
   },
   {
     id: 'en-blanco',

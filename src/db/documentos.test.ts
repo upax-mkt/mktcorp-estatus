@@ -80,7 +80,7 @@ describe('crearReunionConDocumento', () => {
     })
     const documento = (await documentoDeReunion(reunionId))!
     expect(documento.items).toHaveLength(1)
-    // Elegido A PROPÓSITO ("Otra (deck en blanco)" en el selector): se guarda
+    // Elegido A PROPÓSITO ("En blanco" en el selector): se guarda
     // tal cual — 'en-blanco' es una clase real y distinta de `null` ("sin
     // clasificar", el test de abajo). Confundir las dos sería inventar una
     // clase distinta a la misma velocidad que el bug que arregla ese test.

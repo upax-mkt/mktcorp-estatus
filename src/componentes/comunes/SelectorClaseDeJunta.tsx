@@ -115,13 +115,28 @@ export function SelectorClaseDeJunta({
             </option>
           ))}
         </optgroup>
-        {/* "En blanco" vive en su propio grupo, al final, con una etiqueta
-            que dice las dos cosas: que no es una clase, y qué hace si se
-            elige. */}
-        <optgroup label="Otra">
+        {/* Lo que NO es una clase de junta vive en su propio grupo, al final:
+            "En blanco" y, desde la ronda 15, "Plantilla completa" —una
+            galería de ejemplo en lorem ipsum, no una clase de reunión—.
+            "Otra" ERA su rótulo, y bastaba mientras solo había una entrada: un
+            grupo de una sola opción no necesita distinguir nada. Con dos, se
+            quedó corto por partida doble. Primero, el rótulo del `<optgroup>`
+            ("Otra") ya no describe a las dos por igual: una es la salida de
+            emergencia, la otra un punto de partida con contenido. Segundo —el
+            bug de verdad, no solo cosmético— el texto de CADA opción estaba
+            escrito a mano como "Otra (deck en blanco)", fijo, sin mirar de
+            qué plantilla se trataba: con una sola entrada en `OTRAS` nadie lo
+            notaba, pero la segunda habría aparecido en el `<select>` con el
+            MISMO texto que la primera —dos opciones indistinguibles por su
+            nombre, eligiendo cualquiera de las dos por error—. Ahora cada
+            opción imprime `p.nombre` — igual que ya hace `CLASES_DE_JUNTA`
+            arriba —, así que crece sin volver a colisionar: la próxima
+            entrada que no sea clase de junta solo necesita su propio
+            `nombre` en el catálogo, nada aquí. */}
+        <optgroup label="Otras plantillas">
           {OTRAS.map((p) => (
             <option key={p.id} value={p.id}>
-              Otra (deck en blanco)
+              {p.nombre}
             </option>
           ))}
         </optgroup>

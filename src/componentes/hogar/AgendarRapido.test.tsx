@@ -202,10 +202,10 @@ describe('AgendarRapido — "¿Qué junta es?" (cierre de deuda técnica)', () =
 
     await usuario.click(screen.getByRole('button', { name: /agendar/i }))
     fireEvent.change(screen.getByLabelText(/día/i), { target: { value: '2026-08-19' } })
-    // "Otra (deck en blanco)" está en su propio grupo — no se lee como una
-    // clase de junta más entre las cinco reales. Comprobado ANTES de enviar:
-    // un envío exitoso cierra el diálogo y se lleva sus opciones con él.
-    expect(screen.getByRole('option', { name: 'Otra (deck en blanco)' })).toBeInTheDocument()
+    // "En blanco" está en su propio grupo — no se lee como una clase de
+    // junta más entre las cinco reales. Comprobado ANTES de enviar: un envío
+    // exitoso cierra el diálogo y se lleva sus opciones con él.
+    expect(screen.getByRole('option', { name: 'En blanco' })).toBeInTheDocument()
     await usuario.selectOptions(screen.getByLabelText('¿Qué junta es?'), 'sync-comercial')
     await usuario.click(screen.getByRole('button', { name: /^agendar$/i }))
 
