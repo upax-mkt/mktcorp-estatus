@@ -75,13 +75,26 @@ describe('crear una reunión con plantilla', () => {
     expect((await documentoDeReunion(reunionId))!.items).toHaveLength(1)
   })
 
-  it('sin plantilla sigue naciendo como estatus de UDN: el flujo viejo no cambia', async () => {
+  /**
+   * ⚠️ ESTE TEST AFIRMABA EL DEFECTO COMO SI FUERA LA REGLA.
+   *
+   * Se llamaba "sin plantilla sigue naciendo como estatus de UDN: el flujo
+   * viejo no cambia" y exigía ocho secciones y `plantilla: 'estatus-udn'` para
+   * una junta que nadie clasificó. Eso es justo lo que se arregló el 17-ago:
+   * la reunión decía `null` y su documento decía "estatus de UDN", dos campos
+   * respondiendo distinto a la misma pregunta. Y los ocho bloques no son un
+   * relleno neutro: son lo que Marketing Corp le prometió a cada unidad de
+   * negocio.
+   *
+   * Un test que fija el comportamiento equivocado no protege, ancla.
+   */
+  it('sin clase, el documento tampoco la inventa: nace mínimo y sin plantilla', async () => {
     const { reunionId } = await crearReunionConDocumento({
       salaSlug: 'zeus', tipo: 'mensual', titulo: '', fecha: new Date(),
     })
     const documento = (await documentoDeReunion(reunionId))!
-    expect(documento.items).toHaveLength(8)
-    expect(documento.plantilla).toBe('estatus-udn')
+    expect(documento.items).toHaveLength(1)
+    expect(documento.plantilla).toBeNull()
   })
 })
 

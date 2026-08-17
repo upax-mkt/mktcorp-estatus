@@ -74,20 +74,48 @@ describe('crearReunionConDocumento', () => {
     ])
   })
 
-  it('la de "en blanco" arranca con una sola sección', async () => {
+  it('la de "en blanco" arranca con una sola sección, y SÍ se guarda como su propia clase', async () => {
     const { reunionId } = await crearReunionConDocumento({
       salaSlug: 'neracode', fecha: new Date(), titulo: 'Libre', tipo: 'mensual', plantilla: 'en-blanco',
     })
-    expect((await documentoDeReunion(reunionId))!.items).toHaveLength(1)
+    const documento = (await documentoDeReunion(reunionId))!
+    expect(documento.items).toHaveLength(1)
+    // Elegido A PROPÓSITO ("Otra (deck en blanco)" en el selector): se guarda
+    // tal cual — 'en-blanco' es una clase real y distinta de `null` ("sin
+    // clasificar", el test de abajo). Confundir las dos sería inventar una
+    // clase distinta a la misma velocidad que el bug que arregla ese test.
+    expect(documento.plantilla).toBe('en-blanco')
   })
 
-  it('sin plantilla sigue naciendo como estatus de UDN: el flujo viejo no cambia', async () => {
+  /**
+   * EL DEFECTO DE ESTA RONDA. Hasta ahora, una junta que nacía SIN
+   * CLASIFICAR (nadie eligió "¿Qué junta es?", `reuniones.plantilla = null`
+   * — la ronda pasada ya cerró que no se adivinara "Estatus de UDN" para ese
+   * caso) igual llegaba aquí y `crearDocumentoConPlantilla` sembraba el deck
+   * con los OCHO bloques del estatus de UDN — el acuerdo que Marketing Corp
+   * le prometió a cada unidad de negocio, no un relleno neutro — y guardaba
+   * `documentos.plantilla = 'estatus-udn'`: una clase inventada que ni
+   * siquiera coincidía con la de la reunión (`null`). Dos problemas: una
+   * segunda fuente de verdad sobre la clase que CONTRADICE a la reunión, y
+   * silenciosa — nada en pantalla decía "estatus" para explicar los ocho
+   * bloques, a diferencia de cuando el radio nacía marcado.
+   *
+   * La corrección: reunión sin clase → documento sin clase. El deck nace con
+   * la plantilla MÍNIMA (una portada, la misma forma que ofrece "Otra (deck
+   * en blanco)") en vez de con los ocho bloques del estatus, y
+   * `documentos.plantilla` se queda en `null` — nunca `'estatus-udn'` (una
+   * clase real, elegida) ni `'en-blanco'` (otra clase real, distinta,
+   * elegida a propósito: ver el test de arriba) — coherente con
+   * `reuniones.plantilla`, que también es `null`.
+   */
+  it('SIN plantilla, la junta nace SIN CLASIFICAR: ni los ocho bloques del estatus ni una clase inventada', async () => {
     const { reunionId, documentoId } = await crearReunionConDocumento({
       salaSlug: 'neracode', fecha: new Date(), titulo: 'Mensual', tipo: 'mensual',
     })
     const documento = (await documentoDeReunion(reunionId))!
-    expect(documento.items).toHaveLength(8)
-    expect(documento.plantilla).toBe('estatus-udn')
+    expect(documento.items).toHaveLength(1)
+    expect(documento.items[0].titulo).toBe('Portada')
+    expect(documento.plantilla).toBeNull()
     // El documento nace en 'borrador'; la junta, 'agendada' — dos preguntas
     // distintas desde que el spec §1 separó las dos vidas de la vieja sesión.
     expect(documento.estado).toBe('borrador')
@@ -238,8 +266,16 @@ describe('eliminarDocumentoDeReunion — la herencia de la T4 (eliminarReunion c
 })
 
 async function documentoEstatus() {
+  // `plantilla: 'estatus-udn'` EXPLÍCITO — no omitido. Antes del arreglo de
+  // esta ronda, omitirla caía igual en los ocho bloques del estatus por el
+  // fallback de `crearDocumentoConPlantilla`; ahora omitirla nace SIN
+  // CLASIFICAR (ver el describe de arriba), y los tests que usan este
+  // fixture (subsecciones, mover/reordenar, acuerdos retomados...) sí
+  // necesitan de verdad la estructura de ocho bloques del estatus, no "lo que
+  // sea que nazca por defecto". Pedirla a mano es lo que este mismo defecto
+  // enseñó a no dar por hecho.
   const { reunionId, documentoId } = await crearReunionConDocumento({
-    salaSlug: 'neracode', fecha: new Date(), titulo: 'Mensual', tipo: 'mensual',
+    salaSlug: 'neracode', fecha: new Date(), titulo: 'Mensual', tipo: 'mensual', plantilla: 'estatus-udn',
   })
   return { reunionId, documentoId }
 }

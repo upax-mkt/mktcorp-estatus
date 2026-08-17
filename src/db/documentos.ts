@@ -30,7 +30,7 @@ import { borradorTieneContenido, type BorradorSeccion } from '@/secciones/borrad
 import { normalizarImagen, type DecisionSlide } from '@/decision/esquema'
 import { estatusEfectivo, type Acuerdo, type EstatusAcuerdo } from '@/dominio/salas'
 import {
-  obtenerPlantilla, tiposFijosDe, type DefinicionItem,
+  obtenerPlantilla, tiposFijosDe, PLANTILLAS, type DefinicionItem,
 } from '@/secciones/plantillas'
 import { maquetarBorrador, type ResultadoMaquetacion } from '@/motor/maquetar'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
@@ -568,10 +568,41 @@ export async function crearDocumentoConPlantilla(
 ): Promise<{ documentoId: string }> {
   // Las secciones con las que nace salen de LA PLANTILLA, no de una
   // constante: un comité no arranca con los ocho bloques del estatus de una
-  // UDN. `obtenerPlantilla` ya resuelve el "estatus-udn" por defecto cuando
-  // no viene ninguna o no existe.
-  const plantilla = obtenerPlantilla(idPlantilla ?? undefined)
-  const { id: documentoId } = await crearDocumento(reunionId, plantilla.id)
+  // UDN.
+  //
+  // SIN CLASIFICAR ES UN CASO APARTE — ya no "cae al default del catálogo".
+  // `obtenerPlantilla(undefined)` resuelve a `PLANTILLAS[0]` ('estatus-udn')
+  // POR DISEÑO (ver su comentario en plantillas.ts): existe para que un
+  // `<select>` de "¿Qué junta es?" nunca quede vacío. Pero un `<select>` que
+  // necesita mostrar algo y un DOCUMENTO cuya reunión nadie clasificó son
+  // preguntas distintas, y hasta esta ronda se resolvían con el mismo
+  // fallback: una junta que nacía `reuniones.plantilla = null` (la ronda
+  // anterior ya cerró que dejara de adivinarse "Estatus de UDN" para ese
+  // caso) igual llegaba aquí y sembraba los OCHO bloques del estatus —el
+  // acuerdo que Marketing Corp firmó con cada UDN, no un relleno neutro— y
+  // guardaba `documentos.plantilla = 'estatus-udn'`: una clase inventada,
+  // que ni siquiera coincidía con la de la reunión. Doble problema: una
+  // segunda fuente de verdad sobre la clase que CONTRADICE a la reunión, y
+  // silenciosa, porque nada en pantalla dice ya "estatus" para explicar esos
+  // ocho bloques (antes el radio "Estatus de UDN" nacía marcado, así que el
+  // deck coincidía con lo que la pantalla decía).
+  //
+  // La corrección: reunión sin clase → documento sin clase. `idClase` es
+  // `idPlantilla` SOLO si el catálogo lo reconoce — nunca se resuelve contra
+  // `obtenerPlantilla` para decidir QUÉ GUARDAR, solo para decidir CON QUÉ
+  // secciones sembrar (abajo). Sin clase reconocida (nadie eligió, o llegó
+  // algo que el catálogo no tiene — no debería pasar nunca: `crearReunion`/
+  // `editarReunion` ya lo rechazan, pero esta función no vuelve a confiar en
+  // eso para inventar 'estatus-udn' en silencio), se siembra con las
+  // secciones de 'en-blanco' —la misma plantilla mínima, una portada, que
+  // usa quien elige a propósito "Otra (deck en blanco)"— SIN escribir
+  // 'en-blanco' como la clase del documento: esa sí es una clase real y
+  // distinta (la que elige quien pulsa esa opción), y confundirla con "sin
+  // clasificar" sería inventar una clase distinta a la misma velocidad que
+  // el bug que esto arregla.
+  const idClase = idPlantilla && PLANTILLAS.some((p) => p.id === idPlantilla) ? idPlantilla : null
+  const plantilla = idClase ? obtenerPlantilla(idClase) : obtenerPlantilla('en-blanco')
+  const { id: documentoId } = await crearDocumento(reunionId, idClase ?? undefined)
 
   const ahora = new Date()
   const estructura: EstructuraDocumento = { items: plantilla.items }

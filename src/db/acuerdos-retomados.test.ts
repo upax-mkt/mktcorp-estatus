@@ -19,7 +19,13 @@ beforeEach(() => reiniciarStoreMemoria())
 
 async function documentoEstatus() {
   const { reunionId, documentoId } = await crearReunionConDocumento({
-    salaSlug: 'neracode', tipo: 'mensual', titulo: '', fecha: new Date(),
+    // `plantilla` EXPLÍCITA, y no por omisión: estos tests viven de las ocho
+    // secciones del estatus de UDN. Hasta el 17-ago las heredaban sin pedirlas,
+    // porque una reunión sin clase caía al estatus por defecto — y eso era el
+    // defecto: el documento contradecía a su reunión, que decía "sin clasificar".
+    // Ahora sin clase el deck nace mínimo, así que lo que estos tests necesitan
+    // hay que pedirlo.
+    salaSlug: 'neracode', plantilla: 'estatus-udn', tipo: 'mensual', titulo: '', fecha: new Date(),
   })
   return { reunionId, documentoId }
 }
