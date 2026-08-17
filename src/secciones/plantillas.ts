@@ -160,10 +160,10 @@ const ESTATUS_UDN: DefinicionItem[] = [
  * la fuente que se leyó para replicar la COMPOSICIÓN). Lo que viaja de ese
  * deck es la FORMA: qué tipo de sección sigue a cuál, y qué campos usa cada
  * una (una tabla aquí, dos gráficos allá, una matriz de estados más
- * adelante). Ni una cifra, ni un nombre, ni una fecha de ese deck viaja —
- * todo el contenido es lorem ipsum, a propósito (pidió Franco: "deja todo
- * en lorem ipsum mejor"), porque ese deck es de un cliente real y sus
- * números no pueden aparecer presentándose en la sala de otro.
+ * adelante). Ni una cifra, ni un nombre, ni una fecha de ese deck viaja — el
+ * dato en sí es siempre inventado, porque ese deck es de un cliente real y
+ * sus números no pueden aparecer presentándose en la sala de otro (test de
+ * cadenas prohibidas en `plantillas.test.ts`, que no se toca).
  *
  * DOS FUENTES DE TEXTO DISTINTAS EN CADA ITEM, y no por descuido:
  * - `titulo` (arriba, en el `DefinicionItem`) es el nombre de respaldo en la
@@ -187,15 +187,27 @@ const ESTATUS_UDN: DefinicionItem[] = [
  *   el nombre DE ESE documento en particular, no una etiqueta perenne, y
  *   dejaría de serlo en cuanto alguien lo reemplace.
  *
- * MARCADORES, NO CIFRAS ("00", "—", "0%"): un KPI o una meta-contra-real
- * sin nada en el campo que exige se pinta degradada ("con-problema" en
- * `estadoDeSeccion`, `src/secciones/borrador.ts`) — la plantilla completa
- * existe justo para que las 18 nazcan LISTAS, no a medio llenar. Pero un
- * marcador tiene que leerse como "reemplázame", nunca como un dato real: por
- * eso "00", "—" y "0%" y no un número plausible tipo "2,519". En las series
- * de gráfico (`SerieDatos.valores`), que el esquema exige `number` y no
- * admite texto, el marcador es CERO en todo el periodo — una línea plana en
- * cero no se puede confundir con una tendencia real.
+ * NÚMEROS CON FORMA, NO CEROS (ronda 16, corrección sobre la ronda 15): la
+ * primera versión de esta plantilla puso "00", "—" y "0%" en cada KPI, tabla
+ * y serie de gráfico — y en `SerieDatos.valores`, que el esquema exige
+ * `number`, ese marcador solo podía ser el número `0`. El resultado: un
+ * gráfico con las seis series en cero dibuja una línea plana pegada al eje,
+ * indistinguible de "no hay gráfico" — justo lo que esta plantilla existe
+ * para enseñar (Franco, mirando el editor: la plantilla completa "no viene
+ * ni siquiera un gráfico"). El pedido de Franco de dejar todo en lorem ipsum
+ * era sobre los TEXTOS, no sobre los números; tradujo mal a los dos.
+ *
+ * Por eso cada KPI, tabla, serie de gráfico, comparativa, meta-contra-real,
+ * matriz y cifra desglosada de aquí en adelante lleva un número PLAUSIBLE Y
+ * CON FORMA — una tendencia que sube y baja, un periodo que le gana al otro,
+ * porcentajes que no son todos iguales, un semáforo con estados distintos —
+ * para que la plantilla se vea como el estatus de verdad que es, con el
+ * contenido cambiado. Sigue sin ser un dato real: es un número inventado que
+ * nunca coincide con una cifra del deck de Mexa (mismo test de cadenas
+ * prohibidas de arriba), solo que ahora tiene la FORMA de un dato en vez de
+ * la forma de un campo vacío. Las etiquetas ("Lorem ipsum", "Dolor sit
+ * amet"…) siguen en lorem ipsum: lo que cambió es el número que las
+ * acompaña, no el texto.
  */
 const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
   {
@@ -237,10 +249,10 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
       titulo: 'El mes en una lectura',
       subtitulo: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit',
       kpis: [
-        { valor: '00', delta: '—', rotulo: 'Lorem ipsum' },
-        { valor: '00', delta: '—', rotulo: 'Dolor sit amet' },
-        { valor: '0%', delta: '—', rotulo: 'Consectetur adipiscing' },
-        { valor: '—', delta: '—', rotulo: 'Sed do eiusmod' },
+        { valor: '2,847', delta: '+12%', rotulo: 'Lorem ipsum' },
+        { valor: '184', delta: '-6%', rotulo: 'Dolor sit amet' },
+        { valor: '38%', delta: '+4pp', rotulo: 'Consectetur adipiscing' },
+        { valor: '4.6', delta: '—', rotulo: 'Sed do eiusmod' },
       ],
       columnas: [
         {
@@ -383,11 +395,11 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
         {
           columnas: ['', 'Periodo 1', 'Periodo 2'],
           filas: [
-            { celdas: ['Lorem ipsum dolor', '00', '00'] },
-            { celdas: ['Sit amet consectetur', '0.00', '0.00'] },
-            { celdas: ['Adipiscing elit sed', '0.0', '0.0'] },
-            { celdas: ['Do eiusmod tempor', '00', '00'] },
-            { celdas: ['Incididunt ut labore', '00', '00'] },
+            { celdas: ['Lorem ipsum dolor', '18,420', '21,150'] },
+            { celdas: ['Sit amet consectetur', '2.35', '2.68'] },
+            { celdas: ['Adipiscing elit sed', '3.4', '2.9'] },
+            { celdas: ['Do eiusmod tempor', '410', '365'] },
+            { celdas: ['Incididunt ut labore', '92', '138'] },
           ],
         },
       ],
@@ -397,10 +409,10 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
           titulo: 'Lorem ipsum',
           periodos: ['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5', 'Periodo 6'],
           series: [
-            { etiqueta: 'Lorem ipsum', valores: [0, 0, 0, 0, 0, 0], forma: 'barra', eje: 'derecho' },
-            { etiqueta: 'Dolor sit amet', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'izquierdo' },
-            { etiqueta: 'Consectetur adipiscing', valores: [0, 0, 0, 0, 0, 0], forma: 'linea-punteada', eje: 'izquierdo' },
-            { etiqueta: 'Sed do eiusmod', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'izquierdo' },
+            { etiqueta: 'Lorem ipsum', valores: [12, 15, 14, 18, 22, 21], forma: 'barra', eje: 'derecho' },
+            { etiqueta: 'Dolor sit amet', valores: [3.1, 3.4, 3.0, 3.6, 3.9, 4.2], forma: 'linea', eje: 'izquierdo' },
+            { etiqueta: 'Consectetur adipiscing', valores: [3.5, 3.5, 3.5, 4.0, 4.0, 4.0], forma: 'linea-punteada', eje: 'izquierdo' },
+            { etiqueta: 'Sed do eiusmod', valores: [2.0, 2.4, 2.7, 2.5, 2.9, 3.3], forma: 'linea', eje: 'izquierdo' },
           ],
           mostrarValores: true,
         },
@@ -445,10 +457,10 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
       titulo: 'Incididunt Ut Labore Et Dolore',
       subtitulo: 'Ut enim ad minim veniam quis nostrud exercitation ullamco laboris',
       kpis: [
-        { valor: '0.0', delta: '—', rotulo: 'Lorem ipsum' },
-        { valor: '00.0k', delta: '0%', rotulo: 'Dolor sit amet' },
-        { valor: '000', delta: '0%', rotulo: 'Consectetur adipiscing' },
-        { valor: '0.0%', delta: '—', rotulo: 'Sed do eiusmod' },
+        { valor: '3.8', delta: '+0.4', rotulo: 'Lorem ipsum' },
+        { valor: '42.6k', delta: '+9%', rotulo: 'Dolor sit amet' },
+        { valor: '318', delta: '-4%', rotulo: 'Consectetur adipiscing' },
+        { valor: '2.7%', delta: '+0.3pp', rotulo: 'Sed do eiusmod' },
       ],
       columnas: [
         {
@@ -483,30 +495,30 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
       titulo: 'Ut Enim Ad Minim Veniam',
       subtitulo: 'Quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea',
       kpis: [
-        { valor: '0', delta: '—', rotulo: 'Lorem ipsum' },
-        { valor: '0', delta: '—', rotulo: 'Dolor sit amet' },
-        { valor: '$0', delta: '—', rotulo: 'Consectetur adipiscing' },
+        { valor: '186', delta: '+22', rotulo: 'Lorem ipsum' },
+        { valor: '4,920', delta: '-310', rotulo: 'Dolor sit amet' },
+        { valor: '$38,150', delta: '+6%', rotulo: 'Consectetur adipiscing' },
       ],
       tablas: [
         {
           columnas: ['', 'Periodo 1', 'Periodo 2'],
           filas: [
-            { celdas: ['Lorem ipsum', '$0.00', '$0.00'] },
-            { celdas: ['Dolor sit amet', '0', '0'] },
-            { celdas: ['Consectetur adipiscing', '0', '0'] },
-            { celdas: ['Sed do eiusmod', '0', '0'] },
-            { celdas: ['Tempor incididunt', '0', '0'] },
+            { celdas: ['Lorem ipsum', '$12.40', '$10.85'] },
+            { celdas: ['Dolor sit amet', '1,240', '1,580'] },
+            { celdas: ['Consectetur adipiscing', '86', '104'] },
+            { celdas: ['Sed do eiusmod', '312', '298'] },
+            { celdas: ['Tempor incididunt', '18', '25'] },
           ],
         },
         {
           titulo: 'Lorem ipsum dolor',
           columnas: ['Estado', 'Total', '%'],
           filas: [
-            { celdas: ['Lorem ipsum', '0', '0%'] },
-            { celdas: ['Dolor sit amet', '0', '0%'] },
-            { celdas: ['Consectetur adipiscing', '0', '0%'] },
-            { celdas: ['Sed do eiusmod', '0', '0%'] },
-            { celdas: ['Total', '0', '0%'], destacada: true },
+            { celdas: ['Lorem ipsum', '42', '35%'] },
+            { celdas: ['Dolor sit amet', '28', '23%'] },
+            { celdas: ['Consectetur adipiscing', '31', '26%'] },
+            { celdas: ['Sed do eiusmod', '19', '16%'] },
+            { celdas: ['Total', '120', '100%'], destacada: true },
           ],
         },
       ],
@@ -516,8 +528,8 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
           titulo: 'Lorem ipsum',
           periodos: ['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5', 'Periodo 6'],
           series: [
-            { etiqueta: 'Lorem ipsum', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'izquierdo', prefijo: '$' },
-            { etiqueta: 'Dolor sit amet', valores: [0, 0, 0, 0, 0, 0], forma: 'linea', eje: 'derecho' },
+            { etiqueta: 'Lorem ipsum', valores: [8200, 7600, 9100, 8800, 10200, 9700], forma: 'linea', eje: 'izquierdo', prefijo: '$' },
+            { etiqueta: 'Dolor sit amet', valores: [2.1, 2.4, 2.0, 2.6, 2.9, 3.1], forma: 'linea', eje: 'derecho' },
           ],
           mostrarValores: true,
         },
@@ -525,7 +537,7 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
           tipo: 'barras',
           titulo: 'Consectetur adipiscing',
           periodos: ['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5'],
-          series: [{ etiqueta: 'Lorem ipsum', valores: [0, 0, 0, 0, 0], forma: 'barra' }],
+          series: [{ etiqueta: 'Lorem ipsum', valores: [14, 22, 18, 27, 24], forma: 'barra' }],
           mostrarValores: true,
         },
       ],
@@ -561,18 +573,18 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
       metaReal: {
         titulo: 'Lorem ipsum',
         filas: [
-          { rotulo: 'Total', meta: '00', real: '00', porcentaje: '0%' },
-          { rotulo: 'Dolor sit amet', meta: '00', real: '00', porcentaje: '0%' },
-          { rotulo: 'Consectetur adipiscing', meta: '00', real: '00', porcentaje: '0%' },
+          { rotulo: 'Total', meta: '180', real: '156', porcentaje: '87%' },
+          { rotulo: 'Dolor sit amet', meta: '90', real: '98', porcentaje: '109%' },
+          { rotulo: 'Consectetur adipiscing', meta: '90', real: '58', porcentaje: '64%' },
         ],
       },
       cifrasDesglosadas: [
-        { rotulo: 'Lorem ipsum', valor: '—' },
-        { rotulo: 'Dolor sit amet', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
-        { rotulo: 'Consectetur adipiscing', valor: '—', destacada: true, partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
-        { rotulo: 'Sed do eiusmod', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
-        { rotulo: 'Tempor incididunt', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
-        { rotulo: 'Ut labore et dolore', valor: '—', partes: [{ rotulo: 'Lorem', valor: '—' }, { rotulo: 'Ipsum', valor: '—' }] },
+        { rotulo: 'Lorem ipsum', valor: '$18.6 MDP' },
+        { rotulo: 'Dolor sit amet', valor: '$9.2 MDP', partes: [{ rotulo: 'Lorem', valor: '$5.4 MDP' }, { rotulo: 'Ipsum', valor: '$3.8 MDP' }] },
+        { rotulo: 'Consectetur adipiscing', valor: '$6.1 MDP', destacada: true, partes: [{ rotulo: 'Lorem', valor: '$3.5 MDP' }, { rotulo: 'Ipsum', valor: '$2.6 MDP' }] },
+        { rotulo: 'Sed do eiusmod', valor: '$2.4 MDP', partes: [{ rotulo: 'Lorem', valor: '$1.1 MDP' }, { rotulo: 'Ipsum', valor: '$1.3 MDP' }] },
+        { rotulo: 'Tempor incididunt', valor: '$940 K', partes: [{ rotulo: 'Lorem', valor: '$540 K' }, { rotulo: 'Ipsum', valor: '$400 K' }] },
+        { rotulo: 'Ut labore et dolore', valor: '$310 K', partes: [{ rotulo: 'Lorem', valor: '$180 K' }, { rotulo: 'Ipsum', valor: '$130 K' }] },
       ],
       columnas: [
         {
@@ -586,8 +598,8 @@ const PLANTILLA_COMPLETA_ITEMS: DefinicionItem[] = [
         {
           titulo: 'Dolor sit amet',
           puntos: [
-            { texto: 'Lorem: 000' },
-            { texto: 'Ipsum: 000' },
+            { texto: 'Lorem: 42' },
+            { texto: 'Ipsum: 68' },
           ],
         },
       ],

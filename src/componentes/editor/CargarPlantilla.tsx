@@ -23,12 +23,24 @@ import { PLANTILLAS, obtenerPlantilla } from '@/secciones/plantillas'
  * divergencia que su propio comentario de cabecera existe para evitar —un
  * tercer llamador doblando su copy a una pregunta que no es la suya—, así
  * que en vez de reusarlo entero se reusa lo que SÍ es del catálogo y no de
- * esa pregunta: el filtro por `esClaseDeJunta` que separa "clases de junta"
- * de "otras plantillas" en dos grupos (mismo criterio que ya usa
- * `SelectorClaseDeJunta`, nunca comparando un id contra `'en-blanco'` a
- * mano). Y se ofrecen las SIETE — todas, ver el brief, punto 3: aquí no se
- * está eligiendo qué junta es, así que ni "estatus-udn" ni "en-blanco" están
- * fuera de lugar como estructura de partida para un deck.
+ * esa pregunta: el filtro por `esClaseDeJunta` de `PLANTILLAS`.
+ *
+ * SOLO SE OFRECEN LAS PLANTILLAS DE PRESENTACIÓN (ronda 16, corrección sobre
+ * la ronda 14.2, que ofrecía las siete): la clase de una junta —Estatus de
+ * UDN, Sync Comercial, Comité, Arranque, Seguimiento— ya la decidió la
+ * reunión al nacer (`SelectorClaseDeJunta`, en las cuatro pantallas de
+ * creación) y responde otra pregunta ("¿qué junta es?"). Lo que este panel
+ * pregunta es "¿con qué secciones armo el deck AHORA?", y ahí las cinco
+ * clases de junta no pintan nada: son la respuesta a una pregunta que este
+ * documento ya tiene contestada, no una estructura de partida más entre
+ * otras. Ofrecerlas aquí fue lo que hizo que Franco, mirando el editor,
+ * viera siete plantillas donde había pedido una — mezclaba "qué junta es"
+ * (fija, decidida al crear la sala) con "qué secciones trae el deck"
+ * (editable en cualquier momento, que es lo que esta puerta abre). Por eso
+ * el filtro es el mismo `esClaseDeJunta` del catálogo, pero invertido: aquí
+ * solo entra lo que NO es clase de junta — hoy "Plantilla completa" y "En
+ * blanco" — nunca comparando un id contra `'en-blanco'` o `'estatus-udn'` a
+ * mano, para que una plantilla de presentación nueva caiga aquí sola.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * CONFIRMACIÓN: DOS PATRONES YA EXISTENTES, NINGUNO NUEVO.
@@ -52,8 +64,13 @@ import { PLANTILLAS, obtenerPlantilla } from '@/secciones/plantillas'
  *   cubren los dos casos.
  */
 
-const CLASES_DE_JUNTA = PLANTILLAS.filter((p) => p.esClaseDeJunta)
-const OTRAS = PLANTILLAS.filter((p) => !p.esClaseDeJunta)
+/**
+ * Solo las plantillas de PRESENTACIÓN, nunca las clases de junta — ver el
+ * comentario de cabecera, arriba. Mismo filtro que separa los dos grupos en
+ * `SelectorClaseDeJunta`, pero este panel solo se queda con la mitad que le
+ * toca.
+ */
+const PLANTILLAS_DE_PRESENTACION = PLANTILLAS.filter((p) => !p.esClaseDeJunta)
 
 interface Props {
   /** Con qué plantilla está armado el documento ahora mismo — `documentos.plantilla`. Solo para el valor inicial del selector; no bloquea volver a elegir la misma (recargarla "resetea" su contenido a la plantilla, un uso legítimo). */
@@ -115,16 +132,9 @@ export function CargarPlantilla({ plantillaActual, intacto, cargarAction }: Prop
           aria-label="Con qué secciones rearmar este documento"
         >
           <option value="">Elige una plantilla…</option>
-          <optgroup label="Clases de junta">
-            {CLASES_DE_JUNTA.map((p) => (
-              <option key={p.id} value={p.id}>{p.nombre}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Otras plantillas">
-            {OTRAS.map((p) => (
-              <option key={p.id} value={p.id}>{p.nombre}</option>
-            ))}
-          </optgroup>
+          {PLANTILLAS_DE_PRESENTACION.map((p) => (
+            <option key={p.id} value={p.id}>{p.nombre}</option>
+          ))}
         </select>
 
         {plantilla && !confirmando && (
