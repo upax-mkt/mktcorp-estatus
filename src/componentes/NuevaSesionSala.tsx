@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 import estilos from '@/app/cliente/cliente.module.css'
 
@@ -58,18 +57,33 @@ interface Props {
 
 export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
   const [abierto, setAbierto] = useState(false)
-  // `PLANTILLA_POR_DEFECTO` (`src/secciones/plantillas.ts`), no
-  // `PLANTILLAS[0].id` leído aquí: es la MISMA constante que usa
-  // `FormularioSesion.tsx` para esta misma pregunta (hallazgo I2, revisión
-  // final de la ronda 14.2) — antes cada archivo llegaba al mismo valor por
-  // su cuenta (uno leyendo el índice 0 del catálogo, el otro con la constante
-  // ya escrita), y un reordenamiento del catálogo las habría separado en
-  // silencio. Una sola fuente, importada en los dos sitios.
-  const [plantilla, setPlantilla] = useState(PLANTILLA_POR_DEFECTO)
+  // ARRANCA SIN CLASIFICAR ("", H3 — revisión de esta ronda), NO en
+  // `PLANTILLA_POR_DEFECTO`. Hasta esta ronda este era uno de los dos sitios
+  // (junto con `FormularioSesion` al agendar) que todavía clasificaba de
+  // rebote a "Estatus de UDN" solo porque esa fila iba primera en el
+  // catálogo — la regla única, y su porqué completo, viven en el comentario
+  // de `value` en `SelectorClaseDeJunta.tsx`; no se repiten aquí.
+  const [plantilla, setPlantilla] = useState('')
   const [dia, setDia] = useState('')
   const [titulo, setTitulo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
+
+  // CIERRA Y OLVIDA (mismo criterio que `cerrar()` en `AgendarRapido.tsx`,
+  // H1 de esta ronda — esta pantalla también SOLO CREA, nunca edita, así
+  // que no hay ningún campo donde "recordar lo último" sea una función
+  // querida). Antes, `Cancelar` no limpiaba nada y el cierre tras crear con
+  // éxito limpiaba `dia`/`titulo` pero se olvidaba de `plantilla` — cancelar
+  // con "Comité" elegido, o crear una reunión con esa clase, dejaba la
+  // SIGUIENTE reunión de esta sala preseleccionada en "Comité" sin que nadie
+  // lo hubiera decidido para ella.
+  function cerrar() {
+    setAbierto(false)
+    setPlantilla('')
+    setDia('')
+    setTitulo('')
+    setError(null)
+  }
 
   if (!abierto) {
     return (
@@ -91,7 +105,7 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
           // Se cierra y se limpia: la reunión recién creada aparece justo
           // encima, en "Lo que viene", con las dos vías para su presentación.
           // Antes esto no hacía falta porque la acción redirigía al editor.
-          setDia(''); setTitulo(''); setAbierto(false)
+          cerrar()
         })
       }}
     >
@@ -158,7 +172,7 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
         <button
           type="button"
           className={estilos.botonVolverSesion}
-          onClick={() => setAbierto(false)}
+          onClick={cerrar}
           disabled={pendiente}
         >
           Cancelar

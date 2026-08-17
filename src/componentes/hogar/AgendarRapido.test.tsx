@@ -211,4 +211,32 @@ describe('AgendarRapido — "¿Qué junta es?" (cierre de deuda técnica)', () =
 
     expect(agendar).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ plantilla: 'sync-comercial' }))
   })
+
+  /**
+   * H1 (revisión de esta ronda): `cerrar()` hacía `setAbierto(false)` y
+   * `setError(null)` pero NUNCA reseteaba `datos` — y el diálogo no se
+   * desmonta (`abierto && (...)` solo controla qué hay DENTRO de un mismo
+   * `<dialog>`, no si React lo vuelve a montar). Cerrar con "Comité o
+   * dirección" elegido y reabrir dejaba el desplegable en "comite" — la
+   * SIGUIENTE junta, la que nadie ha empezado a agendar todavía, nacía ya
+   * clasificada sin que nadie lo hubiera decidido PARA ELLA. Es el defecto
+   * exacto que esta tarea vino a cerrar (ver el comentario de archivo,
+   * "¿QUÉ JUNTA ES?"), reentrando por la segunda pulsación del mismo botón.
+   */
+  it('H1 — cerrar y reabrir el diálogo NO recuerda la clase de la junta anterior', async () => {
+    const usuario = userEvent.setup()
+    render(<AgendarRapido salas={salas} agendar={vi.fn()} />)
+
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+    await usuario.selectOptions(screen.getByLabelText('¿Qué junta es?'), 'comite')
+    expect((screen.getByLabelText('¿Qué junta es?') as HTMLSelectElement).value).toBe('comite')
+
+    // Cancelar cierra el mismo `<dialog>` que "✕" y que el clic fuera —
+    // las tres rutas pasan por `cerrar()`.
+    await usuario.click(screen.getByRole('button', { name: /cancelar/i }))
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+
+    expect((screen.getByLabelText('¿Qué junta es?') as HTMLSelectElement).value).toBe('')
+    expect(within(screen.getByLabelText('¿Qué junta es?')).getByRole('option', { name: 'Sin clasificar' })).toBeInTheDocument()
+  })
 })

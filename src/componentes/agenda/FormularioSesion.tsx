@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import estilos from '@/app/agenda/agenda.module.css'
-import { PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
 import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 
 /**
@@ -102,28 +101,34 @@ function capitalizar(texto: string): string {
 /**
  * El valor con el que arranca el desplegable "¿Qué junta es?".
  *
- * Agendar una reunión NUEVA (no llega `inicial`, o llega sin la clave
- * `plantilla`) arranca en la clase por defecto del catálogo
- * (`PLANTILLA_POR_DEFECTO`) — igual que ya hace `NuevaSesionSala` (tarea 2 de
- * esta ronda) para la misma pregunta: una junta que nace debería nacer
- * clasificada, no en blanco.
+ * REGLA ÚNICA (H3, revisión de esta ronda — el porqué completo vive en el
+ * comentario de `value` en `SelectorClaseDeJunta.tsx`, no se repite aquí):
+ * TODA junta que nace arranca sin clasificar. Agendar una reunión NUEVA (no
+ * llega `inicial`, o llega sin la clave `plantilla`) arranca en `''`, no en
+ * `PLANTILLA_POR_DEFECTO` — antes de esta ronda este era uno de los dos
+ * sitios (junto con `NuevaSesionSala`) que todavía clasificaba de rebote a
+ * "Estatus de UDN" solo porque esa fila iba primera en el catálogo.
  *
- * Editar una reunión que YA EXISTE es una pregunta distinta. Si esa reunión
- * no tiene clase, llega con `inicial.plantilla` en `null` — y ahí NO se
- * puede caer a la clase por defecto: guardar cualquier otro campo (el lugar,
- * el título…) dejaría la junta marcada como "Estatus de UDN" sin que nadie
- * lo haya decidido. Es la "clasificación de rebote" que esta tarea existe
+ * Editar una reunión que YA EXISTE es una pregunta distinta, y es la que
+ * este formulario SÍ necesita resolver aparte —es el único de los cuatro
+ * sitios que crean una reunión que también edita—. Si esa reunión no tiene
+ * clase, llega con `inicial.plantilla` en `null` — y ahí tampoco se cae a
+ * ningún valor por defecto: guardar cualquier otro campo (el lugar, el
+ * título…) dejaría la junta marcada como "Estatus de UDN" sin que nadie lo
+ * haya decidido. Es la "clasificación de rebote" que esta función existe
  * para evitar — un dato que falta es un hecho, y convertirlo en un dato
  * inventado es peor que dejarlo vacío.
  *
  * Por eso se distingue si `plantilla` VINO en `inicial` —con el operador
  * `in`, que sí ve una clave puesta a `null`, a diferencia de `?.`— de si
- * simplemente no vino. Solo en el primer caso se respeta tal cual (y `null`
- * se vuelve `''`, el valor de "Sin clasificar" en este `<select>`).
+ * simplemente no vino. Si VINO (editar), se respeta tal cual (y `null` se
+ * vuelve `''`, el valor de "Sin clasificar" en este `<select>`). Si NO vino
+ * (crear), arranca en `''` — el mismo valor, por la misma razón: no inventar
+ * una clase que nadie eligió.
  */
 function plantillaInicial(inicial: Props['inicial']): string {
   if (inicial && 'plantilla' in inicial) return inicial.plantilla ?? ''
-  return PLANTILLA_POR_DEFECTO
+  return ''
 }
 
 export function FormularioSesion({

@@ -606,13 +606,27 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   ): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
-    if (!PLANTILLAS.some((p) => p.id === datos.plantilla)) {
+    // `datos.plantilla` LLEGA `''` CUANDO NADIE TOCÓ EL DESPLEGABLE (H3,
+    // revisión de esta ronda — `NuevaSesionSala.tsx` arranca sin clasificar
+    // ahora, mismo criterio que `agendarRapidoAction` ya usaba para el atajo
+    // del Home): validar solo cuando SÍ llega algo, con el mismo `if
+    // (plantillaCampo && ...)` que ya usa `/deck/nueva` (`page.tsx`) para
+    // esta misma pregunta — antes esta acción rechazaba CUALQUIER envío sin
+    // clase con "Plantilla desconocida", lo que habría dejado el botón
+    // "Crear reunión" roto para quien la dejara sin elegir.
+    if (datos.plantilla && !PLANTILLAS.some((p) => p.id === datos.plantilla)) {
       return { error: 'Plantilla desconocida.' }
     }
     try {
       await crearReunion({
         salaSlug: slug,
-        plantilla: datos.plantilla,
+        // `|| null`, no la cadena tal cual: `crearReunion` guarda
+        // `datos.plantilla ?? null` (solo `null`/`undefined` se convierten;
+        // `''` se habría guardado literal como una plantilla vacía en la
+        // base). Mismo patrón que ya usan `agendarRapidoAction` (`app/page.tsx`)
+        // y las acciones de `/reuniones` (`app/reuniones/acciones.ts`) para
+        // esta misma traducción.
+        plantilla: datos.plantilla || null,
         tipo: 'mensual',
         alcance: 'todos',
         // Las 10:00 de CDMX, no la medianoche UTC: sin huso explícito una

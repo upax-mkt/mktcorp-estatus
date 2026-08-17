@@ -74,9 +74,10 @@ describe('SelectorClaseDeJunta', () => {
   })
 
   /**
-   * `value=''` es el estado de una reunión YA EXISTENTE sin clase
-   * (`FormularioSesion` al editar, ver `plantillaInicial`) — `NuevaSesionSala`
-   * nunca llega así. Dos cosas tienen que pasar a la vez: se enseña "Sin
+   * `value=''` es el estado con el que arranca TODA junta que nace (ver el
+   * comentario de `value` arriba, en el componente) — y también el de una
+   * reunión YA EXISTENTE sin clase, al editarla (`FormularioSesion`, ver
+   * `plantillaInicial`). Dos cosas tienen que pasar a la vez: se enseña "Sin
    * clasificar" como elegida, y NO se enseña ninguna línea de ayuda —
    * mostrar el `paraQue` de "Estatus de UDN" (el fallback de
    * `obtenerPlantilla` para un id vacío) sería la misma trampa que cerró la

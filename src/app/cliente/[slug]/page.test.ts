@@ -1375,6 +1375,28 @@ describe('VistaSala (/cliente/[slug]) — crear una reunión no crea su presenta
     expect(resultado.error).toMatch(/plantilla/i)
     expect(crearReunionMock).not.toHaveBeenCalled()
   })
+
+  /**
+   * H3 (revisión de esta ronda): `NuevaSesionSala` ahora arranca sin
+   * clasificar y puede mandar `plantilla: ''` si nadie toca el desplegable.
+   * Antes esta acción rechazaba CUALQUIER `''` como "Plantilla desconocida"
+   * —la validación no tenía el mismo atajo que ya usa `/deck/nueva`
+   * (`plantillaCampo && ...`)—, lo que habría dejado "Crear reunión" roto
+   * para quien la dejara sin elegir. Y `crearReunion` guarda
+   * `datos.plantilla ?? null` (solo `null`/`undefined` se traducen — `''` se
+   * habría guardado literal como plantilla vacía en la base), así que esta
+   * acción tiene que hacer el `|| null` ella misma, como ya hace
+   * `agendarRapidoAction` para el mismo caso.
+   */
+  it('sin elegir clase, se acepta y se guarda como sin clasificar (null), no como plantilla vacía', async () => {
+    crearReunionMock.mockResolvedValueOnce({ id: 'r-nueva' })
+    const crearAction = await crearActionCapturada()
+
+    const resultado = await crearAction({ plantilla: '', dia: '2026-08-19', titulo: 'x' })
+
+    expect(resultado.error).toBeUndefined()
+    expect(crearReunionMock).toHaveBeenCalledWith(expect.objectContaining({ plantilla: null }))
+  })
 })
 
 /**

@@ -139,7 +139,16 @@ describe('FormularioSesion — qué junta es (ronda 14, tareas 3 y 4)', () => {
     expect(screen.getByRole('option', { name: /sync comercial/i })).toBeInTheDocument()
   })
 
-  it('al agendar una reunión nueva, la clase arranca en Estatus de UDN — no en blanco', () => {
+  /**
+   * H3 (revisión de esta ronda): antes de este arreglo, agendar una reunión
+   * NUEVA aquí arrancaba en `PLANTILLA_POR_DEFECTO` ("Estatus de UDN") — uno
+   * de los dos sitios (junto con `NuevaSesionSala`) donde "una junta que
+   * nace no arranca sin clasificar" seguía siendo cierto, contra la regla
+   * que ya regía en Home (`AgendarRapido`) y en `/deck/nueva`. La regla
+   * única —y el porqué completo— vive en el comentario de `value` en
+   * `SelectorClaseDeJunta.tsx`.
+   */
+  it('al agendar una reunión nueva, la clase arranca sin clasificar — no en la primera del catálogo', () => {
     render(
       <FormularioSesion
         salas={SALAS}
@@ -149,7 +158,9 @@ describe('FormularioSesion — qué junta es (ronda 14, tareas 3 y 4)', () => {
       />,
     )
 
-    expect(screen.getByLabelText(/qué junta es/i)).toHaveValue('estatus-udn')
+    const selector = screen.getByLabelText(/qué junta es/i) as HTMLSelectElement
+    expect(selector.value).toBe('')
+    expect(within(selector).getByRole('option', { name: 'Sin clasificar' })).toBeInTheDocument()
   })
 
   it('la clase elegida viaja a enviarAction() junto con el resto', async () => {

@@ -37,14 +37,32 @@ import { PLANTILLAS, obtenerPlantilla } from '@/secciones/plantillas'
 
 interface Props {
   /**
-   * El id elegido, o `''` para "sin clasificar" — el estado de una reunión
-   * YA EXISTENTE sin clase (`FormularioSesion` al editar). Una junta que
-   * nace no arranca así: `NuevaSesionSala` siempre trae un id real. Mientras
-   * el valor sea `''` se enseña la opción "Sin clasificar" arriba del todo y
-   * NO se enseña ninguna línea de ayuda — mostrar el `paraQue` de "Estatus
-   * de UDN" bajo "Sin clasificar" (el fallback de `obtenerPlantilla` para un
-   * id vacío) sería la misma trampa que este componente existe para cerrar,
-   * solo que sobre `''` en vez de sobre `'en-blanco'`.
+   * El id elegido, o `''` para "sin clasificar".
+   *
+   * LA REGLA ÚNICA, EN UN SOLO SITIO (para no volver a divergir, ver el
+   * comentario de archivo de arriba): TODA JUNTA QUE NACE ARRANCA SIN
+   * CLASIFICAR (`''`) — nunca en la primera clase del catálogo. Vale por
+   * igual para los CUATRO sitios que crean una reunión: Home
+   * (`AgendarRapido.tsx`), `/deck/nueva` (`CampoClaseDeJunta.tsx`),
+   * `/reuniones` al agendar (`FormularioSesion.tsx`) y la sala, "+ Crear
+   * reunión" (`NuevaSesionSala.tsx`). Antes de esta ronda solo los dos
+   * primeros lo cumplían; los otros dos arrancaban en `PLANTILLA_POR_DEFECTO`
+   * ("Estatus de UDN") por costumbre, no por decisión — un dato que falta es
+   * un hecho, y convertirlo en un dato inventado porque esa fila iba primero
+   * en el `<select>` es peor que dejarlo vacío.
+   *
+   * EDITAR una reunión que YA EXISTE es una pregunta distinta, y solo
+   * `FormularioSesion` la responde (es el único de los cuatro que también
+   * edita): ahí `value` puede llegar en `''` porque la reunión de verdad no
+   * tiene clase —y entonces se respeta, no se rellena de rebote— o con un id
+   * real, y entonces arranca en SU clase. Ver `plantillaInicial`, en ese
+   * archivo, para el porqué completo de esa distinción.
+   *
+   * Mientras el valor sea `''` se enseña la opción "Sin clasificar" arriba
+   * del todo y NO se enseña ninguna línea de ayuda — mostrar el `paraQue` de
+   * "Estatus de UDN" bajo "Sin clasificar" (el fallback de `obtenerPlantilla`
+   * para un id vacío) sería la misma trampa que este componente existe para
+   * cerrar, solo que sobre `''` en vez de sobre `'en-blanco'`.
    */
   value: string
   onChange: (id: string) => void

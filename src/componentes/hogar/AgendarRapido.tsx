@@ -67,11 +67,30 @@ import estilos from './AgendarRapido.module.css'
  * Esta pantalla SOLO CREA —no hay "editar" que abra en su clase ya puesta,
  * al revés de `FormularioSesion`—, así que aquí no hay ambigüedad que
  * resolver: si nadie toca el desplegable, `agendarRapidoAction` (`app/page.tsx`)
- * manda `plantilla: null` y la reunión nace tal como nacía antes de que este
- * campo existiera — sin clase, que es la verdad, no "Estatus de UDN" porque
- * esa fuera la primera fila del catálogo. Un dato que falta es un hecho;
- * convertirlo en un dato inventado por el orden del `<select>` es peor que
- * dejarlo vacío.
+ * manda `plantilla: null` y la reunión nace sin clase. El porqué completo de
+ * esta regla —y por qué es la MISMA para los cuatro sitios que crean una
+ * reunión— vive en un solo lugar: el comentario de `value` en
+ * `SelectorClaseDeJunta.tsx`. No se repite aquí para no volver a divergir.
+ *
+ * H1 (revisión de esta ronda): arrancar en `''` no bastaba si el propio
+ * `useState` solo corre UNA VEZ. `cerrar()` hacía `setAbierto(false)` sin
+ * tocar `datos`, y el `<dialog>` nunca se desmonta —`abierto && (...)` decide
+ * qué hay DENTRO, no si React vuelve a montar el árbol— así que la clase
+ * elegida en la ÚLTIMA junta agendada sobrevivía a cerrar el diálogo y
+ * reaparecía ya puesta en la SIGUIENTE, sin que nadie la hubiera elegido
+ * para ella: exactamente el defecto que este archivo existe para evitar,
+ * reentrando por la segunda pulsación del mismo botón "+ Agendar reunión".
+ *
+ * `cerrar()` resetea el FORMULARIO ENTERO (`estadoInicial()`), no solo
+ * `plantilla` — decisión, no descuido: sala/día/hora/título son inocuos de
+ * recordar mientras eran los únicos campos (nunca se guarda un HECHO falso
+ * por recordarlos), pero esta pantalla SOLO CREA, nunca edita, así que no hay
+ * ningún campo donde "recordar lo último" sea una función querida —a
+ * diferencia de un formulario de edición, donde el valor previo ES el dato
+ * correcto—. Resetear todo, no solo el campo que hoy duele, es más simple de
+ * razonar (una sola regla: "un diálogo que se cierra olvida") y evita que el
+ * próximo campo que se sume a este formulario repita el mismo defecto por no
+ * haber sido resetado a mano.
  */
 
 export interface SalaParaAgendar {
@@ -132,18 +151,27 @@ function capitalizar(texto: string): string {
 export function AgendarRapido({ salas, agendar }: Props) {
   const salasActivas = salas.filter((s) => s.activa)
 
+  // Único punto de verdad para "cómo nace este formulario" — lo usan tanto
+  // el `useState` de abajo (primer render) como `cerrar()` (cada cierre,
+  // ver el comentario de archivo, "H1"). Una función, no un objeto
+  // constante: `salaSlug` depende de `salasActivas`, que puede cambiar
+  // entre una apertura y la siguiente (una sala se pausa/reactiva).
+  function estadoInicial(): DatosAgendarRapido {
+    return {
+      salaSlug: salasActivas[0]?.slug ?? '',
+      dia: '',
+      hora: HORA_POR_DEFECTO,
+      tipo: 'mensual',
+      titulo: '',
+      // '' = sin clasificar, SIEMPRE al crear — ver el comentario de "¿Qué
+      // junta es?" arriba. Nunca `PLANTILLA_POR_DEFECTO`: esta pantalla no
+      // edita, solo crea, así que no hay una clase previa que respetar.
+      plantilla: '',
+    }
+  }
+
   const [abierto, setAbierto] = useState(false)
-  const [datos, setDatos] = useState<DatosAgendarRapido>({
-    salaSlug: salasActivas[0]?.slug ?? '',
-    dia: '',
-    hora: HORA_POR_DEFECTO,
-    tipo: 'mensual',
-    titulo: '',
-    // '' = sin clasificar, SIEMPRE al crear — ver el comentario de "¿Qué
-    // junta es?" arriba. Nunca `PLANTILLA_POR_DEFECTO`: esta pantalla no
-    // edita, solo crea, así que no hay una clase previa que respetar.
-    plantilla: '',
-  })
+  const [datos, setDatos] = useState<DatosAgendarRapido>(estadoInicial)
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -158,6 +186,11 @@ export function AgendarRapido({ salas, agendar }: Props) {
   function cerrar() {
     setAbierto(false)
     setError(null)
+    // H1: sin esto, `datos` sobrevivía al cierre —el `<dialog>` nunca se
+    // desmonta— y la SIGUIENTE junta nacía con la clase de la ANTERIOR ya
+    // puesta. Ver el comentario de archivo para el porqué de resetear todo
+    // el formulario, no solo `plantilla`.
+    setDatos(estadoInicial())
   }
 
   function campo<K extends keyof DatosAgendarRapido>(clave: K, valor: DatosAgendarRapido[K]) {

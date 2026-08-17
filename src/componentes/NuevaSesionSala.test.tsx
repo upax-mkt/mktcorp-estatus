@@ -109,20 +109,48 @@ describe('NuevaSesionSala — pregunta la clase de junta, no la plantilla (ronda
   // el `paraQue` de "Estatus de UDN" cambiara, esta aserción seguiría
   // comprobando que ESE texto —el real, no uno fosilizado aquí— desaparece.
   it('recalcula la línea de ayuda al cambiar de clase — no se queda pegada a la primera', async () => {
-    const paraQueEstatus = obtenerPlantilla('estatus-udn').paraQue
     const paraQueSync = obtenerPlantilla('sync-comercial').paraQue
+    const paraQueComite = obtenerPlantilla('comite').paraQue
 
     const usuario = userEvent.setup()
     render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
     await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
 
-    // Arranca en "Estatus de UDN" (PLANTILLAS[0]): su `paraQue` es el que se ve.
-    expect(screen.getByText(paraQueEstatus)).toBeInTheDocument()
+    // Arranca sin clasificar (H3, revisión de esta ronda): ninguna línea de
+    // ayuda todavía — ver `SelectorClaseDeJunta.test.tsx` para el porqué.
+    expect(screen.queryByText(paraQueSync)).toBeNull()
 
     await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'sync-comercial')
+    expect(screen.getByText(paraQueSync)).toBeInTheDocument()
+
+    await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'comite')
 
     // Cambia la clase → cambia el `paraQue` mostrado, y el de antes desaparece.
-    expect(screen.getByText(paraQueSync)).toBeInTheDocument()
-    expect(screen.queryByText(paraQueEstatus)).toBeNull()
+    expect(screen.getByText(paraQueComite)).toBeInTheDocument()
+    expect(screen.queryByText(paraQueSync)).toBeNull()
+  })
+
+  /**
+   * H3 (revisión de esta ronda): arrancar en `''` no alcanza si nada la
+   * resetea al cerrar. `Cancelar` y el cierre tras crear con éxito ya
+   * limpiaban `dia`/`titulo` pero NUNCA `plantilla` —el mismo defecto que
+   * cerró H1 en `AgendarRapido.tsx`, aquí sin flag propio porque el review
+   * no lo pidió por nombre, pero es la MISMA regla ("un diálogo que se
+   * cierra olvida") y esta pantalla también SOLO CREA. Sin el fix, elegir
+   * "Comité" y cancelar dejaría la SIGUIENTE reunión de esta sala
+   * preseleccionada en "Comité" sin que nadie lo hubiera decidido para ella.
+   */
+  it('cancelar y reabrir NO recuerda la clase elegida antes', async () => {
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+    await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'comite')
+    expect((screen.getByLabelText(/qué junta es/i) as HTMLSelectElement).value).toBe('comite')
+
+    await usuario.click(screen.getByRole('button', { name: /^cancelar$/i }))
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    expect((screen.getByLabelText(/qué junta es/i) as HTMLSelectElement).value).toBe('')
   })
 })
