@@ -277,6 +277,19 @@ export function actualizarEstadoDocumentoMemoria(documentoId: string, estado: Fi
   fila.updatedAt = new Date()
 }
 
+/**
+ * Espejo en memoria de la mitad de `cargarPlantillaEnDocumento` (ver
+ * src/db/documentos.ts) que cambia LA CLASE DEL DOCUMENTO — nunca la de la
+ * reunión (`FilaReunionMemoria.plantilla` tiene su propio escritor,
+ * `actualizarDatosReunionMemoria`, arriba, y esta función no lo toca).
+ */
+export function actualizarPlantillaDocumentoMemoria(documentoId: string, plantilla: string): void {
+  const fila = documentos.get(documentoId)
+  if (!fila) return
+  fila.plantilla = plantilla
+  fila.updatedAt = new Date()
+}
+
 /** Espejo en memoria del borrado de un documento (ver `eliminarDocumentoDeReunion`, src/db/documentos.ts). */
 export function eliminarDocumentoMemoria(documentoId: string): void {
   documentos.delete(documentoId)

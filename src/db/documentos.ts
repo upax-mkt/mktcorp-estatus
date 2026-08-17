@@ -639,6 +639,121 @@ export async function crearDocumentoConPlantilla(
 }
 
 /**
+ * CARGA UNA PLANTILLA SOBRE UN DOCUMENTO QUE YA EXISTE — desde el editor, no
+ * al crear la reunión.
+ *
+ * Franco, en el editor de una reunión de Mexa Creativa: *"estoy en el editor
+ * de presentaciones pero no veo dónde cargar el template"*. No lo había:
+ * `crearDocumentoConPlantilla` (arriba) solo siembra secciones AL NACER el
+ * documento — era la única puerta, y una vez dentro del editor no había forma
+ * de traer otra plantilla salvo `eliminarDocumentoDeReunion` (que se lleva la
+ * fila entera y obliga a volver a entrar a `/deck/<id>` para que se recree, ya
+ * sin ninguna estructura) y empezar de cero a mano. Esta función es la
+ * segunda puerta: REEMPLAZA los items de un documento VIVO por los de
+ * `idPlantilla` — misma siembra que `crearDocumentoConPlantilla`
+ * (`{ seccion: d.contenido ?? { layout: d.layout } }` por item, ver el
+ * comentario de `DefinicionItem.contenido` en `src/secciones/plantillas.ts`),
+ * solo que contra un documento que ya tenía items en vez de uno recién
+ * creado.
+ *
+ * DESTRUYE lo que hubiera escrito, y ESTA FUNCIÓN NO PREGUNTA — a propósito:
+ * una Server Action es el sitio que EJECUTA lo que ya se confirmó, no el
+ * sitio que confirma. Quien la llama (`cargarPlantillaAction`,
+ * `src/app/deck/[id]/page.tsx`) exige `exigirEditor()` primero, y la pantalla
+ * (`CargarPlantilla.tsx`) es la que pide confirmación en dos tiempos ANTES de
+ * invocarla cuando el documento tiene contenido real — mismo reparto de
+ * responsabilidad que ya usa este módulo en otras dos parejas: la fricción
+ * vive en el componente (`EliminarSeccion` para `eliminarSeccion`,
+ * `DescartarPresentacion` para `eliminarDocumentoDeReunion`), el guardián y el
+ * borrado viven aquí. Esconder el botón no protege nada — es la Server Action
+ * la que exige editor, no la pantalla.
+ *
+ * `documentos.plantilla` SÍ CAMBIA a `idPlantilla`; `reuniones.plantilla` NO
+ * SE TOCA — y las dos mitades son la misma decisión, no dos reglas sueltas.
+ * `documentos.plantilla` decide qué `tipo` no se puede borrar (`tiposFijosDe`,
+ * `src/secciones/plantillas.ts`): es un hecho DEL DOCUMENTO, sobre SUS
+ * secciones actuales, y tiene que seguir siéndolo aunque se hayan sembrado
+ * después de nacer — dejarlo en la plantilla vieja marcaría como "base" (no
+ * borrable) cualquier `tipo` que las dos plantillas compartan por
+ * coincidencia (p. ej. `'portada'`, `'agenda'`, `'acuerdos-pendientes'` — los
+ * comparte "Plantilla completa" con "Estatus de UDN" a propósito, ver el
+ * comentario de `PLANTILLA_COMPLETA_ITEMS`) y dejaría el resto de las
+ * secciones nuevas sueltas, un reparto que no fue decisión de nadie. En
+ * cambio `reuniones.plantilla` contesta una pregunta que esta operación NO
+ * responde — "¿qué junta es?", elegida al agendarla, spec de la columna en
+ * `src/db/esquema.ts` ("con qué secciones NACE su presentación SI ALGÚN DÍA
+ * se arma aquí") — y esa pregunta ya se contestó el día que la reunión se
+ * agendó. Rearmar el deck en el editor tres semanas después no vuelve a
+ * preguntar "¿qué junta es esta?", solo "¿con qué secciones armo su deck
+ * ahora?" — son las dos preguntas del brief, y solo la segunda es la que esta
+ * función responde. Tocar `reuniones.plantilla` aquí reabriría exactamente el
+ * defecto que la ronda anterior cerró (ver el comentario de
+ * `crearDocumentoConPlantilla`, arriba): una reunión y su documento con clases
+ * que se contradicen, solo que en la dirección contraria.
+ *
+ * `estado` vuelve a `'borrador'` aunque el documento estuviera `'listo'`: lo
+ * que dejó `'listo'` fue una foto de UN CONTENIDO que esta llamada acaba de
+ * reemplazar — presentarla otra vez sería enseñar la sección de
+ * `documento/page.tsx` desactualizada con normalidad, en vez de decir que
+ * hace falta volver a maquetar. Mismo estado de nacimiento que
+ * `crearDocumento`.
+ */
+export async function cargarPlantillaEnDocumento(documentoId: string, idPlantilla: string): Promise<void> {
+  // Nunca se resuelve contra `obtenerPlantilla` para decidir CON QUÉ
+  // sembrar sin comprobar antes que el catálogo reconoce el id: su fallback
+  // (`PLANTILLAS[0]`, "Estatus de UDN") existe para un `<select>` que nunca
+  // puede quedar vacío — no para que un id roto cargue en silencio los ocho
+  // bloques del estatus sobre un documento que pidió otra cosa. Mismo
+  // criterio que `idClase` en `crearDocumentoConPlantilla`, arriba, solo que
+  // ahí un id no reconocido cae a "en-blanco" sin avisar (documento que nace
+  // de todos modos) y aquí, sobre un documento que YA EXISTE y que nadie va a
+  // volver a mirar hasta que alguien lo note, se prefiere el error explícito.
+  if (!PLANTILLAS.some((p) => p.id === idPlantilla)) {
+    throw new Error(`Plantilla desconocida: "${idPlantilla}"`)
+  }
+  const documento = await obtenerDocumento(documentoId)
+  if (!documento) throw new Error(`Documento no encontrado: "${documentoId}"`)
+
+  const plantilla = obtenerPlantilla(idPlantilla)
+  const ahora = new Date()
+  const estructura: EstructuraDocumento = { items: plantilla.items }
+  const filasNuevas = plantilla.items.map((d, i) => ({
+    id: crypto.randomUUID(),
+    documentoId,
+    orden: i,
+    tipo: d.tipo,
+    contenidoCrudo: { seccion: d.contenido ?? { layout: d.layout } } as ContenidoItemCrudo,
+    decisionMaquetacion: null as unknown,
+  }))
+
+  if (hayDB()) {
+    const conexion = db()
+    // FUERA DE UNA SOLA SENTENCIA — misma deuda documentada que el resto del
+    // módulo (`neon-http` sin transacciones ni `SELECT FOR UPDATE`, ver el
+    // comentario de `crearReunionConDocumento`): borrar TODOS los items del
+    // documento e insertar los nuevos son dos sentencias sueltas. Si algo
+    // revienta entre medias, el documento queda sin items hasta que alguien
+    // vuelva a `/deck/<id>` y cargue una plantilla otra vez — no deja una fila
+    // a medio escribir ni una referencia rota, mismo argumento que ya hace
+    // `crearReunionConDocumento` para su propia secuencia de varias
+    // sentencias.
+    await conexion.delete(esquema.items).where(eq(esquema.items.documentoId, documentoId))
+    await conexion.insert(esquema.items).values(filasNuevas)
+    await conexion
+      .update(esquema.documentos)
+      .set({ estructura, plantilla: idPlantilla, estado: 'borrador', updatedAt: ahora })
+      .where(eq(esquema.documentos.id, documentoId))
+    return
+  }
+
+  memoria.eliminarItemsDeDocumentoMemoria(documentoId)
+  memoria.insertarItemsMemoria(filasNuevas.map((f) => ({ ...f, createdAt: ahora, updatedAt: ahora })))
+  memoria.actualizarEstructuraDocumentoMemoria(documentoId, estructura)
+  memoria.actualizarPlantillaDocumentoMemoria(documentoId, idPlantilla)
+  memoria.actualizarEstadoDocumentoMemoria(documentoId, 'borrador')
+}
+
+/**
  * Borra el documento de una reunión (y sus items), si tiene uno. No-op si no
  * lo tiene: una reunión sin documento (el PDF que también es una
  * presentación) no tiene nada que borrar aquí.

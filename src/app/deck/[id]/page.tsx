@@ -15,6 +15,7 @@ import {
   guardarSeccion,
   anadirSeccion,
   eliminarSeccion,
+  cargarPlantillaEnDocumento,
   guardarItemContenido,
   anadirAcuerdoRetomado,
   itemDeAcuerdosPendientes,
@@ -31,6 +32,7 @@ import { BotonMaquetar } from '@/componentes/BotonMaquetar'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
 import { DescartarPresentacion } from '@/componentes/DescartarPresentacion'
 import { AnadirSeccion } from '@/componentes/editor/AnadirSeccion'
+import { CargarPlantilla } from '@/componentes/editor/CargarPlantilla'
 import { TarjetaSeccion } from '@/componentes/editor/TarjetaSeccion'
 import { IndiceSesion, type EntradaIndice } from '@/componentes/editor/IndiceSesion'
 import { VistaEditor } from '@/componentes/editor/VistaEditor'
@@ -181,6 +183,33 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
     await eliminarSeccion(documentoId, itemId)
     if (quien.sub) await registrarEdicion(id, quien.sub)
     revalidarDocumento(id)
+  }
+
+  /**
+   * CARGAR UNA PLANTILLA SOBRE EL DOCUMENTO YA EXISTENTE de esta reunión —
+   * Franco: *"no veo dónde cargar el template"*. `cargarPlantillaEnDocumento`
+   * (`src/db/documentos.ts`) ya explica por qué reemplaza sin preguntar y por
+   * qué solo toca `documentos.plantilla`, nunca `reuniones.plantilla`; aquí
+   * solo hace falta el guardián de siempre — la confirmación en dos tiempos
+   * (o de plano ninguna, sobre un documento intacto) vive en la pantalla,
+   * `CargarPlantilla.tsx`, ANTES de que esto se llame nunca. Devuelve el
+   * error en vez de lanzarlo (a diferencia del resto de acciones de este
+   * archivo) porque un id de plantilla desconocido SÍ puede llegar aquí sin
+   * ser un bug — el catálogo puede crecer entre que alguien abre el editor y
+   * pulsa "Cargar" — y la pantalla necesita poder enseñarlo sin que Next lo
+   * convierta en una página de error completa.
+   */
+  async function cargarPlantillaAction(idPlantilla: string): Promise<{ error?: string }> {
+    'use server'
+    const quien = await exigirEditor()
+    try {
+      await cargarPlantillaEnDocumento(documentoId, idPlantilla)
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo cargar la plantilla.' }
+    }
+    if (quien.sub) await registrarEdicion(id, quien.sub)
+    revalidarDocumento(id)
+    return {}
   }
 
   /**
@@ -527,6 +556,23 @@ export default async function PagSesion({ params }: { params: Promise<{ id: stri
 
           <ParticipantesSesion participantes={participantes} />
         </div>
+
+        {/* CARGAR UNA PLANTILLA (Franco: *"no veo dónde cargar el
+            template"*), justo debajo del encabezado — lo primero que se ve al
+            entrar, no un botón enterrado al fondo junto a "Descartar la
+            presentación": ese descarta TODO el documento y obliga a volver a
+            entrar; esto lo rearma con otra estructura de un tiro. `intacto`
+            reusa el MISMO conteo que ya se enseña arriba en la barra de
+            avance (`itemsLlenados`, calculado más abajo en "Vista" pero en el
+            mismo cierre de función) — un documento con 0 secciones llenadas
+            es, por definición del propio producto, uno donde no hay nada que
+            perder; no se inventa un segundo criterio de "qué cuenta como
+            trabajo" para esta pantalla. */}
+        <CargarPlantilla
+          plantillaActual={documento?.plantilla ?? null}
+          intacto={itemsLlenados === 0}
+          cargarAction={cargarPlantillaAction}
+        />
 
         {/* Los acuerdos abiertos de la sala, listos para retomarse en este
             documento (ronda 9, tarea 6). Antes de la lista de secciones: es

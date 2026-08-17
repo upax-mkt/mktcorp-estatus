@@ -15,7 +15,8 @@ vi.mock('./salas', () => ({
 
 const {
   crearDocumento, documentoDeReunion, marcarListo, crearReunionConDocumento, eliminarDocumentoDeReunion,
-  guardarItemContenido, guardarSeccion, anadirSeccion, eliminarSeccion, reordenarItems, moverItem,
+  guardarItemContenido, guardarSeccion, anadirSeccion, eliminarSeccion, cargarPlantillaEnDocumento,
+  reordenarItems, moverItem,
   guardarDecisiones, esLlenado, itemDeAcuerdosPendientes, anadirAcuerdoRetomado, entradasCrudasDeDocumento,
   parsearCifrasTexto, formatearCifrasTexto, parsearTablaTexto, formatearTablaTexto,
 } = await import('./documentos')
@@ -224,6 +225,97 @@ describe('qué se puede borrar de un documento', () => {
     await eliminarSeccion(documentoId, opciones.id)
     const despues = (await documentoDeReunion(reunionId))!
     expect(despues.items.map((i) => i.tipo)).not.toContain('opciones')
+  })
+})
+
+/**
+ * `cargarPlantillaEnDocumento` — la segunda puerta para sembrar secciones,
+ * la que faltaba DESPUÉS de que el documento ya existe (Franco: *"no veo
+ * dónde cargar el template"*). Ver su comentario en `src/db/documentos.ts`
+ * para el razonamiento completo de por qué reemplaza sin preguntar, por qué
+ * toca `documentos.plantilla` y no `reuniones.plantilla`, y por qué vuelve a
+ * `'borrador'`.
+ */
+describe('cargarPlantillaEnDocumento', () => {
+  it('reemplaza TODOS los items del documento por los de la nueva plantilla', async () => {
+    const { reunionId, documentoId } = await documentoEstatus() // 8 bloques del estatus
+    expect((await documentoDeReunion(reunionId))!.items).toHaveLength(8)
+
+    await cargarPlantillaEnDocumento(documentoId, 'comite')
+
+    const despues = (await documentoDeReunion(reunionId))!
+    expect(despues.items.map((i) => i.titulo)).toEqual([
+      'Portada', 'La situación', 'Las opciones', 'Lo que se pide', 'Cierre',
+    ])
+    // Ningún tipo del estatus sobrevive — no es un merge, es un reemplazo.
+    expect(despues.items.some((i) => i.tipo === 'revops')).toBe(false)
+  })
+
+  it('cambia documentos.plantilla, y deja reuniones.plantilla intacta — son preguntas distintas', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    const reunionAntes = (await obtenerReunion(reunionId))!
+    expect(reunionAntes.plantilla).toBe('estatus-udn')
+
+    await cargarPlantillaEnDocumento(documentoId, 'plantilla-completa')
+
+    const documento = (await documentoDeReunion(reunionId))!
+    expect(documento.plantilla).toBe('plantilla-completa') // el deck se rearmó con esta
+    const reunionDespues = (await obtenerReunion(reunionId))!
+    expect(reunionDespues.plantilla).toBe('estatus-udn') // la junta sigue siendo la misma
+  })
+
+  it('tiposFijosDe sigue la plantilla NUEVA — "estatus-udn" ya no bloquea nada tras cargar "comite"', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    await cargarPlantillaEnDocumento(documentoId, 'comite')
+    const documento = (await documentoDeReunion(reunionId))!
+    // "comite" no tiene `seccionesFijas`: ni siquiera la portada es base.
+    expect(documento.items.every((i) => !i.esBase)).toBe(true)
+  })
+
+  it('siembra el contenido de la plantilla ("Plantilla completa" nace llena de lorem ipsum, no vacía)', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    await cargarPlantillaEnDocumento(documentoId, 'plantilla-completa')
+    const documento = (await documentoDeReunion(reunionId))!
+    expect(documento.items).toHaveLength(18)
+    expect(documento.items.every((i) => i.llenado)).toBe(true) // el contenido de ejemplo cuenta como llenado
+    expect(documento.items[0].contenido.seccion?.titulo).toBe('Lorem ipsum dolor sit amet')
+  })
+
+  it('el documento vuelve a "borrador" aunque estuviera "listo": la foto vieja ya no corresponde al contenido nuevo', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    await marcarListo(documentoId)
+    expect((await documentoDeReunion(reunionId))!.estado).toBe('listo')
+
+    await cargarPlantillaEnDocumento(documentoId, 'seguimiento')
+
+    expect((await documentoDeReunion(reunionId))!.estado).toBe('borrador')
+  })
+
+  it('un id de plantilla desconocido no toca nada — error explícito, no "estatus-udn" en silencio', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    await expect(cargarPlantillaEnDocumento(documentoId, 'no-existe')).rejects.toThrow(/desconocida/i)
+    expect((await documentoDeReunion(reunionId))!.items).toHaveLength(8) // sin tocar
+  })
+
+  it('un documentoId que no existe avisa en vez de fallar en silencio', async () => {
+    await expect(cargarPlantillaEnDocumento('no-existe', 'comite')).rejects.toThrow(/no encontrado/i)
+  })
+
+  it('borra las referencias a acuerdos retomados que traía la plantilla vieja: es contenido, y se reemplaza con el resto', async () => {
+    const { reunionId, documentoId } = await documentoEstatus()
+    const acuerdo = await crearAcuerdo('neracode', {
+      que: 'Cruce de paid media', responsable: 'Fernando', fechaCompromiso: null, reunionOrigenId: reunionId,
+    })
+    await anadirAcuerdoRetomado(documentoId, acuerdo.id)
+    const antes = (await documentoDeReunion(reunionId))!
+    expect(itemDeAcuerdosPendientes(antes)!.contenido.acuerdoIdsRetomados).toEqual([acuerdo.id])
+
+    await cargarPlantillaEnDocumento(documentoId, 'comite') // sin ninguna sección de tipo pendientes-semáforo
+
+    const despues = (await documentoDeReunion(reunionId))!
+    expect(itemDeAcuerdosPendientes(despues)).toBeUndefined()
+    // El acuerdo en sí sigue vivo en la sala — solo se perdió LA REFERENCIA en este documento.
+    expect(obtenerAcuerdoMemoria(acuerdo.id)).not.toBeNull()
   })
 })
 

@@ -366,6 +366,22 @@
   background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: 0.7rem;
 }
 
+/* ---- Cargar una plantilla sobre un documento que ya existe ---- */
+/* Caja propia y no `.zonaPeligro` reusada tal cual: esa es una fila (label +
+   un botón) pensada para un único texto fijo; esto apila un selector, su
+   línea de ayuda y —solo cuando hace falta— un párrafo de aviso más los
+   botones de confirmar. Mismo lenguaje visual (borde punteado, mismo radio,
+   mismos tokens) para que se lea como parte de la misma familia de controles
+   "que cambian la estructura del documento", no como una tarjeta nueva. */
+.panelPlantilla {
+  display: flex; flex-direction: column; gap: 0.7rem;
+  margin-bottom: 2rem; padding: 1rem 1.15rem;
+  border: 1px dashed var(--borde-fuerte); border-radius: 0.7rem;
+}
+.panelPlantillaFila { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; }
+.panelPlantillaEtiqueta { font-size: 0.82rem; font-weight: 650; color: var(--tx-2); white-space: nowrap; }
+.panelPlantillaSelect { width: auto; min-width: 14rem; max-width: 22rem; }
+
 /* ---- Borrar una sesión ---- */
 
 .zonaPeligro {
@@ -547,7 +563,7 @@
 
 /* Al imprimir, fuera el cromo: barras, botones y flotantes no son documento. */
 @media print {
-  .barra, .panelMaquetar, .zonaPeligro { display: none !important; }
+  .barra, .panelMaquetar, .zonaPeligro, .panelPlantilla { display: none !important; }
   .app { background: #fff; }
   .main { max-width: none; padding: 0; }
 }
