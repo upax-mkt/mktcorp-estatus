@@ -252,16 +252,62 @@ details[open] > .cerradasResumen::before { transform: rotate(90deg); }
    los SEIS nombres de sala del calendario (incluida "Marketing United", el
    más largo) sin truncar, y sin margen muerto entre la fila y las tarjetas.
    `scrollWidth === clientWidth` en 1440 y 390: sin desborde horizontal. */
+/* ⚠️ EL HUECO VERTICAL (arreglo 2, ronda 16) — MEDIDO a 1440px, en reposo,
+   ANTES de este arreglo (`_arreglo2-medir.mjs`, print `antes-reuniones-1440.png`):
+   el calendario (hijo 1 de `.filaSuperior`) llegaba hasta y=1008; el `<aside>`
+   (hijo 2, filtros + leyenda) terminaba en y=490 — 517px de fondo de página
+   PURO a la derecha del calendario, x entre 1016 y 1352.
+
+   LA CAUSA no era el `align-items: start` por sí solo (eso solo decide si el
+   `<aside>` se ESTIRA a la altura de la fila, no si la fila TIENE esa
+   altura): en un grid de una sola fila, el alto de esa fila lo fija el
+   contenido más alto de los dos —el calendario— sea cual sea `align-items`.
+   Con `start`, el `<aside>` se queda con SU propia altura (la de
+   filtros+leyenda) dentro de una fila que igual mide 767px: los 517px que le
+   sobran no los pinta nadie, porque `.hueco` (más abajo) nunca tuvo fondo
+   propio —transparente, deja ver el `<body>`—.
+
+   EL ARREGLO, dos partes:
+   1. `align-items: stretch` (el default de grid, así que basta con no
+      forzar `start`): el `<aside>` (`.lateral`, agenda.module.css) pasa a
+      medir el alto completo de la fila, y como ESE módulo tampoco fuerza
+      `align-items` en su propio grid, su único hijo (`.tarjetaFormulario` O
+      `.hueco`, mutuamente excluyentes — ver PanelAgenda.tsx) hereda el mismo
+      estiramiento sin tocar ese archivo.
+   2. `.hueco` GANA SU PROPIA SUPERFICIE (más abajo): mismo tratamiento visual
+      que `.tarjetaFormulario` (mismo `--r-4`/`--superficie`/`--e-1`) — antes
+      solo tenía `display:grid` sobre fondo transparente. Con las dos partes
+      juntas, el sobrante de los 517px deja de ser CANVAS EN BLANCO y pasa a
+      ser el propio cuerpo de la tarjeta de filtros: se ve una tarjeta más
+      alta, no un hueco.
+
+   MEDIDO DESPUÉS (mismo script, print `despues-reuniones-1440.png`): ver el
+   informe de esta tarea para las coordenadas finales. */
 .filaSuperior {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 21rem);
   gap: 1.75rem;
-  align-items: start;
 }
 /* Sin `max-width` propio: llena el track de `.filaSuperior` (arriba) en vez
    de quedarse angosto dentro de un `<aside>` más ancho — ver el comentario
-   de esa clase para el porqué importa. */
-.hueco { display: grid; gap: 1.75rem; }
+   de esa clase para el porqué importa.
+
+   SU PROPIA SUPERFICIE (arreglo 2, ronda 16) — antes `display:grid; gap:
+   1.75rem;` a secas, transparente: con `.filaSuperior` estirando el
+   `<aside>` a la altura del calendario (ver ese comentario), un `.hueco`
+   transparente dejaba pasar el fondo de la página por los 517px que le
+   sobraban. Mismas tres declaraciones que `.tarjetaFormulario`
+   (agenda.module.css: `padding`/`border-radius`/`background`/`box-shadow`)
+   para que las DOS caras del `<aside>` —formulario abierto, o filtros+
+   leyenda en reposo— compartan la misma tarjeta, no una con fondo y otra sin
+   él. `align-content: start`: el contenido (filtros, leyenda) se queda
+   arriba —es lo que se lee—, y el sobrante de alto queda DENTRO de la
+   tarjeta, bajo su propio borde y sombra, no fuera de ella. */
+.hueco {
+  display: grid; gap: 1.75rem; align-content: start;
+  padding: 1.1rem; border-radius: var(--r-4);
+  background: var(--superficie); box-shadow: var(--e-1);
+}
 .huecoTitulo {
   display: flex; align-items: baseline; gap: 0.6rem;
   font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase;

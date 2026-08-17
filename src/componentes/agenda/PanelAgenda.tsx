@@ -333,6 +333,20 @@ export function PanelAgenda({
   // cubre. `hayFiltroActivo` + las dos etiquetas resueltas (no el
   // `slug`/`id` crudo) son lo que arma un aviso legible — ver dónde se
   // pinta, más abajo, antes de `.filaSuperior`.
+  //
+  // H2 (re-revisión, ronda 16) — SIGUE SOLO CON `formularioAbierto`, A
+  // PROPÓSITO, aunque el hallazgo también ofrecía "que se vea también en
+  // reposo" como arreglo. Se evaluó y se descartó: este aviso vive ANTES de
+  // `.filaSuperior` —arriba del calendario— así que en cuanto alguien baja
+  // lo bastante para toparse con "Falta su minuta" o "Cerradas" (el caso real
+  // que reportó el hallazgo, con `?sala=neracode`), el aviso YA SE SALIÓ DE
+  // PANTALLA otra vez, esté o no el formulario abierto — mostrarlo en reposo
+  // no habría cerrado el hueco que el hallazgo mide, solo lo habría movido de
+  // "nunca se pinta en reposo" a "se pinta pero igual desaparece al bajar".
+  // El arreglo real —que la COPIA de cada sección diga la verdad donde se
+  // lee, sin depender de scroll— vive en la condición de cada `vacio`, más
+  // abajo ("Próximas") y en `page.tsx` ("Falta su minuta"/"Cerradas"): ver
+  // esos comentarios.
   const hayFiltroActivo = filtroSala !== SIN_FILTRO || filtroClase !== SIN_FILTRO
   const etiquetaFiltroSala =
     filtroSala === SIN_FILTRO
@@ -574,9 +588,21 @@ export function PanelAgenda({
           <span className={estilosCiclo.conteo}>{proximas.length}</span>
         </h2>
 
+        {/* H2 (re-revisión, ronda 16) — MISMO booleano que ya arma el aviso
+            de arriba (`hayFiltroActivo`), reusado aquí para que la copia de
+            vacío no mienta: medido con `?sala=neracode`, esto decía "No hay
+            ninguna reunión agendada" con DOS reuniones reales filtradas
+            fuera. `sesiones`/`idsProximas` ya llegan filtradas desde
+            `page.tsx` (ver el comentario de esas props) — este componente no
+            sabe si `reuniones.length === 0` es "no hay nada" o "nada
+            coincide", así que la distinción tiene que venir del mismo dato
+            que ya decide el aviso: si hay filtro activo. Mismo arreglo,
+            mismo motivo, que "Falta su minuta"/"Cerradas" en `page.tsx`. */}
         {proximas.length === 0 ? (
           <p className={estilosCiclo.vacio}>
-            No hay ninguna reunión agendada. Elige un día en el calendario para poner la primera.
+            {hayFiltroActivo
+              ? 'Ninguna próxima coincide con el filtro puesto — puede haber otras agendadas fuera de él.'
+              : 'No hay ninguna reunión agendada. Elige un día en el calendario para poner la primera.'}
           </p>
         ) : (
           <div className={estilosCiclo.listaCiclo}>

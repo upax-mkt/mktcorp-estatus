@@ -80,14 +80,46 @@
    retirado del Home (Franco: "solo una cifra", ver `page.tsx`) quedan DOS
    hijos parejos —ninguno más alto que el otro por diseño—, así que dos
    columnas iguales alcanzan y ya no hace falta pensar en filas. */
+/* ⚠️ EL HUECO VERTICAL (arreglo 2, ronda 16) — MEDIDO a 1440px
+   (`_arreglo2-medir.mjs`, print `antes-home-1440.png`): el hijo 1 de
+   `.modulos` (calendario+agendar, x 150–710) llegaba hasta y=1756; el hijo 2
+   (`ModuloMinutas`, x 730–1290) terminaba en y=1332 — 424px de fondo de
+   página PURO debajo de la tarjeta de Minutas (columna derecha), mientras la
+   izquierda sigue ocupada por el calendario. Pre-existente (idéntico con
+   `align-items: start`, que es justo la causa: en un grid de una sola fila el
+   alto de la fila lo
+   fija el hijo más alto de los dos sea cual sea `align-items` — `start` solo
+   decide que el hijo CORTO no se estire a esa altura, así que el sobrante
+   queda sin nadie que lo pinte, porque `Seccion.module.css` (`.seccion`, la
+   tarjeta de `ModuloMinutas`) SÍ tiene fondo propio, pero con `start` su caja
+   nunca crece lo bastante para cubrir esos 424px).
+
+   EL ARREGLO: quitar el `start` (el default de grid ya es `stretch`) para
+   que la caja del hijo corto SÍ mida el alto completo de la fila — su propio
+   fondo (`.seccion { background: var(--papel) }`, ya existente, sin tocar
+   ese archivo, fuera del alcance de esta tarea) pasa a cubrir esos 424px en
+   vez de dejarlos como canvas. `.modulos > section` (más abajo) es
+   ESPECÍFICAMENTE la tarjeta de `ModuloMinutas` —el otro hijo es un `<div
+   id="calendario">`, nunca un `<section>` en este nivel; `ModuloCalendario`
+   sí renderiza uno, pero ANIDADO dentro de ese `<div>`, no como hijo directo
+   de `.modulos`— así que el selector no toca el calendario, que ya medía la
+   altura completa de la fila (es el más alto) y no necesita nada nuevo.
+   `display:flex; flex-direction:column` + `.moduloPie` con `margin-top:auto`
+   (más abajo, junto a `.moduloPie`): en vez de dejar el sobrante como aire
+   muerto a medio card, hunde "Levantar minuta"/"Editar molde" al fondo de la
+   tarjeta ya estirada — la tarjeta se lee como cabecera+lista arriba,
+   acciones ancladas abajo, no como una lista corta flotando sobre un vacío.
+
+   MEDIDO DESPUÉS (mismo script, print `despues-home-1440.png`): ver el
+   informe de esta tarea para las coordenadas finales. */
 .modulos {
   display: grid; gap: 1.25rem;
   grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
-  align-items: start;
 }
 @media (min-width: 60rem) {
   .modulos { grid-template-columns: 1fr 1fr; }
 }
+.modulos > section { display: flex; flex-direction: column; }
 
 /* LA TARJETA Y SU CABECERA VIVEN EN `componentes/Seccion.module.css` (ronda
    12): `.modulo`, `.moduloCabecera` y `.moduloTitulo` se retiraron de aquí
@@ -288,3 +320,12 @@
   margin-top: 1rem; padding-top: 0.9rem;
   border-top: 1px solid var(--linea);
 }
+/* HUNDIDO AL FONDO DE LA TARJETA (arreglo 2, ronda 16) — solo dentro de
+   `.modulos` (el Home), donde `.modulos > section` ya la estiró a la altura
+   del calendario (ver el comentario de `.modulos`, arriba): `margin-top:
+   auto` en un flex-column empuja "Levantar minuta"/"Editar molde" hasta el
+   borde inferior de la tarjeta ya estirada, en vez de dejarlos pegados
+   arriba con 424px de aire debajo. `moduloPie` solo lo usa `ModuloMinutas`
+   (confirmado con grep antes de este cambio), así que no hay otro llamador
+   al que esta regla más específica pueda afectar por sorpresa. */
+.modulos > section .moduloPie { margin-top: auto; }

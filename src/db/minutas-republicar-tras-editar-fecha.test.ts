@@ -112,8 +112,35 @@ const diaUTC = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : nul
  *     granularidad — no una tercera comparación inventada, la MISMA que la
  *     sentencia real dice tener.
  */
+/**
+ * ENDURECIDO (re-revisión, ronda 16 — hallazgo "el centinela protege una
+ * subcadena, no un comportamiento"). Este centinela solo miraba
+ * `sqlTexto.includes('date_trunc(')`: un revisor que MUTARA `acuerdos.ts`
+ * dejando el `date_trunc('day', ...)` pero QUITANDO el ` AT TIME ZONE 'UTC'`
+ * seguía leyendo "dia" aquí —la subcadena `date_trunc(` seguía presente— y
+ * los 4 tests de este archivo se quedaban en verde, aunque esa mutación
+ * reabra exactamente el peligro que `acuerdos.ts:168-169` documenta: sobre
+ * un `timestamptz`, `date_trunc('day', col)` A SECAS usa el `TimeZone` de la
+ * SESIÓN de Postgres, no UTC —no determinista, y en particular no
+ * garantizado a reconocer `D 00:00Z`/`D 18:00Z` como el mismo día—, así que
+ * sin el ancla explícita el dedupe deja de ser lo que este archivo prueba.
+ *
+ * Ahora exige las DOS piezas juntas: `date_trunc('day'` Y `AT TIME ZONE
+ * 'UTC'` en la misma sentencia. No hace falta comprobar que estén en la
+ * MISMA llamada (un parser de SQL de verdad, que este archivo ya decidió no
+ * traer — ver la cabecera): `date_trunc('day'` solo puede aparecer en el SQL
+ * de `crearAcuerdo` en esta comparación (ver el comentario de la cabecera de
+ * este archivo), así que la co-ocurrencia de las dos subcadenas basta para
+ * distinguir "el ancla sigue ahí" de "alguien la quitó". Sin las dos, el
+ * doble cae a 'instante' —el criterio viejo, inseguro— y el duplicado que
+ * C1 cerró vuelve a reproducirse en este mismo archivo: MUTACIÓN
+ * COMPROBADA A MANO (quitar ` AT TIME ZONE 'UTC'` de `acuerdos.ts` y correr
+ * esta suite) — ver el informe de esta tarea para la salida exacta.
+ */
 function granularidadDeLaSentencia(sqlTexto: string): 'dia' | 'instante' {
-  return sqlTexto.includes('date_trunc(') ? 'dia' : 'instante'
+  return sqlTexto.includes("date_trunc('day'") && sqlTexto.includes("AT TIME ZONE 'UTC'")
+    ? 'dia'
+    : 'instante'
 }
 
 /** Lo que evalúa el `NOT EXISTS` de `crearAcuerdo`, con la granularidad que su sentencia real diga tener. */

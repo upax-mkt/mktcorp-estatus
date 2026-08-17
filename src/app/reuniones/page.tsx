@@ -478,6 +478,26 @@ export default async function PagReuniones({
   const filtroSala = filtroValido(searchParamsResueltos.sala, (v) => v === SIN_SALA || slugsReales.includes(v))
   const filtroClase = filtroValido(searchParamsResueltos.clase, (v) => v === SIN_CLASIFICAR || claveDeClase(v) === v)
   const reunionesFiltradas = reuniones.filter((r) => coincideConFiltros(r, filtroSala, filtroClase))
+  /**
+   * H2 (re-revisión, ronda 16) — "UN VACÍO QUE MIENTE ES PEOR QUE NO TENER
+   * FILTRO". Hasta esta ronda, "falta su minuta" y "Cerradas" (más abajo)
+   * pintaban SIEMPRE la misma copia de vacío ("Nada pendiente de minutar.",
+   * "Ninguna reunión cerrada todavía.") sin importar si `reunionesFiltradas`
+   * (arriba) de verdad estaba vacía o si solo el FILTRO había dejado esa
+   * sección en cero. Print real con `?sala=neracode`: "falta su minuta"
+   * decía "0 — Nada pendiente de minutar" con la sala filtrada, mientras la
+   * lista sin filtrar tenía 6 — la copia no describía la ausencia de
+   * trabajo, describía la ausencia de RESULTADOS DEL FILTRO, y las dos
+   * cuentan historias opuestas. Mismo defecto en "Próximas"
+   * (`PanelAgenda.tsx`, que reusa este MISMO booleano — ver su comentario).
+   *
+   * El arreglo es la copia, no el aviso de arriba: `hayFiltroActivo` decide
+   * ENTRE DOS frases honestas, cada una cierta en su caso — no una condición
+   * que se añade a la de siempre, porque "Nada pendiente de minutar,
+   * filtrado por NeraCode" seguiría leyéndose como "no hay nada pendiente en
+   * ningún lado", que es justo la mentira que esto cierra.
+   */
+  const hayFiltroActivo = filtroSala !== SIN_FILTRO || filtroClase !== SIN_FILTRO
 
   /**
    * `itemsLlenados`/`totalItems` no viven en `ReunionResumen` (son del
@@ -591,7 +611,11 @@ export default async function PagReuniones({
         <span className={estilos.conteo}>{ciclo.faltaMinuta.length}</span>
       </h2>
       {ciclo.faltaMinuta.length === 0 ? (
-        <p className={estilos.vacio}>Nada pendiente de minutar.</p>
+        <p className={estilos.vacio}>
+          {hayFiltroActivo
+            ? 'Nada coincide con el filtro puesto — puede haber pendientes en otra sala o clase.'
+            : 'Nada pendiente de minutar.'}
+        </p>
       ) : (
         <div className={estilos.listaCiclo}>
           {ciclo.faltaMinuta.map((r) => (
@@ -660,7 +684,11 @@ export default async function PagReuniones({
           </h2>
         </summary>
         {ciclo.cerradas.length === 0 ? (
-          <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
+          <p className={estilos.vacio}>
+            {hayFiltroActivo
+              ? 'Ninguna reunión cerrada coincide con el filtro puesto.'
+              : 'Ninguna reunión cerrada todavía.'}
+          </p>
         ) : (
           <div className={estilos.listaCiclo}>
             {ciclo.cerradas.map((r) => (
