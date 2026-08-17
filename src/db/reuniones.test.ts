@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 /**
  * MISMO PATRÓN QUE `src/db/sesiones.test.ts` (léelo antes de tocar esto):
@@ -19,6 +19,9 @@ const {
 } = await import('./reuniones')
 const { reiniciarStoreMemoria, obtenerAcuerdoMemoria } = await import('./store-memoria')
 const { crearAcuerdo } = await import('./acuerdos')
+const clienteDB = await import('./cliente')
+const temasDB = await import('./temas')
+const esquema = await import('./esquema')
 
 beforeEach(() => {
   reiniciarStoreMemoria()
@@ -76,6 +79,39 @@ describe('crearReunion', () => {
     await expect(crearReunion({ salaSlug: 'no-existe', fecha: new Date(), titulo: 'x', tipo: 'mensual' }))
       .rejects.toThrow('Sala desconocida: "no-existe"')
     expect(salaEstaActivaMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * I3 (revisión final, ronda 14.2). `agendarReunionAction`
+   * (`src/app/reuniones/acciones.ts`) manda `datos.plantilla` CRUDO, tal cual
+   * llega del formulario — sin este guardián, una cadena basura (o el `id` de
+   * una vieja plantilla que se haya borrado del catálogo) se guardaba tal
+   * cual y luego se pintaba como "Estatus de UDN" por el fallback de
+   * `obtenerPlantilla`: un dato inventado presentado como real.
+   */
+  it('I3: una clase de junta que el catálogo no reconoce se rechaza, no se guarda', async () => {
+    await expect(
+      crearReunion({ salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: 'no-existe' }),
+    ).rejects.toThrow('Plantilla desconocida: "no-existe"')
+  })
+
+  /**
+   * I3: `null` y `''` NO son "una plantilla basura" — son el estado "sin
+   * clasificar" de las 6 reuniones reales que hoy no tienen clase. El
+   * guardián de arriba tiene que dejarlos pasar tal cual, sin rechazarlos.
+   * (Que `''` se guarde tal cual o se traduzca a `null` es cosa de quien
+   * llama — `agendarReunionAction` ya lo hace, `'' || null` — no de esta
+   * validación, que solo decide "¿se admite?", no "¿cómo se normaliza?".)
+   */
+  it('I3: `null` y `\'\'` siguen siendo clases válidas — "sin clasificar", no un rechazo', async () => {
+    const { id: idNulo } = await crearReunion({
+      salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: null,
+    })
+    expect((await obtenerReunion(idNulo))!.plantilla).toBeNull()
+
+    await expect(
+      crearReunion({ salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: '' }),
+    ).resolves.toBeDefined()
   })
 
   it('nace agendada, no dada: agendar no es haber ocurrido', async () => {
@@ -321,6 +357,194 @@ describe('editarReunion', () => {
 
   it('una reunión que no existe se dice, no se ignora', async () => {
     await expect(editarReunion('no-existe', { lugar: 'Teams' })).rejects.toThrow(/no encontrada/i)
+  })
+
+  /**
+   * CRÍTICO C1 (ronda 14-2, fix 3/4) — rama en memoria.
+   *
+   * El bloque de `editarReunion` que arma `columnas` (src/db/reuniones.ts,
+   * ~372-388) tiene una línea por `fecha`/`titulo`/`tipo`/`alcance`/
+   * `participantes`/`lugar` pero NINGUNA para `plantilla` — aunque el TIPO
+   * de la función (`Omit<Partial<DatosDeReunion>, 'salaSlug'>`) sí la admite.
+   * Corregir la clase de una junta ya creada es hoy un no-op silencioso: no
+   * revienta, no avisa, simplemente no se guarda. Este test corre contra el
+   * store en memoria REAL (sin `hayDB()`, mismo patrón que el resto de este
+   * archivo) — es la "capa de datos real" que menciona el encargo, no un
+   * doble que finja escribir.
+   */
+  it('CRÍTICO C1: la clase de la junta (plantilla) SÍ se guarda al editar — rama en memoria', async () => {
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'),
+      titulo: 'Estatus de agosto', plantilla: 'sync-comercial',
+    })
+    await editarReunion(id, { plantilla: 'comite' })
+    expect((await obtenerReunion(id))!.plantilla).toBe('comite')
+  })
+
+  /**
+   * CRÍTICO C1 — EL CASO QUE DE VERDAD CAZA UN GUARD ROTO (ronda de arreglo
+   * 2/5: hueco señalado por la re-revisión). El test de arriba mueve
+   * 'sync-comercial' → 'comite' (no-nulo a no-nulo); el de "costura
+   * completa", más abajo, arranca en `null` y espera `null` — mismo valor al
+   * principio y al final, así que pasa igual con el guard entero, con un
+   * guard truthy (`if (cambios.plantilla)`, que trataría `null` como
+   * "no tocar") o sin guard alguno: nada distingue ahí "no toqué el campo" de
+   * "sí lo toqué, a lo mismo que ya tenía". Ninguno de los dos cubre la
+   * transición que SÍ separa un `!== undefined` correcto de uno que se coma
+   * el `null` (`??`/`||`/truthy): no-nulo → `null` explícito, "quítale la
+   * clase" en el sentido estricto. Con el guard borrado, este test cae
+   * (`'sync-comercial'` se queda pegado); con el guard real, `null` gana
+   * porque `null !== undefined`.
+   */
+  it('CRÍTICO C1: un `plantilla: null` explícito SÍ borra una clase existente — no se queda pegada a la anterior', async () => {
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'),
+      titulo: 'Estatus de agosto', plantilla: 'sync-comercial',
+    })
+    await editarReunion(id, { plantilla: null })
+    expect((await obtenerReunion(id))!.plantilla).toBeNull()
+  })
+
+  /**
+   * I3 (revisión final, ronda 14.2). `editarReunionAction`
+   * (`src/app/reuniones/acciones.ts`) es una Server Action alcanzable por
+   * cualquier `editor` y escribía la cadena que llegara sin comprobar nada —
+   * corregir la clase de una junta YA CREADA con un valor basura se guardaba
+   * tal cual. Mismo guardián que `crearReunion`, ver `esPlantillaConocida`.
+   */
+  it('I3: editar hacia una clase de junta que el catálogo no reconoce se rechaza — la clase anterior no se toca', async () => {
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'),
+      titulo: 'Estatus de agosto', plantilla: 'sync-comercial',
+    })
+    await expect(editarReunion(id, { plantilla: 'no-existe' })).rejects.toThrow('Plantilla desconocida: "no-existe"')
+    expect((await obtenerReunion(id))!.plantilla).toBe('sync-comercial')
+  })
+
+  /**
+   * NO ES UN TEST DE REGRESIÓN DE C1 (renombrado y re-anotado en la ronda de
+   * arreglo 2/5, hallazgo de la re-revisión: "un test tiene que representar
+   * lo que su nombre promete"). Arranca en `plantilla: null` y termina en
+   * `plantilla: null` — el mismo valor al principio y al final — así que
+   * PASA con el guard de C1 entero, roto o borrado por completo: no hay
+   * ninguna mutación de ese guard que este `expect` pueda cazar por sí sola
+   * (la prueba que sí puede caer es la de arriba, "un `plantilla: null`
+   * explícito SÍ borra una clase existente"). Lo que SÍ verifica, y para lo
+   * que sigue siendo útil, es que editar OTRO campo (`lugar`) junto con un
+   * `plantilla: null` explícito no deja que ese `null` se sustituya por algo
+   * inventado en el camino — el escenario literal que motivó el encargo
+   * original ("editar el lugar de una junta SIN clase la deja SIN clase").
+   */
+  it('editar OTRO campo (lugar) de una junta sin clase no le pega una clase inventada — no protege contra un guard de C1 roto, ver el test de arriba para eso', async () => {
+    const { id } = await crearReunion({
+      salaSlug: 'zeus', tipo: 'mensual', fecha: new Date('2026-08-19T16:00:00Z'), titulo: 'Sin clasificar',
+      // Sin `plantilla`: nace `null`, igual que las 6 reuniones reales sin clase.
+    })
+    expect((await obtenerReunion(id))!.plantilla).toBeNull()
+
+    // Exactamente lo que manda `editarReunionAction` cuando el usuario edita
+    // SOLO el lugar sin tocar "¿Qué junta es?" en una junta sin clase, una
+    // vez arreglado C2 (`datos.plantilla` llega `''` del formulario,
+    // `'' || null` es `null` — ver el comentario de esa acción).
+    await editarReunion(id, { lugar: 'Sala 4', plantilla: null })
+
+    const r = (await obtenerReunion(id))!
+    expect(r.lugar).toBe('Sala 4')
+    expect(r.plantilla).toBeNull()
+    expect(r.plantilla).not.toBe('estatus-udn')
+    expect(r.plantilla).not.toBe('')
+  })
+})
+
+/**
+ * CRÍTICO C1 (ronda 14-2, fix 3/4) — rama de Postgres.
+ *
+ * `reuniones.test.ts` corre contra el store en memoria (sin `DATABASE_URL`,
+ * `hayDB()` real es falso en vitest) — el resto de este archivo nunca
+ * ejercita la rama de Postgres de `editarReunion`. Mismo idioma que
+ * `src/db/acuerdos.test.ts` (describe "rama Postgres"): un doble mínimo de
+ * `db()` que solo sabe responder `select().from().where()` y
+ * `update().set().where()`, más `cargarTemas` mockeada directamente (evita
+ * que `obtenerReunion` —que `editarReunion` llama primero, para comprobar
+ * que la reunión existe— dispare una segunda consulta real contra
+ * `esquema.salas` que este doble no modela).
+ *
+ * Este test inspecciona el PARCHE (`columnas`) que de verdad le llega a
+ * `.set()`: es la comprobación más directa de "qué columnas arma ese bloque"
+ * — si `plantilla` no está en `columnas`, el `Object.assign` del doble ni la
+ * toca, y el `expect` de abajo cae.
+ */
+describe('editarReunion — rama de Postgres: qué columnas arma de verdad el bloque de `columnas`', () => {
+  interface FilaReunionDB {
+    id: string
+    salaSlug: string | null
+    fecha: Date
+    titulo: string
+    tipo: 'semanal' | 'quincenal' | 'mensual'
+    plantilla: string | null
+    estado: 'agendada' | 'dada'
+    noDadaEn: Date | null
+    lugar: string | null
+    alcance: string
+    participantes: unknown
+    updatedAt: Date
+  }
+
+  let fila: FilaReunionDB
+  let parcheCapturado: Record<string, unknown> | undefined
+
+  function dobleDB() {
+    return {
+      select() {
+        return {
+          from: (tabla: unknown) => ({
+            where: () => {
+              // `obtenerReunion` (llamado primero por `editarReunion`, y
+              // también por el propio test al leer el resultado) consulta
+              // `esquema.reuniones` y, aparte, `documentos`/`minutas`/
+              // `archivos` para `tieneDocumento`/`tieneMinuta`/`archivos` —
+              // sin ninguno en juego aquí, basta con la lista vacía para
+              // cualquier tabla que no sea `reuniones`.
+              if (tabla === esquema.reuniones) return Promise.resolve([{ ...fila }])
+              return Promise.resolve([])
+            },
+          }),
+        }
+      },
+      update(tabla: unknown) {
+        return {
+          set: (parche: Record<string, unknown>) => ({
+            where: () => {
+              if (tabla === esquema.reuniones) {
+                parcheCapturado = parche
+                Object.assign(fila, parche)
+              }
+              return Promise.resolve(undefined)
+            },
+          }),
+        }
+      },
+    }
+  }
+
+  beforeEach(() => {
+    fila = {
+      id: 'r1', salaSlug: 'zeus', fecha: new Date('2026-08-19T16:00:00Z'),
+      titulo: 'Estatus de agosto', tipo: 'mensual', plantilla: 'sync-comercial',
+      estado: 'agendada', noDadaEn: null, lugar: null, alcance: 'todos',
+      participantes: [], updatedAt: new Date('2026-08-01T00:00:00Z'),
+    }
+    parcheCapturado = undefined
+    vi.spyOn(temasDB, 'cargarTemas').mockResolvedValue({})
+    vi.spyOn(clienteDB, 'hayDB').mockReturnValue(true)
+    vi.spyOn(clienteDB, 'db').mockReturnValue(dobleDB() as unknown as ReturnType<typeof clienteDB.db>)
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('CRÍTICO C1: el UPDATE real manda la columna plantilla — hoy el bloque de columnas no la incluye, y el cambio se pierde en silencio', async () => {
+    await editarReunion('r1', { plantilla: 'comite' })
+    expect(parcheCapturado).toHaveProperty('plantilla', 'comite')
   })
 })
 

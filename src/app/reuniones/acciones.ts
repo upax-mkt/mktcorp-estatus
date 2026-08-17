@@ -71,9 +71,12 @@ export async function agendarReunionAction(datos: DatosFormulario): Promise<{ er
     // saldría en su sala como "a medio armar" y una agendada desde la sala
     // como "sin presentación todavía", por el mismo gesto.
     //
-    // Este formulario no pregunta la plantilla —tiene tipo, alcance y
-    // participantes—, así que la reunión nace sin ella y el editor cae a la
-    // de por defecto el día que alguien la arme.
+    // PLANTILLA (tarea 3, ronda 14): este formulario ya pregunta qué junta
+    // es (`FormularioSesion`, el desplegable "¿Qué junta es?") — antes no lo
+    // hacía, y era la causa medible de que 6 de 14 reuniones nacieran sin
+    // clase. `''` ("Sin clasificar" en la pantalla) se manda como `null`,
+    // igual que `lugar` dos líneas abajo: el `<select>` no tiene `null`, la
+    // base sí.
     await crearReunion({
       salaSlug: datos.salaSlug,
       tipo: datos.tipo,
@@ -82,6 +85,7 @@ export async function agendarReunionAction(datos: DatosFormulario): Promise<{ er
       titulo: datos.titulo.trim() || tituloPorDefecto(datos.tipo, instanteDe(datos.dia, datos.hora)),
       participantes: datos.participantes.split(',').map((p) => p.trim()).filter(Boolean),
       lugar: datos.lugar.trim() || null,
+      plantilla: datos.plantilla || null,
       // Nace agendada — toda reunión nace así (`DatosDeReunion` no tiene
       // parámetro de estado, a diferencia de la vieja `DatosDeSesion`).
     })
@@ -103,6 +107,19 @@ export async function editarReunionAction(id: string, datos: DatosFormulario): P
       alcance: datos.alcance.trim() || 'todos',
       participantes: datos.participantes.split(',').map((p) => p.trim()).filter(Boolean),
       lugar: datos.lugar.trim() || null,
+      /**
+       * PLANTILLA (tarea 4, ronda 14): `editarReunion` ya admite `plantilla`
+       * (`Omit<Partial<DatosDeReunion>, 'salaSlug'>`, `src/db/reuniones.ts`)
+       * — solo faltaba pasarla. `datos.plantilla` es lo que trae el
+       * `<select>` de `FormularioSesion` en ESTE envío concreto, tal cual —
+       * si la junta no tenía clase y nadie tocó el desplegable, sigue
+       * llegando `''` aquí (no la clase por defecto: ver `plantillaInicial`
+       * en `FormularioSesion.tsx`), y `'' || null` es `null`: la junta sigue
+       * sin clase después de guardar. Esta línea NUNCA inventa una clase que
+       * el formulario no mandó — es la garantía de que editar el lugar de
+       * una junta sin clasificar no la clasifica de rebote.
+       */
+      plantilla: datos.plantilla || null,
     })
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'No se pudo guardar la reunión.' }

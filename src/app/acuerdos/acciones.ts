@@ -6,7 +6,15 @@ import * as esquema from '@/db/esquema'
 import { exigirAdmin, exigirEditor } from '@/auth/roles'
 import { existeElGrupo, crearElementoEnDelivery, crearSubelemento } from '@/monday/cliente'
 import { pausarSala, reactivarSala, salaEstaActiva } from '@/db/salas'
-import { editarAcuerdo, eliminarAcuerdo, salaDeAcuerdo } from '@/db/acuerdos'
+import {
+  editarAcuerdo,
+  eliminarAcuerdo,
+  moverAcuerdoDeSala,
+  moverEstatus,
+  salaDeAcuerdo,
+  type EstatusAcuerdo,
+} from '@/db/acuerdos'
+import { instanteEnCDMX } from '@/lib/fecha'
 
 /**
  * Las acciones de la bandeja. Todas empiezan comprobando la sesión: esto
@@ -247,7 +255,15 @@ export async function editarEnBandejaAction(
     que: cambios.que,
     responsable: cambios.responsable,
     responsableMondayId: cambios.responsableMondayId,
-    fechaCompromiso: cambios.fechaCompromiso ? new Date(cambios.fechaCompromiso) : null,
+    // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo I1 de la revisión
+    // final de la ronda 14): esta acción escribe la MISMA columna que
+    // `editarFechaEnTablaAction`, 190 líneas más abajo en este mismo archivo,
+    // y se quedó fuera del arreglo de la tarea 2. Ver ahí el porqué medido —
+    // `new Date('2026-09-01')` da día civil "2026-08-31" en CDMX. Aquí pesa
+    // además que este es el camino de la BANDEJA: la fecha que sale de aquí
+    // viaja a Monday por `sincronizarDespuesDeEditar`, así que un día corrido
+    // no se queda en nuestra base, aparece en el tablero del equipo.
+    fechaCompromiso: cambios.fechaCompromiso ? instanteEnCDMX(cambios.fechaCompromiso, '12:00') : null,
   })
   // Las tres pantallas donde este acuerdo puede aparecer: la bandeja misma,
   // el espacio de acuerdos (mismo `que`/fecha si ya se ve ahí) y su sala.
@@ -256,20 +272,27 @@ export async function editarEnBandejaAction(
   revalidatePath(`/cliente/${salaSlug}`)
 }
 
-// ---- La estrella (tarea 11, ronda 7) ----
+// ---- La estrella (tarea 11, ronda 7; su significado cambió en la ronda 14, tarea 5) ----
 
 /**
- * Marca o quita un acuerdo de los destacados: los pocos que se ven en el
- * Home, cruzando las diez salas. Es la ÚNICA acción detrás de la estrella —
- * `Estrella.tsx` no sabe nada de Drizzle, solo recibe esta función por prop—
- * así que el mismo botón sirve en el espacio de acuerdos, el Home y la sala
- * (tarea 12) sin que ninguna pantalla reimplemente la regla por su cuenta.
+ * Fija o quita un acuerdo arriba en `/acuerdos`, cruzando las diez salas. Es
+ * la ÚNICA acción detrás de la estrella — `Estrella.tsx` no sabe nada de
+ * Drizzle, solo recibe esta función por prop — así que el mismo botón sirve
+ * en el espacio de acuerdos y en la sala sin que ninguna pantalla
+ * reimplemente la regla por su cuenta.
  *
- * `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`: destacar decide qué
- * se ve en una vitrina COMPARTIDA por las diez salas, no el estatus de un
+ * Hasta la ronda 14 destacar quería decir "sale en el Home" y el plan era
+ * cablear un tercer sitio ahí (tarea 12, nunca escrita); el Home dejó de
+ * listar acuerdos (§4 del spec) antes de que esa tarea existiera, así que ya
+ * no hay un tercer sitio que cablear — se queda en dos, y esta acción no
+ * cambió de firma ni de guarda, solo lo que su resultado significa en
+ * pantalla (ver Estrella.tsx y `ordenarDestacadoArriba` en TablaAcuerdos.tsx).
+ *
+ * `exigirEditor()` y no `exigirEdicionDeAcuerdos(slug)`: fijar decide el
+ * orden de una vitrina COMPARTIDA por las diez salas, no el estatus de un
  * compromiso dentro de la sala de su propio dueño. Es Mkt Corp quien cura esa
  * vitrina — el director de la UDN sigue pudiendo mover el estatus y la fecha
- * de los suyos, pero no auto-destacarse en el Home de todos.
+ * de los suyos, pero no fijarse arriba por su cuenta para todos.
  */
 export async function destacarAction(id: string, destacado: boolean): Promise<void> {
   await exigirEditor()
@@ -386,6 +409,100 @@ export async function eliminarAcuerdoEnTablaAction(acuerdoId: string): Promise<v
   const slug = await salaDeAcuerdo(acuerdoId)
   await eliminarAcuerdo(acuerdoId)
   revalidarPantallasDeAcuerdos(slug)
+}
+
+// ---- Estatus y fecha desde la pestaña de acuerdos (ronda 14, tarea 2) ----
+
+/**
+ * CAMBIAR EL ESTADO DE UN ACUERDO DESDE `/acuerdos`.
+ *
+ * `exigirEditor()` y no `exigirAdmin()`: corregir el estado es trabajo de
+ * equipo, igual que corregir el texto (`editarAcuerdoEnTablaAction`). Solo
+ * ELIMINAR pide admin en esta pantalla, y por un motivo distinto — es un
+ * DELETE sin papelera sobre las nueve salas a la vez.
+ */
+export async function cambiarEstatusEnTablaAction(
+  acuerdoId: string,
+  estatus: EstatusAcuerdo,
+): Promise<void> {
+  await exigirEditor()
+  await moverEstatus(acuerdoId, estatus)
+  await revalidarAcuerdo(acuerdoId)
+}
+
+/**
+ * LA FECHA COMPROMISO, DESDE `/acuerdos`.
+ *
+ * `null` no es un fallo de validación: "sin fecha" es un estado legítimo y la
+ * app ya lo pinta como tal ("sin fecha"), además de ordenarlo aparte — lo
+ * abierto sin fecha va al final de lo vivo (`dominio/orden-acuerdos.ts`).
+ * Vaciar el campo tiene que poder significar eso, o no habría forma de
+ * deshacer una fecha puesta por error.
+ *
+ * `instanteEnCDMX` y NO `new Date(fecha)`: `fechaCompromiso` es un `Date` y
+ * `new Date('2026-09-01')` es medianoche UTC — las 18:00 del 31 de agosto en
+ * México, así que el acuerdo se guardaría con un día de menos. Medido para
+ * esta tarea (sin tocar la base): `new Date('2026-09-01')` da
+ * `diaCivil` = "2026-08-31"; `instanteEnCDMX('2026-09-01', '12:00')` da
+ * "2026-09-01", que es lo correcto. Las 12:00 y no las 00:00: un mediodía
+ * civil no cambia de día por ningún desfase de zona ni por el horario de
+ * verano.
+ *
+ * LOS SEIS ESCRITORES DE ESTA COLUMNA, no dos (corregido en la revisión final
+ * de la ronda 14: la tarea 2 unificó tres y dejó tres con `new Date`). Hoy
+ * escriben `fechaCompromiso` con `instanteEnCDMX(dia, '12:00')`: esta acción,
+ * `editarEnBandejaAction` (arriba, en este mismo archivo), `editarFechaAction`
+ * y `crearAcuerdoAction` de la sala (src/app/cliente/[slug]/page.tsx),
+ * `ponerFechaAction` del Home (src/app/page.tsx) y la publicación de minuta
+ * (`guardarMinuta`, src/db/minutas.ts). Que coincidan no es orden por el
+ * orden: `crearAcuerdo` deduplica los acuerdos de una minuta comparando el
+ * INSTANTE exacto de esta columna, así que dos instantes para el mismo día
+ * civil le hacían insertar duplicados (hallazgo C1; la secuencia completa,
+ * en src/db/minutas.ts y en su test de regresión).
+ */
+export async function editarFechaEnTablaAction(
+  acuerdoId: string,
+  fecha: string | null,
+): Promise<void> {
+  await exigirEditor()
+  await editarAcuerdo(acuerdoId, {
+    fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null,
+  })
+  await revalidarAcuerdo(acuerdoId)
+}
+
+/**
+ * MOVER UN ACUERDO DE SALA DESDE `/acuerdos` (ronda 14, tarea 3). Franco: un
+ * acuerdo registrado en la sala equivocada hoy solo se arregla borrándolo y
+ * volviéndolo a crear, y eso pierde su origen y su historia.
+ *
+ * `exigirEditor()` y no `exigirAdmin()` — igual que corregir el texto
+ * (`editarAcuerdoEnTablaAction`) o el estatus (`cambiarEstatusEnTablaAction`):
+ * mover de sala corrige un dato mal capturado, es trabajo de equipo. Solo
+ * ELIMINAR pide admin en esta pantalla, y por un motivo que no aplica aquí —
+ * es un DELETE sin papelera.
+ *
+ * ⚠️ SE REVALIDAN LAS DOS SALAS, y el origen se lee ANTES del `await
+ * moverAcuerdoDeSala`. Después de mover, `salaDeAcuerdo` ya devuelve la de
+ * destino, así que la de origen se quedaría pintando un acuerdo que ya no
+ * tiene — el mismo cuidado que `eliminarAcuerdoEnTablaAction` documenta para
+ * el borrado, aplicado aquí porque hay DOS pantallas de sala en juego, no
+ * una que deja de existir.
+ */
+export async function moverDeSalaAction(
+  acuerdoId: string,
+  salaSlug: string,
+): Promise<{ error?: string }> {
+  await exigirEditor()
+  const origen = await salaDeAcuerdo(acuerdoId)
+  try {
+    await moverAcuerdoDeSala(acuerdoId, salaSlug)
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo mover' }
+  }
+  revalidarPantallasDeAcuerdos(origen)
+  revalidarPantallasDeAcuerdos(salaSlug)
+  return {}
 }
 
 /** Las cuatro pantallas donde un acuerdo puede estar, más su sala. */

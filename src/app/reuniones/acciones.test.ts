@@ -92,6 +92,11 @@ const DATOS_BASE: DatosFormulario = {
   // dato de prueba que usaba `editarSesion`/`editarReunion` — ver el
   // comentario de `editarReunion` en src/db/reuniones.ts).
   participantes: 'Ceci, , Pablo, Ceci,',
+  // TAREA 3/4 (ronda 14): `estatus-udn` es `PLANTILLA_POR_DEFECTO`
+  // (`src/secciones/plantillas.ts`) — el caso "normal" de una junta ya
+  // clasificada. Los tests de "sin clasificar" y "cambiar de clase"
+  // sobrescriben este campo explícitamente; no lo dejan en su default.
+  plantilla: 'estatus-udn',
 }
 
 beforeEach(() => {
@@ -145,6 +150,7 @@ describe('agendarReunionAction', () => {
       titulo: 'Estatus de agosto',
       participantes: ['Ceci', 'Pablo', 'Ceci'],
       lugar: 'Sala Norte',
+      plantilla: 'estatus-udn',
     })
   })
 
@@ -166,6 +172,21 @@ describe('agendarReunionAction', () => {
     expect(revalidatePathMock).toHaveBeenCalledWith('/reuniones')
     expect(revalidatePathMock).toHaveBeenCalledWith('/')
     expect(revalidatePathMock).not.toHaveBeenCalledWith('/agenda')
+  })
+
+  /**
+   * TAREA 3 (ronda 14) — la causa medible de que 6 de 14 reuniones no
+   * tuvieran clase: este formulario no la preguntaba. Ahora sí, y lo que
+   * elige viaja tal cual hasta `crearReunion`.
+   */
+  it('agendar desde el calendario guarda la clase elegida', async () => {
+    slugsDeSalasMock.mockResolvedValue(['neracode'])
+
+    await agendarReunionAction({ ...DATOS_BASE, plantilla: 'sync-comercial' })
+
+    expect(crearReunionConDocumentoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ plantilla: 'sync-comercial' }),
+    )
   })
 
   it('si crearReunionConDocumento lanza, devuelve { error } con su mensaje en vez de reventar, y no revalida nada', async () => {
@@ -239,7 +260,39 @@ describe('editarReunionAction', () => {
       alcance: 'todos',
       participantes: ['Ceci', 'Pablo', 'Ceci'],
       lugar: 'Sala Norte',
+      plantilla: 'estatus-udn',
     })
+  })
+
+  /**
+   * TAREA 4 (ronda 14) — corregir la clase de una junta ya creada, sin
+   * `UPDATE` a mano: `editarReunion` (`src/db/reuniones.ts`) ya admitía
+   * `plantilla`; esto es lo que faltaba para que la acción se la pasara.
+   */
+  it('corregir la clase de una reunión ya creada la guarda', async () => {
+    await editarReunionAction('r1', { ...DATOS_BASE, plantilla: 'sync-comercial' })
+
+    expect(editarReunionMock).toHaveBeenCalledWith(
+      'r1',
+      expect.objectContaining({ plantilla: 'sync-comercial' }),
+    )
+  })
+
+  /**
+   * LO MÁS DELICADO DE ESTA TAREA: una junta sin clase (`plantilla: ''` en
+   * el formulario) sigue sin clase después de guardar OTRO campo cualquiera
+   * — el `<select>` no cae a "Estatus de UDN" por defecto. Si esto fallara,
+   * cada edición de una de las 6 reuniones sin clasificar la clasificaría
+   * de rebote, sin que nadie lo hubiera decidido.
+   */
+  it('editar otro campo de una junta sin clase NO la clasifica de rebote', async () => {
+    await editarReunionAction('r1', { ...DATOS_BASE, plantilla: '', lugar: 'Sala 4' })
+
+    // `null`, no `'estatus-udn'`: lo que falta sigue faltando.
+    expect(editarReunionMock).toHaveBeenCalledWith(
+      'r1',
+      expect.objectContaining({ plantilla: null }),
+    )
   })
 
   it('revalida /reuniones y /', async () => {

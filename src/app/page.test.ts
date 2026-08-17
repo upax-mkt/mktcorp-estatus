@@ -106,7 +106,15 @@ vi.mock('@/db/cliente', () => ({
 // Componentes hijos: dobles mudos — nada de este archivo necesita verlos
 // pintados, solo saber qué prop les llegó. Mismo patrón que `PanelAgenda` en
 // `reuniones/page.test.tsx`.
-vi.mock('@/componentes/hogar/ModuloAcuerdos', () => ({ ModuloAcuerdos: () => null }))
+//
+// SIN DOBLE PARA `ModuloAcuerdos` (ronda 14.5, tarea 1): este archivo lo tuvo
+// —`() => null`—, y por eso el describe de más abajo ("el Home se invierte")
+// no lo necesita: la tarea es justo RETIRAR ese import de `page.tsx`, así que
+// después de esta ronda no hay nada que doblar. Mientras la tarea estuvo a
+// medio hacer, dejar el módulo real (sin doblar) fue lo que permitió que el
+// primer test de ese describe fallara de verdad contra el `page.tsx` viejo
+// —con el doble puesto, "Acuerdos y pendientes" nunca pintaba un `<h2>` y el
+// test habría pasado sin que la página cambiara una línea.
 vi.mock('@/componentes/hogar/ModuloCalendario', () => ({ ModuloCalendario: () => null }))
 // Captura props (mismo patrón que `moduloMinutasPropsMock`, más abajo): hace
 // falta para poder invocar `agendar` (el cierre de `agendarRapidoAction`)
@@ -138,6 +146,7 @@ const REUNION_BASE: Reunion = {
   tipo: 'mensual',
   estado: 'agendada',
   noDadaEn: null,
+  plantilla: null,
   documentoListo: false,
   archivos: [],
   acuerdos: [],
@@ -459,5 +468,108 @@ describe('Hub (/) — el pulso es navegable', () => {
     expect(destino('clientes')).toBe('#clientes')
     expect(destino('sin próxima reunión')).toBe('#clientes')
     expect(destino('reuniones este mes')).toBe('#calendario')
+  })
+})
+
+/**
+ * EL HOME SE INVIERTE (ronda 14.5, tarea 1). Franco, textual: *"hay que
+ * transformarlo, ya que es el lugar donde lo primero que ves son las salas y
+ * luego otros módulos de interés agnósticos y generales"* — medido antes de
+ * esta ronda: "Los clientes" empezaba en el píxel 1.140 de 2.238 a 1440px, a
+ * mitad de página, con el módulo de acuerdos entero encima.
+ *
+ * Decisión de Franco, textual: los acuerdos salen del Home y quedan **"solo
+ * una cifra"** — no un módulo más chico, una cifra que lleva a `/acuerdos`.
+ * Esa cifra ya existía (ronda 12, ver "el pulso es navegable" arriba); lo que
+ * se retira aquí es el bloque `ModuloAcuerdos` completo —Destacados y
+ * Vencidos, editable in situ— que hasta esta ronda seguía viviendo a mitad
+ * de la página.
+ *
+ * SE AFIRMA SOBRE EL DOCUMENTO, NO SOBRE EL CSS (mismo criterio que se dejó
+ * como deuda en `/reuniones`, aquí resuelto desde el principio): si el orden
+ * se resolviera con `order` de CSS en vez de mover las secciones en el JSX,
+ * quien navega con teclado o lector de pantalla seguiría topándose primero
+ * con acuerdos aunque a la vista se vea distinto — por eso el primer test lee
+ * `getAllByRole('heading', { level: 2 })`, que recorre el DOM, no el layout.
+ *
+ * EL FIXTURE ERA MUDO (re-revisión, hallazgo I1): con `estadoDeSalas=[]`,
+ * `listarReuniones=[]` y `ModuloCalendario`/`ModuloMinutas` dobladas a
+ * `null`, `getAllByRole('heading', { level: 2 })` devolvía UN SOLO elemento
+ * —"Los clientes"—, así que `secciones[0]` pasaba estuviera "Los clientes"
+ * donde estuviera en el documento. El test SÍ falló contra el `page.tsx`
+ * original (Step 3 del brief, cuando `ModuloAcuerdos` todavía pintaba su
+ * propio `<h2>`) pero perdió esa capacidad al borrarse ese componente: nadie
+ * lo volvió a poner a prueba. Comprobado moviendo la sección a mano (ver el
+ * informe de esta ronda) — con el fixture viejo NO caía; con este, sí.
+ *
+ * Ahora el fixture arma TRES secciones reales — "Por confirmar" (una reunión
+ * con respaldo cuyo día ya pasó), "Los clientes" (una sala activa) y "En
+ * pausa" (una sala pausada, la mínima que pide el hallazgo) — y el test
+ * COMPARA ÍNDICES, no asume que el primer elemento de la lista es el
+ * ganador por ser el único. Eso además fija, de una vez, el hallazgo I2: que
+ * "Por confirmar" —antes el primer `<h2>` del documento— quede por debajo de
+ * "Los clientes", con los demás módulos generales, tal como pide el spec §4
+ * (pulso → clientes → calendario y agendar → minutas → en pausa; "Por
+ * confirmar" no va delante de clientes).
+ */
+describe('Hub (/) — el Home se invierte: los clientes primero, los acuerdos solo una cifra (ronda 14.5)', () => {
+  beforeEach(() => {
+    // Sala activa con una reunión pasada y con respaldo (documentoListo) →
+    // dispara "Por confirmar" (`reunionesPorConfirmar`, dominio/reunion.ts).
+    // Sala pausada → dispara "En pausa". Entre las dos, `getAllByRole` deja
+    // de devolver una lista de uno: el test recupera dientes.
+    estadoDeSalasMock.mockResolvedValue([
+      {
+        ...SALA_BASE,
+        slug: 'activa',
+        nombre: 'Activa',
+        activa: true,
+        reuniones: [{ ...REUNION_BASE, id: 'r-por-confirmar', documentoListo: true }],
+      },
+      {
+        ...SALA_BASE,
+        slug: 'pausada',
+        nombre: 'Pausada',
+        activa: false,
+        pausadaDesde: '2026-01-01',
+      },
+    ])
+  })
+
+  it('lo primero que se ve son los clientes, no los acuerdos ni "Por confirmar"', async () => {
+    render(await Hub())
+
+    // El orden en el DOM es el orden de lectura y el del teclado: se afirma
+    // sobre el documento, no sobre el CSS.
+    const secciones = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent ?? '')
+    // Con el fixture de arriba esto NO puede ser una lista de uno: si lo
+    // fuera, este `expect` estaría mintiendo sobre lo que comprueba.
+    expect(secciones.length).toBeGreaterThanOrEqual(3)
+
+    const iClientes = secciones.findIndex((t) => /clientes/i.test(t))
+    const iConfirmar = secciones.findIndex((t) => /confirmar/i.test(t))
+    const iPausa = secciones.findIndex((t) => /en pausa/i.test(t))
+    expect(iClientes).toBeGreaterThanOrEqual(0)
+    expect(iConfirmar).toBeGreaterThanOrEqual(0)
+    expect(iPausa).toBeGreaterThanOrEqual(0)
+
+    // La comparación es por ÍNDICE, no por "es el primero del arreglo": lo
+    // que importa es la posición relativa a las otras secciones, no que
+    // "Los clientes" sea casualmente la única.
+    expect(iClientes).toBeLessThan(iConfirmar) // I2: "Por confirmar" ya no va delante.
+    expect(iClientes).toBeLessThan(iPausa)
+  })
+
+  it('los acuerdos son una cifra que lleva a su pestaña, no una lista', async () => {
+    render(await Hub())
+
+    // El rótulo exacto, tal cual lo pinta el pulso (ronda 12): no se inventa
+    // aquí, se lee del propio componente.
+    expect(screen.getByRole('link', { name: /acuerdos abiertos/i })).toHaveAttribute('href', '/acuerdos')
+    // Y el módulo que los listaba ya no está: sin él, la estrella de un
+    // acuerdo ("Fijar arriba en Acuerdos", `Estrella.tsx`) deja de prometer
+    // dentro del Home un efecto que aquí ya no existe — deuda anotada en el
+    // spec §4 desde el milestone 1, saldada al retirar este bloque.
+    expect(screen.queryByRole('heading', { name: /acuerdos y pendientes/i })).toBeNull()
   })
 })

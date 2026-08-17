@@ -39,6 +39,21 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    /*
+     * ⚠️ LOS WORKTREES DE GIT VIVEN DENTRO DEL PROYECTO.
+     *
+     * `.claude/worktrees/<nombre>` es una copia completa del repo anclada a
+     * otro commit. Los patrones de arriba son RELATIVOS a la raíz, así que
+     * `.next/**` no alcanza al `.next` de dentro de un worktree: el 16-ago,
+     * en cuanto uno de ellos se compiló, `eslint` empezó a analizar sus
+     * `chunks` de turbopack y devolvió cientos de errores sobre código
+     * generado que nadie escribió.
+     *
+     * Es el mismo problema que ya se cerró en `vitest.config.ts`, donde la
+     * suite pasó de 1.941 a 3.849 tests por la misma razón. Se ignora el
+     * directorio entero para que el siguiente worktree nazca ya fuera.
+     */
+    ".claude/**",
   ]),
 ]);
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
@@ -72,6 +72,54 @@ function abrirDestino(id: string) {
 
 export function MenuSecciones({ entradas }: { entradas: EntradaDeMenu[] }) {
   const [activa, setActiva] = useState<string | null>(entradas[0]?.id ?? null)
+  const riel = useRef<HTMLUListElement>(null)
+
+  /**
+   * ⚠️ LA MARCA DE «DÓNDE ESTOY» TIENE QUE ESTAR A LA VISTA (ronda 13b,
+   * auditoría móvil).
+   *
+   * Medido en un teléfono de 390 px: el riel mide 530 px de contenido, así que
+   * las dos últimas entradas —«Prensa» y «Archivos»— viven SIEMPRE fuera de la
+   * pantalla. El observador de arriba las marcaba correctamente al llegar a
+   * ellas… en un trozo de riel que nadie veía. Es el peor de los dos mundos:
+   * mientras el director recorre el final de su sala, el índice sigue
+   * señalando una sección de la que se fue hace tres mil píxeles.
+   *
+   * Se mueve el riel, NO la página: `scrollIntoView` sobre el enlace arrastra
+   * a todos sus contenedores desplazables —incluido el documento— y pelearía
+   * con el scroll que el director está haciendo con el dedo. Aquí se calcula
+   * el `scrollLeft` del propio `<ul>` y se escribe solo ahí.
+   *
+   * En escritorio esto no hace nada: las seis entradas caben, `scrollWidth`
+   * iguala a `clientWidth` y el `scrollTo` no tiene recorrido.
+   */
+  useEffect(() => {
+    const lista = riel.current
+    if (!lista || !activa) return
+    const enlace = lista.querySelector<HTMLElement>(`a[href="#${CSS.escape(activa)}"]`)
+    if (!enlace) return
+
+    // ⚠️ SE LLEVA AL PRINCIPIO DEL CARRIL, no "lo justo para que asome", y esa
+    // fue la primera versión — que medida NO FUNCIONABA: al pedir los 37 px
+    // que hacían falta para descubrir «Materiales», el `scroll-snap-type: x
+    // proximity` del carril devolvía la vista al punto de anclaje más cercano,
+    // que era el 0 del que venía. El resultado era un riel que se movía y
+    // volvía. Alineando el INICIO de la pestaña se aterriza justo en un punto
+    // de anclaje (`scroll-snap-align: start`) y el snap deja de pelear.
+    // Los 16 px son el `scroll-padding-inline-start` del carril.
+    const destino = enlace.offsetLeft - 16
+    const fuera =
+      enlace.offsetLeft < lista.scrollLeft ||
+      enlace.offsetLeft + enlace.offsetWidth > lista.scrollLeft + lista.clientWidth
+    // Solo si de verdad está fuera: reescribir `scrollLeft` con lo que ya vale
+    // aborta cualquier desplazamiento en curso — incluido el del dedo.
+    if (!fuera) return
+
+    lista.scrollTo({
+      left: Math.max(0, destino),
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  }, [activa])
 
   /**
    * Qué sección se está mirando. `IntersectionObserver` es del navegador —
@@ -115,7 +163,7 @@ export function MenuSecciones({ entradas }: { entradas: EntradaDeMenu[] }) {
     // El nombre lo distingue del menú global (`Secciones de Marketing Corp`):
     // dos landmarks con el mismo nombre son un laberinto en lector de pantalla.
     <nav className={estilos.menuSecciones} aria-label="Secciones de esta sala">
-      <ul className={estilos.menuLista}>
+      <ul className={estilos.menuLista} ref={riel}>
         {entradas.map((e) => (
           <li key={e.id}>
             <a

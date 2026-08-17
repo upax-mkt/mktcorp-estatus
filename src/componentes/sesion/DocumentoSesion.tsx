@@ -102,6 +102,10 @@ export function DocumentoSesion({
                 }
                 degradado={seccion.degradado}
                 motivo={seccion.motivo}
+                // Solo para decidir quién ve el aviso de "requiere revisión":
+                // es control de calidad de Mkt Corp, no algo que un director
+                // deba encontrarse en su estatus. Ver la nota en SeccionDocumento.
+                equipo={equipo}
               />
             ))}
 

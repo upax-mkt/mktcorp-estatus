@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createElement } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
+import type { CategoriaArchivo } from '@/db/archivos'
 import { PLANTILLAS } from '@/secciones/plantillas'
+import { diaCivil, instanteEnCDMX } from '@/lib/fecha'
 
 /**
  * EL AGUJERO MÁS GRAVE DE LA RONDA 9, Y EL ÚNICO SIN UN TEST QUE SE CAYERA SI
@@ -93,7 +95,7 @@ const SALA_BASE: EstadoSala = {
 // con ella `reuniones` sale `[]` y la pregunta "¿se llamó participantesDe?"
 // nunca se ejercitaría de verdad.
 const REUNION_BASE = {
-  tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: true, archivos: [], acuerdos: [],
+  tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, plantilla: null, documentoListo: true, archivos: [], acuerdos: [],
 }
 const SALA_CON_REUNIONES: EstadoSala = {
   ...SALA_BASE,
@@ -134,11 +136,16 @@ vi.mock('@/db/participacion', async (importarOriginal) => {
 })
 
 const editarAcuerdoMock = vi.fn()
+const crearAcuerdoMock = vi.fn()
 const salaDeAcuerdoMock = vi.fn()
 vi.mock('@/db/acuerdos', () => ({
   moverEstatus: vi.fn(),
   editarAcuerdo: (...args: unknown[]) => editarAcuerdoMock(...args),
-  crearAcuerdo: vi.fn(),
+  // Con nombre desde la ronda 14, tarea 2 (ronda de arreglo): el describe de
+  // "la fecha compromiso no se corre un día" comprueba CON QUÉ `Date` se
+  // llamó `crearAcuerdo` — antes bastaba con que se llamara, un `vi.fn()`
+  // anónimo no lo permite.
+  crearAcuerdo: (...args: unknown[]) => crearAcuerdoMock(...args),
   eliminarAcuerdo: vi.fn(),
   // De qué sala es un acuerdo: lo pregunta la acción de corregir, para
   // rechazar el id de otro cliente.
@@ -613,7 +620,7 @@ describe('VistaSala (/cliente/[slug]) — la sala ya no separa las juntas por la
  */
 describe('VistaSala (/cliente/[slug]) — "+ Subir presentación" de una reunión (ronda 10, tarea 9b)', () => {
   const REUNION_SIN_PRESENTACION_BASE = {
-    tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: false, archivos: [], acuerdos: [],
+    tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, plantilla: null, documentoListo: false, archivos: [], acuerdos: [],
   }
   const SALA_SIN_PRESENTACIONES: EstadoSala = {
     ...SALA_BASE,
@@ -809,12 +816,12 @@ describe('VistaSala (/cliente/[slug]) — el acceso del director (clave + link f
 describe('VistaSala (/cliente/[slug]) — "Levantar minuta" no exige confirmar a mano (hallazgo 1)', () => {
   const REUNION_AGENDADA_MAQUETADA = {
     id: 'reunion-maquetada', titulo: 'Quincenal julio', fecha: '2026-07-15T10:00:00.000Z',
-    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, plantilla: null,
     documentoListo: true, archivos: [], acuerdos: [],
   }
   const REUNION_AGENDADA_SIN_RESPALDO = {
     id: 'reunion-sin-respaldo', titulo: 'Standup sin nada encima', fecha: '2026-07-10T10:00:00.000Z',
-    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null,
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, plantilla: null,
     documentoListo: false, archivos: [], acuerdos: [],
   }
   const SALA_CON_MAQUETADA_SIN_CONFIRMAR: EstadoSala = {
@@ -1087,9 +1094,15 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
     const editarArchivoAction = await editarArchivoActionCapturada()
     await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: '2026-08-01' })
 
+    // `instanteEnCDMX` y NO `new Date('2026-08-01')` (arreglo ronda 14, tarea
+    // 6): con el bug puesto este `toHaveBeenCalledWith` seguía en verde
+    // porque comparaba contra el mismo `new Date` mal calculado — exactamente
+    // la trampa que describe el informe de la Tarea 6. Ver el describe de
+    // abajo ("la fecha de un archivo no se corre un día") para el test que sí
+    // hubiera fallado con el bug puesto.
     expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', {
       titulo: 'Catálogo 2026',
-      fecha: new Date('2026-08-01'),
+      fecha: instanteEnCDMX('2026-08-01', '12:00'),
     })
   })
 
@@ -1101,6 +1114,157 @@ describe('VistaSala (/cliente/[slug]) — editar el título de un archivo desde 
     await editarArchivoAction!('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
 
     expect(editarArchivoMock).toHaveBeenCalledWith('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: null })
+  })
+})
+
+/**
+ * RONDA 14, TAREA 6 (encargo directo de Franco, 14-ago) — LA FECHA DE UN
+ * ARCHIVO (nota de prensa, material) NO SE CORRE UN DÍA.
+ *
+ * Misma columna (`archivos.fecha`) que la Tarea 2 arregló para
+ * `fechaCompromiso`, mismo `new Date(<día civil>)` mal calculado — pero NO
+ * el mismo defecto. La ida y vuelta DENTRO de la capa de datos es correcta:
+ * se escribe con `new Date(<día civil>)` (medianoche UTC) y `archivos.ts:67`
+ * lo lee de vuelta con su propio `isoFecha = d.toISOString().slice(0,10)`,
+ * que TAMBIÉN piensa en UTC — los dos sesgos se cancelan y el string que
+ * sale de la capa de datos es el día correcto. Por eso la aserción de estos
+ * dos tests va en CDMX sobre el `Date` que se manda a guardar, y NO con
+ * `isoFecha` ni comparando el string de vuelta: con `isoFecha` el test
+ * pasaría HOY, con el bug puesto, porque esa cancelación ya ocurrió antes de
+ * que el string llegue a la aserción — es la misma trampa que dejó este
+ * defecto invisible meses.
+ *
+ * NI SIQUIERA ESE RENDER SE VE AFECTADO HOY (ronda de arreglo 1/5, revisión
+ * final): la sala renderizada de verdad — `MaterialesSala` / `NotasDePrensa`,
+ * que pintan `ArchivoSala.fecha` y no el `Date` crudo — está protegida por
+ * DOS capas que se compensan entre sí y que esta tarea NO toca: al LEER,
+ * `desdeFila` (`src/db/archivos.ts:97`) pasa el `Date` guardado por su propio
+ * `isoFecha`, que trunca a día UTC (`d.toISOString().slice(0,10)`) y por
+ * tanto ya descarta la hora corrida; al PINTAR, `instanteDe` (privado,
+ * `src/lib/fecha.ts`) ancla ese día civil sin hora al MEDIODÍA UTC, lejos de
+ * cualquier frontera de día en cualquier zona con la que trabaja esta app.
+ * Esa doble compensación es justo lo que dejó el defecto invisible tanto
+ * tiempo — y es también la razón de que estos dos tests NO verifiquen el
+ * render (ya está a salvo por accidente de diseño): verifican que el `Date`
+ * que se manda a guardar sea el correcto por sí solo, sin depender de que
+ * esas dos casualidades de lectura lo sigan compensando — que es
+ * exactamente lo que pidió Franco y lo que informa
+ * `.superpowers/sdd/…/task-6-report.md`, con el print real que lo confirma.
+ *
+ * DE DÓNDE SALE `categoria: 'prensa'` EN EL PRIMER TEST — Y POR QUÉ NO ES EL
+ * CAMINO DE UNA NOTA DE PRENSA REAL (corrección de revisión, ronda de
+ * arreglo 1/5): el primer test llama a `registrarArchivoAction` —la Server
+ * Action GENÉRICA de la línea ~677, la misma que arregla esta tarea— y no a
+ * `registrarNotaDePrensaAction` (~línea 846), que es la que de verdad crea
+ * una nota de prensa desde `AnadirNotaDePrensa`. Esa segunda acción ya
+ * guardaba bien: usa `instanteEnCDMX(datos.fecha, '10:00')` desde el commit
+ * `8a35206` (ronda 13, cuando nació el módulo de Notas de Prensa) —
+ * confirmado con `git log -S` antes de escribir una sola línea de esta
+ * tarea, y NO se tocó. Y tampoco hay HOY un llamador real que le mande a
+ * `registrarArchivoAction` un día civil puro con `categoria: 'prensa'`: los
+ * materiales y los archivos de interés siempre mandan `fecha: null`
+ * (`registrarMaterialArchivoAction`/`registrarInteresArchivoAction`, arriba
+ * en este archivo) y el único llamador con `fecha` no nula es
+ * `ReunionesSala` ("+ Subir presentación"), que manda un INSTANTE completo,
+ * no un día civil — es justo lo que cubre el tercer test de este describe.
+ * `categoria: 'prensa'` aquí es solo un valor de relleno para el
+ * discriminador que la firma exige; el test ejercita la RAMA de día civil de
+ * la acción genérica, hoy sin ningún llamador real que la dispare — una
+ * comprobación defensiva sobre el código que esta tarea cambió, no una
+ * prueba de que "así se crea una nota de prensa".
+ */
+describe('VistaSala (/cliente/[slug]) — la rama de día civil de registrarArchivoAction/editarArchivoAction no se corre un día', () => {
+  async function accionesCapturadas() {
+    render(await invocar())
+    const props = reunionesSalaPropsMock.mock.calls[0][0] as {
+      registrarArchivoAction: (datos: {
+        categoria: CategoriaArchivo
+        titulo: string
+        fecha: string | null
+        ruta: string
+        nombreOriginal: string
+        tipoContenido: string | null
+        tamanoBytes: number | null
+        reunionId?: string | null
+      }) => Promise<{ error?: string }>
+      editarArchivoAction: (id: string, cambios: { titulo: string; fecha?: string | null }) => Promise<void>
+    }
+    return props
+  }
+
+  it('registrarArchivoAction (genérica): un día civil YYYY-MM-DD se guarda en el mismo día — no es el camino real de una nota de prensa, ver el docblock de arriba', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const { registrarArchivoAction } = await accionesCapturadas()
+    await registrarArchivoAction({
+      // `categoria: 'prensa'` es un valor de relleno, no el camino real: una
+      // nota de prensa de verdad nace en `registrarNotaDePrensaAction`
+      // (ya arreglada desde ronda 13), no aquí. Ver el docblock del describe.
+      categoria: 'prensa',
+      titulo: 'Prueba de la rama de día civil',
+      fecha: '2026-09-01',
+      ruta: '',
+      nombreOriginal: '',
+      tipoContenido: null,
+      tamanoBytes: null,
+    })
+
+    const guardada = registrarArchivoMock.mock.calls[0][0].fecha as Date
+    // En CDMX, no en UTC: mismo criterio de aserción que la Tarea 2, aunque
+    // hoy el render de esta columna ya esté a salvo por otro motivo (ver
+    // docblock arriba) — la corrección que se comprueba es la del `Date`
+    // que se manda a guardar.
+    expect(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(guardada))
+      .toBe('2026-09-01') // NO '2026-08-31'
+  })
+
+  it('editarArchivoAction (genérica, camino real de MaterialesSala): un día civil YYYY-MM-DD se guarda en el mismo día', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    const { editarArchivoAction } = await accionesCapturadas()
+    await editarArchivoAction('archivo-de-interes', { titulo: 'Catálogo 2026', fecha: '2026-09-01' })
+
+    const [, cambios] = editarArchivoMock.mock.calls[0]
+    const guardada = (cambios as { fecha: Date }).fecha
+    expect(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(guardada))
+      .toBe('2026-09-01') // NO '2026-08-31'
+  })
+
+  /**
+   * EL REGRESIÓN QUE ESTE MISMO ARREGLO PODÍA CAUSAR, Y NO LA CUBRE NINGÚN
+   * OTRO TEST DE ESTE ARCHIVO CONTRA EL BUG DE VERDAD: `registrarArchivoAction`
+   * es POLIMÓRFICA — `ReunionesSala` ("+ Subir presentación", Tarea 9b, ver el
+   * describe de ese nombre más abajo) le manda el INSTANTE COMPLETO de la
+   * reunión, no un día civil. Aplicar `instanteEnCDMX(fecha, '12:00')` a
+   * ciegas sobre ese valor concatenaría una hora fija a una fecha que YA la
+   * trae y produciría una fecha inválida — el arreglo de esta tarea tenía que
+   * distinguir los dos casos, no solo cambiar `new Date` por `instanteEnCDMX`.
+   * Este test fija esa distinción con un caso muy plano: un instante que NO
+   * cae a mediodía ni a medianoche, para que un `instanteEnCDMX` aplicado por
+   * error se note incluso si por casualidad cayera en el mismo día civil.
+   */
+  it('un fecha que ya es un instante completo (el de una reunión) NO se reprocesa con instanteEnCDMX', async () => {
+    esLectorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
+
+    const { registrarArchivoAction } = await accionesCapturadas()
+    await registrarArchivoAction({
+      categoria: 'presentacion',
+      titulo: 'Quincenal de junio',
+      fecha: '2026-06-15T22:47:00.000Z',
+      ruta: 'salas/neracode/presentacion/archivo.pdf',
+      nombreOriginal: 'archivo.pdf',
+      tipoContenido: 'application/pdf',
+      tamanoBytes: 100,
+      reunionId: 'reunion-de-neracode',
+    })
+
+    expect(registrarArchivoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ fecha: new Date('2026-06-15T22:47:00.000Z') }),
+    )
   })
 })
 
@@ -1399,6 +1563,75 @@ describe('VistaSala (/cliente/[slug]) — la vista compartida es de solo lectura
     expect(screen.getByText('Mandar el reporte')).toBeInTheDocument()
     expect(document.querySelectorAll('select')).toHaveLength(0)
     expect(screen.queryByRole('button', { name: /añadir acuerdo/i })).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * RONDA 14, TAREA 2 (ronda de arreglo) — LA FECHA COMPROMISO NO SE CORRE UN
+ * DÍA, SE EDITE DESDE DONDE SE EDITE.
+ *
+ * `editarFechaAction`/`crearAcuerdoAction` (arriba, dentro de `VistaSala`)
+ * hacían `new Date(fecha)` sobre un string `YYYY-MM-DD` — medianoche UTC, que
+ * en México (UTC-6) son las 18:00 del día ANTERIOR. Medido antes de tocar el
+ * código: `new Date('2026-09-01')` da el día civil "2026-08-31". La pestaña
+ * `/acuerdos` (`editarFechaEnTablaAction`, src/app/acuerdos/acciones.ts) ya
+ * escribe esta MISMA columna (`fechaCompromiso`) con `instanteEnCDMX`; sin
+ * este test, un cambio futuro en cualquiera de las dos pantallas podría
+ * volver a desalinearlas sin que nada se cayera.
+ *
+ * Los dos tests ejercitan el camino REAL, de punta a punta — un input de
+ * fecha de verdad, no la Server Action llamada a mano — porque el bug nunca
+ * estuvo en `AcuerdoControles`/`NuevoAcuerdoForm` (mandan el string tal cual
+ * tecleado): estaba en cómo `page.tsx` convertía ese string a `Date` antes de
+ * guardarlo.
+ */
+describe('VistaSala (/cliente/[slug]) — la fecha compromiso no se corre un día', () => {
+  const CON_ACUERDO_SIN_FECHA: EstadoSala = {
+    ...SALA_BASE,
+    acuerdos: [{
+      id: 'ac-1', que: 'Mandar el reporte', responsable: 'Ana', estatus: 'abierto',
+      fechaCompromiso: null, destacado: false,
+    } as EstadoSala['acuerdos'][number]],
+  }
+
+  it('editar la fecha desde la sala guarda el mismo día civil que se tecleó', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(CON_ACUERDO_SIN_FECHA)
+    esLectorMock.mockResolvedValue(true)
+    esEditorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+
+    render(await invocar())
+
+    const campoFecha = screen.getByLabelText('Editar fecha compromiso')
+    fireEvent.change(campoFecha, { target: { value: '2026-09-01' } })
+    fireEvent.blur(campoFecha) // dispara el onBlur que llama a editarFechaAction
+
+    await waitFor(() => expect(editarAcuerdoMock).toHaveBeenCalled())
+    const guardada = editarAcuerdoMock.mock.calls[0][1].fechaCompromiso as Date
+    expect(diaCivil(guardada.toISOString())).toBe('2026-09-01') // NO '2026-08-31'
+  })
+
+  it('crear un acuerdo con fecha desde la sala guarda el mismo día civil que se tecleó', async () => {
+    estadoDeSalaMock.mockResolvedValueOnce(SALA_BASE) // sin acuerdos: no estorba el formulario
+    esLectorMock.mockResolvedValue(true)
+    esEditorMock.mockResolvedValue(true)
+    esAdminMock.mockResolvedValue(false)
+    const usuario = userEvent.setup()
+
+    render(await invocar())
+
+    await usuario.click(screen.getByRole('button', { name: /añadir acuerdo/i }))
+    await usuario.type(screen.getByPlaceholderText('Qué se acordó'), 'Enviar la propuesta')
+    const campoFecha = document.querySelector<HTMLInputElement>('input[name="fecha"][type="date"]')
+    if (!campoFecha) throw new Error('No se encontró el campo de fecha del alta de acuerdo.')
+    fireEvent.change(campoFecha, { target: { value: '2026-09-01' } })
+    await usuario.click(screen.getByRole('button', { name: 'Añadir' }))
+
+    await waitFor(() => expect(crearAcuerdoMock).toHaveBeenCalled())
+    const datos = crearAcuerdoMock.mock.calls[0][1] as { fechaCompromiso: Date | null }
+    const guardada = datos.fechaCompromiso
+    if (!guardada) throw new Error('fechaCompromiso llegó null: el campo no se leyó.')
+    expect(diaCivil(guardada.toISOString())).toBe('2026-09-01') // NO '2026-08-31'
   })
 })
 

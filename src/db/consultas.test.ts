@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { EstadoSala } from '@/dominio/salas'
 import type { Reunion } from '@/dominio/reunion'
+// SOLO para comparar la PROYECCIÓN del `select()` contra la columna real
+// (ver el describe "el select() SÍ pide `plantilla`", más abajo) — `esquema`
+// no toca la base por sí solo (son objetos Drizzle en memoria), así que
+// importarlo aquí no rompe el aislamiento que el resto del archivo cuida
+// mockeando `./cliente`.
+import * as esquema from './esquema'
 
 /**
  * `construirPulso` es un derivado puro (no toca Postgres) y no necesita nada
@@ -103,6 +109,7 @@ function reunion(id: string, fecha: string, parcial: Partial<Reunion> = {}): Reu
     tipo: 'mensual',
     estado: 'agendada',
     noDadaEn: null,
+    plantilla: null,
     documentoListo: false,
     archivos: [],
     acuerdos: [],
@@ -380,6 +387,96 @@ describe('estadoDeSala — el día civil de un instante real, no el UTC (hallazg
     const sala = await estadoDeSala('mexa-creativa')
     const acuerdo = sala?.acuerdos.find((a) => a.id === 'acuerdo-1')
     expect(acuerdo?.estatus).toBe('abierto')
+  })
+})
+
+/**
+ * `plantilla` VIAJA DE VERDAD DESDE EL `select` DE DRIZZLE HASTA `Reunion`
+ * (ronda 14.3, tarea 1). ESTE ES EL RIESGO PRINCIPAL DE LA TAREA: `Reunion`
+ * ya exige el campo en el TIPO (`dominio/reunion.ts`), pero eso no prueba
+ * nada sobre RUNTIME — el mismo defecto exacto (tipo correcto, columna nunca
+ * pedida/escrita) ya costó dos Críticos en el milestone 2 con
+ * `editarReunion` (`src/db/reuniones.ts`). `tsc --noEmit` no puede fijar
+ * esto: un `select()` de Drizzle que se olvide de una columna sigue
+ * compilando, porque el objeto que arma `estadoDeSalaDB` en
+ * `reunionesBase` no se compara contra el tipo `FilaReunionComun` de la
+ * fila cruda, sino que se construye campo a campo. Solo un test contra
+ * datos falsos —que la fila mockeada SÍ traiga `plantilla` y que el
+ * resultado la conserve— cierra el hueco.
+ */
+describe('estadoDeSala — `plantilla` viaja del select hasta Reunion (riesgo principal, ronda 14.3)', () => {
+  const CON_CLASE_ID = 'reunion-con-clase'
+  const SIN_CLASE_ID = 'reunion-sin-clase'
+
+  beforeEach(() => {
+    selectMock.mockReset()
+    selectMock
+      // #1 salaRow
+      .mockReturnValueOnce(chainable([{ activa: true, cadencia: 'mensual', pausadaDesde: null, logoUrl: null }]))
+      // #2 reunionesRows (LEFT JOIN documentos) — una con clase, una sin ella
+      // (las 6 reales de producción sin clasificar se quedan así a propósito,
+      // ver el comentario de `Reunion.plantilla`).
+      .mockReturnValueOnce(chainable([
+        {
+          id: CON_CLASE_ID,
+          fecha: new Date('2026-08-12T16:00:00.000Z'),
+          titulo: 'Sync de la semana',
+          tipo: 'semanal',
+          estado: 'dada',
+          noDadaEn: null,
+          documentoId: null,
+          documentoEstado: null,
+          plantilla: 'sync-comercial',
+        },
+        {
+          id: SIN_CLASE_ID,
+          fecha: new Date('2026-08-05T16:00:00.000Z'),
+          titulo: 'Reunión sin clasificar',
+          tipo: 'mensual',
+          estado: 'dada',
+          noDadaEn: null,
+          documentoId: null,
+          documentoEstado: null,
+          plantilla: null,
+        },
+      ]))
+      .mockReturnValueOnce(chainable([])) // #3 acuerdosRows
+      .mockReturnValueOnce(chainable([])) // #4 minutasRows
+      .mockReturnValueOnce(chainable([])) // #5 archivosRows
+      .mockReturnValueOnce(chainable([])) // #6 itemsRows
+  })
+
+  it('una reunión con clase conocida llega con SU plantilla, no undefined', async () => {
+    const sala = await estadoDeSala('mexa-creativa')
+    const reunion = sala?.reuniones.find((r) => r.id === CON_CLASE_ID)
+    expect(reunion?.plantilla).toBe('sync-comercial')
+  })
+
+  it('una reunión sin clase llega con `null`, no `undefined`: el dominio distingue "sin clasificar" de "no lo pedí"', async () => {
+    const sala = await estadoDeSala('mexa-creativa')
+    const reunion = sala?.reuniones.find((r) => r.id === SIN_CLASE_ID)
+    expect(reunion?.plantilla).toBe(null)
+    expect(reunion?.plantilla).not.toBe(undefined)
+  })
+
+  /**
+   * I2 (revisión de la ronda 14.3): los dos tests de arriba fijan el `?? null`
+   * del MAPEO (`reunionesBase` en `consultas.ts`), pero NO fijan que el
+   * `select()` en sí pida la columna — `chainable(filas)` ignora por completo
+   * el objeto de proyección con el que se llamó a `select()`; las filas
+   * mockeadas de este describe YA traen `plantilla` a mano, así que si
+   * alguien borra `plantilla: esquema.reuniones.plantilla` de la consulta
+   * real (`consultas.ts`), este archivo entero sigue en verde. Esta es la
+   * aserción que de verdad cierra el riesgo principal de la tarea: compara
+   * el objeto de proyección de la SEGUNDA llamada a `select()` (`reunionesRows`,
+   * ver el orden comentado en `estadoDeSalaDB`) contra la columna real del
+   * esquema. Verificado a mano quitando esa línea de `consultas.ts`: este
+   * test —y SOLO este— pasa a fallar; los dos de arriba siguen en verde.
+   */
+  it('el `select()` de reunionesRows SÍ pide la columna `plantilla` — sin esto, los dos tests de arriba pueden mentir', async () => {
+    await estadoDeSala('mexa-creativa')
+    const proyeccionReunionesRows = selectMock.mock.calls[1]?.[0] as Record<string, unknown> | undefined
+    expect(proyeccionReunionesRows?.plantilla).toBe(esquema.reuniones.plantilla)
   })
 })
 

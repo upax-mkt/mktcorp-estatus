@@ -58,9 +58,14 @@ interface Props {
   indice_general?: Array<{ titulo: string; ancla: string }>
   degradado?: boolean
   motivo?: string
+  /**
+   * Si quien mira es de Marketing Corp. Solo cambia una cosa: quién ve el
+   * aviso de "requiere revisión" (ver más abajo).
+   */
+  equipo?: boolean
 }
 
-export function SeccionDocumento({ decision, indice, indice_general, degradado, motivo }: Props) {
+export function SeccionDocumento({ decision, indice, indice_general, degradado, motivo, equipo }: Props) {
   const ancla = anclaDeSeccion(indice)
   const papel = papelDe(decision.layout)
   const esPortada = decision.layout === 'portada'
@@ -90,7 +95,21 @@ export function SeccionDocumento({ decision, indice, indice_general, degradado, 
       data-con-fondo={agendaConFondo ? 'true' : undefined}
       style={agendaConFondo ? ({ '--fondo-agenda': `url(${JSON.stringify(decision.imagen?.url)})` } as CSSProperties) : undefined}
     >
-      {degradado && (
+      {/* "⚠ REQUIERE REVISIÓN" ES CONTROL DE CALIDAD INTERNO, NO CONTENIDO.
+          Lo escribe el motor cuando degradó una sección ("falta la tabla") y
+          existe para que quien maqueta lo arregle ANTES de la reunión. Hasta
+          ahora se pintaba para todo el mundo, así que el director de la UDN
+          abría el enlace de su estatus y lo primero que leía era que Marketing
+          Corp le está enseñando algo a medias. No es un defecto de maquetación
+          móvil: es un defecto de ROL, y por eso se arregla aquí y no en el CSS
+          —esconderlo con `display: none` en el teléfono lo dejaría igual de
+          visible en el escritorio de su oficina—.
+
+          `equipo` viaja desde las dos páginas que montan el documento:
+          `/deck/[id]/documento` (previsualización interna) lo pasa fijo en
+          `true`, así que el aviso sigue estando donde sirve; `/reunion/[id]`
+          lo resuelve con `esLector()`, que solo es cierto para Mkt Corp. */}
+      {degradado && equipo && (
         <p className={estilos.avisoRevision}>
           ⚠ Requiere revisión — {motivo ?? 'el motor degradó esta sección'}
         </p>

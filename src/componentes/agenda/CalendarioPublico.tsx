@@ -1,7 +1,21 @@
 import { semanasDelMes, agruparPorDia, mesVecino, NOMBRES_DE_DIA } from '@/dominio/calendario'
 import { mesLargo, fechaCompleta } from '@/lib/fecha'
 import type { ReunionPublica } from '@/db/reuniones'
+import { ajustarColorParaContraste } from '@/lib/superficie-texto'
 import estilos from './calendario-publico.module.css'
+
+/**
+ * EL FONDO REAL DE UNA FILA DE LA LISTA, en sRGB: `--papel-2` de
+ * `sistema.css` (`oklch(0.985 0.002 250)`), medido en el navegador → `#f9fafb`.
+ *
+ * Va escrito aquí y no se usa `colorDeTextoDeMarca` (que es el atajo de
+ * `src/temas`) porque ESE ajusta contra BLANCO PURO, y estas filas no son
+ * blancas. La diferencia parece nada y cruza justo el umbral: medido, sobre
+ * `#ffffff` el ajuste deja a Marketing United en 4,53 y a Mexa en 4,51, pero
+ * sobre `#f9fafb` esos mismos colores caen a 4,37 y 4,35 — por debajo del
+ * 4,5:1 de AA. Un color validado lo está contra un fondo concreto.
+ */
+const FONDO_DE_FILA = '#f9fafb'
 
 interface Props {
   anio: number
@@ -100,9 +114,33 @@ export function CalendarioPublico({ anio, mes, reuniones }: Props) {
         <>
           <p className={estilos.listaTitulo}>Reuniones del mes</p>
           <ul className={estilos.lista}>
+            {/*
+              LAS DOS VARIABLES VAN EN EL `<li>`, NO EN EL PUNTO — y ese era el
+              bug. `--sala` se declaraba solo en `.itemColor`, y una propiedad
+              personalizada baja a los DESCENDIENTES, no cruza a los hermanos:
+              `.itemSala { color: var(--sala) }` se quedaba sin valor, la
+              declaración salía inválida y el nombre heredaba `--tinta`.
+              Medido en el navegador: los seis nombres de sala pintaban
+              exactamente el mismo casi-negro (`lab(9.47 …)`), Research Land
+              igual que Mexa Creativa. El color de marca de esta pantalla vivía
+              entero en un punto de 8 px.
+
+              Y son DOS y no una, como manda `src/temas/index.ts`: `--sala` es
+              el color exacto del brandbook, para el punto —ahí no hay nada que
+              leer y la fidelidad manda—; `--sala-texto` es ese mismo tono
+              oscurecido lo justo para llegar a 4,5:1 SOBRE ESTA FILA, para el
+              nombre.
+            */}
             {ordenadas.map((r) => (
-              <li key={claveDe(r)} className={estilos.item}>
-                <span className={estilos.itemColor} style={{ '--sala': r.salaColor } as React.CSSProperties} />
+              <li
+                key={claveDe(r)}
+                className={estilos.item}
+                style={{
+                  '--sala': r.salaColor,
+                  '--sala-texto': ajustarColorParaContraste(r.salaColor, FONDO_DE_FILA, 4.5),
+                } as React.CSSProperties}
+              >
+                <span className={estilos.itemColor} />
                 <span className={estilos.itemSala}>{r.salaNombre}</span>
                 <span className={estilos.itemFecha}>{fechaCompleta(r.fecha)}</span>
                 <span className={estilos.itemHora}>{r.hora}</span>

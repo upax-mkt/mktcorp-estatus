@@ -45,6 +45,24 @@ export interface Plantilla {
    * todo se puede quitar.
    */
   seccionesFijas: boolean
+  /**
+   * Si esta entrada es una CLASE DE JUNTA de verdad —una de las que
+   * responden "¿qué junta es?" (Estatus de UDN, Sync Comercial, Comité o
+   * dirección, Arranque de campaña, Seguimiento de proyecto)— o la salida de
+   * emergencia ("En blanco") para cuando ninguna clase encaja.
+   *
+   * Ronda 14.2, tarea 2: antes esto se adivinaba comparando el `id` contra
+   * `'en-blanco'` a mano en cada `<select>` que ofrecía el catálogo. Frágil
+   * por partida doble: `Plantilla` no distinguía una clase de junta de una
+   * plantilla de deck, así que el compilador no protegía nada; y si ese id
+   * cambiara de sentido, la entrada aparecería duplicada como clase real Y
+   * como salida de emergencia, con la línea de ayuda mostrando el `paraQue`
+   * de otra por el fallback de `obtenerPlantilla`. Filtrar por
+   * `esClaseDeJunta` —no por `id !== 'en-blanco'`— es lo que cierra ese
+   * hueco: el catálogo declara qué es cada cosa, en vez de que cada
+   * consumidor la adivine.
+   */
+  esClaseDeJunta: boolean
   items: DefinicionItem[]
 }
 
@@ -109,19 +127,51 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Estatus de UDN',
     paraQue: 'La reunión mensual con una unidad de negocio. Los ocho bloques acordados.',
     seccionesFijas: true,
+    esClaseDeJunta: true,
     items: ESTATUS_UDN,
   },
   {
-    id: 'en-blanco',
-    nombre: 'En blanco',
-    paraQue: 'Una portada y nada más. Para armar la reunión desde cero.',
+    id: 'sync-comercial',
+    nombre: 'Sync Comercial',
+    paraQue: 'La junta semanal de seguimiento comercial con una unidad de negocio.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
+    /**
+     * ⚠️ NACE CORTA A PROPÓSITO, y no es pereza: es la regla de la ronda 9.
+     * Qué bloques lleva un Sync Comercial lo sabe quien lo da, no quien
+     * construye la herramienta — escribir aquí ocho secciones inventadas
+     * sería comprometer al equipo con una estructura que nadie acordó, que es
+     * exactamente lo que se evitó con las plantillas por sala.
+     *
+     * Van solo las dos que la app SABE que toda junta tiene: su portada, y
+     * los acuerdos, que son entidad propia en este producto y se arrastran
+     * solos. El resto lo añade en el editor quien la prepare, y el día que
+     * la forma se estabilice se escribe aquí.
+     */
     items: [
       {
         tipo: 'portada',
         titulo: 'Portada',
-        pregunta: 'De qué trata esta reunión.',
+        pregunta: 'De qué sync se trata y qué semana cubre.',
         layout: 'portada',
+      },
+      {
+        // 'acuerdos-pendientes', NO 'acuerdos': es el mismo `tipo` que usa
+        // ESTATUS_UDN arriba. Es el que reconoce `itemDeAcuerdosPendientes`
+        // (src/db/documentos.ts) para aterrizar los acuerdos retomados de la
+        // sesión pasada — un `tipo` distinto crea una sección que el render
+        // no sabe pintar y que ese lookup nunca encuentra.
+        tipo: 'acuerdos-pendientes',
+        titulo: 'Acuerdos y Pendientes',
+        pregunta: 'Qué quedó comprometido y quién lo lleva.',
+        // Mismo layout que ESTATUS_UDN le da a este mismo `tipo` (arriba,
+        // línea ~72): sin él, `crearDocumentoConPlantilla`
+        // (src/db/documentos.ts:586) siembra la sección con
+        // `layout: undefined`, y `tipoDeSeccion(undefined)` en
+        // `src/secciones/borrador.ts` la deja en "falta un tipo de sección
+        // válido" desde que nace la junta, no lista como promete el
+        // comentario de arriba.
+        layout: 'pendientes-semaforo',
       },
     ],
   },
@@ -130,6 +180,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Seguimiento de proyecto',
     paraQue: 'Avance, lo que bloquea y qué sigue. Sirve para un squad o un proyecto.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     items: [
       { tipo: 'portada', titulo: 'Portada', pregunta: 'Qué proyecto y qué periodo.', layout: 'portada' },
       { tipo: 'agenda', titulo: 'Agenda', pregunta: 'Los puntos de la reunión.', layout: 'agenda' },
@@ -158,6 +209,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Comité o dirección',
     paraQue: 'Pocas cifras, una decisión que tomar y lo que se pide aprobar.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     items: [
       { tipo: 'portada', titulo: 'Portada', pregunta: 'De qué se decide hoy.', layout: 'portada' },
       {
@@ -186,6 +238,7 @@ export const PLANTILLAS: Plantilla[] = [
     nombre: 'Arranque de campaña',
     paraQue: 'Kickoff: objetivo, territorio, plan y quién hace qué.',
     seccionesFijas: false,
+    esClaseDeJunta: true,
     items: [
       { tipo: 'portada', titulo: 'Portada', pregunta: 'Qué campaña y para quién.', layout: 'portada' },
       {
@@ -214,9 +267,42 @@ export const PLANTILLAS: Plantilla[] = [
       },
     ],
   },
+  {
+    id: 'en-blanco',
+    nombre: 'En blanco',
+    paraQue: 'Una portada y nada más. Para armar la reunión desde cero.',
+    seccionesFijas: false,
+    // NO es una clase de junta: es la salida de emergencia para cuando
+    // ninguna clase real encaja. Ver el comentario de `esClaseDeJunta` en la
+    // interfaz `Plantilla`, arriba.
+    esClaseDeJunta: false,
+    items: [
+      {
+        tipo: 'portada',
+        titulo: 'Portada',
+        pregunta: 'De qué trata esta reunión.',
+        layout: 'portada',
+      },
+    ],
+  },
 ]
 
-export const PLANTILLA_POR_DEFECTO = 'estatus-udn'
+/**
+ * La clase con la que arranca un desplegable "¿Qué junta es?" cuando la junta
+ * nace (no un id escrito a mano, ver el hallazgo I2 de la revisión final de
+ * la ronda 14.2): `PLANTILLAS[0].id`, no la cadena `'estatus-udn'` suelta.
+ *
+ * Antes esta constante SÍ era la cadena a mano, y `NuevaSesionSala.tsx` leía
+ * `PLANTILLAS[0].id` por su cuenta con un comentario que argumentaba en
+ * contra de exactamente eso ("un id escrito a mano... se desincroniza del
+ * catálogo el día que alguien reordene"). Las dos formas coincidían solo
+ * porque nadie había reordenado el catálogo todavía — un reordenamiento las
+ * habría separado en silencio, cada una apuntando a una plantilla distinta.
+ * Ahora `PLANTILLA_POR_DEFECTO` ES `PLANTILLAS[0].id`: una sola fuente, y los
+ * dos consumidores (`NuevaSesionSala.tsx`, `FormularioSesion.tsx`) importan
+ * ESTA constante, nunca el índice del catálogo directamente.
+ */
+export const PLANTILLA_POR_DEFECTO = PLANTILLAS[0].id
 
 export function obtenerPlantilla(id: string | null | undefined): Plantilla {
   return PLANTILLAS.find((p) => p.id === id) ?? PLANTILLAS[0]
@@ -233,4 +319,58 @@ export function obtenerPlantilla(id: string | null | undefined): Plantilla {
 export function tiposFijosDe(plantillaId: string | null | undefined): Set<string> {
   const p = obtenerPlantilla(plantillaId)
   return p.seccionesFijas ? new Set(p.items.map((i) => i.tipo)) : new Set()
+}
+
+/**
+ * LA CLAVE DE CLASE de una reunión — no siempre `plantilla` tal cual.
+ *
+ * MOVIDA AQUÍ (ronda 14.4, tarea 1) desde `ReunionesSala.tsx`, que la definía
+ * módulo-scope sin exportarla: `/reuniones` necesitaba EXACTAMENTE la misma
+ * regla para pintar la clase de cada tarjeta del ciclo, y este repo ya se
+ * comió una lección por copiar un patrón en dos sitios en vez de compartirlo
+ * (ver el comentario de `claveDeAgrupacion` original, ronda 14.3). Firma
+ * generalizada de `(r: Reunion)` a `(plantillaId: string | null)`: lo único
+ * que la función mira es ese campo, y así también sirve para `ReunionEnCiclo`
+ * (`src/app/reuniones/page.tsx`) y `SesionAgendada`
+ * (`src/componentes/agenda/PanelAgenda.tsx`), que no son `Reunion` pero sí
+ * traen `plantilla: string | null`.
+ *
+ * 'en-blanco' NO es una clase de junta —es la salida de emergencia del
+ * catálogo para cuando ninguna clase real encaja, ver `esClaseDeJunta` en la
+ * interfaz `Plantilla`, arriba—, así que agruparla en su propia clase "En
+ * blanco" inventaría una clase que el catálogo mismo dice que no existe. Se
+ * trata IGUAL que `null`: sin clase real, es "sin clasificar". Consultar
+ * `esClaseDeJunta` aquí —y no solo comparar contra `'en-blanco'` a mano— es
+ * lo que el catálogo pide: una entrada futura con `esClaseDeJunta: false` cae
+ * en el mismo sitio sin tocar este archivo.
+ */
+export function claveDeClase(plantillaId: string | null): string | null {
+  if (plantillaId === null) return null
+  const plantilla = PLANTILLAS.find((p) => p.id === plantillaId)
+  return plantilla?.esClaseDeJunta ? plantillaId : null
+}
+
+/**
+ * LA ETIQUETA DE UNA CLASE YA NORMALIZADA (la que devuelve `claveDeClase`,
+ * NUNCA `plantilla` crudo sin tratar) — para pintarla, jamás para
+ * preguntarle al catálogo sin resolver `null` ANTES.
+ *
+ * ⚠️ `obtenerPlantilla(null)` cae a la PRIMERA entrada del catálogo POR
+ * DISEÑO (es lo que necesita un `<select>` que nunca puede quedar vacío, ver
+ * `SelectorClaseDeJunta.tsx`) — usarla a secas aquí pintaría "Estatus de
+ * UDN" sobre una junta sin clasificar: un dato inventado, en una pantalla
+ * que puede ver el director de la UDN. Por eso el `null` se resuelve ANTES
+ * de tocar el catálogo, no con su fallback. Mismo motivo que
+ * `claveDeClase`, arriba: movida aquí desde `ReunionesSala.tsx` para no
+ * repetir esta misma trampa en cada consumidor nuevo.
+ *
+ * Un id que el catálogo no reconoce —no debería pasar nunca:
+ * `crearReunion`/`editarReunion` ya lo rechazan— se pinta TAL CUAL: ni la
+ * primera del catálogo (fingiría una clase real) ni "Sin clasificar"
+ * (fingiría que no tiene ninguna, cuando sí trae un valor, solo que uno raro).
+ */
+export function etiquetaDeClase(clave: string | null): string {
+  if (clave === null) return 'Sin clasificar'
+  const plantilla = PLANTILLAS.find((p) => p.id === clave)
+  return plantilla ? plantilla.nombre : clave
 }

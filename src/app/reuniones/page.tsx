@@ -16,6 +16,7 @@ import {
   reunionesPorConfirmar, reunionesMinutables, documentoCuentaComoPresentacion, type Reunion,
 } from '@/dominio/reunion'
 import { fechaCompleta, horaBreve, diaCivil } from '@/lib/fecha'
+import { claveDeClase, etiquetaDeClase } from '@/secciones/plantillas'
 import {
   agendarReunionAction, editarReunionAction,
   marcarPresentadaAction, marcarNoDadaAction, desmarcarNoDadaAction,
@@ -90,6 +91,50 @@ export interface ReunionEnCiclo {
   salaSlug: string | null
   salaNombre: string
   salaColor: string
+  /**
+   * LA CLASE DE JUNTA, cruda —`null` = sin clasificar (ronda 14.4, tarea 1:
+   * "la tarjeta dice qué es"). Se pinta con `etiquetaDeClase(claveDeClase(...))`
+   * —NUNCA con `obtenerPlantilla(plantilla).nombre` a secas—, porque
+   * `obtenerPlantilla(null)` cae a la PRIMERA del catálogo por diseño (la
+   * necesita un `<select>` que nunca puede quedar vacío) y una junta sin
+   * clase saldría como "Estatus de UDN": un dato inventado. Ver el
+   * comentario de `claveDeClase` en `src/secciones/plantillas.ts`.
+   */
+  plantilla: string | null
+  /**
+   * ¿Hay un documento maquetado y listo (no solo un archivo subido)? Solo lo
+   * usa "Cerradas", para ofrecer "Ver su documento →" además de "Ver su
+   * minuta →" — mismo campo y mismo umbral que `Reunion.documentoListo`
+   * (`dominio/reunion.ts`), calculado una vez en `comoReunionDeDominio` y
+   * reaprovechado aquí en vez de recalcularlo.
+   */
+  documentoListo: boolean
+}
+
+/**
+ * Arma un `ReunionEnCiclo` a partir de la reunión original (`ReunionResumen`,
+ * con sala/fecha/título) y su versión ya adaptada al dominio (`Reunion`, de
+ * donde sale `documentoListo`) — una sola función para las tres listas que
+ * antes repetían el mismo objeto literal tres veces (`faltaMinuta`,
+ * `cerradas`, `proximas`, más abajo en `cicloDeReuniones`). Añadida en la
+ * ronda 14.4, tarea 1, junto con `plantilla`/`documentoListo`: sin esta
+ * función, sumar esos dos campos habría significado tocar la misma línea
+ * tres veces y arriesgar que una de las tres se quedara atrás.
+ */
+function comoReunionEnCiclo(
+  original: ReunionResumen,
+  adaptada: Reunion,
+): ReunionEnCiclo {
+  return {
+    id: original.id,
+    titulo: original.titulo,
+    fecha: original.fecha,
+    salaSlug: original.salaSlug,
+    salaNombre: original.salaNombre,
+    salaColor: original.salaColor,
+    plantilla: original.plantilla ?? null,
+    documentoListo: adaptada.documentoListo,
+  }
 }
 
 export interface CicloDeReuniones {
@@ -126,6 +171,10 @@ function comoReunionDeDominio(r: ReunionResumen, documento: DocumentoCompleto | 
     tipo: r.tipo,
     estado: r.estado,
     noDadaEn: r.noDadaEn,
+    // Ronda 14.3: `Reunion.plantilla` pasó a requerido — `ReunionResumen` ya
+    // la trae (`db/reuniones.ts`), así que es el mismo dato real, no uno
+    // inventado para satisfacer el tipo.
+    plantilla: r.plantilla ?? null,
     // Ronda 13: un documento LISTO pero SIN secciones no es una presentación
     // (ver `dominio/reunion.ts`). Aquí el documento llega entero, así que las
     // secciones son sus items.
@@ -215,28 +264,34 @@ export function cicloDeReuniones(
       salaNombre: original.salaNombre,
       salaColor: original.salaColor,
       noDadaEn: r.noDadaEn,
+      // CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): faltaba esta línea —
+      // "Por confirmar" era 1 de las 4 tarjetas de 14 sin clase de junta
+      // pintada (las otras tres eran "Próximas", ver PanelAgenda.tsx).
+      // `r` es `Reunion` (`reunionesPorConfirmar`, dominio/reunion.ts):
+      // `plantilla` ahí es REQUERIDO (`string | null`, nunca `undefined`),
+      // así que se copia tal cual — `SesionPorConfirmar.plantilla` es
+      // OPCIONAL (dominio/salas.ts) porque el Home y la sala, que también
+      // arman este mismo tipo, no tienen esta ronda pintando la clase; ahí
+      // se queda `undefined` y `ReunionesPorConfirmar` no pinta nada, mismo
+      // criterio que ya usa `plantilla` en `SesionAgendada` para distinguir
+      // "no aplica aquí" de "sin clase".
+      plantilla: r.plantilla,
     }
   })
 
   const faltaMinuta: ReunionEnCiclo[] = reunionesMinutables(adaptadas, hoyCivil)
     .filter((r) => !idsPorConfirmar.has(r.id))
     .map((r) => {
-      const { r: original } = porId.get(r.id)!
-      return {
-        id: r.id, titulo: r.titulo, fecha: r.fecha,
-        salaSlug: original.salaSlug, salaNombre: original.salaNombre, salaColor: original.salaColor,
-      }
+      const { r: original, adaptada } = porId.get(r.id)!
+      return comoReunionEnCiclo(original, adaptada)
     })
 
   const cerradas: ReunionEnCiclo[] = adaptadas
     .filter((r) => Boolean(r.minuta))
     .filter((r) => !idsPorConfirmar.has(r.id))
     .map((r) => {
-      const { r: original } = porId.get(r.id)!
-      return {
-        id: r.id, titulo: r.titulo, fecha: r.fecha,
-        salaSlug: original.salaSlug, salaNombre: original.salaNombre, salaColor: original.salaColor,
-      }
+      const { r: original, adaptada } = porId.get(r.id)!
+      return comoReunionEnCiclo(original, adaptada)
     })
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
@@ -254,11 +309,8 @@ export function cicloDeReuniones(
     .filter((r) => !idsFaltaMinuta.has(r.id))
     .filter((r) => !idsCerradas.has(r.id))
     .map((r) => {
-      const { r: original } = porId.get(r.id)!
-      return {
-        id: r.id, titulo: r.titulo, fecha: r.fecha,
-        salaSlug: original.salaSlug, salaNombre: original.salaNombre, salaColor: original.salaColor,
-      }
+      const { r: original, adaptada } = porId.get(r.id)!
+      return comoReunionEnCiclo(original, adaptada)
     })
     // Ascendente —la más próxima primero—, al revés que los otros tres: ahí
     // lo urgente es lo más RECIENTE (mirar atrás); aquí es lo más CERCANO
@@ -323,6 +375,17 @@ export default async function PagReuniones() {
       estado: r.estado,
       alcance: r.alcance,
       tipo: r.tipo,
+      // CRÍTICO C2 (ronda 14-2, fix 3/4): faltaba esta línea. `ReunionResumen`
+      // SÍ trae `plantilla` (`src/db/reuniones.ts`) pero este mapeo no la
+      // copiaba, así que `PanelAgenda` recibía la fila SIN la clave en
+      // absoluto — ni `null` ni el valor real — y su `inicial={{...}}` para
+      // editar tampoco podía incluirla. `?? null`, no un `|| null`: una
+      // clase real nunca es cadena vacía, así que no hay valor "falsy pero
+      // válido" que perder aquí, y `?? null` deja claro que lo único que se
+      // normaliza es `undefined` (el campo opcional de `ReunionResumen`) a
+      // `null` (el "sin clase" que sí entiende `plantillaInicial`,
+      // `FormularioSesion.tsx`).
+      plantilla: r.plantilla ?? null,
       lugar: r.lugar,
       participantes: r.participantes,
       itemsLlenados: doc?.items.filter((it) => it.llenado).length ?? 0,
@@ -386,7 +449,7 @@ export default async function PagReuniones() {
             Mismo componente, mismas tres acciones. Oculta cuando está vacía,
             mismo criterio que el Home. */}
         {ciclo.porConfirmar.length > 0 && (
-          <section className={estilos.cicloSeccion}>
+          <section className={`${estilos.cicloSeccion} ${estilos.ordenPorConfirmar}`}>
             <h2 className={estilos.cicloTitulo}>
               Por confirmar
               <span className={estilos.conteo}>{ciclo.porConfirmar.length}</span>
@@ -405,8 +468,14 @@ export default async function PagReuniones() {
             `/deck` (tarea 18) — antes vivía ahí por herencia, de cuando la
             reunión no existía como entidad aparte de su documento. SIEMPRE
             visible, con vacío explícito: mismo criterio que "Cerradas", justo
-            abajo. */}
-        <section className={estilos.cicloSeccion}>
+            abajo.
+
+            LA TARJETA DICE QUÉ ES (ronda 14.4, tarea 1): sala (ya lo hacía) +
+            CLASE de junta, ahora también — `etiquetaDeClase(claveDeClase(...))`,
+            nunca `r.plantilla` crudo ni `obtenerPlantilla(r.plantilla).nombre`
+            (esa cae a "Estatus de UDN" con `null`, ver el comentario de
+            `ReunionEnCiclo.plantilla`). */}
+        <section className={`${estilos.cicloSeccion} ${estilos.ordenFaltaMinuta}`}>
           <h2 className={estilos.cicloTitulo}>
             Se dieron, falta su minuta
             <span className={estilos.conteo}>{ciclo.faltaMinuta.length}</span>
@@ -423,10 +492,14 @@ export default async function PagReuniones() {
                   style={{ '--sala': r.salaColor } as React.CSSProperties}
                 >
                   <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                  {/* MENOR BARATO (revisión C1): el "·" ya no es un `<span>`
+                      suelto (`.sep`) — ver el comentario de `.filaCicloMetaPieza`
+                      en `reuniones.module.css` para el porqué (el separador
+                      quedaba huérfano al envolver a 390px). */}
                   <span className={estilos.filaCicloMeta}>
-                    <span>{r.salaNombre}</span>
-                    <span className={estilos.sep}>·</span>
-                    <span>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                    <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
+                    <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
+                    <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
                   </span>
                   <span className={estilos.filaCicloAccion}>Generar su minuta →</span>
                 </Link>
@@ -436,46 +509,81 @@ export default async function PagReuniones() {
         </section>
 
         {/* CERRADAS: dada y minutada, nada pendiente. Mudada de `/deck`
-            (tarea 18), misma razón que la anterior. Sin sala (un comité) no
-            hay a dónde ir todavía: se queda como texto, mismo criterio que ya
-            usaba el bloque viejo para "lo que falta". */}
-        <section className={estilos.cicloSeccion}>
-          <h2 className={estilos.cicloTitulo}>
-            Cerradas
-            <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
-          </h2>
-          {ciclo.cerradas.length === 0 ? (
-            <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
-          ) : (
-            <div className={estilos.listaCiclo}>
-              {ciclo.cerradas.map((r) => {
-                const contenido = (
-                  <>
-                    <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
-                    <span className={estilos.filaCicloMeta}>
-                      <span>{r.salaNombre}</span>
-                      <span className={estilos.sep}>·</span>
-                      <span>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
-                    </span>
-                  </>
-                )
-                return r.salaSlug ? (
-                  <Link
-                    key={r.id}
-                    href={`/cliente/${r.salaSlug}`}
-                    className={estilos.filaCiclo}
-                    style={{ '--sala': r.salaColor } as React.CSSProperties}
-                  >
-                    {contenido}
-                  </Link>
-                ) : (
+            (tarea 18), misma razón que la anterior.
+
+            YA NO ES UN CEMENTERIO (ronda 14.4, tarea 1). Antes la tarjeta
+            ENTERA era un único `<Link>` a `/cliente/<slug>` —un salto
+            indirecto, nunca al destino que de verdad se busca al mirar una
+            reunión cerrada— y sin sala (comité) ni siquiera eso: puro texto,
+            sin ningún enlace. Ahora cada tarjeta ofrece sus DOS destinos
+            reales, iguales a los que ya ofrece `ReunionesSala` en la sala
+            ("Ver la presentación →"/"Corregir el texto →"): su MINUTA
+            (`/deck/<id>/minuta`, funciona con o sin sala — una reunión de
+            comité también tiene minuta) y, solo si hay un documento
+            MAQUETADO de verdad (`documentoListo` — mismo umbral que
+            `ReunionesSala`, no `tienePresentacion`: un PDF subido no tiene
+            `/reunion/<id>` que enseñar), su DOCUMENTO. La tarjeta deja de ser
+            un único `<a>` —dos enlaces no pueden anidarse— así que la sala,
+            cuando existe, se vuelve SU PROPIO enlace (mismo tratamiento que
+            `FilaAcuerdo.tsx`: el nombre de la sala, no la tarjeta entera, es
+            el camino de vuelta a ella).
+
+            SE PLIEGA (revisión C1, hallazgo I2): requisito literal del brief
+            (Step 4.2) que se quedó fuera de la primera pasada. `<h2
+            className={estilos.cicloTitulo}>` pasa a ser el ÚNICO hijo de
+            `<summary>` —el HTML lo permite cuando es el primer hijo de un
+            `<details>`— para no perder el rol `heading` que protege el
+            guardia "los cuatro módulos siguen existiendo" (`page.test.tsx`):
+            `estilos.cerradasResumen` (el `<summary>`) pone el cursor, el
+            marcador y el foco; `estilos.cicloTitulo` (el `<h2>` de adentro)
+            sigue siendo la MISMA tipografía que ya usan las otras tres
+            cabeceras, sin duplicarla. `open` fijo, no `useState`: página
+            Server Component, el navegador ya sabe abrir/cerrar un `<details>`
+            sin JavaScript — mismo criterio que los acuerdos cumplidos de la
+            sala (`cliente/[slug]/page.tsx`). */}
+        <section className={`${estilos.cicloSeccion} ${estilos.ordenCerradas}`}>
+          <details open>
+            <summary className={estilos.cerradasResumen}>
+              <h2 className={estilos.cicloTitulo}>
+                Cerradas
+                <span className={estilos.conteo}>{ciclo.cerradas.length}</span>
+              </h2>
+            </summary>
+            {ciclo.cerradas.length === 0 ? (
+              <p className={estilos.vacio}>Ninguna reunión cerrada todavía.</p>
+            ) : (
+              <div className={estilos.listaCiclo}>
+                {ciclo.cerradas.map((r) => (
                   <div key={r.id} className={estilos.filaCiclo} style={{ '--sala': r.salaColor } as React.CSSProperties}>
-                    {contenido}
+                    <span className={estilos.filaCicloTitulo}>{r.titulo}</span>
+                    {/* MENOR BARATO (revisión C1): `.filaCicloMetaPieza`, no
+                        `.sep` — ver el comentario en `reuniones.module.css`. */}
+                    <span className={estilos.filaCicloMeta}>
+                      {r.salaSlug ? (
+                        <Link href={`/cliente/${r.salaSlug}`} className={`${estilos.filaCicloSala} ${estilos.filaCicloMetaPieza}`}>
+                          {r.salaNombre}
+                        </Link>
+                      ) : (
+                        <span className={estilos.filaCicloMetaPieza}>{r.salaNombre}</span>
+                      )}
+                      <span className={estilos.filaCicloMetaPieza}>{etiquetaDeClase(claveDeClase(r.plantilla))}</span>
+                      <span className={estilos.filaCicloMetaPieza}>{fechaCompleta(r.fecha)} · {horaBreve(r.fecha)}</span>
+                    </span>
+                    <span className={estilos.filaCicloAcciones}>
+                      <Link href={`/deck/${r.id}/minuta`} className={estilos.filaCicloAccion}>
+                        Ver su minuta →
+                      </Link>
+                      {r.documentoListo && (
+                        <Link href={`/reunion/${r.id}`} className={estilos.filaCicloAccion}>
+                          Ver su documento →
+                        </Link>
+                      )}
+                    </span>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </details>
         </section>
       </main>
     </div>

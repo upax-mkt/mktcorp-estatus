@@ -146,3 +146,41 @@
   text-decoration: underline; text-underline-offset: 2px; padding: 0;
 }
 .cambiar:hover { color: var(--tinta); }
+
+/*
+ * LOS BLANCOS DE TOQUE DE ESTA VENTANA.
+ *
+ * Esta pantalla vive detrás de sesión (`/reuniones` responde 307 a `/entrar`),
+ * así que no se puede abrir con un clic: se midió inyectando ESTAS MISMAS
+ * declaraciones y este mismo marcado sobre una página real de la app —mismos
+ * tokens, misma Outfit, mismo iPhone emulado a 320 px—. Lo que salió:
+ *
+ *   .cerrar (la ✕) ......... 28,2 × 27,2 px
+ *   .cambiar ............... 117 × 16 px
+ *   .acciones .boton ....... 98 × 37,2 px   ← «Continuar», la acción principal
+ *   .campo input ........... 39,6 px de alto
+ *
+ * Los anchos NO son el problema —el diálogo mide 300,8 de 320 y nada se
+ * desborda—: es el alto. Con `(pointer: coarse)` el escritorio no cambia ni un
+ * píxel; sube solo donde se toca con el dedo. `align-content: center` en
+ * `.cambiar` y `.cerrar` para que crezca la ZONA sensible y no el texto: se
+ * usan dentro de una cabecera y de una fila ya compuestas, y engordar la letra
+ * las descuadraría.
+ */
+@media (pointer: coarse) {
+  .cerrar,
+  .cambiar {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cerrar { min-width: 44px; }
+  .campo input,
+  .campo select { min-height: 44px; }
+  /* En su PROPIA regla y no en la lista de arriba: `:global()` solo existe
+     para CSS Modules, y en un grupo separado por comas un selector inválido
+     tumba la regla ENTERA. Aquí, si algún día esta hoja se leyera sin el
+     compilador, se pierde este ajuste y no los otros cuatro. */
+  .acciones :global(.boton) { min-height: 44px; }
+}

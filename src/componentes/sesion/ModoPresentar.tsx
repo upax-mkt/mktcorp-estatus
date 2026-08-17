@@ -318,8 +318,15 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
 
             <RelojReunion arrancadoEn={arrancadoEn} />
 
+            {/* `laserBoton` no es decoración: la hoja lo esconde donde no hay
+                puntero fino (`@media (hover: none)`). En una pantalla táctil
+                el láser no llega a pintarse nunca —medido: se queda en
+                `opacity: 0` con un toque y arrastrando el dedo— y el gesto que
+                lo movería es el mismo que hace scroll de la presentación. Ver
+                el comentario grande de `.laserBoton` en `presentar.module.css`. */}
             <button
               type="button"
+              className={estilos.laserBoton}
               onClick={() => setLaser((v) => !v)}
               data-activo={laser ? 'true' : undefined}
               aria-pressed={laser}

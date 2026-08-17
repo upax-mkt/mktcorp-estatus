@@ -27,6 +27,10 @@
      `space-between` reparte los huecos y manda el título al centro. */
   display: flex;
   align-items: center;
+  /* Sin esto el texto no encoge y el título se derrama 9 px fuera de su caja
+     en móvil (medido): no se ve porque lo tapa el padding de la tarjeta, pero
+     es ancho que la fila no tiene. */
+  min-width: 0;
   gap: 0.6rem;
   font-size: 1.02rem;
   font-weight: 600;
@@ -50,12 +54,26 @@
 }
 
 /* ---- plegable ---- */
+/* ⚠️ EL CONTROL SE ESTIRA HASTA LOS BORDES DE LA TARJETA (ronda 13, auditoría
+   móvil). Medido en un teléfono: la tarjeta plegada mide 61,6 px de alto y su
+   `summary` solo 20 — el aire lo ponía la TARJETA (`.seccion` tiene 1,35rem de
+   padding), no el control. Tocar en esos 42 px de diferencia no hacía nada, y
+   ahí es justo donde cae el pulgar.
+
+   Se arregla metiendo el aire DENTRO del control y sacándolo con márgenes
+   negativos: el diseño se ve idéntico y la fila entera pasa a ser tocable, con
+   los 44 px que pide cualquier guía táctil. */
 .plegable > summary {
   cursor: pointer;
   list-style: none;
+  min-height: 44px;
+  padding: 0.7rem 1.4rem;
+  margin: -1.35rem -1.4rem 0;
   margin-bottom: 0; /* lo pone el contenido al abrirse */
 }
-.plegable[open] > summary { margin-bottom: 1rem; }
+.plegable[open] > summary { margin-bottom: 0.3rem; }
+/* El margen inferior del título lo pone ahora el propio `summary`. */
+.plegable > summary .titulo { margin-bottom: 0; }
 .plegable > summary::-webkit-details-marker { display: none; }
 .plegable > summary::after {
   content: '›';

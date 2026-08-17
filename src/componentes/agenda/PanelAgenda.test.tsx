@@ -65,6 +65,10 @@ function sesion(datos: Partial<SesionAgendada> & { id: string }): SesionAgendada
     estado: 'agendada',
     alcance: 'todos',
     tipo: 'mensual',
+    // `null` por defecto (sin clase) — mismo default honesto que `lugar`,
+    // dos líneas abajo: la mayoría de los tests de este archivo no le
+    // importa la clase de la junta, así que no inventan una.
+    plantilla: null,
     lugar: null,
     participantes: [],
     itemsLlenados: 0,
@@ -85,7 +89,15 @@ beforeEach(() => {
 })
 
 describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreglo del hueco muerto)', () => {
-  it('sin nada agendando, "+ Agendar una reunión" está en la cabecera junto al título — y el <aside> del calendario ni se monta (ahí vivía el hueco)', () => {
+  /**
+   * REESCRITO (ronda 14.4, tarea 1 — segunda vuelta sobre el hueco muerto).
+   * La ronda 11 cerraba el hueco NO montando el `<aside>` en reposo; el
+   * informe de esta tarea midió que eso abrió uno nuevo (~408px muertos a
+   * 1440px, sin nada). El arreglo es el contrario: el `<aside>` AHORA
+   * SIEMPRE se monta —en reposo, con filtros + leyenda, nunca vacío—. Ver el
+   * comentario de archivo de `PanelAgenda.tsx`.
+   */
+  it('sin nada agendando, "+ Agendar una reunión" está en la cabecera junto al título — y el <aside> muestra filtros y leyenda, nunca vacío', () => {
     const { container } = render(
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />,
     )
@@ -93,17 +105,19 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
     expect(screen.getByRole('heading', { name: 'Reuniones', level: 1 })).toBeInTheDocument()
     const boton = screen.getByRole('button', { name: '+ Agendar una reunión' })
     expect(boton).toBeInTheDocument()
-    // Antes vivía DENTRO del <aside>, junto al calendario (brief, ambigüedad
-    // 1, ronda 11 tarea 4). Ese <aside>, una vez que "Próximas" bajó al
-    // flujo, se quedaba con ese único botón y el resto vacío — el hueco
-    // muerto que encontró la auditoría UX/UI. Subir el botón a la cabecera
-    // solo tapa el síntoma si el <aside> además deja de montarse en reposo:
-    // por eso ninguno de los dos existe aquí, no solo el botón se movió.
-    expect(container.querySelector('aside')).toBeNull()
-    expect(container.querySelector('[data-activo]')).toBeNull()
+    const aside = container.querySelector('aside')
+    expect(aside).not.toBeNull()
+    // Filtros (sala + clase) y leyenda —no el formulario, que solo aparece
+    // agendando/editando (siguiente test)—. Rótulo con su alcance real
+    // (revisión C1, I3): "Filtros" a secas no decía a qué alcanzaba.
+    expect(within(aside!).getByText('Filtros — calendario y Próximas')).toBeInTheDocument()
+    expect(within(aside!).getByLabelText('Sala')).toBeInTheDocument()
+    expect(within(aside!).getByLabelText('Clase de junta')).toBeInTheDocument()
+    expect(within(aside!).getByText('Leyenda')).toBeInTheDocument()
+    expect(within(aside!).queryByRole('heading', { name: 'Agendar una reunión' })).not.toBeInTheDocument()
   })
 
-  it('al hacer clic en "+ Agendar una reunión", el formulario aparece con sus campos reales (FormularioSesion sin mockear), y el <aside> vuelve —ahora con algo que mostrar—', async () => {
+  it('al hacer clic en "+ Agendar una reunión", el formulario aparece con sus campos reales (FormularioSesion sin mockear), y sustituye a filtros/leyenda dentro del mismo <aside>', async () => {
     const usuario = userEvent.setup()
     const { container } = render(
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />,
@@ -115,8 +129,11 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
     expect(screen.getByLabelText('Sala')).toBeInTheDocument()
     expect(screen.getByLabelText('Día')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Agendar' })).toBeInTheDocument()
-    expect(container.querySelector('aside')).not.toBeNull()
-    expect(container.querySelector('[data-activo="true"]')).not.toBeNull()
+    const aside = container.querySelector('aside')
+    expect(aside).not.toBeNull()
+    // El <aside> es el MISMO elemento de siempre (no uno nuevo que aparece):
+    // solo cambió lo que hay adentro.
+    expect(within(aside!).queryByText('Filtros')).not.toBeInTheDocument()
   })
 
   it('agendar sigue alcanzable con MUCHAS reuniones en "Próximas" (el botón, en la cabecera, no depende del tamaño de la lista)', async () => {
@@ -142,6 +159,37 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
 })
 
 describe('PanelAgenda — "Próximas" bajó del panel lateral al flujo, debajo del calendario', () => {
+  /**
+   * GUARDIA I6 (revisión C1): "Próximas" es uno de los CUATRO módulos que
+   * Franco cerró (6-ago: "en la pestaña Reuniones ahí debe vivir el módulo
+   * Se dieron pero falta su minuta, reuniones cerradas, reuniones
+   * pendientes..." + la costumbre de fundir módulos que este repo ya pagó
+   * antes) — su encabezado tiene que ser un `<h2>` REAL, no solo un texto
+   * cualquiera. `page.test.tsx` MOCKEA `PanelAgenda` entero (Client
+   * Component con `useRouter()`, ver su comentario de archivo), así que no
+   * puede vigilar esto de verdad: hasta esta revisión el mock ahí fabricaba
+   * un `<h2>Próximas</h2>` fijo que se auto-validaba —se borró el
+   * encabezado real y los 34 tests de esa suite siguieron en verde—. ESTE
+   * test SÍ monta el componente real (sin mock de `PanelAgenda` — solo
+   * `next/navigation`, arriba) y es el único guardia contra fundir o
+   * renombrar "Próximas" con role="heading" de verdad.
+   *
+   * COMPROBADO ROMPIÉNDOLO (como pide la revisión): con
+   * `<h2 className={estilosCiclo.cicloTitulo}>` cambiado a un `<p>` a mano
+   * en `PanelAgenda.tsx`, `npx vitest run` tumbó ESTE test (y solo este,
+   * más los que ya usaban `getByText('Próximas')` para navegar al
+   * `<section>` — ver el resto de este describe) — restaurado después.
+   */
+  it('GUARDIA I6: "Próximas" tiene un encabezado real, con role="heading" — no solo un texto', () => {
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    // Regex, no la cadena exacta: el `<h2>` lleva el conteo pegado adentro
+    // (`<span>{proximas.length}</span>`), así que su nombre accesible es
+    // "Próximas 0", no "Próximas" a secas — mismo criterio que ya usa el
+    // guardia original de los cuatro módulos en `page.test.tsx`.
+    expect(screen.getByRole('heading', { name: /próximas/i, level: 2 })).toBeInTheDocument()
+  })
+
   it('la sección "Próximas" NO está dentro del <aside> (ya no es un panel lateral) — ni siquiera con el formulario abierto', async () => {
     const usuario = userEvent.setup()
     const s = sesion({ id: 's1', titulo: 'Estatus de septiembre' })
@@ -198,6 +246,31 @@ describe('PanelAgenda — nada se pierde: idsProximas se cruza contra sesiones, 
     expect(within(seccion).getByText(/Sala 4/)).toBeInTheDocument()
     const link = within(seccion).getByText('Preparar →').closest('a')
     expect(link).toHaveAttribute('href', '/deck/s1')
+  })
+
+  /**
+   * CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): "Próximas" era 3 de las
+   * 4 tarjetas de 14 sin clase de junta pintada (la cuarta, "Por confirmar",
+   * se prueba en `ReunionesPorConfirmar.test.tsx`) — las otras diez
+   * secciones (Falta su minuta/Cerradas, `page.test.tsx`) ya la pintaban.
+   * Las dos reuniones a la vez, no cada una por separado: un arreglo a
+   * medias podría aprobar "sí pinta la clase" con una junta clasificada y
+   * fallar silenciosamente con `null` (mismo criterio que el test gemelo de
+   * `page.test.tsx`, "una reunión sin clase lo dice…").
+   */
+  it('CUMPLIMIENTO: cada tarjeta de "Próximas" dice también su clase de junta, y una sin clase dice "Sin clasificar" (nunca la primera del catálogo)', () => {
+    const clasificada = sesion({
+      id: 's1', titulo: 'Sync semanal', plantilla: 'sync-comercial', fecha: '2026-08-25T18:00:00.000Z',
+    })
+    const sinClase = sesion({ id: 's2', titulo: 'Standup rápido', plantilla: null, fecha: '2026-08-26T18:00:00.000Z' })
+    render(
+      <PanelAgenda sesiones={[clasificada, sinClase]} salas={SALAS} hoy={HOY} idsProximas={['s1', 's2']} {...acciones()} />,
+    )
+
+    const seccion = screen.getByText('Próximas').closest('section')!
+    expect(within(seccion).getByText(/sync comercial/i)).toBeInTheDocument()
+    expect(within(seccion).getByText(/sin clasificar/i)).toBeInTheDocument()
+    expect(within(seccion).queryByText(/estatus de udn/i)).toBeNull()
   })
 
   it('con avance de secciones (totalItems > 0), lo muestra; sin avance, no pinta esa línea', () => {
@@ -311,6 +384,71 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
     expect(agendarAction).not.toHaveBeenCalled()
   })
 
+  /**
+   * CRÍTICO C2 (ronda 14-2, fix 3/4) — YA CORREGIDO, este test es su
+   * regresión. `SesionAgendada` (`PanelAgenda.tsx`) SÍ declara `plantilla:
+   * string | null`, y el `inicial={{...}}` que arma la edición (en el propio
+   * `PanelAgenda`) SÍ la incluye — así que `plantillaInicial()`
+   * (`FormularioSesion.tsx`), que distingue "vino la clave" de "no vino" con
+   * el operador `in`, ve la clave puesta y arranca en la clase real de la
+   * reunión, no en `PLANTILLA_POR_DEFECTO` ('estatus-udn') por defecto.
+   *
+   * `sesion(...)` (el helper de arriba) ya construye un `SesionAgendada` con
+   * `plantilla` incluida de fábrica (`plantilla: null` por defecto, línea
+   * ~71) — sin cast: es un campo más del tipo, no un añadido por fuera.
+   */
+  it('CRÍTICO C2: al editar una junta YA clasificada, el formulario arranca en su clase real, no en "Estatus de UDN" por defecto', async () => {
+    const usuario = userEvent.setup()
+    const s = sesion({ id: 's1', titulo: 'Sync mensual', plantilla: 'sync-comercial' })
+    render(<PanelAgenda sesiones={[s]} salas={SALAS} hoy={HOY} idsProximas={['s1']} {...acciones()} />)
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar' }))
+
+    expect(screen.getByLabelText(/qué junta es/i)).toHaveValue('sync-comercial')
+  })
+
+  /**
+   * COSTURA COMPLETA, mitad UI (el resto vive en `src/db/reuniones.test.ts`,
+   * describe "editarReunion", test "COSTURA COMPLETA"): una junta SIN clase
+   * (`plantilla: null`, como las 6 reuniones reales sin clasificar) a la que
+   * solo se le corrige OTRO campo —aquí, el lugar— no debe mandar una clase
+   * inventada a `editarAction`. Antes del arreglo de C2 esto manda
+   * `'estatus-udn'` (el `<select>` cae al default del catálogo, igual que el
+   * test de arriba); después, `''` — que es como esta pantalla representa
+   * "sin clase" hasta que `editarReunionAction` (`src/app/reuniones/
+   * acciones.ts`, ya arreglado y sin tocar en esta tarea) la traduce a
+   * `null` antes de escribirla. Mismo test, en espíritu, que ya tiene
+   * `FormularioSesion.test.tsx` ("editar otro campo de una junta sin clase no
+   * la clasifica de rebote") — aquí se repite un nivel más arriba, con el
+   * `inicial` de verdad que arma `PanelAgenda`, no uno escrito a mano.
+   */
+  it('COSTURA: editar SOLO el lugar de una junta sin clase no la clasifica de rebote (a través de PanelAgenda, no solo de FormularioSesion)', async () => {
+    const usuario = userEvent.setup()
+    const { editarAction, agendarAction } = acciones()
+    const s = sesion({ id: 's1', titulo: 'Sin clasificar', lugar: '', plantilla: null })
+    render(
+      <PanelAgenda
+        sesiones={[s]}
+        salas={SALAS}
+        hoy={HOY}
+        idsProximas={['s1']}
+        agendarAction={agendarAction}
+        editarAction={editarAction}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar' }))
+    expect(screen.getByLabelText(/qué junta es/i)).toHaveValue('')
+
+    await usuario.type(screen.getByLabelText(/dónde/i), 'Sala 4')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(editarAction).toHaveBeenCalledExactlyOnceWith(
+      's1',
+      expect.objectContaining({ lugar: 'Sala 4', plantilla: '' }),
+    )
+  })
+
   it('editar una fila de "Próximas" con muchas reuniones en la lista sigue encontrando la fila correcta, no la primera', async () => {
     const usuario = userEvent.setup()
     const muchas = Array.from({ length: 10 }, (_, i) => sesion({
@@ -335,5 +473,138 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
 
     await usuario.click(screen.getByRole('button', { name: 'Guardar cambios' }))
     expect(editarAction).toHaveBeenCalledExactlyOnceWith('vol-7', expect.anything())
+  })
+})
+
+/**
+ * EL HUECO DEL CALENDARIO (ronda 14.4, tarea 1): en reposo, filtros (sala +
+ * clase) y leyenda ocupan el `<aside>` que antes se quedaba vacío. Los
+ * filtros son de CLIENTE, sobre `sesiones` — mismo patrón que
+ * `TablaAcuerdos.tsx` en `/acuerdos` — y solo afectan lo que este componente
+ * pinta: el calendario (`Calendario` recibe `sesionesFiltradas`) y
+ * "Próximas". "Por confirmar"/"Falta su minuta"/"Cerradas" viven en
+ * `page.tsx` y no los ven — eso lo prueba `page.test.tsx`, no este archivo.
+ */
+describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 14.4, tarea 1)', () => {
+  it('la leyenda pinta cada sala con su color', () => {
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    const leyenda = screen.getByText('Leyenda').closest('div')!
+    expect(within(leyenda).getByText('NeraCode')).toBeInTheDocument()
+    expect(within(leyenda).getByText('Mexa Creativa')).toBeInTheDocument()
+  })
+
+  it('filtrar por sala deja "Próximas" solo con esa sala', async () => {
+    const usuario = userEvent.setup()
+    const deNeraCode = sesion({ id: 's1', titulo: 'Sync NeraCode', salaSlug: 'neracode', salaNombre: 'NeraCode' })
+    const deMexa = sesion({
+      id: 's2', titulo: 'Sync Mexa', salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa',
+      fecha: '2026-08-26T18:00:00.000Z',
+    })
+    render(
+      <PanelAgenda sesiones={[deNeraCode, deMexa]} salas={SALAS} hoy={HOY} idsProximas={['s1', 's2']} {...acciones()} />,
+    )
+
+    expect(screen.getByText('Sync NeraCode')).toBeInTheDocument()
+    expect(screen.getByText('Sync Mexa')).toBeInTheDocument()
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'mexa-creativa')
+
+    expect(screen.queryByText('Sync NeraCode')).not.toBeInTheDocument()
+    expect(screen.getByText('Sync Mexa')).toBeInTheDocument()
+    const seccion = screen.getByText('Próximas').closest('section')!
+    expect(within(seccion).getByText('1')).toBeInTheDocument()
+  })
+
+  it('filtrar por clase "Sin clasificar" deja solo las reuniones sin clase', async () => {
+    const usuario = userEvent.setup()
+    const conClase = sesion({ id: 's1', titulo: 'Sync clasificado', plantilla: 'sync-comercial' })
+    const sinClase = sesion({
+      id: 's2', titulo: 'Junta sin clase', plantilla: null, fecha: '2026-08-26T18:00:00.000Z',
+    })
+    render(
+      <PanelAgenda sesiones={[conClase, sinClase]} salas={SALAS} hoy={HOY} idsProximas={['s1', 's2']} {...acciones()} />,
+    )
+
+    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sin clasificar')
+
+    expect(screen.queryByText('Sync clasificado')).not.toBeInTheDocument()
+    expect(screen.getByText('Junta sin clase')).toBeInTheDocument()
+  })
+
+  it('los filtros no le llegan a "Por confirmar"/"Falta su minuta"/"Cerradas": viven en page.tsx, fuera de este componente', () => {
+    // Guardia de diseño, no de comportamiento: este componente ni siquiera
+    // recibe esas tres listas como prop — solo `sesiones`/`idsProximas`. Si
+    // algún día alguien intenta filtrar "Falta su minuta" desde aquí, la
+    // firma de `Props` (arriba, en PanelAgenda.tsx) tendría que cambiar
+    // primero, y ese cambio rompería esta lectura del archivo.
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    expect(screen.queryByText('Por confirmar')).not.toBeInTheDocument()
+    expect(screen.queryByText('Se dieron, falta su minuta')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cerradas')).not.toBeInTheDocument()
+  })
+
+  /**
+   * EL AVISO DE FILTRO ACTIVO (revisión C1, hallazgo I3): con un filtro
+   * puesto, abrir "+ Agendar una reunión" sustituye Filtros/Leyenda por el
+   * formulario — los `<select>` (y su valor elegido) dejan de estar a la
+   * vista, pero `filtroSala`/`filtroClase` NO se resetean: el calendario de
+   * al lado sigue filtrado sin ningún control visible que lo diga, justo
+   * mientras se elige un día. El "al menos un aviso visible" que pide la
+   * revisión (subir a `searchParams` queda anotado como siguiente paso).
+   */
+  it('sin filtro activo, abrir el formulario NO pinta ningún aviso — no hay nada que avisar', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
+  })
+
+  it('con un filtro activo, EN REPOSO tampoco pinta el aviso — los propios <select> ya muestran su valor', () => {
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
+  })
+
+  it('con un filtro de sala activo, abrir el formulario SÍ pinta el aviso, nombrando la sala', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'mexa-creativa')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    // El aviso mismo, no `screen` a secas: con el formulario abierto, SU
+    // PROPIO `<select>` "Sala" también ofrece "Mexa Creativa" como opción —
+    // `getByText` a nivel de documento encontraría las dos.
+    expect(screen.getByText(/filtro activo/i)).toHaveTextContent(/mexa creativa/i)
+  })
+
+  it('con filtro de sala Y de clase activos a la vez, el aviso nombra las dos', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'neracode')
+    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sin clasificar')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+
+    const aviso = screen.getByText(/filtro activo/i)
+    expect(aviso).toHaveTextContent(/neracode/i)
+    expect(aviso).toHaveTextContent(/sin clasificar/i)
+  })
+
+  it('al cerrar el formulario con un filtro activo, el aviso desaparece junto con él (los <select> vuelven a estar a la vista)', async () => {
+    const usuario = userEvent.setup()
+    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+
+    await usuario.selectOptions(screen.getByLabelText('Sala'), 'neracode')
+    await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
+    expect(screen.getByText(/filtro activo/i)).toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.queryByText(/filtro activo/i)).not.toBeInTheDocument()
   })
 })

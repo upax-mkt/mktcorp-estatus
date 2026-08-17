@@ -113,8 +113,8 @@ export default async function PagNuevaSesion() {
             {/* Esta línea ha mentido dos veces. Primero describía cuatro
                 secciones que ya no existían; después afirmaba que la reunión
                 arranca con los ocho bloques del estatus, que dejó de ser
-                cierto en cuanto hubo cinco plantillas. Ahora describe la
-                ELECCIÓN, que es lo único que no caduca. */}
+                cierto en cuanto hubo más de una plantilla (hoy son seis).
+                Ahora describe la ELECCIÓN, que es lo único que no caduca. */}
             <p className={estilos.subtitulo}>
               Elige de quién es la reunión y qué tipo es: la plantilla decide con qué secciones
               arranca, y todas se pueden reordenar y cambiar después.

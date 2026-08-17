@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReunionesSala } from './ReunionesSala'
 import type { Reunion } from '@/dominio/reunion'
@@ -39,7 +39,7 @@ const P = (nombre: string): Participante => ({
   ultimaEdicion: new Date('2026-07-20'),
 })
 
-const BASE = { tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, documentoListo: true, archivos: [], acuerdos: [] }
+const BASE = { tipo: 'mensual' as const, estado: 'dada' as const, noDadaEn: null, plantilla: null, documentoListo: true, archivos: [], acuerdos: [] }
 const ULTIMA: Reunion = { ...BASE, id: 's1', fecha: '2026-07-15T10:00:00.000Z', titulo: 'Julio' }
 const ANTERIOR: Reunion = { ...BASE, id: 's0', fecha: '2026-06-15T10:00:00.000Z', titulo: 'Junio' }
 
@@ -119,6 +119,205 @@ describe('ReunionesSala — participación de equipo', () => {
       />,
     )
     expect(screen.queryByText(/Cargada por/)).toBeNull()
+  })
+})
+
+/**
+ * LA CLASE DE JUNTA LLEGA AL MÓDULO Y LO AGRUPA (ronda 14.3, tarea 1).
+ *
+ * `reuniones.plantilla` (`src/secciones/plantillas.ts`) ya se guardaba —lo
+ * que faltaba era que este módulo la usara. Tres preguntas, en este orden:
+ *
+ * 1. ¿Se ve la clase de cada junta, sin inventar una cuando no la tiene?
+ *    `obtenerPlantilla(null)` cae a la PRIMERA del catálogo por diseño —eso
+ *    es lo que necesita el editor para no dejar un desplegable vacío—, pero
+ *    usarla a secas aquí pintaría "Estatus de UDN" sobre una junta sin
+ *    clasificar: un dato inventado en una pantalla que ve el director.
+ * 2. ¿"La última" es la más reciente DE CADA CLASE, no una sola global?
+ * 3. ¿Las anteriores se reparten en una columna por clase, con su conteo, en
+ *    el orden del catálogo, y sin pintar una columna vacía?
+ *
+ * `BASE`/`PROPS` son LOCALES a este describe (no los de arriba): los de
+ * arriba no traen `id`/`fecha`/`titulo` fijos —cada test viejo los pone a
+ * mano— y aquí la mayoría de los tests solo necesita variar `plantilla`,
+ * así que un `BASE` completo reduce el ruido. `equipo: false`: la clase de
+ * junta es información que también ve el director, así que estos tests
+ * corren en la vista más restrictiva —si se ve ahí, se ve en las dos.
+ */
+describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tarea 1)', () => {
+  const BASE: Reunion = {
+    id: 'r1',
+    fecha: '2026-08-01T10:00:00.000Z',
+    titulo: 'Reunión de prueba',
+    tipo: 'mensual',
+    estado: 'dada',
+    noDadaEn: null,
+    plantilla: null,
+    documentoListo: false,
+    archivos: [],
+    acuerdos: [],
+  }
+  const PROPS = {
+    porVenir: [] as Reunion[],
+    equipo: false,
+    salaSlug: SALA_SLUG,
+    registrarArchivoAction: registrarArchivoActionNoop,
+  }
+
+  it('cada reunión enseña de qué clase es', () => {
+    render(<ReunionesSala {...PROPS} reuniones={[{ ...BASE, plantilla: 'sync-comercial' }]} />)
+
+    expect(screen.getByText(/sync comercial/i)).toBeInTheDocument()
+  })
+
+  it('una junta sin clase lo dice, en vez de fingir una', () => {
+    render(<ReunionesSala {...PROPS} reuniones={[{ ...BASE, plantilla: null }]} />)
+
+    expect(screen.getByText(/sin clasificar/i)).toBeInTheDocument()
+    // Y NO se le pega la primera del catálogo:
+    expect(screen.queryByText(/estatus de udn/i)).toBeNull()
+  })
+
+  it('"la última" es la más reciente DE CADA CLASE, no una sola', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-12T10:00:00Z', titulo: 'Estatus Julio' },
+          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-14T10:00:00Z', titulo: 'Sync Semana 33' },
+          { ...BASE, id: 's0', plantilla: 'sync-comercial', fecha: '2026-08-07T10:00:00Z', titulo: 'Sync Semana 32' },
+        ]}
+      />,
+    )
+
+    // Las dos más recientes de su clase, destacadas; la vieja del sync no.
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    expect(within(ultimas).getByText(/Estatus Julio/)).toBeInTheDocument()
+    expect(within(ultimas).getByText(/Sync Semana 33/)).toBeInTheDocument()
+    expect(within(ultimas).queryByText(/Sync Semana 32/)).toBeNull()
+  })
+
+  it('las anteriores se reparten en una columna por clase, con su conteo', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-14T10:00:00Z', titulo: 'Estatus agosto' },
+          { ...BASE, id: 'e2', plantilla: 'estatus-udn', fecha: '2026-07-14T10:00:00Z', titulo: 'Estatus julio' },
+          { ...BASE, id: 'e3', plantilla: 'estatus-udn', fecha: '2026-06-14T10:00:00Z', titulo: 'Estatus junio' },
+          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-13T10:00:00Z', titulo: 'Sync semana 33' },
+          { ...BASE, id: 's0', plantilla: 'sync-comercial', fecha: '2026-08-06T10:00:00Z', titulo: 'Sync semana 32' },
+        ]}
+      />,
+    )
+
+    // Dos columnas — "estatus agosto"/"sync semana 33" ya salieron como
+    // últimas, así que cada columna se queda con lo que sobra: dos de
+    // estatus, una de sync. El conteo se valida a ojo en las capturas del
+    // informe (Step 6): aquí, con dígitos sueltos, un `getByText(/2/)`
+    // también encontraría el "2" de "26" en una fecha — un falso positivo
+    // que no prueba nada.
+    const grupoEstatus = screen.getByRole('group', { name: /estatus de udn/i })
+    const grupoSync = screen.getByRole('group', { name: /sync comercial/i })
+    expect(within(grupoEstatus).getByText('Estatus julio')).toBeInTheDocument()
+    expect(within(grupoEstatus).getByText('Estatus junio')).toBeInTheDocument()
+    expect(within(grupoEstatus).queryByText('Estatus agosto')).toBeNull()
+    expect(within(grupoSync).getByText('Sync semana 32')).toBeInTheDocument()
+    expect(within(grupoSync).queryByText('Sync semana 33')).toBeNull()
+  })
+
+  it('una clase sin ninguna reunión anterior no pinta columna vacía', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-14T10:00:00Z', titulo: 'Estatus reciente' },
+          { ...BASE, id: 'e2', plantilla: 'estatus-udn', fecha: '2026-07-14T10:00:00Z', titulo: 'Estatus viejo' },
+        ]}
+      />,
+    )
+
+    expect(screen.getByRole('group', { name: /estatus de udn/i })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: /sync comercial/i })).toBeNull()
+  })
+
+  it('"Sin clasificar" va al final, detrás de las clases reales del catálogo', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'n1', plantilla: null, fecha: '2026-08-10T10:00:00Z', titulo: 'Sin clase reciente' },
+          { ...BASE, id: 'n2', plantilla: null, fecha: '2026-07-10T10:00:00Z', titulo: 'Sin clase vieja' },
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-14T10:00:00Z', titulo: 'Estatus reciente' },
+          { ...BASE, id: 'e2', plantilla: 'estatus-udn', fecha: '2026-07-14T10:00:00Z', titulo: 'Estatus viejo' },
+        ]}
+      />,
+    )
+
+    const rotulos = screen.getAllByRole('group').map((g) => within(g).getByRole('heading').textContent)
+    expect(rotulos.at(-1)).toMatch(/sin clasificar/i)
+  })
+
+  it('con una sola clase en toda la sala (el caso real de hoy), sigue habiendo una "última" y una columna de anteriores', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-14T10:00:00Z', titulo: 'Estatus agosto' },
+          { ...BASE, id: 'e2', plantilla: 'estatus-udn', fecha: '2026-07-14T10:00:00Z', titulo: 'Estatus julio' },
+        ]}
+      />,
+    )
+
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    expect(within(ultimas).getByText('Estatus agosto')).toBeInTheDocument()
+    const grupo = screen.getByRole('group', { name: /estatus de udn/i })
+    expect(within(grupo).getByText('Estatus julio')).toBeInTheDocument()
+    // Una sola columna: no hay una segunda clase de la que distinguirse.
+    expect(screen.getAllByRole('group')).toHaveLength(1)
+  })
+
+  /**
+   * I3 (revisión de la ronda 14.3): las tarjetas "La última" se ordenaban
+   * por CATÁLOGO —el mismo orden que usan las columnas de "Anteriores"—, así
+   * que con dos clases la tarjeta de la izquierda no era necesariamente la
+   * más nueva. `estatus-udn` va primero en `PLANTILLAS`, pero aquí la de
+   * `sync-comercial` es dos días más reciente: tiene que encabezar.
+   */
+  it('las tarjetas "La última" se ordenan por fecha, no por el orden del catálogo', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-12T10:00:00Z', titulo: 'Estatus Julio' },
+          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-14T10:00:00Z', titulo: 'Sync Semana 33' },
+        ]}
+      />,
+    )
+
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    const titulos = within(ultimas).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(titulos).toEqual(['Sync Semana 33', 'Estatus Julio'])
+  })
+
+  /**
+   * `esClaseDeJunta` (revisión de la ronda 14.3, hallazgo menor): 'en-blanco'
+   * es la salida de emergencia del catálogo, no una clase de junta —ver su
+   * comentario en `secciones/plantillas.ts`—, así que una reunión con esa
+   * plantilla se agrupa y se etiqueta EXACTAMENTE igual que una sin clase:
+   * "Sin clasificar", nunca "En blanco". El dato es real (`mexa-creativa`
+   * tiene reuniones así hoy en producción, verificado contra la base).
+   */
+  it('"en-blanco" no es una clase de junta: se ve y se agrupa como "Sin clasificar"', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[{ ...BASE, id: 'b1', plantilla: 'en-blanco', fecha: '2026-08-01T10:00:00.000Z', titulo: 'Deck libre' }]}
+      />,
+    )
+
+    expect(screen.getByText(/sin clasificar/i)).toBeInTheDocument()
+    expect(screen.queryByText(/en blanco/i)).toBeNull()
   })
 })
 
@@ -387,7 +586,7 @@ describe('ReunionesSala — los acuerdos cuelgan de su reunión', () => {
  */
 describe('ReunionesSala — el ciclo de una reunión por venir', () => {
   const POR_VENIR = {
-    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, acuerdos: [],
+    tipo: 'mensual' as const, estado: 'agendada' as const, noDadaEn: null, plantilla: null, acuerdos: [],
   }
   const SIN_NADA: Reunion = {
     ...POR_VENIR, id: 'v1', fecha: '2029-09-15T10:00:00.000Z', titulo: 'La que viene',
@@ -520,6 +719,55 @@ describe('ReunionesSala — la minuta publicada conserva su forma', () => {
     // Y el texto crudo con palotes ya no aparece en ninguna parte.
     expect(dialogo!.textContent).not.toContain('Acción | Owner | Fecha')
   })
+
+  /**
+   * ⚠️ EL ENLACE QUE LLEVABA A UN 404 (ronda 13, auditoría móvil).
+   *
+   * "Ver la presentación →" se ofrecía con `tienePresentacion` —"documento
+   * listo O algún archivo"— y lo veía CUALQUIERA que abriera la sala pública.
+   * Pero `/reunion/<id>` pinta EL DOCUMENTO y hace `notFound()` si no tiene
+   * secciones maquetadas: una reunión cuya presentación es un PDF subido
+   * —todas las reales de esta app— mandaba al director a un 404 del servidor.
+   *
+   * El PDF no se pierde: su chip sigue en la tarjeta de la reunión.
+   */
+  it('con la presentación subida como archivo, NO se ofrece "Ver la presentación" (llevaba a un 404)', async () => {
+    const usuario = userEvent.setup()
+    render(
+      <ReunionesSala
+        reuniones={[{
+          ...CON_MINUTA,
+          documentoListo: false,
+          archivos: [{ id: 'a1', titulo: 'PPT | Julio', nombreOriginal: 'julio.pptx', url: '/api/archivo/a1' }],
+        }]}
+        porVenir={[]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /minuta/i }))
+
+    expect(screen.queryByRole('link', { name: /ver la presentación/i })).toBeNull()
+  })
+
+  it('con documento maquetado sí se ofrece: ahí hay algo que pintar', async () => {
+    const usuario = userEvent.setup()
+    render(
+      <ReunionesSala
+        reuniones={[{ ...CON_MINUTA, documentoListo: true }]}
+        porVenir={[]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    await usuario.click(screen.getByRole('button', { name: /minuta/i }))
+
+    expect(screen.getByRole('link', { name: /ver la presentación/i })).toHaveAttribute('href', '/reunion/m1')
+  })
 })
 
 /**
@@ -536,7 +784,7 @@ describe('ReunionesSala — la minuta publicada conserva su forma', () => {
  */
 describe('ReunionesSala — borrar una reunión con historia exige teclearlo', () => {
   const BASE_BORRAR = {
-    tipo: 'mensual' as const, noDadaEn: null, documentoListo: false, archivos: [], acuerdos: [],
+    tipo: 'mensual' as const, noDadaEn: null, plantilla: null, documentoListo: false, archivos: [], acuerdos: [],
   }
   const VACIA: Reunion = {
     ...BASE_BORRAR, id: 'v1', fecha: '2029-09-15T10:00:00.000Z', titulo: 'Recién creada',
@@ -544,7 +792,26 @@ describe('ReunionesSala — borrar una reunión con historia exige teclearlo', (
   }
   const YA_SE_DIO: Reunion = { ...VACIA, id: 'd1', titulo: 'Quincenal de julio', estado: 'dada' }
 
-  function pintarPorVenir(reunion: Reunion, eliminarReunionAction = vi.fn()) {
+  /**
+   * ⚠️ EL DOBLE TIENE QUE DEVOLVER UNA PROMESA, y no la devolvía.
+   *
+   * `vi.fn()` a secas devuelve `undefined`, y el manejador del botón encadena
+   * `.then().catch().finally()` sobre lo que le den — que es lo correcto: lo
+   * que recibe de verdad es una Server Action. Resultado: los dos tests de
+   * borrado de aquí abajo hacían clic, el manejador reventaba con
+   * «Cannot read properties of undefined (reading 'then')» y aun así salían
+   * VERDES, porque lo que comprueban (la confirmación en dos tiempos) ocurre
+   * antes de la explosión. Vitest lo cantaba como dos «unhandled errors» al
+   * final de la suite entera, lejos de aquí.
+   *
+   * Un doble tiene que representar lo que su nombre promete — la misma regla
+   * que ya nos cobró los fixtures de `/deck` que se decían "listos" con cero
+   * secciones.
+   */
+  function pintarPorVenir(
+    reunion: Reunion,
+    eliminarReunionAction = vi.fn().mockResolvedValue(undefined),
+  ) {
     render(
       <ReunionesSala
         reuniones={[]}

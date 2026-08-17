@@ -35,7 +35,10 @@ export function EditarAcuerdo({
   responsableInicial,
   personas,
   equipos,
+  siempreVisible,
   editarAction,
+  editando: editandoControlado,
+  onEditandoChange,
 }: {
   acuerdoId: string
   queInicial: string
@@ -46,12 +49,44 @@ export function EditarAcuerdo({
    * src/lib/equipos.ts). Opcional: sin ellos el editor se comporta como antes.
    */
   equipos?: Equipos
+  /**
+   * El control de corregir se pinta SIEMPRE, con su etiqueta, en vez de
+   * asomar al pasar el ratón.
+   *
+   * En la sala el lápiz discreto está bien: la fila se lee, y quien va a
+   * corregir ya sabe que puede. En `/acuerdos` la pantalla ES para trabajar
+   * los acuerdos, y Franco reportó que "no se puede editar" teniéndolo
+   * montado desde la ronda 13 — porque `opacity: 0` + `:hover` es invisible
+   * al llegar e INALCANZABLE en un teléfono, donde no existe el hover.
+   */
+  siempreVisible?: boolean
   editarAction: (
     acuerdoId: string,
     cambios: { que: string; responsable: string; responsableMondayId: string | null },
   ) => Promise<{ error?: string }>
+  /**
+   * ABRIR/CERRAR CONTROLADO DESDE FUERA (ronda 14, tarea 4 — arreglo del
+   * ruling de consolidar estatus/fecha/sala detrás de "Corregir").
+   *
+   * Por defecto este componente es dueño de su propio abrir/cerrar (como
+   * siempre) — la sala lo sigue usando así, sin tocar una línea. Pero
+   * `/acuerdos` necesita abrir MÁS que el texto al mismo tiempo (estatus,
+   * fecha, sala viven fuera de este componente, en `TablaAcuerdos.tsx`), así
+   * que ese padre necesita ENTERARSE de cada clic en "Corregir"/"Guardar"/
+   * "Cancelar" para abrir y cerrar todo junto. Híbrido controlado/no
+   * controlado, mismo patrón que un `<input>` de React: si llegan los dos,
+   * el padre decide; si no, el estado es interno y nada cambia para nadie
+   * que no los pase.
+   */
+  editando?: boolean
+  onEditandoChange?: (editando: boolean) => void
 }) {
-  const [editando, setEditando] = useState(false)
+  const [editandoInterno, setEditandoInterno] = useState(false)
+  const editando = editandoControlado ?? editandoInterno
+  function cambiarEditando(valor: boolean) {
+    if (onEditandoChange) onEditandoChange(valor)
+    else setEditandoInterno(valor)
+  }
   const [que, setQue] = useState(queInicial)
   const [responsable, setResponsable] = useState({
     responsable: responsableInicial,
@@ -79,12 +114,12 @@ export function EditarAcuerdo({
         <div className={estilos.acuerdoQue}>{queInicial}</div>
         <button
           type="button"
-          className={estilos.acuerdoLapiz}
-          onClick={() => setEditando(true)}
+          className={siempreVisible ? estilos.acuerdoCorregir : estilos.acuerdoLapiz}
+          onClick={() => cambiarEditando(true)}
           aria-label={`Corregir el acuerdo ${queInicial}`}
           title="Corregir"
         >
-          ✎
+          {siempreVisible ? '✎ Corregir' : '✎'}
         </button>
       </div>
     )
@@ -99,7 +134,7 @@ export function EditarAcuerdo({
         responsableMondayId: responsable.responsableMondayId,
       })
       if (r.error) { setError(r.error); return }
-      setEditando(false)
+      cambiarEditando(false)
     })
   }
 
@@ -121,6 +156,24 @@ export function EditarAcuerdo({
         disabled={pendiente}
       />
       {error && <p className={estilos.subirError} role="alert">{error}</p>}
+      {/* "GUARDAR"/"CANCELAR" GOBIERNAN ESTA CAJA Y NADA MÁS — por qué
+          conviven dos modelos (revisión final de la ronda 14, hallazgo I2).
+
+          El texto y el responsable se editan en un BORRADOR: se teclean, se
+          corrigen, y solo al pulsar "Guardar" salen de aquí. Cancelar puede
+          revertirlos porque todavía no habían salido. Los otros tres campos
+          del panel de `/acuerdos` —estatus, fecha y sala— no tienen borrador:
+          cambiarlos ES la operación, se aplican al vuelo y se deshacen
+          repitiendo el gesto (poner de vuelta el estatus, la fecha o la sala
+          anterior). Es la misma distinción que la app ya defiende en
+          `AcuerdoControles`: dos tiempos solo para lo irreversible (borrar),
+          al vuelo lo reversible.
+          Lo que faltaba no era unificarlos, era DECIRLO: `.acuerdoEditor`
+          pinta ahora una caja con borde —el mismo patrón que `.nuevoAcuerdo`
+          en la sala— para que se vea que estos dos botones alcanzan hasta
+          aquí, y `TablaAcuerdos` añade una línea de ayuda bajo los otros
+          controles. Sin esto, un "Cancelar" bien visible parecía devolver el
+          panel entero al punto de partida y solo deshacía la mitad. */}
       <div className={estilos.acuerdoEditorAcciones}>
         <button
           type="button"
@@ -140,7 +193,7 @@ export function EditarAcuerdo({
             setQue(queInicial)
             setResponsable({ responsable: responsableInicial, responsableMondayId: null })
             setError(null)
-            setEditando(false)
+            cambiarEditando(false)
           }}
         >
           Cancelar

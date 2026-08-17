@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { fechaBreveConAnio } from '@/lib/fecha'
 import { colorDeTextoDeMarca } from '@/temas'
 import type { SesionPorConfirmar } from '@/dominio/salas'
+import { claveDeClase, etiquetaDeClase } from '@/secciones/plantillas'
 import estilos from './ReunionesPorConfirmar.module.css'
 
 /**
@@ -106,6 +107,20 @@ function FilaPorConfirmar({
       <Link href={`/deck/${sesion.id}/documento`} className={estilos.filaTexto}>
         {sesion.salaNombre && <span className={estilos.filaSala}>{sesion.salaNombre}</span>}
         <span className={estilos.filaTitulo}>{sesion.titulo}</span>
+        {/* CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): "Por confirmar"
+            era 1 de las 4 tarjetas de 14 sin clase de junta pintada.
+            `sesion.plantilla !== undefined`, no solo truthy: `undefined`
+            (Home/sala, que no mandan este dato — ver `SesionPorConfirmar`,
+            `dominio/salas.ts`) es "no aplica aquí" y no pinta nada; `null`
+            (esta pantalla, junta sin clasificar) SÍ es un dato — "Sin
+            clasificar" — y tiene que verse, igual que en las otras tres
+            tarjetas del ciclo. `etiquetaDeClase(claveDeClase(...))`, nunca
+            el campo crudo: mismo motivo que el resto de la app —
+            `obtenerPlantilla(null)` cae a la primera del catálogo por
+            diseño y mentiría "Estatus de UDN" sobre una junta sin clase. */}
+        {sesion.plantilla !== undefined && (
+          <span className={estilos.filaClase}>{etiquetaDeClase(claveDeClase(sesion.plantilla))}</span>
+        )}
         <span className={estilos.filaFecha}>{fechaBreveConAnio(sesion.fecha)}</span>
       </Link>
 

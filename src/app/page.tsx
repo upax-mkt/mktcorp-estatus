@@ -8,13 +8,11 @@ import estilos from './hub.module.css'
 import { hayDB } from '@/db/cliente'
 import {
   estadoDeSalas, ordenarPorProximaReunion, temperatura, acuerdosAbiertos,
-  acuerdosVencidos, todosLosAcuerdos, pulsoDelMes, type EstatusAcuerdo,
+  acuerdosVencidos, pulsoDelMes,
 } from '@/db/consultas'
 import { type SesionMinutable, type SesionPorConfirmar } from '@/dominio/salas'
 import { reunionesMinutables, reunionesPorConfirmar } from '@/dominio/reunion'
 import { altoDeLogo, archivoDeLogo } from '@/temas/logos'
-import { moverEstatus, editarAcuerdo } from '@/db/acuerdos'
-import { destacarAction } from '@/app/acuerdos/acciones'
 import { crearReunion, listarReuniones, marcarDada, marcarNoDada, desmarcarNoDada } from '@/db/reuniones'
 import { tituloPorDefecto } from '@/db/documentos'
 import { registrarEdicion } from '@/db/participacion'
@@ -24,7 +22,6 @@ import { loQueFaltaAlMolde, type MoldeMinuta } from '@/minuta/molde'
 import { fechaBreve, textoDiasDesde, diasHasta, diaCivil, instanteEnCDMX } from '@/lib/fecha'
 import { cerrarSesion } from '@/auth/sesion'
 import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
-import { ModuloAcuerdos } from '@/componentes/hogar/ModuloAcuerdos'
 import { ModuloCalendario } from '@/componentes/hogar/ModuloCalendario'
 import { ModuloMinutas, type MinutaEnHome } from '@/componentes/hogar/ModuloMinutas'
 import { AgendarRapido, type SalaParaAgendar, type DatosAgendarRapido } from '@/componentes/hogar/AgendarRapido'
@@ -57,11 +54,29 @@ function instanteDe(dia: string, hora: string): Date {
  *
  * Era una lista de diez renglones con un puntito de color y un panel de
  * acuerdos que solo se podía mirar. Ahora es un tablero: las salas como
- * tarjetas con su logotipo, y tres módulos que se USAN sin salir de aquí —
- * el mes, los acuerdos en riesgo (editables en el sitio) y las minutas.
+ * tarjetas con su logotipo, y los módulos generales —calendario, agendar,
+ * minutas— que se USAN sin salir de aquí.
  *
- * El orden de la página es el orden de las preguntas que uno se hace al
- * abrirla: qué se me está venciendo, qué viene, y cómo está cada relación.
+ * SE INVIERTE (ronda 14.5, tarea 1). Franco, textual: *"hay que
+ * transformarlo, ya que es el lugar donde lo primero que ves son las salas y
+ * luego otros módulos de interés agnósticos y generales"* — hasta esta ronda
+ * era al revés: primero "Por confirmar", luego el módulo de acuerdos entero,
+ * luego calendario y minutas, y las salas —de lo que trata esta app— recién
+ * empezaban a mitad de página (medido: el píxel 1.140 de 2.238 a 1440px).
+ *
+ * El orden ahora, de arriba abajo: el pulso (las cifras, incluidas las DOS de
+ * acuerdos, que llevan a `/acuerdos`), **los clientes**, lo que exige
+ * confirmar, calendario y agendar, minutas, y en pausa. Los acuerdos ya NO
+ * tienen su propio bloque aquí —decisión de Franco, textual: *"solo una
+ * cifra"*, no un módulo más chico— así que ese trabajo se resuelve en
+ * `/acuerdos`, no en el Home.
+ *
+ * RE-REVISIÓN (hallazgo I2): "Por confirmar" vivía delante de "Los clientes"
+ * —se quedó ahí cuando se retiró `ModuloAcuerdos`, nadie la movió— así que el
+ * primer `<h2>` del documento seguía sin ser el de las salas. Ahora baja,
+ * junto con los demás módulos generales, tal como enumera el spec §4: pulso →
+ * clientes → calendario y agendar → minutas → en pausa; "Por confirmar" no
+ * va delante de clientes.
  */
 export default async function Hub() {
   // El Home era la ÚNICA pantalla de equipo sin guarda de página (revisión
@@ -78,20 +93,6 @@ export default async function Hub() {
     'use server'
     await cerrarSesion()
     redirect('/entrar')
-  }
-
-  async function cambiarEstatusAction(id: string, estatus: EstatusAcuerdo) {
-    'use server'
-    await exigirEditor()
-    await moverEstatus(id, estatus)
-    revalidatePath('/')
-  }
-
-  async function ponerFechaAction(id: string, fecha: string | null) {
-    'use server'
-    await exigirEditor()
-    await editarAcuerdo(id, { fechaCompromiso: fecha ? new Date(fecha) : null })
-    revalidatePath('/')
   }
 
   async function guardarMoldeAction(nuevo: MoldeMinuta): Promise<{ error?: string }> {
@@ -198,18 +199,8 @@ export default async function Hub() {
   await connection()
   const hoy = new Date()
 
-  const [salasCrudas, acuerdos, pulso, reuniones, personas, admin, clientes] = await Promise.all([
+  const [salasCrudas, pulso, reuniones, personas, admin, clientes] = await Promise.all([
     estadoDeSalas(),
-    // Las diez salas juntas (tarea 11): de aquí salen los dos bloques de
-    // ModuloAcuerdos (tarea 12) — destacados y vencidos son dos filtros sobre
-    // la MISMA lista, no dos consultas que se puedan desincronizar entre sí.
-    // A PROPÓSITO no son excluyentes: cada uno contesta su propia pregunta
-    // completa ("todo lo destacado", "todo lo vencido"), y un acuerdo puede
-    // cumplir las dos a la vez — eso es real, no un error de aquí. Que no se
-    // PINTE dos veces por eso es responsabilidad de quien pinta: el dedupe y
-    // el porqué de "vencidos manda" viven en `ModuloAcuerdos` (crítico de la
-    // auditoría UX/UI, ronda 11 — antes de ese arreglo SÍ se pintaba dos veces).
-    todosLosAcuerdos(),
     pulsoDelMes(),
     listarReuniones(),
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
@@ -245,15 +236,6 @@ export default async function Hub() {
    * y contarla convertiría el freeze en una tarea pendiente.
    */
   const sinProxima = salasActivas.filter((s) => !s.proximaReunion).length
-  // Ninguno de los dos EXCLUYE al otro (ver el comentario del Promise.all,
-  // arriba): un acuerdo destacado que además venció vive en las dos listas
-  // que siguen. Quién gana al pintarlo es decisión de `ModuloAcuerdos`, no
-  // de aquí.
-  const destacados = acuerdos.filter((a) => a.destacado)
-  // Nombre distinto de la constante `vencidos` que ya existe MÁS ABAJO, por
-  // sala, dentro del .map() de tarjetas — son dos cosas distintas (una lista
-  // completa vs. un conteo por sala) y compartir nombre solo confundiría.
-  const acuerdosVencidosParaHome = acuerdos.filter((a) => a.estatus === 'vencido')
 
   // Las minutas de todas las salas en una sola lista, la más reciente arriba.
   const minutas: MinutaEnHome[] = salasCrudas
@@ -457,65 +439,30 @@ export default async function Hub() {
           </div>
         </section>
 
-        {/* POR CONFIRMAR (punto 2/3): las reuniones que la deducción
-            automática de `fueDada` ya está contando como dadas —o casi—, sin
-            que nadie lo haya dicho todavía. Cierra el ciclo que el pulso, un
-            poco más arriba, deja abierto: aquí se responde. */}
-        {porConfirmar.length > 0 && (
-          <Seccion
-            icono="reuniones"
-            titulo="Por confirmar"
-            conteo={
-              porConfirmar.length === 1
-                ? 'una ya pasó su día sin marcar'
-                : `${porConfirmar.length} ya pasaron su día sin marcar`
-            }
-          >
-            <ReunionesPorConfirmar
-              sesiones={porConfirmar}
-              marcarPresentadaAction={marcarPresentadaAction}
-              marcarNoDadaAction={marcarNoDadaAction}
-              desmarcarNoDadaAction={desmarcarNoDadaAction}
-            />
-          </Seccion>
-        )}
+        {/* LAS SALAS, LO PRIMERO QUE SE VE (ronda 14.5, tarea 1).
+            Franco, textual: "el lugar donde lo primero que ves son las salas
+            y luego otros módulos de interés agnósticos y generales" — hasta
+            esta ronda esta sección vivía después del pulso, Por confirmar,
+            Acuerdos y Calendario/Minutas, empezando a mitad de página
+            (medido: el píxel 1.140 de 2.238 a 1440px). Ahora es la SEGUNDA
+            cosa que se lee, justo después del pulso — antes de "Por
+            confirmar" y de los módulos generales de más abajo. Movida en el
+            DOCUMENTO, no con `order` de CSS: quien navega con teclado o
+            lector de pantalla tiene que toparse con "Los clientes" en el
+            mismo orden que se ve (deuda que `/reuniones` dejó viva con el
+            calendario; aquí no se repite).
 
-        {/* Los módulos: lo que hay que atender y lo que viene. */}
-        <div className={estilos.modulos}>
-          <ModuloAcuerdos
-            destacados={destacados}
-            vencidos={acuerdosVencidosParaHome}
-            total={acuerdos.length}
-            destacarAction={destacarAction}
-            cambiarEstatusAction={cambiarEstatusAction}
-            ponerFechaAction={ponerFechaAction}
-            hoyCivil={hoyCivil}
-          />
-          {/* AGENDAR RÁPIDO (tarea 14), junto al calendario — Franco, literal:
-              "el calendario (no lo desaparezcas del home), más sí debe haber
-              un botón en el home para agendar rápidamente una sesión". El
-              calendario NO SE TOCA: los dos viven envueltos en un mismo
-              `<div>`, que sigue siendo UN SOLO hijo directo de `.modulos`
-              (columna 2, filas 1-2 — ver `.modulos` en `hub.module.css`). Así
-              el CSS de la rejilla queda intacto, a propósito: nada que
-              reajustar en `grid-template-rows`, porque `.modulos` sigue
-              viendo TRES hijos, exactamente como antes — el mismo hueco de la
-              ronda 2 que esas reglas ya resuelven para tres, no para cuatro. */}
-          <div id="calendario" style={{ display: 'grid', gap: '0.9rem', alignContent: 'start' }}>
-            <AgendarRapido salas={salasParaAgendar} agendar={agendarRapidoAction} />
-            <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
-          </div>
-          <ModuloMinutas
-            minutas={minutas}
-            pendientes={sinMinuta}
-            salas={salasCrudas.map((x) => ({ slug: x.slug, nombre: x.nombre }))}
-            molde={molde}
-            guardarMoldeAction={guardarMoldeAction}
-            personas={personas}
-          />
-        </div>
-
-        {/* Las salas, con su logotipo. */}
+            RE-REVISIÓN (hallazgo I2): hasta esta corrección "Por confirmar"
+            seguía siendo el primer `<h2>` del documento —quedó donde estaba
+            cuando se retiró `ModuloAcuerdos`, sin que nadie la moviera—, así
+            que con datos reales el DOM (y el teclado, y un lector de
+            pantalla) topaban con ella antes que con las salas, aunque el
+            test se llamara "lo primero que se ve son los clientes". Decisión
+            de Franco, textual: *"lo primero que ves son las salas y luego
+            otros módulos de interés agnósticos y generales"* — "Por
+            confirmar" es justo uno de esos módulos generales, no una excepción,
+            así que baja con el resto: ver más abajo, ya después de esta
+            sección. */}
         <Seccion
           id="clientes"
           icono="clientes"
@@ -620,6 +567,83 @@ export default async function Hub() {
             })}
           </div>
         </Seccion>
+
+        {/* POR CONFIRMAR (punto 2/3): las reuniones que la deducción
+            automática de `fueDada` ya está contando como dadas —o casi—, sin
+            que nadie lo haya dicho todavía. Cierra el ciclo que el pulso
+            deja abierto: aquí se responde.
+
+            RE-REVISIÓN (hallazgo I2): vive AQUÍ, después de "Los clientes" y
+            junto a los demás módulos generales —no antes de las salas—.
+            Franco, textual, es sobre las salas: *"lo primero que ves son las
+            salas y luego otros módulos de interés agnósticos y
+            generales"*; "Por confirmar" es uno de esos módulos, así que baja
+            con ellos. Movida en el JSX, no con `order` de CSS (mismo
+            criterio que "Los clientes", arriba): el orden del documento es
+            el de lectura y el del teclado. */}
+        {porConfirmar.length > 0 && (
+          <Seccion
+            icono="reuniones"
+            titulo="Por confirmar"
+            conteo={
+              porConfirmar.length === 1
+                ? 'una ya pasó su día sin marcar'
+                : `${porConfirmar.length} ya pasaron su día sin marcar`
+            }
+          >
+            <ReunionesPorConfirmar
+              sesiones={porConfirmar}
+              marcarPresentadaAction={marcarPresentadaAction}
+              marcarNoDadaAction={marcarNoDadaAction}
+              desmarcarNoDadaAction={desmarcarNoDadaAction}
+            />
+          </Seccion>
+        )}
+
+        {/* LOS MÓDULOS GENERALES: calendario + agendar, y minutas.
+            ACUERDOS YA NO VIVE AQUÍ (ronda 14.5, tarea 1) — decisión de
+            Franco, textual: *"solo una cifra"*. El módulo `ModuloAcuerdos`
+            —Destacados y Vencidos, editable in situ— se retiró del Home
+            entero: las dos cifras que el pulso YA pinta más arriba
+            ("acuerdos abiertos" y "vencido(s)", ronda 12) son la única
+            supervivencia de los acuerdos en esta pantalla, y las dos llevan a
+            `/acuerdos`, que es donde se puede hacer algo con ellos. Al
+            quedarse sin llamador dentro de esta app, el componente y su test
+            se borraron (ver el historial de `componentes/hogar/`); ningún
+            otro archivo lo montaba.
+
+            ESA MISMA RETIRADA SALDA UNA DEUDA ANOTADA EN EL SPEC §4: la
+            estrella de un acuerdo dice "Fijar arriba en Acuerdos"
+            (`Estrella.tsx`), pero mientras el Home pintara su bloque
+            Destacados ese control hacía MÁS de lo que su etiqueta prometía
+            —entrar o salir de ESE bloque, no solo fijar el acuerdo arriba en
+            `/acuerdos`—. Sin `ModuloAcuerdos`, la etiqueta vuelve a describir
+            exactamente lo único que la estrella hace.
+
+            Con acuerdos fuera, `.modulos` pasó de tener TRES hijos a DOS
+            —el `<div>` de calendario+agendar y `ModuloMinutas`— y su CSS se
+            simplificó con ellos (ver `.modulos` en `hub.module.css`): ya no
+            hace falta repartir columnas y filas con `:nth-child`, dos
+            columnas iguales alcanzan. */}
+        <div className={estilos.modulos}>
+          {/* AGENDAR RÁPIDO (tarea 14), junto al calendario — Franco, literal:
+              "el calendario (no lo desaparezcas del home), más sí debe haber
+              un botón en el home para agendar rápidamente una sesión". El
+              calendario NO SE TOCA: los dos viven envueltos en un mismo
+              `<div>`, que sigue siendo UN SOLO hijo directo de `.modulos`. */}
+          <div id="calendario" style={{ display: 'grid', gap: '0.9rem', alignContent: 'start' }}>
+            <AgendarRapido salas={salasParaAgendar} agendar={agendarRapidoAction} />
+            <ModuloCalendario sesiones={paraCalendario} hoy={hoy.toISOString()} />
+          </div>
+          <ModuloMinutas
+            minutas={minutas}
+            pendientes={sinMinuta}
+            salas={salasCrudas.map((x) => ({ slug: x.slug, nombre: x.nombre }))}
+            molde={molde}
+            guardarMoldeAction={guardarMoldeAction}
+            personas={personas}
+          />
+        </div>
 
         {/* EN PAUSA (tarea 12): aparte de "Los clientes", no mezcladas en la
             misma rejilla. Una sala en freeze no se borra —su historia se

@@ -11,8 +11,13 @@
   padding: 0 0.9rem;
 }
 
+/* `flex` con 44 px: como `inline` el control no cubría su fila y medía 33 px
+   de alto (ronda 13, auditoría móvil). */
 .resumen {
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--tinta-2);
@@ -45,6 +50,10 @@
    columnas de 15ch no se leen. */
 @media (max-width: 620px) {
   .fila { grid-template-columns: 1fr; }
+  /* Sin esto el texto no encoge y a 320 px la lista se derrama 36 px fuera de
+     su caja (medido en la auditoría móvil): no se ve porque lo recorta el
+     `overflow-x: clip` global, pero es texto que desaparece. */
+  .fila > * { min-width: 0; overflow-wrap: anywhere; }
 }
 /* El responsable, la fecha y el estatus viajan juntos: son la misma
    respuesta —de quién es y cómo va— y separarlos fue el defecto. */
@@ -76,4 +85,11 @@
 
 .punto { color: var(--tinta-4); }
 
-.fechaVencida { color: var(--mal); }
+/* ⚠️ NO ES `var(--mal)` (ronda 13b, auditoría móvil). Medido sobre el fondo
+   real de esta fila —`--papel-hundido`, no papel blanco—: **3,82:1** en 12,5
+   px. `--mal` está calibrado para PINTAR (fondos tenues, puntos, barras); como
+   tinta de un texto pequeño se queda corto. Mismo tono, menos luminosidad, y
+   el mismo número que ya usan el semáforo de la sala y el badge «Vencido»
+   (`cliente.module.css`), para que lo vencido se vea igual en los dos sitios
+   donde aparece. El token global no se toca. */
+.fechaVencida { color: oklch(0.52 0.17 25); }  /* ~5,2:1 sobre el hundido */

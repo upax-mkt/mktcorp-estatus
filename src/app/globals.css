@@ -13,6 +13,15 @@
 
 html {
   height: 100%;
+  /* Safari en iOS INFLA el texto por su cuenta al girar el teléfono a
+     horizontal (su "text autosizing"): una columna que se lee bien en
+     vertical sale con los cuerpos descuadrados entre sí en cuanto alguien
+     gira el aparato para ver una tabla o un gráfico del documento, que es
+     justo el gesto que invita esta app. `100%` no desactiva el zoom del
+     usuario —eso sería un problema de accesibilidad—: solo le dice al
+     navegador que no reescale el texto sin que nadie se lo pida. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,
@@ -60,4 +69,26 @@ a {
    scroll— dentro de una app clara. */
 html {
   color-scheme: light;
+}
+
+/* ⚠️ UN CAMPO POR DEBAJO DE 16 px HACE QUE SAFARI EN iOS SE ACERQUE SOLO.
+   No es una preferencia estética: al enfocar un campo cuyo texto mide menos de
+   16 px, Safari amplía la página para "ayudar" a leerlo, y ya no la devuelve
+   a su sitio — el formulario se queda desencuadrado y hay que pellizcar para
+   volver. Medido el 14-ago: el campo de clave de `/entrar` —la única puerta de
+   entrada del equipo, y la que se abre desde el teléfono al recibir un enlace
+   por Slack— estaba a **15 px**, un píxel por debajo del umbral.
+
+   `max(1rem, 1em)` sube al mínimo solo a quien está por debajo y respeta a
+   quien ya declaró un cuerpo mayor. Se limita a `pointer: coarse` (el dedo)
+   porque en el escritorio el problema no existe y el diseño de los editores
+   está afinado con sus tamaños. Los controles sin texto que escribir
+   —casillas, radios, color, deslizadores— quedan fuera: no disparan el zoom y
+   la regla les cambiaría el tamaño de la caja. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: max(1rem, 1em);
+  }
 }

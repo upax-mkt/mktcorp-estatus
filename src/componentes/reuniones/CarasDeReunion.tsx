@@ -351,7 +351,14 @@ function ArchivoDeReunion({
   return (
     <span className={estilos.caraConLapiz}>
       <a href={archivo.url} target="_blank" rel="noopener" className={estilos.cara}>
-        <span aria-hidden>▤</span> {tituloVisible}
+        {/* ⚠️ EL TÍTULO VA EN SU PROPIO `<span>` (ronda 13b, auditoría móvil).
+            Era un nodo de texto suelto, y a un nodo de texto suelto no se le
+            puede pedir que se recorte: la regla que debía hacerlo
+            (`.carasCompactas .cara > span:last-child`) caía sobre el glifo ▤,
+            el único `<span>` que había. Medido a 320 px, esta píldora crecía a
+            77 px de alto —"PPT | Estatus Mensual Junio" en tres renglones—
+            junto a una "Minuta" de 44, y la fila salía descuadrada. */}
+        <span aria-hidden>▤</span> <span className={estilos.caraTexto}>{tituloVisible}</span>
       </a>
       {puedeEditar && (
         <button

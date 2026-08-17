@@ -80,8 +80,39 @@ export function TablaSeccion({ tabla }: { tabla: Tabla }) {
     return conContenido.length > 0 && conContenido.every(esCifra)
   })
 
+  /**
+   * CÓMO SE COMPORTA ESTA TABLA EN UN TELÉFONO — y por qué se decide aquí y
+   * no en el CSS.
+   *
+   * Medido a 390 px (columna útil de 342): la tabla de pendientes de NeraCode
+   * NO desborda, y eso es justo el problema. Sus celdas son frases, así que el
+   * navegador las parte hasta que quepan: la columna "Tarea" se quedó en 100
+   * px y "Sesión de portafolio, outbound y comercial para definir oferta de
+   * valor, credenciales y casos de éxito" salió en diez renglones de tres
+   * palabras. Como nunca desborda, el scroll horizontal que ya existe nunca se
+   * ofrece: no hay nada roto que arreglar, hay una tabla ilegible.
+   *
+   * Una comparativa de periodos se comporta al revés: sus celdas son cifras
+   * cortas con `nowrap`, así que SÍ desborda y el scroll hace su trabajo. Y
+   * ahí la rejilla es el dato: apilarla en fichas destruiría precisamente la
+   * comparación mayo-contra-junio que la tabla existe para enseñar.
+   *
+   * De ahí los dos formatos. Es una propiedad del CONTENIDO —cuántas de sus
+   * columnas son cifras— y el CSS no sabe leer contenido:
+   *
+   * · `rejilla`: dos o más columnas de cifras. Se queda tabla y se desliza.
+   * · `fichas`:  tres o más columnas y menos de dos de cifras, o sea texto
+   *   largo. En móvil cada fila se convierte en una ficha con sus rótulos.
+   *
+   * Con dos columnas nunca hay fichas: dos celdas caben de sobra en 288 px y
+   * partirlas en ficha añadiría un rótulo por cada dato para no ganar nada.
+   */
+  const columnasDeCifra = columnaDeCifras.filter(Boolean).length
+  const formato =
+    tabla.columnas.length >= 3 && columnasDeCifra < 2 ? 'fichas' : 'rejilla'
+
   return (
-    <div className={estilos.tablaEnvoltorio}>
+    <div className={estilos.tablaEnvoltorio} data-formato={formato}>
       {tabla.titulo && <h3 className={estilos.piezaTitulo}>{tabla.titulo}</h3>}
       {/* El scroll horizontal vive aquí y no en la página: una tabla ancha no
           puede arrastrar el documento entero de lado. */}
@@ -98,7 +129,17 @@ export function TablaSeccion({ tabla }: { tabla: Tabla }) {
           </thead>
           <tbody>
             {tabla.filas.map((fila, i) => (
-              <tr key={`fila-${i}`} data-destacada={fila.destacada ? 'true' : undefined}>
+              <tr
+                key={`fila-${i}`}
+                data-destacada={fila.destacada ? 'true' : undefined}
+                /* EN FICHAS, EL GRUPO SE REPITE. Cuando la tabla agrupa, la
+                   celda del responsable lleva `rowspan` y las filas siguientes
+                   no la traen: al apilar en fichas, tres de cada cuatro se
+                   quedarían sin decir de quién son. El valor viaja aquí, en el
+                   atributo, y la ficha lo escribe con `content: attr(...)`.
+                   No se pinta nada en escritorio. */
+                data-grupo={agrupa ? fila.celdas[0] : undefined}
+              >
                 {fila.celdas.map((celda, j) => {
                   if (agrupa && j === 0) {
                     const abre = aperturas.get(i)
@@ -111,7 +152,15 @@ export function TablaSeccion({ tabla }: { tabla: Tabla }) {
                   }
                   const ultima = j === fila.celdas.length - 1
                   return (
-                    <td key={`c-${j}`} data-cifra={esCifra(celda) ? 'true' : undefined}>
+                    <td
+                      key={`c-${j}`}
+                      data-cifra={esCifra(celda) ? 'true' : undefined}
+                      /* El encabezado de la columna viaja con la celda: al
+                         apilar en fichas, el `<thead>` desaparece de la vista
+                         y "Vencido" sin su rótulo no dice qué es. Invisible en
+                         escritorio. */
+                      data-rotulo={tabla.columnas[j] ?? undefined}
+                    >
                       {/* El semáforo se pinta sobre la ÚLTIMA celda, que es
                           donde el deck real escribe el estatus: así el color
                           acompaña a la palabra en vez de flotar aparte. */}

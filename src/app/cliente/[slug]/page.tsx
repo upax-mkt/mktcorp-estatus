@@ -413,7 +413,25 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function editarFechaAction(acuerdoId: string, fecha: string | null) {
     'use server'
     await exigirEditor()
-    await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? new Date(fecha) : null })
+    // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo de ronda 14, tarea 2):
+    // medido antes de tocar esta línea, `new Date('2026-09-01')` guarda el
+    // día civil "2026-08-31" — medianoche UTC son las 18:00 del día anterior
+    // en México — así que el acuerdo quedaba venciendo un día antes de lo
+    // tecleado.
+    //
+    // NO SON DOS PANTALLAS, SON SEIS ESCRITORES (corregido en la revisión
+    // final de la ronda: este comentario decía "la pestaña /acuerdos escribe
+    // esta MISMA columna", y era verdad a medias — la ronda 14 solo unificó
+    // tres de los seis). `fechaCompromiso` la escriben: esta acción, el alta
+    // de la sala (`crearAcuerdoAction`, abajo), `editarFechaEnTablaAction` y
+    // `editarEnBandejaAction` (src/app/acuerdos/acciones.ts), `ponerFechaAction`
+    // del Home (src/app/page.tsx) y la publicación de minuta
+    // (`guardarMinuta`, src/db/minutas.ts). Los seis usan hoy
+    // `instanteEnCDMX(dia, '12:00')`, y eso no es solo estética: mientras
+    // convivieron dos instantes para el mismo día civil, el dedupe de
+    // `crearAcuerdo` —que compara el instante EXACTO— dejaba de reconocer sus
+    // propias filas y republicar una minuta duplicaba acuerdos (hallazgo C1).
+    await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
   }
@@ -432,7 +450,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       responsable: datos.responsable,
       responsableMondayId: datos.responsableMondayId,
       squad: datos.squad,
-      fechaCompromiso: datos.fechaCompromiso ? new Date(datos.fechaCompromiso) : null,
+      // Misma columna, mismo arreglo que `editarFechaAction` arriba: un
+      // acuerdo NUEVO no puede nacer con el día corrido solo porque se dio de
+      // alta desde el formulario de la sala en vez de editado después.
+      fechaCompromiso: datos.fechaCompromiso ? instanteEnCDMX(datos.fechaCompromiso, '12:00') : null,
     })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
@@ -709,7 +730,41 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
         reunionId: datos.reunionId ?? null,
         categoria: datos.categoria,
         titulo: datos.titulo,
-        fecha: datos.fecha ? new Date(datos.fecha) : null,
+        // `instanteEnCDMX` y NO `new Date(fecha)` a secas (arreglo de ronda
+        // 14, tarea 6 — encargo directo de Franco): medido el 14-ago,
+        // `new Date('2026-09-01')` guarda el día civil "2026-08-31" —
+        // medianoche UTC son las 18:00 del día anterior en México. Es la
+        // MISMA columna que la Tarea 2 arregló para `fechaCompromiso`
+        // (`archivos.fecha`, nota de prensa y material), pero NO el mismo
+        // arreglo a secas: a diferencia de `fechaCompromiso`, `datos.fecha`
+        // aquí es POLIMÓRFICO. `ReunionesSala` (Tarea 9b, "+ Subir
+        // presentación") manda el INSTANTE COMPLETO de la reunión
+        // (`reunion.fecha`, p. ej. "2026-06-15T10:00:00.000Z") y no un día
+        // civil — pasarlo por `instanteEnCDMX(fecha, '12:00')` concatenaría
+        // una hora fija a una fecha que YA la trae y produciría una fecha
+        // inválida. El criterio para distinguir los dos casos es el mismo
+        // que usa `instanteDe` (privado, `src/lib/fecha.ts`): si el string
+        // trae 'T', ya es un instante y se usa tal cual; si no, es un día
+        // civil ('YYYY-MM-DD', el que escribe una persona) y se ancla al
+        // mediodía CDMX.
+        //
+        // POR QUÉ ESTE CASO SE ESCAPÓ TANTO TIEMPO (y por qué se arregla
+        // igual aunque hoy nadie lo vea en pantalla): al LEER, `desdeFila`
+        // (`src/db/archivos.ts:97`) pasa el `Date` guardado por su propio
+        // `isoFecha = d.toISOString().slice(0,10)`, que trunca a día UTC y
+        // ya descarta la hora corrida; al PINTAR, `MaterialesSala`/
+        // `NotasDePrensa` usan `fechaBreveConAnio` (`src/lib/fecha.ts`), que
+        // ancla ese día civil sin hora al MEDIODÍA UTC (`instanteDe`,
+        // privado) — lejos de cualquier frontera de día en CDMX. Esas dos
+        // compensaciones se encadenan y dejan el RENDER de hoy sin síntoma
+        // visible (confirmado con un print real contra la sala pausada de
+        // Zeus, ver `.superpowers/sdd/…/task-6-report.md`), pero el `Date`
+        // que queda guardado en la columna sigue significando el día
+        // ANTERIOR por sí solo. Este cambio hace que el instante guardado
+        // sea correcto sin depender de esas dos casualidades de lectura.
+        fecha: datos.fecha
+          ? (datos.fecha.includes('T') ? new Date(datos.fecha) : instanteEnCDMX(datos.fecha, '12:00'))
+          : null,
         ruta: datos.ruta,
         nombreOriginal: datos.nombreOriginal,
         tipoContenido: datos.tipoContenido,
@@ -863,7 +918,27 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await exigirEditor()
     await editarArchivo(id, {
       titulo: cambios.titulo,
-      ...(cambios.fecha !== undefined ? { fecha: cambios.fecha ? new Date(cambios.fecha) : null } : {}),
+      // `instanteEnCDMX` y NO `new Date(fecha)` a secas (arreglo de ronda 14,
+      // tarea 6): mismo bug y mismo número medido que en `registrarArchivoAction`
+      // (arriba) — `new Date('2026-09-01')` guarda "2026-08-31". El único
+      // llamador real de este campo (`MaterialesSala`, botón "Renombrar")
+      // manda `material.fecha`, que ya sale de la base como día civil puro
+      // ('YYYY-MM-DD', ver `isoFecha` en `src/db/archivos.ts`) — nunca un
+      // instante con hora — pero se guarda el mismo criterio de
+      // `datos.fecha.includes('T')` que en `registrarArchivoAction` para no
+      // dejar este campo genérico expuesto al mismo riesgo si mañana algún
+      // llamador nuevo le manda un instante completo.
+      //
+      // Por qué se escapó y por qué se arregla igual sin síntoma visible hoy:
+      // mismo razonamiento que el comentario de `registrarArchivoAction`
+      // (arriba) — `isoFecha` (lectura) trunca a día UTC y `instanteDe`
+      // (pintado, privado en `src/lib/fecha.ts`) ancla ese día sin hora al
+      // mediodía UTC; las dos compensaciones dejan el render de
+      // `MaterialesSala` a salvo hoy, pero el `Date` que quedaba guardado
+      // seguía significando el día anterior por sí solo.
+      ...(cambios.fecha !== undefined
+        ? { fecha: cambios.fecha ? (cambios.fecha.includes('T') ? new Date(cambios.fecha) : instanteEnCDMX(cambios.fecha, '12:00')) : null }
+        : {}),
     })
     revalidatePath(`/cliente/${slug}`)
   }

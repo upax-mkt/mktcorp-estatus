@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { PLANTILLAS } from '@/secciones/plantillas'
+import { PLANTILLA_POR_DEFECTO } from '@/secciones/plantillas'
+import { SelectorClaseDeJunta } from '@/componentes/comunes/SelectorClaseDeJunta'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
@@ -18,10 +19,17 @@ import estilos from '@/app/cliente/cliente.module.css'
  * ya; la presentación se elige después, en "Lo que viene", donde las dos
  * vías están una al lado de la otra.
  *
- * "Qué reunión es" SE SIGUE PREGUNTANDO AQUÍ, y no es una contradicción: es
- * una propiedad de la junta —un comité no es un estatus de UDN— y lo que
- * decide con qué secciones nace su deck el día que se arme. Se guarda en la
- * reunión (migración 0035) y espera ahí.
+ * "¿QUÉ JUNTA ES?" SE SIGUE PREGUNTANDO AQUÍ, y no es una contradicción: es
+ * una propiedad de la junta —un comité no es un estatus de UDN— y es la
+ * CAUSA, no la consecuencia. El desplegable preguntaba antes por una
+ * "plantilla": el nombre técnico de cómo se arma el deck por dentro, que es
+ * justo lo que a quien agenda no le toca decidir todavía. Lo que sí sabe,
+ * porque es lo único que tiene enfrente al agendar, es qué CLASE de junta va
+ * a dar —un Sync Comercial, un comité, un arranque de campaña—. Es la clase
+ * la que decide con qué secciones nace el deck (el `paraQue` de cada una,
+ * bajo el desplegable, existe para que se note ANTES de elegir, no después
+ * abriendo el editor a ciegas) y no al revés: el deck no elige la junta. Se
+ * guarda en la reunión (migración 0035) y espera ahí.
  *
  * Lo pidió Franco (punto 3): antes había que salir a `/deck/nueva`,
  * elegir otra vez de qué sala era —estando ya dentro de ella— y volver. La
@@ -50,7 +58,14 @@ interface Props {
 
 export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
   const [abierto, setAbierto] = useState(false)
-  const [plantilla, setPlantilla] = useState(PLANTILLAS[0].id)
+  // `PLANTILLA_POR_DEFECTO` (`src/secciones/plantillas.ts`), no
+  // `PLANTILLAS[0].id` leído aquí: es la MISMA constante que usa
+  // `FormularioSesion.tsx` para esta misma pregunta (hallazgo I2, revisión
+  // final de la ronda 14.2) — antes cada archivo llegaba al mismo valor por
+  // su cuenta (uno leyendo el índice 0 del catálogo, el otro con la constante
+  // ya escrita), y un reordenamiento del catálogo las habría separado en
+  // silencio. Una sola fuente, importada en los dos sitios.
+  const [plantilla, setPlantilla] = useState(PLANTILLA_POR_DEFECTO)
   const [dia, setDia] = useState('')
   const [titulo, setTitulo] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -81,18 +96,22 @@ export function NuevaSesionSala({ nombreSala, crearAction }: Props) {
       }}
     >
       <div className={estilos.subirCampos}>
-        <label className={estilos.subirCampo}>
-          <span className={estilos.subirEtiqueta}>Qué reunión es</span>
-          <select
-            className={estilos.archivoInput}
-            value={plantilla}
-            onChange={(e) => setPlantilla(e.target.value)}
-          >
-            {PLANTILLAS.map((p) => (
-              <option key={p.id} value={p.id}>{p.nombre}</option>
-            ))}
-          </select>
-        </label>
+        {/* El desplegable de CLASE DE JUNTA es ahora el compartido con
+            `FormularioSesion` (`src/componentes/agenda`) — ver
+            `SelectorClaseDeJunta.tsx` para el porqué de la extracción y de
+            qué se protege filtrando por `esClaseDeJunta` en vez de por el id
+            `'en-blanco'` escrito a mano. Nace tal cual entre los dos
+            campos de esta fila (`.subirCampo` está pensado como hijo de un
+            flex-row) y usa las clases de ESTE módulo (`cliente.module.css`),
+            no las de `FormularioSesion`: el estilo es del consumidor. */}
+        <SelectorClaseDeJunta
+          value={plantilla}
+          onChange={setPlantilla}
+          className={estilos.subirCampo}
+          etiquetaClassName={estilos.subirEtiqueta}
+          selectClassName={estilos.archivoInput}
+          pistaClassName={estilos.subirPista}
+        />
         <label className={estilos.subirCampo}>
           <span className={estilos.subirEtiqueta}>Cuándo</span>
           <input

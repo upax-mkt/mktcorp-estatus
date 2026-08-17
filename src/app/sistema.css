@@ -47,6 +47,25 @@
   --bien-tenue: oklch(0.62 0.11 155 / 0.10);
   --ojo-tenue: oklch(0.74 0.12 75 / 0.12);
   --mal-tenue: oklch(0.60 0.17 25 / 0.10);
+  /* ⚠️ LOS TRES DE ARRIBA ESTÁN CALIBRADOS PARA PINTAR, NO PARA LEERSE.
+     Como relleno de un punto, una barra o un filo cumplen su oficio; como
+     TEXTO pequeño sobre su propio tenue no llegan. Medido el 14-ago
+     muestreando los píxeles reales del navegador —no el valor declarado, que
+     con alfa no dice nada— sobre una `.pildora` de 12,5 px:
+     bien **3,10:1** · ojo **2,13:1** · mal **3,78:1**, contra el 4,5:1 de AA.
+     El ámbar era el peor contraste de toda la app, y una píldora dice el
+     estado de un acuerdo — el dato por el que el director abre la sala.
+
+     Por eso son tokens APARTE y no una corrección de los de arriba: el mismo
+     tono en dos oficios distintos necesita dos valores, y bajarle la
+     luminosidad al token de pintar apagaría los puntos y las barras que hoy
+     están bien. Con L 0,52 quedan en 4,70 / 5,08 / 5,29 medidos sobre el
+     mismo fondo. Es además la luminosidad que la sala ya había tenido que
+     escribirse a mano para el semáforo de fechas (`cliente.module.css`):
+     esto le da por fin un sitio en el sistema. */
+  --bien-texto: oklch(0.52 0.11 155);
+  --ojo-texto: oklch(0.52 0.12 75);
+  --mal-texto: oklch(0.52 0.17 25);
 
   /* ---- radios ----
      Una escala, no un valor por componente. */
@@ -158,9 +177,11 @@ a.tarjeta:hover, button.tarjeta:hover { box-shadow: var(--e-2); transform: trans
   white-space: nowrap;
 }
 .pildora[data-tono='activo'] { background: var(--tinta); color: var(--papel); }
-.pildora[data-tono='bien'] { background: var(--bien-tenue); color: var(--bien); }
-.pildora[data-tono='ojo'] { background: var(--ojo-tenue); color: var(--ojo); }
-.pildora[data-tono='mal'] { background: var(--mal-tenue); color: var(--mal); }
+/* El fondo con el token de PINTAR y el texto con el de LEER — ver el porqué y
+   los números en el bloque de señales, arriba. */
+.pildora[data-tono='bien'] { background: var(--bien-tenue); color: var(--bien-texto); }
+.pildora[data-tono='ojo'] { background: var(--ojo-tenue); color: var(--ojo-texto); }
+.pildora[data-tono='mal'] { background: var(--mal-tenue); color: var(--mal-texto); }
 /* La de marca se pinta con --marca, que publica cada sala. */
 .pildora[data-tono='marca'] {
   background: color-mix(in oklch, var(--marca, var(--tinta)) 12%, transparent);

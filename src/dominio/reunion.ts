@@ -93,6 +93,24 @@ export interface Reunion {
   tipo: TipoReunion
   estado: EstadoReunion
   noDadaEn: string | null // ISO, o null = nadie ha dicho que esta reunión no se dio
+  /**
+   * QUÉ CLASE DE JUNTA ES (ronda 14.3, tarea 1): el id de `PLANTILLAS`
+   * (`src/secciones/plantillas.ts`), o `null` si nadie la clasificó todavía
+   * — el estado real de 6 reuniones de producción a esta fecha, y se queda
+   * así: corregirlas es trabajo de su dueño desde la interfaz, no de esta
+   * tarea (ver `src/db/reuniones.ts:esPlantillaConocida`, que ya trata `null`
+   * como válido por la misma razón).
+   *
+   * REQUERIDO, no opcional — a propósito, y distinto de `documentoId?`. Un
+   * campo opcional deja que un `select` de Drizzle que se olvide de pedir la
+   * columna compile igual (`undefined` pasa por "no lo mandé", el mismo
+   * defecto que ya costó dos Críticos en el milestone 2 con `editarReunion`,
+   * ver el comentario de esa función en `src/db/reuniones.ts`). `string |
+   * null` obliga a que TODO sitio que arme un `Reunion` —producción y test
+   * por igual— diga explícitamente "sin clasificar" (`null`) en vez de
+   * dejarlo ausente por descuido.
+   */
+  plantilla: string | null
   documentoId?: string
   /**
    * CORREGIDO EL 4-AGO. Hace falta aparte de `documentoId` porque en los

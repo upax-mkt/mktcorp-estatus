@@ -29,6 +29,7 @@ const REUNION = (parcial: Partial<Reunion> = {}): Reunion => ({
   tipo: 'quincenal',
   estado: 'dada',
   noDadaEn: null,
+  plantilla: null,
   documentoListo: false,
   archivos: [],
   acuerdos: [],

@@ -48,7 +48,20 @@
      llegar. Lo que sí hace falta a mitad de página es saltar de sección, y de
      eso se encarga el riel (`.menuSecciones`), que ocupa el sitio pegado que
      esta dejó. */
-  position: relative; z-index: 30;
+  /* ⚠️ Y POR ESO MISMO YA NO LLEVA `z-index`: era el residuo de cuando SÍ se
+     pegaba, y tapaba el desplegable «Clientes ▾» de la barra global.
+     El mecanismo, que no se ve leyendo ninguna de las dos hojas por separado:
+     `BarraNavegacion` es `sticky` con `z-index: 30`, así que **crea su propio
+     contexto de apilamiento**, y el `z-index: 40` de su desplegable solo
+     compite DENTRO de ella — hacia fuera, el menú vale lo que valga su barra.
+     Esta barra declaraba el MISMO 30 y va después en el DOM, así que ganaba el
+     empate y pintaba encima del menú entero. Comprobado con
+     `elementFromPoint` en mitad del menú abierto: devolvía este `<header>`.
+     Sin `z-index` se apila por orden de documento, y un positivo (la barra
+     global) siempre pinta por encima de eso.
+     REGLA: dos barras hermanas no pueden declarar el mismo `z-index`; y un
+     desplegable nunca vale más que el contexto de apilamiento que lo contiene. */
+  position: relative;
   display: flex; align-items: center; gap: 1rem;
   padding: 0 clamp(1rem, 4vw, 2.5rem); height: 62px;
   /* 94 % Y NO 78 %: hasta la ronda 12 esta barra NUNCA SE PEGÓ —`overflow-x:
@@ -130,12 +143,16 @@
    móvil, donde la franja envuelve, caen a su propia línea y el auto no hace
    nada — que es justo lo que se quiere. */
 .heroRedes {
-  display: flex; align-items: center; gap: 0.15rem;
+  display: flex; align-items: center; gap: 0.25rem;
   margin-left: auto; flex-wrap: wrap;
 }
+/* ⚠️ 44 px, no 32 (ronda 13, auditoría móvil): eran seis círculos de 32×32
+   separados 2,4 px en la franja de marca — errar de destino era la norma, no
+   la excepción. Caben igual (6×44 + huecos = 284 px de los 358 de la franja) y
+   en el móvil son lo único de la cabecera que se toca. */
 .heroRed {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 2rem; height: 2rem; border-radius: var(--r-lleno);
+  width: 2.75rem; height: 2.75rem; border-radius: var(--r-lleno);
   color: inherit; opacity: 0.75;
   transition: opacity 0.15s ease, background 0.15s ease;
 }
@@ -217,9 +234,20 @@
    Solo la fecha se tiñe —no la fila entera—: es el dato que cambia con el
    tiempo, y pintar el renglón completo convertiría la lista en un arcoíris
    compitiendo con el color de la UDN. */
-.acuerdoFecha.vencida { color: var(--alerta); font-weight: 600; }
-.acuerdoFecha.urgente { color: var(--tibia); font-weight: 600; }
-.acuerdoFecha.holgada { color: var(--ok); font-weight: 600; }
+/* ⚠️ EL SEMÁFORO TENÍA QUE PODER LEERSE (ronda 13, auditoría móvil). Medido
+   sobre el fondo real: el ámbar daba **2,35:1** y el verde 3,44:1 en 12,8 px —
+   el dato que decide si el director actúa era el texto MENOS legible de la
+   pantalla, por debajo del separador decorativo. Los tonos de `sistema.css`
+   están calibrados para PINTAR (fondos, puntos, barras); como texto pequeño
+   hay que bajarles la luminosidad. No se tocan los tokens globales: se
+   declaran aquí las variantes de texto, que es donde está el problema. */
+/* La tercera luz del semáforo se quedó fuera de esa corrección: `--alerta`
+   como texto da **4,31:1** sobre el papel, y era justo la que más importa
+   —lo vencido—. Mismo tratamiento que sus dos hermanas: se baja la
+   luminosidad conservando el tono, no se toca el token. */
+.acuerdoFecha.vencida { color: oklch(0.55 0.17 25); font-weight: 600; }   /* 5,28:1 */
+.acuerdoFecha.urgente { color: oklch(0.55 0.13 70); font-weight: 600; }   /* ~4,9:1 */
+.acuerdoFecha.holgada { color: oklch(0.50 0.11 155); font-weight: 600; }  /* ~5,2:1 */
 /* Cumplida: la fecha ya no corre, así que no enciende ningún color. */
 .acuerdoFecha.apagada { color: var(--tx-3); }
 .acuerdoFecha.pordef { color: var(--tibia); font-weight: 600; }
@@ -233,12 +261,17 @@
    sala de un cliente eso también se consulta. El punto de estado y la etiqueta
    pierden su verde por el mismo motivo — un compromiso hecho no necesita
    celebrarse cada vez que alguien abre la página. */
-.acuerdoApagado { opacity: 0.62; }
+/* ⚠️ APAGAR CON COLOR, NO CON OPACIDAD (ronda 13, auditoría móvil). `opacity:
+   0.62` dejaba el texto de un acuerdo cumplido en **2,78:1** y su meta en
+   2,08:1 —por debajo del mínimo legible— y el rescate estaba en `:hover`, que
+   en un teléfono NO EXISTE: para el director eran ilegibles siempre. Con
+   color propio siguen viéndose apagados (6,5:1 frente a los 17:1 de un
+   abierto) y se leen en cualquier pantalla. */
 .acuerdoApagado .acuerdoQue { font-size: 0.88rem; font-weight: 450; color: var(--tx-2); }
-.acuerdoApagado .acuerdoMeta { font-size: 0.75rem; color: var(--tx-3); }
+.acuerdoApagado .acuerdoMeta { font-size: 0.75rem; color: var(--tx-2); }
 .acuerdoApagado .acuerdoEstado.cumplido { background: var(--tx-4); }
 .acuerdoApagado .acuerdoBadge.cumplido { background: var(--superficie-2); color: var(--tx-3); }
-.acuerdoApagado:hover { opacity: 1; }
+
 .acuerdoBadge {
   align-self: center; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.04em; padding: 0.2rem 0.55rem; border-radius: 0.4rem; white-space: nowrap;
@@ -251,9 +284,17 @@
    cuarto color de marca ahí sería competir contra los tres que ya significan
    algo. Con la marca clara de alguna UDN (el amarillo de MU) además no habría
    contraste. */
-.acuerdoBadge.abierto { background: oklch(0.55 0.15 255 / 0.12); color: oklch(0.45 0.15 255); }
-.acuerdoBadge.cumplido { background: oklch(0.6 0.12 155 / 0.12); color: var(--ok); }
-.acuerdoBadge.vencido { background: var(--alerta-suave); color: var(--alerta); }
+/* ⚠️ LOS OTROS DOS BADGES SE QUEDARON SIN MEDIR cuando se pintó el azul de
+   "abierto". Compuestos contra su propio fondo tenue sobre papel: «Cumplido»
+   daba **3,00:1** y «Vencido» **3,78:1**, ambos en 10,6 px de alto — el texto
+   más pequeño de la fila y el que dice en qué estado está el compromiso. El
+   azul de "abierto", calculado a mano en su momento, sí llegaba (6,44:1), y
+   eso dejaba la lista con un estado legible y dos no.
+   Se corrige donde estaba el problema —la tinta del texto, no el fondo, que
+   es lo que da el tono de la etiqueta— con la misma técnica del semáforo. */
+.acuerdoBadge.abierto { background: oklch(0.55 0.15 255 / 0.12); color: oklch(0.45 0.15 255); }  /* 6,44:1 */
+.acuerdoBadge.cumplido { background: oklch(0.6 0.12 155 / 0.12); color: oklch(0.50 0.11 155); }  /* 4,96:1 */
+.acuerdoBadge.vencido { background: var(--alerta-suave); color: oklch(0.52 0.17 25); }           /* 5,29:1 */
 
 /* Congelado (tarea 12): la sala está en pausa, así que este acuerdo abierto
    no vence aunque su fecha haya quedado atrás. Tono neutro a propósito — ni
@@ -317,6 +358,18 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3);
   background: var(--papel-hundido);
 }
+/* ── "LA ÚLTIMA", UNA POR CLASE (ronda 14.3) ──────────────────────────────
+   Antes había una sola `.reunionDestacada` suelta; ahora hay una por clase
+   de junta presente, en esta rejilla. Con una sola (el caso de HOY en TODAS
+   las salas) `minmax(min(22rem,100%),1fr)` la estira a lo ancho completo —
+   mismo aspecto que la tarjeta suelta de antes, sin una regla `:only-child`
+   aparte — y con varias se reparten y se apilan solas en pantallas
+   angostas, mismo mecanismo que `.columnasAnteriores`, más abajo. */
+.ultimasPorClase {
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+}
+.ultimasPorClase .reunionDestacada { margin-bottom: 0; }
 .reunionCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .reuniones { display: flex; flex-direction: column; }
 /* LAS CAJAS DE CADA REUNIÓN, EN COLUMNA (ronda 13). Franco: *"que se
@@ -345,11 +398,57 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
 
 /* Estrecho: las tres columnas no caben, y una fila de reunión partida en
-   trozos de dos centímetros no se lee. Se apila, que es como se lee en móvil
-   el resto de la sala. */
-@media (max-width: 720px) {
+   trozos de dos centímetros no se lee. Se apila.
+   ⚠️ CORREGIDO EN LA REVISIÓN DE LA RONDA 14.3 (Crítico C1): esto era un
+   `@media (max-width: 720px)` — de VIEWPORT, no de contenedor. Con una sola
+   columna de anteriores (el caso de antes de esta tarea, y el único que
+   existía cuando se escribió el `@media`) viewport angosto y fila angosta
+   eran la misma cosa, así que daba igual. Desde que `.columnasAnteriores`
+   (abajo) puede partir el módulo en DOS columnas, dejan de serlo: a 1440px
+   de viewport con dos clases, cada columna mide ~470px —bien por debajo de
+   lo que esta fila necesita— y el `@media` de viewport nunca se disparaba
+   porque 1440 sigue siendo "ancho" aunque la fila, adentro, no lo sea. Esto
+   rompía HOY en producción (`marketing-united`, pública): título en tres
+   renglones, fecha en tres, el chip de la presentación cortado en "P…".
+   `@container`, no `@media`: la pregunta correcta es el ancho de LA FILA,
+   no el de la ventana — la contención la declara `.grupoMaterial` de
+   `.columnasAnteriores`, más abajo. El umbral (660px) sale de medir el
+   propio contenedor real: una columna sola mide ≥617px incluso en el
+   viewport más angosto donde el módulo YA apiló sus columnas por su cuenta
+   (720px, ver `.columnasAnteriores`), así que 660 dispara el colapso justo
+   entre "una columna sola" (nunca se apila) y "dos columnas" (siempre se
+   apila) — medido contra el DOM real, no a ojo (ver el informe de la
+   tarea). */
+@container (max-width: 660px) {
   .reunionFila { grid-template-columns: 1fr; }
 }
+
+/* ── LAS ANTERIORES, EN UNA COLUMNA POR CLASE (ronda 14.3) ────────────────
+   MISMO mecanismo que `.bmCompetidores` (benchmark, más abajo en esta hoja)
+   y que `.ultimasPorClase`, arriba: `minmax(min(20rem,100%),1fr)` hace que
+   una sola columna —hoy, en todas las salas— se estire a lo ancho completo
+   (igual que la lista plana de antes) y que dos o más se repartan sin un
+   ancho fijo. EN MÓVIL SE APILAN SOLAS por el mismo `minmax` —su cota
+   inferior nunca pasa del 100% del contenedor—, sin un `@media` propio: es
+   la respuesta a "busca cómo lo resuelven los módulos vecinos" antes de
+   escribir uno nuevo. `.grupoMaterial`/`.grupoCabecera`/`.grupoNombre` son
+   las MISMAS clases que agrupan los materiales de la sala
+   (`MaterialesAgrupados.tsx`, ver su comentario "SUBCATEGORÍAS DENTRO DE UN
+   MÓDULO DE MATERIALES" más abajo): una etiqueta y un conteo por grupo es
+   la misma idea en los dos módulos, no dos hojas de estilo para lo mismo. */
+.columnasAnteriores {
+  display: grid; gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+}
+/* `container-type: inline-size` es lo que hace posible el `@container` de
+   arriba: SIN esto, `.reunionFila` no tiene de qué contenedor preguntar su
+   ancho y la consulta simplemente no aplica nunca. Escopado a
+   `.columnasAnteriores .grupoMaterial` y no a `.grupoMaterial` a secas: esa
+   clase también la usa `MaterialesAgrupados.tsx` para un layout que no
+   tiene nada de esto adentro — declarar contención ahí no rompería nada
+   (nadie más la consulta hoy), pero tampoco aporta, y esta regla es de
+   Reuniones, no de Materiales. */
+.columnasAnteriores .grupoMaterial { min-width: 0; container-type: inline-size; }
 
 .vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 
@@ -442,6 +541,31 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .lightboxEnlace { margin-left: auto; font-size: 0.85rem; font-weight: 600; color: var(--marca-texto, var(--marca)); text-decoration: none; }
 .lightboxEnlace:hover { text-decoration: underline; }
 
+/* ⚠️ LOS DOS CONTROLES DEL LIGHTBOX, A 44 px EN PANTALLA TÁCTIL (ronda 13b).
+   Medido con la minuta abierta en un teléfono: «Copiar para correo» daba
+   **144,6 × 32,4 px** y la ✕ de cerrar **32 × 32**. Y este diálogo no es un
+   detalle de la sala: es la pantalla donde el director LEE LA MINUTA ENTERA,
+   así que sus únicos dos controles son también los únicos dos sitios donde
+   puede fallar el dedo — y uno de ellos es la salida.
+
+   `@media (hover: none)` Y NO UN ANCHO. Es la pregunta correcta: el problema
+   no es que la pantalla sea estrecha, es que se toca con el dedo. Una tablet
+   de 900 px lo tiene igual, y un portátil de 900 px no lo tiene. Con un ancho
+   habríamos arreglado la mitad de los casos y estropeado la otra: 32 px es la
+   medida correcta para un puntero, y engordar la ✕ en escritorio la
+   convertiría en un botón donde hoy hay un glifo.
+
+   El cuerpo del correo NO se toca: sus tamaños salen de `minuta/correo-html.ts`
+   y son el contrato con Outlook al pegarlo. Si algún día hay que subirlo en el
+   teléfono, va en `.lightboxTexto`, que es de esta hoja. */
+@media (hover: none) {
+  .lightboxCerrar { width: 44px; height: 44px; font-size: 1.15rem; }
+  .lightboxBoton {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; padding-inline: 1.1rem;
+  }
+}
+
 /* ---- levantar minuta desde la sala ---- */
 /* Más ancha que la de lectura: dentro va el flujo entero de revisión de
    acuerdos, que es una tabla de campos, no un párrafo. */
@@ -524,7 +648,12 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   margin-top: 1.1rem; padding: 1rem; border-radius: var(--r-3); background: var(--papel-hundido);
   display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start;
 }
-.subirCampos { display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%; }
+/* `align-items: start`, no el `stretch` por defecto de flex (M5, revisión
+   final de la ronda 14.2, misma causa que `.campos` en agenda.module.css): la
+   celda de "¿Qué junta es?" (`SelectorClaseDeJunta`) crece cuando enseña la
+   línea de ayuda del `paraQue` elegido, y sin esto el `stretch` estiraba en
+   alto el campo "Cuándo" de al lado para igualar esa altura. */
+.subirCampos { display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%; align-items: start; }
 .subirCampo { display: grid; gap: 0.3rem; flex: 1 1 14rem; }
 .subirEtiqueta { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); font-weight: 600; }
 .subirEntrada { font: inherit; font-size: 0.85rem; color: var(--tx-2); max-width: 100%; }
@@ -905,6 +1034,73 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .acuerdoLapiz:hover { color: var(--marca-texto, var(--marca)); background: var(--superficie-2); }
 .acuerdoLapiz:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
 
+/* EL MISMO CONTROL, PERO QUE SE VE. `/acuerdos` es la pantalla donde se
+   trabajan los acuerdos: ahí el lápiz que asoma al acercarse no es
+   discreción, es un control escondido. Hereda todo lo demás de `.acuerdoLapiz`
+   —tipografía, radio, foco— y solo cambia lo que lo hace visible. */
+.acuerdoCorregir {
+  font: inherit; font-size: 0.75rem; font-weight: 600; line-height: 1;
+  margin-left: 0.45rem; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--borde); background: none; border-radius: 6px;
+  color: var(--tx-2); cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--rapido, 0.15s) linear, border-color var(--rapido, 0.15s) linear;
+}
+.acuerdoCorregir:hover { color: var(--marca-texto, var(--marca)); border-color: currentColor; }
+.acuerdoCorregir:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
+
+/* MEDIDO en `/acuerdos` (ronda de arreglo 1, `getBoundingClientRect`): el
+ * control quedaba en 76 × 24 px con `opacity: 1` y visible, en las 19 filas,
+ * a 1440 y a 390 — pero 24 px de alto es un objetivo de ratón, no de dedo, y
+ * esta tarea existe justo para dejar de depender de un gesto que la mitad de
+ * los dispositivos no tienen. `(pointer: coarse)` y no un ancho: pregunta
+ * cómo se toca, no cuánto mide la pantalla —el mismo criterio que ya fija el
+ * objetivo táctil de 44 px en `.cerrar`/`.cambiar` de minuta.module.css—, así
+ * que con ratón a cualquier ancho el control se queda en 24 px (diecinueve
+ * filas de una lista que se lee no necesitan engordar) y solo sube donde se
+ * toca con el dedo. `align-items: center` en vez de más padding: crece la
+ * ZONA sensible sin agrandar la letra ni desbordar la fila. */
+@media (pointer: coarse) {
+  .acuerdoCorregir {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* EL OBJETIVO TÁCTIL SE QUEDÓ EN LA PUERTA (revisión final de la ronda 14,
+     hallazgo I4). La regla de arriba costó una ronda entera para que "✎
+     Corregir" fuera alcanzable con el dedo — y luego la tarea 4 metió DETRÁS
+     de ese botón los cuatro controles que de verdad editan, sin que ninguno
+     heredara nada. MEDIDO a 390 px con `getBoundingClientRect`, con el panel
+     abierto: Corregir 76,2×44 ✅, pero estatus 90,2×25,4 · fecha 136×30,4 ·
+     borrar 25,6×25,6 · sala 121×19,8 (esta última, en bandeja.module.css). Se
+     llegaba a un panel donde TODO volvía a ser un objetivo de ratón, incluido
+     el de borrar, que además es un DELETE sin papelera.
+     `min-height` y `align-items: center` como arriba: crece la zona sensible
+     sin agrandar la letra ni desbordar la fila.
+     ACOTADO A `.controlesEquipo` a propósito: `.botonIconoBorrar` lo comparten
+     las filas de reuniones (`.reunionFila`, `.porVenirFila`), donde vive
+     escondido en `opacity: 0` dentro de una fila de otra altura — engordarlo
+     ahí es otro problema, con otra medición, y no el que este hallazgo abre. */
+  .controlesEquipo .selectEstatus,
+  .controlesEquipo .inputFechaChica {
+    min-height: 44px;
+  }
+  .controlesEquipo .botonIconoBorrar {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Guardar y Cancelar del editor de texto (28,8 px medidos) están en ese
+     mismo panel y se tocan con el mismo dedo. `.acuerdoEditorAcciones` solo lo
+     pinta `EditarAcuerdo`, así que la regla no sale de este editor. */
+  .acuerdoEditorAcciones button {
+    min-height: 44px;
+  }
+}
+
 /* El texto y su lápiz, hermanos y no anidados: dentro, el glifo formaba parte
    del acuerdo al seleccionarlo o copiarlo.
    `acuerdoLinea` y NO `acuerdoQueFila`: el segundo contiene "acuerdoQue" como
@@ -913,10 +1109,37 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    traerse el lápiz. */
 /* De qué junta salió un acuerdo: discreto —es contexto, no el dato— pero
    pinchable, porque es el camino a su minuta. */
-.acuerdoOrigen { color: var(--tx-3); text-decoration: none; border-bottom: 1px dotted currentColor; }
+/* Es un ENLACE —el camino a la minuta de esa junta— y estaba en gris de
+   metadato (3,65:1) y con un área de 131×17 px. Sube a la tinta secundaria y
+   crece hacia fuera con un pseudoelemento: el área es tocable sin que el texto
+   se mueva ni engorde su subrayado. */
+.acuerdoOrigen {
+  position: relative;
+  color: var(--tx-2); text-decoration: none; border-bottom: 1px dotted currentColor;
+}
+.acuerdoOrigen::after { content: ''; position: absolute; inset-block: -14px -10px; inset-inline: -6px; }
 .acuerdoOrigen:hover { color: var(--marca-texto, var(--marca)); }
 .acuerdoLinea { display: flex; align-items: flex-start; gap: 0.1rem; }
-.acuerdoEditor { display: grid; gap: 0.5rem; margin: 0.25rem 0 0.1rem; }
+
+/* UNA CAJA, Y NO UN GRID SUELTO (revisión final de la ronda 14, hallazgo I2).
+   Dentro del panel que abre "✎ Corregir" en `/acuerdos` conviven DOS modelos
+   de confirmación: texto y responsable se confirman con "Guardar" y "Cancelar"
+   los revierte; estatus, fecha y sala se aplican solos al cambiarlos. Con el
+   editor pintado como un grid transparente, ese "Cancelar" bien visible
+   parecía gobernar todo el panel — y ocho directores editando datos reales
+   iban a creer que los devolvía al punto de partida, cuando solo deshace la
+   mitad.
+   NO ES UN CONTROL NUEVO NI UN TERCER ESTILO: es exactamente el patrón que la
+   app ya usa 250 líneas más abajo en `.nuevoAcuerdo` —el alta de un acuerdo en
+   la sala—, donde una caja con borde encierra sus campos JUNTO A su
+   Guardar/Cancelar y deja claro qué gobiernan. Aquí hace el mismo trabajo: lo
+   que está dentro de la caja es lo que esos dos botones deshacen; los
+   controles que se aplican al momento quedan visiblemente FUERA, y lo dicen
+   con su propia línea de ayuda (`.edicionExtraPista`, bandeja.module.css). */
+.acuerdoEditor {
+  display: grid; gap: 0.5rem; margin: 0.25rem 0 0.1rem; padding: 0.7rem;
+  background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: 0.7rem;
+}
 .acuerdoEditorTexto {
   width: 100%; font: inherit; font-size: 0.9rem; line-height: 1.5;
   padding: 0.5rem 0.65rem; border-radius: var(--r-2);
@@ -1134,7 +1357,7 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .bmCompetidores {
   list-style: none; margin: 0; padding: 0;
   display: grid; gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr));
 }
 .bmCompetidor {
   display: grid; gap: 0.6rem; align-content: start;
@@ -1605,7 +1828,13 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 /* Las fichas de competidor: más aire y el nombre con peso de titular. La
    rejilla baja a dos columnas fijas en pantalla ancha — a tres, cada ficha
    quedaba tan estrecha que "Dónde se le gana" salía en cinco líneas. */
-.bmCompetidores { grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr)); gap: 1rem; }
+/* ⚠️ `min(26rem, 100%)` y no `26rem` a secas (ronda 13, auditoría móvil): esta
+   regla vive FUERA de todo media query —su comentario dice "en pantalla
+   ancha", pero el media query nunca se escribió— así que en un teléfono
+   resolvía a una columna de 416 px dentro de un contenedor de 313, y el
+   `overflow-x: clip` global se comía 103 px de texto sin scroll ni aviso. Hoy
+   ninguna sala publica competidores, así que era un defecto esperando. */
+.bmCompetidores { grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr)); gap: 1rem; }
 .bmCompetidor { padding: 1.25rem 1.35rem; border-left-width: 4px; }
 .bmCompetidorNombre { font-size: 1.12rem; }
 
@@ -2175,9 +2404,12 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    de una reunión). Un control nuevo con su propio aspecto es lo que Franco
    llamó "botones antiguos" cuando el índice de secciones nació con píldoras. */
 .cumplidosPlegable { border-top: 1px solid var(--borde); margin-top: 0.2rem; }
+/* `flex` y no `inline-flex`, con 44 px de alto: como `inline-flex` el control
+   ocupaba 142 px de los 313 de su fila y el resto era zona muerta. */
 .cumplidosResumen {
   cursor: pointer; user-select: none; list-style: none;
-  display: inline-flex; align-items: center; gap: 0.4rem;
+  display: flex; align-items: center; gap: 0.4rem;
+  min-height: 44px;
   padding: 0.7rem 0.1rem;
   font-size: 0.82rem; font-weight: 600; color: var(--tx-3);
 }
@@ -2190,3 +2422,210 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .cumplidosPlegable[open] > .cumplidosResumen::before { transform: rotate(90deg); }
 .cumplidosResumen:hover { color: var(--tx-2); }
 .cumplidosResumen:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; border-radius: var(--r-1); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MÓVIL (ronda 13) — lo que ve el DIRECTOR en su teléfono
+   ══════════════════════════════════════════════════════════════════════════
+   Auditoría de tres especialistas sobre la sala pública a 390 px. El
+   diagnóstico, en una línea: la pantalla estaba afinada para la sala ancha y
+   nadie la había medido en un teléfono — no había UN SOLO media query por
+   debajo de 480 px en todo el repositorio.
+
+   Los números que justifican cada bloque están en su comentario. Todos salen
+   de medir en producción, no de mirar. */
+
+@media (max-width: 34rem) {
+  /* ---- 1. MATERIALES Y ARCHIVOS: DE REJILLA A FILAS ----
+     Medido: `.materiales` resolvía a UNA columna de 176 px dentro de un
+     contenedor de 313 — 137 px (44 %) de aire muerto en cada fila— y los dos
+     módulos se llevaban 2.688 px, el 45 % del alto de la sala. Encima el
+     título se truncaba a media palabra.
+
+     La respuesta ya estaba escrita en la misma hoja: la fila de Notas de
+     Prensa (88 px, ancho completo, sin truncar). Aquí se aplica la misma
+     forma —miniatura a la izquierda, texto al lado— conservando la carátula,
+     que es lo que hace reconocible un material de un vistazo. */
+  .materiales { grid-template-columns: 1fr; gap: 0.5rem; }
+  /* ⚠️ LA COLUMNA DE LA CARÁTULA ENCOGE CON LA PANTALLA (ronda 13b). Con
+     `5.2rem` fija, a 320 px al título le quedaban **132 px** de los 243 de la
+     fila y "Caso de éxito | Pixel Window - Contenido audiovisual 3D…" pedía
+     103 px de alto para caber en una caja de 41: se leían dos líneas de
+     cinco. El `clamp` cede la carátula antes que el texto —la miniatura sigue
+     reconociéndose a 56 px, un titular partido a la mitad no— y a 390 px se
+     queda casi donde estaba (74 px de 83). */
+  .materialEnlace {
+    grid-template-columns: clamp(3.5rem, 19vw, 5.2rem) minmax(0, 1fr);
+    /* `stretch` Y NO `center`: con `center` la carátula quedaba flotando a su
+       alto de 16:10 (52 px) dentro de una fila de 80, y sus esquinas rectas
+       chocaban con el radio de 12 px de la tarjeta — se veía como una pieza
+       mal pegada, con papel blanco arriba y abajo. Estirada, la banda llega a
+       los dos filos y el `overflow: hidden` de `.material` la redondea. */
+    align-items: stretch;
+  }
+  /* Sin `aspect-ratio`: es el alto de la fila el que manda ahora. Dejarlo
+     puesto no rompía el layout (con las dos medidas fijadas el navegador lo
+     ignora) pero mentía sobre quién decide. */
+  .materialCaratula {
+    aspect-ratio: auto; min-height: 3.4rem;
+    border-bottom: none; border-right: 1px solid var(--borde);
+  }
+  .materialTexto { padding: 0.6rem 0.8rem; }
+  /* En una fila, un título de una línea ya no descuadra nada: el alto
+     reservado de la rejilla sobra y roba un renglón a cada material.
+     Y TRES LÍNEAS, NO DOS: el tope de dos existía para que ninguna tarjeta de
+     la rejilla creciera más que sus vecinas. En una lista no hay vecina que
+     igualar, y medido a 390 px el corte se comía la mitad de dos títulos. */
+  .materialTitulo { min-height: 0; font-size: 0.95rem; -webkit-line-clamp: 3; line-clamp: 3; }
+
+  /* ---- 1b. LO QUE VA DENTRO DE LA CARÁTULA TAMBIÉN ENCOGE ----
+     ⚠️ SE ESTABA CORTANDO TEXTO A LA MITAD, en cuatro de las siete salas.
+     Medido: `.materialCaratula` daba `scrollHeight` 58 sobre `clientHeight`
+     52 y `overflow: hidden`, así que el dominio de un enlace salía partido en
+     horizontal — media fila de letras ("orbit-hu", "brujula-") flotando en el
+     filo de abajo. La carátula de enlace está dibujada para una tarjeta de
+     176 px (monograma de 2,6rem + dominio debajo) y aquí recibe 83.
+
+     El mismo problema ya estaba resuelto en esta hoja para la lista ordenable
+     del equipo (`.materialOrdenable`, más arriba): se copia su receta. El
+     dominio SE VA —se lee entero dos centímetros a la derecha, en
+     `.materialMeta`, y repetirlo dentro de un cuadrado de 83 px solo cabe
+     recortado— y las demás piezas bajan a la escala de la caja. */
+  .materialCaratula .caratulaDominio { display: none; }
+  /* Y como el dominio ya no está en la carátula, esta línea pasa a ser el
+     ÚNICO sitio donde se lee: medido, "Enlace ·
+     brujula-comercial-upax.vercel.app" pide 30 px de alto en una caja de 15.
+     El tope de una línea existía para que ninguna tarjeta de la rejilla
+     creciera por abajo; en una lista eso ya no aplica. */
+  .materialMeta { -webkit-line-clamp: 2; line-clamp: 2; }
+  .materialCaratula .caratulaEnlace { gap: 0; padding: 0; }
+  .materialCaratula .caratulaMonograma {
+    width: 2rem; height: 2rem; border-radius: 0.6rem; font-size: 0.95rem;
+  }
+  .materialCaratula .caratulaDoc { padding-bottom: 0.8rem; }
+  .materialCaratula .caratulaHoja { width: 46%; max-width: 2.5rem; }
+  .materialCaratula .caratulaEtiqueta {
+    bottom: 0.22rem; font-size: 0.5rem; padding: 0.06rem 0.3rem; letter-spacing: 0.05em;
+  }
+  /* El triángulo de reproducir a la escala de la banda: a 2,75rem tapaba la
+     miniatura entera en vez de marcarla. */
+  .materialPlay { width: 1.9rem; height: 1.9rem; border-width: 1.5px; }
+  .materialPlay::after { border-width: 0.32rem 0 0.32rem 0.52rem; margin-left: 0.14rem; }
+
+  .materialAcciones { padding: 0 0.8rem 0.6rem; }
+
+  /* ---- 2. EL ACUERDO RECUPERA ANCHO ----
+     Medido: de los 313 px de la fila, el texto se quedaba con 201 (64 %); los
+     otros 112 se iban en el badge y en dos huecos de 1rem. Con el badge más
+     discreto y menos hueco, el texto gana 22 px y la sección adelgaza. */
+  .acuerdo { gap: 0.6rem; }
+  .acuerdoBadge { font-size: 0.66rem; padding: 0.15rem 0.4rem; letter-spacing: 0.02em; }
+
+  /* ---- 2b. EL «·» HUÉRFANO ----
+     `.acuerdoMeta` es una fila flex que envuelve, y sus separadores son ítems
+     como cualquier otro: al envolver, el punto que va ANTES de "de la reunión
+     del 12 ago" se quedaba colgado al final del renglón anterior (House of
+     Films) o abriendo el siguiente (Marketing United). Un signo de puntuación
+     suelto en un borde se lee como un error de render, y aparecía en las cinco
+     filas de todas las salas con acuerdos.
+
+     No se puede seleccionar "el separador anterior a X" sin `:has()`, así que
+     se usa `:has()` — el mismo recurso con el que `Seccion.module.css` viste
+     una sección plegada, y por el mismo motivo: la estructura ya lo sabe.
+     El separador no se oculta, se convierte en el SALTO DE LÍNEA: un ítem
+     flex con `flex-basis: 100%` ocupa el renglón entero y empuja al siguiente
+     abajo, que es exactamente lo que queríamos que pasara. Así el origen cae
+     siempre en su propia línea —en vez de a veces— y de paso su área tocable
+     deja de compartir renglón con la fecha. */
+  .acuerdoMeta { row-gap: 0.1rem; }
+  .acuerdoMeta .sep:has(+ .acuerdoOrigen) {
+    flex-basis: 100%; height: 0; overflow: hidden; color: transparent;
+  }
+
+  /* ---- 3. LA CABECERA DEJA SITIO AL CONTENIDO ----
+     Medido: 412 px de los 844 de la primera pantalla (49 %) eran cromo antes
+     del primer dato, y solo cabía UN acuerdo. Los seis iconos sociales caían
+     en su propio renglón por encima del pliegue: son los enlaces públicos de
+     la marca del cliente, lo que menos viene a buscar. */
+  .heroSolida { padding-block: 0.9rem 1rem; }
+  /* ⚠️ 24 px DE AIRE QUE YA NO SEPARABAN NADA. `.heroMeta` trae
+     `margin-top: 1.5rem` de la sala ancha, donde separa las cifras del kicker
+     que va encima. Aquí el kicker está oculto (la línea de abajo), así que ese
+     margen era lo primero de la franja: 24 px en blanco pegados al padding.
+     Y el hueco entre RENGLONES no es el mismo problema que el hueco entre
+     COLUMNAS — las tres cifras necesitan 1,1rem para no leerse como una sola
+     frase; la fila de redes que cae debajo solo necesita despegarse. */
+  .heroMeta { margin-top: 0; column-gap: 1.1rem; row-gap: 0.55rem; }
+  .heroKicker { display: none; }
+  /* Medido a 390 px: 415 px de cromo (49 % de la primera pantalla) antes del
+     primer acuerdo. `.main` abre con 28 px de aire justo debajo del riel del
+     índice, que ya trae su propia línea de separación: el aire lo pone el
+     riel, no hace falta pagarlo dos veces. */
+  .main { padding-top: 1rem; }
+
+  /* ---- 4. EL TABLERO, DE BORDE A BORDE ----
+     El iframe recibía 313 px dentro de la tarjeta y ORBIT crece cuando lo
+     aprietas. Sangrarlo le devuelve 45 px de ancho —y con ellos parte del
+     alto— sin sacarlo de su módulo. */
+  .tableroMarco { margin-inline: -1.4rem; border-radius: 0; }
+
+  /* ---- 6. LA TINTA TERCIARIA SE LEE EN UN TELÉFONO ----
+     ⚠️ ESTO PARCHEA UN TOKEN GLOBAL DESDE UNA PANTALLA, a sabiendas. Medido
+     con el color ya compuesto: `--tinta-3` (oklch 0.62) da **3,65:1** sobre
+     el papel y **3,40:1** sobre el lienzo — por debajo del 4,5 que pide
+     WCAG AA para texto normal. Y no es texto decorativo: con él se pintan el
+     conteo de cada sección ("1 vencido · 4 abiertos", lo único que se ve
+     cuando está plegada), la fecha de cada reunión pasada, "Sin minuta", el
+     formato y peso de cada material, la fecha de cada nota y el control
+     "3 acuerdos cumplidos". Nueve piezas de 11,8 a 13,1 px.
+
+     Se corrige AQUÍ y no en `sistema.css` porque el token lo comparten diez
+     pantallas y bajarlo para todas es una decisión de sistema, no de esta
+     auditoría — queda anotada en el informe. Y se corrige SOLO en móvil
+     porque ahí es donde el tamaño y la luz ambiente lo vuelven ilegible,
+     mientras que en la sala ancha ese nivel de gris es lo que separa el dato
+     terciario del secundario (`--tinta-2`, oklch 0.48).
+
+     0,55 y no menos: da 4,84:1 sobre papel y 4,51:1 sobre lienzo —las dos
+     superficies donde este gris aterriza— y deja todavía 0,07 de luminosidad
+     por encima de `--tinta-2`, que con la diferencia de tamaño basta para que
+     se sigan leyendo como dos niveles. */
+  .app { --tinta-3: oklch(0.55 0.010 260); }
+
+  /* ---- 7. LO QUE SE TOCA, SE PUEDE TOCAR ----
+     "Ver el benchmark completo →" medía 195×18 px: 18 de alto está por debajo
+     incluso del mínimo de 24 de WCAG 2.5.8, y es el único camino de la sala al
+     benchmark de la competencia. Crece hacia dentro con padding, así que no
+     mueve nada de lo que tiene alrededor. */
+  .presVer { min-height: 44px; padding-block: 0.55rem; }
+
+  /* ---- 8. UN TITULAR DE PRENSA CABE ENTERO ----
+     El tope de dos líneas se decidió midiendo en la sala ancha, donde un
+     titular ocupa 700 px. A 390 la fila da 250 y "7 de cada 10 consumidores
+     mejorarán su percepción de marca en eventos…" pedía 65 px de alto para
+     una caja de 43: se leía dos tercios del titular, que es LO ÚNICO que esta
+     fila tiene que decir. Tres líneas y el corte deja de estorbar. */
+  .prensaTitular { -webkit-line-clamp: 3; line-clamp: 3; }
+}
+
+/* ---- 5. EL ÍNDICE DICE QUE SIGUE ----
+   Medido: el riel mide 602 px de ancho útil en un carril de 390, así que
+   "Prensa" y "Archivos" quedaban FUERA de la pantalla — y con la barra de
+   scroll oculta (`scrollbar-width: none`) nada indicaba que se pudiera
+   deslizar: "Materiales" se cortaba contra el borde como si fuera un fallo de
+   render. El degradado del borde derecho es la señal que faltaba. */
+@media (max-width: 46rem) {
+  .menuLista {
+    gap: 1.25rem;
+    padding-inline: 1rem 2.5rem;
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.25rem), transparent);
+    /* ⚠️ EL `padding-inline` DE ARRIBA NO SOBREVIVÍA AL PRIMER FOTOGRAMA
+       (ronda 13b). Medido al cargar: `scrollLeft` valía 16 —exactamente el
+       `1rem` de padding— y "Data & Analytics" quedaba pegado al filo de la
+       pantalla, con pinta de estar cortado. La causa es el `scroll-snap-align:
+       start` de cada pestaña: alinea el INICIO DE LA PESTAÑA con el inicio del
+       carril, y el carril empieza donde acaba su borde, no donde acaba su
+       padding. `scroll-padding` es la mitad que faltaba: le dice al snap dónde
+       está de verdad el principio útil. */
+    scroll-padding-inline: 1rem 2.5rem;
+  }
+}

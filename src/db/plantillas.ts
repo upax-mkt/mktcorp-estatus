@@ -11,7 +11,7 @@ import { moldeODefecto, MOLDE_POR_DEFECTO, type MoldeMinuta } from '@/minuta/mol
  * preparados; por ejemplo la Estatus Mensual con RL debería tener una
  * estructura predefinida".
  *
- * QUIÉN LAS DEFINE, y por qué importa: las cinco de código son genéricas a
+ * QUIÉN LAS DEFINE, y por qué importa: las seis de código son genéricas a
  * propósito. Qué lleva exactamente el estatus mensual de Research Land lo sabe
  * quien lo da; escribirlo yo sería inventar un compromiso entre Marketing
  * Corporativo y una unidad. Por eso el camino principal no es un catálogo más
@@ -64,6 +64,11 @@ export async function plantillasDeSesion(salaSlug: string | null): Promise<Plant
     // de Marketing Corp con las UDNs, no algo que se herede por copiar una
     // estructura.
     seccionesFijas: false,
+    // Siempre `true` (ronda 14.2, tarea 2, campo nuevo en `Plantilla`): una
+    // plantilla guardada por el equipo es una estructura real que alguien
+    // eligió y quedó bien — nunca la salida de emergencia ("En blanco"),
+    // que solo existe en el catálogo fijo del código.
+    esClaseDeJunta: true,
     items: (f.contenido as DefinicionItem[]) ?? [],
     propia: true,
     salaSlug: f.salaSlug,

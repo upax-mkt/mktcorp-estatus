@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { DecisionSlide } from '@/decision/esquema'
 import estilos from './piezas.module.css'
 
@@ -17,7 +18,22 @@ export function MatrizSeccion({ matriz }: { matriz: Matriz }) {
   return (
     <div className={estilos.tablaEnvoltorio}>
       <div className={estilos.tablaScroll}>
-        <table className={`${estilos.tabla} ${estilos.matriz}`}>
+        <table
+          className={`${estilos.tabla} ${estilos.matriz}`}
+          /**
+           * CUÁNTAS COLUMNAS TIENE, para que el CSS pueda darle un ancho
+           * mínimo en móvil.
+           *
+           * La matriz es `table-layout: fixed` con `width: 100%`, así que en
+           * 342 px de columna repartía 65 px por mes: medido en el banco, el
+           * encabezado "SEPTIEMBRE" desbordaba su celda 94 > 65 px y el
+           * encabezado de fila 113 > 64. Se lee la forma del trimestre en un
+           * amasijo. En móvil la tabla pasa a medir lo que necesita y se
+           * desliza dentro de su envoltorio — pero el CSS no puede saber
+           * cuántos meses hay, y de eso depende el ancho. De ahí la variable.
+           */
+          style={{ '--matriz-columnas': matriz.columnas.length } as CSSProperties}
+        >
           <thead>
             <tr>
               <th scope="col" />

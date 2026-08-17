@@ -20,17 +20,34 @@
 .carasCompactas {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 7rem;
-  align-items: center; gap: 0.45rem;
+  align-items: center; gap: 0.5rem;
 }
-/* Un título largo se recorta en vez de empujar su columna. */
-.carasCompactas > .cara { min-width: 0; }
-.carasCompactas > .cara > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Un título largo se recorta en vez de empujar su columna.
+   ⚠️ SIN EL `>` (ronda 13b, auditoría móvil): la píldora del PPT NO es hija
+   de la rejilla —va envuelta en `.caraConLapiz`, el contenedor del lápiz de
+   edición (ver `CarasDeReunion.tsx`, línea 352)—, así que estas dos reglas
+   apuntaban a un elemento que no existe. Se ha visto midiendo, no leyendo:
+   a 320 px la píldora "PPT | Estatus Mensual Junio" crecía a **77 px de
+   alto** (tres renglones) al lado de una "Minuta" de 44, y la fila quedaba
+   descuadrada; el recorte que debía evitarlo aterrizaba en el glifo del
+   lápiz. También hace falta `min-width: 0` en el envoltorio: un ítem de
+   rejilla toma su mínimo de su contenido, y el envoltorio hereda el problema
+   de quien envuelve. */
+.carasCompactas > * { min-width: 0; }
+.carasCompactas .cara { min-width: 0; }
+/* Solo en la fila compacta: en la tarjeta de la última reunión (`.caras`) la
+   píldora manda sobre su propio ancho y un título de dos renglones ahí no
+   descuadra a nadie. */
+.carasCompactas .caraTexto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Lo que YA HAY: el documento, un archivo, la minuta publicada. Papel elevado
    sobre el fondo hundido de la fila — la misma superficie que .botonAfirmar
    en ReunionesPorConfirmar.module.css — en vez del borde de la hoja vieja. */
+/* 44 px de alto (ronda 13, auditoría móvil): medían 29-30 y son los enlaces
+   con los que el director abre la presentación desde el teléfono. */
 .cara {
   display: inline-flex; align-items: center; gap: 0.45rem;
+  min-height: 44px;
   padding: 0.42rem 0.8rem; border-radius: var(--r-lleno);
   border: none; background: var(--papel); box-shadow: var(--e-0);
   font: inherit; font-size: 0.83rem; font-weight: 600; color: var(--tinta);
@@ -43,6 +60,7 @@
    discontinuo — es una invitación a añadir, no algo que ya existe. */
 .caraAccion {
   display: inline-flex; align-items: center; gap: 0.4rem;
+  min-height: 44px;
   padding: 0.4rem 0.8rem; border-radius: var(--r-lleno);
   border: 1px dashed var(--tinta-4); background: none;
   font: inherit; font-size: 0.83rem; font-weight: 600; color: var(--tinta-2);

@@ -11,7 +11,14 @@ import { equiposPara } from '@/lib/equipos'
 import { ErrorMonday } from '@/monday/cliente'
 import { TablaAcuerdos } from '@/componentes/acuerdos/TablaAcuerdos'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
-import { destacarAction, editarAcuerdoEnTablaAction, eliminarAcuerdoEnTablaAction } from './acciones'
+import {
+  destacarAction,
+  editarAcuerdoEnTablaAction,
+  eliminarAcuerdoEnTablaAction,
+  cambiarEstatusEnTablaAction,
+  editarFechaEnTablaAction,
+  moverDeSalaAction,
+} from './acciones'
 import estilos from '@/componentes/acuerdos/bandeja.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -40,9 +47,13 @@ async function refrescarDesdeMondaySeguro(): Promise<void> {
  *
  * Hoy un acuerdo solo se ve dentro de su propia sala, así que no hay forma de
  * contestar "qué le debemos a quién esta semana" sin entrar sala por sala.
- * Esta pantalla es esa respuesta, y desde aquí se destaca lo poco que se
- * quiere ver en el Home (tarea 12) con la misma estrella que ahí y en la
- * sala — ver Estrella.tsx.
+ * Esta pantalla es esa respuesta, y desde aquí se fija arriba lo que más
+ * importa mirar primero, con la misma estrella que en la sala — ver
+ * Estrella.tsx. Hasta la ronda 14 destacar quería decir "sale en el Home"
+ * (tarea 12, pendiente, iba a cablearlo ahí); el Home dejó de listar
+ * acuerdos (§4 del spec) antes de que esa tarea llegara a escribirse, así
+ * que la estrella cambió lo que DICE sin tocar el gesto ni la columna que lo
+ * guarda.
  *
  * SOLO EQUIPO. El proxy ya la niega por defecto a una sesión de sala —
  * `puedeVerRuta` en src/auth/politica.ts es lista blanca estricta y `/acuerdos`
@@ -107,8 +118,8 @@ export default async function PagAcuerdos() {
           <div>
             <h1 className={estilos.titulo}>Acuerdos</h1>
             <p className={estilos.subtitulo}>
-              Los de las nueve salas, juntos: qué le debemos a quién esta semana. La estrella marca
-              los que se ven en el Home.
+              Los de las nueve salas, juntos: qué le debemos a quién esta semana. La estrella fija
+              un acuerdo arriba.
             </p>
           </div>
           <Link
@@ -120,11 +131,15 @@ export default async function PagAcuerdos() {
           </Link>
         </div>
 
-        {/* QUIÉN PUEDE QUÉ, decidido aquí y no dentro de la tabla: corregir es
-            trabajo de equipo (editor) y eliminar es de administración (admin),
-            así que cada acción se pasa —o no— según el rol. La tabla solo
-            pinta lo que recibe; la comprobación que manda vive en cada Server
-            Action, porque esconder un botón no protege un endpoint. */}
+        {/* QUIÉN PUEDE QUÉ, decidido aquí y no dentro de la tabla: corregir
+            texto, estatus, fecha y sala son trabajo de equipo (editor) —las
+            cuatro llaman `exigirEditor()`, ver ./acciones.ts— y eliminar es
+            de administración (admin), así que cada acción se pasa —o no—
+            según el rol. La tabla solo pinta lo que recibe; la comprobación
+            que manda vive en cada Server Action, porque esconder un botón no
+            protege un endpoint. `salas` son las VIVAS (`pausadas` ya vino
+            cargada arriba, mismo criterio que `equiposPara`): a quien está
+            en freeze no se le encarga trabajo. */}
         <TablaAcuerdos
           acuerdos={acuerdos}
           destacar={destacarAction}
@@ -132,6 +147,10 @@ export default async function PagAcuerdos() {
           personas={personas}
           equipos={equipos}
           eliminar={admin ? eliminarAcuerdoEnTablaAction : undefined}
+          cambiarEstatus={editor ? cambiarEstatusEnTablaAction : undefined}
+          editarFecha={editor ? editarFechaEnTablaAction : undefined}
+          moverDeSala={editor ? moverDeSalaAction : undefined}
+          salas={editor ? clientes.filter((c) => !pausadas.has(c.slug)) : undefined}
         />
       </main>
     </div>

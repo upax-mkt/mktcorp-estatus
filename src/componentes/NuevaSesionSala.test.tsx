@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NuevaSesionSala } from './NuevaSesionSala'
+import { obtenerPlantilla } from '@/secciones/plantillas'
 
 /**
  * EL TERCERO DE TRES FORMULARIOS QUE MANDABAN EL TÍTULO VACÍO (deuda menor,
@@ -54,5 +55,74 @@ describe('NuevaSesionSala — título opcional (deuda menor: el tercero de tres 
     expect(crearAction).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ titulo: 'Research Land — Digital' }),
     )
+  })
+})
+
+/**
+ * TASK 2 (ronda 14.2): el formulario pregunta qué junta es, no qué plantilla.
+ *
+ * Antes de esta ronda el desplegable ya no decía "plantilla" en su rótulo
+ * visible ("Qué reunión es"), pero seguía sin decir "junta" y seguía sin
+ * enseñar el `paraQue` del catálogo (`src/secciones/plantillas.ts`) — que es
+ * justo lo que permite elegir sin adivinar por el nombre. Y "Sync Comercial"
+ * (clase nueva, task 1 de esta ronda) tiene que aparecer en la lista: si el
+ * catálogo crece y este desplegable no lo refleja, la sala más usada de la
+ * app se queda un paso atrás del resto.
+ */
+describe('NuevaSesionSala — pregunta la clase de junta, no la plantilla (ronda 14.2, task 2)', () => {
+  it('pregunta qué junta es, no por una plantilla', async () => {
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    expect(screen.getByLabelText(/qué junta es/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/plantilla/i)).toBeNull()
+  })
+
+  it('ofrece el Sync Comercial entre las clases', async () => {
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    expect(screen.getByRole('option', { name: /sync comercial/i })).toBeInTheDocument()
+  })
+
+  // RONDA DE ARREGLO 1/5: la revisión encontró un hueco real. `plantillaElegida`
+  // se deriva de `plantilla` en cada render (`obtenerPlantilla(plantilla)`),
+  // así que la línea de ayuda NO se queda pegada a la primera opción — pero
+  // eso solo estaba verificado leyendo el código, no probándolo: ni el test
+  // de arriba ni el print (que solo mira el estado inicial) cambian de
+  // opción. Si mañana alguien memoiza mal ese valor o lo calcula una sola vez
+  // al montar, la ayuda mentiría bajo la opción elegida y la suite seguiría
+  // en verde. Este test lo cierra: elige "Sync Comercial" y exige que el
+  // `paraQue` que se ve sea el de esa clase, no el de "Estatus de UDN".
+  //
+  // RONDA 14.2 (arreglo de revisión, tarea 4): las dos aserciones comparaban
+  // el texto contra frases escritas a mano en este archivo. La positiva se
+  // protegía sola —si alguien reescribe el `paraQue` de "Estatus de UDN", la
+  // frase a mano deja de aparecer y el test se pone rojo—, pero la NEGATIVA
+  // (`queryByText(...).toBeNull()`) se quedaba vacía de sentido: pasaría
+  // igual por no encontrar un texto que ya no existe EN NINGÚN SITIO, no por
+  // haber comprobado que el `paraQue` viejo desapareció al cambiar de clase.
+  // Leer los dos textos del catálogo (`obtenerPlantilla`, la misma fuente que
+  // usa `SelectorClaseDeJunta`) hace que la negativa vuelva a probar algo: si
+  // el `paraQue` de "Estatus de UDN" cambiara, esta aserción seguiría
+  // comprobando que ESE texto —el real, no uno fosilizado aquí— desaparece.
+  it('recalcula la línea de ayuda al cambiar de clase — no se queda pegada a la primera', async () => {
+    const paraQueEstatus = obtenerPlantilla('estatus-udn').paraQue
+    const paraQueSync = obtenerPlantilla('sync-comercial').paraQue
+
+    const usuario = userEvent.setup()
+    render(<NuevaSesionSala nombreSala="House of Films" crearAction={vi.fn().mockResolvedValue({})} />)
+    await usuario.click(screen.getByRole('button', { name: /crear reunión/i }))
+
+    // Arranca en "Estatus de UDN" (PLANTILLAS[0]): su `paraQue` es el que se ve.
+    expect(screen.getByText(paraQueEstatus)).toBeInTheDocument()
+
+    await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'sync-comercial')
+
+    // Cambia la clase → cambia el `paraQue` mostrado, y el de antes desaparece.
+    expect(screen.getByText(paraQueSync)).toBeInTheDocument()
+    expect(screen.queryByText(paraQueEstatus)).toBeNull()
   })
 })

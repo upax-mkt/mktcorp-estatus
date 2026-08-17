@@ -36,9 +36,11 @@
   border-bottom: 1px solid var(--linea);
 }
 .mes { font-size: 1.05rem; font-weight: 650; letter-spacing: var(--track-normal); margin: 0; }
+/* 44 px (ronda 13, auditoría móvil): medían 34×34 y son los ÚNICOS controles
+   de esta pantalla — cambiar de mes es todo lo que se puede hacer aquí. */
 .navBoton {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 2.1rem; height: 2.1rem; line-height: 1;
+  width: 2.75rem; height: 2.75rem; line-height: 1;
   border-radius: var(--r-lleno);
   background: var(--papel-hundido); color: var(--tinta-2);
   transition: color 140ms ease, background 140ms ease;
@@ -94,12 +96,48 @@
   background: var(--papel-2);
 }
 .itemColor { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--sala); flex: none; align-self: center; }
-.itemSala { font-size: 0.88rem; font-weight: 650; color: var(--sala); }
-.itemFecha { font-size: 0.85rem; color: var(--tinta-2); }
-.itemHora { font-size: 0.85rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+/* `--sala-texto`, no `--sala`: el brandbook crudo no llega a 4,5:1 sobre esta
+   fila en seis de las nueve marcas (Mexa 3,65 · Promo Espacio 3,42 · UiX 4,07 ·
+   Grupo UPAX 3,91 · Marketing United 1,10). Las dos variables las declara el
+   `<li>` — ver el comentario en `CalendarioPublico.tsx`. El respaldo es la
+   tinta y no `--sala`: si algún día llega una fila sin color, el nombre se lee
+   igual en vez de quedarse sin `color` y heredar lo que haya. */
+.itemSala { font-size: 0.88rem; font-weight: 650; color: var(--sala-texto, var(--tinta)); }
+/* La fecha y la hora NO son decoración: son el contenido de esta pantalla.
+   Estaban a 13,6 px, por debajo del mínimo de lectura en un teléfono. */
+.itemFecha { font-size: 0.92rem; color: var(--tinta-2); }
+.itemHora { font-size: 0.92rem; color: var(--tinta-2); font-variant-numeric: tabular-nums; margin-left: auto; }
 
+/*
+ * EN UN TELÉFONO, CADA REUNIÓN SON DOS LÍNEAS FIJAS — no las que salgan.
+ *
+ * Con flex + `flex-wrap`, cuántas líneas ocupa una fila dependía del largo del
+ * nombre de la sala: medido a 320 px, «Marketing United» y «House of Films»
+ * salían a 97,6 px de alto (tres líneas) y «UiX» a dos, con la fecha unas
+ * veces pegada al nombre y otras debajo. Una lista de seis reuniones se leía
+ * como seis maquetas distintas, y la hora —el dato que se busca— caía a una
+ * altura diferente en cada una.
+ *
+ * Con `grid-template-areas` la forma la decide la rejilla y no el texto:
+ * arriba, sala y hora (lo que se escanea); abajo, la fecha. Siempre igual.
+ * `minmax(0, 1fr)` en la columna del nombre y no `1fr` a secas: todo ítem de
+ * rejilla nace con `min-width: auto` y un nombre largo empujaría la hora fuera.
+ */
 @media (max-width: 30rem) {
   .celda { min-height: 2.9rem; }
-  .item { font-size: 0.85rem; }
-  .itemHora { margin-left: 0; }
+  .item {
+    font-size: 0.85rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'punto sala  hora'
+      '.     fecha fecha';
+    align-items: center;
+    column-gap: 0.55rem;
+    row-gap: 0.15rem;
+  }
+  .itemColor { grid-area: punto; }
+  .itemSala { grid-area: sala; min-width: 0; }
+  .itemHora { grid-area: hora; margin-left: 0; }
+  .itemFecha { grid-area: fecha; }
 }

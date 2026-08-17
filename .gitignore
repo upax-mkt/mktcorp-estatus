@@ -4,8 +4,16 @@ node_modules/
 .vercel
 .DS_Store
 .superpowers/
+# M1 (revisión final, ronda 14.2): `.claude/worktrees/` guarda un worktree de
+# git de otra sesión (`deck-mexa-junio-2026`) que YA envenenó vitest y eslint
+# al quedar sin ignorar — `git status` lo mostraba como `?? .claude/` y ambos
+# comandos intentaban recorrerlo. `tsc`/`next build` son inmunes (no hace
+# falta tocarlos); solo `.claude/worktrees/`, no todo `.claude/`: el resto de
+# la carpeta (config, skills) no es el problema.
+.claude/worktrees/
 next-env.d.ts
 *.tsbuildinfo
 .env*
 .revision/
 .env.local.respaldo
+.gstack/

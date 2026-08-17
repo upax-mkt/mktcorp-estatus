@@ -26,6 +26,11 @@
   text-transform: uppercase; color: var(--marca-texto, var(--tinta-3));
 }
 .filaTitulo { font-weight: 550; color: var(--tinta); }
+/* CUMPLIMIENTO (revisión C1, ronda 14.4 tarea 1): la clase de junta, mismo
+   tratamiento visual que `.filaFecha` (metadato secundario, no la sala ni el
+   título) — solo se pinta cuando `sesion.plantilla` viene definida, ver
+   `ReunionesPorConfirmar.tsx`. */
+.filaClase { font-size: 0.8rem; color: var(--tinta-3); }
 .filaFecha { font-size: 0.8rem; color: var(--tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .filaAcciones { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: none; }

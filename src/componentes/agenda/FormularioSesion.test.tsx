@@ -122,3 +122,90 @@ describe('FormularioSesion — título (auditoría UX/UI, ronda 11)', () => {
     expect(screen.getByLabelText(/título/i)).toHaveValue('Estatus Comercial Quincenal')
   })
 })
+
+/**
+ * QUÉ JUNTA ES (ronda 14, tareas 3 y 4) — la causa medible de que 6 de 14
+ * reuniones no tuvieran clase: este formulario no lo preguntaba (su propio
+ * comentario lo decía). Sirve para agendar Y para corregir, así que las dos
+ * tareas conviven aquí: la 3 pone el desplegable y su valor por defecto al
+ * agendar; la 4, el caso "sin clasificar" al editar — y la garantía de que
+ * editar cualquier OTRO campo no la clasifica de rebote.
+ */
+describe('FormularioSesion — qué junta es (ronda 14, tareas 3 y 4)', () => {
+  it('pregunta qué junta es, con el Sync Comercial entre las opciones', () => {
+    render(<FormularioSesion salas={SALAS} etiquetaEnviar="Agendar" enviarAction={vi.fn()} />)
+
+    expect(screen.getByLabelText(/qué junta es/i)).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /sync comercial/i })).toBeInTheDocument()
+  })
+
+  it('al agendar una reunión nueva, la clase arranca en Estatus de UDN — no en blanco', () => {
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Agendar"
+        enviarAction={vi.fn()}
+        inicial={{ dia: '2026-08-17' }}
+      />,
+    )
+
+    expect(screen.getByLabelText(/qué junta es/i)).toHaveValue('estatus-udn')
+  })
+
+  it('la clase elegida viaja a enviarAction() junto con el resto', async () => {
+    const enviarAction = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Agendar"
+        enviarAction={enviarAction}
+        inicial={{ dia: '2026-08-17' }}
+      />,
+    )
+
+    await usuario.selectOptions(screen.getByLabelText(/qué junta es/i), 'sync-comercial')
+    await usuario.click(screen.getByRole('button', { name: /agendar/i }))
+
+    expect(enviarAction).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ plantilla: 'sync-comercial' }))
+  })
+
+  it('una reunión sin clase abre en "Sin clasificar", no en la primera opción', () => {
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Guardar cambios"
+        enviarAction={vi.fn()}
+        inicial={{ salaSlug: 'research-land', dia: '2026-08-17', plantilla: null }}
+      />,
+    )
+
+    expect((screen.getByLabelText(/qué junta es/i) as HTMLSelectElement).value).toBe('')
+  })
+
+  /**
+   * LO MÁS DELICADO: si el `<select>` cayera en su primera opción por
+   * defecto, guardar el lugar de una junta sin clase la dejaría marcada
+   * como "Estatus de UDN" sin que nadie lo hubiera decidido. Este test
+   * ejercita el formulario de punta a punta (no solo el valor inicial del
+   * `<select>`, como el de arriba): edita OTRO campo y comprueba qué le
+   * llega a `enviarAction` sin tocar el desplegable.
+   */
+  it('editar otro campo de una junta sin clase no la clasifica de rebote', async () => {
+    const enviarAction = vi.fn().mockResolvedValue({})
+    const usuario = userEvent.setup()
+    render(
+      <FormularioSesion
+        salas={SALAS}
+        etiquetaEnviar="Guardar cambios"
+        enviarAction={enviarAction}
+        inicial={{ salaSlug: 'research-land', dia: '2026-08-17', plantilla: null, lugar: '' }}
+      />,
+    )
+
+    await usuario.type(screen.getByLabelText(/dónde/i), 'Sala 4')
+    await usuario.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+    expect(enviarAction).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ plantilla: '' }))
+  })
+})

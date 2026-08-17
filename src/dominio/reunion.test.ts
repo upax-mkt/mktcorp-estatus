@@ -20,6 +20,7 @@ const base: Reunion = {
   tipo: 'quincenal' as const,
   estado: 'agendada' as const,
   noDadaEn: null,
+  plantilla: null,
   documentoListo: false,
   archivos: [],
   acuerdos: [],

@@ -187,10 +187,20 @@ export function listarReunionesMemoria(): FilaReunionMemoria[] {
   return Array.from(reuniones.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 }
 
-/** Espejo en memoria de `editarReunion` (ver src/db/reuniones.ts). */
+/**
+ * Espejo en memoria de `editarReunion` (ver src/db/reuniones.ts).
+ *
+ * `plantilla` se sumó al `Pick` en el arreglo del Crítico C1 (ronda 14-2,
+ * fix 3/4): antes de eso este tipo cerraba la puerta en compilación a que
+ * `editarReunion` pudiera pasar la columna aquí, aunque su propio bloque de
+ * `columnas` tampoco la armara — las dos mitades del mismo bug, una en cada
+ * archivo.
+ */
 export function actualizarDatosReunionMemoria(
   reunionId: string,
-  cambios: Partial<Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'alcance' | 'participantes' | 'lugar'>>,
+  cambios: Partial<
+    Pick<FilaReunionMemoria, 'fecha' | 'titulo' | 'tipo' | 'plantilla' | 'alcance' | 'participantes' | 'lugar'>
+  >,
 ): void {
   const fila = reuniones.get(reunionId)
   if (!fila) return
@@ -354,7 +364,16 @@ export function buscarAcuerdoDuplicadoMemoria(
   responsable: string,
   fechaCompromiso: Date | null,
 ): FilaAcuerdoMemoria | undefined {
-  const mismaFecha = (a: Date | null, b: Date | null) => (a?.getTime() ?? null) === (b?.getTime() ?? null)
+  // POR DÍA, NO POR INSTANTE — el mismo criterio que el `date_trunc('day',
+  // ... AT TIME ZONE 'UTC')` de la sentencia real (ver la cabecera de
+  // `crearAcuerdo`, src/db/acuerdos.ts, para el porqué medido). `getTime()`
+  // exacto, que es lo que había aquí, hacía que dos formas de guardar EL
+  // MISMO día civil —00:00Z del escritor viejo, 18:00Z del nuevo— contaran
+  // como acuerdos distintos. Si el doble no copia este cambio, vuelve a
+  // mentir: `npm run dev` sin `DATABASE_URL` y la mayoría de los tests de
+  // este repo corren por aquí.
+  const diaUTC = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null)
+  const mismaFecha = (a: Date | null, b: Date | null) => diaUTC(a) === diaUTC(b)
   return Array.from(acuerdos.values()).find(
     (f) =>
       f.reunionOrigenId === reunionOrigenId &&
@@ -371,6 +390,30 @@ export function actualizarAcuerdoMemoria(
   const fila = acuerdos.get(id)
   if (!fila) return
   Object.assign(fila, cambios)
+  fila.updatedAt = new Date()
+}
+
+/**
+ * MUEVE UN ACUERDO DE SALA en memoria — el ÚNICO punto que toca `salaSlug`
+ * en este store (ronda 14, tarea 3).
+ *
+ * `actualizarAcuerdoMemoria` EXCLUYE `salaSlug` de su `Omit` a propósito
+ * (ver su firma justo arriba), y esa exclusión no se toca aquí: ensancharla
+ * convertiría la sala en un campo editable más para CUALQUIER llamador del
+ * actualizador general —hoy son las ediciones de texto, responsable y fecha
+ * (`editarAcuerdo`)—, y mover un acuerdo de cliente no es "editar un campo":
+ * es una operación con nombre propio (`moverAcuerdoDeSala`,
+ * src/db/acuerdos.ts) que además dejar constancia en `historia` es parte de
+ * lo que hace, no un efecto secundario opcional. Por eso `historia` entra ya
+ * calculada (con `historiaConEntrada`, privado de acuerdos.ts) en vez de que
+ * esta función arme su propia entrada: la única fuente de qué va en una
+ * entrada de historia sigue siendo esa, no una copia aquí.
+ */
+export function moverAcuerdoDeSalaMemoria(id: string, salaSlug: string, historia: HistoriaAcuerdoMemoria[]): void {
+  const fila = acuerdos.get(id)
+  if (!fila) return
+  fila.salaSlug = salaSlug
+  fila.historia = historia
   fila.updatedAt = new Date()
 }
 
