@@ -12,16 +12,50 @@
  * outline dos veces.
  */
 
-.caras { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
-/* DOS COLUMNAS, no un flex que reparte a su aire (ronda 13): la presentación
-   a la izquierda y la minuta —o el "Sin minuta"— siempre en la misma columna.
-   Con flex, el ancho del título del PPT movía todo lo demás y cada fila
-   alineaba distinto. */
+.caras,
 .carasCompactas {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 7rem;
-  align-items: center; gap: 0.5rem;
+  grid-template-columns: minmax(0, 1.45fr) minmax(9rem, 0.55fr);
+  align-items: start;
+  gap: 0.8rem;
+  min-width: 0;
 }
+
+/* En la tarjeta principal, presentación y minuta forman una franja de
+   recursos separada de la identidad de la reunión. En las filas históricas
+   la tarjeta ya aporta esa separación y no hace falta repetirla. */
+.caras {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--linea);
+}
+
+.caraGrupo {
+  display: grid;
+  align-content: start;
+  gap: 0.38rem;
+  min-width: 0;
+}
+.caraGrupo:only-child { grid-column: 1 / -1; }
+
+.caraRotulo {
+  font-size: 0.64rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.caraContenido {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.caraContenido > * { min-width: 0; }
 /* Un título largo se recorta en vez de empujar su columna.
    ⚠️ SIN EL `>` (ronda 13b, auditoría móvil): la píldora del PPT NO es hija
    de la rejilla —va envuelta en `.caraConLapiz`, el contenedor del lápiz de
@@ -167,4 +201,29 @@
   min-width: 6.5rem;
   padding: 0.42rem 0.2rem;
   font-size: 0.82rem; color: var(--tinta-3);
+}
+
+@media (max-width: 34rem) {
+  .caras,
+  .carasCompactas { grid-template-columns: 1fr; }
+  .carasCompactas { gap: 0.75rem; }
+  .carasCompactas .caraTexto {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* En una superficie táctil los controles de edición no pueden depender del
+   hover y el lápiz necesita el mismo objetivo mínimo que el resto. */
+@media (hover: none), (pointer: coarse) {
+  .caraLapiz { width: 44px; height: 44px; opacity: 1; }
+  .caraInput,
+  .caraGuardar,
+  .caraCancelarEdicion,
+  .caraDescartar,
+  .caraBorrar,
+  .caraNo { min-height: 44px; }
+  .caraDescartar { display: inline-flex; align-items: center; }
 }

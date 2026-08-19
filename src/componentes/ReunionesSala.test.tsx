@@ -122,6 +122,56 @@ describe('ReunionesSala — participación de equipo', () => {
   })
 })
 
+describe('ReunionesSala — jerarquía de lectura compartida', () => {
+  it.each([
+    { modo: 'editor', equipo: true },
+    { modo: 'viewer', equipo: false },
+  ])('en $modo expone el historial como una región y cada reunión como artículo', ({ equipo }) => {
+    render(
+      <ReunionesSala
+        porVenir={[]}
+        reuniones={[ULTIMA]}
+        equipo={equipo}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    const historial = screen.getByRole('region', { name: /historial de reuniones/i })
+    const reunion = within(historial).getByRole('article', { name: /julio/i })
+
+    expect(within(reunion).getByRole('heading', { name: 'Julio', level: 3 })).toBeInTheDocument()
+    expect(within(reunion).getByText(/15 de julio de 2026/i).closest('time')).toHaveAttribute(
+      'dateTime',
+      ULTIMA.fecha,
+    )
+  })
+
+  it('separa las próximas reuniones del historial con una región y un artículo propios', () => {
+    const futura: Reunion = {
+      ...ULTIMA,
+      id: 'proxima',
+      titulo: 'Revisión de septiembre',
+      fecha: '2026-09-04T10:00:00.000Z',
+      estado: 'agendada',
+      documentoListo: false,
+    }
+
+    render(
+      <ReunionesSala
+        porVenir={[futura]}
+        reuniones={[]}
+        equipo={false}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+      />,
+    )
+
+    const proximas = screen.getByRole('region', { name: /próximas reuniones/i })
+    expect(within(proximas).getByRole('article', { name: /revisión de septiembre/i })).toBeInTheDocument()
+  })
+})
+
 /**
  * LA CLASE DE JUNTA LLEGA AL MÓDULO Y LO AGRUPA (ronda 14.3, tarea 1).
  *
@@ -254,7 +304,9 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
       />,
     )
 
-    const rotulos = screen.getAllByRole('group').map((g) => within(g).getByRole('heading').textContent)
+    const rotulos = screen
+      .getAllByRole('group')
+      .map((g) => within(g).getByRole('heading', { level: 3 }).textContent)
     expect(rotulos.at(-1)).toMatch(/sin clasificar/i)
   })
 

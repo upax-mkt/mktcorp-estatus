@@ -324,9 +324,6 @@
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 .presDestacada:hover { background: color-mix(in oklch, var(--marca) 8%, transparent); }
-.presTag { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--marca-texto, var(--marca)); font-weight: 700; }
-.presTitulo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0.35rem 0 0.2rem; }
-.presFecha { font-size: 0.82rem; color: var(--tx-2); }
 .presVer {
   display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.9rem;
   color: var(--marca-texto, var(--marca)); white-space: nowrap;
@@ -347,110 +344,231 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--tx-3); font-weight: 700; margin: 0 0 0.6rem;
 }
-.presFilaTitulo { color: var(--tx); font-weight: 500; }
-.presFilaFecha { color: var(--tx-3); font-variant-numeric: tabular-nums; font-size: 0.82rem; }
-
-/* ---- reuniones: la presentación y su minuta, en la misma fila ----
-   Las dos "caras" comparten aspecto aunque una sea <a> y la otra <button>:
-   para quien mira son la misma clase de cosa —una parte de esta reunión— y
-   distinguirlas visualmente por su etiqueta HTML sería un accidente. */
-.reunionDestacada {
-  padding: 1.4rem; margin-bottom: 1rem; border-radius: var(--r-3);
-  background: var(--papel-hundido);
+/* ---- reuniones: agenda, historial y recursos dentro de una misma historia ---- */
+.reunionesModulo {
+  display: grid;
+  gap: clamp(1.3rem, 2vw, 1.75rem);
+  min-width: 0;
 }
-/* ── "LA ÚLTIMA", UNA POR CLASE (ronda 14.3) ──────────────────────────────
-   Antes había una sola `.reunionDestacada` suelta; ahora hay una por clase
-   de junta presente, en esta rejilla. Con una sola (el caso de HOY en TODAS
-   las salas) `minmax(min(22rem,100%),1fr)` la estira a lo ancho completo —
-   mismo aspecto que la tarjeta suelta de antes, sin una regla `:only-child`
-   aparte — y con varias se reparten y se apilan solas en pantallas
-   angostas, mismo mecanismo que `.columnasAnteriores`, más abajo. */
+
+.bloqueReunionesCabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem 1.25rem;
+}
+.bloqueReunionesTitulo {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--tx);
+}
+.bloqueReunionesPista {
+  max-width: 62ch;
+  margin: 0.28rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--tx-3);
+}
+.bloqueReunionesConteo {
+  flex: none;
+  padding: 0.28rem 0.62rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--r-lleno);
+  background: var(--superficie-2);
+  color: var(--tx-2);
+  font-size: 0.72rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.historialReuniones { display: grid; gap: 1rem; min-width: 0; }
+
+/* La reunión más reciente es el punto de entrada, no un bloque gris gigante:
+   una banda de marca y una superficie apenas teñida dan jerarquía sin hacerla
+   competir con el título del módulo. */
+.reunionDestacada {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border: 1px solid color-mix(in oklch, var(--marca) 22%, var(--borde));
+  border-radius: var(--r-3);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--marca) 7%, var(--superficie)) 0%,
+    var(--superficie) 72%
+  );
+  box-shadow: var(--e-0);
+}
+.reunionDestacada::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--marca);
+}
 .ultimasPorClase {
-  display: grid; gap: 1rem;
+  display: grid;
+  gap: 0.85rem;
   grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
 }
-.ultimasPorClase .reunionDestacada { margin-bottom: 0; }
 .reunionCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.reuniones { display: flex; flex-direction: column; }
-/* LAS CAJAS DE CADA REUNIÓN, EN COLUMNA (ronda 13). Franco: *"que se
-   reordenen bien las cajitas"*.
+.presTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--marca-texto, var(--marca));
+  font-weight: 750;
+}
+.presTag::before {
+  content: '';
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--marca);
+}
+.presTitulo {
+  margin: 0.38rem 0 0.18rem;
+  font-size: clamp(1.08rem, 2vw, 1.28rem);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.presFecha { display: block; font-size: 0.82rem; line-height: 1.4; color: var(--tx-2); }
 
-   Era un flex con `space-between`, así que cada fila repartía el hueco a su
-   manera: una reunión con presentación, minuta y acuerdos alineaba distinto
-   que otra con solo presentación, y la vista de tres meses se leía torcida.
-   Ahora son tres columnas fijas —lo que se lee, lo que se abre, y los
-   acuerdos— y cada cosa cae siempre bajo la anterior. */
+.historialAnterior { display: grid; gap: 0.75rem; margin-top: 0.2rem; }
+.historialAnteriorCabecera { display: flex; align-items: center; gap: 0.8rem; }
+.historialAnteriorTitulo {
+  flex: none;
+  margin: 0;
+  font-size: 0.69rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+}
+.historialAnteriorLinea { width: 100%; height: 1px; background: var(--borde); }
+
+.reuniones { display: grid; gap: 0.55rem; }
 .reunionFila {
   display: grid;
-  /* Anchos FIJOS en las dos últimas: con `auto`, el ancho de cada celda lo
-     decidía el largo del título del PPT, así que las cajas de una fila no
-     caían bajo las de la anterior — que es justo lo que se veía torcido. */
-  grid-template-columns: minmax(8rem, 1fr) minmax(0, 24rem) 7rem;
-  align-items: center; gap: 1rem;
-  padding: 0.85rem 0.25rem; border-top: 1px solid var(--borde);
+  grid-template-columns: minmax(9rem, 0.7fr) minmax(18rem, 1.3fr) minmax(7rem, auto);
+  align-items: center;
+  gap: 0.85rem 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--r-2);
+  background: var(--superficie);
+  box-shadow: var(--e-0);
 }
-.reunionFila:last-child { border-bottom: 1px solid var(--borde); }
-.reunionFilaTexto { display: flex; align-items: baseline; gap: 0.7rem; min-width: 0; }
-/* La línea de participación va DEBAJO, ocupando la fila entera: junto a las
-   cajas competiría por el mismo espacio. Con la rejilla de arriba eso se dice
-   con `grid-column: 1 / -1` (antes era `flex-basis: 100%`, que ya no aplica). */
+.reunionFilaTexto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 0.2rem 0.45rem;
+  min-width: 0;
+}
+.presFilaTitulo {
+  margin: 0;
+  color: var(--tx);
+  font-size: 0.92rem;
+  line-height: 1.3;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.presFilaFecha {
+  grid-column: 1;
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+}
+.reunionFilaTexto > .reunionBorrar {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: start;
+}
+.reunionFila > .subirPista,
+.reunionFila > .subirError { grid-column: 1 / -1; }
+/* Los acuerdos son una lectura secundaria de la reunión. En una fila
+   histórica ocupaban la tercera columna (de apenas 7rem), así que al abrir
+   un acuerdo largo el `details` intentaba crecer dentro de una columna
+   estrecha y rompía la tarjeta. La lista necesita el ancho completo de la
+   fila; su propio CSS ya decide cuándo apilar sus dos columnas. */
+.reunionFila > :global(details) {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
 .reunionFilaParticipacion { grid-column: 1 / -1; }
-.reunionAcciones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
 
-/* Estrecho: las tres columnas no caben, y una fila de reunión partida en
-   trozos de dos centímetros no se lee. Se apila.
-   ⚠️ CORREGIDO EN LA REVISIÓN DE LA RONDA 14.3 (Crítico C1): esto era un
-   `@media (max-width: 720px)` — de VIEWPORT, no de contenedor. Con una sola
-   columna de anteriores (el caso de antes de esta tarea, y el único que
-   existía cuando se escribió el `@media`) viewport angosto y fila angosta
-   eran la misma cosa, así que daba igual. Desde que `.columnasAnteriores`
-   (abajo) puede partir el módulo en DOS columnas, dejan de serlo: a 1440px
-   de viewport con dos clases, cada columna mide ~470px —bien por debajo de
-   lo que esta fila necesita— y el `@media` de viewport nunca se disparaba
-   porque 1440 sigue siendo "ancho" aunque la fila, adentro, no lo sea. Esto
-   rompía HOY en producción (`marketing-united`, pública): título en tres
-   renglones, fecha en tres, el chip de la presentación cortado en "P…".
-   `@container`, no `@media`: la pregunta correcta es el ancho de LA FILA,
-   no el de la ventana — la contención la declara `.grupoMaterial` de
-   `.columnasAnteriores`, más abajo. El umbral (660px) sale de medir el
-   propio contenedor real: una columna sola mide ≥617px incluso en el
-   viewport más angosto donde el módulo YA apiló sus columnas por su cuenta
-   (720px, ver `.columnasAnteriores`), así que 660 dispara el colapso justo
-   entre "una columna sola" (nunca se apila) y "dos columnas" (siempre se
-   apila) — medido contra el DOM real, no a ojo (ver el informe de la
-   tarea). */
+/* En editor, las acciones de alta viven antes del historial: son el inicio
+   del flujo de trabajo, no un pie perdido después de todos los meses. */
+.reunionAcciones {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in oklch, var(--marca) 22%, var(--borde));
+  border-radius: var(--r-3);
+  background: color-mix(in oklch, var(--marca) 6%, var(--superficie));
+}
+.reunionAccionesTexto { display: grid; gap: 0.18rem; flex: 1 1 18rem; }
+.reunionAccionesTexto strong { font-size: 0.9rem; font-weight: 700; color: var(--tx); }
+.reunionAccionesTexto span { font-size: 0.79rem; line-height: 1.4; color: var(--tx-3); }
+.reunionAccionesBotones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex: 1 1 20rem;
+  flex-wrap: wrap;
+}
+.reunionAccionesBotones > .subirCaja { flex: 1 1 100%; margin-top: 0; }
+.reunionAcciones .nuevaMinutaBoton { min-height: 44px; margin-top: 0; }
+
+/* La fila responde al ancho real de su grupo, no al viewport: dos clases
+   pueden producir columnas estrechas incluso en un monitor ancho. */
 @container (max-width: 660px) {
   .reunionFila { grid-template-columns: 1fr; }
 }
 
-/* ── LAS ANTERIORES, EN UNA COLUMNA POR CLASE (ronda 14.3) ────────────────
-   MISMO mecanismo que `.bmCompetidores` (benchmark, más abajo en esta hoja)
-   y que `.ultimasPorClase`, arriba: `minmax(min(20rem,100%),1fr)` hace que
-   una sola columna —hoy, en todas las salas— se estire a lo ancho completo
-   (igual que la lista plana de antes) y que dos o más se repartan sin un
-   ancho fijo. EN MÓVIL SE APILAN SOLAS por el mismo `minmax` —su cota
-   inferior nunca pasa del 100% del contenedor—, sin un `@media` propio: es
-   la respuesta a "busca cómo lo resuelven los módulos vecinos" antes de
-   escribir uno nuevo. `.grupoMaterial`/`.grupoCabecera`/`.grupoNombre` son
-   las MISMAS clases que agrupan los materiales de la sala
-   (`MaterialesAgrupados.tsx`, ver su comentario "SUBCATEGORÍAS DENTRO DE UN
-   MÓDULO DE MATERIALES" más abajo): una etiqueta y un conteo por grupo es
-   la misma idea en los dos módulos, no dos hojas de estilo para lo mismo. */
+/* Una columna por clase; con una sola ocupa todo el ancho y con varias el
+   `auto-fit` las distribuye o apila sin anchos rígidos. */
 .columnasAnteriores {
-  display: grid; gap: 1.4rem;
+  display: grid; gap: 0.9rem;
   grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
 }
-/* `container-type: inline-size` es lo que hace posible el `@container` de
-   arriba: SIN esto, `.reunionFila` no tiene de qué contenedor preguntar su
-   ancho y la consulta simplemente no aplica nunca. Escopado a
-   `.columnasAnteriores .grupoMaterial` y no a `.grupoMaterial` a secas: esa
-   clase también la usa `MaterialesAgrupados.tsx` para un layout que no
-   tiene nada de esto adentro — declarar contención ahí no rompería nada
-   (nadie más la consulta hoy), pero tampoco aporta, y esta regla es de
-   Reuniones, no de Materiales. */
-.columnasAnteriores .grupoMaterial { min-width: 0; container-type: inline-size; }
+/* La contención se limita a reuniones porque `.grupoMaterial` también se usa
+   en el módulo de materiales comerciales. */
+.columnasAnteriores .grupoMaterial {
+  min-width: 0;
+  container-type: inline-size;
+  padding: 0.85rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--r-3);
+  background: var(--papel-hundido);
+}
+.columnasAnteriores .grupoCabecera { padding-bottom: 0.15rem; border-bottom: 0; }
 
-.vacioNota { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
+.vacioNota {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--borde-fuerte);
+  border-radius: var(--r-3);
+  background: var(--superficie-2);
+  color: var(--tx-3);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
 
 /* Input de archivo compartido de "+ Subir presentación" (ronda 10, tarea
    9b, `ReunionesSala`): oculto de verdad pero interactivo — se dispara por
@@ -982,31 +1100,48 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    ofrecía "Seguir editando" a toda reunión agendada, hubiera o no algo que
    editar. Ahora es un bloque DENTRO del módulo de reuniones, con lo que le
    falta a cada una y lo que se puede hacer al respecto — borrarla incluido. */
-.porVenir { display: grid; gap: 0.55rem; margin-bottom: 1.4rem; }
-.porVenirRotulo {
-  display: flex; align-items: center; gap: 0.55rem;
-  font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
-  font-weight: 800; color: var(--tx-2);
-}
+.porVenir { display: grid; gap: 0.8rem; container-type: inline-size; }
 .porVenirFila {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 0.8rem 1rem; flex-wrap: wrap;
-  padding: 0.85rem 1rem; border-radius: var(--r-3);
-  background: color-mix(in oklch, var(--marca) 8%, transparent);
-  border: 1px solid color-mix(in oklch, var(--marca) 22%, transparent);
+  display: grid;
+  grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 1.45fr);
+  align-items: center;
+  gap: 0.85rem 1.2rem;
+  padding: 1rem;
+  border-radius: var(--r-3);
+  background: color-mix(in oklch, var(--marca) 6%, var(--superficie));
+  border: 1px solid color-mix(in oklch, var(--marca) 26%, var(--borde));
+  box-shadow: var(--e-0);
 }
 .porVenirTexto { display: grid; gap: 0.2rem; font-size: 0.9rem; min-width: 0; }
+.porVenirTitulo {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.3;
+  font-weight: 680;
+  overflow-wrap: anywhere;
+}
 .porVenirTexto span { font-size: 0.8rem; color: var(--tx-3); }
 .porVenirAcciones {
-  display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
-  margin-left: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 0.55rem;
+  min-width: 0;
 }
+.porVenirFila > .subirPista,
+.porVenirFila > .subirError { grid-column: 1 / -1; }
 .porVenirArchivos {
   flex-basis: 100%; list-style: none; margin: 0; padding: 0;
   display: flex; flex-wrap: wrap; gap: 0.5rem;
   font-size: 0.82rem;
 }
 .porVenirArchivos a { color: var(--marca-texto, var(--marca)); }
+
+@container (max-width: 660px) {
+  .porVenirFila { grid-template-columns: 1fr; }
+  .porVenirAcciones { grid-template-columns: 1fr; align-items: stretch; }
+  .porVenirAcciones > button { justify-self: start; }
+}
 /* La salida de una reunión del historial: discreta hasta que se pulsa, y
    entonces la confirmación ocupa su propia línea. */
 /* CORREGIR UN ACUERDO PUBLICADO. El lápiz va pegado al texto, discreto hasta
@@ -1079,9 +1214,8 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
      `min-height` y `align-items: center` como arriba: crece la zona sensible
      sin agrandar la letra ni desbordar la fila.
      ACOTADO A `.controlesEquipo` a propósito: `.botonIconoBorrar` lo comparten
-     las filas de reuniones (`.reunionFila`, `.porVenirFila`), donde vive
-     escondido en `opacity: 0` dentro de una fila de otra altura — engordarlo
-     ahí es otro problema, con otra medición, y no el que este hallazgo abre. */
+     las filas de reuniones (`.reunionFila`, `.porVenirFila`), que resuelven
+     su visibilidad y objetivo táctil en una regla específica más abajo. */
   .controlesEquipo .selectEstatus,
   .controlesEquipo .inputFechaChica {
     min-height: 44px;
@@ -1297,6 +1431,18 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   .reunionDestacada .botonIconoBorrar,
   .reunionFila .botonIconoBorrar,
   .porVenirFila .botonIconoBorrar { transition: none; }
+}
+@media (hover: none), (pointer: coarse) {
+  .reunionDestacada .botonIconoBorrar,
+  .reunionFila .botonIconoBorrar,
+  .porVenirFila .botonIconoBorrar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    opacity: 1;
+  }
 }
 .porVenirAviso {
   flex-basis: 100%; margin: 0;
@@ -2435,6 +2581,18 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
    de medir en producción, no de mirar. */
 
 @media (max-width: 34rem) {
+  /* ---- REUNIONES: una sola ruta de lectura, sin acciones huérfanas ---- */
+  .bloqueReunionesCabecera { align-items: flex-start; }
+  .bloqueReunionesConteo { font-size: 0.68rem; }
+  .reunionAcciones { align-items: stretch; padding: 0.85rem; }
+  .reunionAccionesBotones { justify-content: flex-start; flex-basis: 100%; }
+  .reunionAccionesBotones > button {
+    flex: 1 1 12rem;
+    justify-content: center;
+  }
+  .columnasAnteriores .grupoMaterial { padding: 0.7rem; }
+  .reunionFila { padding: 0.8rem; }
+
   /* ---- 1. MATERIALES Y ARCHIVOS: DE REJILLA A FILAS ----
      Medido: `.materiales` resolvía a UNA columna de 176 px dentro de un
      contenedor de 313 — 137 px (44 %) de aire muerto en cada fila— y los dos

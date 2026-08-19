@@ -9,6 +9,9 @@
   border-radius: var(--r-3);
   background: var(--papel-hundido);
   padding: 0 0.9rem;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* `flex` con 44 px: como `inline` el control no cubría su fila y medía 33 px
@@ -55,13 +58,22 @@
      `overflow-x: clip` global, pero es texto que desaparece. */
   .fila > * { min-width: 0; overflow-wrap: anywhere; }
 }
+/* La fila histórica vive dentro de una columna que puede ser estrecha aun
+   cuando el viewport sea ancho. El container query cubre ese caso que el
+   media query no ve. */
+@container (max-width: 620px) {
+  .fila { grid-template-columns: 1fr; }
+  .fila > * { min-width: 0; overflow-wrap: anywhere; }
+}
 /* El responsable, la fecha y el estatus viajan juntos: son la misma
    respuesta —de quién es y cómo va— y separarlos fue el defecto. */
 .derecha {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
-  white-space: nowrap;
+  min-width: 0;
+  flex-wrap: wrap;
+  white-space: normal;
 }
 .fila + .fila { border-top: 1px solid var(--linea); }
 
@@ -78,9 +90,11 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
   font-size: 0.78rem;
   color: var(--tinta-3);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .punto { color: var(--tinta-4); }

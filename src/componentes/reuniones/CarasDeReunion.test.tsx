@@ -300,21 +300,23 @@ describe('CarasDeReunion — minuta ausente', () => {
 describe('CarasDeReunion — minuta ya publicada', () => {
   it('el equipo la puede leer, y ya no se le ofrece levantarla de nuevo', () => {
     render(<CarasDeReunion reunion={conMinuta} equipo onLeerMinuta={() => {}} />)
-    expect(screen.getByRole('button', { name: /^minuta$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^presentación$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^minuta$/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^leer minuta$/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /levantar minuta/i })).toBeNull()
   })
 
   it('el director también la puede leer — leer una minuta nunca fue privilegio del equipo', () => {
     render(<CarasDeReunion reunion={conMinuta} equipo={false} onLeerMinuta={() => {}} />)
-    expect(screen.getByRole('button', { name: /^minuta$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^leer minuta$/i })).toBeInTheDocument()
   })
 
-  it('pulsar «Minuta» llama a onLeerMinuta', async () => {
+  it('pulsar «Leer minuta» llama a onLeerMinuta', async () => {
     const usuario = userEvent.setup()
     const alLeer = vi.fn()
     render(<CarasDeReunion reunion={conMinuta} equipo onLeerMinuta={alLeer} />)
 
-    await usuario.click(screen.getByRole('button', { name: /^minuta$/i }))
+    await usuario.click(screen.getByRole('button', { name: /^leer minuta$/i }))
 
     expect(alLeer).toHaveBeenCalledTimes(1)
   })
@@ -339,6 +341,7 @@ describe('CarasDeReunion — cuándo se ofrece levantar la minuta', () => {
   it('sin presentación y sin darla por dada, no se ofrece minutarla', () => {
     render(<CarasDeReunion reunion={futuraVacia} equipo onLeerMinuta={() => {}} />)
     expect(screen.queryByRole('link', { name: /levantar minuta/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/^minuta$/i)).not.toBeInTheDocument()
   })
 
   it('con la presentación subida, sí: es la señal de que la junta ya tiene con qué', () => {

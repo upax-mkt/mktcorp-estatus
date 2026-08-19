@@ -1499,6 +1499,29 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
               ya existe o armarla— y `reuniones` es el historial. Antes lo
               primero vivía en una tira aparte que no sabía de lo segundo, y
               una junta futura salía rotulada "La última". */}
+          {equipo && (
+            <aside className={estilos.reunionAcciones} aria-label="Herramientas de reuniones">
+              <div className={estilos.reunionAccionesTexto}>
+                <strong>Gestionar reuniones</strong>
+                <span>Agenda la siguiente reunión o genera la minuta de una que ya ocurrió.</span>
+              </div>
+              <div className={estilos.reunionAccionesBotones}>
+                {/* Con la sala en pausa no se puede preparar una reunión nueva
+                    sin reactivarla primero: consultar su historia sí, empezar
+                    trabajo nuevo no. Esto es solo el atajo —lo que de verdad
+                    lo impide es que `crearReunion` (src/db/reuniones.ts) rechaza
+                    la escritura del lado del servidor pase lo que pase aquí. */}
+                {s.activa && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
+                <LevantarMinuta
+                  sesiones={pendientesDeMinuta}
+                  salaFija={slug}
+                  claseBoton={estilos.nuevaMinutaBoton}
+                  personas={personas}
+                />
+              </div>
+            </aside>
+          )}
+
           <ReunionesSala
             reuniones={historial}
             porVenir={porVenir}
@@ -1530,22 +1553,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             </div>
           )}
 
-          {equipo && (
-            <div className={estilos.reunionAcciones}>
-              {/* Con la sala en pausa no se puede preparar una reunión nueva
-                  sin reactivarla primero: consultar su historia sí, empezar
-                  trabajo nuevo no. Esto es solo el atajo —lo que de verdad
-                  lo impide es que `crearReunion` (src/db/reuniones.ts) rechaza
-                  la escritura del lado del servidor pase lo que pase aquí. */}
-              {s.activa && <NuevaSesionSala nombreSala={s.nombre} crearAction={crearSesionAction} />}
-              <LevantarMinuta
-                sesiones={pendientesDeMinuta}
-                salaFija={slug}
-                claseBoton={estilos.nuevaMinutaBoton}
-                personas={personas}
-              />
-            </div>
-          )}
         </Seccion>
 
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5).

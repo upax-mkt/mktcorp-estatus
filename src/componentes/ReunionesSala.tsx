@@ -346,9 +346,12 @@ export function ReunionesSala({
    */
   const participantesDeReunion = (r: Reunion): Participante[] | undefined =>
     equipo ? participacionPorReunion[r.id] : undefined
+  const proximasTituloId = `proximas-reuniones-${salaSlug}`
+  const historialTituloId = `historial-reuniones-${salaSlug}`
+  const anterioresTituloId = `reuniones-anteriores-${salaSlug}`
 
   return (
-    <>
+    <div className={estilos.reunionesModulo}>
       {/* Compartido por TODAS las filas: se dispara programáticamente desde
           `alPulsarSubirPresentacion`, nunca se ve ni se clica directo. */}
       <input
@@ -368,11 +371,20 @@ export function ReunionesSala({
           en una tira suelta arriba de la sala que decía "Seguir editando" a
           toda reunión agendada, mirara o no si había algo que editar. */}
       {porVenir.length > 0 && (
-        <div className={estilos.porVenir}>
-          <div className={estilos.porVenirRotulo}>
-            Lo que viene
-            <span className={estilos.conteo}>{porVenir.length}</span>
-          </div>
+        <section className={estilos.porVenir} aria-labelledby={proximasTituloId}>
+          <header className={estilos.bloqueReunionesCabecera}>
+            <div>
+              <h2 id={proximasTituloId} className={estilos.bloqueReunionesTitulo}>
+                Próximas reuniones
+              </h2>
+              <p className={estilos.bloqueReunionesPista}>
+                {equipo ? 'Prepara lo que falta antes de la fecha.' : 'Lo siguiente en la agenda de esta sala.'}
+              </p>
+            </div>
+            <span className={estilos.bloqueReunionesConteo}>
+              {porVenir.length} {porVenir.length === 1 ? 'reunión' : 'reuniones'}
+            </span>
+          </header>
           {porVenir.map((r) => (
             <FilaPorVenir
               key={r.id}
@@ -388,167 +400,161 @@ export function ReunionesSala({
               editarArchivoAction={editarArchivoAction}
             />
           ))}
-        </div>
+        </section>
       )}
 
       {!hayHistorial && (
         <p className={estilos.vacioNota}>
-          Todavía no se ha dado ninguna reunión con este cliente. La primera nace al preparar una
-          presentación; su minuta se levanta al terminarla.
+          {porVenir.length > 0
+            ? 'Todavía no hay reuniones en el historial. Cuando ocurra la primera, su presentación y su minuta aparecerán aquí.'
+            : 'Todavía no se ha dado ninguna reunión con este cliente. La primera nace al preparar una presentación; su minuta se levanta al terminarla.'}
         </p>
       )}
 
-      {/* `id` en cada fila: para poder llegar hasta una reunión desde el
-          acuerdo que salió de ella (ver `origenDeAcuerdo`, en la página de la
-          sala) — que es donde está su minuta, a un clic.
-
-          ═══ LA ÚLTIMA, DE CADA CLASE (ronda 14.3) ═══ Antes era una sola
-          tarjeta destacada; ahora es una POR CLASE presente en el
-          historial —`ultimasPorClase` ya trae solo la cabeza de cada grupo,
-          ver su comentario más arriba—. Con la única clase que tiene HOY
-          cada sala (o ninguna) esto sigue siendo una tarjeta sola, a lo
-          ancho completo: el grid de `.ultimasPorClase` se estira solo
-          cuando hay una, mismo mecanismo que `.columnasAnteriores` más
-          abajo. */}
+      {/* Cada reunión conserva su ancla para llegar desde el acuerdo que
+          nació en ella. La cabecera muestra la más reciente de cada clase;
+          el resto permanece agrupado debajo por esa misma clase. */}
       {hayHistorial && (
-      <div className={estilos.ultimasPorClase} data-testid="ultimas-por-clase">
-        {ultimasPorClase.map((r) => {
-          const participantes = participantesDeReunion(r)
-          return (
-            <div className={estilos.reunionDestacada} id={`r-${r.id}`} key={r.id}>
-              <div className={estilos.reunionCabecera}>
-                <div>
-                  <div className={estilos.presTag}>La última</div>
-                  <h3 className={estilos.presTitulo}>{r.titulo}</h3>
-                  {/* La clase va PEGADA a la fecha, no en una píldora aparte:
-                      con la única clase de hoy esto sigue leyéndose como
-                      antes ("15 jul 2026"), solo que un poco más largo
-                      ("15 jul 2026 · Estatus de UDN") — no un elemento nuevo
-                      que aprender. `claveDeClase(r.plantilla)`, NO
-                      `r.plantilla` crudo: esta tarjeta tiene que decir la
-                      MISMA clase que la columna de "Anteriores" donde caería
-                      si dejara de ser "la última" — si aquí se leyera el
-                      dato crudo, una reunión 'en-blanco' diría "En blanco"
-                      en su tarjeta pero aparecería bajo "Sin clasificar" en
-                      su columna: la misma reunión, dos respuestas distintas
-                      a "¿qué junta es?". */}
-                  <div className={estilos.presFecha}>
-                    {fechaCompleta(r.fecha)} · {etiquetaDeClase(claveDeClase(r.plantilla))}
-                  </div>
-                </div>
-                {/* La salida, también en el historial: la reunión que sobra
-                    puede ser una vieja tanto como una por venir. */}
-                {equipo && (
-                  <div className={estilos.reunionBorrar}>
-                    <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
-                  </div>
-                )}
-              </div>
-              <CarasDeReunion
-                reunion={r}
-                equipo={equipo}
-                onLeerMinuta={() => setAbierta(r)}
-                onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
-                editarArchivoAction={editarArchivoAction}
-                descartarBorradorAction={descartarBorradorAction}
-              />
-              {subiendoReunionId === r.id && (
-                <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
-              )}
-              {errorSubida?.reunionId === r.id && (
-                <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
-              )}
-              <AcuerdosDeReunion acuerdos={r.acuerdos} />
-              {participantes && <ParticipantesSesion participantes={participantes} />}
+        <section className={estilos.historialReuniones} aria-labelledby={historialTituloId}>
+          <header className={estilos.bloqueReunionesCabecera}>
+            <div>
+              <h2 id={historialTituloId} className={estilos.bloqueReunionesTitulo}>
+                Historial de reuniones
+              </h2>
+              <p className={estilos.bloqueReunionesPista}>
+                Presentaciones, minutas y acuerdos, unidos por la reunión donde ocurrieron.
+              </p>
             </div>
-          )
-        })}
-      </div>
-      )}
-
-      {/* ═══ REUNIONES ANTERIORES ═══ Franco: *"en el módulo Reuniones hay
-          que agregar la subsección de Reuniones Anteriores dentro del mismo
-          módulo"*. La lista ya estaba —debajo de "La última", sin rótulo— y
-          por eso se leía como una continuación de esa tarjeta en vez de como
-          lo que es: la historia de la relación. Mismo rótulo que "Lo que
-          viene", que es el otro bloque del módulo — SIN el conteo que
-          llevaba antes: el número ya vive en la cabecera de cada columna
-          (`.grupoCabecera`, más abajo), y repetirlo aquí arriba sería el
-          mismo total dicho dos veces con una sola clase, que es justo el
-          caso de HOY en todas las salas.
-
-          ═══ EN COLUMNAS, POR CLASE (ronda 14.3) ═══ `anterioresPorClase` ya
-          viene sin las clases vacías (una columna vacía es ruido) y en el
-          orden del catálogo, "Sin clasificar" al final (`ordenDeClase`,
-          arriba). `.columnasAnteriores` es el MISMO mecanismo de rejilla que
-          ya resuelve `.bmCompetidores` (benchmark) en esta hoja: con una
-          columna se estira a lo ancho completo —el caso de hoy—, con varias
-          se reparten, y en móvil se apilan solas por el propio `minmax`, sin
-          un `@media` nuevo. `.grupoMaterial`/`.grupoCabecera`/`.grupoNombre`
-          son las MISMAS clases que ya agrupan los materiales de la sala
-          (`MaterialesAgrupados.tsx`): la misma idea —una etiqueta y un
-          conteo por grupo— no se reinventa aquí. */}
-      {anterioresPorClase.length > 0 && (
-        <>
-        <div className={estilos.porVenirRotulo} style={{ marginTop: '1.4rem' }}>
-          Reuniones anteriores
-        </div>
-        <div className={estilos.columnasAnteriores}>
-          {anterioresPorClase.map(({ clave, etiqueta, lista }) => {
-            // `role="group"` + `aria-labelledby`: un lector de pantalla
-            // anuncia "Estatus de UDN, grupo de 2" al entrar, en vez de una
-            // lista de filas sin ningún contexto de a qué clase pertenecen.
-            const tituloId = `clase-anteriores-${salaSlug}-${clave ?? 'sin-clasificar'}`
-            return (
-              <div key={clave ?? 'sin-clasificar'} role="group" aria-labelledby={tituloId} className={estilos.grupoMaterial}>
-                <div className={estilos.grupoCabecera}>
-                  <h3 id={tituloId} className={estilos.grupoNombre}>{etiqueta}</h3>
-                  <span className={estilos.conteo}>{lista.length}</span>
-                </div>
-                <div className={estilos.reuniones}>
-                  {lista.map((r) => {
-                    const participantes = participantesDeReunion(r)
-                    return (
-                      <div key={r.id} className={estilos.reunionFila} id={`r-${r.id}`}>
-                        <div className={estilos.reunionFilaTexto}>
-                          <span className={estilos.presFilaTitulo}>{r.titulo}</span>
-                          <span className={estilos.presFilaFecha}>{fechaBreveConAnio(r.fecha)}</span>
-                          {equipo && (
-                            <span className={estilos.reunionBorrar}>
-                              <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
-                            </span>
-                          )}
-                        </div>
-                        <CarasDeReunion
-                          reunion={r}
-                          equipo={equipo}
-                          onLeerMinuta={() => setAbierta(r)}
-                          onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
-                          editarArchivoAction={editarArchivoAction}
-                          descartarBorradorAction={descartarBorradorAction}
-                          compacta
-                        />
-                        {subiendoReunionId === r.id && (
-                          <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
-                        )}
-                        {errorSubida?.reunionId === r.id && (
-                          <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
-                        )}
-                        <AcuerdosDeReunion acuerdos={r.acuerdos} />
-                        {participantes && (
-                          <div className={estilos.reunionFilaParticipacion}>
-                            <ParticipantesSesion participantes={participantes} />
-                          </div>
-                        )}
+            <span className={estilos.bloqueReunionesConteo}>
+              {reuniones.length} {reuniones.length === 1 ? 'reunión' : 'reuniones'}
+            </span>
+          </header>
+          <div className={estilos.ultimasPorClase} data-testid="ultimas-por-clase">
+            {ultimasPorClase.map((r) => {
+              const participantes = participantesDeReunion(r)
+              const tituloId = `reunion-reciente-${r.id}`
+              return (
+                <article
+                  className={estilos.reunionDestacada}
+                  id={`r-${r.id}`}
+                  key={r.id}
+                  aria-labelledby={tituloId}
+                >
+                  <div className={estilos.reunionCabecera}>
+                    <div>
+                      <div className={estilos.presTag}>Más reciente</div>
+                      <h3 id={tituloId} className={estilos.presTitulo}>{r.titulo}</h3>
+                      {/* La misma clave normalizada gobierna esta etiqueta y
+                          el grupo de reuniones anteriores. */}
+                      <time className={estilos.presFecha} dateTime={r.fecha}>
+                        {fechaCompleta(r.fecha)} · {etiquetaDeClase(claveDeClase(r.plantilla))}
+                      </time>
+                    </div>
+                    {equipo && (
+                      <div className={estilos.reunionBorrar}>
+                        <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
                       </div>
-                    )
-                  })}
-                </div>
+                    )}
+                  </div>
+                  <CarasDeReunion
+                    reunion={r}
+                    equipo={equipo}
+                    onLeerMinuta={() => setAbierta(r)}
+                    onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+                    editarArchivoAction={editarArchivoAction}
+                    descartarBorradorAction={descartarBorradorAction}
+                  />
+                  {subiendoReunionId === r.id && (
+                    <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
+                  )}
+                  {errorSubida?.reunionId === r.id && (
+                    <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
+                  )}
+                  <AcuerdosDeReunion acuerdos={r.acuerdos} />
+                  {participantes && <ParticipantesSesion participantes={participantes} />}
+                </article>
+              )
+            })}
+          </div>
+
+          {/* Solo se crean columnas para clases con reuniones anteriores;
+              las vacías no aportan información y “Sin clasificar” va al final. */}
+          {anterioresPorClase.length > 0 && (
+            <section className={estilos.historialAnterior} aria-labelledby={anterioresTituloId}>
+              <div className={estilos.historialAnteriorCabecera}>
+                <h3 id={anterioresTituloId} className={estilos.historialAnteriorTitulo}>
+                  Reuniones anteriores
+                </h3>
+                <span className={estilos.historialAnteriorLinea} aria-hidden />
               </div>
-            )
-          })}
-        </div>
-        </>
+              <div className={estilos.columnasAnteriores}>
+                {anterioresPorClase.map(({ clave, etiqueta, lista }) => {
+                  const tituloId = `clase-anteriores-${salaSlug}-${clave ?? 'sin-clasificar'}`
+                  return (
+                    <div
+                      key={clave ?? 'sin-clasificar'}
+                      role="group"
+                      aria-labelledby={tituloId}
+                      className={estilos.grupoMaterial}
+                    >
+                      <div className={estilos.grupoCabecera}>
+                        <h3 id={tituloId} className={estilos.grupoNombre}>{etiqueta}</h3>
+                        <span className={estilos.conteo}>{lista.length}</span>
+                      </div>
+                      <div className={estilos.reuniones}>
+                        {lista.map((r) => {
+                          const participantes = participantesDeReunion(r)
+                          const reunionTituloId = `reunion-anterior-${r.id}`
+                          return (
+                            <article
+                              key={r.id}
+                              className={estilos.reunionFila}
+                              id={`r-${r.id}`}
+                              aria-labelledby={reunionTituloId}
+                            >
+                              <div className={estilos.reunionFilaTexto}>
+                                <h4 id={reunionTituloId} className={estilos.presFilaTitulo}>{r.titulo}</h4>
+                                <time className={estilos.presFilaFecha} dateTime={r.fecha}>
+                                  {fechaBreveConAnio(r.fecha)}
+                                </time>
+                                {equipo && (
+                                  <span className={estilos.reunionBorrar}>
+                                    <BorrarReunion reunion={r} eliminarAction={eliminarReunionAction} />
+                                  </span>
+                                )}
+                              </div>
+                              <CarasDeReunion
+                                reunion={r}
+                                equipo={equipo}
+                                onLeerMinuta={() => setAbierta(r)}
+                                onSubirPresentacion={equipo ? () => alPulsarSubirPresentacion(r) : undefined}
+                                editarArchivoAction={editarArchivoAction}
+                                descartarBorradorAction={descartarBorradorAction}
+                                compacta
+                              />
+                              {subiendoReunionId === r.id && (
+                                <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>
+                              )}
+                              {errorSubida?.reunionId === r.id && (
+                                <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
+                              )}
+                              <AcuerdosDeReunion acuerdos={r.acuerdos} />
+                              {participantes && (
+                                <div className={estilos.reunionFilaParticipacion}>
+                                  <ParticipantesSesion participantes={participantes} />
+                                </div>
+                              )}
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+        </section>
       )}
 
       <dialog
@@ -634,7 +640,7 @@ export function ReunionesSala({
           </div>
         )}
       </dialog>
-    </>
+    </div>
   )
 }
 
@@ -686,11 +692,12 @@ function FilaPorVenir({
 }) {
   const [cerrando, empezarCierre] = useTransition()
   const lista = tienePresentacion(reunion)
+  const tituloId = `reunion-proxima-${reunion.id}`
 
   return (
-    <div className={estilos.porVenirFila}>
+    <article className={estilos.porVenirFila} aria-labelledby={tituloId}>
       <div className={estilos.porVenirTexto}>
-        <strong>{reunion.titulo}</strong>
+        <h3 id={tituloId} className={estilos.porVenirTitulo}>{reunion.titulo}</h3>
         <span>
           {fechaBreve(reunion.fecha)}
           {' · '}
@@ -752,7 +759,7 @@ function FilaPorVenir({
 
       {subiendo && <p className={estilos.subirPista} aria-live="polite">Subiendo…</p>}
       {error && <p className={estilos.subirError} role="alert">{error}</p>}
-    </div>
+    </article>
   )
 }
 

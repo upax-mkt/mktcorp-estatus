@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createElement } from 'react'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EstadoSala } from '@/dominio/salas'
 import type { CategoriaArchivo } from '@/db/archivos'
@@ -922,11 +922,11 @@ describe('VistaSala (/cliente/[slug]) — cada reunión aparece en un solo bloqu
   })
 
   /**
-   * Y NO SE ROTULA "LA ÚLTIMA": el historial ordena por fecha y toma la
+   * Y NO SE ROTULA "MÁS RECIENTE": el historial ordena por fecha y toma la
    * primera, así que sin esta separación una junta futura salía anunciada
    * como la última que se dio.
    */
-  it('una reunión por venir no entra al historial ni se anuncia como "La última"', async () => {
+  it('una reunión por venir no entra al historial ni se anuncia como "Más reciente"', async () => {
     estadoDeSalaMock.mockResolvedValueOnce({
       ...SALA_BASE, reuniones: [FUTURA_SIN_DOCUMENTO, PASADA_MAQUETADA],
     })
@@ -935,10 +935,10 @@ describe('VistaSala (/cliente/[slug]) — cada reunión aparece en un solo bloqu
 
     render(await invocar())
 
-    // "La última" existe, y es la pasada — no la de dentro de tres años.
-    const destacada = screen.getByText('La última').closest('div')?.parentElement?.parentElement
-    expect(destacada?.textContent).toContain('Quincenal julio')
-    expect(destacada?.textContent).not.toContain('La que viene sin nada')
+    // El historial contiene la pasada — no la de dentro de tres años.
+    const historial = screen.getByRole('region', { name: /historial de reuniones/i })
+    expect(within(historial).getByRole('article', { name: 'Quincenal julio' })).toBeInTheDocument()
+    expect(within(historial).queryByText('La que viene sin nada')).not.toBeInTheDocument()
   })
 })
 

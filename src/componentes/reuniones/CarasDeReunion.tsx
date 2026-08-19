@@ -106,6 +106,11 @@ interface Props {
   descartarBorradorAction?: (reunionId: string) => Promise<void>
 }
 
+/** La minuta ocupa una cara solo cuando hay algo que leer o ya se puede crear. */
+function hayCaraDeMinuta(reunion: Reunion): boolean {
+  return Boolean(reunion.minuta) || tienePresentacion(reunion) || reunion.estado === 'dada'
+}
+
 export function CarasDeReunion({
   reunion,
   equipo,
@@ -117,14 +122,26 @@ export function CarasDeReunion({
 }: Props) {
   return (
     <div className={compacta ? estilos.carasCompactas : estilos.caras}>
-      <CaraPresentacion
-        reunion={reunion}
-        equipo={equipo}
-        onSubirPresentacion={onSubirPresentacion}
-        editarArchivoAction={editarArchivoAction}
-        descartarBorradorAction={descartarBorradorAction}
-      />
-      <CaraMinuta reunion={reunion} equipo={equipo} onLeerMinuta={onLeerMinuta} />
+      <div className={estilos.caraGrupo}>
+        <span className={estilos.caraRotulo}>Presentación</span>
+        <div className={estilos.caraContenido}>
+          <CaraPresentacion
+            reunion={reunion}
+            equipo={equipo}
+            onSubirPresentacion={onSubirPresentacion}
+            editarArchivoAction={editarArchivoAction}
+            descartarBorradorAction={descartarBorradorAction}
+          />
+        </div>
+      </div>
+      {hayCaraDeMinuta(reunion) && (
+        <div className={estilos.caraGrupo}>
+          <span className={estilos.caraRotulo}>Minuta</span>
+          <div className={estilos.caraContenido}>
+            <CaraMinuta reunion={reunion} equipo={equipo} onLeerMinuta={onLeerMinuta} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -387,7 +404,7 @@ function CaraMinuta({
   if (reunion.minuta) {
     return (
       <button type="button" className={estilos.cara} onClick={onLeerMinuta}>
-        <span aria-hidden>✎</span> Minuta
+        <span aria-hidden>▤</span> Leer minuta
       </button>
     )
   }
@@ -407,7 +424,7 @@ function CaraMinuta({
    * hoy, y quien decide qué reuniones entran en cada bloque —lo que viene o el
    * historial— ya lo hizo antes de llegar aquí.
    */
-  if (!tienePresentacion(reunion) && reunion.estado !== 'dada') return null
+  if (!hayCaraDeMinuta(reunion)) return null
 
   /**
    * AL DIRECTOR SE LE DICE, NO SE LE ALARMA (ronda 13). Franco: *"cuando una
