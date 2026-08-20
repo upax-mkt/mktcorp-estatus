@@ -15,11 +15,26 @@
 .caras,
 .carasCompactas {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(9rem, 0.55fr);
   align-items: start;
   gap: 0.8rem;
   min-width: 0;
 }
+
+/* ⚠️ LAS DOS CARAS NO SE REPARTEN IGUAL EN LOS DOS SITIOS, y la diferencia
+   está medida.
+
+   `1.45fr / 0.55fr` era la proporción de las DOS, y en la fila compacta es la
+   correcta: esa columna mide ~470 px y el dato largo es el nombre del archivo
+   ("PPT | Estatus Mensual Julio"), que se trunca con puntos suspensivos en
+   cuanto se le quita sitio. La minuta, enfrente, cabe en dos palabras.
+
+   En la tarjeta DESTACADA la misma proporción no describe nada: mide 955 px,
+   así que la cara de la presentación se llevaba 650 para un chip de 215 y el
+   resultado eran 722 px de vacío a la derecha del chip (medido en Marketing
+   United). Ahí el reparto a partes iguales acerca la minuta a su contenido en
+   vez de acumular todo el aire en un solo hueco. */
+.caras { grid-template-columns: minmax(0, 1fr) minmax(9rem, 1fr); }
+.carasCompactas { grid-template-columns: minmax(0, 1.45fr) minmax(9rem, 0.55fr); }
 
 /* En la tarjeta principal, presentación y minuta forman una franja de
    recursos separada de la identidad de la reunión. En las filas históricas
