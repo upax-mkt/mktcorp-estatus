@@ -27,7 +27,7 @@ const TONO_ESTATUS: Partial<Record<AcuerdoDeReunion['estatus'], string>> = {
  * acuerdos de la sala (`src/app/cliente/[slug]/page.tsx`, `textoFechaAcuerdo`
  * — el mismo texto que ya usa el tipo `Acuerdo`, `dominio/salas.ts`:
  * `fechaCompromiso: string | null // ISO, o null = "por definir"`). "sin
- * fecha" es el rótulo de otra pantalla (la bandeja de Monday) — no el de
+ * fecha" era el rótulo de otra pantalla (la bandeja, ya retirada) — no el de
  * aquí.
  */
 function textoFecha(fechaCompromiso: string | null): string {

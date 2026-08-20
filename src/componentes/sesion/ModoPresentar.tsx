@@ -5,7 +5,7 @@ import { RelojReunion } from './RelojReunion'
 import { PunteroLaser } from './PunteroLaser'
 import { GrabarReunion } from './GrabarReunion'
 import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
-import type { PersonaMonday } from '@/monday/personas'
+import type { PersonaResponsable } from '@/lib/personas'
 import estilos from './presentar.module.css'
 
 /**
@@ -29,7 +29,7 @@ interface Props {
   /** Solo el equipo minuta. Un director presenta y señala; no levanta el acta. */
   equipo?: boolean
   /** La gente viva de Mkt Corp, para el selector de responsable — solo se usa si reunionId && equipo llegan a mostrar MinutaCliente. */
-  personas: PersonaMonday[]
+  personas: PersonaResponsable[]
   /**
    * Deja constancia de que alguien abrió el modo presentación (ronda 9,
    * tarea 4 — «quiénes están en vivo interactuando»). Opcional por el mismo

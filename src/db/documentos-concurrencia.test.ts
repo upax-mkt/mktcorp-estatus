@@ -16,8 +16,7 @@ import * as esquema from './esquema'
  * `def` de respaldo y la sección se pinta con su tipo crudo (`seccion-<uuid>`).
  *
  * ARCHIVO APARTE de `documentos.test.ts` (mismo criterio que separa
- * `participacion.test.ts` de `participacion-resiliencia.test.ts`, o
- * `refrescar-desde-monday.test.ts` de su `-cancelado`): ese otro archivo NO
+ * `participacion.test.ts` de `participacion-resiliencia.test.ts`): ese otro archivo NO
  * mockea `./cliente` — corre entero contra el store en memoria, porque
  * vitest no define `DATABASE_URL`. Probar la carrera de Postgres exige
  * simular una base que SÍ existe, con una tabla de juguete con estado — dos

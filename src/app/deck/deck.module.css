@@ -181,7 +181,7 @@
    escritura ya lo rechaza del lado del servidor (`crearSesion`), esto es
    solo para no dejar a alguien llenar el formulario entero para enterarse
    al final. Mismo lenguaje que `.opcion:has(input:disabled)` en
-   bandeja.module.css. */
+   acuerdos.module.css. */
 .salaOpcion:has(input:disabled) { cursor: not-allowed; opacity: 0.5; }
 .salaOpcion:has(input:disabled) .salaOpcionNombre { color: var(--tx-3); }
 

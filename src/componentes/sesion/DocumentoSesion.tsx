@@ -1,7 +1,7 @@
 import type { DecisionSlide } from '@/decision/esquema'
 import type { Acuerdo } from '@/db/consultas'
 import type { Tema } from '@/temas/tipos'
-import type { PersonaMonday } from '@/monday/personas'
+import type { PersonaResponsable } from '@/lib/personas'
 import { ProveedorTema } from '@/componentes/ProveedorTema'
 import { SeccionDocumento, anclaDeSeccion } from './SeccionDocumento'
 import { papelDe } from '@/secciones/catalogo'
@@ -31,7 +31,7 @@ interface Props {
   /** Si quien mira es del equipo: solo el equipo levanta el acta. */
   equipo?: boolean
   /** La gente viva de Mkt Corp, para el selector de responsable del modo presentación. */
-  personas: PersonaMonday[]
+  personas: PersonaResponsable[]
   /** Ver `ModoPresentar` — registra quién abrió el modo presentación (ronda 9, tarea 4). */
   registrarPresentacionAction?: (reunionId: string) => Promise<void>
   /**

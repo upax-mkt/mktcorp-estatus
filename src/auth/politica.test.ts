@@ -197,16 +197,16 @@ describe('puedeVerRuta', () => {
   })
 
   /**
-   * El espacio de acuerdos (tarea 11, ronda 7) y su bandeja son de equipo:
-   * cruzan las diez salas y la bandeja sube al tablero compartido de Monday,
-   * ninguna de las dos cosas es asunto de un solo director. Sin entrada
-   * explícita en la lista blanca, caen en el mismo "se niega por defecto" que
-   * el caso de arriba — este test lo deja dicho por su nombre, no solo por
-   * coincidencia con /admin.
+   * El espacio de acuerdos (tarea 11, ronda 7) es de equipo: cruza las diez
+   * salas, y eso no es asunto de un solo director. Sin entrada explícita en
+   * la lista blanca cae en el mismo "se niega por defecto" que el caso de
+   * arriba — este test lo deja dicho por su nombre, no solo por coincidencia
+   * con /admin. Y con sus subrutas, sean las que sean: hasta el 20-ago-2026
+   * de aquí colgaba `/acuerdos/bandeja`.
    */
-  it('un acceso de sala no entra al espacio de acuerdos ni a su bandeja', () => {
+  it('un acceso de sala no entra al espacio de acuerdos ni a ninguna subruta suya', () => {
     expect(puedeVerRuta(SALA_NC, '/acuerdos')).toBe(false)
-    expect(puedeVerRuta(SALA_NC, '/acuerdos/bandeja')).toBe(false)
+    expect(puedeVerRuta(SALA_NC, '/acuerdos/lo-que-sea')).toBe(false)
   })
 
   it('el equipo con rolApp sí entra al espacio de acuerdos y a su bandeja', () => {

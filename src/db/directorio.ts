@@ -10,10 +10,9 @@ import * as esquema from './esquema'
  * ronda cada persona entra con su cuenta de Slack (tarea 2, `src/auth/`) y
  * tiene un rol.
  *
- * NO CONFUNDIR con `src/db/personas.ts`: ese es el directorio de la CUENTA DE
- * MONDAY, para asignar responsables de acuerdos — otra tabla (`personas_monday`),
- * otro propósito. Una persona puede estar en los dos directorios, en uno solo
- * o en ninguno.
+ * `src/db/personas.ts` LEE ESTA MISMA TABLA con otra pregunta: quién se puede
+ * elegir como responsable de un acuerdo (`genteParaResponsable`). Aquí se
+ * administra quién entra y con qué rol; allá solo se lista a los activos.
  *
  * SIN STORE EN MEMORIA, a propósito y a diferencia de `acuerdos.ts`/
  * `sesiones.ts`: el acceso no tiene un modo "sin base de datos" razonable —

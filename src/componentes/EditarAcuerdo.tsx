@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { PersonaMonday } from '@/monday/personas'
+import type { PersonaResponsable } from '@/lib/personas'
 import type { Equipos } from '@/lib/equipos'
 import { SelectorResponsable } from './SelectorResponsable'
 import estilos from '@/app/cliente/cliente.module.css'
@@ -43,7 +43,7 @@ export function EditarAcuerdo({
   acuerdoId: string
   queInicial: string
   responsableInicial: string
-  personas: PersonaMonday[]
+  personas: PersonaResponsable[]
   /**
    * Los squads y las UDN que también pueden ser responsables (13-ago, ver
    * src/lib/equipos.ts). Opcional: sin ellos el editor se comporta como antes.
@@ -62,7 +62,7 @@ export function EditarAcuerdo({
   siempreVisible?: boolean
   editarAction: (
     acuerdoId: string,
-    cambios: { que: string; responsable: string; responsableMondayId: string | null },
+    cambios: { que: string; responsable: string },
   ) => Promise<{ error?: string }>
   /**
    * ABRIR/CERRAR CONTROLADO DESDE FUERA (ronda 14, tarea 4 — arreglo del
@@ -88,10 +88,7 @@ export function EditarAcuerdo({
     else setEditandoInterno(valor)
   }
   const [que, setQue] = useState(queInicial)
-  const [responsable, setResponsable] = useState({
-    responsable: responsableInicial,
-    responsableMondayId: null as string | null,
-  })
+  const [responsable, setResponsable] = useState({ responsable: responsableInicial })
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
 
@@ -128,11 +125,7 @@ export function EditarAcuerdo({
   function guardar() {
     setError(null)
     empezar(async () => {
-      const r = await editarAction(acuerdoId, {
-        que,
-        responsable: responsable.responsable,
-        responsableMondayId: responsable.responsableMondayId,
-      })
+      const r = await editarAction(acuerdoId, { que, responsable: responsable.responsable })
       if (r.error) { setError(r.error); return }
       cambiarEditando(false)
     })
@@ -151,7 +144,7 @@ export function EditarAcuerdo({
       <SelectorResponsable
         personas={personas}
         equipos={equipos}
-        valorInicial={{ nombre: responsableInicial, mondayId: null }}
+        valorInicial={responsableInicial}
         onCambiar={setResponsable}
         disabled={pendiente}
       />
@@ -191,7 +184,7 @@ export function EditarAcuerdo({
             // Se descarta lo tecleado: cancelar tiene que devolver la fila a
             // como estaba, no dejar el borrador esperando al próximo clic.
             setQue(queInicial)
-            setResponsable({ responsable: responsableInicial, responsableMondayId: null })
+            setResponsable({ responsable: responsableInicial })
             setError(null)
             cambiarEditando(false)
           }}

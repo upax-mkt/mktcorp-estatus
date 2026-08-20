@@ -11,19 +11,32 @@ describe('esquema de la ronda 7', () => {
     expect(columnas.pausadaDesde.notNull).toBe(false)
   })
 
-  it('el acuerdo sabe a quién de Monday corresponde y en qué estado de bandeja está', () => {
+  it('el acuerdo se puede destacar, y nace sin destacar', () => {
     const columnas = getTableColumns(esquema.acuerdos)
-    expect(columnas.responsableMondayId.notNull).toBe(false)
     expect(columnas.destacado.default).toBe(false)
-    expect(columnas.bandeja.default).toBe('no_aplica')
-    expect(columnas.mondayTipo.notNull).toBe(false)
   })
 
-  it('hay una copia local del directorio de personas', () => {
-    const columnas = getTableColumns(esquema.personasMonday)
-    expect(columnas.mondayId.primary).toBe(true)
-    expect(columnas.nombre.notNull).toBe(true)
-    expect(columnas.correo.notNull).toBe(true)
+  /**
+   * EL DESMONTAJE DE MONDAY (20-ago-2026) — este test es su centinela.
+   *
+   * El acuerdo llevaba cinco columnas de la integración (`monday_id`,
+   * `responsable_monday_id`, `monday_tipo`, `monday_url`,
+   * `monday_sincronizado_en`) más `bandeja`, y había una tabla entera
+   * `personas_monday`. Se borraron con la migración 0042 tras comprobar
+   * contra producción que las seis estaban vacías en los 37 acuerdos.
+   *
+   * Si alguien reintroduce cualquiera de ellas —copiando un esquema viejo, o
+   * volviendo a generar desde una migración anterior— este test cae. Es lo
+   * único que impide que el cadáver vuelva sin que nadie lo decida.
+   */
+  it('el acuerdo ya no lleva ninguna columna de Monday, ni bandeja', () => {
+    const columnas = Object.keys(getTableColumns(esquema.acuerdos))
+    expect(columnas.filter((c) => c.toLowerCase().includes('monday'))).toEqual([])
+    expect(columnas).not.toContain('bandeja')
+  })
+
+  it('no hay ninguna tabla de personas de Monday en el esquema', () => {
+    expect(Object.keys(esquema).filter((t) => t.toLowerCase().includes('monday'))).toEqual([])
   })
 })
 

@@ -3,18 +3,16 @@
  *
  * Franco (13-ago): *"hay acuerdos que no tienen responsable, y no los puedo
  * editar ni la persona ni el equipo (UDN o Squads de mkt)"*. Hasta hoy un
- * responsable era siempre una PERSONA: alguien de Mkt Corp elegido de la lista
- * de Monday, o un nombre escrito a mano para la gente de la UDN. Pero hay
+ * responsable era siempre una PERSONA: alguien de Mkt Corp elegido de la
+ * lista, o un nombre escrito a mano para la gente de la UDN. Pero hay
  * compromisos que no son de nadie en particular y sí de un equipo entero —"lo
  * ve RevOps", "queda con Inbound"— y escribirlos a mano cada vez produce tres
  * grafías del mismo squad y un filtro de responsables inservible.
  *
  * NO HAY TABLA NI COLUMNA NUEVA, y es a propósito: lo que se guarda sigue
- * siendo el NOMBRE en `acuerdos.responsable`, con `responsableMondayId` en
- * nulo (un squad no es un usuario de Monday, así que no hay a quién asignar
- * allá). Para saber al reabrir el editor si ese nombre era un equipo o una
- * persona escrita a mano basta compararlo con esta lista — determinista, sin
- * un campo que pueda contradecir al otro.
+ * siendo el NOMBRE en `acuerdos.responsable`. Para saber al reabrir el editor
+ * si ese nombre era un equipo o una persona escrita a mano basta compararlo
+ * con esta lista — determinista, sin un campo que pueda contradecir al otro.
  *
  * ⚠️ LOS SQUADS SE ESCRIBEN AQUÍ; LAS UDN NO. Las UDN son las salas de la
  * app, que se crean y se pausan desde la propia interfaz: leerlas de la base

@@ -1,43 +1,32 @@
-import { consultarMonday } from './red'
-
 /**
- * EL DIRECTORIO DE GENTE DE MONDAY.
+ * LA GENTE QUE PUEDE CARGAR CON UN ACUERDO.
  *
- * La cuenta es "Marketing Corp Grupo UPAX" y sus usuarios son el equipo: 24
- * activos el 29-jul-2026. No se filtran por dominio de correo a propósito —
- * conviven `@upax.com.mx`, `@elektra.com.mx` y `@jansan.mx`, así que el dominio
- * no dice quién es del equipo y filtrarlo dejaría fuera a media plantilla.
+ * Sale de la tabla `personas` (ver `genteParaResponsable` en
+ * src/db/personas.ts): las de Mkt Corp que pueden entrar a la app. Este
+ * archivo es lógica pura —sin base, sin red— porque lo importan componentes
+ * de cliente.
+ *
+ * Antes este tipo se llamaba `PersonaMonday` y venía del directorio de la
+ * cuenta de Monday. La integración se desmontó el 20-ago-2026 (Franco: "lo de
+ * Monday lo mataremos, no va la conexión"), así que la única fuente es la
+ * nuestra.
  */
-export interface PersonaMonday {
-  id: string
+export interface PersonaResponsable {
+  /**
+   * Lo que se guarda en `acuerdos.responsable`, y lo ÚNICO que viaja al HTML:
+   * es el `value` de cada opción del desplegable.
+   */
   nombre: string
+  /**
+   * Identifica a la persona en la tabla `personas` (es su clave primaria).
+   *
+   * ⚠️ NUNCA se pinta ni viaja en ningún atributo: la pantalla de acuerdos se
+   * comparte por enlace firmado con gente de la UDN, y el correo de las 24
+   * personas de Mkt Corp no tiene que estar ahí. Regla de la ronda 7, con dos
+   * tests que caen si alguien lo pone en un `title` o en cualquier atributo
+   * (SelectorResponsable.test.tsx).
+   */
   correo: string
-}
-
-interface FilaUsuario {
-  id: string
-  name: string
-  email: string
-  enabled: boolean
-  is_guest: boolean
-}
-
-/** Un día. Un directorio de 24 personas no cambia entre dos reuniones. */
-const VIGENCIA_MS = 86_400_000
-
-export function hayQueRefrescar(cargadoEn: Date | null, ahora: Date): boolean {
-  if (!cargadoEn) return true
-  return ahora.getTime() - cargadoEn.getTime() > VIGENCIA_MS
-}
-
-export async function personasDeMonday(): Promise<PersonaMonday[]> {
-  const datos = await consultarMonday<{ users: FilaUsuario[] }>(
-    `query { users(limit: 200) { id name email enabled is_guest } }`,
-  )
-  return datos.users
-    .filter((u) => u.enabled && !u.is_guest)
-    .map((u) => ({ id: u.id, nombre: u.name, correo: u.email }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 }
 
 /** Minúsculas, sin acentos, espacios colapsados. La única forma de comparar dos nombres de este archivo. */
@@ -74,10 +63,12 @@ function primeroYApellido(nombreCompleto: string): string {
  * nombre + apellido" normalizado (por si la transcripción omitió un nombre
  * compuesto). Si cualquiera de los dos niveles encuentra más de una persona
  * —dos "Ana García", por ejemplo— NO es evidente cuál es, así que no se
- * sugiere ninguna: es mejor no sugerir nada que sugerir a quien no toca en un
- * tablero que mira todo el equipo.
+ * sugiere ninguna: es mejor no sugerir nada que sugerir a quien no toca.
  */
-export function personaMasParecida(nombreDetectado: string, personas: PersonaMonday[]): PersonaMonday | null {
+export function personaMasParecida(
+  nombreDetectado: string,
+  personas: PersonaResponsable[],
+): PersonaResponsable | null {
   const nombreNorm = normalizar(nombreDetectado)
   if (nombreNorm === '') return null
 

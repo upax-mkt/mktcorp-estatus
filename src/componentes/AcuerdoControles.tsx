@@ -55,7 +55,7 @@ export function AcuerdoControles({
   // tocar el valor dispara el `onBlur` igual que si se hubiera editado — sin
   // esta referencia no hay forma de distinguir "no cambió nada" de "cambió y
   // ya se guardó", y cada blur reescribía la fecha (entrada nueva en
-  // `historia`, llamada a Monday) aunque el día siguiera siendo el mismo.
+  // `historia`, `updatedAt`) aunque el día siguiera siendo el mismo.
   const fechaGuardada = useRef(fechaInicial ?? '')
 
   return (

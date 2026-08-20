@@ -6,13 +6,14 @@ import { TablaAcuerdos } from './TablaAcuerdos'
 // `salaColor` en 6 dígitos, no en la forma corta `#000`: el hex de la app
 // (src/lib/color.ts) exige RRGGBB completo y revienta con la forma corta —
 // mismo bug de arnés que ya corrigió la tarea 1 en un test prescrito (ver
-// .superpowers/sdd/2026-07-29-ronda7-acuerdos-monday-y-salas/progress.md).
+// .superpowers/sdd/2026-07-29-ronda7-acuerdos-monday-y-salas/progress.md —
+// registro histórico: esa ronda montó la integración que se desmontó el
+// 20-ago-2026).
 // El valor en sí no importa para lo que prueban estos tres casos.
 const base = {
   id: 'a1', que: 'Enviar propuesta', responsable: 'Iris Múgica', fechaCompromiso: '2026-08-12',
   estatus: 'abierto' as const, salaSlug: 'mexa-creativa', salaNombre: 'Mexa Creativa',
-  salaColor: '#000000', salaActiva: true, destacado: false, mondayUrl: null, bandeja: 'pendiente' as const,
-  mondayDesvinculado: false,
+  salaColor: '#000000', salaActiva: true, destacado: false,
 }
 
 describe('TablaAcuerdos', () => {
@@ -21,11 +22,6 @@ describe('TablaAcuerdos', () => {
     const congelados = screen.getByRole('region', { name: /congelados/i })
     expect(congelados).toHaveTextContent('Zeus')
     expect(congelados).not.toHaveTextContent('Mexa Creativa')
-  })
-
-  it('el que vive en Monday enlaza a su elemento', () => {
-    render(<TablaAcuerdos acuerdos={[{ ...base, mondayUrl: 'https://monday.com/x' }]} destacar={vi.fn()} />)
-    expect(screen.getByRole('link', { name: /ver en Monday/i })).toHaveAttribute('href', 'https://monday.com/x')
   })
 
   it('sin un solo acuerdo lo dice, en vez de enseñar una tabla vacía', () => {
@@ -262,8 +258,8 @@ describe('TablaAcuerdos', () => {
      * DEUDA TÉCNICA (ronda de arreglo): el `onBlur` de `AcuerdoControles`
      * disparaba `editarFechaAction` con solo enfocar y salir del campo, sin
      * comprobar si el valor había cambiado — enfocar y salir de la fecha de
-     * un acuerdo escribía en la base, dejaba una entrada en su `historia` y
-     * disparaba una llamada a Monday. Tabular por una lista entera escribía
+     * un acuerdo escribía en la base y dejaba una entrada en su `historia`.
+     * Tabular por una lista entera escribía
      * una vez por fila. Sin este test, revertir el guard de
      * `AcuerdoControles.tsx` (comparar contra `fechaGuardada.current`) no
      * pondría nada en rojo.
@@ -395,17 +391,15 @@ describe('TablaAcuerdos', () => {
     expect(within(congelados).queryByText('Congelado', { exact: true })).not.toBeInTheDocument()
   })
 
-  // Revisión final de la ronda 7, punto 6: el acuerdo se sincronizó alguna
-  // vez y el elemento ya no existe en Monday.
-  it('un acuerdo desvinculado de Monday muestra el aviso', () => {
-    render(<TablaAcuerdos acuerdos={[{ ...base, mondayDesvinculado: true }]} destacar={vi.fn()} />)
-    expect(screen.getByText(/se dejó de sincronizar con Monday/i)).toBeInTheDocument()
-  })
-
-  it('un acuerdo que nunca se sincronizó no muestra ni el enlace ni el aviso', () => {
-    render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} />)
-    expect(screen.queryByRole('link', { name: /ver en Monday/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/se dejó de sincronizar/i)).not.toBeInTheDocument()
+  /**
+   * CENTINELA DEL DESMONTAJE (20-ago-2026). Esta fila pintaba dos cosas de
+   * Monday: un "Ver en Monday ↗" al elemento del tablero y un aviso de
+   * "se dejó de sincronizar". Las dos se fueron con la integración; si
+   * alguien las revive copiando una versión vieja del componente, esto cae.
+   */
+  it('ninguna fila ofrece ya nada de Monday: ni enlace al tablero ni aviso de sincronización', () => {
+    const { container } = render(<TablaAcuerdos acuerdos={[base]} destacar={vi.fn()} />)
+    expect(container.innerHTML).not.toMatch(/monday/i)
   })
 })
 

@@ -12,7 +12,7 @@ import { registrarPresentacion, registrarEdicion } from '@/db/participacion'
 import { DocumentoSesion, type SeccionSesion } from '@/componentes/sesion/DocumentoSesion'
 import { AlImprimir } from '@/componentes/sesion/AlImprimir'
 import { MarcarPresentada } from '@/componentes/MarcarPresentada'
-import { directorio } from '@/db/personas'
+import { genteParaResponsable } from '@/db/personas'
 
 // Normalmente solo lee decisiones ya guardadas (rápido); se marca igual como
 // dinámica/60s porque llega aquí justo después del redirect de "Maquetar"
@@ -51,8 +51,8 @@ export default async function PagSesionMaquetada({
   // `undefined` más abajo (`sala?.acuerdos ?? []`, `sala?.logoUrl ?? null`).
   const sala = reunion.salaSlug ? await estadoDeSala(reunion.salaSlug) : undefined
   // Para el selector de responsable si desde aquí se levanta una minuta en
-  // modo presentación — directorio() ya aguanta Monday caído.
-  const personas = await directorio()
+  // modo presentación.
+  const personas = await genteParaResponsable()
 
   // Sin documento (una reunión registrada solo con minuta, sin pasar por
   // "preparar") esto queda vacío: la misma rama que ya cubre "todavía no se

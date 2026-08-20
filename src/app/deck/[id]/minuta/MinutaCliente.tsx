@@ -6,7 +6,7 @@ import estilos from '../../deck.module.css'
 import { CopiarBoton } from '@/componentes/CopiarBoton'
 import { SelectorResponsable } from '@/componentes/SelectorResponsable'
 import { ListaOrdenable } from '@/componentes/ListaOrdenable'
-import { personaMasParecida, type PersonaMonday } from '@/monday/personas'
+import { personaMasParecida, type PersonaResponsable } from '@/lib/personas'
 import { generarMinutaAction, publicarMinutaAction, type DeQueReunion, type EstadoGeneracion } from './acciones'
 import { ensamblarCorreo, formatearFechaTabla, urlSesion } from '@/minuta/ensamblar'
 import type { InsumosCorreo } from '@/minuta/ensamblar'
@@ -22,7 +22,7 @@ interface FilaAcuerdo extends AcuerdoConfirmado {
    * fila (no se recalcula si el campo se edita después) y no viaja a
    * publicarMinutaAction: es un dato de pantalla, no del acuerdo.
    */
-  sugerencia: PersonaMonday | null
+  sugerencia: PersonaResponsable | null
   /**
    * Identidad de la fila para el `key` de React Y para `ListaOrdenable`
    * (ronda 11, tarea 1: antes solo hacía falta para el `key`, ahora además
@@ -56,8 +56,8 @@ interface Props {
    * acuerdos.
    */
   transcripcionInicial?: string
-  /** La gente viva de Mkt Corp, para elegir como responsable — ver directorio() en src/db/personas.ts. */
-  personas: PersonaMonday[]
+  /** La gente de Mkt Corp, para elegir como responsable — ver genteParaResponsable() en src/db/personas.ts. */
+  personas: PersonaResponsable[]
 }
 
 const SUGERENCIAS_PRIORIDAD = ['alta', 'media', 'baja']
@@ -92,19 +92,18 @@ function palabras(texto: string): number {
 /**
  * El acuerdo que propuso la IA, listo para revisarse en pantalla.
  *
- * `responsableMondayId` nace SIEMPRE en `null`, aunque haya una coincidencia
- * evidente: `personaMasParecida` nunca decide el responsable por su cuenta,
+ * La `sugerencia` NO se aplica sola, aunque la coincidencia sea evidente:
+ * `personaMasParecida` nunca decide el responsable por su cuenta,
  * solo se calcula y se guarda aparte para que SelectorResponsable la OFREZCA
  * como un botón — el id solo entra al estado si alguien pulsa "Confirmar" o
  * elige a mano. Sin ese clic, el acuerdo se guarda con el nombre de texto que
  * trajo la IA y sin id: vive en la sala, no entra a la bandeja, y ponerle
  * dueño después es una edición, no una reconstrucción.
  */
-function aFilaEditable(a: AcuerdoPropuesto, personas: PersonaMonday[]): FilaAcuerdo {
+function aFilaEditable(a: AcuerdoPropuesto, personas: PersonaResponsable[]): FilaAcuerdo {
   return {
     ...a,
     incluir: true,
-    responsableMondayId: null,
     sugerencia: personaMasParecida(a.responsable, personas),
     claveUi: crypto.randomUUID(),
   }
@@ -507,9 +506,9 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
                       <div className={estilos.filaAcuerdoCamposChicos}>
                         <SelectorResponsable
                           personas={personas}
-                          valorInicial={{ nombre: f.responsable, mondayId: f.responsableMondayId ?? null }}
+                          valorInicial={f.responsable}
                           sugerencia={f.sugerencia}
-                          onCambiar={(v) => actualizarFila(i, { responsable: v.responsable, responsableMondayId: v.responsableMondayId })}
+                          onCambiar={(v) => actualizarFila(i, { responsable: v.responsable })}
                           disabled={!f.incluir}
                         />
                         <input
@@ -571,7 +570,6 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
                 onClick={() => setFilas((f) => [...f, {
                   que: '',
                   responsable: 'por asignar',
-                  responsableMondayId: null,
                   prioridad: 'media',
                   fechaCompromiso: null,
                   incluir: true,

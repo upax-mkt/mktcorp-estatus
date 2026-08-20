@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MinutaCliente } from '@/app/deck/[id]/minuta/MinutaCliente'
 import type { DeQueReunion } from '@/app/deck/[id]/minuta/acciones'
-import type { PersonaMonday } from '@/monday/personas'
+import type { PersonaResponsable } from '@/lib/personas'
 import { fechaCompleta } from '@/lib/fecha'
 import estilos from './minuta.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
@@ -61,7 +61,7 @@ interface Props {
   claseBoton?: string
   etiquetaBoton?: string
   /** La gente viva de Mkt Corp, para el selector de responsable de MinutaCliente. */
-  personas: PersonaMonday[]
+  personas: PersonaResponsable[]
 }
 
 /** La reunión que se está minutando, con lo justo para enseñarla en pantalla. */

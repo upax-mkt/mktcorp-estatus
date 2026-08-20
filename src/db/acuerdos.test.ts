@@ -2,91 +2,61 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { SQL } from 'drizzle-orm'
 import { crearAcuerdo, editarAcuerdo, moverAcuerdoDeSala, moverEstatus, retomarAcuerdo } from './acuerdos'
-import { obtenerAcuerdoMemoria, actualizarAcuerdoMemoria, reiniciarStoreMemoria } from './store-memoria'
-import * as sincronizarMod from '@/monday/sincronizar'
+import { obtenerAcuerdoMemoria, reiniciarStoreMemoria } from './store-memoria'
 import * as clienteDB from './cliente'
 import * as temasDB from './temas'
 import * as esquema from './esquema'
 
 /**
  * Integración de acuerdos.ts contra el store en memoria (sin DATABASE_URL,
- * vitest no lo define — ver src/db/cliente.ts). Cubre lo que bandeja.test.ts
- * no puede: que `crearAcuerdo` y `editarAcuerdo` de verdad USEN la regla pura
- * de src/monday/bandeja.ts al guardar, y que la rama de Postgres y la de
- * memoria no diverjan.
+ * vitest no lo define — ver src/db/cliente.ts) y contra un doble de la rama
+ * de Postgres, para que las dos no diverjan.
  *
  * Todas las comprobaciones leen `obtenerAcuerdoMemoria` — el dato que quedó
- * en el store, no el objeto que se pasó como argumento. Si `crearAcuerdo` o
- * `editarAcuerdo` dejaran de guardar `responsableMondayId` o `bandeja` en la
- * rama de memoria, estos tests tienen que caer.
+ * en el store, no el objeto que se pasó como argumento.
  */
 beforeEach(() => reiniciarStoreMemoria())
 
-describe('crearAcuerdo y la bandeja', () => {
-  it('con responsable de Mkt Corp, guarda el id y queda pendiente', async () => {
+describe('crearAcuerdo — el responsable', () => {
+  it('guarda el responsable tal como llega: es texto, y es lo único que identifica al dueño', async () => {
     const { id } = await crearAcuerdo('neracode', {
       que: 'Mandar propuesta de staffing',
       responsable: 'Franco Cruzat',
       fechaCompromiso: null,
-      responsableMondayId: '65476480',
     })
 
-    const guardado = obtenerAcuerdoMemoria(id)
-    expect(guardado?.responsableMondayId).toBe('65476480')
-    expect(guardado?.bandeja).toBe('pendiente')
+    expect(obtenerAcuerdoMemoria(id)?.responsable).toBe('Franco Cruzat')
   })
 
-  it('sin responsable de Mkt Corp (responsable de la UDN), no aplica', async () => {
+  it('un responsable de la UDN se guarda igual que uno de Mkt Corp: la app no distingue', async () => {
+    // Hasta el 20-ago-2026 sí distinguía —`responsableMondayId` decidía si el
+    // acuerdo subía al tablero de Monday— y esa columna era la mitad del
+    // dato. Con Monday desmontado el dueño es un nombre y nada más; quien
+    // reintroduzca dos identificadores para la misma persona, que lo haga a
+    // propósito y no por herencia.
     const { id } = await crearAcuerdo('neracode', {
       que: 'Mandar logo en alta resolución',
       responsable: 'Directora de Marketing UDN',
       fechaCompromiso: null,
-      // Sin responsableMondayId: es de la UDN, no de Mkt Corp.
     })
 
-    const guardado = obtenerAcuerdoMemoria(id)
-    expect(guardado?.responsableMondayId).toBeNull()
-    expect(guardado?.bandeja).toBe('no_aplica')
+    expect(obtenerAcuerdoMemoria(id)?.responsable).toBe('Directora de Marketing UDN')
   })
 
-  it('con responsableMondayId como cadena vacía, se guarda como null y no queda pendiente (candado compartido)', async () => {
-    // El candado del formulario (NuevoAcuerdoForm) no es el único llamador
-    // posible de crearAcuerdo — este test cubre la capa de escritura misma,
-    // para que a nadie que escriba el siguiente llamador (la minuta, por
-    // ejemplo) le toque acordarse de normalizar por su cuenta.
+  it('editarAcuerdo cambia el responsable y lo deja escrito en la historia', async () => {
     const { id } = await crearAcuerdo('neracode', {
-      que: 'Acuerdo con id vacío',
-      responsable: 'Alguien',
+      que: 'Mandar propuesta',
+      responsable: 'Directora UDN',
       fechaCompromiso: null,
-      responsableMondayId: '',
     })
+
+    await editarAcuerdo(id, { responsable: 'Franco Cruzat' })
 
     const guardado = obtenerAcuerdoMemoria(id)
-    expect(guardado?.responsableMondayId).toBeNull()
-    expect(guardado?.bandeja).toBe('no_aplica')
-  })
-
-  it('el alta ya no llama a ninguna sincronización con Monday: encola en la bandeja, no escribe sola', async () => {
-    // Es el cambio central de la tarea 5, y la tarea 6 lo reforzó borrando
-    // `sincronizarAlta` (se quedó sin llamadores) y quitándole a
-    // `sincronizarCambio` la rama que creaba el elemento cuando no había
-    // `mondayId`. Con las dos rutas de creación automática fuera, el único
-    // símbolo que queda para vigilar aquí es `sincronizarCambio`. Un spy
-    // sobre el módulo real (no un mock que reemplace toda la lógica) es lo
-    // único que cae si alguien reintroduce una llamada a Monday desde el
-    // alta — un test que solo mirara `bandeja` no lo detectaría, porque
-    // 'pendiente' es el resultado correcto se llame o no a Monday.
-    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
-
-    await crearAcuerdo('neracode', {
-      que: 'Acuerdo cualquiera',
-      responsable: 'Franco Cruzat',
-      fechaCompromiso: null,
-      responsableMondayId: '65476480',
-    })
-
-    expect(espia).not.toHaveBeenCalled()
-    espia.mockRestore()
+    expect(guardado?.responsable).toBe('Franco Cruzat')
+    expect(guardado?.historia).toContainEqual(
+      expect.objectContaining({ cambios: { responsable: 'Franco Cruzat' } }),
+    )
   })
 })
 
@@ -234,115 +204,20 @@ describe('moverAcuerdoDeSala', () => {
     expect(guardado?.historia).toContainEqual(expect.objectContaining({ cambios: { salaSlug: 'zeus' } }))
   })
 
-  it('NO llama a Monday: mover de sala no cambia ningún dato que le importe al tablero', async () => {
-    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
-    const { id } = await crearAcuerdo('neracode', {
-      que: 'Mandar propuesta de staffing',
-      responsable: 'Franco Cruzat',
-      fechaCompromiso: null,
-      responsableMondayId: '65476480',
-    })
-
-    await moverAcuerdoDeSala(id, 'zeus')
-
-    expect(espia).not.toHaveBeenCalled()
-    espia.mockRestore()
-  })
-})
-
-describe('editarAcuerdo y la bandeja', () => {
-  async function acuerdoPendiente() {
-    const { id } = await crearAcuerdo('neracode', {
-      que: 'Mandar propuesta de staffing',
-      responsable: 'Franco Cruzat',
-      fechaCompromiso: null,
-      responsableMondayId: '65476480',
-    })
-    return id
-  }
-
-  it('un acuerdo ya subido NO vuelve a la bandeja aunque la edición traiga responsableMondayId', async () => {
-    const id = await acuerdoPendiente()
-    // Simula que ya se subió — no hay todavía una función pública que mueva
-    // la bandeja (eso es tarea 9), así que se fuerza el estado directamente
-    // en el store, mismo patrón que usa ciclo-sesion.test.ts para simular un
-    // estado alcanzado fuera del flujo normal.
-    actualizarAcuerdoMemoria(id, { bandeja: 'subido' })
-
-    await editarAcuerdo(id, { responsableMondayId: '999999' })
-
-    expect(obtenerAcuerdoMemoria(id)?.bandeja).toBe('subido')
-  })
-
-  it('un acuerdo descartado tampoco revive con una edición', async () => {
-    const id = await acuerdoPendiente()
-    actualizarAcuerdoMemoria(id, { bandeja: 'descartado' })
-
-    await editarAcuerdo(id, { responsableMondayId: null })
-
-    expect(obtenerAcuerdoMemoria(id)?.bandeja).toBe('descartado')
-  })
-
-  it('editar sin tocar responsableMondayId no recalcula la bandeja', async () => {
-    const { id } = await crearAcuerdo('neracode', {
-      que: 'Mandar propuesta',
-      responsable: 'Directora UDN',
-      fechaCompromiso: null,
-      // no_aplica al nacer, sin responsableMondayId
-    })
-
-    await editarAcuerdo(id, { que: 'Mandar propuesta revisada' })
-
-    const guardado = obtenerAcuerdoMemoria(id)
-    expect(guardado?.que).toBe('Mandar propuesta revisada')
-    expect(guardado?.bandeja).toBe('no_aplica')
-  })
-
-  it('sí recalcula cuando la edición trae un responsableMondayId nuevo y la bandeja todavía es no_aplica/pendiente', async () => {
-    // Contraparte de los dos tests de arriba: si `bandejaTrasEditar` se
-    // rompiera hacia el otro lado (nunca recalcula nada), este es el que cae.
-    const { id } = await crearAcuerdo('neracode', {
-      que: 'Mandar propuesta',
-      responsable: 'Directora UDN',
-      fechaCompromiso: null,
-    })
-    expect(obtenerAcuerdoMemoria(id)?.bandeja).toBe('no_aplica')
-
-    await editarAcuerdo(id, { responsableMondayId: '65476480' })
-
-    const guardado = obtenerAcuerdoMemoria(id)
-    expect(guardado?.responsableMondayId).toBe('65476480')
-    expect(guardado?.bandeja).toBe('pendiente')
-  })
-
-  it('editar con responsableMondayId como cadena vacía lo guarda como null (candado compartido)', async () => {
-    const id = await acuerdoPendiente()
-
-    await editarAcuerdo(id, { responsableMondayId: '' })
-
-    const guardado = obtenerAcuerdoMemoria(id)
-    expect(guardado?.responsableMondayId).toBeNull()
-    // '' normalizado a null SÍ es un cambio de responsable de verdad (de
-    // alguien de Mkt Corp a nadie), así que la bandeja debe reflejarlo.
-    expect(guardado?.bandeja).toBe('no_aplica')
-  })
 })
 
 /**
- * `estatusAnterior` hacia sincronizarCambio (corrección CRÍTICA de la
- * revisión final de la ronda 7).
+ * LA RAMA DE POSTGRES de `moverEstatus`, `editarAcuerdo`, `retomarAcuerdo` y
+ * `moverAcuerdoDeSala`.
  *
  * Los tests de arriba corren contra el store en memoria (`hayDB()` real es
  * falso en vitest, que no carga `.env.local`), así que nunca ejercitan la
- * rama de Postgres de `moverEstatus`/`editarAcuerdo` — ni antes de esta
- * corrección ni después. Aquí se simula esa rama con un doble mínimo de
- * `db()` (UNA sola fila basta: no hay más de un acuerdo en juego en ningún
- * test de este bloque, mismo criterio aceptado en el doble de
- * src/app/acuerdos/acciones.test.ts) y se espía `sincronizarCambio` para ver
- * exactamente qué le llega — sin ir hasta la red, que ya cubren
- * cliente.test.ts y sincronizar.test.ts.
+ * rama de Postgres. Aquí se simula con un doble mínimo de `db()` (UNA sola
+ * fila basta: no hay más de un acuerdo en juego en ningún test de este
+ * bloque, mismo criterio aceptado en el doble de
+ * src/app/acuerdos/acciones.test.ts).
  */
-describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Monday (rama Postgres)', () => {
+describe('escrituras sobre la fila real (rama Postgres)', () => {
   interface FilaDB {
     id: string
     salaSlug: string
@@ -350,8 +225,6 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
     estatus: 'abierto' | 'cumplido' | 'vencido' | 'cancelado'
     fechaCompromiso: Date | null
     responsable: string
-    responsableMondayId: string | null
-    bandeja: string
     historia: unknown[]
     updatedAt: Date
   }
@@ -399,8 +272,6 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
       estatus: 'abierto',
       fechaCompromiso: null,
       responsable: 'Franco Cruzat',
-      responsableMondayId: null,
-      bandeja: 'no_aplica',
       historia: [],
       updatedAt: new Date('2026-07-01T00:00:00Z'),
     }
@@ -410,35 +281,18 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
 
   afterEach(() => vi.restoreAllMocks())
 
-  it('moverEstatus manda el estatus REAL de antes del cambio, no el nuevo', async () => {
+  it('moverEstatus escribe el estatus nuevo y guarda el anterior en la historia', async () => {
     fila.estatus = 'abierto'
-    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
 
     await moverEstatus('a1', 'cumplido')
 
-    // Firma: (acuerdoId, datos-con-el-estatus-NUEVO, estatusAnterior).
-    expect(espia).toHaveBeenCalledWith('a1', expect.objectContaining({ estatus: 'cumplido' }), 'abierto')
+    expect(fila.estatus).toBe('cumplido')
+    expect(fila.historia).toContainEqual(expect.objectContaining({ estatusAnterior: 'abierto' }))
   })
 
-  it('editarAcuerdo manda como "anterior" el MISMO estatus que ya tenía: nunca lo cambia', async () => {
-    fila.estatus = 'cumplido'
-    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
-
-    await editarAcuerdo('a1', { fechaCompromiso: new Date('2026-09-01T00:00:00Z') })
-
-    // Si esto alguna vez mandara un estatusAnterior DISTINTO del actual, una
-    // simple edición de fecha volvería a forzar la columna de Fase en
-    // Monday — justo el bug que esta ronda corrigió.
-    expect(espia).toHaveBeenCalledWith('a1', expect.objectContaining({ estatus: 'cumplido' }), 'cumplido')
-  })
-
-  it('retomarAcuerdo NO llama a Monday: retomar no es un cambio que le importe al tablero', async () => {
-    const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
-
+  it('retomarAcuerdo no cambia el estatus guardado: solo la historia', async () => {
     await retomarAcuerdo('a1', 'sesion-1')
 
-    expect(espia).not.toHaveBeenCalled()
-    // Y tampoco cambia el estatus guardado: solo la historia.
     expect(fila.estatus).toBe('abierto')
     expect(fila.historia).toContainEqual(expect.objectContaining({ cambios: { retomadoEnSesion: 'sesion-1' } }))
   })
@@ -473,14 +327,6 @@ describe('moverEstatus / editarAcuerdo — el estatusAnterior que le pasan a Mon
 
       expect(fila.salaSlug).toBe('zeus')
       expect(fila.historia).toContainEqual(expect.objectContaining({ cambios: { salaSlug: 'zeus' } }))
-    })
-
-    it('NO llama a la sincronización con Monday: mover de sala no le importa al tablero', async () => {
-      const espia = vi.spyOn(sincronizarMod, 'sincronizarCambio').mockResolvedValue({ intentado: false, ok: false })
-
-      await moverAcuerdoDeSala('a1', 'zeus')
-
-      expect(espia).not.toHaveBeenCalled()
     })
   })
 })
@@ -534,8 +380,7 @@ describe('crearAcuerdo — no duplica un acuerdo de la misma reunión al reinten
       // El INSERT ... SELECT ... WHERE NOT EXISTS ... RETURNING id de
       // `crearAcuerdo`: params en el orden fijo que arma la sentencia real
       // (ver el comentario de `crearAcuerdo`) — id, salaSlug, que,
-      // responsable, squad, prioridad, fechaCompromiso, reunionOrigenId,
-      // responsableMondayId, bandeja.
+      // responsable, squad, prioridad, fechaCompromiso, reunionOrigenId.
       execute: (query: unknown) => {
         const { params } = dialect.sqlToQuery(query as SQL)
         const [id, salaSlug, que, responsable, , , fechaCompromiso, reunionOrigenId] = params as (string | null)[]

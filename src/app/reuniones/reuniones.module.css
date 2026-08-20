@@ -330,7 +330,7 @@ details[open] > .cerradasResumen::before { transform: rotate(90deg); }
 }
 
 /* FILTROS. HASTA LA RONDA 15 esta hoja decía "mismo patrón que
-   `.filtros`/`.filtro`/`.select` de `bandeja.module.css`
+   `.filtros`/`.filtro`/`.select` de `acuerdos.module.css`
    (`/acuerdos`, `TablaAcuerdos.tsx`): `<select>` de cliente sobre una lista
    ya autorizada, sin ida y vuelta al servidor" — ya no es cierto: el filtro
    de `/reuniones` SÍ vuelve al servidor desde esa ronda (sube a

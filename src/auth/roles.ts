@@ -54,8 +54,8 @@ export async function exigirAdmin(): Promise<Sesion> {
 
 /**
  * Lanza si quien pide no puede editar contenido. Usar al inicio de toda
- * acción que prepara, maqueta, minuta, publica, mueve acuerdos o sube a
- * Monday. La pasan admin y editor; viewer no.
+ * acción que prepara, maqueta, minuta, publica o mueve acuerdos. La pasan
+ * admin y editor; viewer no.
  */
 export async function exigirEditor(): Promise<Sesion> {
   const sesion = await sesionActual()

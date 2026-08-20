@@ -41,20 +41,17 @@ import { instanteEnCDMX } from '@/lib/fecha'
  * Un acuerdo propuesto que el equipo confirmó (incluyó y, quizá, editó) antes
  * de publicar.
  *
- * Ya NO es un alias de `AcuerdoPropuesto`, a propósito: ese tipo es el
- * contrato de salida de la IA (spec §9, `EsquemaAcuerdoPropuesto` en
- * src/minuta/esquema.ts, `.strict()`) y la IA nunca decide un id de Monday —
- * solo lee nombres de una transcripción. `responsableMondayId` lo añade una
- * PERSONA al revisar la minuta (ver SelectorResponsable en MinutaCliente.tsx,
- * eligiendo de la lista viva o confirmando la sugerencia de
- * personaMasParecida), nunca el modelo. Si los dos tipos siguieran siendo el
- * mismo, cualquier cambio futuro al esquema de la IA colaría sin querer un
- * campo que la IA no debe poder rellenar.
+ * Hoy no añade ningún campo a `AcuerdoPropuesto`, pero SIGUE SIENDO UN TIPO
+ * APARTE a propósito: aquel es el contrato de salida de la IA (spec §9,
+ * `EsquemaAcuerdoPropuesto` en src/minuta/esquema.ts, `.strict()`) y este es
+ * lo que una PERSONA aprobó en pantalla. El único campo que los separaba
+ * —`responsableMondayId`, que ponía quien revisaba la minuta y la IA nunca
+ * debía poder rellenar— murió con la integración de Monday el 20-ago-2026.
+ * El día que haya otro dato que ponga una persona y no el modelo, su sitio es
+ * este: si los dos tipos fueran el mismo, un cambio al esquema de la IA
+ * colaría sin querer un campo que la IA no debe poder rellenar.
  */
-export interface AcuerdoConfirmado extends AcuerdoPropuesto {
-  /** El id de Monday del responsable, si una persona lo confirmó. `null`/ausente = responsable de la UDN. */
-  responsableMondayId?: string | null
-}
+export type AcuerdoConfirmado = AcuerdoPropuesto
 
 export interface MinutaGuardada {
   id: string
@@ -151,7 +148,6 @@ export async function guardarMinuta(
       await crearAcuerdo(salaSlug, {
         que: acuerdo.que,
         responsable: acuerdo.responsable,
-        responsableMondayId: acuerdo.responsableMondayId ?? null,
         squad: acuerdo.squad,
         prioridad: acuerdo.prioridad,
         // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo C1 de la revisión
@@ -164,7 +160,7 @@ export async function guardarMinuta(
         // fila que él creó: publicar la minuta, tocar la fecha del acuerdo en
         // `/acuerdos` (basta enfocar y salir del campo) y republicar la misma
         // minuta insertaba un ACUERDO DUPLICADO — que además entra en la
-        // bandeja y puede subir a un tablero de Monday de 950 filas. Es la
+        // sala y en la pantalla de acuerdos, dos veces. Es la
         // regresión que la ronda 14 metió sobre el defecto que la ronda 11
         // vino a cerrar; la reproduce de punta a punta
         // `minutas-republicar-tras-editar-fecha.test.ts`.

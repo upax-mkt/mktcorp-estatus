@@ -249,42 +249,12 @@ export const acuerdos = pgTable('acuerdos', {
    */
   reunionOrigenId: text('reunion_origen_id').references(() => reuniones.id),
   /**
-   * El elemento de Monday que le corresponde, si está sincronizado.
-   *
-   * Es lo que convierte la escritura en actualización: sin él, mover un
-   * estatus crearía un elemento nuevo cada vez y el tablero se llenaría de
-   * duplicados del mismo compromiso.
-   */
-  mondayId: text('monday_id'),
-  /**
-   * El id de usuario de Monday del responsable, cuando es alguien de Mkt Corp.
-   *
-   * Es lo que distingue un acuerdo nuestro de uno de la UDN, y por tanto lo que
-   * decide si entra a la bandeja. Se guarda el id y no solo el nombre porque la
-   * columna de personas de Monday exige el id, y emparejar por nombre escrito a
-   * mano es exactamente el error que tiene el dashboard viejo: seis nombres
-   * suyos ya no existen y uno se asigna a la persona equivocada.
-   */
-  responsableMondayId: text('responsable_monday_id'),
-  /**
    * Fija el acuerdo arriba en `/acuerdos` (ronda 14, tarea 5). Hasta
    * entonces era "sale en el Home" — el Home dejó de listar acuerdos, pero
    * la columna y el gesto de la estrella no cambiaron, solo su significado.
    * No hay migración: mismo nombre, mismo tipo, mismo default.
    */
   destacado: boolean('destacado').notNull().default(false),
-  /** 'elemento' | 'subelemento' — de qué tablero es `mondayId`, y por tanto qué columnas leerle. */
-  mondayTipo: text('monday_tipo'),
-  mondayUrl: text('monday_url'),
-  mondaySincronizadoEn: timestamp('monday_sincronizado_en', { withTimezone: true }),
-  /**
-   * 'no_aplica' | 'pendiente' | 'subido' | 'descartado'.
-   *
-   * Nace en 'no_aplica' y pasa a 'pendiente' cuando el acuerdo tiene
-   * responsable de Mkt Corp. 'descartado' es definitivo: es lo que impide que
-   * la bandeja vuelva a ofrecer algo que alguien ya decidió que no sube.
-   */
-  bandeja: text('bandeja').notNull().default('no_aplica'),
   /**
    * Historia de cambios (v1 mínima, spec §4 "historia de cambios"): un jsonb
    * con un registro por movimiento de estatus o edición — `{ en, estatusAnterior? ,
@@ -520,25 +490,16 @@ export const plantillas = pgTable('plantillas', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-// ---- Directorio de personas de Monday ----
-// Copia local del directorio de la cuenta. Existe para que un selector pueda
-// abrirse sin esperar a la red: si Monday tarda, el formulario se queda
-// esperando y no se puede escribir un acuerdo. Se refresca por detrás.
-export const personasMonday = pgTable('personas_monday', {
-  mondayId: text('monday_id').primaryKey(),
-  nombre: text('nombre').notNull(),
-  correo: text('correo').notNull(),
-  cargadoEn: timestamp('cargado_en', { withTimezone: true }).notNull().defaultNow(),
-})
-
 // ---- Personas de la app ----
-// QUIÉN puede entrar y con qué permiso. La clave es el CORREO porque es lo
-// único estable que devuelve Slack: los nombres cambian y sus identificadores
-// son opacos.
+// QUIÉN puede entrar y con qué permiso, y de aquí sale también la gente que se
+// puede elegir como responsable de un acuerdo (`genteParaResponsable`,
+// src/db/personas.ts). La clave es el CORREO porque es lo único estable que
+// devuelve Slack: los nombres cambian y sus identificadores son opacos.
 //
-// No confundir con `personas_monday`, que es el directorio de la CUENTA DE
-// MONDAY y sirve para asignar responsables de acuerdos. Una persona puede estar
-// en las dos, en una o en ninguna.
+// Hasta el 20-ago-2026 convivía con `personas_monday`, una copia del
+// directorio de la cuenta de Monday para asignar responsables. Esa tabla se
+// borró con el resto de la integración: nunca tuvo una sola fila en
+// producción.
 export const personas = pgTable('personas', {
   correo: text('correo').primaryKey(),
   nombre: text('nombre').notNull(),

@@ -213,7 +213,7 @@ export default async function Hub() {
     pulsoDelMes(),
     listarReuniones(),
     // Para el selector de responsable de ModuloMinutas → LevantarMinuta →
-    // MinutaCliente — genteParaResponsable() ya aguanta Monday caído.
+    // MinutaCliente — la gente de Mkt Corp para el selector de responsable.
     genteParaResponsable(),
     // Ronda 9, tarea 3: si quien mira el Home administra Marketing
     // Corporativo, para enseñar el enlace a /personas en la barra — solo

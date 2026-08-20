@@ -28,9 +28,8 @@ import { buscarPersona, registrarAcceso } from '@/db/directorio'
  * al poblar el directorio con el equipo real: reparte en cuatro dominios de
  * correo (`@upax.com.mx`, `@elektra.com.mx`, `@jansan.mx`, `@onuriscp.com`)
  * porque cada quien lo contrata una entidad distinta del mismo grupo, algo
- * que no pueden cambiar. El dominio nunca dijo quién era del equipo —mismo
- * hecho que ya asume el directorio de Monday, ver `src/monday/personas.ts`—
- * y filtrar por él dejaba fuera a más de la mitad. Si en el futuro parece que
+ * que no pueden cambiar. El dominio nunca dijo quién era del equipo, y
+ * filtrar por él dejaba fuera a más de la mitad. Si en el futuro parece que
  * falta una capa aquí: no falta. La capa es la de abajo, el directorio
  * (`buscarPersona` + `persona.activa`), y a diferencia del dominio sí
  * distingue quién tiene permiso de verdad, sin importar quién lo contrató.

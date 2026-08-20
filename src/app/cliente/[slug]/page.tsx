@@ -26,12 +26,11 @@ import { RedesDeSala } from '@/componentes/RedesDeSala'
 import { MenuSecciones, type EntradaDeMenu } from '@/componentes/MenuSecciones'
 import { TableroAnalytics } from '@/componentes/TableroAnalytics'
 import {
-  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, refrescarDesdeMonday, salaDeAcuerdo,
+  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, salaDeAcuerdo,
   type EstatusAcuerdo,
 } from '@/db/acuerdos'
 import { genteParaResponsable } from '@/db/personas'
 import { participantesDe, registrarEdicion, type Participante } from '@/db/participacion'
-import { ErrorMonday } from '@/monday/cliente'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
   listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, reubicarMateriales,
@@ -77,34 +76,6 @@ export const dynamic = 'force-dynamic'
 
 export async function generateStaticParams() {
   return (await slugsDeSalas()).map((slug) => ({ slug }))
-}
-
-/**
- * La vuelta antes de leer: si Monday movió el estatus o la fecha de un
- * acuerdo, que se refleje en la sala. Nunca debe tumbar la página —regla
- * central de src/monday/sincronizar.ts—, así que el fallo se ignora para
- * efectos de la pantalla. Pero "ignora" no es "en silencio para siempre"
- * (corrección de revisión): si la causa NO es Monday —un SELECT/UPDATE
- * nuestro que falló, no el tablero cayéndose— nadie se enteraría nunca de
- * que la sincronización dejó de funcionar. Se distingue de un `ErrorMonday`
- * (el tablero, que se cae y no es asunto nuestro) para no ensuciar los logs
- * con algo esperable y sin acción posible de este lado.
- *
- * `slug`: se pasa SIEMPRE desde aquí (revisión final de la ronda 7, punto 4)
- * — esta página es de UNA sala, así que solo hace falta reconciliar los
- * acuerdos de esa sala, no los de las nueve. Antes `refrescarDesdeMonday()`
- * sin argumento traía y reconciliaba TODOS en cada carga de CUALQUIER sala.
- */
-async function refrescarDesdeMondaySeguro(slug: string): Promise<void> {
-  try {
-    await refrescarDesdeMonday(slug)
-  } catch (error) {
-    if (error instanceof ErrorMonday) {
-      console.error(`[refrescarDesdeMonday] Monday no respondió: ${error.message}`)
-    } else {
-      console.error('[refrescarDesdeMonday] Falló algo de nuestro lado, no de Monday:', error)
-    }
-  }
 }
 
 // `textoFechaAcuerdo` y `ETIQUETA_ESTADO` se mudaron a
@@ -218,8 +189,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   if (!(await puedeVerEstaSala(slug))) notFound()
 
   // La sala se pinta igual con lo que ya hay en la base pase lo que pase
-  // aquí — ver el comentario de refrescarDesdeMondaySeguro más arriba.
-  await refrescarDesdeMondaySeguro(slug)
 
   const s = await estadoDeSala(slug)
   if (!s) notFound()
@@ -262,11 +231,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      * para CUALQUIER director en su propia sala, así que esto no era un caso
      * raro: era el camino normal de todo director que da de alta un
      * acuerdo). Sin equipo, `personas` llega vacío: el grupo "Mkt Corp" del
-     * selector sale con su aviso de siempre ("no se pudo cargar…", el mismo
-     * que ya usa cuando Monday está caído) y el director sigue pudiendo
-     * escribir el responsable de su UDN en texto libre — lo que pierde es
-     * poder asignar directo a alguien de Mkt Corp, y eso Mkt Corp lo puede
-     * corregir después (ver FilaBandeja, ahora editable en sitio).
+     * selector sale con su aviso de siempre ("no se pudo cargar…") y el
+     * director sigue pudiendo escribir el responsable de su UDN en texto
+     * libre — lo que pierde es poder asignar directo a alguien de Mkt Corp, y
+     * eso Mkt Corp lo puede corregir después, editando la fila en sitio.
      */
     equipo ? genteParaResponsable() : Promise.resolve([]),
   ])
@@ -439,7 +407,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   async function crearAcuerdoAction(datos: {
     que: string
     responsable: string
-    responsableMondayId: string | null
     squad?: string
     fechaCompromiso: string | null
   }) {
@@ -448,7 +415,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     await crearAcuerdo(slug, {
       que: datos.que,
       responsable: datos.responsable,
-      responsableMondayId: datos.responsableMondayId,
       squad: datos.squad,
       // Misma columna, mismo arreglo que `editarFechaAction` arriba: un
       // acuerdo NUEVO no puede nacer con el día corrido solo porque se dio de
@@ -490,7 +456,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    */
   async function editarAcuerdoTextoAction(
     acuerdoId: string,
-    cambios: { que: string; responsable: string; responsableMondayId: string | null },
+    cambios: { que: string; responsable: string },
   ): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
@@ -516,7 +482,6 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
       await editarAcuerdo(acuerdoId, {
         que,
         responsable: cambios.responsable.trim() || 'por asignar',
-        responsableMondayId: cambios.responsableMondayId,
       })
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'No se pudo guardar el cambio.' }

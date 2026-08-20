@@ -44,8 +44,7 @@ export function equipoExigido(): string | undefined {
 // en el comentario de cabecera de `src/app/api/auth/slack/retorno/route.ts`,
 // que es donde se llamaban. Resumen: el equipo reparte en cuatro dominios de
 // correo porque cada quien lo contrata una entidad distinta del mismo grupo,
-// así que el dominio nunca dijo quién era del equipo (mismo hecho que ya
-// asume el directorio de Monday — ver `src/monday/personas.ts`). Si hace
+// así que el dominio nunca dijo quién era del equipo. Si hace
 // falta un filtro por dominio en otro sitio el día de mañana, esto no es el
 // lugar: la puerta de acceso de esta app es el directorio (`@/db/directorio`),
 // no el correo.

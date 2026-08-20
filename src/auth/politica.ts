@@ -148,7 +148,7 @@ export function puedeAdministrar(sesion: Sesion | null): boolean {
   return sesion.rolApp === 'admin'
 }
 
-/** Admin o editor: los dos preparan, maquetan, minutan, publican, mueven acuerdos y suben a Monday. */
+/** Admin o editor: los dos preparan, maquetan, minutan, publican y mueven acuerdos. */
 export function puedeEditarContenido(sesion: Sesion | null): boolean {
   if (!sesion || sesion.rol !== 'equipo') return false
   return sesion.rolApp === 'admin' || sesion.rolApp === 'editor'

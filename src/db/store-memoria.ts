@@ -107,10 +107,6 @@ export interface FilaAcuerdoMemoria {
    * cascada).
    */
   reunionOrigenId: string | null
-  /** El id de usuario de Monday del responsable, si es alguien de Mkt Corp — ver src/monday/bandeja.ts. */
-  responsableMondayId: string | null
-  /** 'no_aplica' | 'pendiente' | 'subido' | 'descartado' — ver src/monday/bandeja.ts. */
-  bandeja: string
   historia: HistoriaAcuerdoMemoria[]
   createdAt: Date
   updatedAt: Date

@@ -10,7 +10,7 @@ import { exigirEditor, exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { registrarEdicion } from '@/db/participacion'
-import { directorio } from '@/db/personas'
+import { genteParaResponsable } from '@/db/personas'
 import { diaCivil, fechaCompleta } from '@/lib/fecha'
 import { MinutaCliente } from './MinutaCliente'
 import { MinutaPublicada } from '@/componentes/MinutaPublicada'
@@ -121,9 +121,8 @@ export default async function PagMinutaSesion({ params }: { params: Promise<{ id
   }
 
   const minutaGuardada = await obtenerMinuta(id)
-  // Para el selector de responsable de MinutaCliente — directorio() ya
-  // aguanta Monday caído devolviendo la copia local (o [], sin ninguna).
-  const personas = await directorio()
+  // Para el selector de responsable de MinutaCliente.
+  const personas = await genteParaResponsable()
 
   // Publicar y corregir son cosas distintas: publicar decide qué acuerdos
   // nacen (y eso no se repite), corregir solo arregla el texto del correo.

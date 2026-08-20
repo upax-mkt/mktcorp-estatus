@@ -500,11 +500,6 @@ describe('todosLosAcuerdos — el mismo "hoy" (hallazgo 1), en su propio call si
       fechaCompromiso: new Date('2026-08-05T00:00:00.000Z'), // vence HOY, 05-ago CDMX
       estatus: 'abierto',
       destacado: false,
-      mondayUrl: null,
-      mondayTipo: null,
-      mondayId: null,
-      mondaySincronizadoEn: null,
-      bandeja: 'no_aplica',
       salaSlug: 'mexa-creativa',
       salaActiva: true,
     }]))

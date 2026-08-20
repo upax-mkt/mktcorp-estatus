@@ -18,7 +18,7 @@ import * as esquema from './esquema'
  * `new Date(<día civil>)` (= 00:00Z). Con dos instantes distintos para EL
  * MISMO día civil, el `NOT EXISTS` deja de reconocer la fila que él mismo
  * creó y el reintento inserta un acuerdo duplicado — que además entra en la
- * bandeja y puede subir a un tablero de Monday de 950 filas.
+ * sala y en la pantalla de acuerdos, dos veces.
  *
  * LA SECUENCIA QUE REPRODUCE ESTE ARCHIVO, con datos reales:
  *   1. se publica una minuta con un acuerdo con fecha compromiso;
@@ -34,12 +34,12 @@ import * as esquema from './esquema'
  * bucle de `crearAcuerdo` real, dedupe incluido) y `editarFechaEnTablaAction`
  * real (la acción que hay detrás del campo de fecha de `/acuerdos`, con su
  * `instanteEnCDMX` de verdad). Lo único doblado es el borde: Postgres, la
- * sesión, la revalidación y Monday.
+ * sesión y la revalidación.
  *
  * ARCHIVO APARTE de `minutas-concurrencia.test.ts` —que prueba el mismo
  * escenario de republicar— por el mismo criterio que aquel documenta en su
  * cabecera: la configuración de mocks es distinta (aquí hacen falta
- * `@/auth/roles`, `next/cache` y `@/monday/sincronizar`, porque el camino de
+ * `@/auth/roles` y `next/cache`, porque el camino de
  * la acción de servidor los atraviesa) y mezclar dos configuraciones en un
  * archivo esconde cuál de las dos sostiene cada test.
  */
@@ -267,13 +267,6 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/auth/roles', () => ({
   exigirEditor: vi.fn().mockResolvedValue({ rol: 'equipo', rolApp: 'editor', sub: 'equipo-mkt-corp' }),
   exigirAdmin: vi.fn().mockResolvedValue({ rol: 'equipo', rolApp: 'admin', sub: 'equipo-mkt-corp' }),
-}))
-
-// Monday se dobla entero: corregir una fecha llama a `sincronizarDespuesDeEditar`,
-// y lo que este archivo prueba es la columna que queda en la base, no el tablero.
-vi.mock('@/monday/sincronizar', () => ({
-  sincronizarCambio: vi.fn().mockResolvedValue({ intentado: false, ok: false }),
-  reconciliar: vi.fn(),
 }))
 
 const { guardarMinuta } = await import('./minutas')

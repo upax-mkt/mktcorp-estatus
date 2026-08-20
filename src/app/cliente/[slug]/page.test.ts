@@ -150,17 +150,10 @@ vi.mock('@/db/acuerdos', () => ({
   // De qué sala es un acuerdo: lo pregunta la acción de corregir, para
   // rechazar el id de otro cliente.
   salaDeAcuerdo: (...args: unknown[]) => salaDeAcuerdoMock(...args),
-  refrescarDesdeMonday: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/db/personas', () => ({
-  directorio: vi.fn().mockResolvedValue([]),
   genteParaResponsable: vi.fn().mockResolvedValue([]),
-  PREFIJO_APP: 'app:',
-}))
-
-vi.mock('@/monday/cliente', () => ({
-  ErrorMonday: class ErrorMonday extends Error {},
 }))
 
 vi.mock('@/db/benchmark', () => ({
@@ -1430,7 +1423,7 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     const props = editarAcuerdoPropsMock.mock.calls[0][0] as {
       editarAction: (
         id: string,
-        cambios: { que: string; responsable: string; responsableMondayId: string | null },
+        cambios: { que: string; responsable: string },
       ) => Promise<{ error?: string }>
     }
     return props.editarAction
@@ -1457,7 +1450,7 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     const editar = await accionCapturada()
     exigirEditorMock.mockClear()
 
-    await editar('ac-1', { que: 'Mandar el reporte corregido', responsable: 'Ana', responsableMondayId: null })
+    await editar('ac-1', { que: 'Mandar el reporte corregido', responsable: 'Ana' })
 
     expect(exigirEditorMock).toHaveBeenCalledTimes(1)
   })
@@ -1466,12 +1459,11 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     const editar = await accionCapturada()
     editarAcuerdoMock.mockClear()
 
-    await editar('ac-1', { que: '  Mandar el reporte al cierre  ', responsable: 'Iris', responsableMondayId: 'm-9' })
+    await editar('ac-1', { que: '  Mandar el reporte al cierre  ', responsable: 'Iris' })
 
     expect(editarAcuerdoMock).toHaveBeenCalledWith('ac-1', expect.objectContaining({
       que: 'Mandar el reporte al cierre', // recortado
       responsable: 'Iris',
-      responsableMondayId: 'm-9',
     }))
   })
 
@@ -1480,7 +1472,7 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     editarAcuerdoMock.mockClear()
 
     salaDeAcuerdoMock.mockResolvedValueOnce('mexa-creativa')
-    const r = await editar('de-otra-sala', { que: 'x', responsable: 'Ana', responsableMondayId: null })
+    const r = await editar('de-otra-sala', { que: 'x', responsable: 'Ana' })
 
     expect(r.error).toMatch(/no es de este cliente/i)
     expect(editarAcuerdoMock).not.toHaveBeenCalled()
@@ -1490,7 +1482,7 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     const editar = await accionCapturada()
     editarAcuerdoMock.mockClear()
 
-    const r = await editar('ac-1', { que: '   ', responsable: 'Ana', responsableMondayId: null })
+    const r = await editar('ac-1', { que: '   ', responsable: 'Ana' })
 
     expect(r.error).toBeTruthy()
     expect(editarAcuerdoMock).not.toHaveBeenCalled()
@@ -1504,7 +1496,7 @@ describe('VistaSala (/cliente/[slug]) — corregir un acuerdo publicado', () => 
     const editar = await accionCapturada()
     revalidatePathMock.mockClear()
 
-    await editar('ac-1', { que: 'Nuevo texto', responsable: 'Ana', responsableMondayId: null })
+    await editar('ac-1', { que: 'Nuevo texto', responsable: 'Ana' })
 
     const rutas = revalidatePathMock.mock.calls.map((c) => c[0])
     for (const ruta of ['/cliente/neracode', '/', '/acuerdos', '/acuerdos/bandeja']) {

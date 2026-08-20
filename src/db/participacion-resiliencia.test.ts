@@ -13,10 +13,10 @@ import { describe, it, expect, vi } from 'vitest'
  * corregida en otra ronda.
  *
  * Archivo APARTE de `participacion.test.ts` — mismo criterio que separa
- * `refrescar-desde-monday.test.ts` de `refrescar-desde-monday-cancelado.test.ts`
- * en este mismo directorio: ese otro archivo prueba el camino real "sin base
- * de datos" dejando `./cliente` SIN mockear (`hayDB()` da `false` de verdad,
- * porque no hay `DATABASE_URL` en el entorno de test); este necesita
+ * `documentos.test.ts` de `documentos-concurrencia.test.ts`: aquel prueba el
+ * camino real "sin base de datos" dejando `./cliente` SIN mockear (`hayDB()`
+ * da `false` de verdad, porque no hay `DATABASE_URL` en el entorno de test);
+ * este necesita
  * simular una base de datos que SÍ existe pero cuya escritura falla, así que
  * mockea `./cliente` entero — dos configuraciones de doble que no conviven
  * bien en un solo archivo.

@@ -63,7 +63,7 @@ function diasEntre(desde: Date, hasta: Date): number {
  * archivo es `Acuerdo.fechaCompromiso`: nace de un `<input type="date">`
  * vía `new Date('YYYY-MM-DD')` (`src/app/acuerdos/acciones.ts`,
  * `src/app/cliente/[slug]/page.tsx`, `src/componentes/NuevoAcuerdoForm.tsx`,
- * `src/componentes/acuerdos/FilaBandeja.tsx`) — JS interpreta esa forma
+ * `src/componentes/EditarAcuerdo.tsx`) — JS interpreta esa forma
  * como medianoche UTC, así que su día EN UTC es, por construcción, el día
  * civil que la persona escogió en el calendario (verificado contra la base
  * real: cada `fecha_compromiso` cae en `00:00:00.000Z`, sin excepción).
@@ -633,11 +633,6 @@ export async function acuerdosArrastrablesDe(salaSlug: string, reunionId: string
 /**
  * Un acuerdo con el contexto de su sala, para `/acuerdos`: "qué le debemos a
  * quién esta semana" sin entrar sala por sala.
- *
- * `mondayTipo` es opcional en el TIPO —no en el dato real, que `todosLosAcuerdos`
- * siempre entrega— para que un consumidor que no lo necesita no tenga que
- * inventarlo. Mismo criterio que `AcuerdoPendienteDeSubir.salaColor` en
- * src/db/acuerdos.ts.
  */
 export interface AcuerdoConSala extends Acuerdo {
   /**
@@ -653,27 +648,6 @@ export interface AcuerdoConSala extends Acuerdo {
   /** Una sala en pausa congela sus acuerdos — ver TablaAcuerdos y la nota de abajo. */
   salaActiva: boolean
   destacado: boolean
-  mondayUrl: string | null
-  mondayTipo?: string | null
-  /** 'no_aplica' | 'pendiente' | 'subido' | 'descartado' — ver src/monday/bandeja.ts. */
-  bandeja: string
-  /**
-   * Se sincronizó con Monday alguna vez y el elemento YA NO EXISTE allá
-   * (revisión final de la ronda 7, punto 6): el diseño pide un aviso en este
-   * espacio cuando eso pasa (§4 — "se marca... con un aviso en el espacio de
-   * acuerdos").
-   *
-   * Se deriva de `mondayId == null && mondaySincronizadoEn != null` — nunca
-   * se guarda como columna aparte. Un acuerdo que NUNCA se subió tiene los
-   * dos en null (`mondayDesvinculado` da falso); uno sincronizado que sigue
-   * vivo en Monday tiene los dos con valor. Solo el que se subió y luego
-   * `refrescarDesdeMonday` marcó como 'desapareció' queda con `mondayId =
-   * null` pero `mondaySincronizadoEn` con la fecha de cuando SÍ se sincronizó
-   * —esa combinación es la señal, y es la misma rama que limpia
-   * `mondayUrl`/`mondayTipo` (ver 'desapareció' en refrescarDesdeMonday,
-   * src/db/acuerdos.ts).
-   */
-  mondayDesvinculado: boolean
 }
 
 /**
@@ -684,20 +658,8 @@ export interface AcuerdoConSala extends Acuerdo {
  * columnas de marca son `NOT NULL`— pero un texto de más en esta lista es
  * más barato que la pantalla entera sin cargar.
  *
- * MISMO CRITERIO DEFENSIVO que `temaDeSalaSeguro` en src/db/acuerdos.ts,
- * pero YA NO SON DOS COPIAS IGUALES (corrección de esta revisión: lo decía
- * el comentario anterior, documentado así en el reporte de la tarea 5, y
- * divergieron sin que nadie lo actualizara). Difieren en el color de
- * respaldo, y no por descuido: `AcuerdoConSala.salaColor` —el tipo que
- * consume ESTA función, para `/acuerdos`— es un `string` obligatorio, así
- * que aquí hace falta devolver un color de verdad (`'#666666'`) cuando no
- * hay tema. `AcuerdoPendienteDeSubir.salaColor` —el que consume la copia de
- * `acuerdos.ts`, para la bandeja— es opcional a propósito ("opcional porque
- * no todo consumidor lo necesita", dice su propio comentario), así que esa
- * copia devuelve `undefined`. Dos contratos de tipo distintos piden dos
- * respaldos distintos: la duplicación se queda, pero ya no es "la misma
- * función copiada dos veces" — es la misma IDEA con un detalle que cada
- * lado resuelve según lo que su propio tipo exige.
+ * `AcuerdoConSala.salaColor` es un `string` obligatorio, así que aquí hace
+ * falta devolver un color de verdad (`'#666666'`) cuando no hay tema.
  */
 function temaDeSalaSeguro(slug: string, registro: Record<string, Tema>): { nombre: string; color: string } {
   const tema = registro[slug]
@@ -732,11 +694,6 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
       fechaCompromiso: esquema.acuerdos.fechaCompromiso,
       estatus: esquema.acuerdos.estatus,
       destacado: esquema.acuerdos.destacado,
-      mondayUrl: esquema.acuerdos.mondayUrl,
-      mondayTipo: esquema.acuerdos.mondayTipo,
-      mondayId: esquema.acuerdos.mondayId,
-      mondaySincronizadoEn: esquema.acuerdos.mondaySincronizadoEn,
-      bandeja: esquema.acuerdos.bandeja,
       salaSlug: esquema.acuerdos.salaSlug,
       salaActiva: esquema.salas.activa,
       // DE QUÉ REUNIÓN SALIÓ, con su FECHA (ronda 12). El id ya viajaba y no
@@ -775,10 +732,6 @@ export async function todosLosAcuerdos(): Promise<AcuerdoConSala[]> {
         salaColor: tema.color,
         salaActiva: f.salaActiva,
         destacado: f.destacado,
-        mondayUrl: f.mondayUrl,
-        mondayTipo: f.mondayTipo,
-        bandeja: f.bandeja,
-        mondayDesvinculado: f.mondayId == null && f.mondaySincronizadoEn != null,
         reunionOrigenId: f.reunionOrigenId,
         // Día civil anclado a CDMX, como toda fecha que se ESCRIBE en esta
         // app: el instante guardado en UTC se corre un día si se recorta a

@@ -8,7 +8,7 @@ import {
 } from '@/componentes/LevantarMinuta'
 import { EditorMolde } from '@/componentes/EditorMolde'
 import type { MoldeMinuta } from '@/minuta/molde'
-import type { PersonaMonday } from '@/monday/personas'
+import type { PersonaResponsable } from '@/lib/personas'
 import { Seccion } from '@/componentes/Seccion'
 import estilos from '@/app/hub.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
@@ -52,7 +52,7 @@ interface Props {
   molde: MoldeMinuta
   guardarMoldeAction: (molde: MoldeMinuta) => Promise<{ error?: string }>
   /** La gente viva de Mkt Corp, para el selector de responsable de MinutaCliente. */
-  personas: PersonaMonday[]
+  personas: PersonaResponsable[]
 }
 
 export function ModuloMinutas({

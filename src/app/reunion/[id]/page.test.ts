@@ -5,13 +5,13 @@ import { render, screen } from '@testing-library/react'
  * FUGA DE DATOS (corrección de revisión): esta página la puede abrir el rol
  * `sala` —es donde aterriza "Ver presentación" desde su propia sala,
  * `puedeVerEstaSala` lo confirma dentro de la página— y antes de esta
- * corrección `directorio()` (nombre Y CORREO de las 24 personas de Mkt Corp)
+ * corrección `genteParaResponsable()` (nombre Y CORREO de las 24 personas de Mkt Corp)
  * se pedía SIEMPRE, sin condicionar a quién mira. El dato viajaba entero al
  * payload del navegador vía `ModoPresentar` (`'use client'`), aunque el
  * propio componente decidiera no mostrar el selector de responsable a un
- * director — ver el comentario junto a `directorio()` en `page.tsx`.
+ * director — ver el comentario junto a `genteParaResponsable()` en `page.tsx`.
  *
- * Este test fija la regla al nivel de la página: `directorio()` —el import,
+ * Este test fija la regla al nivel de la página: `genteParaResponsable()` —el import,
  * espiado— solo se llama cuando `esLector()` resuelve `true`. Mismo criterio
  * que ya usa `acciones.test.ts` para las Server Actions: una página de App
  * Router es, igual que ellas, una función async con dependencias
@@ -62,9 +62,7 @@ vi.mock('@/auth/roles', () => ({
 
 const directorioMock = vi.fn()
 vi.mock('@/db/personas', () => ({
-  directorio: () => directorioMock(),
   genteParaResponsable: () => directorioMock(),
-  PREFIJO_APP: 'app:',
 }))
 
 // Mismo motivo que `exigirLectura` arriba: `registrarPresentacion` solo la
@@ -85,7 +83,7 @@ const { default: PagSesionPublicada } = await import('./page')
 
 // Una reunión real de una sala (neracode, slug registrado en @/temas), con su
 // documento trayendo al menos un item resuelto — si `secciones` sale vacío
-// la página llama a `notFound()` antes de llegar a `directorio()`, y eso no
+// la página llama a `notFound()` antes de llegar a `genteParaResponsable()`, y eso no
 // es lo que este test quiere ejercitar.
 const REUNION_BASE = {
   id: 's1',
@@ -110,11 +108,11 @@ beforeEach(() => {
   estadoDeSalaMock.mockReset().mockResolvedValue({ acuerdos: [] })
   puedeVerEstaSalaMock.mockReset().mockResolvedValue(true)
   esLectorMock.mockReset()
-  directorioMock.mockReset().mockResolvedValue([{ id: '1', nombre: 'Franco Cruzat', correo: 'franco@upax.com.mx' }])
+  directorioMock.mockReset().mockResolvedValue([{ nombre: 'Franco Cruzat', correo: 'franco@upax.com.mx' }])
 })
 
 describe('PagSesionPublicada (/reunion/[id]) — el directorio se CARGA condicionado', () => {
-  it('un acceso de sala (el director, vía "Ver presentación" de su sala) no dispara directorio(): el dato ni se pide', async () => {
+  it('un acceso de sala (el director, vía "Ver presentación" de su sala) no dispara genteParaResponsable(): el dato ni se pide', async () => {
     esLectorMock.mockResolvedValue(false)
 
     await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
@@ -125,7 +123,7 @@ describe('PagSesionPublicada (/reunion/[id]) — el directorio se CARGA condicio
     expect(directorioMock).not.toHaveBeenCalled()
   })
 
-  it('el equipo sí dispara directorio(): lo necesita el selector de responsable del modo presentación', async () => {
+  it('el equipo sí dispara genteParaResponsable(): lo necesita el selector de responsable del modo presentación', async () => {
     esLectorMock.mockResolvedValue(true)
 
     await PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })
@@ -161,7 +159,7 @@ describe('PagSesionPublicada (/reunion/[id]) — sin sala (comité, Tarea 8c)', 
     esLectorMock.mockResolvedValue(false)
 
     // notFound() de Next lanza fuera de un request real — es la señal de que
-    // la página cortó antes de pintar nada, ni de cargar directorio().
+    // la página cortó antes de pintar nada, ni de cargar genteParaResponsable().
     await expect(PagSesionPublicada({ params: Promise.resolve({ id: 's1' }) })).rejects.toThrow()
 
     expect(puedeVerEstaSalaMock).not.toHaveBeenCalled()

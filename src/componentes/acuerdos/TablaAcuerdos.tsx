@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { estaCongelado, type AcuerdoConSala } from '@/db/consultas'
 import { fechaBreve } from '@/lib/fecha'
 import { colorDeTextoDeMarca } from '@/temas'
-import type { PersonaMonday } from '@/monday/personas'
+import type { PersonaResponsable } from '@/lib/personas'
 import type { Equipos } from '@/lib/equipos'
 import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { Estrella } from './Estrella'
-import estilos from './bandeja.module.css'
+import estilos from './acuerdos.module.css'
 
 interface Props {
   acuerdos: AcuerdoConSala[]
@@ -23,10 +23,10 @@ interface Props {
    */
   editar?: (
     acuerdoId: string,
-    cambios: { que: string; responsable: string; responsableMondayId: string | null },
+    cambios: { que: string; responsable: string },
   ) => Promise<{ error?: string }>
   /** La gente de Mkt Corp para el desplegable de responsable. Solo se usa al editar. */
-  personas?: PersonaMonday[]
+  personas?: PersonaResponsable[]
   /** Los squads y las UDN que pueden cargar con el acuerdo (src/lib/equipos.ts). */
   equipos?: Equipos
   /**
@@ -234,7 +234,7 @@ export function TablaAcuerdos({
         <section className={`tarjeta ${estilos.tarjetaLista} ${estilos.congelados}`} aria-label="Congelados">
           <h2 className={estilos.congeladosTitulo}>Congelados</h2>
           <p className={estilos.congeladosNota}>
-            Sus salas están en pausa: no vencen, no cuentan y no se pueden subir a Monday.
+            Sus salas están en pausa: no vencen y no cuentan.
           </p>
           {congelados.length === 0 ? (
             <p className={estilos.vacio}>Ningún acuerdo congelado coincide con estos filtros.</p>
@@ -385,25 +385,6 @@ function Fila({
           <span>{acuerdo.responsable || 'sin dueño'}</span>
           <span className={estilos.punto} aria-hidden>·</span>
           <span>{acuerdo.fechaCompromiso ? fechaBreve(acuerdo.fechaCompromiso) : 'sin fecha'}</span>
-          {acuerdo.mondayUrl && (
-            <>
-              <span className={estilos.punto} aria-hidden>·</span>
-              <a href={acuerdo.mondayUrl} target="_blank" rel="noopener noreferrer" className={estilos.enlaceMonday}>
-                Ver en Monday ↗
-              </a>
-            </>
-          )}
-          {/* El aviso que pide el diseño (§4) cuando el elemento desapareció
-              de Monday (revisión final de la ronda 7, punto 6): antes esta
-              fila se quedaba con `mondayUrl` colgado —"Ver en Monday ↗" a un
-              elemento que ya no existe—; ahora refrescarDesdeMonday lo limpia
-              y esta es la señal de que eso pasó. */}
-          {acuerdo.mondayDesvinculado && (
-            <>
-              <span className={estilos.punto} aria-hidden>·</span>
-              <span className={estilos.avisoDesvinculado}>Se dejó de sincronizar con Monday: el elemento ya no existe allá</span>
-            </>
-          )}
         </div>
 
         {/* EL EDITOR COMPLETO: estatus, fecha, sala y eliminar, detrás del
