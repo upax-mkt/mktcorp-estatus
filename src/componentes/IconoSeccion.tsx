@@ -42,6 +42,9 @@ export type NombreIcono =
   | 'clientes'
   | 'calendario'
   | 'pausa'
+  | 'marca'
+  | 'enlaces'
+  | 'tipografia'
 
 export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; className?: string }) {
   switch (nombre) {
@@ -143,6 +146,40 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
       return (
         <svg {...COMUNES} className={className}>
           <path d="M9.5 5.5v13M14.5 5.5v13" />
+        </svg>
+      )
+
+    // ---- Los tres del editor de una sala (20-ago-2026) ----
+
+    // La marca: una gota de color sobre su muestra. No un bote de pintura ni
+    // una paleta de pintor con su pulgar — a este tamaño los dos se leen como
+    // una mancha, y lo que se edita aquí son colores planos.
+    case 'marca':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M12 3.5c3 3.6 5 6.2 5 8.4a5 5 0 0 1-10 0c0-2.2 2-4.8 5-8.4Z" />
+          <path d="M9.6 12.4a2.6 2.6 0 0 0 2.6 2.6" />
+        </svg>
+      )
+
+    // Los enlaces: los dos eslabones de siempre. Es el icono que todo el
+    // mundo ya sabe leer, y esta sección no es sitio para enseñar uno nuevo.
+    case 'enlaces':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M10 13.8a3.6 3.6 0 0 0 5.3.4l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.5 1.5" />
+          <path d="M14 10.2a3.6 3.6 0 0 0-5.3-.4l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.5-1.5" />
+        </svg>
+      )
+
+    // La tipografía: una "A" con su línea de base. La letra ES el asunto de la
+    // sección, así que el icono la enseña en vez de aludir a ella.
+    case 'tipografia':
+      return (
+        <svg {...COMUNES} className={className}>
+          <path d="M5.5 16.5 10.4 5.5h1.2l4.9 11" />
+          <path d="M7.6 12.8h6.8" />
+          <path d="M4 20h16" />
         </svg>
       )
   }

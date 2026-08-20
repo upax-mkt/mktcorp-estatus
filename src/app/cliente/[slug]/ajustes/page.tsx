@@ -20,6 +20,7 @@ import { editarSalaAction } from '@/app/salas/acciones'
 import { pausarSalaAction, reactivarSalaAction } from '@/app/acuerdos/acciones'
 import { estadoDeClave, regenerarClave, quitarClave } from '@/db/claves'
 import { urlBase } from '@/lib/url-base'
+import { Seccion } from '@/componentes/Seccion'
 
 export const dynamic = 'force-dynamic'
 
@@ -295,9 +296,14 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
       </div>
 
       <main className={estilos.main}>
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Identidad, marca y cadencia</h2>
-          <FormularioSala
+        {/* ⚠️ SIN TARJETA ALREDEDOR (20-ago-2026). `FormularioSala` trae ahora
+            sus propias secciones —Identidad, Marca, Enlaces, Data & Analytics,
+            Tipografía—, así que envolverlo en una más metía una tarjeta dentro
+            de otra: dos niveles de elevación discutiendo cuál es el
+            contenedor, que es el mismo defecto que la sala corrigió en su día.
+            El título "Identidad, marca y cadencia" tampoco hace falta: cada
+            sección dice el suyo. */}
+        <FormularioSala
             guardar={editarSalaAction.bind(null, slug)}
             slugsUsados={slugsUsados}
             sala={{
@@ -335,12 +341,10 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
             // Se vuelve a la sala, no a la lista global: aquí se entró desde
             // dentro de ella. El default de `FormularioSala` es `/salas`, que
             // es lo correcto para la pantalla de administración, no para ésta.
-            volverA={`/cliente/${slug}`}
-          />
-        </section>
+          volverA={`/cliente/${slug}`}
+        />
 
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Estado</h2>
+        <Seccion icono="pausa" titulo="Estado">
           <PausaSala
             nombreSala={tema.nombre}
             activa={extra?.activa ?? true}
@@ -354,7 +358,7 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
             pausarAction={pausarEstaSalaAction}
             reactivarAction={reactivarEstaSalaAction}
           />
-        </section>
+        </Seccion>
 
         {/* ACCESO DEL DIRECTOR — LOS DOS MECANISMOS JUNTOS (Crítico A de la
             auditoría UX/UI, ronda 11 tarea 4). Antes de esta tarea esta
@@ -363,8 +367,7 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
             del director" — dos secciones iguales de nombre, mecanismos
             distintos, en dos pantallas. Ahora son un solo encabezado con una
             intro que explica la diferencia, y los dos mecanismos debajo. */}
-        <section className={estilos.seccion}>
-          <h2 className={estilos.seccionTitulo}>Acceso del director</h2>
+        <Seccion icono="clave" titulo="Acceso del director">
           <p className={estilos.accesoIntro}>
             Dos formas de dejar entrar al director de {tema.nombre} sin darle cuenta de equipo:
             una clave que teclea cada vez que entra, o un link ya firmado que caduca solo a los
@@ -403,7 +406,7 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
               </div>
             </div>
           )}
-        </section>
+        </Seccion>
       </main>
     </div>
   )

@@ -11,7 +11,20 @@ import type { Cadencia } from '@/dominio/reunion'
 import { VistaPreviaMarca } from './VistaPreviaMarca'
 import { GrupoDeColores } from './ColoresDeMarca'
 import { SelectorTipografia } from './SelectorTipografia'
+import { Seccion } from '@/componentes/Seccion'
+import { CATALOGO_DE_FUENTES } from '@/temas/fuentes'
 import estilos from '@/app/salas/salas.module.css'
+
+/**
+ * El nombre legible de una familia, para el resumen de la sección de
+ * tipografía: la cabecera dice "Outfit · Raleway" y así no hay que abrirla
+ * para saber con qué letra está vestida la sala. Una clave que el catálogo no
+ * reconozca se devuelve tal cual — mismo criterio defensivo que el resto del
+ * repo: un texto raro en un resumen es más barato que una cabecera vacía.
+ */
+function nombreDeFuente(clave: string): string {
+  return CATALOGO_DE_FUENTES.find((f) => f.clave === clave)?.nombre ?? clave
+}
 
 /**
  * CREAR Y EDITAR UNA SALA (tarea 6, ronda 8) — la pantalla que existe porque
@@ -246,6 +259,12 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
    * se queda solo con lo que tiene URL válida.
    */
   const [redes, setRedes] = useState<RedesDeSala>(sala?.redes ?? {})
+  /**
+   * Cuántos enlaces tienen algo escrito, para el resumen de su sección. Doce
+   * campos que casi siempre están vacíos no merecen 700 px abiertos, pero sí
+   * merecen que se pueda saber cuántos hay puestos sin abrirlos.
+   */
+  const enlacesPuestos = REDES.filter((red) => (redes[red] ?? '').trim().length > 0).length
   /** El tablero de ORBIT que se incrusta en la sala. Vacío = no hay módulo. */
   const [analyticsUrl, setAnalyticsUrl] = useState(sala?.analyticsUrl ?? '')
   const [gradienteInicio, setGradienteInicio] = useState(sala?.gradienteInicio ?? '')
@@ -455,8 +474,30 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
 
   return (
     <form className={estilos.formulario} onSubmit={alEnviar}>
-      <div className={estilos.formularioCampos}>
-        <div className={estilos.formularioCamposIzq}>
+      {/* ═══ EL EDITOR SE LEE COMO UN MONTAJE (20-ago-2026) ═══════════════
+          Franco: *"el editor de salas lo siento desordenado, las opciones de
+          edición no son claras"*.
+
+          Y no era una impresión: medido, era UNA TIRA DE 4.266 px con 78
+          campos en una sola columna de 320 px dentro de un contenedor de 955
+          —635 px desperdiciados en cada fila—, con la vista previa visible
+          solo en los primeros 900 px y la barra de guardar tapando el
+          contenido por el que pasaba. Creció por acumulación: cada ronda
+          añadió sus campos al final y nadie volvió a mirar la estructura.
+
+          Ahora son SECCIONES, con el mismo componente y la misma gramática
+          que las de una sala (`Seccion`): icono, título, y un resumen a la
+          derecha que dice qué hay dentro SIN abrirla. Se montan de arriba
+          abajo en el orden en que se monta una sala de verdad —quién es,
+          cómo se ve, a dónde enlaza, con qué letra— y lo que casi nunca se
+          toca nace plegado.
+
+          NO se inventó ningún patrón: `<details>` nativo, las mismas
+          tarjetas, los mismos controles. En una pantalla de administración
+          la familiaridad es la función. */}
+
+      <Seccion icono="clientes" titulo="Identidad" className={estilos.bloqueSeccion}>
+        <div className={estilos.rejillaCampos}>
           <label className={estilos.campo}>
             <span className={estilos.etiqueta}>Nombre</span>
             <input
@@ -470,7 +511,6 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               required
             />
           </label>
-
           <div className={estilos.campo}>
             <label className={estilos.etiqueta} htmlFor="identificador-sala">Identificador</label>
             <input
@@ -504,7 +544,6 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               </p>
             )}
           </div>
-
           <div className={estilos.campo}>
             <label className={estilos.etiqueta} htmlFor="cadencia-sala">Cadencia</label>
             <select
@@ -521,7 +560,15 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
             </select>
             <p className={estilos.pista}>Cada cuánto se reúne el equipo con esta sala.</p>
           </div>
+        </div>
+      </Seccion>
 
+      {/* ABIERTA SIEMPRE: es la sección por la que se entra aquí. La previa
+          vive DENTRO y pegada, así que el color que se elige se ve al elegirlo
+          — antes estaba arriba del todo y se perdía a los 900 px de scroll. */}
+      <Seccion icono="marca" titulo="Marca" className={estilos.bloqueSeccion}>
+        <div className={estilos.marcaLayout}>
+          <div className={estilos.marcaCampos}>
           {/* ── LOS COLORES DE LA MARCA ─────────────────────────────────
               Franco: *"el selector de color es demasiado enredado, además no
               puedo poner el color de la letra o de los iconos; simplifica y
@@ -594,58 +641,6 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               ]}
             />
           </div>
-
-          {/* LOS ENLACES PÚBLICOS DE LA MARCA (Franco: *"necesito que todas
-              las salas en el header tengan sus respectivos iconos de redes
-              sociales, sitio web, blog, etc."*). Todos los campos a la vista y
-              en blanco: escribir en uno es más rápido que "añadir enlace →
-              elegir tipo → pegar", y una lista fija se lee de arriba abajo
-              para saber qué falta. Lo vacío no se guarda ni se pinta. */}
-          <div className={estilos.campo}>
-            <span className={estilos.etiqueta}>Enlaces públicos</span>
-            <div className={estilos.redesCampos}>
-              {REDES.map((red) => (
-                <label key={red} className={estilos.redCampo}>
-                  <span className={estilos.redNombre}>{NOMBRE_DE_RED[red]}</span>
-                  <input
-                    type="url"
-                    inputMode="url"
-                    className={estilos.entrada}
-                    value={redes[red] ?? ''}
-                    onChange={(e) => setRedes((r) => ({ ...r, [red]: e.target.value }))}
-                    placeholder="https://…"
-                    aria-label={NOMBRE_DE_RED[red]}
-                  />
-                </label>
-              ))}
-            </div>
-            <p className={estilos.pista}>
-              Aparecen como iconos en la cabecera de la sala, para quien la abra. Lo que se deje en
-              blanco no se muestra. Tienen que empezar por <code>https://</code>.
-            </p>
-          </div>
-
-          {/* EL TABLERO DE DATA & ANALYTICS (RevOps). Un campo y no un
-              interruptor: el patrón de hoy es por slug, pero eso es cómo están
-              montadas las dos primeras salas, no una promesa de ORBIT. */}
-          <div className={estilos.campo}>
-            <label className={estilos.etiqueta} htmlFor="analytics-url">Data &amp; Analytics</label>
-            <input
-              id="analytics-url"
-              type="url"
-              inputMode="url"
-              className={estilos.entrada}
-              value={analyticsUrl}
-              onChange={(e) => setAnalyticsUrl(e.target.value)}
-              placeholder="https://orbit-hub-fgap.vercel.app/embed/…"
-            />
-            <p className={estilos.pista}>
-              El tablero de ORBIT que se incrusta arriba de los acuerdos, en la sala. En blanco, el
-              módulo no aparece. Solo carga desde el dominio de esta app: en local sale en blanco, y
-              es la política de seguridad de ORBIT funcionando, no un fallo.
-            </p>
-          </div>
-
           {/* RECALCULAR PALETA (revisión final de la rama, punto 1): solo al
               editar, y solo cuando `recalcularPaleta` viene (no lo manda el
               formulario de "Crear sala" — ver su comentario en la interfaz de
@@ -692,8 +687,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               {paletaRecalculada && <p className={estilos.formularioOk}>Paleta recalculada.</p>}
             </div>
           )}
-
-          <div className={estilos.campo}>
+          <div className={`${estilos.campo} ${estilos.campoLogotipo}`}>
             <span className={estilos.etiqueta}>Logotipo</span>
             {/* EL INPUT NATIVO SE ESCONDE (auditoría UX/UI, hallazgo 2): su
                 texto —"Seleccionar archivo | Sin archivo…leccionados"— lo
@@ -732,31 +726,118 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
             {avisoLogo && <p className={estilos.avisoTexto}>{avisoLogo}</p>}
             {logoUrl && !subiendoLogo && <p className={estilos.pista}>Logo cargado.</p>}
           </div>
+          </div>
+          <div className={estilos.marcaPrevia}>
+          <VistaPreviaMarca
+            nombre={nombre}
+            primario={primarioValido ? primario : null}
+            secundario={secundario}
+            acento={acento}
+            logoUrl={logoUrl}
+            logoRelacionDeTinta={logoRelacion}
+          />
+          </div>
         </div>
+      </Seccion>
 
-        <VistaPreviaMarca
-          nombre={nombre}
-          primario={primarioValido ? primario : null}
-          secundario={secundario}
-          acento={acento}
-          logoUrl={logoUrl}
-          logoRelacionDeTinta={logoRelacion}
-        />
-      </div>
+      <Seccion
+        icono="enlaces"
+        titulo="Enlaces públicos"
+        conteo={`${enlacesPuestos} de ${REDES.length}`}
+        plegable
+        abierta={false}
+        className={estilos.bloqueSeccion}
+      >
+          {/* LOS ENLACES PÚBLICOS DE LA MARCA (Franco: *"necesito que todas
+              las salas en el header tengan sus respectivos iconos de redes
+              sociales, sitio web, blog, etc."*). Todos los campos a la vista y
+              en blanco: escribir en uno es más rápido que "añadir enlace →
+              elegir tipo → pegar", y una lista fija se lee de arriba abajo
+              para saber qué falta. Lo vacío no se guarda ni se pinta. */}
+          <div className={estilos.campo}>
+            {/* ⚠️ SIN RÓTULO PROPIO (20-ago-2026): la sección que lo contiene YA
+                se llama "Enlaces públicos". Dos veces el mismo texto, uno
+                encima de otro, es el mismo eco que hubo que quitar en el
+                módulo de reuniones. El nombre de cada red ya rotula su campo. */}
+            <div className={estilos.redesCampos}>
+              {REDES.map((red) => (
+                <label key={red} className={estilos.redCampo}>
+                  <span className={estilos.redNombre}>{NOMBRE_DE_RED[red]}</span>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    className={estilos.entrada}
+                    value={redes[red] ?? ''}
+                    onChange={(e) => setRedes((r) => ({ ...r, [red]: e.target.value }))}
+                    placeholder="https://…"
+                    aria-label={NOMBRE_DE_RED[red]}
+                  />
+                </label>
+              ))}
+            </div>
+            <p className={estilos.pista}>
+              Aparecen como iconos en la cabecera de la sala, para quien la abra. Lo que se deje en
+              blanco no se muestra. Tienen que empezar por <code>https://</code>.
+            </p>
+          </div>
+      </Seccion>
 
-      {/* TIPOGRAFÍA (tarea 7) — a todo el ancho del formulario, aparte de las
-          dos columnas de arriba: veinte muestras legibles necesitan más
-          sitio del que le toca a la columna izquierda de campos. */}
-      <div className={estilos.formularioTipografia}>
-        <div className={estilos.formularioTipografiaCampo}>
-          <span className={estilos.etiqueta}>Tipografía de títulos</span>
-          <SelectorTipografia nombre="familiaDisplay" valor={familiaDisplay} alCambiar={setFamiliaDisplay} />
+      <Seccion
+        icono="benchmark"
+        titulo="Data & Analytics"
+        conteo={analyticsUrl.trim() ? 'con tablero' : 'sin tablero'}
+        plegable
+        abierta={false}
+        className={estilos.bloqueSeccion}
+      >
+          {/* EL TABLERO DE DATA & ANALYTICS (RevOps). Un campo y no un
+              interruptor: el patrón de hoy es por slug, pero eso es cómo están
+              montadas las dos primeras salas, no una promesa de ORBIT. */}
+          <div className={estilos.campo}>
+            {/* Rotulado por lo que se PIDE, no por el nombre de la sección que
+                lo contiene (que ya dice "Data & Analytics"): lo que va aquí es
+                una URL, y el `htmlFor` sigue haciendo su trabajo de a11y. */}
+            <label className={estilos.etiqueta} htmlFor="analytics-url">URL del tablero</label>
+            <input
+              id="analytics-url"
+              type="url"
+              inputMode="url"
+              className={estilos.entrada}
+              value={analyticsUrl}
+              onChange={(e) => setAnalyticsUrl(e.target.value)}
+              placeholder="https://orbit-hub-fgap.vercel.app/embed/…"
+            />
+            <p className={estilos.pista}>
+              El tablero de ORBIT que se incrusta arriba de los acuerdos, en la sala. En blanco, el
+              módulo no aparece. Solo carga desde el dominio de esta app: en local sale en blanco, y
+              es la política de seguridad de ORBIT funcionando, no un fallo.
+            </p>
+          </div>
+      </Seccion>
+
+      {/* PLEGADA, Y ES LA QUE MÁS SITIO AHORRA: sus veinticuatro muestras
+          ocupaban 1.100 px de los 4.266 y son lo que menos se toca —una sala
+          elige su tipografía el día que se monta—. El resumen dice cuáles
+          están puestas, que es lo único que hace falta saber sin abrirla. */}
+      <Seccion
+        icono="tipografia"
+        titulo="Tipografía"
+        conteo={`${nombreDeFuente(familiaDisplay)} · ${nombreDeFuente(familiaTexto)}`}
+        plegable
+        abierta={false}
+        className={estilos.bloqueSeccion}
+      >
+        <div className={estilos.formularioTipografia}>
+          <div className={estilos.formularioTipografiaCampo}>
+            <span className={estilos.etiqueta}>Tipografía de títulos</span>
+            <SelectorTipografia nombre="familiaDisplay" valor={familiaDisplay} alCambiar={setFamiliaDisplay} />
+          </div>
+          <div className={estilos.formularioTipografiaCampo}>
+            <span className={estilos.etiqueta}>Tipografía de texto</span>
+            <SelectorTipografia nombre="familiaTexto" valor={familiaTexto} alCambiar={setFamiliaTexto} />
+          </div>
         </div>
-        <div className={estilos.formularioTipografiaCampo}>
-          <span className={estilos.etiqueta}>Tipografía de texto</span>
-          <SelectorTipografia nombre="familiaTexto" valor={familiaTexto} alCambiar={setFamiliaTexto} />
-        </div>
-      </div>
+      </Seccion>
 
       {/* PEGAJOSA AL FONDO (auditoría UX/UI, hallazgo 3): con cuarenta
           tipografías arriba, llegar hasta aquí costaba un scroll entero —

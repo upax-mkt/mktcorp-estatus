@@ -108,7 +108,70 @@
 .filaFormulario { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--borde); padding-top: 1.1rem; }
 
 /* ---- el formulario de una sala ---- */
-.formulario { display: grid; gap: 1rem; }
+/* ═══ EL EDITOR, EN SECCIONES (20-ago-2026) ═══════════════════════════════
+   Antes: `.formularioCampos` repartía la pantalla en `20rem 1fr` y metía
+   TODOS los campos en esas 20rem (320 px medidos), con la previa al lado
+   ocupando solo el alto de su contenido. El resto —635 px de ancho por fila,
+   y toda la mitad derecha por debajo de los 900 px de scroll— era papel en
+   blanco. Ahora cada asunto es una sección de ancho completo y los campos se
+   reparten dentro según lo que cada uno necesita. */
+.formulario { display: grid; gap: 0.9rem; }
+
+/* Separación entre secciones: la misma que usan los módulos de una sala, para
+   que administrar y consultar se sientan la misma app. */
+.bloqueSeccion { margin: 0; }
+/* ⚠️ AQUÍ UNA SECCIÓN PLEGADA NO SE VISTE DE LA MARCA (20-ago-2026).
+   En una sala, el degradado sobre el módulo plegado es información: dice de
+   quién es ese espacio, y hay UNO. En el editor son tres seguidas —Enlaces,
+   Data & Analytics, Tipografía— y tres franjas de color a todo lo ancho, una
+   encima de otra, dejan de decir nada: son decoración compitiendo con los
+   campos que sí hay que leer. Esta pantalla es de administración; el color se
+   reserva para lo que se está editando (las muestras de la marca, ahí al
+   lado) y para las acciones.
+
+   ⚠️ LA CLASE VA DOBLE (`.bloqueSeccion.bloqueSeccion`) A PROPÓSITO: la regla
+   que pinta el degradado vive en `Seccion.module.css` con la misma
+   especificidad que tendría esta, así que quién gana lo decidiría el ORDEN en
+   que Next sirva las dos hojas — que no es algo que se pueda fijar desde
+   aquí. Repetir la clase sube la especificidad a 0-3-0 y la deja ganar
+   siempre. Se vio en el primer intento: la regla estaba escrita y las tres
+   franjas seguían de color. */
+.bloqueSeccion.bloqueSeccion:has(> details:not([open])) {
+  background: var(--papel);
+  color: var(--tinta, var(--tx));
+}
+.bloqueSeccion.bloqueSeccion:has(> details:not([open])) svg { color: var(--marca-texto, var(--marca)); opacity: 1; }
+
+/* Identidad: tres campos cortos que caben en fila. `auto-fit` con un mínimo de
+   14rem los pone en tres columnas en escritorio y los apila solos en móvil,
+   sin un breakpoint escrito a mano. */
+/* El botón del logotipo se estiraba a todo el ancho de su columna con el
+   texto centrado — un botón de 550 px para dos palabras, que además se leía
+   como una zona de soltar archivos que no es. Del ancho de su texto y donde
+   empieza la lectura. */
+.campoLogotipo > button { justify-self: start; }
+
+.rejillaCampos {
+  display: grid; gap: 0.9rem 1.2rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  align-items: start;
+}
+
+/* Marca: los colores a la izquierda y la previa PEGADA a la derecha. Que sea
+   `sticky` es el punto entero de la sección — elegir un color sin ver el
+   resultado era lo que obligaba a subir y bajar la página. `align-self:start`
+   además de `position:sticky` porque un ítem de grid estirado no se pega:
+   ocupa toda la fila y no tiene por dónde desplazarse. */
+.marcaLayout {
+  display: grid; gap: 1.5rem; align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+}
+.marcaCampos { display: grid; gap: 1.1rem; min-width: 0; }
+.marcaPrevia { position: sticky; top: 1.5rem; align-self: start; min-width: 0; }
+@media (max-width: 60rem) {
+  .marcaLayout { grid-template-columns: minmax(0, 1fr); }
+  .marcaPrevia { position: static; }
+}
 .formularioCampos { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 @media (max-width: 46rem) { .formularioCampos { grid-template-columns: minmax(0, 1fr); } }
 .formularioCamposIzq { display: grid; gap: 0.9rem; min-width: 0; }
@@ -152,28 +215,30 @@
    que uno se detecta antes de enviar. */
 .formularioError { font-size: 0.83rem; color: var(--alerta); margin: 0; }
 .formularioOk { font-size: 0.85rem; color: var(--ok); margin: 0; }
-/* PEGAJOSA AL FONDO (auditoría UX/UI, hallazgo 3): con dos rejillas de veinte
-   tipografías arriba, "Guardar cambios" quedaba a un scroll entero de
-   cualquier campo que no fuera el último. Mismo mecanismo que `.panelMaquetar`
-   en el editor de una reunión (deck.module.css) — "un panel pegajoso tiene
-   que ser opaco": sin el fondo sólido, la sombra y el borde, flotaría
-   transparente y se leería encima de lo que sigue desplazándose debajo,
-   lección ya pagada ahí. El error/éxito de guardar viven DENTRO de esta
-   barra (ver FormularioSala.tsx), no arriba de ella, para que el resultado
-   se vea sin desplazarse otra vez.
+/* ⚠️ YA NO SE PEGA AL FONDO, Y ESO ES EL ARREGLO (20-ago-2026).
+   Era `position: sticky; bottom: 1rem` por un motivo que existía de verdad:
+   con las cuarenta muestras de tipografía a la vista, llegar al botón costaba
+   un scroll entero, así que cambiar la cadencia obligaba a recorrer la
+   página completa para guardar.
 
-   EN /salas, FormularioSala también vive dentro de `.filaSala` — que declara
-   `overflow:hidden` para recortar sus esquinas redondeadas. Ese overflow
-   corta a cualquier descendiente `position:sticky` (deja de "pegarse" de
-   verdad, se comporta como estático): en esa pantalla esto se ve como una
-   barra de acciones normal, ni mejor ni peor que hoy — nunca rota. */
+   Ese motivo desapareció con el rediseño en secciones: el formulario mide
+   ahora ~1.200 px en vez de 4.266, y lo que se recorría plegado está. Lo que
+   quedaba era el precio: una barra blanca de ancho completo desplazándose
+   POR ENCIMA del contenido — en el print de Franco cortaba por la mitad la
+   fila de colores que él estaba intentando editar. Un control que tapa
+   justo lo que se está tocando es peor que uno que hay que ir a buscar.
+
+   Alineada a la derecha porque es donde termina la lectura de un formulario,
+   y separada por una línea para que se lea como cierre y no como un campo
+   más. */
 .formularioAcciones {
-  position: sticky; bottom: 1rem;
-  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
-  margin-top: 0.5rem; padding: 0.85rem 1rem;
-  background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--r-3);
-  box-shadow: 0 8px 30px oklch(0 0 0 / 0.12);
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap;
+  margin-top: 0.4rem; padding-top: 1rem;
+  border-top: 1px solid var(--borde);
 }
+/* El error y el éxito de guardar van a la IZQUIERDA, empujando los botones al
+   final: leerlos es lo primero que se hace cuando aparecen. */
+.formularioAcciones > p { margin-right: auto; order: -1; }
 
 /* ---- vista previa de la marca ---- */
 .previa { padding: 0; overflow: hidden; display: grid; }
@@ -275,9 +340,10 @@
    guardan. */
 .redesCampos {
   display: grid; gap: 0.5rem 0.9rem;
-  /* 11rem y no 15: la columna izquierda del formulario mide unas 28rem, así
-     que con 15 entraba UNA sola y los doce campos formaban una tira de medio
-     metro. Con 11 caben dos, y la lista se abarca de un vistazo — que es todo
+  /* 11rem y no 15: cuando esto vivía en la columna estrecha del formulario
+     (28rem), con 15 entraba UNA sola y los doce campos formaban una tira de
+     medio metro. Desde el 20-ago la sección ocupa el ancho entero, así que
+     con 11 caben tres o cuatro y la lista se abarca de un vistazo — que es todo
      el sentido de tenerla fija. */
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
 }
