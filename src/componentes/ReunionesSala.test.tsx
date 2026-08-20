@@ -254,6 +254,46 @@ describe('ReunionesSala — el historial se lee en tres bloques (20-ago-2026)', 
     expect(within(ultimas).getAllByRole('heading', { level: 3 })).toHaveLength(1)
   })
 
+  /**
+   * ⚠️ EL RÓTULO NO PUEDE CONTRADECIR A LA LISTA QUE TIENE DEBAJO.
+   *
+   * Lo enseñó Marketing United: dos reuniones sin clasificar (julio y agosto)
+   * empujaban al estatus de MAYO a la tarjeta destacada, rotulada "Más
+   * reciente" — con las de julio y agosto listadas dos centímetros más abajo.
+   * El dato es correcto (es el último ESTATUS); la etiqueta era la que mentía.
+   */
+  it('la destacada se rotula "Último estatus" cuando lo es, aunque haya reuniones más nuevas debajo', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-06-12T10:00:00Z', titulo: 'Estatus Mayo' },
+          { ...BASE, id: 'n1', plantilla: null, fecha: '2026-08-13T10:00:00Z', titulo: 'Estatus Julio sin clasificar' },
+        ]}
+      />,
+    )
+
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    expect(within(ultimas).getByText(/último estatus/i)).toBeInTheDocument()
+    expect(within(ultimas).queryByText(/más reciente/i)).toBeNull()
+  })
+
+  it('cuando no hay ningún estatus, la destacada SÍ es la más reciente y lo dice', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-14T10:00:00Z', titulo: 'Sync 33' },
+          { ...BASE, id: 's0', plantilla: 'sync-comercial', fecha: '2026-08-07T10:00:00Z', titulo: 'Sync 32' },
+        ]}
+      />,
+    )
+
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    expect(within(ultimas).getByText(/más reciente/i)).toBeInTheDocument()
+    expect(within(ultimas).queryByText(/último estatus/i)).toBeNull()
+  })
+
   it('sin ningún estatus todavía, destaca la más reciente de lo que haya: la sala no se queda sin presente', () => {
     render(
       <ReunionesSala

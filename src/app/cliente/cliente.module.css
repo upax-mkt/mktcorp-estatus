@@ -546,11 +546,25 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 .columnasAnteriores {
   display: grid; gap: 0.9rem;
   grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  /* ⚠️ CADA GRUPO MIDE LO QUE TIENE DENTRO (20-ago-2026). Por defecto las
+     celdas de un grid se estiran a la altura de la fila, y eso aquí no era
+     cosmético: con "Estatus de UDN" (1 reunión) al lado de "Otras reuniones"
+     (2), la caja corta se estiraba a los 698 px de la larga y REPARTÍA ESE
+     SOBRANTE ENTRE SUS FILAS —`.grupoMaterial` es un grid y sus filas `auto`
+     crecen con `align-content: stretch`—. Resultado medido en Marketing
+     United: su cabecera pasaba de 22 px a 213 y la tarjeta de dentro salía
+     con un hueco entre cada bloque. Dos cajas de alturas distintas es lo
+     honesto: cada una tiene lo que tiene. */
+  align-items: start;
 }
 /* La contención se limita a reuniones porque `.grupoMaterial` también se usa
    en el módulo de materiales comerciales. */
 .columnasAnteriores .grupoMaterial {
   min-width: 0;
+  /* Cinturón y tirantes con `align-items: start` de arriba: si algo vuelve a
+     estirar esta caja, su contenido se queda arriba en vez de repartirse el
+     hueco. */
+  align-content: start;
   container-type: inline-size;
   padding: 0.85rem;
   border: 1px solid var(--borde);
@@ -982,6 +996,23 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .nuevoAcuerdoAbrir:hover { background: var(--superficie-2); border-color: var(--marca); }
+
+/* ⚠️ DENTRO DE UNA REUNIÓN, LA MISMA ACCIÓN PESA MENOS (20-ago-2026).
+   En la sala, "+ Añadir acuerdo" ES la acción del módulo y su caja punteada
+   está bien. Dentro de la tarjeta de una reunión compite con "Levantar
+   minuta" —punteada también— y con el chip de la presentación: tres cajas
+   del mismo peso donde solo una es lo que se viene a hacer. Aquí es un
+   apunte que se añade después, así que se lee como tal: texto, sin caja, y
+   del ancho de su propia frase (`justify-self` porque la tarjeta es grid y
+   si no se estira de lado a lado). */
+.nuevoAcuerdoAbrirDiscreto {
+  justify-self: start;
+  font-family: inherit; font-size: 0.8rem; font-weight: 500;
+  margin-top: 0.15rem; padding: 0.35rem 0;
+  color: var(--tinta-3, var(--tx-3)); background: none; border: none; cursor: pointer;
+  transition: color 0.15s ease;
+}
+.nuevoAcuerdoAbrirDiscreto:hover { color: var(--marca-texto, var(--marca)); text-decoration: underline; }
 
 .nuevoAcuerdo {
   display: grid; gap: 0.6rem;

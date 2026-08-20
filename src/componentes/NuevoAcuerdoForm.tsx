@@ -31,6 +31,12 @@ interface Props {
    * se pone después corrigiendo la fila, como cualquier otro campo.
    */
   sinSquad?: boolean
+  /**
+   * Peso visual de la acción cerrada. En la sala es LA acción del módulo y va
+   * como botón; dentro de la tarjeta de una reunión es un apunte que se añade
+   * después y compite con "Levantar minuta" si lleva la misma caja punteada.
+   */
+  discreto?: boolean
 }
 
 /**
@@ -48,6 +54,7 @@ export function NuevoAcuerdoForm({
   personas,
   etiqueta = '+ Añadir acuerdo',
   sinSquad = false,
+  discreto = false,
 }: Props) {
   const [abierto, setAbierto] = useState(false)
   const [pendiente, empezar] = useTransition()
@@ -57,7 +64,11 @@ export function NuevoAcuerdoForm({
   if (!abierto) {
     return (
       <>
-        <button type="button" className={estilos.nuevoAcuerdoAbrir} onClick={() => setAbierto(true)}>
+        <button
+          type="button"
+          className={discreto ? estilos.nuevoAcuerdoAbrirDiscreto : estilos.nuevoAcuerdoAbrir}
+          onClick={() => setAbierto(true)}
+        >
           {etiqueta}
         </button>
         {/* El aviso sobrevive al cierre del formulario a propósito: el acuerdo

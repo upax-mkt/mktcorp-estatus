@@ -356,6 +356,18 @@ export function ReunionesSala({
    * (misma regla que traía el reparto por clase que esto sustituye).
    */
   const { destacada, estatusAnteriores, otras } = partirHistorial(reuniones)
+  /**
+   * ⚠️ EL RÓTULO DICE QUÉ ES ESA TARJETA, NO LO QUE NOS GUSTARÍA QUE FUERA.
+   *
+   * Decía "Más reciente" siempre, heredado de cuando la destacada era la más
+   * nueva de la sala. Desde que destaca EL ÚLTIMO ESTATUS puede no serlo, y en
+   * Marketing United se vio con todas las letras: la tarjeta rotulaba "MÁS
+   * RECIENTE" sobre el estatus de mayo teniendo dos reuniones de julio y
+   * agosto listadas justo debajo. Una etiqueta que contradice lo que se ve dos
+   * centímetros más abajo no es un detalle de copy: es la pantalla mintiendo.
+   */
+  const destacadaEsEstatus = destacada !== null && claveDeClase(destacada.plantilla) === CLASE_ESTATUS
+  const rotuloDestacada = destacadaEsEstatus ? 'Último estatus' : 'Más reciente'
   const gruposAnteriores = [
     { clave: CLASE_ESTATUS, etiqueta: etiquetaDeClase(CLASE_ESTATUS), lista: estatusAnteriores },
     { clave: 'otras', etiqueta: 'Otras reuniones', lista: otras },
@@ -469,7 +481,7 @@ export function ReunionesSala({
                 >
                   <div className={estilos.reunionCabecera}>
                     <div>
-                      <div className={estilos.presTag}>Más reciente</div>
+                      <div className={estilos.presTag}>{rotuloDestacada}</div>
                       <h3 id={tituloId} className={estilos.presTitulo}>{r.titulo}</h3>
                       {/* La misma clave normalizada gobierna esta etiqueta y
                           el grupo de reuniones anteriores. */}
@@ -504,6 +516,7 @@ export function ReunionesSala({
                       personas={personas ?? []}
                       etiqueta="+ Añadir acuerdo a esta reunión"
                       sinSquad
+                      discreto
                     />
                   )}
                   {participantes && <ParticipantesSesion participantes={participantes} />}
@@ -580,6 +593,7 @@ export function ReunionesSala({
                                   personas={personas ?? []}
                                   etiqueta="+ Añadir acuerdo a esta reunión"
                                   sinSquad
+                                  discreto
                                 />
                               )}
                               {participantes && (
