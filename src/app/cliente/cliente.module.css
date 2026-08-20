@@ -949,6 +949,31 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 
 /* ---- Alta y borrado de acuerdos (solo equipo) ---- */
 
+/* El aviso y el error del alta de un acuerdo (20-ago-2026). Dos tonos porque
+   son dos cosas distintas: el aviso llega CON el acuerdo ya guardado (algo
+   quedó pendiente de hacer a mano), el error llega SIN guardar nada. */
+/* CORREGIR LA MINUTA DENTRO DEL VISOR (20-ago-2026). Alta de verdad: una
+   minuta son treinta o cuarenta líneas y corregir dentro de una caja de tres
+   es como editar por una mirilla. `font-family` monoespaciada porque la tabla
+   de acuerdos se alinea con barras — con una proporcional, las columnas
+   bailan y se pierde de vista qué celda es cuál. */
+.minutaTextarea {
+  width: 100%; min-height: 22rem; resize: vertical;
+  font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem; line-height: 1.55;
+  padding: 0.9rem 1rem; border-radius: 0.6rem;
+  border: 1px solid var(--borde-fuerte); background: var(--papel); color: var(--tinta, var(--tx));
+}
+.minutaTextarea:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+.minutaError { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--mal); }
+
+.nuevoAcuerdoAviso {
+  margin: 0.5rem 0 0; font-size: 0.78rem; line-height: 1.45; color: var(--tinta-2, var(--tx-2));
+}
+.nuevoAcuerdoError {
+  margin: 0 0 0.5rem; font-size: 0.78rem; line-height: 1.45; color: var(--mal);
+}
+
 .nuevoAcuerdoAbrir {
   font-family: inherit; font-size: 0.85rem; font-weight: 500;
   margin-top: 0.9rem; padding: 0.55rem 0.9rem;

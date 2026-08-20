@@ -222,6 +222,19 @@ const sesionActualMock = vi.fn().mockResolvedValue(null)
 // `registrarArchivoAction` lo necesita para comprobar que un `reunionId` que
 // llega del cliente es de ESTA sala antes de registrar el archivo — ver el
 // describe dedicado, más abajo.
+/**
+ * LA MINUTA, para el acuerdo tardío (20-ago-2026): `crearAcuerdoEnReunionAction`
+ * la lee y le mete una fila. Se dobla entera —lo que se prueba aquí es la
+ * ACCIÓN (a quién llama y con qué), no la inserción en el texto, que tiene su
+ * propia batería pura en `src/minuta/insertar-acuerdo.test.ts`.
+ */
+const obtenerMinutaMock = vi.fn()
+const editarTextoMinutaMock = vi.fn()
+vi.mock('@/db/minutas', () => ({
+  obtenerMinuta: (...args: unknown[]) => obtenerMinutaMock(...args),
+  editarTextoMinuta: (...args: unknown[]) => editarTextoMinutaMock(...args),
+}))
+
 const obtenerReunionMock = vi.fn()
 vi.mock('@/db/reuniones', () => ({
   listarReuniones: vi.fn().mockResolvedValue([]),
@@ -362,6 +375,10 @@ beforeEach(() => {
   // mismo slug que toda fixture de este archivo. El describe de "hallazgo 4a"
   // lo pisa con un slug distinto para probar el rechazo cruzado.
   obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
+  // Por defecto la reunión NO tiene minuta: el alta de un acuerdo tardío no
+  // tiene nada que retocar, que es el caso más común.
+  obtenerMinutaMock.mockResolvedValue(null)
+  editarTextoMinutaMock.mockResolvedValue(undefined)
 })
 
 /**
@@ -411,6 +428,109 @@ describe('el color del texto y de los iconos de título', () => {
     const estilo = estiloDe(container)
     expect(estilo).toContain('--texto-sobre-gradiente:')
     expect(estilo).not.toContain('--texto-sobre-gradiente: #ffffff')
+  })
+})
+
+/**
+ * UN ACUERDO QUE SE ACORDÓ Y NADIE APUNTÓ (20-ago-2026).
+ *
+ * Franco: *"una vez creada la reunión y marcada completada se me olvida meter
+ * un acuerdo, debo poder hacerlo y que también se refleje en la minuta ya
+ * publicada"*.
+ */
+describe('VistaSala — añadir un acuerdo a una reunión que ya pasó', () => {
+  async function accionCapturada() {
+    // La acción solo VIAJA a `ReunionesSala` con sesión de equipo (un director
+    // de UDN no da de alta acuerdos en nombre de Mkt Corp). La guarda que
+    // manda es `exigirEditor()` dentro de la acción; esto es lo que decide si
+    // el formulario se pinta siquiera.
+    esLectorMock.mockResolvedValue(true)
+    render(await invocar())
+    const props = reunionesSalaPropsMock.mock.calls[0][0] as {
+      crearAcuerdoEnReunionAction?: (
+        reunionId: string,
+        datos: { que: string; responsable: string; fechaCompromiso: string | null },
+      ) => Promise<{ error?: string; aviso?: string }>
+    }
+    return props.crearAcuerdoEnReunionAction!
+  }
+
+  const DATOS = { que: '  Mandar el anexo  ', responsable: 'Iris Múgica', fechaCompromiso: '2026-09-01' }
+
+  it('el acuerdo nace COLGADO de su reunión: es lo que hace que la tarjeta lo pinte sola', async () => {
+    const crear = await accionCapturada()
+
+    await crear('r-julio', DATOS)
+
+    expect(crearAcuerdoMock).toHaveBeenCalledWith('neracode', expect.objectContaining({
+      que: 'Mandar el anexo', // recortado
+      responsable: 'Iris Múgica',
+      reunionOrigenId: 'r-julio',
+    }))
+  })
+
+  it('una reunión de OTRA sala se rechaza y no se crea nada: el id lo manda el navegador', async () => {
+    obtenerReunionMock.mockResolvedValue({ salaSlug: 'mexa-creativa' })
+    const crear = await accionCapturada()
+
+    const r = await crear('r-ajena', DATOS)
+
+    expect(r.error).toMatch(/no es de este cliente/i)
+    expect(crearAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('sin texto que acordar no se guarda nada', async () => {
+    const crear = await accionCapturada()
+
+    const r = await crear('r-julio', { ...DATOS, que: '   ' })
+
+    expect(r.error).toMatch(/escribe qué se acordó/i)
+    expect(crearAcuerdoMock).not.toHaveBeenCalled()
+  })
+
+  it('con minuta publicada, le mete la fila a SU tabla y la guarda', async () => {
+    obtenerMinutaMock.mockResolvedValue({
+      textoFinal: ['Acuerdos', 'Acción | Owner | Fecha', 'Algo previo | Alguien | 3 ago 2026'].join('\n'),
+    })
+    const crear = await accionCapturada()
+
+    const r = await crear('r-julio', DATOS)
+
+    expect(r.aviso).toBeUndefined()
+    const [reunionId, textoNuevo] = editarTextoMinutaMock.mock.calls[0]
+    expect(reunionId).toBe('r-julio')
+    // La fila entra DENTRO de la tabla, pegada a la que ya estaba.
+    const lineas = (textoNuevo as string).split('\n')
+    expect(lineas[3]).toMatch(/^Mandar el anexo \| Iris Múgica \| /)
+    // Y no se regenera nada: lo que ya estaba escrito sigue igual.
+    expect(lineas[2]).toBe('Algo previo | Alguien | 3 ago 2026')
+  })
+
+  /**
+   * ⚠️ EL CASO QUE NO PUEDE PERDER EL ACUERDO. Una minuta cargada a mano o
+   * corregida hasta perder la tabla no tiene dónde meter la fila. Lo que NO
+   * puede pasar es que el acuerdo se pierda por un problema del texto: se
+   * guarda igual y quien lo dio de alta se entera de lo que queda por hacer.
+   */
+  it('si la minuta no tiene tabla, el acuerdo SE GUARDA IGUAL y avisa', async () => {
+    obtenerMinutaMock.mockResolvedValue({ textoFinal: 'Hola equipo,\n\nGracias por la sesión.' })
+    const crear = await accionCapturada()
+
+    const r = await crear('r-julio', DATOS)
+
+    expect(crearAcuerdoMock).toHaveBeenCalled()
+    expect(editarTextoMinutaMock).not.toHaveBeenCalled()
+    expect(r.aviso).toMatch(/no tiene tabla/i)
+  })
+
+  it('sin minuta publicada no se toca ninguna, y tampoco se avisa de nada', async () => {
+    const crear = await accionCapturada()
+
+    const r = await crear('r-julio', DATOS)
+
+    expect(crearAcuerdoMock).toHaveBeenCalled()
+    expect(editarTextoMinutaMock).not.toHaveBeenCalled()
+    expect(r).toEqual({})
   })
 })
 
@@ -1052,6 +1172,10 @@ describe('VistaSala (/cliente/[slug]) — registrarArchivoAction valida que la r
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
     obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
+  // Por defecto la reunión NO tiene minuta: el alta de un acuerdo tardío no
+  // tiene nada que retocar, que es el caso más común.
+  obtenerMinutaMock.mockResolvedValue(null)
+  editarTextoMinutaMock.mockResolvedValue(undefined)
 
     const registrarArchivoAction = await accionCapturada()
     const resultado = await registrarArchivoAction({ ...DATOS_ARCHIVO, reunionId: 'reunion-de-neracode' })
@@ -1292,6 +1416,10 @@ describe('VistaSala (/cliente/[slug]) — la rama de día civil de registrarArch
     esLectorMock.mockResolvedValue(true)
     esAdminMock.mockResolvedValue(false)
     obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
+  // Por defecto la reunión NO tiene minuta: el alta de un acuerdo tardío no
+  // tiene nada que retocar, que es el caso más común.
+  obtenerMinutaMock.mockResolvedValue(null)
+  editarTextoMinutaMock.mockResolvedValue(undefined)
 
     const { registrarArchivoAction } = await accionesCapturadas()
     await registrarArchivoAction({

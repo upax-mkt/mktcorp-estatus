@@ -796,6 +796,116 @@ describe('ReunionesSala — la minuta publicada conserva su forma', () => {
   })
 
   /**
+   * ---- CORREGIR LA MINUTA SIN SALIR DE LA SALA (20-ago-2026) ----
+   *
+   * Franco: *"una vez generada la minuta, en el mismo módulo me debería
+   * permitir editar la minuta"*. El editor ya existía en `/deck/[id]/minuta`;
+   * desde aquí solo había un enlace que sacaba de la sala.
+   */
+  describe('corregir el texto ahí mismo', () => {
+    function montar(editar = vi.fn().mockResolvedValue({})) {
+      return {
+        editar,
+        ...render(
+          <ReunionesSala
+            reuniones={[CON_MINUTA, { ...CON_MINUTA, id: 'm2', titulo: 'Otra con minuta',
+              minuta: { titulo: 'Minuta de junio', fecha: '2026-06-15T10:00:00.000Z', texto: 'Minuta de JUNIO', enviadaA: 0 } }]}
+            porVenir={[]}
+            equipo
+            salaSlug={SALA_SLUG}
+            registrarArchivoAction={registrarArchivoActionNoop}
+            editarMinutaAction={editar}
+          />,
+        ),
+      }
+    }
+
+    it('guarda el texto corregido con el id de SU reunión', async () => {
+      const usuario = userEvent.setup()
+      const { editar } = montar()
+
+      await usuario.click(screen.getAllByRole('button', { name: /minuta/i })[0])
+      await usuario.click(screen.getByRole('button', { name: /corregir el texto/i }))
+      const caja = screen.getByLabelText(/texto de la minuta/i)
+      await usuario.clear(caja)
+      await usuario.type(caja, 'Texto corregido')
+      await usuario.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+      expect(editar).toHaveBeenCalledWith('m1', 'Texto corregido')
+    })
+
+    it('sin la acción —un director de UDN— no se ofrece corregir nada', async () => {
+      const usuario = userEvent.setup()
+      render(
+        <ReunionesSala
+          reuniones={[CON_MINUTA]}
+          porVenir={[]}
+          equipo={false}
+          salaSlug={SALA_SLUG}
+          registrarArchivoAction={registrarArchivoActionNoop}
+        />,
+      )
+
+      await usuario.click(screen.getByRole('button', { name: /minuta/i }))
+      expect(screen.queryByRole('button', { name: /corregir el texto/i })).toBeNull()
+    })
+
+    /**
+     * Copiar copiaría el texto GUARDADO —no el borrador— y quien pulsa
+     * "copiar" justo después de corregir da por hecho lo contrario: se lleva
+     * al portapapeles una versión vieja creyendo que es la suya.
+     */
+    it('mientras se corrige no se ofrece copiar: copiaría la versión vieja', async () => {
+      const usuario = userEvent.setup()
+      montar()
+
+      await usuario.click(screen.getAllByRole('button', { name: /minuta/i })[0])
+      expect(screen.getByRole('button', { name: /copiar/i })).toBeInTheDocument()
+
+      await usuario.click(screen.getByRole('button', { name: /corregir el texto/i }))
+      expect(screen.queryByRole('button', { name: /copiar/i })).toBeNull()
+    })
+
+    it('si la acción devuelve error, el borrador NO se pierde', async () => {
+      const usuario = userEvent.setup()
+      montar(vi.fn().mockResolvedValue({ error: 'Esa reunión no es de este cliente.' }))
+
+      await usuario.click(screen.getAllByRole('button', { name: /minuta/i })[0])
+      await usuario.click(screen.getByRole('button', { name: /corregir el texto/i }))
+      const caja = screen.getByLabelText(/texto de la minuta/i)
+      await usuario.clear(caja)
+      await usuario.type(caja, 'Lo que acabo de escribir')
+      await usuario.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/no es de este cliente/i)
+      expect(screen.getByLabelText(/texto de la minuta/i)).toHaveValue('Lo que acabo de escribir')
+    })
+
+    /**
+     * ⚠️ EL BUG QUE ESTE REPO YA PAGÓ UNA VEZ (17-ago): un `<dialog>` NO SE
+     * DESMONTA al cerrarse, así que un estado que no se limpia sobrevive a la
+     * siguiente apertura. Allí fue la clase de la junta anterior; aquí sería
+     * el texto de OTRA minuta, con el botón de guardar listo para escribirlo
+     * encima de la que se acaba de abrir.
+     */
+    it('cerrar y abrir otra minuta no arrastra el borrador de la anterior', async () => {
+      const usuario = userEvent.setup()
+      montar()
+
+      await usuario.click(screen.getAllByRole('button', { name: /minuta/i })[0])
+      await usuario.click(screen.getByRole('button', { name: /corregir el texto/i }))
+      await usuario.clear(screen.getByLabelText(/texto de la minuta/i))
+      await usuario.type(screen.getByLabelText(/texto de la minuta/i), 'BORRADOR DE LA PRIMERA')
+      await usuario.click(screen.getByRole('button', { name: /cerrar la minuta/i }))
+
+      await usuario.click(screen.getAllByRole('button', { name: /minuta/i })[1])
+
+      expect(screen.queryByLabelText(/texto de la minuta/i)).toBeNull()
+      expect(screen.getByRole('dialog').textContent).toContain('Minuta de JUNIO')
+    })
+  })
+
+  /**
    * ⚠️ EL ENLACE QUE LLEVABA A UN 404 (ronda 13, auditoría móvil).
    *
    * "Ver la presentación →" se ofrecía con `tienePresentacion` —"documento

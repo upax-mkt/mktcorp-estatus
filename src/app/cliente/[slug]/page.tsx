@@ -31,6 +31,8 @@ import {
 } from '@/db/acuerdos'
 import { genteParaResponsable } from '@/db/personas'
 import { participantesDe, registrarEdicion, type Participante } from '@/db/participacion'
+import { obtenerMinuta, editarTextoMinuta } from '@/db/minutas'
+import { insertarAcuerdoEnMinuta } from '@/minuta/insertar-acuerdo'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
   listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, reubicarMateriales,
@@ -423,6 +425,107 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     })
     revalidatePath(`/cliente/${slug}`)
     revalidatePath('/')
+  }
+
+  /**
+   * ---- CORREGIR LA MINUTA SIN SALIR DE LA SALA (20-ago-2026) ----
+   *
+   * Franco: *"una vez generada la minuta, en el mismo módulo me debería
+   * permitir editar la minuta"*.
+   *
+   * Y el editor YA EXISTÍA —`MinutaPublicada`, en `/deck/[id]/minuta`—: lo que
+   * había desde la sala era un enlace que te SACABA de ella. Es la misma
+   * lección que dejó "cargar una plantilla desde el editor" (17-ago): el sitio
+   * donde se pide una acción es DONDE ESTÁ la persona cuando se da cuenta de
+   * que la necesita, y quien lee una minuta en la sala está en la sala.
+   *
+   * Escribe el mismo campo que aquel editor (`editarTextoMinuta`), así que las
+   * dos puertas llevan al mismo sitio y ninguna es una copia de la otra.
+   */
+  async function editarMinutaAction(reunionId: string, texto: string): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+
+    // El id viaja desde el navegador — misma comprobación que el alta de un
+    // acuerdo tardío: la reunión tiene que ser de ESTA sala.
+    const reunion = await obtenerReunion(reunionId)
+    if (!reunion || reunion.salaSlug !== slug) {
+      return { error: 'Esa reunión no es de este cliente.' }
+    }
+    await editarTextoMinuta(reunionId, texto)
+    revalidatePath(`/cliente/${slug}`)
+    return {}
+  }
+
+  /**
+   * ---- UN ACUERDO QUE SE ACORDÓ Y NADIE APUNTÓ (20-ago-2026) ----
+   *
+   * Franco: *"una vez creada la reunión y marcada completada se me olvida
+   * meter un acuerdo, debo poder hacerlo y que también se refleje en la
+   * minuta ya publicada"*.
+   *
+   * Dos cosas, y la segunda es la que tiene filo:
+   *
+   * 1. EL ACUERDO CUELGA DE SU REUNIÓN. `crearAcuerdo` ya aceptaba
+   *    `reunionOrigenId` —lo usa `guardarMinuta` al publicar—; lo que no
+   *    había era una pantalla que lo mandara. Con él puesto, la tarjeta de esa
+   *    reunión lo pinta sola: `AcuerdosDeReunion` lee lo que `reunionesDeSala`
+   *    cose por ese campo, en vivo desde la base.
+   *
+   * 2. LA MINUTA YA PUBLICADA SE RETOCA, no se regenera (decisión de Franco:
+   *    integrado en la tabla, sin distinguirlo). Es una inserción de una fila
+   *    en el texto guardado — ver `insertarAcuerdoEnMinuta`—, así que una
+   *    minuta corregida a mano conserva sus correcciones.
+   *
+   * ⚠️ SI LA MINUTA NO TIENE TABLA DONDE INSERTAR, el acuerdo SE GUARDA IGUAL
+   * y esto devuelve el aviso. Pasa con una cargada a mano o editada hasta
+   * perder el formato. Las dos alternativas eran peores: no guardar el acuerdo
+   * por un problema del texto, o escribir la fila en cualquier sitio del
+   * correo y que nadie se entere.
+   */
+  async function crearAcuerdoEnReunionAction(
+    reunionId: string,
+    datos: { que: string; responsable: string; fechaCompromiso: string | null },
+  ): Promise<{ error?: string; aviso?: string }> {
+    'use server'
+    await exigirEditor()
+
+    // El id viaja desde el navegador: se comprueba que la reunión sea de ESTA
+    // sala antes de colgarle nada, mismo criterio que `salaDeAcuerdo` en las
+    // acciones de acuerdos.
+    const reunion = await obtenerReunion(reunionId)
+    if (!reunion || reunion.salaSlug !== slug) {
+      return { error: 'Esa reunión no es de este cliente.' }
+    }
+
+    const que = datos.que.trim()
+    if (que.length === 0) return { error: 'Escribe qué se acordó.' }
+
+    await crearAcuerdo(slug, {
+      que,
+      responsable: datos.responsable.trim() || 'por asignar',
+      reunionOrigenId: reunionId,
+      // Mismo arreglo de la fecha que `crearAcuerdoAction`, arriba: el día
+      // civil que se eligió, no el que sale de interpretar la cadena en UTC.
+      fechaCompromiso: datos.fechaCompromiso ? instanteEnCDMX(datos.fechaCompromiso, '12:00') : null,
+    })
+
+    const minuta = await obtenerMinuta(reunionId)
+    let aviso: string | undefined
+    if (minuta?.textoFinal) {
+      const conLaFila = insertarAcuerdoEnMinuta(minuta.textoFinal, {
+        que,
+        responsable: datos.responsable.trim() || 'por asignar',
+        fechaCompromiso: datos.fechaCompromiso,
+      })
+      if (conLaFila) await editarTextoMinuta(reunionId, conLaFila)
+      else aviso = 'El acuerdo se guardó, pero su minuta no tiene tabla de acuerdos donde añadirlo: revísala a mano.'
+    }
+
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/')
+    revalidatePath('/acuerdos')
+    return aviso ? { aviso } : {}
   }
 
   /**
@@ -1531,6 +1634,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             eliminarReunionAction={eliminarReunionAction}
             descartarBorradorAction={equipo ? descartarBorradorAction : undefined}
             marcarDadaAction={marcarPresentadaAction}
+            /* Solo para equipo: un director de UDN no da de alta acuerdos en
+               nombre de Mkt Corp. La guarda que manda es `exigirEditor()`
+               dentro de la acción — esto solo evita pintar un formulario que
+               iba a rebotar. */
+            crearAcuerdoEnReunionAction={equipo ? crearAcuerdoEnReunionAction : undefined}
+            editarMinutaAction={equipo ? editarMinutaAction : undefined}
+            personas={personas}
           />
 
           {/* POR CONFIRMAR (punto 2/3): reuniones `lista` con el día ya

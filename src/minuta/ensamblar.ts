@@ -74,11 +74,20 @@ export function urlSesion(salaSlug: string | null, reunionId?: string): string {
  * correo eran dos columnas donde casi todas las filas decían "—" y "media".
  * Una columna que casi siempre dice lo mismo no informa: ocupa.
  */
+/**
+ * El encabezado de la tabla y su texto de vacío, exportados desde el 20-ago-2026:
+ * `insertar-acuerdo.ts` tiene que RECONOCERLOS dentro de una minuta ya escrita
+ * para meter una fila nueva. Dos copias de estas cadenas —una que escribe y
+ * otra que busca— es exactamente cómo se rompe eso sin que nada se entere.
+ */
+export const ENCABEZADO_TABLA = 'Acción | Owner | Fecha'
+export const TABLA_VACIA = '(sin acuerdos accionables identificados en la transcripción)'
+
 function tablaAcuerdos(acuerdos: AcuerdoPropuesto[]): string {
   if (acuerdos.length === 0) {
-    return '(sin acuerdos accionables identificados en la transcripción)'
+    return TABLA_VACIA
   }
-  const encabezado = 'Acción | Owner | Fecha'
+  const encabezado = ENCABEZADO_TABLA
   const filas = acuerdos.map((a) =>
     [a.que, a.responsable, formatearFechaTabla(a.fechaCompromiso)].join(' | '),
   )

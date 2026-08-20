@@ -13,6 +13,8 @@ import { CopiarBoton } from './CopiarBoton'
 import { CorreoMinuta } from './CorreoMinuta'
 import { CarasDeReunion } from './reuniones/CarasDeReunion'
 import { AcuerdosDeReunion } from './reuniones/AcuerdosDeReunion'
+import { NuevoAcuerdoForm } from './NuevoAcuerdoForm'
+import type { PersonaResponsable } from '@/lib/personas'
 import { subirArchivoDirecto } from '@/lib/subir'
 import estilos from '@/app/cliente/cliente.module.css'
 // La píldora de acción ("+ Subir presentación", "Armarla en el editor") se
@@ -151,6 +153,27 @@ interface Props {
   /** La sala de estas reuniones — construye la ruta del blob (ronda 10, tarea 9b). */
   salaSlug: string
   /**
+   * AÑADIR UN ACUERDO A UNA REUNIÓN QUE YA PASÓ (20-ago-2026). Franco: *"se me
+   * olvida meter un acuerdo, debo poder hacerlo y que también se refleje en la
+   * minuta ya publicada"*. Llega enlazada al `reunionId` desde `page.tsx`, que
+   * es quien exige editor y quien retoca la minuta.
+   *
+   * Opcional: sin ella —un director de UDN mirando su sala— no se pinta el
+   * formulario. La guarda que manda sigue estando en la Server Action.
+   */
+  crearAcuerdoEnReunionAction?: (
+    reunionId: string,
+    datos: { que: string; responsable: string; fechaCompromiso: string | null },
+  ) => Promise<{ error?: string; aviso?: string }>
+  /** La gente de Mkt Corp para el selector de responsable de ese formulario. */
+  personas?: PersonaResponsable[]
+  /**
+   * CORREGIR LA MINUTA SIN SALIR DE LA SALA (20-ago-2026). Franco: *"una vez
+   * generada la minuta, en el mismo módulo me debería permitir editar la
+   * minuta"*. Sin ella el visor solo lee, que es lo que ve un director.
+   */
+  editarMinutaAction?: (reunionId: string, texto: string) => Promise<{ error?: string }>
+  /**
    * LA MISMA Server Action que usa `ArchivosSala` para "archivos de
    * interés" (`registrarArchivoAction`, definida en
    * `cliente/[slug]/page.tsx`): ya exige `exigirEditor()` y ya acepta y
@@ -228,8 +251,34 @@ export function ReunionesSala({
   eliminarReunionAction,
   descartarBorradorAction,
   marcarDadaAction,
+  crearAcuerdoEnReunionAction,
+  personas,
+  editarMinutaAction,
 }: Props) {
   const [abierta, setAbierta] = useState<Reunion | null>(null)
+  /**
+   * El texto que se está corrigiendo, o `null` si solo se está leyendo. Vive
+   * aquí y no dentro del pie del diálogo porque el CUERPO cambia con él: se
+   * lee con formato (`CorreoMinuta`) y se corrige en crudo, que es como está
+   * guardado.
+   */
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null)
+  const [errorMinuta, setErrorMinuta] = useState<string | null>(null)
+  const [guardandoMinuta, empezarGuardadoMinuta] = useTransition()
+
+  /**
+   * ⚠️ CERRAR LIMPIA EL BORRADOR, y no es una precaución teórica: este repo ya
+   * pagó ese bug exacto el 17-ago —el diálogo de agendar recordaba la clase de
+   * la junta anterior porque `cerrar()` no reseteaba y un `<dialog>` NO SE
+   * DESMONTA al cerrarse—. Sin esto, abrir la minuta de julio, empezar a
+   * corregirla, cerrar, y abrir la de junio enseñaría el texto de julio dentro
+   * de la de junio, con el botón de guardar listo para escribirlo encima.
+   */
+  function cerrarMinuta() {
+    setAbierta(null)
+    setCorrigiendo(null)
+    setErrorMinuta(null)
+  }
   const dialogo = useRef<HTMLDialogElement>(null)
 
   // ---- "+ Subir presentación" (Tarea 9b): un input compartido, la reunión
@@ -449,6 +498,14 @@ export function ReunionesSala({
                     <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
                   )}
                   <AcuerdosDeReunion acuerdos={r.acuerdos} />
+                  {equipo && crearAcuerdoEnReunionAction && (
+                    <NuevoAcuerdoForm
+                      crearAction={(datos) => crearAcuerdoEnReunionAction(r.id, datos)}
+                      personas={personas ?? []}
+                      etiqueta="+ Añadir acuerdo a esta reunión"
+                      sinSquad
+                    />
+                  )}
                   {participantes && <ParticipantesSesion participantes={participantes} />}
                 </article>
               )
@@ -517,6 +574,14 @@ export function ReunionesSala({
                                 <p className={estilos.subirError} role="alert">{errorSubida.mensaje}</p>
                               )}
                               <AcuerdosDeReunion acuerdos={r.acuerdos} />
+                              {equipo && crearAcuerdoEnReunionAction && (
+                                <NuevoAcuerdoForm
+                                  crearAction={(datos) => crearAcuerdoEnReunionAction(r.id, datos)}
+                                  personas={personas ?? []}
+                                  etiqueta="+ Añadir acuerdo a esta reunión"
+                                  sinSquad
+                                />
+                              )}
                               {participantes && (
                                 <div className={estilos.reunionFilaParticipacion}>
                                   <ParticipantesSesion participantes={participantes} />
@@ -543,9 +608,9 @@ export function ReunionesSala({
         // `<dialog>` recibe los clics de su contenido, así que sin comprobar el
         // destino se cierra al soltar el ratón dentro del propio texto.
         onClick={(e) => {
-          if (e.target === dialogo.current) setAbierta(null)
+          if (e.target === dialogo.current) cerrarMinuta()
         }}
-        onClose={() => setAbierta(null)}
+        onClose={() => cerrarMinuta()}
       >
         {abierta && minutaDe(abierta) && (
           <div className={estilos.lightboxCaja}>
@@ -559,14 +624,30 @@ export function ReunionesSala({
               <button
                 type="button"
                 className={estilos.lightboxCerrar}
-                onClick={() => setAbierta(null)}
+                onClick={() => cerrarMinuta()}
                 aria-label="Cerrar la minuta"
               >
                 ✕
               </button>
             </header>
 
-            {minutaDe(abierta)!.texto ? (
+            {corrigiendo !== null ? (
+              /* CORRIGIENDO. El textarea trae el texto CRUDO —con sus barras
+                 de tabla— y no el HTML con formato: es lo que está guardado y
+                 lo que `CorreoMinuta` sabe volver a pintar. Enseñar aquí el
+                 formateado obligaría a convertirlo de vuelta al guardar, y esa
+                 ida y vuelta es donde se pierden las tablas. */
+              <div className={estilos.lightboxTexto}>
+                <textarea
+                  className={estilos.minutaTextarea}
+                  value={corrigiendo}
+                  onChange={(e) => setCorrigiendo(e.target.value)}
+                  aria-label="Texto de la minuta"
+                  autoFocus
+                />
+                {errorMinuta && <p className={estilos.minutaError} role="alert">{errorMinuta}</p>}
+              </div>
+            ) : minutaDe(abierta)!.texto ? (
               /* CON SU FORMATO, no como texto plano (Franco: *"cuando se
                  publica la minuta, después para verla pierde el formato
                  bonito"*). Este visor pintaba `minuta.texto` a pelo dentro de
@@ -588,7 +669,12 @@ export function ReunionesSala({
             )}
 
             <footer className={estilos.lightboxPie}>
-              {minutaDe(abierta)!.texto && (
+              {/* ⚠️ MIENTRAS SE CORRIGE, LAS SALIDAS SE APAGAN. Copiar copiaría
+                  el texto GUARDADO, no el que se acaba de escribir —y quien
+                  pulsa "copiar" después de corregir da por hecho lo
+                  contrario—; e irse a la presentación se lleva por delante el
+                  borrador, que no está guardado en ninguna parte. */}
+              {corrigiendo === null && minutaDe(abierta)!.texto && (
                 <CopiarBoton texto={minutaDe(abierta)!.texto!} formatoCorreo className={estilos.lightboxBoton} />
               )}
               {/* Desde la minuta se llega al documento de SU reunión: es la
@@ -604,15 +690,55 @@ export function ReunionesSala({
                   un toque: su chip está en la tarjeta de la reunión.
                   `CarasDeReunion` ya usaba el criterio correcto; era esta la
                   que se desviaba. */}
-              {abierta.documentoListo && (
+              {corrigiendo === null && abierta.documentoListo && (
                 <Link href={`/reunion/${abierta.id}`} className={estilos.lightboxEnlace}>
                   Ver la presentación →
                 </Link>
               )}
-              {equipo && (
-                <Link href={`/deck/${abierta.id}/minuta`} className={estilos.lightboxEnlace}>
-                  Corregir el texto →
-                </Link>
+              {/* ---- CORREGIR AQUÍ MISMO (20-ago-2026) ----
+                  Antes esto era un enlace a `/deck/[id]/minuta`: sacaba de la
+                  sala para cambiar una errata. El editor de allá sigue
+                  existiendo y escribe el MISMO campo (`editarTextoMinuta`);
+                  lo que cambia es que ya no hace falta ir. */}
+              {equipo && editarMinutaAction && minutaDe(abierta)!.texto && corrigiendo === null && (
+                <button
+                  type="button"
+                  className={estilos.lightboxEnlace}
+                  onClick={() => { setErrorMinuta(null); setCorrigiendo(minutaDe(abierta)!.texto ?? '') }}
+                >
+                  ✎ Corregir el texto
+                </button>
+              )}
+              {corrigiendo !== null && editarMinutaAction && (
+                <>
+                  <button
+                    type="button"
+                    className={estilos.lightboxBoton}
+                    disabled={guardandoMinuta}
+                    onClick={() => {
+                      const reunionId = abierta.id
+                      const texto = corrigiendo
+                      empezarGuardadoMinuta(async () => {
+                        const r = await editarMinutaAction(reunionId, texto)
+                        // Con error, el borrador SE QUEDA en pantalla: quien
+                        // acaba de reescribir un párrafo no lo pierde porque
+                        // la red fallara.
+                        if (r.error) { setErrorMinuta(r.error); return }
+                        setCorrigiendo(null)
+                        setErrorMinuta(null)
+                      })
+                    }}
+                  >
+                    {guardandoMinuta ? 'Guardando…' : 'Guardar cambios'}
+                  </button>
+                  <button
+                    type="button"
+                    className={estilos.lightboxEnlace}
+                    onClick={() => { setCorrigiendo(null); setErrorMinuta(null) }}
+                  >
+                    Cancelar
+                  </button>
+                </>
               )}
             </footer>
           </div>
