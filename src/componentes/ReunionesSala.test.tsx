@@ -194,7 +194,7 @@ describe('ReunionesSala — jerarquía de lectura compartida', () => {
  * junta es información que también ve el director, así que estos tests
  * corren en la vista más restrictiva —si se ve ahí, se ve en las dos.
  */
-describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tarea 1)', () => {
+describe('ReunionesSala — el historial se lee en tres bloques (20-ago-2026)', () => {
   const BASE: Reunion = {
     id: 'r1',
     fecha: '2026-08-01T10:00:00.000Z',
@@ -228,7 +228,13 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
     expect(screen.queryByText(/estatus de udn/i)).toBeNull()
   })
 
-  it('"la última" es la más reciente DE CADA CLASE, no una sola', () => {
+  /**
+   * Franco: *"solo se debe mostrar destacada la última reunión de estatus
+   * mensual"*. Antes se destacaba una por clase, así que un sync de esta
+   * semana le robaba el sitio al estatus del mes — y el sync es el ruido, no
+   * la señal, para quien abre la sala de su UDN.
+   */
+  it('destaca la última de ESTATUS, aunque haya reuniones de otra clase más recientes', () => {
     render(
       <ReunionesSala
         {...PROPS}
@@ -240,14 +246,30 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
       />,
     )
 
-    // Las dos más recientes de su clase, destacadas; la vieja del sync no.
     const ultimas = screen.getByTestId('ultimas-por-clase')
     expect(within(ultimas).getByText(/Estatus Julio/)).toBeInTheDocument()
-    expect(within(ultimas).getByText(/Sync Semana 33/)).toBeInTheDocument()
-    expect(within(ultimas).queryByText(/Sync Semana 32/)).toBeNull()
+    // El sync es DOS DÍAS más reciente y aun así no encabeza: no es la
+    // pregunta que trae quien abre su sala.
+    expect(within(ultimas).queryByText(/Sync Semana 33/)).toBeNull()
+    expect(within(ultimas).getAllByRole('heading', { level: 3 })).toHaveLength(1)
   })
 
-  it('las anteriores se reparten en una columna por clase, con su conteo', () => {
+  it('sin ningún estatus todavía, destaca la más reciente de lo que haya: la sala no se queda sin presente', () => {
+    render(
+      <ReunionesSala
+        {...PROPS}
+        reuniones={[
+          { ...BASE, id: 's0', plantilla: 'sync-comercial', fecha: '2026-08-07T10:00:00Z', titulo: 'Sync Semana 32' },
+          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-14T10:00:00Z', titulo: 'Sync Semana 33' },
+        ]}
+      />,
+    )
+
+    const ultimas = screen.getByTestId('ultimas-por-clase')
+    expect(within(ultimas).getByText(/Sync Semana 33/)).toBeInTheDocument()
+  })
+
+  it('las anteriores se parten en DOS grupos: los estatus por un lado, todo lo demás por otro', () => {
     render(
       <ReunionesSala
         {...PROPS}
@@ -261,19 +283,17 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
       />,
     )
 
-    // Dos columnas — "estatus agosto"/"sync semana 33" ya salieron como
-    // últimas, así que cada columna se queda con lo que sobra: dos de
-    // estatus, una de sync. El conteo se valida a ojo en las capturas del
-    // informe (Step 6): aquí, con dígitos sueltos, un `getByText(/2/)`
-    // también encontraría el "2" de "26" en una fecha — un falso positivo
-    // que no prueba nada.
+    // "Estatus agosto" es la destacada, así que sale de su grupo. Los dos
+    // syncs caen enteros en "Otras reuniones" — ninguno se destacó.
     const grupoEstatus = screen.getByRole('group', { name: /estatus de udn/i })
-    const grupoSync = screen.getByRole('group', { name: /sync comercial/i })
+    const grupoOtras = screen.getByRole('group', { name: /otras reuniones/i })
     expect(within(grupoEstatus).getByText('Estatus julio')).toBeInTheDocument()
     expect(within(grupoEstatus).getByText('Estatus junio')).toBeInTheDocument()
     expect(within(grupoEstatus).queryByText('Estatus agosto')).toBeNull()
-    expect(within(grupoSync).getByText('Sync semana 32')).toBeInTheDocument()
-    expect(within(grupoSync).queryByText('Sync semana 33')).toBeNull()
+    expect(within(grupoOtras).getByText('Sync semana 33')).toBeInTheDocument()
+    expect(within(grupoOtras).getByText('Sync semana 32')).toBeInTheDocument()
+    // Y solo hay DOS grupos, pase lo que pase con el catálogo de clases.
+    expect(screen.getAllByRole('group')).toHaveLength(2)
   })
 
   it('una clase sin ninguna reunión anterior no pinta columna vacía', () => {
@@ -291,7 +311,7 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
     expect(screen.queryByRole('group', { name: /sync comercial/i })).toBeNull()
   })
 
-  it('"Sin clasificar" va al final, detrás de las clases reales del catálogo', () => {
+  it('lo que nadie clasificó no tiene grupo propio: cae en "Otras reuniones" con el resto', () => {
     render(
       <ReunionesSala
         {...PROPS}
@@ -304,13 +324,15 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
       />,
     )
 
-    const rotulos = screen
-      .getAllByRole('group')
-      .map((g) => within(g).getByRole('heading', { level: 3 }).textContent)
-    expect(rotulos.at(-1)).toMatch(/sin clasificar/i)
+    const grupoOtras = screen.getByRole('group', { name: /otras reuniones/i })
+    expect(within(grupoOtras).getByText('Sin clase reciente')).toBeInTheDocument()
+    expect(within(grupoOtras).getByText('Sin clase vieja')).toBeInTheDocument()
+    // Su etiqueta sigue diciendo la verdad en cada fila (ver el test de
+    // arriba); lo que ya no hay es una columna aparte para ella.
+    expect(screen.queryByRole('group', { name: /^sin clasificar$/i })).toBeNull()
   })
 
-  it('con una sola clase en toda la sala (el caso real de hoy), sigue habiendo una "última" y una columna de anteriores', () => {
+  it('con una sola clase en toda la sala, sigue habiendo una destacada y un grupo de anteriores', () => {
     render(
       <ReunionesSala
         {...PROPS}
@@ -330,26 +352,27 @@ describe('ReunionesSala — la clase de junta agrupa el módulo (ronda 14.3, tar
   })
 
   /**
-   * I3 (revisión de la ronda 14.3): las tarjetas "La última" se ordenaban
-   * por CATÁLOGO —el mismo orden que usan las columnas de "Anteriores"—, así
-   * que con dos clases la tarjeta de la izquierda no era necesariamente la
-   * más nueva. `estatus-udn` va primero en `PLANTILLAS`, pero aquí la de
-   * `sync-comercial` es dos días más reciente: tiene que encabezar.
+   * Lo que fijaba el test de la ronda 14.3 que esto sustituye: con dos clases,
+   * la tarjeta destacada tenía que ser la más RECIENTE, no la primera del
+   * catálogo. La regla nueva vuelve esa pregunta irrelevante entre clases
+   * —solo se destaca el estatus— pero sigue viva DENTRO del estatus: entre dos
+   * estatus manda la fecha, no el orden en que lleguen.
    */
-  it('las tarjetas "La última" se ordenan por fecha, no por el orden del catálogo', () => {
+  it('entre dos estatus destaca el más reciente, llegue en el orden que llegue', () => {
     render(
       <ReunionesSala
         {...PROPS}
         reuniones={[
-          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-08-12T10:00:00Z', titulo: 'Estatus Julio' },
-          { ...BASE, id: 's1', plantilla: 'sync-comercial', fecha: '2026-08-14T10:00:00Z', titulo: 'Sync Semana 33' },
+          { ...BASE, id: 'e0', plantilla: 'estatus-udn', fecha: '2026-06-12T10:00:00Z', titulo: 'Estatus Mayo' },
+          { ...BASE, id: 'e2', plantilla: 'estatus-udn', fecha: '2026-08-12T10:00:00Z', titulo: 'Estatus Julio' },
+          { ...BASE, id: 'e1', plantilla: 'estatus-udn', fecha: '2026-07-12T10:00:00Z', titulo: 'Estatus Junio' },
         ]}
       />,
     )
 
     const ultimas = screen.getByTestId('ultimas-por-clase')
-    const titulos = within(ultimas).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(titulos).toEqual(['Sync Semana 33', 'Estatus Julio'])
+    expect(within(ultimas).getByText('Estatus Julio')).toBeInTheDocument()
+    expect(within(ultimas).getAllByRole('heading', { level: 3 })).toHaveLength(1)
   })
 
   /**

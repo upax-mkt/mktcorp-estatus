@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { seEstaArmando, tienePresentacion, type Reunion } from '@/dominio/reunion'
-import { PLANTILLAS, claveDeClase, etiquetaDeClase } from '@/secciones/plantillas'
+import { claveDeClase, etiquetaDeClase } from '@/secciones/plantillas'
 import type { Participante } from '@/db/participacion'
 import type { CategoriaArchivo } from '@/db/archivos'
 import { fechaBreve, fechaBreveConAnio, fechaCompleta } from '@/lib/fecha'
@@ -58,74 +58,63 @@ import caras from './reuniones/CarasDeReunion.module.css'
  * `fecha` siempre los de la reunión que abrió el selector — la fecha se
  * hereda de la reunión, nunca se le vuelve a pedir a quien sube.
  *
- * ═══ LA CLASE DE JUNTA AGRUPA EL MÓDULO (ronda 14.3, tarea 1) ═════════════
- * `reuniones.plantilla` (`src/secciones/plantillas.ts`) ya se guardaba desde
- * ayer; lo que faltaba era que este módulo la usara. Doce Sync Comerciales al
- * trimestre, sin agrupar, ahogaban el estatus mensual en la misma lista.
+ * ═══ EL HISTORIAL SE LEE EN TRES BLOQUES (20-ago-2026) ═══════════════════
+ * Franco: *"en el historial de reuniones solo se debe mostrar destacada la
+ * última reunión de estatus mensual y luego abajo las reuniones anteriores
+ * separadas entre estatus mensuales y otras reuniones"*.
  *
- * DOS funciones puras, module-scope (no dependen de nada del componente, así
- * que no hace falta `useMemo` para probarlas sueltas): `ordenDeClase` (en qué
- * orden van las columnas) y `agruparPorClase` (quién cae en qué grupo). El
- * componente las usa para partir `reuniones` en "la más reciente DE CADA
- * CLASE" (antes: una sola, "la última" a secas) y "las demás, en una columna
- * por clase".
+ * La ronda 14.3 había repartido el módulo en UNA TARJETA DESTACADA POR CLASE
+ * y una columna de anteriores por clase. Con las cinco clases del catálogo eso
+ * son cinco tarjetas grandes compitiendo entre sí y cinco columnas: quien abre
+ * la sala de su UDN ya no sabe cuál mirar, y la pregunta que trae es siempre
+ * la misma —*"¿qué me presentaron en el último estatus?"*—.
  *
- * ⚠️ `claveDeAgrupacion`/`etiquetaDeClase` YA NO VIVEN AQUÍ (revisión C1,
- * ronda 14.4 tarea 1 — cierre I5): eran copia LETRA POR LETRA de
- * `claveDeClase`/`etiquetaDeClase` (`src/secciones/plantillas.ts`), que este
- * mismo trabajo extrajo para que `/reuniones` pudiera pintar la misma regla
- * — dos copias de "qué clase ve un director" es exactamente la lección que
- * este repo ya pagó una vez (ver el comentario de `claveDeClase` en
- * `plantillas.ts`). Se importan de ahí; la única diferencia de firma es que
- * la de este archivo recibía la `Reunion` entera (`claveDeAgrupacion(r)`) y
- * la compartida recibe directo el campo (`claveDeClase(r.plantilla)`) —
- * mismo dato, `Reunion.plantilla` es REQUERIDO (`string | null`, nunca
- * `undefined`, ver `dominio/reunion.ts`), así que no hace falta un `?? null`
- * en la llamada.
+ * Ahora hay UNA destacada, y es la del estatus. Lo demás baja a "Reuniones
+ * anteriores", partido en dos grupos y nada más: el estatus tiene su propia
+ * historia, y todo lo demás (syncs, comités, arranques, lo que no esté
+ * clasificado) es una sola cosa desde el punto de vista de quien lee — "otras
+ * reuniones".
  *
- * ⚠️ CORREGIDO EN LA REVISIÓN DE LA RONDA 14.3 (Importante I3): las tarjetas
- * "LA ÚLTIMA" se pintaban en el orden de `ordenDeClase` —el del catálogo—,
- * así que con dos clases la tarjeta de la IZQUIERDA no era necesariamente la
- * más reciente. Ese orden es correcto para las COLUMNAS de "Anteriores" (lo
- * pide el brief: "en el orden del catálogo"), pero las tarjetas destacadas
- * responden una pregunta distinta —"¿cuál es la más nueva?"— y se ordenan
- * por FECHA, no por catálogo. Ver dónde se ordenan cada una, más abajo en
- * el componente.
+ * ⚠️ SI LA SALA NO TIENE NINGÚN ESTATUS TODAVÍA, destaca la más reciente de
+ * las que haya. Una sala que arranca con dos syncs y ningún estatus no puede
+ * quedarse sin cabecera: el bloque diría "Reuniones anteriores" sobre TODO su
+ * contenido, que es una lista sin presente.
  */
 
-/**
- * Dónde cae una clase en el orden de columnas: el orden del catálogo
- * (`PLANTILLAS`), y "Sin clasificar" siempre al final — las 6 reuniones
- * reales sin clase de hoy no se esconden, pero tampoco compiten por el
- * primer lugar con una clase de verdad. Un id que el catálogo no reconoce
- * se manda al final también, en vez de reventar el orden — mismo criterio
- * defensivo que `etiquetaDeClase`, arriba.
- */
-function ordenDeClase(clave: string | null): number {
-  if (clave === null) return PLANTILLAS.length
-  const indice = PLANTILLAS.findIndex((p) => p.id === clave)
-  return indice === -1 ? PLANTILLAS.length : indice
+/** La clase de junta que la sala existe para dar: el estatus mensual a su UDN. */
+const CLASE_ESTATUS = 'estatus-udn'
+
+export interface HistorialPartido {
+  /** La última de estatus. Si la sala no tiene ninguno, la más reciente de lo que haya. */
+  destacada: Reunion | null
+  /** El resto de los estatus, sin la destacada. */
+  estatusAnteriores: Reunion[]
+  /** Todo lo demás: syncs, comités, arranques y lo que nadie clasificó. */
+  otras: Reunion[]
 }
 
 /**
- * Agrupa por `claveDeClase(r.plantilla)` (`null` = sin clasificar, incluido
- * 'en-blanco') y ordena cada grupo de la reunión más reciente a la más
- * antigua — con eso, el primer elemento de cada grupo YA es "la última de
- * esa clase", sin tener que confiar en que `reuniones` llegara ordenada por
- * fecha (en producción siempre llega así, ver `reunionesDeSala` en
- * `dominio/reunion.ts`, pero este componente no depende de esa garantía del
- * llamador).
+ * Parte el historial en los tres bloques que se leen (ver la cabecera).
+ *
+ * Ordena por fecha ANTES de repartir y no confía en que `reuniones` llegara
+ * ordenada: en producción llega así (`reunionesDeSala`, `dominio/reunion.ts`),
+ * pero este componente no depende de esa garantía del llamador — la ronda
+ * 14.3 ya tomó esa precaución y se mantiene.
+ *
+ * La destacada se quita de su grupo POR IDENTIDAD (`!==`) y no por índice: es
+ * la misma referencia del array, y comparar objetos es lo único que no se
+ * equivoca si dos reuniones comparten fecha y título.
  */
-function agruparPorClase(reuniones: Reunion[]): Map<string | null, Reunion[]> {
-  const grupos = new Map<string | null, Reunion[]>()
-  for (const r of reuniones) {
-    const clave = claveDeClase(r.plantilla)
-    const lista = grupos.get(clave)
-    if (lista) lista.push(r)
-    else grupos.set(clave, [r])
+function partirHistorial(reuniones: Reunion[]): HistorialPartido {
+  const porFecha = [...reuniones].sort((a, b) => b.fecha.localeCompare(a.fecha))
+  const estatus = porFecha.filter((r) => claveDeClase(r.plantilla) === CLASE_ESTATUS)
+  const otras = porFecha.filter((r) => claveDeClase(r.plantilla) !== CLASE_ESTATUS)
+  const destacada = estatus[0] ?? otras[0] ?? null
+  return {
+    destacada,
+    estatusAnteriores: estatus.filter((r) => r !== destacada),
+    otras: otras.filter((r) => r !== destacada),
   }
-  for (const lista of grupos.values()) lista.sort((a, b) => b.fecha.localeCompare(a.fecha))
-  return grupos
 }
 
 interface Props {
@@ -309,33 +298,19 @@ export function ReunionesSala({
   const hayHistorial = reuniones.length > 0
 
   /**
-   * `reuniones` partido por clase (ronda 14.3, tarea 1): un grupo por
-   * `claveDeClase(r.plantilla)` (`null` = sin clasificar, ver el comentario
-   * de `claveDeClase` en `src/secciones/plantillas.ts`), cada uno de la más
-   * reciente a la más antigua — ver `agruparPorClase`,
-   * arriba. `clases` fija el ORDEN DE LAS COLUMNAS (el del catálogo, sin
-   * clasificar al final); de ahí salen las dos listas que antes eran
-   * `[ultima, ...anteriores]`:
+   * El historial en sus tres bloques (ver `partirHistorial`, arriba): la
+   * destacada, los estatus anteriores y todo lo demás.
    *
-   * - `ultimasPorClase`: la cabeza de cada grupo — antes era una reunión
-   *   sola, ahora una por clase presente. ⚠️ Orden DISTINTO al de las
-   *   columnas (I3, revisión ronda 14.3): estas tarjetas se leen por
-   *   RECENCIA, no por catálogo — la más nueva de todas va primero, sin
-   *   importar de qué clase sea, porque es la respuesta a "¿qué fue lo
-   *   último?", no a "¿qué clase es esta?".
-   * - `anterioresPorClase`: el resto de cada grupo, ya sin su cabeza, y SIN
-   *   las clases que se quedan vacías al quitarla (una columna vacía es
-   *   ruido, no información). Estas SÍ van en orden de catálogo — lo pide
-   *   el brief tal cual para las columnas.
+   * `gruposAnteriores` los pinta en el orden en que se leen —el estatus
+   * primero, porque es la historia que a la UDN le importa seguir— y deja
+   * fuera el que se quede vacío: un grupo sin filas es ruido, no información
+   * (misma regla que traía el reparto por clase que esto sustituye).
    */
-  const gruposPorClase = agruparPorClase(reuniones)
-  const clases = [...gruposPorClase.keys()].sort((a, b) => ordenDeClase(a) - ordenDeClase(b))
-  const ultimasPorClase = clases
-    .map((clave) => gruposPorClase.get(clave)![0])
-    .sort((a, b) => b.fecha.localeCompare(a.fecha))
-  const anterioresPorClase = clases
-    .map((clave) => ({ clave, etiqueta: etiquetaDeClase(clave), lista: gruposPorClase.get(clave)!.slice(1) }))
-    .filter((grupo) => grupo.lista.length > 0)
+  const { destacada, estatusAnteriores, otras } = partirHistorial(reuniones)
+  const gruposAnteriores = [
+    { clave: CLASE_ESTATUS, etiqueta: etiquetaDeClase(CLASE_ESTATUS), lista: estatusAnteriores },
+    { clave: 'otras', etiqueta: 'Otras reuniones', lista: otras },
+  ].filter((grupo) => grupo.lista.length > 0)
   const minutaDe = (r: Reunion) => r.minuta
   /**
    * Quién tocó ESTA reunión, o `undefined` si no hay nada que decir.
@@ -429,8 +404,11 @@ export function ReunionesSala({
               {reuniones.length} {reuniones.length === 1 ? 'reunión' : 'reuniones'}
             </span>
           </header>
+          {/* UNA SOLA DESTACADA, y es la del estatus (ver la cabecera). El
+              contenedor se queda —es el que le da su ancho y su aire— pero ya
+              nunca lleva más de una tarjeta. */}
           <div className={estilos.ultimasPorClase} data-testid="ultimas-por-clase">
-            {ultimasPorClase.map((r) => {
+            {[destacada].filter((r): r is Reunion => r !== null).map((r) => {
               const participantes = participantesDeReunion(r)
               const tituloId = `reunion-reciente-${r.id}`
               return (
@@ -477,9 +455,9 @@ export function ReunionesSala({
             })}
           </div>
 
-          {/* Solo se crean columnas para clases con reuniones anteriores;
-              las vacías no aportan información y “Sin clasificar” va al final. */}
-          {anterioresPorClase.length > 0 && (
+          {/* Dos grupos y solo dos: el estatus por un lado y todo lo demás
+              por otro. El que se quede vacío no se pinta. */}
+          {gruposAnteriores.length > 0 && (
             <section className={estilos.historialAnterior} aria-labelledby={anterioresTituloId}>
               <div className={estilos.historialAnteriorCabecera}>
                 <h3 id={anterioresTituloId} className={estilos.historialAnteriorTitulo}>
@@ -488,11 +466,11 @@ export function ReunionesSala({
                 <span className={estilos.historialAnteriorLinea} aria-hidden />
               </div>
               <div className={estilos.columnasAnteriores}>
-                {anterioresPorClase.map(({ clave, etiqueta, lista }) => {
-                  const tituloId = `clase-anteriores-${salaSlug}-${clave ?? 'sin-clasificar'}`
+                {gruposAnteriores.map(({ clave, etiqueta, lista }) => {
+                  const tituloId = `clase-anteriores-${salaSlug}-${clave}`
                   return (
                     <div
-                      key={clave ?? 'sin-clasificar'}
+                      key={clave}
                       role="group"
                       aria-labelledby={tituloId}
                       className={estilos.grupoMaterial}

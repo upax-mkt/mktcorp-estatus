@@ -1481,7 +1481,10 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             <aside className={estilos.reunionAcciones} aria-label="Herramientas de reuniones">
               <div className={estilos.reunionAccionesTexto}>
                 <strong>Gestionar reuniones</strong>
-                <span>Agenda la siguiente reunión o genera la minuta de una que ya ocurrió.</span>
+                <span>
+                  Agenda la siguiente, genera la minuta de una que ya ocurrió, o entra a
+                  clasificar y corregir las que ya existen.
+                </span>
               </div>
               <div className={estilos.reunionAccionesBotones}>
                 {/* Con la sala en pausa no se puede preparar una reunión nueva
@@ -1496,6 +1499,22 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
                   claseBoton={estilos.nuevaMinutaBoton}
                   personas={personas}
                 />
+                {/* LA TERCERA COSA QUE SE HACE CON UNA REUNIÓN (20-ago-2026).
+                    Franco: *"veo los botones 'crear reunión' y 'generar
+                    minuta' pero no veo el de gestionar las reuniones para
+                    clasificarlas o editarlas"*.
+
+                    Y no faltaba la pantalla —`/reuniones` ya clasifica,
+                    edita, agenda y marca desde la ronda 14.4— faltaba la
+                    PUERTA: desde la sala solo se llegaba por la barra de
+                    navegación, que lleva a las de las diez salas juntas.
+                    Este enlace va filtrado a ESTA, que es la única lista que
+                    tiene sentido desde aquí. El filtro vive en
+                    `searchParams` (ronda 14.4), así que un enlace basta:
+                    sobrevive a la recarga y se puede compartir. */}
+                <Link href={`/reuniones?sala=${slug}`} className={estilos.nuevaMinutaBoton}>
+                  Clasificar y editar →
+                </Link>
               </div>
             </aside>
           )}
