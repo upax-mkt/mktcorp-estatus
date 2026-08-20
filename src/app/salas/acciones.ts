@@ -308,6 +308,25 @@ export async function editarSalaAction(slug: string, datos: DatosSala): Promise<
         ...(datos.textoSobreOscura && HEX_VALIDO.test(datos.textoSobreOscura)
           ? { textoSobreOscura: datos.textoSobreOscura }
           : {}),
+        /**
+         * ---- LOS DOS COLORES DE TÍTULO (20-ago-2026) ----
+         *
+         * ⚠️ ESTOS DOS SÍ SE BORRAN AL VACIARSE, a diferencia de todos sus
+         * vecinos de arriba, y la diferencia es deliberada.
+         *
+         * Los de arriba son `NOT NULL`: dejar el campo en blanco significa
+         * "no lo toques", porque no hay ningún estado al que volver — la
+         * columna tiene que valer algo. Estos dos son NULLABLE y su nulo
+         * SIGNIFICA "derívalo", que es un estado de verdad y es donde nacen
+         * todas las salas. Si un blanco se leyera aquí como "no lo toques",
+         * quien probara un color no tendría forma de volver al derivado:
+         * borrarlo del formulario no haría nada.
+         */
+        iconoTitulo: datos.iconoTitulo && HEX_VALIDO.test(datos.iconoTitulo) ? datos.iconoTitulo : null,
+        textoSobreGradiente:
+          datos.textoSobreGradiente && HEX_VALIDO.test(datos.textoSobreGradiente)
+            ? datos.textoSobreGradiente
+            : null,
         // Tarea 7: antes este UPDATE no tocaba la tipografía en absoluto —no
         // había desde dónde elegirla— así que cualquier edición (el logo, el
         // color) dejaba la fuente donde estuviera. Ahora sí viaja, validada

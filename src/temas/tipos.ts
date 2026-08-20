@@ -34,6 +34,16 @@ export const EsquemaTema = z.object({
   superficieOscura: hex,
   textoSobreClara: hex,
   textoSobreOscura: hex,
+  /**
+   * Color de los iconos que acompañan a los títulos de sección. Ausente = se
+   * deriva del primario (`colorDeTextoDeMarca`), como hasta el 20-ago-2026.
+   */
+  iconoTitulo: z.union([hex, z.null()]).optional(),
+  /**
+   * Color del texto y del icono de una sección PLEGADA, que van sobre el
+   * degradado. Ausente = se calcula con `colorDeTextoSobre(gradiente[0])`.
+   */
+  textoSobreGradiente: z.union([hex, z.null()]).optional(),
   /** Paradas del gradiente de portada, en orden. Al menos dos: un degradado de una sola parada no degrada nada. */
   gradiente: z.array(hex).min(2),
   /** Clave de familia tipográfica, resuelta en src/temas/fuentes.ts */

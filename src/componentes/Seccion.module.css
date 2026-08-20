@@ -39,7 +39,9 @@
   text-transform: none;
   margin: 0 0 1rem;
 }
-.titulo svg { flex: none; color: var(--marca-texto, var(--marca)); }
+/* `--icono-titulo` la pone la sala solo si alguien la escribió en sus ajustes
+   (20-ago-2026); si no, se deriva del primario como siempre. */
+.titulo svg { flex: none; color: var(--icono-titulo, var(--marca-texto, var(--marca))); }
 
 .conteo {
   margin-left: auto;
@@ -72,6 +74,18 @@
   margin-bottom: 0; /* lo pone el contenido al abrirse */
 }
 .plegable[open] > summary { margin-bottom: 0.3rem; }
+/* ⚠️ CERRADA, LA TARJETA ES SU TÍTULO Y NADA MÁS (20-ago-2026). Franco: *"el
+   módulo Data & Analytics renderiza mal, queda muy grande con respecto al
+   título"*. Medido en su sala: la tarjeta plegada daba 64 px con una cabecera
+   de 44 — veinte píxeles de FRANJA DE COLOR VACÍA debajo del texto, que en
+   una sección plegada se ven porque el fondo es el degradado de la marca.
+
+   La causa: `.seccion` tiene `padding: 1.35rem 1.4rem 1.25rem` y el `summary`
+   solo compensaba el de ARRIBA con su margen negativo. Al abrirse ese padding
+   inferior sí hace falta —lo usa el contenido—, así que se retira solo
+   mientras está cerrada, y el título queda centrado en su barra en vez de
+   pegado al borde de arriba. */
+.plegable:not([open]) > summary { margin-bottom: -1.25rem; }
 /* El margen inferior del título lo pone ahora el propio `summary`. */
 .plegable > summary .titulo { margin-bottom: 0; }
 .plegable > summary::-webkit-details-marker { display: none; }

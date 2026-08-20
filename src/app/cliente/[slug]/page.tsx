@@ -995,6 +995,12 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   const estiloMarca = {
     '--marca': tema.primario,
     '--marca-texto': colorDeTextoDeMarca(tema.primario),
+    /**
+     * EL COLOR DE LOS ICONOS DE TÍTULO, si la sala lo escribió (20-ago-2026).
+     * Sin él, `Seccion.module.css` cae a `--marca-texto` y todo sigue como
+     * estaba: nulo significa "derívalo", no "píntalo de nada".
+     */
+    ...(tema.iconoTitulo ? { '--icono-titulo': tema.iconoTitulo } : {}),
     '--gradiente': `linear-gradient(120deg, ${tema.gradiente.join(', ')})`,
     // El sólido validado del hero (auditoría UX/UI, hallazgo 4) — ver el
     // comentario de `.hero`/`.heroSolida` en cliente.module.css.
@@ -1011,7 +1017,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
      * 21:1 sobre su superficie oscura y **1,14 sobre el lima con el que
      * arranca su degradado**. Ilegible, y solo se ve en las marcas claras.
      */
-    '--texto-sobre-gradiente': colorDeTextoSobre(tema.gradiente[0]),
+    /**
+     * LO ESCRITO MANDA (20-ago-2026). El cálculo sigue siendo el respaldo, y
+     * es un buen respaldo —nadie tiene que elegir un color para que su sala
+     * se lea—, pero dejó de ser una imposición: con el magenta de Mexa
+     * (`#F72585`) devuelve casi negro sobre su propia franja de marca, y
+     * hasta hoy no había dónde corregirlo.
+     */
+    '--texto-sobre-gradiente': tema.textoSobreGradiente ?? colorDeTextoSobre(tema.gradiente[0]),
     // El alto de la barra global, para que el riel de secciones se pegue justo
     // debajo. CERO cuando no la hay: el director de la UDN no ve el menú de
     // Marketing Corp, y su riel tiene que pegarse arriba del todo (ver

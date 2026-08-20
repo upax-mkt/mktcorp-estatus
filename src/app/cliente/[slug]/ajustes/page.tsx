@@ -327,6 +327,10 @@ export default async function PaginaAjustesSala({ params }: { params: Promise<{ 
               superficieClara: tema.superficieClara,
               textoSobreClara: tema.textoSobreClara,
               textoSobreOscura: tema.textoSobreOscura,
+              // Nulos mientras nadie los escriba: el formulario los enseña
+              // vacíos con su derivado de marcador de posición.
+              iconoTitulo: tema.iconoTitulo ?? undefined,
+              textoSobreGradiente: tema.textoSobreGradiente ?? undefined,
             }}
             // Se vuelve a la sala, no a la lista global: aquí se entró desde
             // dentro de ella. El default de `FormularioSala` es `/salas`, que

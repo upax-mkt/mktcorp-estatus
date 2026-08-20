@@ -1,6 +1,6 @@
 {
-  "id": "dafaa499-c959-4ef9-868a-0eb2ea001f73",
-  "prevId": "a7cd0bea-0c0b-44f8-8536-f9a31145cf44",
+  "id": "5168bbbb-8e4f-481d-a789-3171e238ab46",
+  "prevId": "dafaa499-c959-4ef9-868a-0eb2ea001f73",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -64,49 +64,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "monday_id": {
-          "name": "monday_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "responsable_monday_id": {
-          "name": "responsable_monday_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "destacado": {
           "name": "destacado",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "monday_tipo": {
-          "name": "monday_tipo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "monday_url": {
-          "name": "monday_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "monday_sincronizado_en": {
-          "name": "monday_sincronizado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bandeja": {
-          "name": "bandeja",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'no_aplica'"
         },
         "historia": {
           "name": "historia",
@@ -766,44 +729,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.personas_monday": {
-      "name": "personas_monday",
-      "schema": "",
-      "columns": {
-        "monday_id": {
-          "name": "monday_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "nombre": {
-          "name": "nombre",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "correo": {
-          "name": "correo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cargado_en": {
-          "name": "cargado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {},

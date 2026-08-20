@@ -22,7 +22,7 @@ describe('esquema de la ronda 7', () => {
    * El acuerdo llevaba cinco columnas de la integración (`monday_id`,
    * `responsable_monday_id`, `monday_tipo`, `monday_url`,
    * `monday_sincronizado_en`) más `bandeja`, y había una tabla entera
-   * `personas_monday`. Se borraron con la migración 0042 tras comprobar
+   * `personas_monday`. Se borraron con la migración 0043 tras comprobar
    * contra producción que las seis estaban vacías en los 37 acuerdos.
    *
    * Si alguien reintroduce cualquiera de ellas —copiando un esquema viejo, o

@@ -232,6 +232,8 @@ export default async function PagSalas({
                           superficieClara: tema.superficieClara,
                           textoSobreClara: tema.textoSobreClara,
                           textoSobreOscura: tema.textoSobreOscura,
+                          iconoTitulo: tema.iconoTitulo ?? undefined,
+                          textoSobreGradiente: tema.textoSobreGradiente ?? undefined,
                         }}
                       />
                     </div>

@@ -97,6 +97,26 @@ export const salas = pgTable('salas', {
   superficieOscura: text('superficie_oscura').notNull(),
   textoSobreClara: text('texto_sobre_clara').notNull(),
   textoSobreOscura: text('texto_sobre_oscura').notNull(),
+  /**
+   * ---- LOS DOS COLORES QUE ANTES SOLO SE DERIVABAN (20-ago-2026) ----
+   *
+   * Franco: *"no puedo editar el color del texto, ni el color de los iconos
+   * que acompañan los títulos"*. Los dos salían de un cálculo y no había
+   * dónde tocarlos:
+   *
+   * - Los iconos de sección usaban `--marca-texto`: el primario oscurecido
+   *   hasta 4,5:1.
+   * - El título de una sección PLEGADA usaba `colorDeTextoSobre(gradiente[0])`
+   *   — blanco oscurecido hasta cumplir contraste sobre la primera parada del
+   *   degradado. Con el magenta de Mexa (`#F72585`) eso da casi NEGRO sobre
+   *   su franja de color.
+   *
+   * NULLABLE = "derívalo como siempre". Solo manda lo que alguien escribió, y
+   * el formulario enseña el contraste real al lado — misma regla que
+   * `ColoresDeMarca` ya aplicó a los textos: se mide y se dice, no se impone.
+   */
+  iconoTitulo: text('icono_titulo'),
+  textoSobreGradiente: text('texto_sobre_gradiente'),
   /** Paradas del gradiente de portada, en orden. */
   gradiente: jsonb('gradiente').$type<string[]>().notNull(),
   /** Clave de familia tipográfica, resuelta en src/temas/fuentes.ts */

@@ -107,6 +107,15 @@ export interface DatosSala {
    */
   textoSobreClara?: string
   textoSobreOscura?: string
+  /**
+   * LOS DOS QUE SEGUÍAN SIN DUEÑO (20-ago-2026). Franco: *"no puedo editar el
+   * color del texto, ni el color de los iconos que acompañan los títulos"*.
+   * `iconoTitulo` viste los iconos de las cabeceras de sección;
+   * `textoSobreGradiente`, el título y el icono de un módulo PLEGADO, que van
+   * sobre el degradado de la marca. Vacíos = se derivan, como siempre.
+   */
+  iconoTitulo?: string
+  textoSobreGradiente?: string
   /** Clave de `CATALOGO_DE_FUENTES` (src/temas/fuentes.ts) — tarea 7. */
   familiaDisplay: string
   familiaTexto: string
@@ -154,6 +163,8 @@ export interface SalaExistente {
   superficieClara?: string
   textoSobreClara?: string
   textoSobreOscura?: string
+  iconoTitulo?: string
+  textoSobreGradiente?: string
   /**
    * Opcionales por el mismo motivo que `logoUrl`/`logoRelacionDeTinta`: una
    * sala real siempre las trae (ver `src/app/salas/page.tsx`), pero el
@@ -243,6 +254,8 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
   const [superficieClara] = useState(sala?.superficieClara ?? '')
   const [textoSobreClara, setTextoSobreClara] = useState(sala?.textoSobreClara ?? '')
   const [textoSobreOscura, setTextoSobreOscura] = useState(sala?.textoSobreOscura ?? '')
+  const [iconoTitulo, setIconoTitulo] = useState(sala?.iconoTitulo ?? '')
+  const [textoSobreGradiente, setTextoSobreGradiente] = useState(sala?.textoSobreGradiente ?? '')
   const [acento, setAcento] = useState(sala?.acento ?? '')
   const [familiaDisplay, setFamiliaDisplay] = useState(sala?.familiaDisplay ?? FAMILIA_POR_DEFECTO)
   const [familiaTexto, setFamiliaTexto] = useState(sala?.familiaTexto ?? FAMILIA_POR_DEFECTO)
@@ -403,6 +416,8 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
           superficieOscura: superficieOscura.trim(),
           textoSobreClara: textoSobreClara.trim(),
           textoSobreOscura: textoSobreOscura.trim(),
+          iconoTitulo: iconoTitulo.trim(),
+          textoSobreGradiente: textoSobreGradiente.trim(),
         })
         if (r.error) {
           setError(r.error)
@@ -557,6 +572,24 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
                   clave: 'txOscura', nombre: 'Sobre la franja', valor: textoSobreOscura,
                   alCambiar: setTextoSobreOscura, derivado: derivados?.textoSobreOscura,
                   sobre: HEX_VALIDO.test(superficieOscura) ? superficieOscura : derivados?.superficieOscura,
+                },
+                /* Los iconos de las cabeceras de sección, que hasta hoy salían
+                   del primario oscurecido hasta 4,5:1 y no se podían tocar.
+                   Se miden contra el BLANCO de la tarjeta, que es su fondo
+                   real. */
+                {
+                  clave: 'iconoTitulo', nombre: 'Iconos de los títulos', valor: iconoTitulo,
+                  alCambiar: setIconoTitulo, derivado: derivados?.textoSobreClara,
+                  sobre: '#ffffff',
+                },
+                /* El título Y su icono cuando el módulo está PLEGADO: ahí el
+                   fondo es el degradado, así que se mide contra su primera
+                   parada, que es donde cae el texto. Es el color que salía
+                   casi negro sobre el magenta de Mexa. */
+                {
+                  clave: 'txGradiente', nombre: 'Módulo plegado', valor: textoSobreGradiente,
+                  alCambiar: setTextoSobreGradiente, derivado: derivados?.textoSobreOscura,
+                  sobre: HEX_VALIDO.test(gradienteInicio) ? gradienteInicio : derivados?.gradiente[0],
                 },
               ]}
             />

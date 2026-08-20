@@ -7,7 +7,11 @@
 -- responsable_monday_id, monday_tipo, monday_url o monday_sincronizado_en, los
 -- 37 estaban en bandeja = 'no_aplica', y personas_monday tenía 0 filas.
 --
--- Qué se pierde si esto se aplicara con datos dentro: el enlace de cada
+-- ⚠️ NO SE APLICA HASTA QUE EL CÓDIGO NUEVO ESTÉ DESPLEGADO. El que corre hoy
+-- en producción todavía hace SELECT de estas columnas: borrarlas antes deja la
+-- sala y /acuerdos con un 500. La 0042, en cambio, se puede aplicar cuando sea.
+--
+-- Qué se perdería si esto se aplicara con datos dentro: el enlace de cada
 -- acuerdo con su elemento del tablero. No es el caso aquí — pero quien
 -- reinstaure una integración con un tablero externo debería crear columnas
 -- nuevas con su propio nombre, no revivir estas.

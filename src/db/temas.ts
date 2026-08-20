@@ -98,6 +98,8 @@ export const cargarTemas = cache(async (): Promise<Record<string, Tema>> => {
       superficieOscura: esquema.salas.superficieOscura,
       textoSobreClara: esquema.salas.textoSobreClara,
       textoSobreOscura: esquema.salas.textoSobreOscura,
+      iconoTitulo: esquema.salas.iconoTitulo,
+      textoSobreGradiente: esquema.salas.textoSobreGradiente,
       gradiente: esquema.salas.gradiente,
       familiaDisplay: esquema.salas.familiaDisplay,
       familiaTexto: esquema.salas.familiaTexto,

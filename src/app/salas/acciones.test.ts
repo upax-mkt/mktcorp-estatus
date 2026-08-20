@@ -396,6 +396,12 @@ describe('editarSalaAction — el guardado normal NO toca los ocho campos deriva
    * redes"; sin eso no habría manera de borrar el último enlace. Lo mismo
    * `analyticsUrl`, que se sumó con el módulo de Data & Analytics: vaciarlo
    * es lo que quita el módulo de la sala.
+   *
+   * `iconoTitulo` y `textoSobreGradiente` (20-ago-2026) están en la misma
+   * familia que esos dos y por el mismo motivo, con una vuelta más: son
+   * NULLABLE, y su nulo SIGNIFICA "derívalo". Por eso se escriben siempre,
+   * incluso vacíos — un blanco que no escribiera nada dejaría a quien probó
+   * un color sin forma de volver al derivado.
    */
   it('el .set() SÍ incluye exactamente los campos que el formulario edita de verdad (más updatedAt)', async () => {
     await editarSalaAction('zeus', {
@@ -404,8 +410,60 @@ describe('editarSalaAction — el guardado normal NO toca los ocho campos deriva
       cadencia: 'quincenal',
     })
     expect(Object.keys(setCapturado.ultimo!).sort()).toEqual(
-      ['nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta', 'cadencia', 'redes', 'analyticsUrl', 'updatedAt'].sort(),
+      [
+        'nombre', 'primario', 'familiaDisplay', 'familiaTexto', 'logoUrl', 'logoRelacionDeTinta',
+        'cadencia', 'redes', 'analyticsUrl', 'iconoTitulo', 'textoSobreGradiente', 'updatedAt',
+      ].sort(),
     )
+  })
+
+  /**
+   * LOS DOS COLORES DE TÍTULO (20-ago-2026). Franco: *"no puedo editar el
+   * color del texto, ni el color de los iconos que acompañan los títulos"*.
+   *
+   * El segundo test es el que importa y es el que separa a estos dos de todos
+   * los demás colores de la pantalla: VACIAR el campo tiene que devolver la
+   * columna a nulo, que es como se lee "derívalo". Con el criterio de sus
+   * vecinos —"vacío = no lo toques"— probar un color sería un viaje de ida.
+   */
+  it('un color de título escrito a mano se guarda tal cual', async () => {
+    await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: null, logoRelacionDeTinta: null,
+      iconoTitulo: '#ff0000', textoSobreGradiente: '#ffffff',
+    })
+    const fila = filas.get('zeus') as unknown as Record<string, unknown>
+    expect(fila.iconoTitulo).toBe('#ff0000')
+    expect(fila.textoSobreGradiente).toBe('#ffffff')
+  })
+
+  it('vaciarlo lo devuelve a nulo: se vuelve a derivar, no se queda con el último color', async () => {
+    await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: null, logoRelacionDeTinta: null,
+      iconoTitulo: '#ff0000', textoSobreGradiente: '#ffffff',
+    })
+    expect((filas.get('zeus') as unknown as Record<string, unknown>).iconoTitulo).toBe('#ff0000')
+
+    await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: null, logoRelacionDeTinta: null,
+      iconoTitulo: '', textoSobreGradiente: '',
+    })
+    const fila = filas.get('zeus') as unknown as Record<string, unknown>
+    expect(fila.iconoTitulo).toBeNull()
+    expect(fila.textoSobreGradiente).toBeNull()
+  })
+
+  it('un hex mal escrito no se guarda: vale lo mismo que no haber escrito nada', async () => {
+    await editarSalaAction('zeus', {
+      nombre: 'Zeus', slug: 'zeus', primario: '#614aca',
+      familiaDisplay: 'oswald', familiaTexto: 'inter', logoUrl: null, logoRelacionDeTinta: null,
+      iconoTitulo: 'rojo', textoSobreGradiente: '#fff',
+    })
+    const fila = filas.get('zeus') as unknown as Record<string, unknown>
+    expect(fila.iconoTitulo).toBeNull()
+    expect(fila.textoSobreGradiente).toBeNull()
   })
 
   it('cambiar el primario en un guardado normal SÍ se guarda, pero la paleta derivada se queda calculada del color viejo — el caso abierto a propósito', async () => {

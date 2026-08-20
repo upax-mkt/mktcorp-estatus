@@ -364,6 +364,56 @@ beforeEach(() => {
   obtenerReunionMock.mockResolvedValue({ salaSlug: 'neracode' })
 })
 
+/**
+ * LOS DOS COLORES DE TÍTULO QUE LA SALA INYECTA COMO VARIABLES (20-ago-2026).
+ *
+ * Franco: *"no puedo editar el color del texto, ni el color de los iconos que
+ * acompañan los títulos"*. Los dos se derivaban y no había dónde tocarlos;
+ * ahora la sala pinta lo escrito y, si no hay nada escrito, sigue derivando.
+ *
+ * Se lee del atributo `style` del contenedor y no de `getComputedStyle`:
+ * jsdom no resuelve `var()`, así que lo único comprobable —y lo único que
+ * este archivo decide— es QUÉ VALOR se le pasa a cada variable.
+ */
+describe('el color del texto y de los iconos de título', () => {
+  function estiloDe(container: HTMLElement): string {
+    return container.querySelector('[style*="--marca"]')?.getAttribute('style') ?? ''
+  }
+
+  it('sin nada escrito, no se inyecta --icono-titulo: el icono se deriva del primario como siempre', async () => {
+    const { container } = render(await invocar())
+    expect(estiloDe(container)).not.toContain('--icono-titulo')
+  })
+
+  it('con un color escrito, la sala lo inyecta tal cual', async () => {
+    cargarTemasMock.mockResolvedValue({ neracode: { ...TEMA_BASE, iconoTitulo: '#ff0000' } })
+    const { container } = render(await invocar())
+    expect(estiloDe(container)).toContain('--icono-titulo: #ff0000')
+  })
+
+  /**
+   * EL CASO QUE TRAJO TODO ESTO: `colorDeTextoSobre` parte del BLANCO y lo
+   * oscurece hasta cumplir 4,5:1 sobre la primera parada del degradado. Con un
+   * magenta como el de Mexa eso devuelve casi negro sobre su propia franja de
+   * marca, y hasta hoy no había forma de corregirlo.
+   */
+  it('el texto del módulo plegado usa lo escrito, no el cálculo de contraste', async () => {
+    cargarTemasMock.mockResolvedValue({
+      neracode: { ...TEMA_BASE, gradiente: ['#f72585', '#198ff9'], textoSobreGradiente: '#ffffff' },
+    })
+    const { container } = render(await invocar())
+    expect(estiloDe(container)).toContain('--texto-sobre-gradiente: #ffffff')
+  })
+
+  it('sin nada escrito lo sigue calculando: nadie tiene que elegir un color para que su sala se lea', async () => {
+    cargarTemasMock.mockResolvedValue({ neracode: { ...TEMA_BASE, gradiente: ['#f72585', '#198ff9'] } })
+    const { container } = render(await invocar())
+    const estilo = estiloDe(container)
+    expect(estilo).toContain('--texto-sobre-gradiente:')
+    expect(estilo).not.toContain('--texto-sobre-gradiente: #ffffff')
+  })
+})
+
 async function invocar() {
   return VistaSala({ params: Promise.resolve({ slug: 'neracode' }) })
 }
