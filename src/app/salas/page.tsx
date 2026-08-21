@@ -136,11 +136,14 @@ export default async function PagSalas({
 
         <div className={estilos.encabezado}>
           <h1 className={estilos.titulo}>Clientes</h1>
+          {/* ⚠️ CUATRO LÍNEAS MENOS (21-ago-2026). Este párrafo explicaba cómo
+              se deriva una paleta del primario y cómo recalcularla — instrucciones
+              de un formulario, escritas en la pantalla que solo LISTA las salas.
+              Quien viene aquí viene a entrar en una, no a aprender el modelo de
+              color; y quien va a montar una lo lee donde le sirve, en el
+              formulario, que ya lo dice campo por campo. */}
           <p className={estilos.subtitulo}>
-            Las nueve unidades de negocio, con su marca y su logo. Crear una sala pide nombre, logo y
-            color; todo lo demás —secundario, acento, superficies, textos legibles y el degradado— se
-            deriva del color, no se afina campo por campo. Si el primario de una sala ya creada
-            cambia, esa paleta se puede recalcular entera desde su formulario de edición.
+            Las nueve unidades de negocio, cada una con su marca y su espacio.
           </p>
         </div>
 
@@ -170,7 +173,22 @@ export default async function PagSalas({
               return (
                 <li key={slug} className={estilos.filaSala}>
                   <div className={estilos.filaResumen}>
-                    <span className={estilos.filaColor} style={{ background: tema.primario }} aria-hidden />
+                    {/* ⚠️ EL DEGRADADO DE LA MARCA, NO SU PRIMARIO A SECAS
+                        (21-ago-2026). Con el primario plano, Marketing United
+                        y House of Films son el MISMO PUNTO NEGRO —las dos
+                        tienen `primario: #000000`— y la lista deja de
+                        distinguirlas por color, que es justo para lo que está
+                        ese punto. Sus degradados sí difieren: HoF va a
+                        #3a7cf7 y MU a #000075, así que el punto los separa sin
+                        tocar la marca de nadie (que es decisión de Franco, no
+                        de esta pantalla). Y de paso dice la verdad: en una
+                        casa de marcas, la marca de una sala ES su degradado
+                        — es lo que viste su cabecera. */}
+                    <span
+                      className={estilos.filaColor}
+                      style={{ background: `linear-gradient(135deg, ${tema.gradiente.join(', ')})` }}
+                      aria-hidden
+                    />
                     {/* EL NOMBRE ES LA PUERTA A LA SALA, no solo el botón del
                         final (Franco: *"dentro de la pestaña clientes el
                         nombre también debe llevarme a la sala, no solo el
