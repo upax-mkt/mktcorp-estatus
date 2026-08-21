@@ -59,6 +59,15 @@ export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'salas' | 'person
 export interface ClienteBarra {
   slug: string
   nombre: string
+  /**
+   * El DEGRADADO de la marca, ya listo para `background` (21-ago-2026).
+   *
+   * Era el primario a secas y con eso Marketing United y House of Films —las
+   * dos con `primario: #000000`— eran el mismo punto negro en este menú, que
+   * es justo donde el punto sirve para no leer nueve nombres. Sus degradados
+   * sí difieren, así que se pinta el degradado: distingue, y además es lo que
+   * viste de verdad la cabecera de cada sala.
+   */
   color: string
 }
 
@@ -106,7 +115,12 @@ export async function clientesParaBarra(): Promise<ClienteBarra[]> {
   return slugs.map((slug) => ({
     slug,
     nombre: registro[slug]?.nombre ?? slug,
-    color: registro[slug]?.primario ?? 'transparent',
+    color: (() => {
+      const g = registro[slug]?.gradiente
+      // Sin tema —una sala recién creada que no pasó la validación— el punto
+      // se pinta transparente en vez de reventar el menú entero.
+      return g && g.length > 1 ? `linear-gradient(135deg, ${g.join(', ')})` : (registro[slug]?.primario ?? 'transparent')
+    })(),
   }))
 }
 
@@ -202,9 +216,10 @@ export function BarraNavegacion({
                 {clientes.map((c) => (
                   <li key={c.slug}>
                     <Link href={`/cliente/${c.slug}`} className={estilos.clienteEnlace}>
-                      {/* El punto de color es la señal que ya identifica a
-                          cada cliente en el resto de la app (Home, salas);
-                          aquí ahorra leer nueve nombres para encontrar uno. */}
+                      {/* El punto es la señal que ya identifica a cada cliente
+                          en el resto de la app (Home, salas); aquí ahorra leer
+                          nueve nombres para encontrar uno. Lleva el DEGRADADO
+                          de la marca — ver `ClienteBarra.color`. */}
                       <span
                         className={estilos.clientePunto}
                         style={{ background: c.color }}

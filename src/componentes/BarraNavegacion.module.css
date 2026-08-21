@@ -96,9 +96,42 @@
   box-shadow: var(--e-2, 0 12px 32px rgb(0 0 0 / 0.14));
   display: grid; gap: 0.15rem;
 }
-/* Volcado a la izquierda cuando la barra envuelve en pantalla angosta: a la
-   derecha del todo se saldría del viewport. */
-@media (max-width: 560px) { .clientesPanel { right: auto; left: 0; } }
+/* ⚠️ EL PANEL SE ANCLA A LA DERECHA SIEMPRE, Y NO SE VUELCA (21-ago-2026).
+   Aquí había un `@media (max-width: 560px) { right: auto; left: 0 }` con la
+   intención correcta —que no se saliera en pantalla angosta— y el efecto
+   contrario: `left: 0` lo ancla a `.clientes`, que en móvil está a la derecha
+   de la barra. Medido a 390 px: el panel arrancaba en x=298 y con sus 240 de
+   ancho terminaba en 538, o sea **148 px fuera de la pantalla**. Media lista
+   de clientes quedaba inalcanzable, y sin scroll horizontal que delatara nada
+   —el panel es `absolute`, así que no ensancha el documento—: por eso llevaba
+   ahí sin que nadie lo viera.
+
+   Con `right: 0` el panel crece hacia la IZQUIERDA desde el borde derecho de
+   su disparador, que es donde hay sitio. El `max-width` es el cinturón: en una
+   pantalla más estrecha que el panel, se encoge en vez de salirse. */
+.clientesPanel { max-width: calc(100vw - 1.5rem); }
+
+/* ⚠️ EN ANGOSTO EL PANEL VA EN FLUJO, NO FLOTANDO (21-ago-2026).
+   Anclarlo a un lado u otro falla siempre en algún ancho, y las dos formas
+   están medidas: con `left: 0` se salía 148 px a 390 px (el disparador está a
+   la derecha); con `right: 0`, a 320 px se salía 161 px por la IZQUIERDA
+   (cuando la barra envuelve, "Clientes" cae al principio de su línea). No hay
+   un lado bueno: el disparador se mueve con el envolvido.
+
+   Así que en móvil deja de flotar y ocupa su propia línea dentro de la barra,
+   que es lo que esta barra ya hace con todo lo demás — su propio comentario
+   lo dice: "el resto de la app resuelve lo angosto envolviendo en vez de
+   escondiendo". La barra crece; nada se sale ni se esconde tras un menú
+   hamburguesa que esta app no tiene en ningún sitio. */
+@media (max-width: 560px) {
+  .clientes[open] { flex-basis: 100%; }
+  .clientesPanel {
+    position: static;
+    width: 100%; max-width: none; min-width: 0;
+    margin-top: 0.5rem;
+    box-shadow: none;
+  }
+}
 
 .clientesConfig {
   display: block;
@@ -119,6 +152,13 @@
 }
 .clienteEnlace:hover { background: var(--lienzo-2, rgb(0 0 0 / 0.04)); color: var(--tinta); }
 .clienteEnlace:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: -2px; }
+/* En una superficie táctil, cada cliente del menú necesita los 44 px que pide
+   cualquier guía: medidos, sus enlaces daban 29 y el rótulo de arriba 32. Mismo
+   idioma que ya usa `CarasDeReunion` para sus controles. */
+@media (hover: none), (pointer: coarse) {
+  .clienteEnlace, .clientesConfig { min-height: 44px; align-items: center; }
+  .clientesConfig { display: flex; }
+}
 .clientePunto { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 @media (prefers-reduced-motion: reduce) {
   .clientes > summary::after, .clienteEnlace { transition: none; }
