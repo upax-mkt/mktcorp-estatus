@@ -2,7 +2,7 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse, type NextRequest } from 'next/server'
 import { esEditor } from '@/auth/roles'
 import {
-  TIPOS_PERMITIDOS, TAMANO_MAXIMO, TIPOS_VIDEO, TAMANO_MAXIMO_VIDEO, categoriaDeclarada,
+  TIPOS_PERMITIDOS, TAMANO_MAXIMO, TIPOS_VIDEO, TAMANO_MAXIMO_VIDEO, pideLaPoliticaDeVideo,
 } from '@/lib/blob'
 
 /**
@@ -58,7 +58,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // cliente, la única vía dentro de este patrón (subida directa
         // navegador→Blob, sin pasar por este servidor) es una señal
         // firmada por el propio servidor en un paso previo — hoy no existe.
-        const esVideo = categoriaDeclarada(pathname) === 'video'
+        // Categoría `video` O extensión de vídeo — ver `pideLaPoliticaDeVideo`.
+        // Antes solo lo primero, y por eso un .mp4 en "Materiales comerciales"
+        // se rechazaba con "video/mp4 is not allowed".
+        const esVideo = pideLaPoliticaDeVideo(pathname)
         return {
           allowedContentTypes: esVideo ? TIPOS_VIDEO : TIPOS_PERMITIDOS,
           maximumSizeInBytes: esVideo ? TAMANO_MAXIMO_VIDEO : TAMANO_MAXIMO,

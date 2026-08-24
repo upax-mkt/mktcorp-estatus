@@ -36,6 +36,40 @@ export const TAMANO_MAXIMO = 100 * 1024 * 1024
 /** Lo que Chrome reproduce sin plugins. Nada de contenedores exóticos. */
 export const TIPOS_VIDEO = ['video/mp4', 'video/webm']
 
+/** Las extensiones de esos mismos tipos — ver `pideLaPoliticaDeVideo`. */
+const EXTENSIONES_VIDEO = ['.mp4', '.webm']
+
+/**
+ * ¿ESTA SUBIDA PIDE LA POLÍTICA DE VÍDEO? (24-ago-2026)
+ *
+ * Franco, subiendo un vídeo a los materiales de una sala: *"Vercel Blob:
+ * Content type mismatch, video/mp4 is not allowed"*.
+ *
+ * La lista de vídeo existía y el tope de 200 MB también, pero solo se
+ * ofrecían cuando la CATEGORÍA era `video` — y esa categoría la usa
+ * únicamente el benchmark (`EvidenciaBenchmark`). Un `.mp4` en "Materiales
+ * comerciales" (categoría `comercial`) o en "Archivos de interés"
+ * (`interes`) caía en la política de documentos, que no lleva vídeo. No era
+ * una decisión: era un caso que nadie había recorrido.
+ *
+ * Se mira la categoría Y la extensión, y NO se ensancha nada: un vídeo
+ * recibe la política de vídeo —sus dos tipos, su tope de 200 MB— y todo lo
+ * demás sigue con la de documentos y sus 100 MB. No existe una tercera
+ * política que sea la unión de las dos, que es justo lo que el comentario de
+ * `/api/archivos/subir` advierte que no debe pasar.
+ *
+ * Leer la extensión del `pathname` es dato del CLIENTE, igual que la
+ * categoría que ya se leía ahí — y con la misma consecuencia acotada: elige
+ * cuál de las dos políticas se aplica, nunca las salta. Quien renombre un
+ * ejecutable a `.mp4` recibirá la política de vídeo y Vercel Blob rechazará
+ * el archivo igual, porque valida el tipo real contra `allowedContentTypes`.
+ */
+export function pideLaPoliticaDeVideo(pathname: string): boolean {
+  if (categoriaDeclarada(pathname) === 'video') return true
+  const ruta = pathname.toLowerCase()
+  return EXTENSIONES_VIDEO.some((ext) => ruta.endsWith(ext))
+}
+
 /**
  * 200 MB — el tope del vídeo de una sección, más alto que `TAMANO_MAXIMO`
  * porque un vídeo pesa más que un deck o una imagen. Vercel Blob admite mucho

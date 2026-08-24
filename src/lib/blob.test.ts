@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rutaDeArchivo, pesoLegible, extensionDe, TIPOS_PERMITIDOS, categoriaDeclarada, tipoSeguroParaServir } from './blob'
+import { rutaDeArchivo, pesoLegible, extensionDe, TIPOS_PERMITIDOS, categoriaDeclarada, tipoSeguroParaServir, pideLaPoliticaDeVideo } from './blob'
 
 describe('rutaDeArchivo', () => {
   it('cuelga de la sala y la categoría, para poder leer el store a ojo', () => {
@@ -136,5 +136,54 @@ describe('tipoSeguroParaServir', () => {
   it('no se deja engañar por parámetros pegados al tipo ni por mayúsculas', () => {
     expect(tipoSeguroParaServir('IMAGE/SVG+XML')).toBe('application/octet-stream')
     expect(tipoSeguroParaServir('application/pdf; charset=binary')).toBe('application/pdf')
+  })
+})
+
+
+/**
+ * QUÉ POLÍTICA DE SUBIDA LE TOCA A CADA ARCHIVO (24-ago-2026).
+ *
+ * Franco, subiendo un vídeo a los materiales de una sala: *"Vercel Blob:
+ * Content type mismatch, video/mp4 is not allowed"*. La lista de vídeo y su
+ * tope de 200 MB existían, pero solo se ofrecían a la categoría `video` —que
+ * usa únicamente el benchmark—, así que un `.mp4` en "Materiales comerciales"
+ * caía en la política de documentos y se rechazaba.
+ */
+describe('pideLaPoliticaDeVideo', () => {
+  it('la categoría `video` la pide, como siempre', () => {
+    expect(pideLaPoliticaDeVideo('salas/mexa-creativa/video/uuid-clip.mp4')).toBe(true)
+  })
+
+  it('EL CASO DE FRANCO: un mp4 en materiales comerciales también', () => {
+    expect(pideLaPoliticaDeVideo('salas/mexa-creativa/comercial/uuid-spot.mp4')).toBe(true)
+  })
+
+  it('y un webm en archivos de interés', () => {
+    expect(pideLaPoliticaDeVideo('salas/neracode/interes/uuid-demo.webm')).toBe(true)
+  })
+
+  it('mayúsculas en la extensión no lo despistan: el nombre lo escribe quien sube', () => {
+    expect(pideLaPoliticaDeVideo('salas/zeus/comercial/uuid-SPOT.MP4')).toBe(true)
+  })
+
+  it('un PDF sigue con la política de documentos, que es la que le toca', () => {
+    expect(pideLaPoliticaDeVideo('salas/mexa-creativa/comercial/uuid-credenciales.pdf')).toBe(false)
+  })
+
+  /**
+   * ⚠️ NO SE ENSANCHA NADA. La política de vídeo no es "documentos + vídeo":
+   * es la de vídeo, con SUS dos tipos. Un archivo que solo lleva "mp4" en el
+   * nombre —sin ser su extensión— no se cuela en ella.
+   */
+  it('"mp4" dentro del nombre no basta: tiene que ser la extensión', () => {
+    expect(pideLaPoliticaDeVideo('salas/zeus/comercial/uuid-guion-mp4-final.pdf')).toBe(false)
+    // ⚠️ CON EL PUNTO DELANTE, que es el caso que de verdad separa `endsWith`
+    // de `includes`. Sin esta línea, cambiar uno por otro dejaba los siete
+    // tests en verde — comprobado mutándolo: un test que no puede fallar.
+    expect(pideLaPoliticaDeVideo('salas/zeus/comercial/uuid-resumen.mp4.pdf')).toBe(false)
+  })
+
+  it('ni una sala o un nombre que se llamen "video" cambian la política de un pdf', () => {
+    expect(pideLaPoliticaDeVideo('salas/video/comercial/uuid-video.pdf')).toBe(false)
   })
 })

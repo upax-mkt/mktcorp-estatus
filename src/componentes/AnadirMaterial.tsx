@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { subirArchivoDirecto } from '@/lib/subir'
 import { normalizarEnlace, idDeYouTube } from '@/lib/materiales'
-import { pesoLegible, TAMANO_MAXIMO } from '@/lib/blob'
+import { pesoLegible, TAMANO_MAXIMO, TAMANO_MAXIMO_VIDEO, TIPOS_VIDEO, TOPE_VIDEO_MB } from '@/lib/blob'
 import estilos from '@/app/cliente/cliente.module.css'
 
 /**
@@ -71,8 +71,19 @@ export function AnadirMaterial({
     // Se comprueba aquí ADEMÁS de en el servidor. El servidor es el que manda;
     // esto solo evita esperar dos minutos a que suba algo que iba a
     // rechazarse al final.
-    if (archivo.size > TAMANO_MAXIMO) {
-      setError(`El archivo pesa ${pesoLegible(archivo.size)} y el máximo son 100 MB.`)
+    //
+    // ⚠️ UN VÍDEO TIENE SU PROPIO TOPE (24-ago-2026). Este control rechazaba a
+    // los 100 MB pase lo que pase, así que un vídeo de 150 —que el servidor SÍ
+    // acepta desde hoy, con la política de vídeo y sus 200 MB— ni siquiera
+    // llegaba a intentarse: se paraba aquí con un mensaje que además decía un
+    // límite que no era el suyo.
+    const esVideo = TIPOS_VIDEO.includes(archivo.type)
+    const tope = esVideo ? TAMANO_MAXIMO_VIDEO : TAMANO_MAXIMO
+    if (archivo.size > tope) {
+      setError(
+        `${esVideo ? 'El vídeo' : 'El archivo'} pesa ${pesoLegible(archivo.size)} y el máximo son ` +
+        `${esVideo ? TOPE_VIDEO_MB : 100} MB.`,
+      )
       return
     }
     setTrabajando(true)
