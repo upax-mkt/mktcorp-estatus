@@ -224,13 +224,20 @@ export default async function Hub() {
   ])
   const molde = await moldeDeMinuta(null)
   const salas = ordenarPorProximaReunion(salasCrudas)
-  // En pausa, aparte (tarea 12): `ordenarPorProximaReunion` ya las manda al
-  // final del mismo orden, pero la tarjeta de una sala congelada no tiene
-  // nada en común con la de una activa —ni próxima reunión, ni vencidos que
-  // contar— así que se separan en su propio bloque en vez de mezclarse en la
-  // misma rejilla con media tarjeta vacía.
-  const salasActivas = salas.filter((s) => s.activa)
-  const salasPausadas = salas.filter((s) => !s.activa)
+  /**
+   * ⚠️ UNA SOLA REJILLA, CON LAS PAUSADAS APAGADAS AL FINAL (24-ago-2026).
+   *
+   * Franco: *"la sala de Zeus no debe quedar abajo en un módulo aparte, basta
+   * con que se vea gris apagada al final de la grilla en el módulo principal
+   * de Los Clientes"*.
+   *
+   * Estaban partidas en dos bloques desde la tarea 12, con el argumento de que
+   * una tarjeta congelada "no tiene nada en común" con una activa. Tiene lo
+   * que importa: es un cliente, y quien abre el Home quiere ver sus clientes
+   * en un sitio. El gris dice lo demás, y `ordenarPorProximaReunion` ya las
+   * manda al final del orden por su cuenta (bloque 2) — así que no hace falta
+   * ni separarlas en dos listas ni ordenarlas aparte.
+   */
   /**
    * CLIENTES SIN PRÓXIMA REUNIÓN — el único trabajo que esta pantalla no
    * estaba diciendo en voz alta.
@@ -244,7 +251,37 @@ export default async function Hub() {
    * Solo las ACTIVAS: una sala en pausa no tiene próxima reunión a propósito,
    * y contarla convertiría el freeze en una tarea pendiente.
    */
-  const sinProxima = salasActivas.filter((s) => !s.proximaReunion).length
+  // Las pausadas no cuentan: de una sala en freeze no se espera reunión, así
+  // que no está "por agendar" — mismo criterio que `acuerdosVencidos` y
+  // `salaMasDesatendida` (src/dominio/salas.ts).
+  const sinProxima = salas.filter((s) => s.activa !== false && !s.proximaReunion).length
+
+  /**
+   * LOS ACUERDOS VENCIDOS DE TODAS LAS SALAS, para el módulo que sustituye a
+   * "En pausa" (24-ago-2026).
+   *
+   * Se arman aquí y no con una consulta nueva: `estadoDeSalaDB` ya trae los
+   * acuerdos de cada sala cosidos, y `/acuerdos` —a donde lleva el botón— es
+   * quien tiene la lista completa con sus filtros. Este módulo es el aviso,
+   * no el espacio de trabajo.
+   *
+   * ⚠️ LAS SALAS EN PAUSA QUEDAN FUERA, y es la misma regla que ya aplican
+   * `acuerdosVencidos()` y `salaMasDesatendida()`: los compromisos de una sala
+   * congelada están parados, no vencidos. Ponerlos aquí sería pedir cuentas
+   * por trabajo que alguien decidió detener.
+   *
+   * Del más antiguo al más reciente: el que lleva más tiempo pasado de fecha
+   * es el que más urge, y sin fecha al final — no se puede decir cuánto lleva
+   * vencido algo que nunca tuvo plazo.
+   */
+  const vencidos = salas
+    .filter((s) => s.activa !== false)
+    .flatMap((s) =>
+      s.acuerdos
+        .filter((a) => a.estatus === 'vencido')
+        .map((a) => ({ ...a, salaSlug: s.slug, salaNombre: s.nombre, salaColor: s.color })),
+    )
+    .sort((a, b) => (a.fechaCompromiso ?? '9999-99-99').localeCompare(b.fechaCompromiso ?? '9999-99-99'))
 
   // Las minutas de todas las salas en una sola lista, la más reciente arriba.
   const minutas: MinutaEnHome[] = salasCrudas
@@ -488,7 +525,7 @@ export default async function Hub() {
           conteo={sinProxima > 0 && `${sinProxima} por agendar`}
         >
           <div className={estilos.salas}>
-            {salasActivas.map((s) => {
+            {salas.map((s) => {
               const t = temperatura(s)
               const abiertos = acuerdosAbiertos(s)
               const vencidos = acuerdosVencidos(s)
@@ -497,7 +534,9 @@ export default async function Hub() {
                 <Link
                   key={s.slug}
                   href={`/cliente/${s.slug}`}
-                  className={`tarjeta ${estilos.sala}`}
+                  /* Apagada si está en pausa: es la señal entera, y por eso ya
+                     no hace falta un módulo aparte para ella. */
+                  className={`tarjeta ${estilos.sala}${s.activa === false ? ` ${estilos.salaPausada}` : ''}`}
                   style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
                 >
                   {/* El logotipo ES el nombre: la marca identifica más rápido
@@ -565,11 +604,24 @@ export default async function Hub() {
                     <span />
                   )}
 
+                  {/* ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
+                      cosmética: `acuerdosAbiertos`/`acuerdosVencidos` (ver
+                      dominio/salas.ts) devuelven 0 para una sala congelada a
+                      propósito —sus compromisos están parados, no vencidos—,
+                      así que sin este caso la tarjeta de Zeus diría "al día",
+                      que es una afirmación sobre un trabajo que nadie está
+                      haciendo. */}
                   <div className={estilos.salaChips}>
-                    {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
-                    {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
-                    {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
-                    {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
+                    {s.activa === false ? (
+                      <span className="pildora">en pausa{s.pausadaDesde ? ` · ${fechaBreve(s.pausadaDesde)}` : ''}</span>
+                    ) : (
+                      <>
+                        {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
+                        {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
+                        {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
+                        {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
+                      </>
+                    )}
                   </div>
                 </Link>
               )
@@ -654,60 +706,58 @@ export default async function Hub() {
           />
         </div>
 
-        {/* EN PAUSA (tarea 12): aparte de "Los clientes", no mezcladas en la
-            misma rejilla. Una sala en freeze no se borra —su historia se
-            sigue consultando igual, y por eso sigue siendo un link a su
-            sala— pero no tiene próxima reunión que anunciar ni vencidos que
-            contar, así que la tarjeta dice otra cosa: desde cuándo está en
-            pausa. */}
-        {salasPausadas.length > 0 && (
+        {/* ═══ LO VENCIDO, DONDE SE VE ═══════════════════════════════════
+            Franco: *"el módulo 'en pausa' reemplázalo por un módulo que
+            muestre los acuerdos vencidos con un botón que me lleve a la
+            pestaña de acuerdos"*.
+
+            El sitio que ocupaba lo tenía una lista de salas congeladas —una,
+            Zeus— que ahora vive apagada al final de la rejilla de clientes,
+            que es todo lo que necesitaba. En su lugar va lo único que en este
+            Home pedía a gritos un sitio: los compromisos que ya se pasaron de
+            fecha. El pulso los CUENTA arriba; aquí se dice CUÁLES son y de
+            quién, que es lo que permite hacer algo con ellos.
+
+            Solo aparece si hay: un módulo que dice "cero vencidos" ocupa el
+            mismo alto que uno con trabajo dentro y no añade nada — misma
+            regla que "Por confirmar", justo arriba. */}
+        {vencidos.length > 0 && (
           <Seccion
-            icono="pausa"
-            titulo="En pausa"
-            conteo="freeze comercial — sin reuniones ni gestión hasta nuevo aviso"
+            icono="acuerdos"
+            titulo="Acuerdos vencidos"
+            conteo={`${vencidos.length} ${vencidos.length === 1 ? 'compromiso pasado de fecha' : 'compromisos pasados de fecha'}`}
           >
-            <div className={estilos.salas}>
-              {salasPausadas.map((s) => (
-                <Link
-                  key={s.slug}
-                  href={`/cliente/${s.slug}`}
-                  className={`tarjeta ${estilos.sala} ${estilos.salaPausada}`}
-                  style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
-                >
-                  <span className={estilos.salaLogo}>
-                    <Image
-                      src={archivoDeLogo(s.slug, 'color', s.logoUrl)}
-                      alt={s.nombre}
-                      width={180}
-                      height={40}
-                      className={estilos.salaLogoImg}
-                      style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
-                    />
-                  </span>
-
-                  <div className={estilos.salaCuando}>
-                    <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoV}>{textoDiasDesde(s.diasDesdeUltima)}</span>
-                      <span className="micro" data-sinpunto>última</span>
-                    </span>
-                    <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoV}>
-                        {s.pausadaDesde ? fechaBreve(s.pausadaDesde) : '—'}
+            <ul className={estilos.vencidosLista}>
+              {vencidos.map((v) => (
+                <li key={v.id} className={estilos.vencidoFila}>
+                  {/* La fila entera lleva a SU sala, que es donde se mueve el
+                      acuerdo: el estatus, la fecha y el dueño se corrigen ahí
+                      dentro, no en una lista de lectura. */}
+                  <Link href={`/cliente/${v.salaSlug}#s-acuerdos`} className={estilos.vencidoEnlace}>
+                    <span className={estilos.vencidoQue}>{v.que}</span>
+                    <span className={estilos.vencidoMeta}>
+                      <span className={estilos.vencidoSala} style={{ '--marca': v.salaColor } as CSSProperties}>
+                        {v.salaNombre}
                       </span>
-                      <span className="micro" data-sinpunto>en pausa desde</span>
+                      <span aria-hidden>·</span>
+                      <span>{v.responsable || 'sin dueño'}</span>
+                      {v.fechaCompromiso && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className={estilos.vencidoFecha}>venció el {fechaBreve(v.fechaCompromiso)}</span>
+                        </>
+                      )}
                     </span>
-                  </div>
-
-                  <span />
-
-                  <div className={estilos.salaChips}>
-                    <span className="pildora">en pausa</span>
-                  </div>
-                </Link>
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
+            <Link href="/acuerdos" className={estilos.vencidosBoton}>
+              Ver todos los acuerdos →
+            </Link>
           </Seccion>
         )}
+
       </main>
     </div>
   )

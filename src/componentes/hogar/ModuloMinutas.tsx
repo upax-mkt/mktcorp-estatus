@@ -104,6 +104,46 @@ export function ModuloMinutas({
         </ul>
       )}
 
+      {/* ═══ LAS QUE ESPERAN SU MINUTA, CLICABLES ═══════════════════════════
+          Franco (24-ago-2026): *"en el módulo minutas me aparecen las
+          reuniones sin minutas pero no puedo hacer clic en la reunión en
+          cuestión para gestionarla"*.
+
+          Y era exacto: lo único que había de ellas era la CIFRA de la píldora
+          de arriba —"3 reuniones sin minuta"—, un dato sin puerta. Para llegar
+          a una había que abrir "Generar una minuta" y buscarla en su
+          desplegable, sabiendo de antemano cuál se busca.
+
+          Ahora cada una es una fila que lleva DIRECTO a su minuta
+          (`/deck/<id>/minuta`), que es lo que se va a hacer con ella. El botón
+          de abajo se queda: sirve para las que no están en esta lista —una
+          junta que nunca se preparó aquí, o una que se describe a mano. */}
+      {pendientes.length > 0 && (
+        <div className={estilos.pendientesBloque}>
+          <span className={estilos.pendientesTitulo}>Esperan su minuta</span>
+          <ul className={estilos.listaMinutas}>
+            {pendientes.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/deck/${r.id}/minuta`}
+                  className={`${estilos.filaMinuta} ${estilos.filaPendiente}`}
+                  style={{
+                    '--marca': r.salaColor ?? 'var(--tinta-4)',
+                    '--marca-texto': r.salaColor ? colorDeTextoDeMarca(r.salaColor) : 'var(--tinta-3)',
+                  } as React.CSSProperties}
+                >
+                  {/* Sin sala —una interna de Mkt Corp— la columna no se deja
+                      vacía: dice de quién es. */}
+                  <span className={estilos.filaMinutaSala}>{r.salaNombre ?? 'Mkt Corp'}</span>
+                  <span className={estilos.filaMinutaTitulo}>{r.titulo}</span>
+                  <span className={estilos.filaMinutaFecha}>{fechaBreveConAnio(r.fecha)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* SIEMPRE, haya reuniones pendientes o no: el componente sirve para
           cualquier reunión, incluida una que nunca se preparó aquí. Antes solo
           salía si había alguna presentada sin minuta, y eso lo hacía parecer

@@ -198,6 +198,19 @@
 
 /* ---- minutas ---- */
 .listaMinutas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+/* Las reuniones que esperan minuta (24-ago-2026): separadas de las minutas
+   ya hechas por un rótulo, no por otra tarjeta — son el mismo módulo y la
+   misma clase de fila, con distinto significado. Un `<Link>` en vez de un
+   `<button>` porque llevan a otra pantalla; el resto del aspecto se hereda. */
+.pendientesBloque { margin-top: 1.1rem; display: grid; gap: 0.45rem; }
+.pendientesTitulo {
+  font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase;
+  font-weight: 700; color: var(--tinta-3, var(--tx-3));
+}
+/* Punteada, como todo lo que en esta app está a medio hacer (el chip de
+   "Levantar minuta" en una reunión, el botón de subir presentación). */
+.filaPendiente { border-style: dashed; }
+
 .filaMinuta {
   display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 0.7rem;
   width: 100%; text-align: left; font: inherit;
@@ -303,8 +316,54 @@
    historia congelada, no trabajo que hoy exige atención — mismo lenguaje que
    ".congelados" en el espacio de acuerdos. Vuelve a su brillo normal al
    pasar el cursor: sigue siendo un link real a la sala. */
-.salaPausada { opacity: 0.7; }
-.salaPausada:hover { opacity: 1; }
+/* ══ ACUERDOS VENCIDOS (24-ago-2026) ══════════════════════════════════════
+   El módulo que sustituye a "En pausa". Una LISTA y no tarjetas: son líneas
+   de texto que se leen de arriba abajo —qué, de quién, desde cuándo— y una
+   rejilla de tarjetas para eso pone tres columnas de aire alrededor de una
+   frase. */
+.vencidosLista { list-style: none; margin: 0; padding: 0; display: grid; }
+.vencidoFila + .vencidoFila { border-top: 1px solid var(--linea); }
+.vencidoEnlace {
+  display: grid; gap: 0.2rem;
+  padding: 0.7rem 0.2rem;
+  color: inherit; text-decoration: none;
+  border-radius: 8px;
+  transition: background var(--rapido, 0.15s) linear;
+}
+.vencidoEnlace:hover { background: var(--lienzo-2, rgb(0 0 0 / 0.03)); }
+.vencidoEnlace:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: -2px; }
+.vencidoQue { font-size: 0.92rem; font-weight: 550; line-height: 1.35; }
+.vencidoMeta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
+  font-size: 0.8rem; color: var(--tinta-3, var(--tx-3));
+}
+/* El nombre de la sala con su color de marca: en una lista que mezcla las
+   nueve, es lo que deja saber de quién es cada línea sin leerla entera. */
+.vencidoSala { font-weight: 650; color: var(--marca-texto, var(--marca)); }
+/* La fecha en rojo — es el dato que convierte la línea en deuda. */
+.vencidoFecha { color: var(--mal); }
+.vencidosBoton {
+  justify-self: start; margin-top: 0.9rem;
+  font-size: 0.85rem; font-weight: 600; text-decoration: none;
+  padding: 0.5rem 0.9rem; border-radius: 0.55rem;
+  color: var(--tinta); background: var(--superficie-2, var(--lienzo));
+  border: 1px solid var(--borde-fuerte, var(--linea));
+  transition: border-color var(--rapido, 0.15s) linear, color var(--rapido, 0.15s) linear;
+}
+.vencidosBoton:hover { border-color: var(--marca); color: var(--marca-texto, var(--marca)); }
+
+/* ⚠️ GRIS DE VERDAD, NO SOLO ATENUADA (24-ago-2026). Franco: *"basta con que
+   se vea gris apagada al final de la grilla"*. Con `opacity` sola, el
+   logotipo de Zeus seguía saliendo a todo color —rojo, azul y morado— dentro
+   de una tarjeta que quiere decir "esto está parado": el color se leía antes
+   que el apagado. `grayscale` sobre la tarjeta entera lo dice sin ambigüedad,
+   y al pasar por encima vuelve entera: sigue siendo un cliente al que se
+   entra, no un archivo. */
+.salaPausada { opacity: 0.65; filter: grayscale(1); }
+.salaPausada:hover { opacity: 1; filter: grayscale(0); }
+@media (prefers-reduced-motion: no-preference) {
+  .salaPausada { transition: opacity var(--rapido, 0.15s) linear, filter var(--rapido, 0.15s) linear; }
+}
 
 /* Ceci hereda la identidad de Grupo UPAX, así que su tarjeta lleva el nombre
    en vez del logotipo: dos tarjetas con el mismo logo y distinta sala es peor

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import type { EstadoSala } from '@/dominio/salas'
 import type { Reunion } from '@/dominio/reunion'
 
@@ -545,9 +545,15 @@ describe('Hub (/) — el pulso es navegable', () => {
 describe('Hub (/) — el Home se invierte: los clientes primero, los acuerdos solo una cifra (ronda 14.5)', () => {
   beforeEach(() => {
     // Sala activa con una reunión pasada y con respaldo (documentoListo) →
-    // dispara "Por confirmar" (`reunionesPorConfirmar`, dominio/reunion.ts).
-    // Sala pausada → dispara "En pausa". Entre las dos, `getAllByRole` deja
-    // de devolver una lista de uno: el test recupera dientes.
+    // dispara "Por confirmar" (`reunionesPorConfirmar`, dominio/reunion.ts), y
+    // con un acuerdo vencido → dispara "Acuerdos vencidos". Entre las dos,
+    // `getAllByRole` deja de devolver una lista de uno: el test recupera
+    // dientes.
+    //
+    // El módulo "En pausa" ya no existe (24-ago-2026): una sala congelada vive
+    // apagada al final de la rejilla de clientes, así que la tercera sección
+    // que este test necesita para comparar posiciones la pone ahora el módulo
+    // de vencidos.
     estadoDeSalasMock.mockResolvedValue([
       {
         ...SALA_BASE,
@@ -555,6 +561,10 @@ describe('Hub (/) — el Home se invierte: los clientes primero, los acuerdos so
         nombre: 'Activa',
         activa: true,
         reuniones: [{ ...REUNION_BASE, id: 'r-por-confirmar', documentoListo: true }],
+        acuerdos: [{
+          id: 'ac-vencido', que: 'Mandar el reporte', responsable: 'Ana',
+          fechaCompromiso: '2026-07-01', estatus: 'vencido' as const,
+        }],
       },
       {
         ...SALA_BASE,
@@ -578,16 +588,16 @@ describe('Hub (/) — el Home se invierte: los clientes primero, los acuerdos so
 
     const iClientes = secciones.findIndex((t) => /clientes/i.test(t))
     const iConfirmar = secciones.findIndex((t) => /confirmar/i.test(t))
-    const iPausa = secciones.findIndex((t) => /en pausa/i.test(t))
+    const iVencidos = secciones.findIndex((t) => /vencidos/i.test(t))
     expect(iClientes).toBeGreaterThanOrEqual(0)
     expect(iConfirmar).toBeGreaterThanOrEqual(0)
-    expect(iPausa).toBeGreaterThanOrEqual(0)
+    expect(iVencidos).toBeGreaterThanOrEqual(0)
 
     // La comparación es por ÍNDICE, no por "es el primero del arreglo": lo
     // que importa es la posición relativa a las otras secciones, no que
     // "Los clientes" sea casualmente la única.
     expect(iClientes).toBeLessThan(iConfirmar) // I2: "Por confirmar" ya no va delante.
-    expect(iClientes).toBeLessThan(iPausa)
+    expect(iClientes).toBeLessThan(iVencidos)
   })
 
   it('los acuerdos son una cifra que lleva a su pestaña, no una lista', async () => {
@@ -601,5 +611,101 @@ describe('Hub (/) — el Home se invierte: los clientes primero, los acuerdos so
     // dentro del Home un efecto que aquí ya no existe — deuda anotada en el
     // spec §4 desde el milestone 1, saldada al retirar este bloque.
     expect(screen.queryByRole('heading', { name: /acuerdos y pendientes/i })).toBeNull()
+  })
+})
+
+/**
+ * ═══ LOS CLIENTES SON UNA SOLA REJILLA, Y LO VENCIDO TIENE SITIO ═══════════
+ *
+ * Franco (24-ago-2026): *"la sala de Zeus no debe quedar abajo en un módulo
+ * aparte, basta con que se vea gris apagada al final de la grilla en el módulo
+ * principal de Los Clientes. El módulo 'en pausa' reemplázalo por un módulo
+ * que muestre los acuerdos vencidos con un botón que me lleve a la pestaña de
+ * acuerdos"*.
+ */
+describe('Hub (/) — una sola rejilla de clientes, y los vencidos en su lugar', () => {
+  const CON_PAUSADA = [
+    {
+      ...SALA_BASE,
+      slug: 'activa', nombre: 'Activa', activa: true,
+      acuerdos: [{
+        id: 'ac-1', que: 'Mandar el reporte de agosto', responsable: 'Ana',
+        fechaCompromiso: '2026-07-01', estatus: 'vencido' as const,
+      }],
+    },
+    { ...SALA_BASE, slug: 'zeus', nombre: 'Zeus', activa: false, pausadaDesde: '2026-01-01' },
+  ]
+
+  it('ya no hay un módulo "En pausa": la sala congelada vive en la rejilla de clientes', async () => {
+    estadoDeSalasMock.mockResolvedValue(CON_PAUSADA)
+    render(await Hub())
+
+    expect(screen.queryByRole('heading', { level: 2, name: /en pausa/i })).toBeNull()
+    // Y sigue estando: es un cliente, no un archivo. Con su enlace a su sala.
+    expect(screen.getByRole('link', { name: /zeus/i })).toHaveAttribute('href', '/cliente/zeus')
+  })
+
+  /**
+   * ⚠️ UNA SALA EN PAUSA NO DICE "AL DÍA". `acuerdosAbiertos`/`acuerdosVencidos`
+   * devuelven 0 para una congelada a propósito (sus compromisos están parados,
+   * no vencidos), así que sin un caso propio la tarjeta de Zeus afirmaría estar
+   * al día sobre un trabajo que nadie está haciendo.
+   */
+  it('la tarjeta de una sala en pausa lo dice, y no se declara "al día"', async () => {
+    estadoDeSalasMock.mockResolvedValue(CON_PAUSADA)
+    render(await Hub())
+
+    const zeus = screen.getByRole('link', { name: /zeus/i })
+    expect(zeus.textContent).toMatch(/en pausa/i)
+    expect(zeus.textContent).not.toMatch(/al día/i)
+  })
+
+  it('los vencidos se listan con su sala, su dueño y desde cuándo', async () => {
+    estadoDeSalasMock.mockResolvedValue(CON_PAUSADA)
+    render(await Hub())
+
+    const seccion = screen.getByRole('heading', { level: 2, name: /vencidos/i }).closest('section')!
+    expect(seccion.textContent).toContain('Mandar el reporte de agosto')
+    expect(seccion.textContent).toContain('Ana')
+    expect(seccion.textContent).toMatch(/venció el/i)
+  })
+
+  it('y llevan a la sala del acuerdo, con un botón aparte a la pestaña de acuerdos', async () => {
+    estadoDeSalasMock.mockResolvedValue(CON_PAUSADA)
+    render(await Hub())
+
+    const seccion = screen.getByRole('heading', { level: 2, name: /vencidos/i }).closest('section')!
+    expect(within(seccion).getByRole('link', { name: /Mandar el reporte/i }))
+      .toHaveAttribute('href', '/cliente/activa#s-acuerdos')
+    expect(within(seccion).getByRole('link', { name: /ver todos los acuerdos/i }))
+      .toHaveAttribute('href', '/acuerdos')
+  })
+
+  /**
+   * Los compromisos de una sala congelada están PARADOS, no vencidos — misma
+   * regla que ya aplican `acuerdosVencidos()` y `salaMasDesatendida()`.
+   * Listarlos aquí sería pedir cuentas por trabajo que alguien decidió parar.
+   */
+  it('los acuerdos de una sala en pausa no entran en la lista de vencidos', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      {
+        ...SALA_BASE, slug: 'zeus', nombre: 'Zeus', activa: false, pausadaDesde: '2026-01-01',
+        acuerdos: [{
+          id: 'ac-z', que: 'Algo congelado', responsable: 'Quien sea',
+          fechaCompromiso: '2026-06-01', estatus: 'vencido' as const,
+        }],
+      },
+    ])
+    render(await Hub())
+
+    expect(screen.queryByRole('heading', { level: 2, name: /vencidos/i })).toBeNull()
+    expect(screen.queryByText(/Algo congelado/)).toBeNull()
+  })
+
+  it('sin vencidos, el módulo no ocupa sitio diciendo cero', async () => {
+    estadoDeSalasMock.mockResolvedValue([{ ...SALA_BASE, slug: 'activa', nombre: 'Activa', activa: true }])
+    render(await Hub())
+
+    expect(screen.queryByRole('heading', { level: 2, name: /vencidos/i })).toBeNull()
   })
 })
