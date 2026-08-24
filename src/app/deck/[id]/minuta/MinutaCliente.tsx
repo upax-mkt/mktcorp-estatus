@@ -328,7 +328,27 @@ export function MinutaCliente({ de, alPublicar, transcripcionInicial, personas }
       if (alPublicar) {
         alPublicar(r.reunionId)
       } else {
-        router.push(`/deck/${r.reunionId}`)
+        /**
+         * ⚠️ A LA SALA, CON SUS ACUERDOS YA PUESTOS (24-ago-2026).
+         *
+         * Franco: *"cuando termino de generar una minuta y la publico, la app
+         * me lleva a la sala de preparación de la presentación y muestra los
+         * acuerdos arriba para 'añadirlos'. Yo desde la creación de minuta y
+         * publicación debo ser redirigido a la sala con los acuerdos ya
+         * cargados, ¿por eso la publiqué no?"*.
+         *
+         * Llevaba a `/deck/<reunion>` —el editor de la presentación— o sea a
+         * PREPARAR una junta que se acaba de minutar porque YA OCURRIÓ. Y ahí
+         * el panel de acuerdos arrastrables ofrece "añadir" los que la minuta
+         * acababa de crear, como si faltaran. El destino correcto es el sitio
+         * donde ese trabajo aterriza: la sala, en su bloque de acuerdos.
+         *
+         * Sin sala —un comité, una interna de Mkt Corp— no hay espacio de
+         * cliente al que ir, y sus acuerdos ni siquiera nacen como filas: se
+         * quedan en el texto de la minuta. Ahí el destino honesto es la lista
+         * de reuniones, donde esa junta ya aparece dada y con su acta.
+         */
+        router.push(r.salaSlug ? `/cliente/${r.salaSlug}#s-acuerdos` : '/reuniones')
       }
       router.refresh()
     })

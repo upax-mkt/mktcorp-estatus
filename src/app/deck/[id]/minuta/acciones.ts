@@ -151,6 +151,18 @@ export interface EstadoPublicacion {
   error?: string
   /** La reunión a la que quedó ligada. Al describirla a mano, nace aquí. */
   reunionId?: string
+  /**
+   * De qué sala es esa reunión, para saber A DÓNDE LLEVAR a quien acaba de
+   * publicar (24-ago-2026). Este dato ya se calculaba aquí —hace falta para
+   * revalidar `/cliente/[slug]`— pero no salía de la función, así que el
+   * cliente no tenía forma de llevar a nadie a la sala.
+   *
+   * `null` cuando la reunión no es de ninguna sala (un comité, una interna de
+   * Mkt Corp): entonces no hay espacio de cliente donde aterrizar, y sus
+   * acuerdos tampoco se publican como filas — se quedan escritos en el texto
+   * de la minuta (ver `guardarMinuta`, src/db/minutas.ts).
+   */
+  salaSlug?: string | null
 }
 
 /**
@@ -242,7 +254,7 @@ export async function publicarMinutaAction(
     if (salaSlug) revalidatePath(`/cliente/${salaSlug}`)
     revalidatePath('/')
 
-    return { ok: true, reunionId }
+    return { ok: true, reunionId, salaSlug }
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : String(error)
     return { ok: false, error: mensaje }

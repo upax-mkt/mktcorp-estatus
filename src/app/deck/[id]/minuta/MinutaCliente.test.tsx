@@ -173,6 +173,47 @@ describe('MinutaCliente — el bug: quitar un acuerdo tiene que cambiar el texto
     expect(confirmados).toHaveLength(1)
     expect(confirmados[0].que).toBe('Cerrar el brief con Iris')
   })
+
+  /**
+   * A DÓNDE LLEVA PUBLICAR (24-ago-2026).
+   *
+   * Franco: *"cuando termino de generar una minuta y la publico, la app me
+   * lleva a la sala de preparación de la presentación y muestra los acuerdos
+   * arriba para 'añadirlos'. Yo debo ser redirigido a la sala con los
+   * acuerdos ya cargados, ¿por eso la publiqué no?"*.
+   *
+   * Iba a `/deck/<reunion>`: el editor de la presentación de una junta que
+   * se acaba de minutar PORQUE YA OCURRIÓ — y ahí el panel de acuerdos
+   * arrastrables ofrecía "añadir" los que la minuta acababa de crear.
+   */
+  it('publicar lleva a LA SALA, a su bloque de acuerdos — no al editor de la presentación', async () => {
+    const usuario = userEvent.setup()
+    publicarMinutaActionMock.mockResolvedValue({ ok: true, reunionId: 'reu-1', salaSlug: 'neracode' })
+    render(<MinutaCliente de={{ reunionId: 'reu-1' }} personas={[]} />)
+    await generar(usuario)
+
+    await usuario.click(screen.getByRole('button', { name: 'Publicar minuta →' }))
+
+    expect(pushMock).toHaveBeenCalledWith('/cliente/neracode#s-acuerdos')
+    expect(pushMock).not.toHaveBeenCalledWith('/deck/reu-1')
+  })
+
+  /**
+   * Una reunión que no es de ninguna sala (un comité, una interna de Mkt
+   * Corp) no tiene espacio de cliente al que ir — y sus acuerdos ni siquiera
+   * nacen como filas: se quedan en el texto de la minuta (`guardarMinuta`).
+   * El destino honesto es la lista de reuniones, donde ya aparece dada.
+   */
+  it('sin sala, lleva a la lista de reuniones y no inventa un espacio de cliente', async () => {
+    const usuario = userEvent.setup()
+    publicarMinutaActionMock.mockResolvedValue({ ok: true, reunionId: 'reu-1', salaSlug: null })
+    render(<MinutaCliente de={{ reunionId: 'reu-1' }} personas={[]} />)
+    await generar(usuario)
+
+    await usuario.click(screen.getByRole('button', { name: 'Publicar minuta →' }))
+
+    expect(pushMock).toHaveBeenCalledWith('/reuniones')
+  })
 })
 
 describe('MinutaCliente — la minuta se edita ahí mismo (por bloque, no la tabla)', () => {

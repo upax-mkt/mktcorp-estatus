@@ -203,7 +203,10 @@ describe('publicarMinutaAction', () => {
       [],
     )
 
-    expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva' })
+    // `salaSlug` viaja en la respuesta desde el 24-ago: es lo que permite
+    // llevar a quien publica A LA SALA y no al editor de la presentación
+    // (ver `publicar()` en MinutaCliente.tsx).
+    expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva', salaSlug: 'neracode' })
     // Nace YA dada, en un solo paso (restaurado el 5-ago) — es historia, no
     // trabajo en curso: ni siquiera pasa por `marcarDada` (ver el
     // comentario de cabecera de acciones.ts).
@@ -229,7 +232,11 @@ describe('publicarMinutaAction', () => {
       [],
     )
 
-    expect(resultado).toEqual({ ok: true, reunionId: 'reu-comite' })
+    // Sin sala, `salaSlug` vuelve NULO y no como cadena vacía ni ausente: es
+    // lo que distingue "esta reunión no es de ninguna sala" de "no lo sé", y
+    // lo que decide que tras publicar se vaya a /reuniones y no a un espacio
+    // de cliente que no existe.
+    expect(resultado).toEqual({ ok: true, reunionId: 'reu-comite', salaSlug: null })
     // Nace ya dada, con `salaSlug: null` tal cual — nada lo sustituye por un
     // valor por defecto ni lo rechaza.
     expect(crearReunionMock).toHaveBeenCalledWith(
@@ -250,7 +257,7 @@ describe('publicarMinutaAction', () => {
       [],
     )
 
-    expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva' })
+    expect(resultado).toEqual({ ok: true, reunionId: 'reu-nueva', salaSlug: 'neracode' })
     expect(registrarEdicionMock).not.toHaveBeenCalled()
   })
 })
