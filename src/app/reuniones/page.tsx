@@ -676,7 +676,13 @@ export default async function PagReuniones({
   // acuerdos cumplidos de la sala (`cliente/[slug]/page.tsx`).
   const seccionCerradas = (
     <section className={estilos.cicloSeccion}>
-      <details open>
+      {/* ⚠️ NACE PLEGADA (24-ago-2026). Estaba `open`, y con trece reuniones
+          cerradas eso son cuatro filas de historia ocupando más pantalla que
+          las cinco que sí piden trabajo. Una reunión cerrada no tiene nada
+          pendiente por definición: se consulta cuando se busca algo concreto,
+          y para eso está el filtro de arriba. El conteo del título sigue
+          diciendo cuántas hay sin necesidad de abrirla. */}
+      <details>
         <summary className={estilos.cerradasResumen}>
           <h2 className={estilos.cicloTitulo}>
             Cerradas

@@ -124,23 +124,43 @@
 }
 .vacio { color: var(--tx-3); font-size: 0.9rem; margin: 0; }
 
-.listaCiclo {
-  display: grid; gap: 0.7rem;
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-}
+/* ══ UNA LISTA, NO UNA REJILLA DE TARJETAS (24-ago-2026) ═══════════════════
+   Franco: *"la pestaña Reuniones la sigo percibiendo desordenada y poco
+   amigable en su UI"*.
+
+   Y era medible: 18 tarjetas idénticas —5 pendientes de minutar y 13
+   cerradas— del mismo tamaño y peso, en una rejilla de `minmax(18rem, 1fr)`.
+   Con eso, "Cerradas" (la HISTORIA, lo que menos se toca) ocupaba CUATRO
+   FILAS y "falta su minuta" (el trabajo real) una y media: la pantalla daba
+   más superficie a lo que ya está hecho que a lo que falta.
+
+   Una reunión aquí es un renglón —qué fue, de quién, cuándo, y qué se hace
+   con ella— y eso se lee en lista, de arriba abajo, comparando fechas en la
+   misma columna. Una rejilla de tarjetas obliga a leer en zigzag y multiplica
+   el alto por el aire de cada caja. */
+.listaCiclo { display: grid; }
+.listaCiclo > * + * { border-top: 1px solid var(--linea); }
+
 /* Puede ser un `<a>` (con sala/minuta a la que ir) o un `<div>` (comité, sin
    sala) — mismas reglas para las dos, `text-decoration`/`color` explícitos
-   para que un `<a>` no se pinte distinto de su vecino `<div>`. */
+   para que un `<a>` no se pinte distinto de su vecino `<div>`.
+
+   ⚠️ SIN FRANJA LATERAL DE COLOR. Tenía un `border-left: 3px solid` con el
+   color de la sala: un adorno que no aguanta la comparación —no distingue a
+   Marketing United de House of Films, las dos negras— y que en una lista de
+   dieciocho se lee como un código de barras. El nombre de la sala está
+   escrito en cada fila y ese sí se lee. */
 .filaCiclo {
-  padding: 0.85rem 1rem; border-radius: var(--r-4);
-  border-left: 3px solid var(--sala, var(--tx-3));
-  background: var(--superficie);
-  box-shadow: var(--e-1);
-  display: grid; gap: 0.4rem;
+  padding: 0.7rem 0.5rem;
+  display: grid; gap: 0.15rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   color: inherit; text-decoration: none;
+  border-radius: 8px;
+  transition: background var(--rapido, 0.15s) linear;
 }
-a.filaCiclo:hover { border-left-color: var(--acento); }
-.filaCicloTitulo { font-size: 0.95rem; font-weight: 600; }
+a.filaCiclo:hover { background: var(--papel-hundido, rgb(0 0 0 / 0.03)); }
+.filaCicloTitulo { font-size: 0.92rem; font-weight: 600; line-height: 1.35; }
 .filaCicloMeta { font-size: 0.8rem; color: var(--tx-3); display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 /* PUNTO HUÉRFANO (revisión C1, hallazgo "menor barato"): el "·" vivía en su
    PROPIO `<span className={sep}>`, un hijo de flex más entre los datos — así
@@ -163,12 +183,28 @@ a.filaCiclo:hover { border-left-color: var(--acento); }
    la fila. */
 .filaCicloSala { color: inherit; font-weight: 600; text-decoration: none; }
 .filaCicloSala:hover { text-decoration: underline; }
-.filaCicloAccion { justify-self: start; font-size: 0.82rem; font-weight: 600; color: var(--acento); text-decoration: none; }
+.filaCicloAccion {
+  /* A la DERECHA de su fila y en su propia columna: en una lista, las
+     acciones alineadas en vertical se recorren de un vistazo; repartidas bajo
+     cada título hay que buscarlas una por una. */
+  grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  justify-self: end; white-space: nowrap;
+  font-size: 0.82rem; font-weight: 600; color: var(--acento); text-decoration: none;
+}
 .filaCicloAccion:hover { text-decoration: underline; }
 /* CERRADAS OFRECE DOS ENLACES (minuta + documento) — no uno solo, así que ya
    no puede ser el `<a>` entero de la tarjeta (ver el comentario de la
    sección "Cerradas" en `page.tsx`). */
-.filaCicloAcciones { display: flex; gap: 1rem; flex-wrap: wrap; }
+.filaCicloAcciones {
+  grid-column: 2; grid-row: 1 / span 2; align-self: center; justify-self: end;
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+@media (max-width: 40rem) {
+  /* En angosto, la acción baja bajo su fila: dos columnas en 390 px dejan el
+     título en tres renglones para que quepa un enlace al lado. */
+  .filaCiclo { grid-template-columns: minmax(0, 1fr); }
+  .filaCicloAccion, .filaCicloAcciones { grid-column: 1; grid-row: auto; justify-self: start; }
+}
 
 /* "CERRADAS" SE PLIEGA (revisión C1, hallazgo I2): requisito LITERAL del
    brief (Step 4, punto 2: "el módulo se pliega, al final") que la primera
@@ -285,8 +321,23 @@ details[open] > .cerradasResumen::before { transform: rotate(90deg); }
    informe de esta tarea para las coordenadas finales. */
 .filaSuperior {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 21rem);
+  /* Una sola columna por defecto (24-ago-2026): sin formulario abierto no hay
+     nada que poner al lado del calendario, y reservarle 21rem era lo que
+     dejaba los 517 px de hueco que midió la ronda 16. La segunda columna
+     vuelve solo cuando hay formulario. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
+}
+.filaSuperior[data-con-formulario] { grid-template-columns: minmax(0, 1fr) minmax(18rem, 21rem); }
+
+/* ══ LA BARRA DE FILTROS ══════════════════════════════════════════════════
+   Dos controles se leen en una línea. Arriba del calendario y no a su
+   costado, porque desde que el filtro vive en `searchParams` gobiernan LA
+   PANTALLA ENTERA —calendario, por confirmar, falta su minuta y cerradas—, y
+   un panel pegado al calendario decía lo contrario. */
+.barraFiltros {
+  display: flex; flex-wrap: wrap; align-items: end; gap: 0.9rem 1.2rem;
+  margin-bottom: 1.25rem;
 }
 /* Sin `max-width` propio: llena el track de `.filaSuperior` (arriba) en vez
    de quedarse angosto dentro de un `<aside>` más ancho — ver el comentario

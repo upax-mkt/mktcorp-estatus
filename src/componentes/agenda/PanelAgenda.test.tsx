@@ -114,30 +114,37 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
    * SIEMPRE se monta —en reposo, con filtros + leyenda, nunca vacío—. Ver el
    * comentario de archivo de `PanelAgenda.tsx`.
    */
-  it('sin nada agendando, "+ Agendar una reunión" está en la cabecera junto al título — y el <aside> muestra filtros y leyenda, nunca vacío', () => {
+  /**
+   * EN REPOSO NO HAY COLUMNA LATERAL (24-ago-2026). Antes el `<aside>` se
+   * pintaba SIEMPRE —con filtros y leyenda dentro— para que la fila del
+   * calendario no quedara coja; eso es lo que dejaba 517 px de hueco a su
+   * derecha (medido en la ronda 16, "arreglado" entonces dándole fondo
+   * blanco al vacío). Los filtros viven ahora en su propia barra, arriba, y
+   * la leyenda se retiró: cada evento del calendario ya lleva escrito el
+   * nombre de su sala.
+   */
+  it('sin nada agendando: el botón en la cabecera, los filtros en su barra, y NINGUNA columna lateral vacía', () => {
     const { container } = render(
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />,
     )
 
     expect(screen.getByRole('heading', { name: 'Reuniones', level: 1 })).toBeInTheDocument()
-    const boton = screen.getByRole('button', { name: '+ Agendar una reunión' })
-    expect(boton).toBeInTheDocument()
-    const aside = container.querySelector('aside')
-    expect(aside).not.toBeNull()
-    // Filtros (sala + clase) y leyenda —no el formulario, que solo aparece
-    // agendando/editando (siguiente test)—. RÓTULO SIN CALIFICAR (ronda 15):
-    // hasta esa ronda decía "Filtros — calendario y Próximas" (revisión C1,
-    // I3, "Filtros" a secas no decía a qué alcanzaba); con el filtro subido a
-    // `searchParams` cubre las cuatro secciones, así que el calificativo
-    // dejó de sumar — ver el comentario del rótulo en `PanelAgenda.tsx`.
-    expect(within(aside!).getByText('Filtros')).toBeInTheDocument()
-    expect(within(aside!).getByLabelText('Sala')).toBeInTheDocument()
-    expect(within(aside!).getByLabelText('Clase de junta')).toBeInTheDocument()
-    expect(within(aside!).getByText('Leyenda')).toBeInTheDocument()
-    expect(within(aside!).queryByRole('heading', { name: 'Agendar una reunión' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ Agendar una reunión' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar por sala')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar por clase')).toBeInTheDocument()
+    // Ni aside ni leyenda: el calendario ocupa el ancho entero.
+    expect(container.querySelector('aside')).toBeNull()
+    expect(screen.queryByText('Leyenda')).not.toBeInTheDocument()
   })
 
-  it('al hacer clic en "+ Agendar una reunión", el formulario aparece con sus campos reales (FormularioSesion sin mockear), y sustituye a filtros/leyenda dentro del mismo <aside>', async () => {
+  /**
+   * ⚠️ LOS FILTROS NO DESAPARECEN AL AGENDAR, y por eso el suyo se llama
+   * "Filtrar por sala": convive en pantalla con el campo "Sala" DEL
+   * FORMULARIO, y son cosas distintas —uno acota lo que se ve, el otro decide
+   * de quién es la reunión que se está creando—. Antes no colisionaban porque
+   * el formulario los tapaba; ahora hay que distinguirlos por su nombre.
+   */
+  it('al agendar, el formulario aparece con sus campos reales y los filtros siguen en su sitio', async () => {
     const usuario = userEvent.setup()
     const { container } = render(
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />,
@@ -146,14 +153,14 @@ describe('PanelAgenda — "agendar" vive en la cabecera (auditoría UX/UI, arreg
     await usuario.click(screen.getByRole('button', { name: '+ Agendar una reunión' }))
 
     expect(screen.getByRole('heading', { name: 'Agendar una reunión' })).toBeInTheDocument()
+    // El campo del FORMULARIO —"Sala"— y el FILTRO —"Filtrar por sala"— son
+    // dos controles distintos que ahora conviven.
     expect(screen.getByLabelText('Sala')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filtrar por sala')).toBeInTheDocument()
     expect(screen.getByLabelText('Día')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Agendar' })).toBeInTheDocument()
-    const aside = container.querySelector('aside')
-    expect(aside).not.toBeNull()
-    // El <aside> es el MISMO elemento de siempre (no uno nuevo que aparece):
-    // solo cambió lo que hay adentro.
-    expect(within(aside!).queryByText('Filtros')).not.toBeInTheDocument()
+    // Y ahora sí hay columna lateral: es donde vive el formulario.
+    expect(container.querySelector('aside')).not.toBeNull()
   })
 
   it('agendar sigue alcanzable con MUCHAS reuniones en "Próximas" (el botón, en la cabecera, no depende del tamaño de la lista)', async () => {
@@ -378,6 +385,8 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
 
     expect(screen.getByRole('heading', { name: 'Corregir la reunión' })).toBeInTheDocument()
     expect(screen.getByLabelText('Título')).toHaveValue('Estatus a corregir')
+    // El campo del FORMULARIO, no el filtro de la barra (que se llama
+    // "Filtrar por sala" justo para que no se confundan).
     expect(screen.getByLabelText('Sala')).toHaveValue('mexa-creativa')
     expect(screen.getByLabelText('Tipo de reunión')).toHaveValue('quincenal')
   })
@@ -516,20 +525,27 @@ describe('PanelAgenda — "Editar" sigue funcionando desde "Próximas" tras la m
  *      URL ya trae un filtro), el `<select>` correspondiente y el aviso de
  *      "filtro activo" lo reflejan.
  */
-describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, cierre de la deuda B)', () => {
-  it('la leyenda pinta cada sala con su color', () => {
-    render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
+describe('PanelAgenda — los filtros de la barra (ronda 15; mudados arriba el 24-ago-2026)', () => {
+  /**
+   * La leyenda de nueve puntos se retiró: existía "para leer el filo de color
+   * de las tarjetas", y ese filo ya no está (era una franja lateral que ni
+   * siquiera distinguía a las dos salas negras). En el calendario, cada
+   * reunión lleva el nombre de su sala escrito — que es lo que la leyenda
+   * venía a traducir.
+   */
+  it('cada reunión del calendario dice de qué sala es, sin necesidad de una leyenda que lo traduzca', () => {
+    const s = sesion({ id: 's1', titulo: 'Estatus', salaSlug: 'mexa-creativa', fecha: '2026-08-18T16:00:00.000Z' })
+    render(<PanelAgenda sesiones={[s]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
-    const leyenda = screen.getByText('Leyenda').closest('div')!
-    expect(within(leyenda).getByText('NeraCode')).toBeInTheDocument()
-    expect(within(leyenda).getByText('Mexa Creativa')).toBeInTheDocument()
+    expect(screen.queryByText('Leyenda')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Mexa Creativa').length).toBeGreaterThan(0)
   })
 
   it('elegir una sala en el filtro navega (router.replace) a la misma ruta con "?sala=<slug>"', async () => {
     const usuario = userEvent.setup()
     render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
-    await usuario.selectOptions(screen.getByLabelText('Sala'), 'mexa-creativa')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por sala'), 'mexa-creativa')
 
     expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?sala=mexa-creativa', { scroll: false })
   })
@@ -538,9 +554,9 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, 
     const usuario = userEvent.setup()
     render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
-    expect(within(screen.getByLabelText('Sala')).getByRole('option', { name: 'Sin sala' })).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Filtrar por sala')).getByRole('option', { name: 'Sin sala' })).toBeInTheDocument()
 
-    await usuario.selectOptions(screen.getByLabelText('Sala'), 'Sin sala')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por sala'), 'Sin sala')
 
     expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?sala=sin-sala', { scroll: false })
   })
@@ -551,7 +567,7 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, 
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="neracode" {...acciones()} />,
     )
 
-    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sync Comercial')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por clase'), 'Sync Comercial')
 
     // Los DOS ejes en la URL nueva —no solo el que cambió—: `irAFiltro`
     // recibe siempre los dos valores completos (ver su comentario en
@@ -564,7 +580,7 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, 
     const usuario = userEvent.setup()
     render(<PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} {...acciones()} />)
 
-    await usuario.selectOptions(screen.getByLabelText('Clase de junta'), 'Sin clasificar')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por clase'), 'Sin clasificar')
 
     expect(replaceMock).toHaveBeenCalledExactlyOnceWith('/reuniones?clase=sin-clasificar', { scroll: false })
   })
@@ -575,7 +591,7 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, 
       <PanelAgenda sesiones={[]} salas={SALAS} hoy={HOY} idsProximas={[]} filtroSala="neracode" {...acciones()} />,
     )
 
-    await usuario.selectOptions(screen.getByLabelText('Sala'), 'Todas las salas')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por sala'), 'Todas las salas')
 
     // Sin `?`: `irAFiltro` no arma una URL con un `URLSearchParams` vacío
     // colgando — vuelve a la ruta desnuda.
@@ -595,8 +611,8 @@ describe('PanelAgenda — el hueco del calendario: filtros y leyenda (ronda 15, 
       />,
     )
 
-    expect(screen.getByLabelText('Sala')).toHaveValue('mexa-creativa')
-    expect(screen.getByLabelText('Clase de junta')).toHaveValue('sync-comercial')
+    expect(screen.getByLabelText('Filtrar por sala')).toHaveValue('mexa-creativa')
+    expect(screen.getByLabelText('Filtrar por clase')).toHaveValue('sync-comercial')
   })
 
   it('los filtros no le llegan a "Por confirmar"/"Falta su minuta"/"Cerradas" por su cuenta: este componente solo las coloca donde `page.tsx` se las manda', () => {

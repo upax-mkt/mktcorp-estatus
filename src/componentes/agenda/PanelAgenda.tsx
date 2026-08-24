@@ -219,8 +219,10 @@ interface Props {
 }
 
 const TITULO_POR_DEFECTO = 'Reuniones'
-const SUBTITULO_POR_DEFECTO =
-  'El calendario del mes, agendar rápido, y las próximas — más el ciclo completo de las que ya pasaron su día: por confirmar, con la minuta pendiente, y cerradas.'
+/* Tres líneas enumerando las secciones que se ven justo debajo, con sus
+   propios títulos y sus propios conteos (24-ago-2026). Un subtítulo no es un
+   índice de la página: dice para qué está la pantalla y se aparta. */
+const SUBTITULO_POR_DEFECTO = 'El mes entero, y qué falta hacer con cada reunión que ya pasó.'
 
 /**
  * LOS MARCADORES DEL FILTRO — DUPLICADOS A PROPÓSITO, NO IMPORTADOS.
@@ -406,7 +408,72 @@ export function PanelAgenda({
           para el porqué. El calendario recibe `sesiones` tal cual: ya llega
           filtrada desde `page.tsx` (ver el comentario de esa prop) — desde
           la ronda 15 este componente no vuelve a angostarla por su cuenta. */}
-      <div className={estilosCiclo.filaSuperior}>
+      {/* ═══ LOS FILTROS, EN UNA BARRA (24-ago-2026) ═════════════════════
+          Franco: *"la pestaña Reuniones la sigo percibiendo desordenada y
+          poco amigable"*.
+
+          Vivían en una columna a la derecha del calendario, y esa columna era
+          el problema medido de la ronda 16: dos `<select>` y una leyenda no
+          llenan los 767 px de alto del calendario, así que sobraban 517 px.
+          Aquel arreglo les dio fondo blanco —el hueco dejó de verse como
+          canvas y pasó a verse como tarjeta vacía— pero el hueco seguía ahí.
+
+          Dos controles se leen en una línea. Aquí arriba, además, gobiernan
+          LA PANTALLA ENTERA (desde que el filtro vive en `searchParams`), que
+          es justo lo que un panel lateral pegado al calendario no dejaba
+          entender. Y el calendario recupera el ancho completo.
+
+          LA LEYENDA SE FUE: existía "para leer el filo de color de las
+          tarjetas" del ciclo, y ese filo ya no está —era una franja lateral
+          que no distinguía a las dos salas negras—. En el calendario, cada
+          evento lleva el nombre de su sala escrito al lado del color: un
+          glosario de nueve puntos para algo ya rotulado es una segunda
+          lectura de lo mismo. */}
+      <div className={estilosCiclo.barraFiltros}>
+                <div className={estilosCiclo.filtros}>
+                  {/* ⚠️ "FILTRAR POR SALA", NO "SALA" (24-ago-2026). Desde que
+                      los filtros viven en su barra y ya no desaparecen al
+                      abrir el formulario de agendar, este rótulo convivía en
+                      pantalla con el campo "Sala" DE ESE FORMULARIO: dos
+                      controles con el mismo nombre, uno que filtra lo que se
+                      ve y otro que decide de quién es la reunión que se está
+                      creando. Confundirlos cuesta una junta agendada en la
+                      sala equivocada. */}
+                  <label className={estilosCiclo.filtro}>
+                    <span className="micro" data-sinpunto>Filtrar por sala</span>
+                    <select
+                      className={estilosCiclo.select}
+                      value={filtroSala}
+                      onChange={(e) => irAFiltro(e.target.value, filtroClase)}
+                    >
+                      <option value={SIN_FILTRO}>Todas las salas</option>
+                      {salas.map((s) => (
+                        <option key={s.slug} value={s.slug}>{s.nombre}</option>
+                      ))}
+                      <option value={SIN_SALA}>{ETIQUETA_SIN_SALA}</option>
+                    </select>
+                  </label>
+                  <label className={estilosCiclo.filtro}>
+                    <span className="micro" data-sinpunto>Filtrar por clase</span>
+                    <select
+                      className={estilosCiclo.select}
+                      value={filtroClase}
+                      onChange={(e) => irAFiltro(filtroSala, e.target.value)}
+                    >
+                      <option value={SIN_FILTRO}>Todas las clases</option>
+                      {clasesDelCatalogo.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                      ))}
+                      <option value={SIN_CLASIFICAR}>{etiquetaDeClase(null)}</option>
+                    </select>
+                  </label>
+                </div>
+
+      </div>
+
+      {/* Sin formulario abierto no hay columna lateral que reservar: el
+          calendario ocupa el ancho entero. Con él, vuelve la fila de dos. */}
+      <div className={estilosCiclo.filaSuperior} data-con-formulario={formularioAbierto ? 'true' : undefined}>
         <Calendario
           key={mesFoco ?? 'hoy'}
           sesiones={sesiones}
@@ -418,11 +485,13 @@ export function PanelAgenda({
           }}
         />
 
-        {/* El <aside> AHORA SIEMPRE EXISTE (ver el comentario de archivo):
-            con formulario abierto, lo de siempre; en reposo, filtros +
-            leyenda en vez de nada. */}
-        <aside className={estilos.lateral}>
-          {formularioAbierto ? (
+        {/* El <aside> solo existe con el formulario abierto (24-ago-2026).
+            Antes se pintaba SIEMPRE —en reposo con filtros y leyenda dentro—
+            para que la fila no quedara coja; ahora los filtros viven arriba,
+            en su barra, así que en reposo no hay nada que poner al lado del
+            calendario y no se reserva la columna. */}
+        {formularioAbierto && (
+          <aside className={estilos.lateral}>
             <section className={estilos.tarjetaFormulario}>
               <h2 className={estilos.lateralTitulo}>
                 {editando ? 'Corregir la reunión' : 'Agendar una reunión'}
@@ -440,16 +509,6 @@ export function PanelAgenda({
                     alcance: editando.alcance,
                     lugar: editando.lugar ?? '',
                     participantes: editando.participantes.join(', '),
-                    // CRÍTICO C2 (ronda 14-2, fix 3/4): faltaba esta línea.
-                    // `editando.plantilla` YA es `string | null` (nunca
-                    // `undefined` — ver el comentario de `SesionAgendada`,
-                    // arriba), así que se pasa TAL CUAL: la prop `inicial`
-                    // de `FormularioSesion` acepta `plantilla?: string | null`
-                    // justo para poder distinguir "vino `null`" (sin clase,
-                    // se respeta) de "no vino la clave" (reunión nueva, cae
-                    // al default) — ver `plantillaInicial`, en ese archivo.
-                    // Ponerla aquí, aunque sea `null`, es lo que hace que la
-                    // clave SIEMPRE "venga".
                     plantilla: editando.plantilla,
                   }}
                   enviarAction={async (datos) => {
@@ -475,85 +534,8 @@ export function PanelAgenda({
                 />
               )}
             </section>
-          ) : (
-            <div className={estilosCiclo.hueco}>
-              {/* FILTROS — sala y clase. "Todas las salas"/"Todas las
-                  clases" son el valor vacío, mismo criterio que `SIN_FILTRO`
-                  en `TablaAcuerdos.tsx`. Elegir cualquiera de los dos llama
-                  `irAFiltro` (arriba), que navega a la misma ruta con la URL
-                  actualizada — `page.tsx` vuelve a filtrar con el valor
-                  nuevo y manda `filtroSala`/`filtroClase` de vuelta, ya
-                  validados, como props.
-
-                  EL RÓTULO YA VUELVE A DECIR SOLO "FILTROS" (ronda 15,
-                  cierre de la deuda B): hasta esa ronda decía "Filtros —
-                  calendario y Próximas" (revisión C1, hallazgo I3), porque
-                  filtrar "NeraCode" aquí dejaba intactas las tarjetas de
-                  otra sala en "Por confirmar"/"Falta su minuta"/"Cerradas"
-                  (`page.tsx`, Server Component, fuera del filtro de cliente
-                  de entonces). Con el filtro subido a `searchParams` las
-                  cuatro secciones lo ven — el alcance real del rótulo YA ES
-                  la pantalla entera, así que decirlo aparte dejó de sumar.
-
-                  "SIN SALA" (ronda 15): un comité o una interna de Mkt Corp
-                  no es de ninguna sala real (`salaSlug: null`) — sin esta
-                  opción, esas juntas desaparecían con CUALQUIER filtro de
-                  sala activo, porque ningún `<option>` las representaba. Va
-                  al final de la lista, después de las salas reales: es la
-                  salida para "ninguna de las de arriba", no una sala más. */}
-              <div>
-                <p className={estilosCiclo.huecoTitulo}>Filtros</p>
-                <div className={estilosCiclo.filtros}>
-                  <label className={estilosCiclo.filtro}>
-                    <span className="micro" data-sinpunto>Sala</span>
-                    <select
-                      className={estilosCiclo.select}
-                      value={filtroSala}
-                      onChange={(e) => irAFiltro(e.target.value, filtroClase)}
-                    >
-                      <option value={SIN_FILTRO}>Todas las salas</option>
-                      {salas.map((s) => (
-                        <option key={s.slug} value={s.slug}>{s.nombre}</option>
-                      ))}
-                      <option value={SIN_SALA}>{ETIQUETA_SIN_SALA}</option>
-                    </select>
-                  </label>
-                  <label className={estilosCiclo.filtro}>
-                    <span className="micro" data-sinpunto>Clase de junta</span>
-                    <select
-                      className={estilosCiclo.select}
-                      value={filtroClase}
-                      onChange={(e) => irAFiltro(filtroSala, e.target.value)}
-                    >
-                      <option value={SIN_FILTRO}>Todas las clases</option>
-                      {clasesDelCatalogo.map((p) => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
-                      ))}
-                      <option value={SIN_CLASIFICAR}>{etiquetaDeClase(null)}</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              {/* LEYENDA — qué sala es cada color, para leer el filo de
-                  color de las tarjetas de "Próximas" (aquí mismo) y del
-                  resto del ciclo (`/reuniones`, `page.tsx`) sin adivinar. */}
-              {salas.length > 0 && (
-                <div>
-                  <p className={estilosCiclo.huecoTitulo}>Leyenda</p>
-                  <ul className={estilosCiclo.leyendaLista}>
-                    {salas.map((s) => (
-                      <li key={s.slug} className={estilosCiclo.leyendaItem}>
-                        <span className={estilosCiclo.leyendaPunto} style={{ '--sala': s.color } as React.CSSProperties} />
-                        {s.nombre}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* "POR CONFIRMAR" Y "FALTA SU MINUTA" (`page.tsx`, ya armadas) — EL
