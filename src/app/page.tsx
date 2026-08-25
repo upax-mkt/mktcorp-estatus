@@ -537,11 +537,26 @@ export default async function Hub() {
                   /* Apagada si está en pausa: es la señal entera, y por eso ya
                      no hace falta un módulo aparte para ella. */
                   className={`tarjeta ${estilos.sala}${s.activa === false ? ` ${estilos.salaPausada}` : ''}`}
+                  /* Lo que hay que atender se ve ANTES de leer: nueve tarjetas
+                     idénticas obligan a leerlas una por una para encontrar la
+                     que debe algo. SOLO los vencidos — "sin próxima reunión"
+                     lo están hoy ocho de nueve, y una excepción que llevan
+                     casi todas no es una señal (ver el comentario en
+                     `hub.module.css`). */
+                  data-atencion={vencidos > 0 ? 'vencidos' : undefined}
                   style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
                 >
-                  {/* El logotipo ES el nombre: la marca identifica más rápido
-                      que su nombre escrito en la tipografía del sistema. Las
-                      nueve tienen el suyo — Ceci, su firma. */}
+                  {/* ═══ IDENTIDAD Y ESTADO, EN LA MISMA LÍNEA (25-ago-2026) ═══
+                      Franco: *"las cards de cada cliente en el home son muy
+                      feas, sin diseño"*.
+
+                      El logotipo ocupaba la fila entera y los chips vivían al
+                      fondo a la izquierda, así que la mitad derecha de cada
+                      tarjeta —352×157— era hueco. Ahora comparten fila: quién
+                      es a la izquierda, qué debe a la derecha. Se llena el
+                      vacío y, de paso, el estado sube al sitio donde el ojo
+                      llega primero al barrer una rejilla de nueve. */}
+                  <div className={estilos.salaCabecera}>
                   <span className={estilos.salaLogo}>
                     <Image
                       // logoUrl de la fila, y solo si es null cae al archivo
@@ -558,20 +573,49 @@ export default async function Hub() {
                     />
                   </span>
 
+                  {/* ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
+                      cosmética: `acuerdosAbiertos`/`acuerdosVencidos` (ver
+                      dominio/salas.ts) devuelven 0 para una sala congelada a
+                      propósito —sus compromisos están parados, no vencidos—,
+                      así que sin este caso la tarjeta de Zeus diría "al día",
+                      que es una afirmación sobre un trabajo que nadie está
+                      haciendo. */}
+                  <div className={estilos.salaChips}>
+                    {s.activa === false ? (
+                      <span className="pildora">en pausa{s.pausadaDesde ? ` · ${fechaBreve(s.pausadaDesde)}` : ''}</span>
+                    ) : (
+                      <>
+                        {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
+                        {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
+                        {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
+                        {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
+                      </>
+                    )}
+                  </div>
+                  </div>
+
                   <div className={estilos.salaCuando}>
+                    {/* ⚠️ LA ETIQUETA VA DELANTE Y PEQUEÑA, no debajo y en
+                        mayúsculas. Ese patrón —valor grande, rótulo debajo,
+                        repetido— es la plantilla hero-métrica que el propio
+                        PRODUCT.md lista como anti-referencia ("número gigante
+                        + label + stats"). Y ponía a competir dos datos del
+                        mismo tamaño: cuándo fue la última y cuándo es la
+                        próxima, ninguno mandando. Ahora el rótulo se subordina
+                        y el valor se lee solo. */}
                     <span className={estilos.salaDato}>
+                      <span className={estilos.salaDatoK}>última</span>
                       <span className={estilos.salaDatoV} data-temp={t}>
                         {textoDiasDesde(s.diasDesdeUltima)}
                       </span>
-                      <span className="micro" data-sinpunto>última</span>
                     </span>
                     <span className={estilos.salaDato}>
+                      <span className={estilos.salaDatoK}>próxima</span>
                       <span className={estilos.salaDatoV} data-pendiente={s.proximaReunion ? undefined : 'true'}>
                         {s.proximaReunion
                           ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
                           : 'por agendar'}
                       </span>
-                      <span className="micro" data-sinpunto>próxima</span>
                     </span>
                   </div>
 
@@ -604,25 +648,6 @@ export default async function Hub() {
                     <span />
                   )}
 
-                  {/* ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
-                      cosmética: `acuerdosAbiertos`/`acuerdosVencidos` (ver
-                      dominio/salas.ts) devuelven 0 para una sala congelada a
-                      propósito —sus compromisos están parados, no vencidos—,
-                      así que sin este caso la tarjeta de Zeus diría "al día",
-                      que es una afirmación sobre un trabajo que nadie está
-                      haciendo. */}
-                  <div className={estilos.salaChips}>
-                    {s.activa === false ? (
-                      <span className="pildora">en pausa{s.pausadaDesde ? ` · ${fechaBreve(s.pausadaDesde)}` : ''}</span>
-                    ) : (
-                      <>
-                        {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
-                        {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
-                        {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
-                        {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
-                      </>
-                    )}
-                  </div>
                 </Link>
               )
             })}
