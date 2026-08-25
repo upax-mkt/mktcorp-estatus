@@ -148,6 +148,30 @@ export interface CompetidorBenchmark {
   paid?: string
 }
 
+/**
+ * UN COMPETIDOR QUE EL ANÁLISIS NO CUBRIÓ Y DEBERÍA.
+ *
+ * Existe porque un benchmark miente por omisión con más facilidad que por
+ * error: la lista de `competidores` se lee como "contra quién competimos", y
+ * si alguien real falta de ella, el lector concluye que no existe. El de
+ * Research Land analiza cinco agencias ad-hoc y deja fuera categorías
+ * ENTERAS —los de datos continuos, los de opinión pública, los tech-led de
+ * autoservicio—, y esa ausencia no se veía por ningún lado.
+ *
+ * NO son competidores de segunda: son los que todavía no se han medido. Por
+ * eso llevan `porQueImporta` en vez de `dondeSeLeGana`: de ellos se sabe que
+ * están y por qué habría que mirarlos, no cómo ganarles. Cuando uno se
+ * analice de verdad, sube a `competidores` y sale de aquí.
+ */
+export interface CompetidorAusente {
+  nombre: string
+  /** De qué grupo es: "Datos continuos", "Opinión pública", "Tech-led"… */
+  categoria: string
+  /** Por qué habría que medirlo. Es lo único que justifica nombrarlo. */
+  porQueImporta: string
+  amenaza: AmenazaBenchmark
+}
+
 /** Una fila de cualquier matriz de niveles: la UDN primero, luego los cinco. */
 export interface FilaMatrizBenchmark {
   variable: string
@@ -253,6 +277,12 @@ export interface Benchmark {
     CompetidorBenchmark,
     CompetidorBenchmark,
   ]
+  /**
+   * Quién NO está medido en este análisis y debería. Vacío u omitido = el
+   * análisis cubre su categoría entera, que casi nunca es verdad: si nadie lo
+   * ha revisado, es mejor dejarlo omitido que afirmar una cobertura completa.
+   */
+  ausentes?: CompetidorAusente[]
   /** La matriz de posicionamiento: variables × actores, en la escala de 4. */
   matriz: FilaMatrizBenchmark[]
   /** El resumen ejecutivo. BREVE: lo largo va en su sección. */

@@ -1587,6 +1587,50 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   background: color-mix(in oklch, var(--tibia) 18%, transparent); color: var(--tibia);
 }
 
+/* ── TODAVÍA SIN MEDIR ────────────────────────────────────────────────────
+   Los competidores que el análisis no cubrió. Deliberadamente MÁS LIGEROS que
+   las tarjetas de arriba: sin filete de amenaza, sin fondo propio, en filas y
+   no en tarjetas. La jerarquía es la información — de estos se sabe que
+   están, no cómo ganarles—, y darles la misma caja que a un competidor
+   analizado diría que se sabe de ellos lo mismo, que es justo lo contrario de
+   lo que este bloque existe para decir. */
+.bmAusentes {
+  margin-top: 1.5rem; padding-top: 1.25rem;
+  border-top: 1px dashed var(--borde-fuerte);
+}
+.bmAusentesTitulo {
+  margin: 0 0 0.35rem; font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em;
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+}
+.bmAusentesNota {
+  margin: 0 0 0.9rem; font-size: 0.82rem; line-height: 1.55; color: var(--tx-3);
+  max-width: 70ch;
+}
+.bmAusentesLista {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+}
+.bmAusente {
+  display: grid; gap: 0.3rem; align-content: start;
+  padding: 0.7rem 0.85rem; border-radius: var(--r-1, 8px);
+  background: var(--superficie-2);
+}
+/* ⚠️ EL NOMBRE EN SU PROPIA FILA, y los dos metadatos debajo. Con los tres en
+   un flex-wrap, el salto de línea caía en un sitio distinto en cada tarjeta
+   según lo largo que fuera el nombre —"Worldpanel by Numerator" partía antes
+   que "Enkoll"—, así que la píldora de amenaza aparecía unas veces arriba y
+   otras abajo, y la rejilla se leía desordenada. En grid, las siete cabeceras
+   ocupan las mismas dos filas. */
+.bmAusenteCabeza { display: grid; gap: 0.25rem; justify-items: start; }
+.bmAusenteMeta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.bmAusenteNombre { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em; }
+.bmAusenteCategoria {
+  font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  color: var(--tx-3);
+}
+.bmAusentePorQue { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--tx-2); }
+
 .bmCompetidorLinea {
   margin: 0; display: grid; gap: 0.15rem;
   font-size: 0.86rem; line-height: 1.5; color: var(--tx-2);

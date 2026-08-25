@@ -156,3 +156,74 @@ describe('el benchmark cargado de Promo Espacio', () => {
     expect(pe.indicadores?.[0].valor).toBe(`${resumen.lider} de ${resumen.total}`)
   })
 })
+
+/**
+ * EL BENCHMARK DE RESEARCH LAND. Mismas amarras que las de Promo Espacio —una
+ * fila sin disciplina desaparece de la página sin error ni hueco—, más las
+ * que exige su origen: se transcribió de 27 tablas mirando las láminas
+ * renderizadas, porque el export de texto de Google Slides no las trae, y una
+ * transcripción a mano puede desalinear una tupla sin que nada falle.
+ */
+describe('el benchmark cargado de Research Land', () => {
+  const rl = benchmarkIncrustado('research-land')!
+
+  it('etiqueta TODOS sus gráficos y TODAS sus filas con una disciplina real', () => {
+    const ids = DISCIPLINAS.map((d) => d.id) as string[]
+    for (const g of rl.graficos ?? []) {
+      expect(ids, `gráfico «${g.grafico.titulo}» sin disciplina válida`).toContain(g.bloque)
+    }
+    for (const f of rl.comparativa?.filas ?? []) {
+      expect(ids, `fila «${f.criterio}» sin disciplina válida`).toContain(f.bloque)
+    }
+  })
+
+  it('no deja ningún gráfico ni fila huérfanos al repartir', () => {
+    const bloques = agruparPorDisciplina(rl)
+    const graficos = bloques.reduce((n, b) => n + b.graficos.length, 0)
+    const filas = bloques.reduce((n, b) => n + b.filas.length, 0)
+    expect(graficos).toBe(rl.graficos?.length ?? 0)
+    expect(filas).toBe(rl.comparativa?.filas.length ?? 0)
+  })
+
+  /**
+   * ⚠️ LA AMARRA QUE IMPORTA EN UN BENCHMARK TRANSCRITO A MANO. `matriz[].
+   * competidores` y `comparativa.filas[].valores` son tuplas posicionales: la
+   * posición 2 es Kantar porque `competidores[2]` es Kantar. Si alguien añade
+   * un competidor, o borra uno, o transcribe una fila con cuatro valores en
+   * vez de cinco, TypeScript lo atrapa en el literal pero no en una edición
+   * posterior por script — y la tabla se seguiría dibujando, con cada nivel
+   * corrido una columna. Eso no se ve mirando la pantalla: se ve aquí.
+   */
+  it('cada fila de la matriz y de la tabla trae exactamente un valor por competidor', () => {
+    const n = rl.competidores.length
+    for (const f of rl.matriz) {
+      expect(f.competidores, `matriz: «${f.variable}»`).toHaveLength(n)
+    }
+    for (const f of rl.comparativa?.filas ?? []) {
+      expect(f.valores, `comparativa: «${f.criterio}»`).toHaveLength(n)
+    }
+  })
+
+  /**
+   * Los ausentes son los competidores que el análisis NO cubre. Si alguno se
+   * colara también en `competidores`, la página lo enseñaría dos veces con
+   * dos lecturas distintas: analizado arriba y sin medir abajo.
+   */
+  it('nadie está a la vez en los competidores medidos y en los que faltan por medir', () => {
+    const medidos = new Set(rl.competidores.map((c) => c.nombre))
+    for (const a of rl.ausentes ?? []) {
+      expect(medidos.has(a.nombre), `«${a.nombre}» está en las dos listas`).toBe(false)
+    }
+  })
+
+  /**
+   * Cada dato de contexto externo tiene que decir de dónde salió: es la regla
+   * del archivo ("aquí no se escribe nada que no esté en el análisis o en una
+   * fuente citada") y es lo que separa este bloque de una opinión.
+   */
+  it('todo dato de mercado viene con su fuente', () => {
+    for (const m of rl.mercado ?? []) {
+      expect(m.fuente.length, `«${m.dato.slice(0, 40)}…» sin fuente`).toBeGreaterThan(10)
+    }
+  })
+})

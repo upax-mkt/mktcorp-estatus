@@ -408,6 +408,47 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
               </li>
             ))}
           </ul>
+
+          {/* ⚠️ QUIÉN NO ESTÁ MEDIDO, y por qué eso importa tanto como quién sí.
+              Una lista de competidores se lee como "contra quién competimos":
+              si alguien real falta, el lector concluye que no existe. El
+              benchmark de Research Land analiza cinco agencias ad-hoc y deja
+              fuera categorías enteras —datos continuos, opinión pública,
+              autoservicio tech-led—, y un comercial que prepara una reunión
+              con esa lista cree tener el mapa completo.
+
+              Van al final de esta sección y no en una propia: el sitio donde
+              se pregunta "contra quién competimos" es donde hay que responder
+              "y contra estos otros, que aún no hemos medido". */}
+          {benchmark.ausentes && benchmark.ausentes.length > 0 && (
+            <div className={estilos.bmAusentes}>
+              <h3 className={estilos.bmAusentesTitulo}>
+                Todavía sin medir
+                <span className={estilos.conteo}>{benchmark.ausentes.length} fuera del análisis</span>
+              </h3>
+              <p className={estilos.bmAusentesNota}>
+                Compiten en el mercado de Research Land y este análisis no los cubre. No están
+                comparados en la matriz ni en las cifras: se nombran para que la lista de arriba no
+                se lea como el mapa completo.
+              </p>
+              <ul className={estilos.bmAusentesLista}>
+                {benchmark.ausentes.map((a) => (
+                  <li key={a.nombre} className={estilos.bmAusente} data-amenaza={a.amenaza}>
+                    <div className={estilos.bmAusenteCabeza}>
+                      <span className={estilos.bmAusenteNombre}>{a.nombre}</span>
+                      <span className={estilos.bmAusenteMeta}>
+                        <span className={estilos.bmAusenteCategoria}>{a.categoria}</span>
+                        <span className={estilos.bmAmenaza} data-amenaza={a.amenaza}>
+                          {ETIQUETA_AMENAZA[a.amenaza]}
+                        </span>
+                      </span>
+                    </div>
+                    <p className={estilos.bmAusentePorQue}>{a.porQueImporta}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         {/* 5. EL CUERPO: DISCIPLINA POR DISCIPLINA. */}
