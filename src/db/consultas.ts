@@ -397,7 +397,6 @@ async function estadoDeSalaDB(slug: string): Promise<EstadoSala | undefined> {
     slug,
     nombre: tema.nombre,
     color: tema.primario,
-    gradiente: tema.gradiente,
     diasDesdeUltima: ultima ? diasEntre(new Date(ultima.fecha), ahora) : null,
     // `diaCivil(ultima.fecha)`/`diaCivil(proxima.fecha)`, no
     // `isoFecha(new Date(...))` (hallazgo 2 de la revisión final de la
