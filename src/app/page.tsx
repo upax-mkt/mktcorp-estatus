@@ -537,117 +537,108 @@ export default async function Hub() {
                   /* Apagada si está en pausa: es la señal entera, y por eso ya
                      no hace falta un módulo aparte para ella. */
                   className={`tarjeta ${estilos.sala}${s.activa === false ? ` ${estilos.salaPausada}` : ''}`}
-                  /* Lo que hay que atender se ve ANTES de leer: nueve tarjetas
-                     idénticas obligan a leerlas una por una para encontrar la
-                     que debe algo. SOLO los vencidos — "sin próxima reunión"
-                     lo están hoy ocho de nueve, y una excepción que llevan
-                     casi todas no es una señal (ver el comentario en
-                     `hub.module.css`). */
-                  data-atencion={vencidos > 0 ? 'vencidos' : undefined}
                   style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
                 >
-                  {/* ═══ IDENTIDAD Y ESTADO, EN LA MISMA LÍNEA (25-ago-2026) ═══
-                      Franco: *"las cards de cada cliente en el home son muy
-                      feas, sin diseño"*.
+                  {/* ═══ CADA TARJETA SE VISTE DE SU MARCA (25-ago-2026) ═══════
+                      Franco, sobre el intento anterior: *"no veo nada nuevo en
+                      el diseño, además unos tienen background distintos y
+                      siguen siendo horribles, cambia el diseño"*.
 
-                      El logotipo ocupaba la fila entera y los chips vivían al
-                      fondo a la izquierda, así que la mitad derecha de cada
-                      tarjeta —352×157— era hueco. Ahora comparten fila: quién
-                      es a la izquierda, qué debe a la derecha. Se llena el
-                      vacío y, de paso, el estado sube al sitio donde el ojo
-                      llega primero al barrer una rejilla de nueve. */}
-                  <div className={estilos.salaCabecera}>
-                  <span className={estilos.salaLogo}>
+                      Las dos cosas eran ciertas. Lo anterior fue reordenar lo
+                      mismo —los datos cambiaron de sitio, la tarjeta seguía
+                      siendo un rectángulo blanco con un filo de 3 px— y encima
+                      el tinte que marcaba los vencidos hacía que unas salas
+                      tuvieran fondo y otras no, sin que se entendiera por qué.
+
+                      Ahora la tarjeta ES la sala en miniatura: la misma banda
+                      de degradado con el logotipo en blanco que recibe a
+                      quien entra a `/cliente/<slug>`. No es un adorno nuevo:
+                      es la gramática que la app ya usa para vestir a cada
+                      cliente, y cumple lo que el PRODUCT.md pide —"cada sala
+                      reconoce su casa"— en el sitio donde están las nueve
+                      juntas. El color ya no significa "esto está mal": es de
+                      quién es la tarjeta. */}
+                  <span
+                    className={estilos.salaMarca}
+                    style={{
+                      '--grad': s.gradiente && s.gradiente.length > 1
+                        ? `linear-gradient(115deg, ${s.gradiente.join(', ')})`
+                        : s.color,
+                    } as CSSProperties}
+                  >
+                    {/* El logotipo EN BLANCO sobre su degradado. Con un logo
+                        subido desde `/salas` no hay variante blanca que pedir
+                        —es el archivo que cargó el equipo—, así que ese va
+                        sobre una pastilla clara para que se lea igual. */}
                     <Image
-                      // logoUrl de la fila, y solo si es null cae al archivo
-                      // estático (revisión final de la rama, punto 3) — ver
-                      // `archivoDeLogo`, src/temas/logos.ts.
-                      src={archivoDeLogo(s.slug, 'color', s.logoUrl)}
+                      src={archivoDeLogo(s.slug, s.logoUrl ? 'color' : 'blanco', s.logoUrl)}
                       alt={s.nombre}
                       width={180}
                       height={40}
-                      className={estilos.salaLogoImg}
-                      // Cada marca a SU altura: igualar alturas hace que un
-                      // logotipo apaisado ocupe cuatro veces más mancha.
+                      className={s.logoUrl ? estilos.salaLogoSubido : estilos.salaLogoImg}
                       style={{ '--alto-logo': `${altoDeLogo(s.slug)}px` } as CSSProperties}
                     />
                   </span>
 
-                  {/* ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
-                      cosmética: `acuerdosAbiertos`/`acuerdosVencidos` (ver
-                      dominio/salas.ts) devuelven 0 para una sala congelada a
-                      propósito —sus compromisos están parados, no vencidos—,
-                      así que sin este caso la tarjeta de Zeus diría "al día",
-                      que es una afirmación sobre un trabajo que nadie está
-                      haciendo. */}
-                  <div className={estilos.salaChips}>
-                    {s.activa === false ? (
-                      <span className="pildora">en pausa{s.pausadaDesde ? ` · ${fechaBreve(s.pausadaDesde)}` : ''}</span>
-                    ) : (
-                      <>
-                        {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
-                        {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
-                        {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
-                        {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
-                      </>
-                    )}
-                  </div>
-                  </div>
-
-                  <div className={estilos.salaCuando}>
-                    {/* ⚠️ LA ETIQUETA VA DELANTE Y PEQUEÑA, no debajo y en
-                        mayúsculas. Ese patrón —valor grande, rótulo debajo,
-                        repetido— es la plantilla hero-métrica que el propio
-                        PRODUCT.md lista como anti-referencia ("número gigante
-                        + label + stats"). Y ponía a competir dos datos del
-                        mismo tamaño: cuándo fue la última y cuándo es la
-                        próxima, ninguno mandando. Ahora el rótulo se subordina
-                        y el valor se lee solo. */}
-                    <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoK}>última</span>
-                      <span className={estilos.salaDatoV} data-temp={t}>
-                        {textoDiasDesde(s.diasDesdeUltima)}
-                      </span>
-                    </span>
-                    <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoK}>próxima</span>
-                      <span className={estilos.salaDatoV} data-pendiente={s.proximaReunion ? undefined : 'true'}>
-                        {s.proximaReunion
-                          ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
-                          : 'por agendar'}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* SIN EMPEZAR NO ES 0%. Con el deck recién creado, esto
-                      pintaba "0 de 8 secciones · 0%" y una barra vacía: dos
-                      ceros y una línea gris que se leen como "esto va mal",
-                      cuando lo único que dicen es que la presentación aún no
-                      se ha tocado. Tres de los ocho clientes salían así.
-                      Empezado, la barra vuelve —ahí sí compara y ahí sí
-                      significa avance. */}
-                  {s.enPreparacion && s.seccionesTotales ? (
-                    <div className={estilos.salaAvance}>
-                      <span className={estilos.salaAvanceTexto}>
-                        {!s.seccionesEscritas ? (
-                          <span>sin empezar · {s.seccionesTotales} secciones</span>
-                        ) : (
-                          <>
-                            <span>{s.seccionesEscritas} de {s.seccionesTotales} secciones</span>
-                            <span>{s.avancePreparacion}%</span>
-                          </>
-                        )}
-                      </span>
-                      {(s.seccionesEscritas ?? 0) > 0 && (
-                        <span className={estilos.salaBarra}>
-                          <span className={estilos.salaBarraRelleno} style={{ width: `${s.avancePreparacion ?? 0}%` }} />
+                  <div className={estilos.salaCuerpo}>
+                    <div className={estilos.salaCuando}>
+                      {/* La clave delante y pequeña: valor grande con rótulo en
+                          mayúsculas debajo es la plantilla hero-métrica que el
+                          PRODUCT.md lista como anti-referencia. */}
+                      <span className={estilos.salaDato}>
+                        <span className={estilos.salaDatoK}>última</span>
+                        <span className={estilos.salaDatoV} data-temp={t}>
+                          {textoDiasDesde(s.diasDesdeUltima)}
                         </span>
+                      </span>
+                      <span className={estilos.salaDato}>
+                        <span className={estilos.salaDatoK}>próxima</span>
+                        <span className={estilos.salaDatoV} data-pendiente={s.proximaReunion ? undefined : 'true'}>
+                          {s.proximaReunion
+                            ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
+                            : 'por agendar'}
+                        </span>
+                      </span>
+                    </div>
+
+                    {s.enPreparacion && s.seccionesTotales ? (
+                      <div className={estilos.salaAvance}>
+                        <span className={estilos.salaAvanceTexto}>
+                          {!s.seccionesEscritas ? (
+                            <span>sin empezar · {s.seccionesTotales} secciones</span>
+                          ) : (
+                            <>
+                              <span>{s.seccionesEscritas} de {s.seccionesTotales} secciones</span>
+                              <span>{s.avancePreparacion}%</span>
+                            </>
+                          )}
+                        </span>
+                        {(s.seccionesEscritas ?? 0) > 0 && (
+                          <span className={estilos.salaBarra}>
+                            <span className={estilos.salaBarraRelleno} style={{ width: `${s.avancePreparacion ?? 0}%` }} />
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {/* ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS.
+                        `acuerdosAbiertos`/`acuerdosVencidos` devuelven 0 para
+                        una sala congelada a propósito —sus compromisos están
+                        parados, no vencidos—, así que sin este caso la tarjeta
+                        de Zeus diría "al día" sobre trabajo que nadie hace. */}
+                    <div className={estilos.salaChips}>
+                      {s.activa === false ? (
+                        <span className="pildora">en pausa{s.pausadaDesde ? ` · ${fechaBreve(s.pausadaDesde)}` : ''}</span>
+                      ) : (
+                        <>
+                          {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
+                          {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
+                          {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
+                          {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
+                        </>
                       )}
                     </div>
-                  ) : (
-                    <span />
-                  )}
-
+                  </div>
                 </Link>
               )
             })}

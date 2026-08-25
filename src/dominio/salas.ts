@@ -69,6 +69,17 @@ export interface EstadoSala {
   nombre: string
   color: string
   /**
+   * Las paradas del degradado de su marca (25-ago-2026), para que la tarjeta
+   * del Home se vista como la cabecera de su propia sala en vez de ser un
+   * rectángulo blanco con un filo de 3 px. Es el mismo `Tema.gradiente` que
+   * ya usa `/cliente/[slug]`.
+   *
+   * Opcional: el store en memoria (sin DATABASE_URL) no lo modela, y una sala
+   * sin él cae a su primario — un degradado de una sola parada no degrada
+   * nada, pero tampoco rompe la tarjeta.
+   */
+  gradiente?: string[]
+  /**
    * El logo subido desde `/salas` (tarea 6), o `null` si la sala todavía usa
    * el archivo estático de `/public/logos` (revisión final de la rama, punto
    * 3). Ver `archivoDeLogo`, src/temas/logos.ts — es el dato que le falta
