@@ -57,6 +57,7 @@ import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
 import {
   marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion, eliminarReunion, crearReunion,
+  editarReunion,
 } from '@/db/reuniones'
 import {
   documentoDeReunion, eliminarDocumentoDeReunion, tituloPorDefecto,
@@ -1044,6 +1045,54 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * no. Los acuerdos ya publicados NO se van: cuelgan de la sala y pueden
    * llevar semanas moviéndose (`eliminarReunion` les suelta el origen).
    */
+  /**
+   * RENOMBRAR UNA REUNIÓN DESDE SU PROPIA SALA.
+   *
+   * Franco: *"no puedo cambiar el nombre de una reunión que ya ocurrió desde
+   * la sala de un cliente"*. Era cierto y el hueco era llamativo: en esta
+   * misma pantalla se podía renombrar un ARCHIVO de la reunión con su lápiz
+   * (`editarArchivoAction`, arriba), pero el título de la reunión —el que da
+   * nombre a la fila entera, al historial y a la minuta— solo se podía tocar
+   * desde el formulario completo de `/reuniones`, que además de estar en otra
+   * pantalla exige repasar fecha, tipo, clase, participantes y lugar para
+   * cambiar una palabra.
+   *
+   * ⚠️ SOLO EL TÍTULO, Y POR ESO NO REUTILIZA `editarReunionAction`. La acción
+   * de `/reuniones` recibe el formulario entero (`DatosFormulario`), así que
+   * llamarla desde aquí obligaría a inventar valores para los campos que esta
+   * pantalla no pregunta — y cualquier omisión los sobrescribiría. `editarReunion`
+   * distingue `undefined` ("no lo toques") de un valor, así que pasarle solo
+   * `titulo` deja fecha, tipo, participantes y lugar exactamente como estaban.
+   * La clase también: su validación acepta `undefined` y el `!== undefined` de
+   * `editarReunion` no la escribe, de modo que renombrar NO desclasifica una
+   * junta (que es justo el defecto que la ronda 14.2 tuvo que arreglar en la
+   * dirección contraria).
+   *
+   * Y COMPRUEBA QUE LA REUNIÓN SEA DE ESTA SALA, igual que `eliminarReunionAction`:
+   * el id viaja desde el navegador, así que sin este filtro un editor podría
+   * renombrar la junta de otro cliente pasando su id a mano.
+   */
+  async function renombrarReunionAction(
+    reunionId: string,
+    titulo: string,
+  ): Promise<{ error?: string }> {
+    'use server'
+    await exigirEditor()
+    const laReunion = await obtenerReunion(reunionId)
+    if (!laReunion || laReunion.salaSlug !== slug) {
+      return { error: 'Esa reunión no es de este cliente.' }
+    }
+    try {
+      await editarReunion(reunionId, { titulo })
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'No se pudo renombrar la reunión.' }
+    }
+    revalidatePath(`/cliente/${slug}`)
+    revalidatePath('/reuniones')
+    revalidatePath('/')
+    return {}
+  }
+
   async function eliminarReunionAction(reunionId: string): Promise<{ error?: string }> {
     'use server'
     await exigirEditor()
@@ -1631,6 +1680,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
             salaSlug={slug}
             registrarArchivoAction={registrarArchivoAction}
             editarArchivoAction={editarArchivoAction}
+            renombrarReunionAction={renombrarReunionAction}
             eliminarReunionAction={eliminarReunionAction}
             descartarBorradorAction={equipo ? descartarBorradorAction : undefined}
             marcarDadaAction={marcarPresentadaAction}

@@ -415,6 +415,13 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
 }
 .reunionCabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+/* ⚠️ LA COLUMNA DEL TÍTULO CRECE. Sin esto es un ítem flex con `flex: 0 1
+   auto`, así que se encoge a lo que mida su contenido —medido: 349 px de los
+   910 de la fila— y al renombrar, el campo de texto heredaba ese ancho: se
+   editaba un título que no cabía entero dentro de su propio input. Es también
+   la razón de que un `min-width` puesto en `.tituloEditando` no sirviera de
+   nada: su `100%` se resolvía contra estos mismos 349. */
+.reunionCabecera > div:first-child { flex: 1 1 auto; min-width: 0; }
 .presTag {
   display: inline-flex;
   align-items: center;
@@ -440,6 +447,74 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
   letter-spacing: -0.015em;
 }
 .presFecha { display: block; font-size: 0.82rem; line-height: 1.4; color: var(--tx-2); }
+
+/* ── RENOMBRAR UNA REUNIÓN ────────────────────────────────────────────────
+   Franco: *"no puedo cambiar el nombre de una reunión que ya ocurrió desde la
+   sala de un cliente"*. El gesto es DELIBERADAMENTE el mismo que ya usan los
+   archivos de la reunión en esta pantalla (ver `.caraLapiz` en
+   CarasDeReunion.module.css): lápiz escondido que aparece al acercarse, y al
+   pulsarlo el título se convierte en un campo con Guardar y Cancelar. Dos
+   gestos distintos para la misma operación en la misma pantalla es lo que
+   hace que una interfaz se sienta improvisada.
+
+   El lápiz no se ve hasta que hace falta, por la misma razón que allí: esta
+   pantalla también la abre el director de la UDN, y un botón de edición
+   permanente junto a cada título es ruido para quien solo viene a leer. */
+.tituloConLapiz { display: flex; align-items: baseline; gap: 0.35rem; min-width: 0; }
+.tituloConLapiz > :first-child { min-width: 0; }
+.tituloLapiz {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.7rem; height: 1.7rem; padding: 0; flex: none;
+  border: none; border-radius: var(--r-lleno); background: none;
+  color: var(--tx-3); font-size: 0.85rem; cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease, background 140ms ease, color 140ms ease;
+}
+.tituloConLapiz:hover .tituloLapiz,
+.tituloLapiz:focus-visible { opacity: 1; }
+.tituloLapiz:hover { background: var(--superficie-2); color: var(--tx); }
+.tituloLapiz:focus-visible { outline: 2px solid var(--marca, var(--tx)); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .tituloLapiz { transition: none; } }
+
+.tituloEditando {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  margin: 0.3rem 0 0.2rem;
+  /* Pide ancho para el nombre completo. Sin esto la fila la marcaba el título
+     pintado —que es corto— y el campo salía a ~180 px: se editaba un texto
+     que no cabía entero y había que desplazarlo dentro del input para leerlo.
+     `min()` para que en móvil no fuerce desbordamiento. */
+  min-width: 0;
+}
+.tituloInput {
+  font: inherit; font-size: 0.95rem; font-weight: 650; color: var(--tx);
+  /* Base pequeña (8rem) y no 14: el título vive en una columna estrecha de la
+     cabecera —al lado del botón de cerrar—, así que con una base grande el
+     input se comía la fila y tiraba "Cancelar" a un renglón propio. */
+  flex: 1 1 8rem; min-width: 6rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--r-2);
+  background: var(--superficie);
+}
+.tituloInput:focus { outline: none; border-color: var(--marca, var(--tx)); }
+.tituloGuardar, .tituloCancelar {
+  font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; flex: none;
+  padding: 0.35rem 0.7rem; border-radius: var(--r-lleno); border: 1px solid transparent;
+}
+/* ⚠️ TINTA SOBRE PAPEL, NO MARCA SOBRE MARCA-TEXTO. Primero se escribió
+   `background: var(--marca); color: var(--marca-texto)` y el botón salió
+   VACÍO en el print: en esta app `--marca-texto` NO es "el color legible
+   sobre la marca" sino "el color de la marca corregido para leerse sobre
+   blanco" (ver `colorDeTextoDeMarca`), así que las dos variables resolvían
+   casi al mismo morado y el texto desaparecía dentro de su propia píldora.
+   El par que sí es un contraste garantizado, y el que ya usa el resto de la
+   hoja para un botón sólido, es --tx sobre --papel. */
+.tituloGuardar { background: var(--tx); color: var(--papel); }
+.tituloGuardar:disabled { opacity: 0.55; cursor: default; }
+.tituloCancelar { background: none; border-color: var(--borde-fuerte); color: var(--tx-2); }
+.tituloCancelar:hover:not(:disabled) { background: var(--superficie-2); }
+/* El fallo se queda a la vista y en su propia línea: si comparte renglón con
+   los botones, un mensaje largo los empuja fuera de la caja. */
+.tituloError { flex: 1 0 100%; font-size: 0.8rem; color: var(--mal); }
 
 .historialAnterior { display: grid; gap: 0.75rem; margin-top: 0.2rem; }
 .historialAnteriorCabecera { display: flex; align-items: center; gap: 0.8rem; }

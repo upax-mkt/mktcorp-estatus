@@ -25,6 +25,117 @@ import estilos from '@/app/cliente/cliente.module.css'
 import caras from './reuniones/CarasDeReunion.module.css'
 
 /**
+ * EL TÍTULO DE UNA REUNIÓN, CON SU LÁPIZ.
+ *
+ * Franco: *"no puedo cambiar el nombre de una reunión que ya ocurrió desde la
+ * sala de un cliente"*. En esta misma pantalla el lápiz ya existía para los
+ * ARCHIVOS de la reunión (`ArchivoDeReunion`, en `CarasDeReunion.tsx`) pero no
+ * para la reunión misma, así que se podía corregir el nombre del PDF y no el
+ * de la junta a la que pertenece.
+ *
+ * MISMO PATRÓN QUE EL DE LOS ARCHIVOS, a propósito: alterna entre pintar
+ * (título + lápiz) y editar (input + Guardar/Cancelar), con las mismas
+ * palabras en los botones. Un segundo gesto para la misma operación en la
+ * misma pantalla es exactamente lo que hace que una interfaz se sienta
+ * improvisada.
+ *
+ * `Etiqueta` porque los dos sitios donde vive un título de reunión usan nivel
+ * distinto —`h3` en la destacada, `h4` en las anteriores— y bajar el nivel del
+ * encabezado para poder reutilizar el componente rompería el esquema del
+ * documento para un lector de pantalla.
+ */
+function TituloDeReunion({
+  reunion,
+  equipo,
+  renombrarAction,
+  Etiqueta,
+  className,
+  id,
+}: {
+  reunion: Reunion
+  equipo: boolean
+  renombrarAction?: (id: string, titulo: string) => Promise<{ error?: string }>
+  Etiqueta: 'h3' | 'h4'
+  className?: string
+  id?: string
+}) {
+  const [editando, setEditando] = useState(false)
+  const [titulo, setTitulo] = useState(reunion.titulo)
+  const [error, setError] = useState<string | null>(null)
+  const [pendiente, empezar] = useTransition()
+
+  // Las dos condiciones, como en los archivos: un director de UDN nunca
+  // recibe la acción, y un llamador que se olvide de pasarla no deja un lápiz
+  // que no hace nada.
+  const puedeEditar = equipo && Boolean(renombrarAction)
+
+  if (puedeEditar && editando) {
+    return (
+      <div className={estilos.tituloEditando}>
+        <input
+          type="text"
+          className={estilos.tituloInput}
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          aria-label={`Título de la reunión ${reunion.titulo}`}
+          autoFocus
+          onKeyDown={(e) => {
+            // Enter guarda y Escape cancela: en un campo de una sola línea es
+            // lo que la mano espera, y sin ellos hay que ir al ratón para
+            // confirmar un cambio de una palabra.
+            if (e.key === 'Escape') { setTitulo(reunion.titulo); setError(null); setEditando(false) }
+          }}
+        />
+        <button
+          type="button"
+          className={estilos.tituloGuardar}
+          disabled={pendiente || titulo.trim().length === 0}
+          onClick={() =>
+            empezar(async () => {
+              const r = await renombrarAction!(reunion.id, titulo.trim())
+              // ⚠️ SI FALLA, NO SE CIERRA. Cerrar igual dejaría en pantalla el
+              // título viejo con la sensación de que se guardó el nuevo, que
+              // es el peor de los dos finales posibles.
+              if (r?.error) { setError(r.error); return }
+              setError(null)
+              setEditando(false)
+            })
+          }
+        >
+          {pendiente ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button
+          type="button"
+          className={estilos.tituloCancelar}
+          disabled={pendiente}
+          onClick={() => { setTitulo(reunion.titulo); setError(null); setEditando(false) }}
+        >
+          Cancelar
+        </button>
+        {error && <span className={estilos.tituloError} role="alert">{error}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <div className={estilos.tituloConLapiz}>
+      <Etiqueta id={id} className={className}>{reunion.titulo}</Etiqueta>
+      {puedeEditar && (
+        <button
+          type="button"
+          className={estilos.tituloLapiz}
+          onClick={() => setEditando(true)}
+          aria-label={`Cambiar el nombre de la reunión ${reunion.titulo}`}
+          title="Cambiar el nombre"
+        >
+          ✎
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
  * LAS REUNIONES DE UNA SALA: lo que se presentó y lo que se acordó, juntos.
  *
  * Franco: "el módulo Presentaciones y minutas creo que debe ser uno, así la
@@ -219,6 +330,11 @@ interface Props {
    * usa— y porque las suites que montan este componente sin ejercitarla no
    * tienen por qué fabricarla.
    */
+  /**
+   * Cambiar el NOMBRE de una reunión ya ocurrida, desde su propia sala.
+   * Solo el título: ver `renombrarReunionAction` en la página de la sala.
+   */
+  renombrarReunionAction?: (id: string, titulo: string) => Promise<{ error?: string }>
   eliminarReunionAction?: (id: string) => Promise<{ error?: string }>
   /**
    * Tirar el BORRADOR de la presentación sin tocar la reunión (ronda 13). Se
@@ -248,6 +364,7 @@ export function ReunionesSala({
   salaSlug,
   registrarArchivoAction,
   editarArchivoAction,
+  renombrarReunionAction,
   eliminarReunionAction,
   descartarBorradorAction,
   marcarDadaAction,
@@ -482,7 +599,14 @@ export function ReunionesSala({
                   <div className={estilos.reunionCabecera}>
                     <div>
                       <div className={estilos.presTag}>{rotuloDestacada}</div>
-                      <h3 id={tituloId} className={estilos.presTitulo}>{r.titulo}</h3>
+                      <TituloDeReunion
+                        reunion={r}
+                        equipo={equipo}
+                        renombrarAction={renombrarReunionAction}
+                        Etiqueta="h3"
+                        id={tituloId}
+                        className={estilos.presTitulo}
+                      />
                       {/* La misma clave normalizada gobierna esta etiqueta y
                           el grupo de reuniones anteriores. */}
                       <time className={estilos.presFecha} dateTime={r.fecha}>
@@ -561,7 +685,14 @@ export function ReunionesSala({
                               aria-labelledby={reunionTituloId}
                             >
                               <div className={estilos.reunionFilaTexto}>
-                                <h4 id={reunionTituloId} className={estilos.presFilaTitulo}>{r.titulo}</h4>
+                                <TituloDeReunion
+                                  reunion={r}
+                                  equipo={equipo}
+                                  renombrarAction={renombrarReunionAction}
+                                  Etiqueta="h4"
+                                  id={reunionTituloId}
+                                  className={estilos.presFilaTitulo}
+                                />
                                 <time className={estilos.presFilaFecha} dateTime={r.fecha}>
                                   {fechaBreveConAnio(r.fecha)}
                                 </time>

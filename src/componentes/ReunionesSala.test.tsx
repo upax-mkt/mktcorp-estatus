@@ -1118,3 +1118,91 @@ describe('ReunionesSala — borrar una reunión con historia exige teclearlo', (
     expect(screen.getByRole('button', { name: /sí, borrar la reunión/i })).toBeDisabled()
   })
 })
+
+/**
+ * RENOMBRAR UNA REUNIÓN YA OCURRIDA, DESDE LA SALA (25-ago-2026).
+ *
+ * Franco: *"no puedo cambiar el nombre de una reunión que ya ocurrió desde la
+ * sala de un cliente"*. El hueco era llamativo porque el lápiz ya existía en
+ * esta misma pantalla para los ARCHIVOS de la reunión: se podía corregir el
+ * nombre del PDF y no el de la junta a la que pertenece.
+ */
+describe('ReunionesSala — cambiar el nombre de una reunión ya ocurrida', () => {
+  const DADA: Reunion = { ...BASE, id: 'r-julio', fecha: '2026-07-15T10:00:00.000Z', titulo: 'Estatus de Julio' }
+
+  /**
+   * ⚠️ SIN VALOR POR DEFECTO EN EL PARÁMETRO, y esto lo enseñó un test en
+   * rojo. Con `= vi.fn()` como default, pasar `undefined` explícito para
+   * probar "sin acción en mano" activaba el default y el caso NUNCA se
+   * ejercitaba: el helper entregaba un mock justo cuando la prueba quería
+   * comprobar que no había ninguno.
+   */
+  function pintar(
+    equipo: boolean,
+    renombrarReunionAction?: (id: string, titulo: string) => Promise<{ error?: string }>,
+  ) {
+    render(
+      <ReunionesSala
+        reuniones={[DADA]}
+        porVenir={[]}
+        equipo={equipo}
+        salaSlug={SALA_SLUG}
+        registrarArchivoAction={registrarArchivoActionNoop}
+        renombrarReunionAction={renombrarReunionAction}
+      />,
+    )
+    return renombrarReunionAction
+  }
+
+  it('el equipo puede abrir el campo y guardar el nombre nuevo', async () => {
+    const renombrar = pintar(true, vi.fn().mockResolvedValue({}))!
+
+    await userEvent.click(screen.getByRole('button', { name: /cambiar el nombre de la reunión/i }))
+    const campo = screen.getByRole('textbox', { name: /título de la reunión/i })
+    await userEvent.clear(campo)
+    await userEvent.type(campo, 'Estatus mensual de julio')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(renombrar).toHaveBeenCalledWith('r-julio', 'Estatus mensual de julio')
+  })
+
+  /**
+   * ⚠️ SI LA ACCIÓN FALLA, EL CAMPO NO SE CIERRA. Cerrarlo igual dejaría en
+   * pantalla el título viejo justo después de pulsar "Guardar", que se lee
+   * como que se guardó — el peor de los dos finales posibles.
+   */
+  it('si el guardado falla, lo dice y deja el campo abierto', async () => {
+    pintar(true, vi.fn().mockResolvedValue({ error: 'Esa reunión no es de este cliente.' }))
+
+    await userEvent.click(screen.getByRole('button', { name: /cambiar el nombre de la reunión/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esa reunión no es de este cliente.')
+    expect(screen.getByRole('textbox', { name: /título de la reunión/i })).toBeInTheDocument()
+  })
+
+  it('no guarda un nombre vacío', async () => {
+    const renombrar = pintar(true, vi.fn().mockResolvedValue({}))!
+
+    await userEvent.click(screen.getByRole('button', { name: /cambiar el nombre de la reunión/i }))
+    await userEvent.clear(screen.getByRole('textbox', { name: /título de la reunión/i }))
+
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    expect(renombrar).not.toHaveBeenCalled()
+  })
+
+  /**
+   * El director de la UDN abre esta misma pantalla. Nunca recibe la acción, y
+   * sin ella no se le ofrece el lápiz: mismo criterio que ya aplican los
+   * archivos de la reunión.
+   */
+  it('el director de una UDN no ve el lápiz', () => {
+    pintar(false, vi.fn().mockResolvedValue({}))
+    expect(screen.queryByRole('button', { name: /cambiar el nombre de la reunión/i })).toBeNull()
+  })
+
+  it('sin la acción en mano, tampoco se ofrece el lápiz al equipo', () => {
+    pintar(true)
+    expect(screen.queryByRole('button', { name: /cambiar el nombre de la reunión/i })).toBeNull()
+  })
+})
