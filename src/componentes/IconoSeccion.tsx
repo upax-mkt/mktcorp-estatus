@@ -133,6 +133,17 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
         </svg>
       )
 
+    // ⚠️ RADIO 8, Y LOS DOS VALORES QUE SE PROBARON ANTES ESTÁN MEDIDOS.
+    // Se dibujó primero con 8,5: el trazo ocupaba 17x17 de la rejilla de 24
+    // mientras 'acuerdos' ocupa 17x15, así que a la misma caja CSS de 15px el
+    // reloj se veía un 13% más alto que el check de al lado. Franco:
+    // *"algunos se ven más grandes que otros"*. Bajarlo a 7,5 igualaba el
+    // alto (15) pero lo dejaba en 15 de ANCHO contra los 17 de los otros dos,
+    // y un círculo más estrecho que un rectángulo se lee todavía más pequeño:
+    // la compensación óptica va al revés, un círculo necesita algo MÁS de
+    // caja que un cuadrado para pesar igual. Con 8 queda en 16x16 — un punto
+    // por debajo en ancho y entre los dos en alto.
+    //
     // Cuánto tiempo pasó: un reloj. Va con "última sesión" en la tarjeta de
     // cliente, donde el dato NO es una fecha sino un transcurso ("hace 47
     // días"), así que un calendario mentiría — ese acompaña a "próxima", que
@@ -140,8 +151,8 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
     case 'reloj':
       return (
         <svg {...COMUNES} className={className}>
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 7.5V12l3 2" />
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 8V12l2.7 1.7" />
         </svg>
       )
 
@@ -156,10 +167,25 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
 
     // En pausa: las dos barras de siempre. Se entiende sin leer el título, que
     // es justo lo que hace falta en una sección que se salta la mayoría.
+    //
+    // ⚠️ AHORA DENTRO DE UN CÍRCULO, y no las dos barras sueltas de antes.
+    // Medido en el DOM: sueltas ocupaban 5x13 de la rejilla de 24 mientras
+    // sus hermanos ocupan 17x15 o 16x16 — un tercio del ancho. Rompía la
+    // regla que este mismo archivo declara arriba ("todos comparten rejilla
+    // de 24... así un icono es una letra más de su encabezado"), y se veía:
+    // junto a un rótulo, en la tarjeta de una sala en pausa, el dibujo pesaba
+    // visiblemente menos que el reloj de la fila de encima. Con el círculo
+    // pasa a 16x16, la misma mancha que 'reloj', y de paso es el pictograma
+    // de pausa que cualquiera reconoce sin leer.
+    //
+    // Toca también la cabecera "Estado" de los ajustes de una sala (el otro
+    // sitio donde vive este icono), y ahí gana lo mismo: deja de ser el único
+    // encabezado cuyo icono pesa menos que su título.
     case 'pausa':
       return (
         <svg {...COMUNES} className={className}>
-          <path d="M9.5 5.5v13M14.5 5.5v13" />
+          <circle cx="12" cy="12" r="8" />
+          <path d="M10.2 9v6M13.8 9v6" />
         </svg>
       )
 

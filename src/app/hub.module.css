@@ -336,10 +336,16 @@ a.sala {
 }
 /* Del catálogo propio (`IconoSeccion`), a 15px y en el color del rótulo:
    hereda `currentColor`, así que pesa lo mismo que la palabra que acompaña en
-   vez de leerse como una estampa pegada al lado. El nudge de 1px baja el
-   trazo a la línea base de una versalita, que se apoya más arriba que la
-   caja del svg. */
-.salaIcono { width: 15px; height: 15px; flex: none; transform: translateY(1px); }
+   vez de leerse como una estampa pegada al lado.
+
+   ⚠️ SIN `translateY`. Hubo un `transform: translateY(1px)` puesto a ojo
+   "para bajar el trazo a la línea base de la versalita". Medido en el DOM, no
+   corregía nada: el `align-items: center` del rótulo ya centra el icono con
+   su texto, así que ese píxel era desalineación pura, idéntica en los tres
+   iconos, y se veía como que el dibujo se apoyaba en el renglón de abajo.
+   Franco: *"algunos se pegan a la línea de abajo"*. Si vuelve a hacer falta
+   un ajuste aquí, que salga de una medición, no del ojo. */
+.salaIcono { width: 15px; height: 15px; flex: none; }
 .salaValor {
   margin: 0; justify-self: end; text-align: right;
   font-size: 0.88rem; font-weight: 550; color: var(--tinta-2, var(--tinta));
