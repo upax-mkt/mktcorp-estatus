@@ -260,10 +260,11 @@
 }
 .sala {
   position: relative;
-  /* Tres filas, no cuatro: identidad+estado / fechas / avance. Los chips
-     subieron a la primera (25-ago-2026) — ver `.salaCabecera`. */
-  display: grid; grid-template-rows: auto auto 1fr; gap: 0.9rem;
-  padding: 1.35rem 1.4rem 1.25rem;
+  /* Cuatro filas: logotipo / el dato que manda / el pie tabulado / el avance.
+     La última es `1fr` para que el avance —cuando existe— se pegue abajo y
+     las tarjetas de una misma hilera terminen a la misma altura. */
+  display: grid; grid-template-rows: auto auto auto 1fr; gap: 1.15rem;
+  padding: 1.55rem 1.4rem 1.3rem;
   text-decoration: none; color: inherit; overflow: hidden;
   transition: transform var(--rapido) var(--suave), box-shadow var(--rapido) var(--suave);
   /* SIN SOMBRA, PORQUE AHORA VIVE DENTRO DE UNA TARJETA (ronda 12).
@@ -274,97 +275,99 @@
      levantar; la sombra se reserva para el hover, que es cuando significa
      algo ("esto se puede tocar"). */
   box-shadow: none;
-  border: 1px solid var(--linea);
+  background: var(--papel);
+}
+/* ⚠️ `a.sala` Y NO `.sala`: la tarjeta es un <Link>, que también lleva la
+   clase GLOBAL `.tarjeta` — misma especificidad (0-1-0) que esta, así que
+   `border` se resolvía por orden de hoja y ganaba la global, que lo pone en
+   `none`. Medido en el DOM: `borderTopWidth: 0px`. El síntoma es sutil y
+   desorienta: la caja es blanca sobre una sección blanca, así que sin filo la
+   tarjeta desaparece y el acento de marca de 3px queda flotando como una raya
+   suelta encima del logotipo. El elemento sube el selector a 0-1-1 y gana.
+   Si alguien vuelve a escribir `.sala { border: ... }` a secas, no pasará
+   nada en pantalla y parecerá que el CSS "no se aplica". */
+a.sala {
+  /* Más marcado que `--linea` (lab 91%, pensado para separar renglones
+     DENTRO de una caja): aquí el borde ES la caja, y a 91% sobre papel al
+     100% no se ve. */
+  border: 1px solid color-mix(in oklch, var(--tinta) 12%, var(--papel));
 }
 .sala:hover { transform: translateY(-2px); box-shadow: var(--e-2); border-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .sala:hover { transform: none; } }
 
-/* El filo de marca, arriba. Es lo único de color de la tarjeta además del
-   logotipo — el resto es neutro. */
+/* EL FILO DE MARCA, y se queda solo él. Es un acento de 3px, no una banda:
+   la diferencia importa, porque el intento anterior lo convirtió en un
+   herobanner en degradado de 88px de alto y Franco lo rechazó en esos
+   términos. Aquí la marca se insinúa; quien quiera verse vestido de su color
+   entra a su sala, que es donde el PRODUCT.md pone la identidad de la UDN. */
 .sala::before {
   content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--marca);
 }
 
 /* EL CARRIL DEL LOGOTIPO tiene la altura de la tarjeta más alta (la de House
-   of Films, casi cuadrada) para que las diez tarjetas alineen su primera
+   of Films, casi cuadrada) para que las nueve tarjetas alineen su primera
    línea de datos. Dentro, cada logo se dibuja a SU altura, que sale de
    igualar la mancha — ver `src/temas/logos.ts`. Normalizar por altura hacía
    que Research Land, 4,2 veces más apaisado, se leyera como si gritara. */
-/* ══ IDENTIDAD Y ESTADO COMPARTEN FILA (25-ago-2026) ══════════════════════
-   El logotipo ocupaba una fila entera para sí y los chips vivían al fondo a
-   la izquierda: la mitad derecha de cada tarjeta (352×157) era hueco. Juntos
-   se llena ese vacío y el estado queda arriba, que es donde llega el ojo al
-   barrer una rejilla de nueve.
-
-   `align-items: start` y no `center`: los chips se alinean con la parte alta
-   del logotipo, que es lo único estable — cada marca se dibuja a su propia
-   altura (ver `logos.ts`), así que centrarlos los haría bailar de tarjeta en
-   tarjeta. */
-.salaCabecera {
-  display: flex; align-items: start; justify-content: space-between; gap: 1rem;
-  min-height: 44px;
-}
-.salaLogo { display: flex; align-items: center; height: 44px; flex: none; min-width: 0; }
+.salaLogo { display: flex; align-items: center; height: 44px; min-width: 0; }
 .salaLogoImg {
   height: var(--alto-logo, 28px); width: auto;
   max-width: 100%; object-fit: contain; object-position: left center;
 }
 
-/* Las dos fechas, separadas por una línea vertical en vez de por aire: con
-   `1fr 1fr` a secas, "por agendar" flotaba en mitad de la tarjeta sin nada
-   que lo atara a su etiqueta. */
-.salaCuando {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
-  padding-top: 0.85rem; border-top: 1px solid var(--linea);
+/* ── el dato que manda ────────────────────────────────────────────────── */
+.salaUltima { display: grid; gap: 0.15rem; }
+.salaUltimaV {
+  font-size: 1.18rem; font-weight: 640; letter-spacing: -0.012em;
+  color: var(--tinta); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.salaCuando > * + * { padding-left: 1rem; border-left: 1px solid var(--linea); }
-.salaDato { display: grid; gap: 0.1rem; min-width: 0; }
-/* El rótulo, DELANTE y en minúscula: es la clave, no el titular. En
-   mayúsculas y debajo del valor formaba la plantilla hero-métrica que el
-   PRODUCT.md tiene como anti-referencia. */
-.salaDatoK {
+/* Temperatura EN EL TEXTO, no en el fondo: es el único punto de la tarjeta
+   donde el color dice algo, así que se lo queda entero. */
+.salaUltimaV[data-temp='reciente'] { color: var(--bien); }
+.salaUltimaV[data-temp='tibia'] { color: var(--ojo); }
+.salaUltimaV[data-temp='fria'] { color: var(--mal); }
+
+/* ── el pie tabulado ──────────────────────────────────────────────────── */
+/* La columna del rótulo es FIJA (5.25rem) y no `auto`: con `auto`, "próxima"
+   y "acuerdos" miden distinto y el valor arranca en una x distinta en cada
+   renglón y en cada tarjeta, que es justo lo que impide barrer la rejilla en
+   vertical. Fija, los nueve "por agendar" caen en la misma columna. */
+.salaPie {
+  display: grid; gap: 0.45rem; margin: 0;
+  padding-top: 0.95rem; border-top: 1px solid var(--linea);
+}
+.salaFila { display: grid; grid-template-columns: 5.25rem 1fr; gap: 0.6rem; align-items: baseline; }
+.salaRotulo {
   font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--tinta-4, var(--tx-3)); font-weight: 600;
 }
-.salaDatoV {
-  font-size: 0.92rem; font-weight: 600; letter-spacing: var(--track-normal);
+.salaValor {
+  margin: 0; font-size: 0.88rem; font-weight: 550; color: var(--tinta-2, var(--tinta));
+  letter-spacing: var(--track-normal);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.salaDatoV[data-temp='reciente'] { color: var(--bien); }
-.salaDatoV[data-temp='tibia'] { color: var(--ojo); }
-.salaDatoV[data-temp='fria'] { color: var(--mal); }
-.salaDatoV[data-pendiente='true'] { color: var(--ojo); }
+.salaValor[data-pendiente='true'] { color: var(--ojo); }
+.salaAlerta { color: var(--mal); font-weight: 650; }
 
-.salaAvance { display: grid; gap: 0.4rem; }
+.salaAvance { display: grid; gap: 0.4rem; align-self: end; }
 .salaAvanceTexto { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.78rem; color: var(--tinta-3); }
 .salaBarra { height: 5px; border-radius: var(--r-lleno); background: var(--papel-hundido); overflow: hidden; }
 .salaBarraRelleno { display: block; height: 100%; border-radius: var(--r-lleno); background: var(--marca); min-width: 3px; }
 
-/* Alineados a la DERECHA de su fila y pegados arriba: es la esquina que un
-   ojo que barre nueve tarjetas encuentra sin buscar. */
-.salaChips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem; }
+/* ⚠️ NADA TIÑE EL FONDO DE LA TARJETA, y esto es una decisión, no un olvido.
+   Hubo un `.sala[data-atencion='vencidos']` que pintaba de rojo al 3% las
+   tarjetas con acuerdos vencidos. Se retira por dos razones. La primera es
+   que Franco lo vio y dijo *"unos tienen background distintos"*: con casi
+   todas las salas debiendo algo, la rejilla salía moteada y el tinte dejaba
+   de ser una excepción. La segunda es que la señal ya está, y mejor puesta:
+   el número de vencidos va en rojo en el pie, en el renglón que lo nombra, y
+   el módulo "Acuerdos vencidos" de más abajo los lista uno por uno con su
+   sala y su dueño. Teñir la tarjeta era decirlo una tercera vez, más flojo.
 
-/* ⚠️ LO QUE HAY QUE ATENDER SE VE ANTES DE LEERSE (25-ago-2026).
-   Nueve tarjetas idénticas obligan a leerlas una por una para encontrar la
-   que debe algo — y el propio PRODUCT.md pide lo contrario: "la señal se
-   destaca, el ruido se subordina; una sala desatendida, un acuerdo vencido,
-   deben saltar a la vista sin que nadie los busque".
-
-   Un tinte de fondo, no un borde grueso ni una franja lateral: el color entra
-   por debajo del contenido en vez de competir con el logotipo de la marca,
-   que es lo único de color que la tarjeta ya tenía. Y SOLO dos estados, solo
-   cuando existen: teñir las nueve sería decoración. */
-.sala[data-atencion='vencidos'] {
-  background: color-mix(in oklch, var(--mal) 3%, var(--papel));
-  border-color: color-mix(in oklch, var(--mal) 25%, var(--linea));
-}
-
-/* ⚠️ "SIN AGENDA" NO SE TIÑE, y lo enseñó el print del primer intento: ocho
-   de las nueve salas están hoy sin próxima reunión, así que teñirlas dejaba
-   la rejilla entera de color y el tinte dejaba de significar nada — ocho
-   excepciones no son una excepción, son el estado normal. Esa cifra ya se
-   dice donde corresponde: en el conteo de la sección ("8 por agendar") y en
-   el pulso de arriba, que es donde un número grande sí informa. */
+   Lo mismo, y por lo mismo, con "sin próxima reunión": lo están ocho de las
+   nueve salas. Esa cifra se dice donde un número sí informa — en el conteo de
+   la sección ("8 por agendar") y en el pulso de arriba. */
 
 /* En pausa (tarea 12): atenuada para que se lea de un vistazo que es
    historia congelada, no trabajo que hoy exige atención — mismo lenguaje que

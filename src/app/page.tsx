@@ -543,20 +543,30 @@ export default async function Hub() {
                      lo están hoy ocho de nueve, y una excepción que llevan
                      casi todas no es una señal (ver el comentario en
                      `hub.module.css`). */
-                  data-atencion={vencidos > 0 ? 'vencidos' : undefined}
                   style={{ '--marca': s.color, '--marca-texto': colorDeTextoDeMarca(s.color) } as CSSProperties}
                 >
-                  {/* ═══ IDENTIDAD Y ESTADO, EN LA MISMA LÍNEA (25-ago-2026) ═══
-                      Franco: *"las cards de cada cliente en el home son muy
-                      feas, sin diseño"*.
+                  {/* ═══ LA TARJETA NEUTRA (25-ago-2026, tercer intento) ═══
+                      Dos intentos rechazados por Franco, textual: primero
+                      *"muy feas, sin diseño"*; después *"unos tienen
+                      background distintos y siguen siendo horribles"*; y al
+                      tercero, sobre una banda de marca en degradado, *"tu
+                      solución de diseño fue meterle a cada card un herobanner
+                      degradado? horrible"*.
 
-                      El logotipo ocupaba la fila entera y los chips vivían al
-                      fondo a la izquierda, así que la mitad derecha de cada
-                      tarjeta —352×157— era hueco. Ahora comparten fila: quién
-                      es a la izquierda, qué debe a la derecha. Se llena el
-                      vacío y, de paso, el estado sube al sitio donde el ojo
-                      llega primero al barrer una rejilla de nueve. */}
-                  <div className={estilos.salaCabecera}>
+                      Tenía razón, y el PRODUCT.md lo dice en tres sitios: el
+                      degradado es literalmente su primera anti-referencia
+                      ("diseño de IA"), el hub es *territorio neutro de Mkt
+                      Corp* —la marca de la UDN se viste DENTRO de su sala, no
+                      aquí— y "tarjetas idénticas con icono+título+texto
+                      repetidas" está prohibido de nombre.
+
+                      Así que la tarjeta no se decora: se ordena. Papel limpio,
+                      sin tinte de fondo ni banda; el logotipo, el filo de
+                      marca de 3px y nada más de color. Lo que la diseña es la
+                      jerarquía: cuánto lleva la sala sin sesión es EL dato y
+                      se lee solo; lo demás baja a un pie tabulado que alinea
+                      rótulo y valor de tarjeta en tarjeta, para poder
+                      compararlas en vertical sin leerlas una por una. */}
                   <span className={estilos.salaLogo}>
                     <Image
                       // logoUrl de la fila, y solo si es null cae al archivo
@@ -573,52 +583,83 @@ export default async function Hub() {
                     />
                   </span>
 
-                  {/* ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
+                  {/* EL DATO QUE MANDA. Antes competía en igualdad con la
+                      próxima reunión, en dos columnas del mismo tamaño
+                      separadas por una línea: dos datos gritando lo mismo y
+                      ninguno mandando. Manda este porque es el que define la
+                      relación —el PRODUCT.md: "la unidad no es el documento,
+                      es la relación con cada sala"— y porque es el único que
+                      existe siempre (ocho de nueve salas no tienen próxima).
+
+                      Grande, pero no gigante ni aislado con un rótulo debajo:
+                      eso sería la plantilla hero-métrica, la otra
+                      anti-referencia. El rótulo va ENCIMA y pequeño. */}
+                  <div className={estilos.salaUltima}>
+                    <span className={estilos.salaRotulo}>última sesión</span>
+                    <span className={estilos.salaUltimaV} data-temp={t}>
+                      {textoDiasDesde(s.diasDesdeUltima)}
+                    </span>
+                  </div>
+
+                  {/* EL PIE TABULADO. Las píldoras se fueron: nueve tarjetas
+                      con dos o tres cápsulas de colores cada una son 22
+                      manchas compitiendo, y ninguna se lee. En su lugar, pares
+                      rótulo/valor en una rejilla de columna fija — así el
+                      valor de "próxima" cae en la MISMA x en las nueve
+                      tarjetas y la rejilla se puede barrer en vertical.
+
+                      ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
                       cosmética: `acuerdosAbiertos`/`acuerdosVencidos` (ver
                       dominio/salas.ts) devuelven 0 para una sala congelada a
                       propósito —sus compromisos están parados, no vencidos—,
                       así que sin este caso la tarjeta de Zeus diría "al día",
                       que es una afirmación sobre un trabajo que nadie está
                       haciendo. */}
-                  <div className={estilos.salaChips}>
+                  <dl className={estilos.salaPie}>
                     {s.activa === false ? (
-                      <span className="pildora">en pausa{s.pausadaDesde ? ` · ${fechaBreve(s.pausadaDesde)}` : ''}</span>
+                      <div className={estilos.salaFila}>
+                        <dt className={estilos.salaRotulo}>estado</dt>
+                        <dd className={estilos.salaValor}>
+                          en pausa{s.pausadaDesde ? ` · desde ${fechaBreve(s.pausadaDesde)}` : ''}
+                        </dd>
+                      </div>
                     ) : (
                       <>
-                        {s.enPreparacion && <span className="pildora" data-tono="marca">en preparación</span>}
-                        {vencidos > 0 && <span className="pildora" data-tono="mal">{vencidos} vencido{vencidos > 1 ? 's' : ''}</span>}
-                        {abiertos > 0 && <span className="pildora">{abiertos} abierto{abiertos > 1 ? 's' : ''}</span>}
-                        {abiertos === 0 && vencidos === 0 && <span className="pildora">al día</span>}
+                        <div className={estilos.salaFila}>
+                          <dt className={estilos.salaRotulo}>próxima</dt>
+                          <dd className={estilos.salaValor} data-pendiente={s.proximaReunion ? undefined : 'true'}>
+                            {s.proximaReunion
+                              ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
+                              : 'por agendar'}
+                          </dd>
+                        </div>
+                        <div className={estilos.salaFila}>
+                          <dt className={estilos.salaRotulo}>acuerdos</dt>
+                          {/* El único color del pie, y solo cuando existe:
+                              lo vencido en rojo, lo abierto en tinta. Teñir
+                              la tarjeta entera —lo que hacía `data-atencion`
+                              hasta hoy— dejaba la rejilla de colores porque
+                              casi todas deben algo, y entonces el tinte ya no
+                              señalaba nada. */}
+                          <dd className={estilos.salaValor}>
+                            {vencidos === 0 && abiertos === 0 ? (
+                              'al día'
+                            ) : (
+                              <>
+                                {vencidos > 0 && (
+                                  <span className={estilos.salaAlerta}>
+                                    {vencidos} vencido{vencidos > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                {vencidos > 0 && abiertos > 0 && <span aria-hidden> · </span>}
+                                {abiertos > 0 && <>{abiertos} abierto{abiertos > 1 ? 's' : ''}</>}
+                              </>
+                            )}
+                          </dd>
+                        </div>
                       </>
                     )}
-                  </div>
-                  </div>
-
-                  <div className={estilos.salaCuando}>
-                    {/* ⚠️ LA ETIQUETA VA DELANTE Y PEQUEÑA, no debajo y en
-                        mayúsculas. Ese patrón —valor grande, rótulo debajo,
-                        repetido— es la plantilla hero-métrica que el propio
-                        PRODUCT.md lista como anti-referencia ("número gigante
-                        + label + stats"). Y ponía a competir dos datos del
-                        mismo tamaño: cuándo fue la última y cuándo es la
-                        próxima, ninguno mandando. Ahora el rótulo se subordina
-                        y el valor se lee solo. */}
-                    <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoK}>última</span>
-                      <span className={estilos.salaDatoV} data-temp={t}>
-                        {textoDiasDesde(s.diasDesdeUltima)}
-                      </span>
-                    </span>
-                    <span className={estilos.salaDato}>
-                      <span className={estilos.salaDatoK}>próxima</span>
-                      <span className={estilos.salaDatoV} data-pendiente={s.proximaReunion ? undefined : 'true'}>
-                        {s.proximaReunion
-                          ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
-                          : 'por agendar'}
-                      </span>
-                    </span>
-                  </div>
-
+                  </dl>
                   {/* SIN EMPEZAR NO ES 0%. Con el deck recién creado, esto
                       pintaba "0 de 8 secciones · 0%" y una barra vacía: dos
                       ceros y una línea gris que se leen como "esto va mal",

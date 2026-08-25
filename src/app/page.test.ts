@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import { acuerdosAbiertos, acuerdosVencidos } from '@/db/consultas'
 import type { EstadoSala } from '@/dominio/salas'
 import type { Reunion } from '@/dominio/reunion'
 
@@ -658,6 +659,51 @@ describe('Hub (/) — una sola rejilla de clientes, y los vencidos en su lugar',
     const zeus = screen.getByRole('link', { name: /zeus/i })
     expect(zeus.textContent).toMatch(/en pausa/i)
     expect(zeus.textContent).not.toMatch(/al día/i)
+  })
+
+  /**
+   * ⚠️ LO QUE LA TARJETA DEBE, EN SU PIE (25-ago-2026). El rediseño de las
+   * tarjetas —tercer intento, después de que Franco rechazara el tinte de
+   * fondo ("unos tienen background distintos") y la banda en degradado ("un
+   * herobanner degradado? horrible")— retiró las píldoras de estado y las
+   * sustituyó por un pie tabulado. NINGÚN test se puso rojo al hacerlo: la
+   * suite entera (1.991) pasó con la estructura ya cambiada, porque lo único
+   * amarrado era el caso de la sala en pausa. Este test cubre el hueco: lo
+   * que un cliente debe tiene que seguir leyéndose EN SU TARJETA, se dibuje
+   * con cápsulas, con renglones o con lo que venga después.
+   */
+  it('la tarjeta de un cliente dice, en su pie, lo vencido y lo abierto', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, slug: 'activa', nombre: 'Activa', activa: true },
+    ])
+    /* `acuerdosAbiertos`/`acuerdosVencidos` vienen mockeados a 0 fijo arriba
+       (son funciones de `@/db/consultas`, no un campo de la sala), así que sin
+       esto la tarjeta diría "al día" por mucho acuerdo vencido que lleve el
+       fixture. */
+    vi.mocked(acuerdosVencidos).mockReturnValue(2)
+    vi.mocked(acuerdosAbiertos).mockReturnValue(1)
+    render(await Hub())
+
+    /* Dentro de la SECCIÓN, no en toda la pantalla: cada cliente aparece
+       también en el panel de la barra de navegación, así que un
+       `getByRole('link')` a secas encuentra dos y falla. */
+    const clientes = screen.getByRole('heading', { level: 2, name: /los clientes/i }).closest('section')!
+    const tarjeta = within(clientes).getByRole('link', { name: /activa/i })
+    expect(tarjeta.textContent).toMatch(/2 vencidos/)
+    expect(tarjeta.textContent).toMatch(/1 abierto/)
+    expect(tarjeta.textContent).not.toMatch(/al día/i)
+  })
+
+  it('una tarjeta sin nada pendiente dice "al día"', async () => {
+    estadoDeSalasMock.mockResolvedValue([
+      { ...SALA_BASE, slug: 'activa', nombre: 'Activa', activa: true, acuerdos: [] },
+    ])
+    vi.mocked(acuerdosVencidos).mockReturnValue(0)
+    vi.mocked(acuerdosAbiertos).mockReturnValue(0)
+    render(await Hub())
+
+    const clientes = screen.getByRole('heading', { level: 2, name: /los clientes/i }).closest('section')!
+    expect(within(clientes).getByRole('link', { name: /activa/i }).textContent).toMatch(/al día/i)
   })
 
   it('los vencidos se listan con su sala, su dueño y desde cuándo', async () => {
