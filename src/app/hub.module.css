@@ -260,10 +260,10 @@
 }
 .sala {
   position: relative;
-  /* Cuatro filas: logotipo / el dato que manda / el pie tabulado / el avance.
+  /* Tres filas: logotipo / la ficha de datos / el avance.
      La última es `1fr` para que el avance —cuando existe— se pegue abajo y
      las tarjetas de una misma hilera terminen a la misma altura. */
-  display: grid; grid-template-rows: auto auto auto 1fr; gap: 1.15rem;
+  display: grid; grid-template-rows: auto auto 1fr; gap: 1.15rem;
   padding: 1.55rem 1.4rem 1.3rem;
   text-decoration: none; color: inherit; overflow: hidden;
   transition: transform var(--rapido) var(--suave), box-shadow var(--rapido) var(--suave);
@@ -315,38 +315,49 @@ a.sala {
   max-width: 100%; object-fit: contain; object-position: left center;
 }
 
-/* ── el dato que manda ────────────────────────────────────────────────── */
-.salaUltima { display: grid; gap: 0.15rem; }
-.salaUltimaV {
-  font-size: 1.18rem; font-weight: 640; letter-spacing: -0.012em;
-  color: var(--tinta); line-height: 1.2;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* Temperatura EN EL TEXTO, no en el fondo: es el único punto de la tarjeta
-   donde el color dice algo, así que se lo queda entero. */
-.salaUltimaV[data-temp='reciente'] { color: var(--bien); }
-.salaUltimaV[data-temp='tibia'] { color: var(--ojo); }
-.salaUltimaV[data-temp='fria'] { color: var(--mal); }
-
-/* ── el pie tabulado ──────────────────────────────────────────────────── */
-/* La columna del rótulo es FIJA (5.25rem) y no `auto`: con `auto`, "próxima"
-   y "acuerdos" miden distinto y el valor arranca en una x distinta en cada
-   renglón y en cada tarjeta, que es justo lo que impide barrer la rejilla en
-   vertical. Fija, los nueve "por agendar" caen en la misma columna. */
+/* ── la ficha: rótulo a la izquierda, valor a la derecha ──────────────── */
+/* ⚠️ `auto 1fr` CON EL VALOR ANCLADO A LA DERECHA, y no la columna fija de
+   antes. El intento anterior tabulaba los rótulos en 5,25rem y dejaba el
+   valor arrancando ahí: todo el contenido se apelotonaba en la mitad
+   izquierda de una tarjeta de 352px y la derecha quedaba vacía. Franco:
+   *"ahora todo lo cargaste a la izq"*. Anclado a los dos bordes, el renglón
+   usa el ancho entero y —lo que de verdad importa— los valores de las nueve
+   tarjetas quedan alineados por su derecha, que es como se comparan de un
+   vistazo sin leerlos uno por uno. */
 .salaPie {
-  display: grid; gap: 0.45rem; margin: 0;
-  padding-top: 0.95rem; border-top: 1px solid var(--linea);
+  display: grid; gap: 0.55rem; margin: 0;
+  padding-top: 1rem; border-top: 1px solid var(--linea);
 }
-.salaFila { display: grid; grid-template-columns: 5.25rem 1fr; gap: 0.6rem; align-items: baseline; }
+.salaFila { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: baseline; }
 .salaRotulo {
+  display: inline-flex; align-items: center; gap: 0.45rem;
   font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--tinta-4, var(--tx-3)); font-weight: 600;
 }
+/* Del catálogo propio (`IconoSeccion`), a 15px y en el color del rótulo:
+   hereda `currentColor`, así que pesa lo mismo que la palabra que acompaña en
+   vez de leerse como una estampa pegada al lado. El nudge de 1px baja el
+   trazo a la línea base de una versalita, que se apoya más arriba que la
+   caja del svg. */
+.salaIcono { width: 15px; height: 15px; flex: none; transform: translateY(1px); }
 .salaValor {
-  margin: 0; font-size: 0.88rem; font-weight: 550; color: var(--tinta-2, var(--tinta));
+  margin: 0; justify-self: end; text-align: right;
+  font-size: 0.88rem; font-weight: 550; color: var(--tinta-2, var(--tinta));
   letter-spacing: var(--track-normal);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* EL DATO QUE MANDA: el único del pie en cuerpo grande. Grande, pero no
+   gigante ni aislado con su rótulo debajo — eso sería la plantilla
+   hero-métrica, otra de las anti-referencias del PRODUCT.md. */
+.salaValorFuerte {
+  font-size: 1.05rem; font-weight: 640; letter-spacing: -0.01em;
+  color: var(--tinta); line-height: 1.25;
+}
+/* Temperatura EN EL TEXTO, no en el fondo: es el único punto de la tarjeta
+   donde el color dice algo, así que se lo queda entero. */
+.salaValorFuerte[data-temp='reciente'] { color: var(--bien); }
+.salaValorFuerte[data-temp='tibia'] { color: var(--ojo); }
+.salaValorFuerte[data-temp='fria'] { color: var(--mal); }
 .salaValor[data-pendiente='true'] { color: var(--ojo); }
 .salaAlerta { color: var(--mal); font-weight: 650; }
 

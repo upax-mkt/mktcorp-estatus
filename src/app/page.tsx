@@ -28,6 +28,7 @@ import { AgendarRapido, type SalaParaAgendar, type DatosAgendarRapido } from '@/
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { Seccion } from '@/componentes/Seccion'
+import { IconoSeccion } from '@/componentes/IconoSeccion'
 import { colorDeTextoDeMarca } from '@/temas'
 
 /**
@@ -583,30 +584,23 @@ export default async function Hub() {
                     />
                   </span>
 
-                  {/* EL DATO QUE MANDA. Antes competía en igualdad con la
-                      próxima reunión, en dos columnas del mismo tamaño
-                      separadas por una línea: dos datos gritando lo mismo y
-                      ninguno mandando. Manda este porque es el que define la
-                      relación —el PRODUCT.md: "la unidad no es el documento,
-                      es la relación con cada sala"— y porque es el único que
-                      existe siempre (ocho de nueve salas no tienen próxima).
+                  {/* ═══ LA FICHA: RÓTULO A LA IZQUIERDA, VALOR A LA DERECHA ═══
+                      Franco, sobre la versión anterior: *"ahora todo lo
+                      cargaste a la izq, no hay iconografía, no están bien
+                      diagramadas las cards"*. Tenía razón: el contenido
+                      ocupaba una columna de ~160px dentro de una tarjeta de
+                      352, y la mitad derecha era hueco.
 
-                      Grande, pero no gigante ni aislado con un rótulo debajo:
-                      eso sería la plantilla hero-métrica, la otra
-                      anti-referencia. El rótulo va ENCIMA y pequeño. */}
-                  <div className={estilos.salaUltima}>
-                    <span className={estilos.salaRotulo}>última sesión</span>
-                    <span className={estilos.salaUltimaV} data-temp={t}>
-                      {textoDiasDesde(s.diasDesdeUltima)}
-                    </span>
-                  </div>
+                      Ahora cada renglón se ancla a los DOS bordes —icono y
+                      rótulo a la izquierda, valor a la derecha— igual que una
+                      ficha o un estado de cuenta. Se usa el ancho entero, y
+                      de paso los valores de las nueve tarjetas caen alineados
+                      por la derecha, que es como se comparan sin leerlos.
 
-                  {/* EL PIE TABULADO. Las píldoras se fueron: nueve tarjetas
-                      con dos o tres cápsulas de colores cada una son 22
-                      manchas compitiendo, y ninguna se lee. En su lugar, pares
-                      rótulo/valor en una rejilla de columna fija — así el
-                      valor de "próxima" cae en la MISMA x en las nueve
-                      tarjetas y la rejilla se puede barrer en vertical.
+                      Los iconos salen del catálogo propio de la app
+                      (`IconoSeccion`): rejilla de 24, trazo 1,6 y
+                      `currentColor`, para que pesen lo mismo que la letra que
+                      acompañan. No se trae una librería para usar tres.
 
                       ⚠️ UNA SALA EN PAUSA DICE "EN PAUSA" Y NADA MÁS. No es
                       cosmética: `acuerdosAbiertos`/`acuerdosVencidos` (ver
@@ -616,9 +610,29 @@ export default async function Hub() {
                       que es una afirmación sobre un trabajo que nadie está
                       haciendo. */}
                   <dl className={estilos.salaPie}>
+                    {/* EL DATO QUE MANDA, y por eso es el único del pie que
+                        va en cuerpo grande: es el que define la relación —el
+                        PRODUCT.md: "la unidad no es el documento, es la
+                        relación con cada sala"— y el único que existe
+                        siempre (ocho de las nueve salas no tienen próxima).
+                        Un reloj y no un calendario: el valor es un transcurso
+                        ("hace 47 días"), no una fecha del almanaque. */}
+                    <div className={estilos.salaFila}>
+                      <dt className={estilos.salaRotulo}>
+                        <IconoSeccion nombre="reloj" className={estilos.salaIcono} />
+                        última
+                      </dt>
+                      <dd className={`${estilos.salaValor} ${estilos.salaValorFuerte}`} data-temp={t}>
+                        {textoDiasDesde(s.diasDesdeUltima)}
+                      </dd>
+                    </div>
+
                     {s.activa === false ? (
                       <div className={estilos.salaFila}>
-                        <dt className={estilos.salaRotulo}>estado</dt>
+                        <dt className={estilos.salaRotulo}>
+                          <IconoSeccion nombre="pausa" className={estilos.salaIcono} />
+                          estado
+                        </dt>
                         <dd className={estilos.salaValor}>
                           en pausa{s.pausadaDesde ? ` · desde ${fechaBreve(s.pausadaDesde)}` : ''}
                         </dd>
@@ -626,7 +640,10 @@ export default async function Hub() {
                     ) : (
                       <>
                         <div className={estilos.salaFila}>
-                          <dt className={estilos.salaRotulo}>próxima</dt>
+                          <dt className={estilos.salaRotulo}>
+                            <IconoSeccion nombre="calendario" className={estilos.salaIcono} />
+                            próxima
+                          </dt>
                           <dd className={estilos.salaValor} data-pendiente={s.proximaReunion ? undefined : 'true'}>
                             {s.proximaReunion
                               ? `${fechaBreve(s.proximaReunion)}${dias != null && dias >= 0 ? ` · ${dias} d` : ''}`
@@ -634,7 +651,10 @@ export default async function Hub() {
                           </dd>
                         </div>
                         <div className={estilos.salaFila}>
-                          <dt className={estilos.salaRotulo}>acuerdos</dt>
+                          <dt className={estilos.salaRotulo}>
+                            <IconoSeccion nombre="acuerdos" className={estilos.salaIcono} />
+                            acuerdos
+                          </dt>
                           {/* El único color del pie, y solo cuando existe:
                               lo vencido en rojo, lo abierto en tinta. Teñir
                               la tarjeta entera —lo que hacía `data-atencion`

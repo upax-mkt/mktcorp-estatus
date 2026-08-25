@@ -45,6 +45,8 @@ export type NombreIcono =
   | 'marca'
   | 'enlaces'
   | 'tipografia'
+  // El del Home: cuánto lleva una sala sin sesión (ver `page.tsx`).
+  | 'reloj'
 
 export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; className?: string }) {
   switch (nombre) {
@@ -128,6 +130,18 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
           <rect x="3.5" y="6" width="5" height="12" rx="1.5" />
           <rect x="10.5" y="9" width="5" height="9" rx="1.5" />
           <rect x="17.5" y="4" width="3" height="14" rx="1.5" />
+        </svg>
+      )
+
+    // Cuánto tiempo pasó: un reloj. Va con "última sesión" en la tarjeta de
+    // cliente, donde el dato NO es una fecha sino un transcurso ("hace 47
+    // días"), así que un calendario mentiría — ese acompaña a "próxima", que
+    // sí es una fecha en el almanaque.
+    case 'reloj':
+      return (
+        <svg {...COMUNES} className={className}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7.5V12l3 2" />
         </svg>
       )
 
