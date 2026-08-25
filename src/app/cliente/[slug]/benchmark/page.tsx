@@ -311,7 +311,14 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                   <p>{benchmark.tesis.nosotrosVendemos}</p>
                 </div>
               </div>
-              <p className={estilos.bmTesisSustento}>{benchmark.tesis.sustento}</p>
+              {/* EL SUSTENTO SE PLIEGA: son las citas que respaldan la tesis,
+                  no la tesis. En móvil apilaba un tercer bloque de texto
+                  debajo de los otros dos y la pantalla de apertura —la que
+                  decide si alguien sigue leyendo— se volvía un muro. */}
+              <details className={estilos.bmPlegable}>
+                <summary className={estilos.bmPlegableResumen}>En qué se sostiene</summary>
+                <p className={estilos.bmTesisSustento}>{benchmark.tesis.sustento}</p>
+              </details>
               {/* EL RESUMEN, DENTRO DE LA TESIS Y NO EN SU PROPIA TARJETA.
                   Eran dos bloques de prosa seguidos, cada uno con su título,
                   antes de llegar al primer competidor: parecían dos resúmenes
@@ -368,24 +375,37 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
                   </span>
                 </div>
 
-                <p className={estilos.bmCompetidorLinea}>
-                  <span className={estilos.bmCompetidorEtiqueta}>Su fortaleza</span>
-                  {c.fortaleza}
-                </p>
-                <p className={estilos.bmCompetidorLinea} data-tono="cuidado">
-                  <span className={estilos.bmCompetidorEtiqueta}>No pelear aquí</span>
-                  {c.nosGanaEn}
-                </p>
-                {c.fortalezaInvisible && (
-                  <p className={estilos.bmCompetidorLinea} data-tono="invisible">
-                    <span className={estilos.bmCompetidorEtiqueta}>Su fortaleza invisible</span>
-                    {c.fortalezaInvisible}
-                  </p>
-                )}
+                {/* ⚠️ SOLO UNA LÍNEA A LA VISTA, Y ES LA ACCIONABLE.
+                    Cada ficha tenía cuatro o cinco párrafos abiertos —"su
+                    fortaleza", "no pelear aquí", "su fortaleza invisible",
+                    "dónde se le gana"— y cinco fichas así sumaban 1.334
+                    palabras seguidas. Delante de un prospecto no se leen
+                    cinco párrafos por rival: se necesita saber por dónde
+                    entrar, y el resto está ahí para cuando la conversación
+                    lo pida. Franco: *"excesiva cantidad de texto, no se
+                    entiende nada"*. */}
                 <p className={estilos.bmCompetidorLinea} data-tono="gana">
                   <span className={estilos.bmCompetidorEtiqueta}>Dónde se le gana</span>
                   {c.dondeSeLeGana}
                 </p>
+
+                <details className={estilos.bmCompetidorMas}>
+                  <summary className={estilos.bmCompetidorMasResumen}>Cómo compite</summary>
+                  <p className={estilos.bmCompetidorLinea}>
+                    <span className={estilos.bmCompetidorEtiqueta}>Su fortaleza</span>
+                    {c.fortaleza}
+                  </p>
+                  <p className={estilos.bmCompetidorLinea} data-tono="cuidado">
+                    <span className={estilos.bmCompetidorEtiqueta}>No pelear aquí</span>
+                    {c.nosGanaEn}
+                  </p>
+                  {c.fortalezaInvisible && (
+                    <p className={estilos.bmCompetidorLinea} data-tono="invisible">
+                      <span className={estilos.bmCompetidorEtiqueta}>Su fortaleza invisible</span>
+                      {c.fortalezaInvisible}
+                    </p>
+                  )}
+                </details>
 
                 {/* SOLO EL VEREDICTO DE LA PROSPECCIÓN, no la ficha entera.
                     Los tiempos, la calidad y qué mandaron viven en el bloque
@@ -479,9 +499,15 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
             </h2>
             <ol className={estilos.bmRecomendaciones}>
               {benchmark.recomendaciones.map((r) => (
+                /* El QUÉ se lee de un vistazo; el PORQUÉ se abre si alguien
+                   lo discute. Ocho recomendaciones con su justificación
+                   completa a la vista eran 838 palabras seguidas, y lo que
+                   se necesita en una junta es la lista, no el argumento. */
                 <li key={r.que} className={estilos.bmRecomendacion}>
-                  <span className={estilos.bmRecomendacionQue}>{r.que}</span>
-                  <span className={estilos.bmRecomendacionPorque}>{r.porque}</span>
+                  <details className={estilos.bmRecomendacionDetalle}>
+                    <summary className={estilos.bmRecomendacionQue}>{r.que}</summary>
+                    <p className={estilos.bmRecomendacionPorque}>{r.porque}</p>
+                  </details>
                 </li>
               ))}
             </ol>
@@ -498,13 +524,27 @@ export default async function PagBenchmarkSala({ params }: { params: Promise<{ s
               Cómo se mueve el mercado
               <span className={estilos.conteo}>fuentes externas</span>
             </h2>
-            <ul className={estilos.bmMercado}>
-              {benchmark.mercado.map((m) => (
-                <li key={m.fuente + m.dato.slice(0, 20)}>
-                  {m.dato} <span className={estilos.bmFuenteDato}>{m.fuente}</span>
-                </li>
-              ))}
-            </ul>
+            {/* ⚠️ PLEGADO POR DEFECTO, y es la decisión que más alto le quita a
+                esta pantalla. Medido: esta sección sola tenía 1.558 palabras
+                —el 22% de la página— y ninguna de ellas se lee cinco minutos
+                antes de una reunión: es contexto para preparar, no para
+                consultar. Franco: *"excesiva cantidad de texto, no se entiende
+                nada"*.
+                `<details>` y no un acordeón propio: el navegador ya sabe
+                abrirlo con teclado, anunciarlo a un lector de pantalla y
+                encontrar texto dentro al buscar en la página. */}
+            <details className={estilos.bmPlegable}>
+              <summary className={estilos.bmPlegableResumen}>
+                Ver los {benchmark.mercado.length} datos de contexto
+              </summary>
+              <ul className={estilos.bmMercado}>
+                {benchmark.mercado.map((m) => (
+                  <li key={m.fuente + m.dato.slice(0, 20)}>
+                    {m.dato} <span className={estilos.bmFuenteDato}>{m.fuente}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
           </section>
         )}
 

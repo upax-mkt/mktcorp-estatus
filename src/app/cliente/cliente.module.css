@@ -1706,6 +1706,56 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
 }
 .bmAusentePorQue { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--tx-2); }
 
+/* ── DIVULGACIÓN PROGRESIVA ───────────────────────────────────────────────
+   Medido antes de tocar nada: la página pesaba 6.956 palabras, 35 minutos de
+   lectura y 17,8 pantallas de alto. El PRODUCT.md dice que quien la abre es
+   "gente ejecutiva que capta la señal en segundos", la víspera de una
+   reunión. Lo que sigue es la corrección: lo que se usa en cinco minutos
+   queda a la vista, lo que sostiene el argumento se abre cuando alguien lo
+   discute. `<details>` nativo en los tres sitios — el navegador ya sabe
+   abrirlo con teclado, anunciarlo y dejar que el buscador de la página
+   encuentre texto dentro. */
+.bmCompetidorMas { margin-top: 0.1rem; }
+.bmCompetidorMasResumen {
+  cursor: pointer; list-style: none;
+  font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  color: var(--tx-3); padding: 0.25rem 0; display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.bmCompetidorMasResumen::-webkit-details-marker { display: none; }
+/* El triángulo lo dibujamos nosotros para que gire: el marcador nativo no se
+   puede animar y en varios navegadores ni siquiera se puede recolocar. */
+.bmCompetidorMasResumen::before {
+  content: '▸'; font-size: 0.7rem; transition: transform 140ms ease;
+}
+.bmCompetidorMas[open] .bmCompetidorMasResumen::before { transform: rotate(90deg); }
+.bmCompetidorMasResumen:hover { color: var(--tx); }
+.bmCompetidorMasResumen:focus-visible { outline: 2px solid var(--marca, var(--tx)); outline-offset: 2px; border-radius: 4px; }
+.bmCompetidorMas > p { margin-top: 0.55rem; }
+@media (prefers-reduced-motion: reduce) { .bmCompetidorMasResumen::before { transition: none; } }
+
+.bmPlegable { margin-top: 0.2rem; }
+.bmPlegableResumen {
+  cursor: pointer; list-style: none;
+  font-size: 0.85rem; font-weight: 600; color: var(--marca-texto, var(--marca));
+  padding: 0.4rem 0; display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.bmPlegableResumen::-webkit-details-marker { display: none; }
+.bmPlegableResumen::before { content: '▸'; transition: transform 140ms ease; }
+.bmPlegable[open] .bmPlegableResumen::before { transform: rotate(90deg); }
+.bmPlegableResumen:focus-visible { outline: 2px solid var(--marca, var(--tx)); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { .bmPlegableResumen::before { transition: none; } }
+
+.bmRecomendacionDetalle { display: block; }
+.bmRecomendacionDetalle > summary { cursor: pointer; list-style: none; }
+.bmRecomendacionDetalle > summary::-webkit-details-marker { display: none; }
+.bmRecomendacionDetalle > summary::after {
+  content: 'por qué'; margin-left: 0.5rem;
+  font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  color: var(--tx-3); white-space: nowrap;
+}
+.bmRecomendacionDetalle[open] > summary::after { content: 'ocultar'; }
+.bmRecomendacionDetalle > summary:focus-visible { outline: 2px solid var(--marca, var(--tx)); outline-offset: 2px; border-radius: 4px; }
+
 .bmCompetidorLinea {
   margin: 0; display: grid; gap: 0.15rem;
   font-size: 0.86rem; line-height: 1.5; color: var(--tx-2);

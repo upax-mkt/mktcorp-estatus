@@ -541,7 +541,7 @@ const RESEARCH_LAND: Benchmark = {
     {
       valor: '3.ª',
       rotulo: 'Del ranking AMAI 2025 por facturación',
-      lectura: 'De las 18 agencias que aceptaron aparecer, solo Ipsos y De la Riva facturan más — los dos rivales que este benchmark señala como los más duros. Research Land queda por encima de Lexia, GDV, Brain, Estadística Aplicada y Suasor. Es prueba de escala de un tercero, no de UPAX.',
+      lectura: 'De las 18 agencias que aceptaron aparecer, solo Ipsos y De la Riva facturan más: los dos rivales que este análisis señala como los más duros. Es prueba de escala de un tercero, no de UPAX.',
       tono: 'gana',
     },
     /**
@@ -554,7 +554,7 @@ const RESEARCH_LAND: Benchmark = {
     {
       valor: '3.56%',
       rotulo: 'Engagement en redes, el más alto del set',
-      lectura: 'Con 133,196 seguidores contra los 116,252 de Ipsos: más audiencia y casi doce veces su tasa de interacción (0.3%). Es el único frente donde Research Land gana en volumen Y en calidad a la vez.',
+      lectura: '133,196 seguidores contra 116,252 de Ipsos, y casi doce veces su tasa de interacción. El único frente donde gana en volumen y en calidad a la vez.',
       tono: 'gana',
     },
     /**
@@ -565,7 +565,7 @@ const RESEARCH_LAND: Benchmark = {
     {
       valor: '17/100',
       rotulo: 'Authority Score',
-      lectura: 'El penúltimo del set, solo por encima de Bitácora Social (14). Con 6,400 backlinks de 140 dominios: muchos enlaces que no construyen autoridad. Ipsos tiene 4 backlinks y un score de 65 — aunque ese 65 es de su dominio global, no de su página mexicana.',
+      lectura: 'El penúltimo del set. Con 6,400 enlaces desde solo 140 dominios: mucho enlace que no construye autoridad, y probablemente la causa del 17 más que su contrapeso.',
       tono: 'atencion',
     },
     /* ⚠️ EL "0% DE TRÁFICO DE MARCA" NO ES UNA DE LAS CIFRAS DE CABECERA, y
@@ -588,7 +588,7 @@ const RESEARCH_LAND: Benchmark = {
     {
       valor: 'Ausente',
       rotulo: 'Madurez de IA declarada',
-      lectura: 'El deck la califica así frente a Ipsos y Kantar en "Líder". Pero al revisar el sitio hoy, el problema resultó ser otro: Research Land SÍ tiene una pieza de IA publicada —un kit con prompt de ChatGPT y skill de Claude— y está fuera del sitemap, fuera de su propio buscador y fuera del menú. No hay que construir el discurso: hay que desenterrarlo.',
+      lectura: 'Pero al mirar el sitio, el problema es otro: la pieza de IA existe —un kit con prompt de ChatGPT y skill de Claude— y está fuera del sitemap, del buscador y del menú. No hay que construirla: hay que desenterrarla.',
       tono: 'atencion',
     },
   ],
@@ -622,7 +622,7 @@ const RESEARCH_LAND: Benchmark = {
       fortaleza: 'Autoridad global convertida en contenido permanente: Insights Hub, encuestas propias, agenda de webinars sin pausa.',
       amenaza: 'alta',
       nosGanaEn: 'Percepción de autoridad. El deck lo dice sin rodeos (lámina 3): "No por precio. Por percepción de autoridad." 5,000+ clientes, 90 mercados, 6M+ panelistas, y 6,300 menciones en motores de IA contra 8 de Research Land.',
-      dondeSeLeGana: 'En captación y en redes. Tiene 2 canales de contacto contra 4, ningún CRM conectado al sitio, y su sitio mexicano es —cita del deck, lámina 17— "una vitrina thought leadership" más que un embudo. En RRSS tiene menos seguidores y 0.3% de engagement contra 3.56%.',
+      dondeSeLeGana: 'En captación y en redes. Dos canales de contacto contra cuatro, sin CRM, y un sitio mexicano que el deck llama "una vitrina" más que un embudo. En redes: menos seguidores y 0.3% de engagement contra 3.56%.',
       medicion: 'Su SEO local vive de la marca global: 82% del tráfico es de marca y sus 4 backlinks locales no explican su Authority Score de 65, que es del dominio corporativo entero.',
       institucional: 'ESOMAR, referencia frecuente en AMAI, Global Trends 2024, Omnichannel Webinars 2024-2025. Lámina 3: "una de las agendas más activas del sector".',
       fortalezaInvisible: 'No necesita pautar ni posicionar: los motores de IA ya lo citan como fuente. Esa autoridad prestada del dominio global le da gratis lo que a un competidor local le cuesta años.',
@@ -634,7 +634,7 @@ const RESEARCH_LAND: Benchmark = {
       fortaleza: 'El más agresivo de todos en IA: suite con nombre propio (KAiA, LINK AI, Trend AI) y un Marketplace de autoservicio por créditos.',
       amenaza: 'alta',
       nosGanaEn: 'Producto y escala. Lámina 4: "compiten directamente por grandes corporativos". Marketplace con 150M+ consumidores en 80+ países, 45+ años en México y BrandZ como franquicia de contenido. ⚠️ El deck le atribuye además el panel de 8,500 hogares: ese panel salió de Kantar en 2025 y hoy es Worldpanel by Numerator, otra empresa. No usarlo contra ellos.',
-      dondeSeLeGana: 'En frescura y en foco local. Su página de México es —lámina 21— "un artículo de presentación fechado feb-2021, no una landing de conversión", sus artículos de Latinoamérica no se actualizan desde diciembre 2025 y no hay webinars desde 2021. Es la puerta que el propio deck señala: verse más fresco y más local que ellos.',
+      dondeSeLeGana: 'En frescura y foco local. Su página de México es un artículo de presentación de febrero de 2021, no una landing; sus artículos regionales no se actualizan desde diciembre de 2025 y no hay webinars desde 2021.',
       medicion: 'Su sitio mexicano tiene 18 visitas orgánicas al mes y 9 keywords, 100% de marca. Todo lo demás que exhibe —7.2k visitas, 1.5k keywords, AS 50— es del dominio global.',
       institucional: 'AMAI, IAB, BrandZ, Consumer Insights, Retail Trends. Lámina 4: "prácticamente cualquier director de marketing en México conoce Kantar".',
       fortalezaInvisible: 'Es el único que ya resolvió el combo que a Research Land le falta entero: marketplace + pricing por créditos + copiloto de IA con nombre. No es que lo comunique mejor: es que lo tiene construido.',
@@ -646,7 +646,7 @@ const RESEARCH_LAND: Benchmark = {
       fortaleza: 'Intérprete cultural con voz propia: no vende investigación, vende cultura + personas + negocio.',
       amenaza: 'alta',
       nosGanaEn: 'Es el rival directo. Lámina 25, textual: "el competidor directo más fuerte de Research Land en el segmento de agencia mexicana premium", y el único calificado "Líder a nivel local/independiente". Tiene lo que a RL le falta: página propia de IA y tecnología, casos de éxito narrados, libros, microtendencias y el newsletter personal del CEO.',
-      dondeSeLeGana: 'En cimientos y en producto de IA. Su SEO es "frágil" (lámina 26): 86% dependiente de marca, rendimiento en rojo (25 escritorio / 42 móvil) y un perfil de enlaces con blogs tipo blogspot que el propio deck marca como posible pasivo. Y en IA es "la menos avanzada" (lámina 34): su tienda vende libros, no estudios.',
+      dondeSeLeGana: 'En cimientos y en IA. Su SEO es frágil: 86% dependiente de marca, rendimiento en rojo y enlaces sospechosos que el deck marca como posible pasivo. Y en IA es la menos avanzada del set: su tienda vende libros, no estudios.',
       medicion: 'El competidor con más tráfico bruto del set —741 visitas al mes— pero casi todo de marca: la única keyword no-marca que aporta algo es "barranca del m…", con 5.66%.',
       institucional: 'AMAI y presencia constante de Gabriela de la Riva —fundadora y presidenta, expresidenta de AMAI— en foros y espacios académicos. Sobre la antigüedad, lo defendible es "fundada en 1988": el "más de 27 años" de la lámina 5 sale del texto viejo de su LinkedIn y su propio sitio reclama 35.',
       fortalezaInvisible: 'Su ecosistema de unidades. Hub, The Growth Studio, Lemon Ice (cuantitativo) y Auditor Service (IA) le dejan competir en varios frentes con marcas distintas, y sus blogs vivos están ahí, no en la marca madre.',
@@ -658,7 +658,7 @@ const RESEARCH_LAND: Benchmark = {
       fortaleza: 'Confianza institucional certificada: ISO 9001:2015 con certificado verificable, 30+ años y dominio del segmento político y de gobierno.',
       amenaza: 'media',
       nosGanaEn: 'Credenciales de proceso y terreno público. Lámina 6: amenaza "Media-Alta, especialmente en estudios tradicionales y opinión pública". Su pilar —"pueden no estar de acuerdo con nuestros resultados, pero nos creen"— es difícil de disputar en gobierno.',
-      dondeSeLeGana: 'En todo lo digital. Sitio "básico" y técnicamente desactualizado (lámina 27), sin blog, sin newsletter, sin nutrición, sin IA y sin paid. El deck lo dice: como motor de demanda digital está por debajo de Research Land, De la Riva, Ipsos y Kantar.',
+      dondeSeLeGana: 'En todo lo digital: sin blog, sin newsletter, sin nutrición, sin IA y sin pauta. Como motor de demanda está por debajo de Research Land, De la Riva, Ipsos y Kantar.',
       medicion: '104 visitas al mes y 37 keywords, con la dependencia de marca más baja de los competidores (71%) y una keyword de negocio real: "encuesta presidencial".',
       institucional: 'ISO 9001:2015 con certificado verificable (NYCE 2016CRE-537, vigente hasta enero de 2028) y afiliación AMAI: es la credencial de calidad mejor documentada de todo el set. El ESIMM que le atribuye la lámina 6 NO se pudo verificar — su ficha oficial de AMAI solo lista ISO 9001. Opera junto a la marca Covarrubias y Asociados.',
       fortalezaInvisible: 'Sus backlinks son mejores que su score: enlaces desde Wikipedia, Vanguardia y e-consulta. En el nicho electoral lo citan aunque su sitio no lo capitalice.',
@@ -670,7 +670,7 @@ const RESEARCH_LAND: Benchmark = {
       fortaleza: 'Antropología aplicada con una red que nadie más tiene: según su propio sitio, colabora con más de 300 antropólogos en México y Latinoamérica. Dice "colabora con", no "emplea": son red, no plantilla, y nadie lo ha verificado por fuera.',
       amenaza: 'media',
       nosGanaEn: 'Profundidad cualitativa de nicho. Lámina 7: amenaza "Media, particularmente para Customer Land, Brand Land y estudios cualitativos". Su diferenciador es explícitamente lo humano, en contraposición al discurso de datos e IA — y el sector le está dando la razón: la preocupación por respondientes sintéticos y bots subió cerca de 40% interanual.',
-      dondeSeLeGana: 'En absolutamente todo lo demás. Un solo canal de contacto —el teléfono—, sitio one-page sin landings ni hub, SEO "Ausente" con 6 keywords y 100% de marca, cero visibilidad en IA, redes inactivas y 0% de engagement.',
+      dondeSeLeGana: 'En todo lo demás. Un solo canal de contacto —el teléfono—, sitio de una página, seis keywords, cero visibilidad en IA y redes inactivas con 0% de engagement.',
       medicion: '70 visitas al mes, de las que prácticamente el 100% viene de las tres variantes de su propio nombre.',
       institucional: 'Sin certificaciones corporativas comunicadas públicamente. Su terreno son la academia y las instituciones públicas; ExpoNegocios y foros de cultura y comportamiento social.',
       fortalezaInvisible: 'El aval académico. Entre sus 113 dominios de referencia hay enlaces de la UNAM: para un cliente que compra rigor social, ese respaldo pesa más que cualquier métrica digital.',
@@ -694,43 +694,43 @@ const RESEARCH_LAND: Benchmark = {
     {
       nombre: 'Worldpanel by Numerator',
       categoria: 'Datos continuos',
-      porQueImporta: 'Va primero por higiene, no por amenaza: el benchmark analiza "Kantar" como un bloque, y ese bloque se rompió en enero de 2025. El panel de 8,500 hogares y 20 años en México que el deck le atribuye a Kantar hoy es de esta empresa. Mientras no se corrija, el análisis competitivo carga un error de hecho.',
+      porQueImporta: 'Va primero por higiene: el panel de 8,500 hogares que el deck le atribuye a Kantar es hoy de esta empresa. Se separaron en enero de 2025.',
       amenaza: 'alta',
     },
     {
       nombre: 'NielsenIQ (NIQ)',
       categoria: 'Datos continuos',
-      porQueImporta: 'Enseña lo que ninguno de los cinco analizados enseña: 2,877 millones de dólares de ingreso por SUSCRIPCIÓN anualizada, contra un negocio de proyectos que empieza de cero cada trimestre. No pelea el RFP, se lleva el presupuesto antes de que el RFP exista. Y con Ebit y su Sales & Trade Hub ya entró a "inteligencia de mercado", que es como Research Land se describe a sí misma.',
+      porQueImporta: 'No pelea el RFP: se lleva el presupuesto antes de que exista. 2,877 millones de dólares de ingreso por suscripción, contra un negocio de proyectos que arranca de cero cada trimestre.',
       amenaza: 'alta',
     },
     {
       nombre: 'Berumen y Asociados',
       categoria: 'Agencia mexicana ad-hoc',
-      porQueImporta: 'Es el hueco más difícil de justificar del análisis. Mexicana, ad-hoc, socia AMAI, ISO 20252, fundada en 1992, con oficinas en CDMX, Monterrey y Guadalajara y campo propio con credencial ante entes electorales. Es el competidor que más se parece a Research Land y no aparece por ningún lado.',
+      porQueImporta: 'El hueco más difícil de justificar: mexicana, ad-hoc, socia AMAI, ISO 20252, campo propio en tres ciudades. Es el que más se parece a Research Land.',
       amenaza: 'alta',
     },
     {
       nombre: 'Enkoll',
       categoria: 'Opinión pública',
-      porQueImporta: 'Entra por dos puertas a la vez, y por eso pesa más que otras casas demoscópicas: precisión demostrada en las presidenciales de 2018 y 2024 y certificación ESIMM documentada por AMAI, pero además cuali, cuanti, cámaras Gesell y geomarketing. Es la única de su grupo que compite contra el negocio ACTUAL de Research Land, no solo contra la vertical político-electoral.',
+      porQueImporta: 'Acertó las presidenciales de 2018 y 2024, pero además hace cuali, cuanti y geomarketing: la única casa demoscópica que compite contra el negocio actual de RL, no solo contra la vertical nueva.',
       amenaza: 'alta',
     },
     {
       nombre: 'Consulta Mitofsky',
       categoria: 'Opinión pública',
-      porQueImporta: 'Si la vertical político-electoral pasa de exploración a clientes, es el precio de referencia y el estándar de credibilidad contra el que van a comparar. Su modelo es distribución: regala el dato semanal y cobra el acceso, y cada encuesta gratuita es publicidad. Con su programa de marca corporativa cruza además a territorio donde Research Land sí vende.',
+      porQueImporta: 'Si la vertical político-electoral arranca, es el precio y la credibilidad contra los que van a comparar. Su modelo es distribución: regala el dato semanal y cobra el acceso.',
       amenaza: 'alta',
     },
     {
       nombre: 'Zappi',
       categoria: 'Autoservicio tech-led',
-      porQueImporta: 'Ataca el terreno donde una agencia mexicana se cree segura: validar creatividad y concepto. 204 millones de dólares levantados y más de 350 marcas. Cuando una casa matriz lo estandariza, la validación deja de salir a concurso local y Research Land pierde el proyecto sin haber sido invitada. Dato para tener presente: Kantar, que sí está en este análisis, es inversionista suyo.',
+      porQueImporta: 'Cuando una casa matriz lo estandariza, validar creatividad deja de salir a concurso local: RL pierde el proyecto sin ser invitada. Kantar, que sí está en este análisis, es inversionista suyo.',
       amenaza: 'media',
     },
     {
       nombre: 'quantilope',
       categoria: 'Autoservicio tech-led',
-      porQueImporta: 'Importa por una sola cifra, y hay que sabérsela: publica precio, 2,000 dólares al mes desde el plan de entrada. Es el ancla contra la que un director de insights va a comparar cualquier propuesta. Sin panel ni operación local no entrega México con calidad de campo — pero eso hay que poder decirlo, y para decirlo hay que conocer el número.',
+      porQueImporta: 'Importa por una cifra que hay que saberse: publica precio, 2,000 dólares al mes. Es el ancla contra la que van a comparar cualquier propuesta.',
       amenaza: 'media',
     },
   ],
@@ -751,55 +751,55 @@ const RESEARCH_LAND: Benchmark = {
       variable: 'Sitio web',
       udn: 'solido',
       competidores: ['lider', 'solido', 'lider', 'basico', 'basico'],
-      nota: 'Láminas 15 a 27. RL es "sólido y muy cercano a líder"; le falta discurso de IA, casos de éxito narrados y marketplace. De la Riva es el único "Líder" local.',
+      nota: 'A RL le falta discurso de IA, casos narrados y marketplace. De la Riva es el único "Líder" local.',
     },
     {
       variable: 'SEO',
       udn: 'basico',
       competidores: ['basico', 'basico', 'basico', 'basico', 'ausente'],
-      nota: 'Nadie llega a "Sólido". RL es "básico con techo sólido"; Ipsos y Kantar son "básicos" que se apoyan en la autoridad de su dominio global.',
+      nota: 'Nadie llega a "Sólido". Ipsos y Kantar se apoyan en la autoridad de su dominio global.',
     },
     {
       variable: 'Infraestructura de conversión',
       udn: 'lider',
       competidores: ['basico', 'solido', 'solido', 'basico', 'ausente'],
-      nota: 'Lámina 14: "mejor infraestructura de conversión de la categoría". Cuatro canales y CRM conectado; solo Kantar tiene lo mismo. Bitácora capta únicamente por teléfono.',
+      nota: 'Cuatro canales y CRM conectado; solo Kantar iguala. Bitácora capta solo por teléfono.',
     },
     {
       variable: 'Madurez de IA declarada',
       udn: 'ausente',
       competidores: ['lider', 'lider', 'basico', 'sin_dato', 'sin_dato'],
-      nota: 'Lámina 31. Pulso y Bitácora no entran en el anexo de IA: no es que estén en cero, es que no se midieron.',
+      nota: 'Pulso y Bitácora no se midieron aquí: "sin dato" no es un cero.',
     },
     {
       variable: 'Autoservicio y pricing visible',
       udn: 'ausente',
       competidores: ['basico', 'basico', 'ausente', 'sin_dato', 'sin_dato'],
-      nota: 'Nadie tiene checkout real. Ipsos publica "desde $3,750 mxn" y Kantar "desde $4,500 usd", pero el alta pasa por ventas en los dos. Es la ventana más clara de la categoría.',
+      nota: 'Ipsos publica "desde $3,750 mxn" y Kantar "desde $4,500 usd", pero el alta pasa por ventas. Nadie tiene checkout real.',
     },
     {
       variable: 'Paid media',
       udn: 'sin_dato',
       competidores: ['basico', 'ausente', 'basico', 'ausente', 'ausente'],
-      nota: 'Láminas 40 y 41. Research Land no tiene ficha propia en este bloque. De la Riva es el único con landing dedicada y el mapa lo llama "Líder México" pese a su madurez "Básico": lidera una categoría floja.',
+      nota: 'De la Riva lidera una categoría floja: es "Líder México" con madurez "Básico". A Research Land no la mide este bloque.',
     },
     {
       variable: 'Inbound y nutrición',
       udn: 'solido',
       competidores: ['basico', 'basico', 'basico', 'basico', 'ausente'],
-      nota: 'Mapa de la lámina 53, por color de burbuja. RL es el único "Sólido": 4 activos de contenido y gating real. Nadie alcanza "Líder".',
+      nota: 'RL es el único "Sólido": cuatro activos y gating real. Nadie alcanza "Líder".',
     },
     {
       variable: 'Redes sociales',
       udn: 'solido',
       competidores: ['solido', 'solido', 'solido', 'ausente', 'ausente'],
-      nota: 'Mapa de la lámina 57. Ojo: el deck pinta a RL igual que a Ipsos pese a que sus números lo superan en seguidores y en engagement (3.56% contra 0.3%).',
+      nota: 'El deck pinta a RL igual que a Ipsos, pese a que sus números lo superan en las dos cosas.',
     },
     {
       variable: 'Liderazgo de pensamiento',
       udn: 'basico',
       competidores: ['lider', 'lider', 'solido', 'basico', 'basico'],
-      nota: 'Lámina 8, sobre 10: RL saca 7 en artículos y 8 en estudios propios, pero 5 en conferencias, 5 en voceros visibles y 4 en medios. Ipsos saca 10 en las cinco.',
+      nota: 'Sobre 10: RL saca 7 en artículos y 8 en estudios, pero 5 en voceros y 4 en medios. Ipsos, 10 en las cinco.',
     },
   ],
 
@@ -965,30 +965,30 @@ const RESEARCH_LAND: Benchmark = {
   disciplinas: [
     {
       id: 'portafolio',
-      veredicto: 'Ipsos, Kantar y De la Riva no ganan porque investiguen mejor: ganan porque son percibidos como expertos, voceros y referentes (lámina 9). Research Land tiene los activos para disputarlo —700 proyectos al año, territorios especializados, el podcast, estudios propios— y el propio deck concluye que "hoy esos activos generan mucho menos ruido en el mercado que los de sus competidores".',
+      veredicto: 'No ganan por investigar mejor: ganan porque los perciben como expertos y referentes. Research Land tiene con qué disputarlo —700 proyectos al año, territorios propios, el podcast—, pero, en palabras del deck, "esos activos generan mucho menos ruido que los de sus competidores".',
     },
     {
       id: 'web',
-      veredicto: 'El sitio mejor calificado del set y la autoridad más baja para llenarlo. Research Land tiene la mejor infraestructura de conversión de la categoría —cuatro canales con CRM detrás— y es el único sin dependencia de marca, pero un Authority Score de 17 y 14 de visibilidad en IA lo dejan fuera de "Líder". El cuello de botella que el deck señala es técnico: ningún sitio del set pasa Core Web Vitals.',
+      veredicto: 'El sitio mejor calificado del set, y la autoridad más baja para llenarlo. Cuatro canales de contacto con CRM detrás —solo Kantar iguala eso—, pero 17 de Authority Score y 14 de visibilidad en IA lo dejan fuera de "Líder".',
     },
     {
       id: 'comercial',
-      veredicto: 'Nadie vende autoservicio de verdad y nadie publica precio. Kantar e Ipsos tienen marketplace y copiloto de IA, pero el alta real pasa por ventas en los dos; De la Riva no tiene ni discurso de IA; y ni Attest, el jugador más DIY del mundo, se atreve a quitar al humano. Research Land no tiene ninguna de las dos cosas, y por eso mismo es donde más rápido puede diferenciarse.',
+      veredicto: 'Nadie vende autoservicio de verdad y nadie publica precio. Ipsos y Kantar tienen marketplace, pero el alta pasa por ventas en los dos. Ni Attest, el jugador más DIY del mundo, se atreve a quitar al humano.',
       ventana: true,
     },
     {
       id: 'paid',
-      veredicto: 'El share of voice pagado de esta categoría en México NO TIENE DUEÑO, y eso es más fuerte de lo que dice el deck. Al revisar las bibliotecas públicas de anuncios: Ipsos México y Kantar México tienen cero pauta propia —lo que corre aquí con su nombre es reclutamiento de panel, comprado desde entidades de fuera del país—, y Pulso y Bitácora no pautan nada. El único que juega es De la Riva, con cuatro anuncios en LinkedIn, dos de ellos pagados del bolsillo personal de su CEO. Ni el deck ni nadie mide a Research Land en este bloque. La barrera de entrada es baja porque no hay contra quién pujar.',
+      veredicto: 'El share of voice pagado de esta categoría NO TIENE DUEÑO. Cuatro de los cinco no pautan nada en México —lo de Ipsos y Kantar es reclutamiento de panel comprado desde fuera del país— y el único que juega, De la Riva, lo hace con cuatro anuncios en LinkedIn. No hay contra quién pujar.',
       ventana: true,
     },
     {
       id: 'rrss',
-      veredicto: 'Research Land ya gana aquí y el deck no lo dice con esas palabras: 133,196 seguidores contra 116,252 de Ipsos, y 3.56% de engagement contra 0.3%. Lo que falta no es contenido sino estrategia por plataforma — en TikTok solo amplifica el podcast y aun así es su mayor motor de interacción. En inbound, ningún competidor local tiene ecosistema estable y los globales publican sin capturar un solo dato.',
+      veredicto: 'Aquí Research Land ya gana, y el deck no lo dice con esas palabras: más seguidores que Ipsos y casi doce veces su engagement. No falta contenido, falta estrategia por plataforma. En inbound, los globales publican mucho y no capturan un solo dato.',
       ventana: true,
     },
     {
       id: 'pr',
-      veredicto: 'Es la brecha más ancha y la más lenta de cerrar. En el comparativo de liderazgo de pensamiento (lámina 8, sobre 10), Research Land saca 5 en conferencias, 5 en voceros visibles y 4 en presencia en medios, contra un 10 perfecto de Ipsos en las cinco variables. Tiene estudios propios (8) y artículos (7): lo que no tiene es quién los cuente en público.',
+      veredicto: 'La brecha más ancha y la más lenta de cerrar. Sobre 10: Research Land saca 5 en conferencias, 5 en voceros visibles y 4 en medios, contra el 10 perfecto de Ipsos en las cinco variables. Tiene los estudios; le falta quién los cuente en público.',
     },
   ],
 
@@ -1165,7 +1165,7 @@ const RESEARCH_LAND: Benchmark = {
    * EL RESUMEN EJECUTIVO. Breve a propósito: lo largo ya está en los
    * veredictos de cada disciplina, y esto es lo que se lee en la sala.
    */
-  lectura: 'Hay que empezar por lo que el deck no mide: en facturación real Research Land es la tercera agencia del país entre las que aceptaron aparecer en el ranking AMAI 2025, detrás solo de Ipsos y De la Riva —los dos rivales que este mismo análisis señala como los más duros—. Con eso en la mano, lo que sigue se lee distinto: no es una retadora pequeña peleando contra gigantes, es una empresa grande que no se ve grande por fuera. Llega con la mejor infraestructura de captación de la categoría —cuatro canales de contacto con CRM detrás, algo que solo Kantar iguala— y con la audiencia más viva: más seguidores que Ipsos y casi doce veces su engagement. Lo que le falta no es maquinaria, es autoridad y demanda que meterle: Authority Score de 17, ocho menciones en motores de IA frente a las miles de los globales, y un 5 sobre 10 en voceros visibles cuando Ipsos saca 10. La categoría entera le deja tres puertas abiertas al mismo tiempo: nadie publica precio, nadie vende autoservicio de verdad y ningún competidor local tiene un ecosistema de contenido que capture. Ninguna de las tres exige construir un producto nuevo; las tres exigen contar y ordenar lo que ya existe.',
+  lectura: 'Research Land es la tercera agencia del país por facturación y la penúltima en autoridad digital. No es una retadora pequeña peleando contra gigantes: es una empresa grande que no se ve grande por fuera. Tiene la mejor infraestructura de captación de la categoría y la audiencia más viva; lo que le falta es autoridad y demanda que meterle. Y la categoría le deja tres puertas abiertas a la vez: nadie publica precio, nadie vende autoservicio de verdad y ningún local captura con su contenido. Ninguna exige un producto nuevo.',
 
   fuente: 'Benchmark Digital junio 2026 · Marketing Corp · 61 láminas, cinco bloques. Las 27 tablas del deck se transcribieron de las láminas renderizadas, porque no viajan en el export de texto',
   actualizado: '2026-06-30',
