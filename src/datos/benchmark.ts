@@ -993,51 +993,6 @@ const RESEARCH_LAND: Benchmark = {
   ],
 
   /**
-   * LAS RECOMENDACIONES. Las cinco primeras salen de las conclusiones escritas
-   * del deck (láminas 14, 36, 51 y 59). La sexta NO sale del deck: sale de
-   * auditar sus propias cifras, y contradice una de sus lecturas — por eso
-   * lleva dicho de dónde viene.
-   */
-  recomendaciones: [
-    {
-      que: 'Poner precio a la vista, aunque sea por rangos.',
-      porque: 'Es el único hueco que tiene toda la categoría a la vez: ni Kantar Marketplace, ni Ipsos.Digital, ni Attest publican tarifa. Ipsos enseña un "desde $3,750 mxn" y Kantar un "desde $4,500 usd", y ahí se acaba. Quien lo haga primero se queda con la búsqueda de quien compara antes de llamar.',
-    },
-    {
-      que: 'Desenterrar la pieza de IA que ya está publicada, antes de plantearse construir ninguna otra.',
-      porque: 'CORRIGE AL DECK. No es que Research Land no comunique IA: es que la comunicó en el peor sitio posible. En /herramientas hay un kit —guía, plantilla, prompt de ChatGPT y skill de Claude— que no está en el sitemap, no aparece en el buscador del propio sitio (cero resultados para "ChatGPT" y para "Claude") y no se enlaza desde el menú ni desde ningún servicio. El activo está pagado y escrito; falta exponerlo. Y el marco de la narrativa está regalado: ni Attest, el jugador más DIY del mercado, quita al humano —sus cuatro planes incluyen un research expert asignado—. Al citarlo, nombrar bien sus productos: Compass es el copiloto y Explore son las entrevistas moderadas por IA; el deck se las atribuye las dos a Compass.',
-    },
-    {
-      que: 'Darles texto y página propia a los seis territorios: hoy son solo imágenes.',
-      porque: 'NO SALE DEL DECK, sale de auditar el sitio. Brand Land, Product Land, Customer Land, Team Land, Arena y Data Express son la arquitectura de marca de la unidad y existen ÚNICAMENTE como archivos SVG, con el texto alternativo "01_brand_land_se". Ningún buscador, ningún modelo de IA y ningún lector de pantalla puede saber que existen: es marca construida y no cobrada. Seis páginas con su nombre en el título, su método y su entregable atacan de frente la debilidad medida —visibilidad en IA—, crean seis puertas de entrada comercial que hoy no hay, y de paso cierran una inconsistencia viva: las credenciales hablan de Business Land, que en el sitio no existe.',
-    },
-    {
-      que: 'Bajar los estudios a redes con estrategia por plataforma.',
-      porque: 'Es donde ya se gana: más seguidores que Ipsos y casi doce veces su engagement. Hoy TikTok solo amplifica el podcast y aun así es el mayor motor de interacción. El deck lo dice: no falta contenido, falta estrategia por plataforma.',
-    },
-    {
-      que: 'Entrar a LinkedIn con la cara de sus directores antes de que alguien más ocupe el hueco.',
-      porque: 'CORRIGE Y AMPLÍA AL DECK. Al revisar las bibliotecas de anuncios, cuatro de los cinco competidores tienen cero pauta B2B en México —lo de Ipsos y Kantar es reclutamiento de panel comprado desde fuera del país— y el único que juega, De la Riva, lo hace con cuatro anuncios, dos de ellos pagados desde el perfil personal de su CEO. Ese formato cuesta cerca de un tercio por clic que un anuncio de marca y se lee como una opinión, no como publicidad. Research Land ya tiene lo que ese formato necesita y ellos tuvieron que construir: directores con voz pública y un podcast semanal. No hay contra quién pujar todavía.',
-    },
-    {
-      que: 'Montar la biblioteca de estudios: lo general abierto, los insights clave detrás de formulario.',
-      porque: 'Es la ventaja que nadie más puede copiar rápido. Los globales publican volumen sin gatear —ganan SEO y no capturan un dato—, y ningún local tiene ecosistema inbound estable. Research Land ya es el único con gating real y CRM conectado: solo le falta qué meterle.',
-    },
-    {
-      que: 'Arreglar el rendimiento móvil antes que cualquier otra cosa del sitio.',
-      porque: 'El deck lo llama "la palanca más directa para mejorar posiciones y conversión". Research Land va en 64 sobre 100 en móvil: es de los mejores del set, pero el set entero reprueba, así que el primero que lo arregle se separa.',
-    },
-    {
-      que: 'Ampliar el set competitivo antes del próximo corte: faltan categorías enteras, no solo nombres.',
-      porque: 'NO SALE DEL DECK. Este benchmark mide a cinco agencias ad-hoc y deja fuera a los de datos continuos (NielsenIQ+GfK, Worldpanel by Numerator), a los mexicanos del padrón AMAI (Berumen, Nodo, Lexia), a los de opinión pública —Parametría, Enkoll, Mitofsky, BGC, Buendía y Márquez, que son el set real si la vertical político-electoral avanza— y a los tech-led de autoservicio, que no compiten por el RFP pero sí por el presupuesto del cliente que decide hacerlo por dentro. Esa última es la grieta que el sector reporta: los tech-led crecen y los service-led caen.',
-    },
-    {
-      que: 'Auditar el perfil de enlaces antes de volver a presentar los 6,400 backlinks como una fortaleza.',
-      porque: 'NO SALE DEL DECK: sale de auditar sus cifras. 6,400 enlaces desde solo 140 dominios es una razón de 45.7 a 1, cuando los competidores mexicanos van de 2 a 3.5 y lo sano ronda 3 a 5. Esa firma es la de enlaces repetidos en todas las páginas de unos pocos sitios —un pie de página compartido entre los sitios del grupo lo produce— y tres de los seis factores antispam del Authority Score penalizan justo ese patrón. Puede ser la causa del 17, no su contrapeso.',
-    },
-  ],
-
-  /**
    * EL GRÁFICO. Es el único del deck que rotula sus valores (lámina 13), así
    * que es el único que se puede montar sin estimar leyendo un dibujo. Los
    * mapas de burbujas de inbound y RRSS (láminas 53 y 57) se quedan fuera a
