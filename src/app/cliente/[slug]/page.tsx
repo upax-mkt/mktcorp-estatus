@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
 import { colorDeTextoSobre } from '@/lib/marca'
+import { textoYVeloSobreGradiente } from '@/lib/texto-sobre-gradiente'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
@@ -1144,6 +1145,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     revalidatePath(`/cliente/${slug}`)
   }
 
+  // El texto de los módulos plegados y el velo que lo sostiene, calculados
+  // contra el degradado ENTERO. Ver el comentario de `--texto-sobre-gradiente`.
+  const textoPlegado = textoYVeloSobreGradiente(
+    tema.gradiente,
+    colorDeTextoSobre(tema.gradiente[0]),
+    tema.textoSobreGradiente,
+  )
+
   const estiloMarca = {
     '--marca': tema.primario,
     '--marca-texto': colorDeTextoDeMarca(tema.primario),
@@ -1161,22 +1170,27 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     /**
      * EL TEXTO DE UNA SECCIÓN PLEGADA, que va sobre el DEGRADADO y no sobre la
      * superficie sólida (Franco: *"los módulos colapsados deberían estar de un
-     * color como el de la cabecera degradado"*).
-     *
-     * Se calcula contra `gradiente[0]` —la primera parada, que es donde cae el
-     * título— y no se reusa `textoSobreOscura`, que está validado contra otro
-     * color. La diferencia no es teórica: el blanco de Marketing United da
+     * color como el de la cabecera degradado"*). No se reusa `textoSobreOscura`,
+     * que está validado contra otro color: el blanco de Marketing United da
      * 21:1 sobre su superficie oscura y **1,14 sobre el lima con el que
-     * arranca su degradado**. Ilegible, y solo se ve en las marcas claras.
+     * arrancaba su degradado**.
+     *
+     * ⚠️ HASTA EL 26-AGO SE MEDÍA CONTRA UNA SOLA PARADA, y ahí estaba el
+     * defecto: la barra plegada NO tiene un fondo, tiene un degradado de 120°
+     * a lo ancho de mil píxeles, y pone contenido en LOS DOS EXTREMOS —icono y
+     * título al borde izquierdo, cifra y chevron al 96%—. La cifra caía sobre
+     * un color que nadie había mirado. Medido en las diez salas reales: seis
+     * fallaban, y en Promo Espacio la cifra daba 1,30:1 sobre el negro con el
+     * que acaba su degradado. Invisible.
+     *
+     * Ahora se valida contra TODAS las paradas y, cuando ningún color plano
+     * puede leerse sobre las dos —pasa siempre que el degradado cruza de
+     * oscuro a claro—, se acompaña de un velo uniforme con el α mínimo. Lo
+     * escrito a mano sigue mandando (decisión de Franco del 20-ago): se
+     * respeta el color y se le calcula su velo. Ver `texto-sobre-gradiente.ts`.
      */
-    /**
-     * LO ESCRITO MANDA (20-ago-2026). El cálculo sigue siendo el respaldo, y
-     * es un buen respaldo —nadie tiene que elegir un color para que su sala
-     * se lea—, pero dejó de ser una imposición: con el magenta de Mexa
-     * (`#F72585`) devuelve casi negro sobre su propia franja de marca, y
-     * hasta hoy no había dónde corregirlo.
-     */
-    '--texto-sobre-gradiente': tema.textoSobreGradiente ?? colorDeTextoSobre(tema.gradiente[0]),
+    '--texto-sobre-gradiente': textoPlegado.texto,
+    ...(textoPlegado.velo ? { '--velo-gradiente': textoPlegado.velo } : {}),
     // El alto de la barra global, para que el riel de secciones se pegue justo
     // debajo. CERO cuando no la hay: el director de la UDN no ve el menú de
     // Marketing Corp, y su riel tiene que pegarse arriba del todo (ver

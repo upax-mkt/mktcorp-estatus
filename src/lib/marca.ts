@@ -44,7 +44,7 @@ export interface MarcaDerivada {
 }
 
 /** WCAG AA para texto normal: el mismo mínimo que ya usa el resto de la app (temas.test.ts, colorDeTextoDeMarca en src/temas/index.ts). */
-const CONTRASTE_MINIMO_TEXTO = 4.5
+export const CONTRASTE_MINIMO_TEXTO = 4.5
 
 /**
  * SECUNDARIO Y ACENTO: split-complementario clásico. En vez de un

@@ -342,6 +342,17 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
    * del negro al que cae un `<input type="color">` sin valor.
    */
   const derivados = primarioValido ? derivarMarca(nombre.trim() || 'x', primario) : null
+
+  /**
+   * LAS DOS PARADAS DEL DEGRADADO, las escritas a mano o las derivadas. Es el
+   * fondo real del título de un módulo plegado — el degradado entero, no su
+   * primera parada— y contra las dos se mide su contraste más abajo.
+   */
+  const paradasDelDegradado = [
+    HEX_VALIDO.test(gradienteInicio) ? gradienteInicio : derivados?.gradiente[0],
+    HEX_VALIDO.test(gradienteFin) ? gradienteFin : derivados?.gradiente[1],
+  ].filter((c): c is string => c != null)
+
   const nombreListo = nombre.trim().length > 0
   const listo =
     nombreListo && identificadorFinal.length > 0 && !identificadorRepetido && primarioValido && !subiendoLogo
@@ -629,14 +640,18 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
                   alCambiar: setIconoTitulo, derivado: derivados?.textoSobreClara,
                   sobre: '#ffffff',
                 },
-                /* El título Y su icono cuando el módulo está PLEGADO: ahí el
-                   fondo es el degradado, así que se mide contra su primera
-                   parada, que es donde cae el texto. Es el color que salía
-                   casi negro sobre el magenta de Mexa. */
+                /* El título, su icono Y LA CIFRA cuando el módulo está
+                   PLEGADO: ahí el fondo es el degradado ENTERO, no su primera
+                   parada. Se mide contra las dos, y la cifra que sale es la
+                   del peor punto de la barra — que hasta el 26-ago nadie
+                   estaba mirando. Si queda por debajo de AA la app lo sostiene
+                   con un velo mínimo (`texto-sobre-gradiente.ts`), pero el
+                   número de aquí sigue diciendo la verdad sobre el color
+                   elegido, no sobre el rescate. */
                 {
                   clave: 'txGradiente', nombre: 'Módulo plegado', valor: textoSobreGradiente,
                   alCambiar: setTextoSobreGradiente, derivado: derivados?.textoSobreOscura,
-                  sobre: HEX_VALIDO.test(gradienteInicio) ? gradienteInicio : derivados?.gradiente[0],
+                  sobre: paradasDelDegradado,
                 },
               ]}
             />

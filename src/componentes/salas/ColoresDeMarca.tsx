@@ -55,8 +55,14 @@ export interface CampoDeColor {
    * marcador de posición del hex.
    */
   derivado?: string
-  /** Contra qué fondo se lee este color, si es un color de texto. */
-  sobre?: string
+  /**
+   * Contra qué fondo se lee este color, si es un color de texto. VARIOS
+   * fondos cuando lo que hay debajo es un degradado: entonces se mide contra
+   * el PEOR de ellos, que es el único número que no miente. Un degradado no
+   * tiene un fondo, tiene un recorrido, y el texto de una barra plegada cae
+   * en sus dos extremos.
+   */
+  sobre?: string | string[]
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/
@@ -89,12 +95,19 @@ function FilaDeColor({ campo }: { campo: CampoDeColor }) {
 
   /**
    * El contraste REAL de lo que se va a ver: el color efectivo contra su
-   * fondo. Solo se calcula si los dos son hex válidos — a medio teclear
-   * ("#3B7") no hay nada que medir y una cifra parpadeando distrae.
+   * fondo, y contra el PEOR de ellos cuando hay varios. Solo se calcula si
+   * todos son hex válidos — a medio teclear ("#3B7") no hay nada que medir y
+   * una cifra parpadeando distrae.
+   *
+   * ⚠️ MEDIR CONTRA UN SOLO FONDO ES CÓMO SE ESCONDIÓ EL DEFECTO DEL 26-AGO:
+   * esta cifra decía 4,5 AA para el título de un módulo plegado de Promo
+   * Espacio mientras su cifra de la derecha estaba en 1,30 sobre el negro con
+   * el que acaba el degradado. Un número tranquilizador es peor que ninguno.
    */
+  const fondos = campo.sobre == null ? [] : [campo.sobre].flat()
   const ratio =
-    campo.sobre && HEX.test(campo.sobre) && HEX.test(efectivo)
-      ? contraste(efectivo, campo.sobre)
+    fondos.length > 0 && fondos.every((f) => HEX.test(f)) && HEX.test(efectivo)
+      ? Math.min(...fondos.map((f) => contraste(efectivo, f)))
       : null
 
   return (

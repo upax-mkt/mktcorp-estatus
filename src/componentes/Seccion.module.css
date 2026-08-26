@@ -128,16 +128,34 @@
    tarjeta como está: en el Home los módulos plegados siguen blancos, que es
    correcto — allí no hay una marca que vestir. */
 .seccion:has(> .plegable:not([open])) {
-  background: var(--gradiente, var(--papel));
-  /* CONTRA LA PRIMERA PARADA DEL DEGRADADO, que es donde cae el título — no
-     contra la superficie sólida. No es un matiz: el blanco de Marketing United
-     da 21:1 sobre su superficie oscura y 1,14 sobre el lima con el que arranca
-     su degradado. Lo calcula la página (`colorDeTextoSobre`). */
+  /* EL VELO VA ENCIMA DEL DEGRADADO, y es una capa plana: el degradado se
+     sigue pintando exacto debajo, solo que con sus dos paradas acercadas lo
+     justo para que el texto se lea en TODA la barra y no solo en el extremo
+     donde cae el título. Sin velo declarado esto compone `transparent` sobre
+     el degradado, que es exactamente el degradado — las salas que ya se leían
+     no cambian ni un píxel.
+
+     POR QUÉ HACE FALTA: la barra pone contenido en sus dos extremos (icono y
+     título a la izquierda, cifra y chevron al 96% del ancho) y cuando el
+     degradado cruza de oscuro a claro NO EXISTE un color plano legible sobre
+     las dos paradas. Está en la aritmética del contraste, no en la elección
+     del color. Lo calcula la página; el α es siempre el mínimo que cumple,
+     porque cada décima de más apaga la marca de la sala. Ver
+     `src/lib/texto-sobre-gradiente.ts`. */
+  background:
+    linear-gradient(var(--velo-gradiente, transparent), var(--velo-gradiente, transparent)),
+    var(--gradiente, var(--papel));
   color: var(--texto-sobre-gradiente, var(--hero-texto, var(--tinta)));
 }
 .seccion:has(> .plegable:not([open])) .titulo { color: inherit; }
 .seccion:has(> .plegable:not([open])) .titulo svg { color: inherit; opacity: 0.9; }
-.seccion:has(> .plegable:not([open])) .conteo { color: inherit; opacity: 0.75; }
+/* EL CONTEO SE PINTA ENTERO SOBRE EL DEGRADADO, sin el 0,75 de opacidad que
+   lleva sobre papel blanco. Es justo la pieza que cae al 96% del ancho —el
+   extremo peor iluminado de la barra— y rebajarla un cuarto se comía el
+   contraste que el velo acaba de garantizar: lo medido dejaría de ser lo
+   pintado. Su jerarquía frente al título ya la dan el tamaño (0,78rem) y el
+   peso, que es como se subordina lo accesorio sin volverlo ilegible. */
+.seccion:has(> .plegable:not([open])) .conteo { color: inherit; opacity: 1; }
 .seccion:has(> .plegable:not([open])) > .plegable > summary::after { color: inherit; }
 /* El foco tiene que verse también sobre el degradado, donde `--marca` puede
    ser justo uno de los colores del fondo. */

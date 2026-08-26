@@ -429,6 +429,36 @@ describe('el color del texto y de los iconos de título', () => {
     expect(estilo).toContain('--texto-sobre-gradiente:')
     expect(estilo).not.toContain('--texto-sobre-gradiente: #ffffff')
   })
+
+  /**
+   * EL VELO (26-ago-2026). Cuando el degradado cruza de oscuro a claro no hay
+   * color plano que se lea en sus dos extremos, y la barra plegada pone texto
+   * en los dos: el título pegado a la izquierda, la cifra al 96% del ancho.
+   * Entonces la página publica además `--velo-gradiente`, una capa uniforme
+   * con el alfa mínimo que acerca las paradas lo justo.
+   */
+  it('publica un velo cuando ningún color plano se leería sobre las dos paradas', async () => {
+    // El naranja y el negro de Promo Espacio: el peor caso medido en producción.
+    cargarTemasMock.mockResolvedValue({ neracode: { ...TEMA_BASE, gradiente: ['#f94701', '#000000'] } })
+    const { container } = render(await invocar())
+    const estilo = estiloDe(container)
+    expect(estilo).toContain('--velo-gradiente: rgba(')
+    expect(estilo).toContain('--texto-sobre-gradiente: #ffffff')
+  })
+
+  /**
+   * Y NO LO PUBLICA CUANDO NO HACE FALTA, que es la mitad que protege a las
+   * salas que ya se leían: sin la variable, el CSS compone `transparent` sobre
+   * el degradado y la barra queda exactamente como estaba.
+   */
+  it('no publica velo cuando el texto ya se lee en toda la barra', async () => {
+    // Los dos morados de Ceci: blanco a 4,81 y 4,78. No hay nada que rescatar.
+    cargarTemasMock.mockResolvedValue({
+      neracode: { ...TEMA_BASE, gradiente: ['#d72a5a', '#5367e1'], textoSobreGradiente: '#ffffff' },
+    })
+    const { container } = render(await invocar())
+    expect(estiloDe(container)).not.toContain('--velo-gradiente')
+  })
 })
 
 /**
