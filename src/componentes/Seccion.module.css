@@ -157,6 +157,17 @@
    peso, que es como se subordina lo accesorio sin volverlo ilegible. */
 .seccion:has(> .plegable:not([open])) .conteo { color: inherit; opacity: 1; }
 .seccion:has(> .plegable:not([open])) > .plegable > summary::after { color: inherit; }
+/* ⚠️ Y CUALQUIER OTRA PIEZA QUE ENTRE EN LA BARRA, aunque venga de otra hoja.
+   El defecto: el botón «Organizar» de Materiales y de Archivos —que solo se ve
+   con sesión de equipo, no en la vista del director— traía su propio gris de
+   `.boton[data-tono="fantasma"]` y daba 3,02:1 sobre el degradado de Promo
+   Espacio. No lo cazó la medición de 7.128 puntos, porque toda ella recorrió
+   la vista pública: exhaustiva en salas y en anchos, ciega al rol de quien
+   mira. Se enumeran los elementos en vez de usar `*` para no pisar de rebote
+   un `svg` o un `hr` que quiera su propio color. */
+.seccion:has(> .plegable:not([open])) > .plegable > summary :is(span, button, a, small, strong) {
+  color: inherit;
+}
 /* El foco tiene que verse también sobre el degradado, donde `--marca` puede
    ser justo uno de los colores del fondo. */
 .seccion:has(> .plegable:not([open])) > .plegable > summary:focus-visible {
