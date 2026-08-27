@@ -17,3 +17,6 @@ next-env.d.ts
 .revision/
 .env.local.respaldo
 .gstack/
+
+# Estado y config de Jarvis (orquestador). No debe viajar a ningún PR.
+.jarvis/
