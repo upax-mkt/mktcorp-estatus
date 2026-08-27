@@ -33,7 +33,12 @@ const RAIZ = process.cwd()
 /** Dónde se agenda una junta. Ninguna puede montar el deck. */
 const AGENDAN = [
   'src/app/page.tsx', // el atajo del Home
-  'src/app/cliente/[slug]/page.tsx', // desde la sala
+  // Desde la sala. Apuntaba a `cliente/[slug]/page.tsx` hasta el 27-ago-2026,
+  // cuando las veintitrés acciones de esa página se mudaron a su propio
+  // `acciones.ts` —el mismo patrón que ya seguía el calendario, aquí abajo—.
+  // Lo que vigila este test no cambió ni un ápice: cambió el archivo donde
+  // vive el código vigilado, y la ruta lo sigue.
+  'src/app/cliente/[slug]/acciones.ts',
   'src/app/reuniones/acciones.ts', // desde el calendario
 ]
 

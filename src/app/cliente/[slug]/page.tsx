@@ -1,13 +1,15 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { notFound, redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
+import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import type { CSSProperties } from 'react'
 import estilos from '../cliente.module.css'
 import { colorDeTextoDeMarca } from '@/temas'
 import { colorDeTextoSobre } from '@/lib/marca'
 import { textoYVeloSobreGradiente } from '@/lib/texto-sobre-gradiente'
+// Las acciones de esta sala viven aparte (ver su cabecera): aquí solo se
+// atan a `slug` con `bind` y se pasan a quien las dispara.
+import * as acciones from './acciones'
 import { cargarTemas, slugsDeSalas } from '@/db/temas'
 import {
   estadoDeSala, acuerdosAbiertos, acuerdosVencidos, estaCongelado, type Acuerdo,
@@ -26,20 +28,12 @@ import { FilaAcuerdo } from '@/componentes/acuerdos/FilaAcuerdo'
 import { RedesDeSala } from '@/componentes/RedesDeSala'
 import { MenuSecciones, type EntradaDeMenu } from '@/componentes/MenuSecciones'
 import { TableroAnalytics } from '@/componentes/TableroAnalytics'
-import {
-  moverEstatus, editarAcuerdo, crearAcuerdo, eliminarAcuerdo, salaDeAcuerdo,
-  type EstatusAcuerdo,
-} from '@/db/acuerdos'
 import { genteParaResponsable } from '@/db/personas'
-import { participantesDe, registrarEdicion, type Participante } from '@/db/participacion'
-import { obtenerMinuta, editarTextoMinuta } from '@/db/minutas'
-import { insertarAcuerdoEnMinuta } from '@/minuta/insertar-acuerdo'
+import { participantesDe, type Participante } from '@/db/participacion'
 import { obtenerBenchmark } from '@/db/benchmark'
 import {
-  listarArchivos, registrarArchivo, editarArchivo, eliminarArchivo, reubicarMateriales,
-  type CategoriaArchivo,
+  listarArchivos,
 } from '@/db/archivos'
-import { del } from '@vercel/blob'
 import { AcuerdoControles } from '@/componentes/AcuerdoControles'
 import { NuevoAcuerdoForm } from '@/componentes/NuevoAcuerdoForm'
 import { partirAcuerdosDeSala } from '@/dominio/orden-acuerdos'
@@ -50,24 +44,18 @@ import { AnadirNotaDePrensa } from '@/componentes/AnadirNotaDePrensa'
 import { ReunionesSala } from '@/componentes/ReunionesSala'
 import { ReunionesPorConfirmar } from '@/componentes/ReunionesPorConfirmar'
 import { LevantarMinuta } from '@/componentes/LevantarMinuta'
-import { normalizarEnlace } from '@/lib/materiales'
 import { MaterialesAgrupados } from '@/componentes/MaterialesAgrupados'
 import { AnadirMaterial } from '@/componentes/AnadirMaterial'
 import { NuevaSesionSala } from '@/componentes/NuevaSesionSala'
 import { Estrella } from '@/componentes/acuerdos/Estrella'
 import { EditarAcuerdo } from '@/componentes/EditarAcuerdo'
 import {
-  marcarDada, marcarNoDada, desmarcarNoDada, obtenerReunion, eliminarReunion, crearReunion,
-  editarReunion,
-} from '@/db/reuniones'
-import {
-  documentoDeReunion, eliminarDocumentoDeReunion, tituloPorDefecto,
+  documentoDeReunion,
 } from '@/db/documentos'
 import { destacarAction } from '@/app/acuerdos/acciones'
-import { PLANTILLAS } from '@/secciones/plantillas'
-import { fechaCompleta, textoDiasDesde, diaCivil, instanteEnCDMX } from '@/lib/fecha'
-import { puedeVerEstaSala, cerrarSesion, sesionActual } from '@/auth/sesion'
-import { esAdmin, esEditor, esLector, exigirEditor } from '@/auth/roles'
+import { fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
+import { puedeVerEstaSala, sesionActual } from '@/auth/sesion'
+import { esAdmin, esEditor, esLector } from '@/auth/roles'
 import { slugsDeSalasPausadas } from '@/db/salas'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
@@ -104,43 +92,6 @@ function resumenDeAcuerdos(acuerdos: Acuerdo[]): string {
   if (abiertos > 0) partes.push(`${abiertos} abierto${abiertos > 1 ? 's' : ''}`)
   if (partes.length === 0) return `${acuerdos.length} al día`
   return partes.join(' · ')
-}
-
-/**
- * Guarda un enlace en uno de los dos módulos de la sala.
- *
- * A NIVEL DE MÓDULO, NO DENTRO DE LA PÁGINA, y esto no es estilo. Declarada
- * dentro del componente, las dos Server Actions que la llaman se la llevarían
- * en su cierre, y React intenta serializarla al mandarlas al cliente:
- * "Functions cannot be passed directly to Client Components", con un 500 en
- * la sala entera. Aquí es una referencia de módulo que el servidor resuelve
- * sola. Por eso `slug` llega por parámetro en vez de por cierre.
- *
- * NO revalida: la ruta la conoce quien llama, que es la acción de la página.
- */
-async function guardarEnlaceDeSala(
-  salaSlug: string,
-  categoria: 'comercial' | 'interes',
-  datos: { titulo: string; enlace: string },
-): Promise<{ error?: string }> {
-  await exigirEditor()
-  // Se vuelve a normalizar EN EL SERVIDOR aunque el cliente ya lo hizo: lo
-  // del navegador es comodidad, esto es la comprobación. Sin ella, un
-  // `javascript:` llega a la base y de ahí a un href que ve la UDN.
-  const normalizado = normalizarEnlace(datos.enlace)
-  if ('error' in normalizado) return { error: normalizado.error }
-  try {
-    await registrarArchivo({
-      salaSlug,
-      categoria,
-      titulo: datos.titulo,
-      fecha: null,
-      enlace: normalizado.url,
-    })
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'No se pudo guardar el enlace.' }
-  }
-  return {}
 }
 
 /**
@@ -312,11 +263,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
     }
   }
 
-  async function salirDeLaSala() {
-    'use server'
-    await cerrarSesion()
-    redirect('/entrar')
-  }
+  const salirDeLaSala = acciones.salirDeLaSala
 
   /**
    * ADMIN, no `equipo` — `esAdmin()`, no un hardcodeo, por el mismo criterio
@@ -374,260 +321,21 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // cuenta. Ocultar los controles en la UI no basta — una Server Action es un
   // endpoint, y quien tenga su id puede llamarla sin pasar por la pantalla.
 
-  async function cambiarEstatusAction(acuerdoId: string, estatus: EstatusAcuerdo) {
-    'use server'
-    await exigirEditor()
-    await moverEstatus(acuerdoId, estatus)
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const cambiarEstatusAction = acciones.cambiarEstatusAction.bind(null, slug)
 
-  async function editarFechaAction(acuerdoId: string, fecha: string | null) {
-    'use server'
-    await exigirEditor()
-    // `instanteEnCDMX` y NO `new Date(fecha)` (arreglo de ronda 14, tarea 2):
-    // medido antes de tocar esta línea, `new Date('2026-09-01')` guarda el
-    // día civil "2026-08-31" — medianoche UTC son las 18:00 del día anterior
-    // en México — así que el acuerdo quedaba venciendo un día antes de lo
-    // tecleado.
-    //
-    // NO SON DOS PANTALLAS, SON SEIS ESCRITORES (corregido en la revisión
-    // final de la ronda: este comentario decía "la pestaña /acuerdos escribe
-    // esta MISMA columna", y era verdad a medias — la ronda 14 solo unificó
-    // tres de los seis). `fechaCompromiso` la escriben: esta acción, el alta
-    // de la sala (`crearAcuerdoAction`, abajo), `editarFechaEnTablaAction` y
-    // `editarEnBandejaAction` (src/app/acuerdos/acciones.ts), `ponerFechaAction`
-    // del Home (src/app/page.tsx) y la publicación de minuta
-    // (`guardarMinuta`, src/db/minutas.ts). Los seis usan hoy
-    // `instanteEnCDMX(dia, '12:00')`, y eso no es solo estética: mientras
-    // convivieron dos instantes para el mismo día civil, el dedupe de
-    // `crearAcuerdo` —que compara el instante EXACTO— dejaba de reconocer sus
-    // propias filas y republicar una minuta duplicaba acuerdos (hallazgo C1).
-    await editarAcuerdo(acuerdoId, { fechaCompromiso: fecha ? instanteEnCDMX(fecha, '12:00') : null })
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const editarFechaAction = acciones.editarFechaAction.bind(null, slug)
 
-  async function crearAcuerdoAction(datos: {
-    que: string
-    responsable: string
-    squad?: string
-    fechaCompromiso: string | null
-  }) {
-    'use server'
-    await exigirEditor()
-    await crearAcuerdo(slug, {
-      que: datos.que,
-      responsable: datos.responsable,
-      squad: datos.squad,
-      // Misma columna, mismo arreglo que `editarFechaAction` arriba: un
-      // acuerdo NUEVO no puede nacer con el día corrido solo porque se dio de
-      // alta desde el formulario de la sala en vez de editado después.
-      fechaCompromiso: datos.fechaCompromiso ? instanteEnCDMX(datos.fechaCompromiso, '12:00') : null,
-    })
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const crearAcuerdoAction = acciones.crearAcuerdoAction.bind(null, slug)
 
-  /**
-   * ---- CORREGIR LA MINUTA SIN SALIR DE LA SALA (20-ago-2026) ----
-   *
-   * Franco: *"una vez generada la minuta, en el mismo módulo me debería
-   * permitir editar la minuta"*.
-   *
-   * Y el editor YA EXISTÍA —`MinutaPublicada`, en `/deck/[id]/minuta`—: lo que
-   * había desde la sala era un enlace que te SACABA de ella. Es la misma
-   * lección que dejó "cargar una plantilla desde el editor" (17-ago): el sitio
-   * donde se pide una acción es DONDE ESTÁ la persona cuando se da cuenta de
-   * que la necesita, y quien lee una minuta en la sala está en la sala.
-   *
-   * Escribe el mismo campo que aquel editor (`editarTextoMinuta`), así que las
-   * dos puertas llevan al mismo sitio y ninguna es una copia de la otra.
-   */
-  async function editarMinutaAction(reunionId: string, texto: string): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
+  const editarMinutaAction = acciones.editarMinutaAction.bind(null, slug)
 
-    // El id viaja desde el navegador — misma comprobación que el alta de un
-    // acuerdo tardío: la reunión tiene que ser de ESTA sala.
-    const reunion = await obtenerReunion(reunionId)
-    if (!reunion || reunion.salaSlug !== slug) {
-      return { error: 'Esa reunión no es de este cliente.' }
-    }
-    await editarTextoMinuta(reunionId, texto)
-    revalidatePath(`/cliente/${slug}`)
-    return {}
-  }
+  const crearAcuerdoEnReunionAction = acciones.crearAcuerdoEnReunionAction.bind(null, slug)
 
-  /**
-   * ---- UN ACUERDO QUE SE ACORDÓ Y NADIE APUNTÓ (20-ago-2026) ----
-   *
-   * Franco: *"una vez creada la reunión y marcada completada se me olvida
-   * meter un acuerdo, debo poder hacerlo y que también se refleje en la
-   * minuta ya publicada"*.
-   *
-   * Dos cosas, y la segunda es la que tiene filo:
-   *
-   * 1. EL ACUERDO CUELGA DE SU REUNIÓN. `crearAcuerdo` ya aceptaba
-   *    `reunionOrigenId` —lo usa `guardarMinuta` al publicar—; lo que no
-   *    había era una pantalla que lo mandara. Con él puesto, la tarjeta de esa
-   *    reunión lo pinta sola: `AcuerdosDeReunion` lee lo que `reunionesDeSala`
-   *    cose por ese campo, en vivo desde la base.
-   *
-   * 2. LA MINUTA YA PUBLICADA SE RETOCA, no se regenera (decisión de Franco:
-   *    integrado en la tabla, sin distinguirlo). Es una inserción de una fila
-   *    en el texto guardado — ver `insertarAcuerdoEnMinuta`—, así que una
-   *    minuta corregida a mano conserva sus correcciones.
-   *
-   * ⚠️ SI LA MINUTA NO TIENE TABLA DONDE INSERTAR, el acuerdo SE GUARDA IGUAL
-   * y esto devuelve el aviso. Pasa con una cargada a mano o editada hasta
-   * perder el formato. Las dos alternativas eran peores: no guardar el acuerdo
-   * por un problema del texto, o escribir la fila en cualquier sitio del
-   * correo y que nadie se entere.
-   */
-  async function crearAcuerdoEnReunionAction(
-    reunionId: string,
-    datos: { que: string; responsable: string; fechaCompromiso: string | null },
-  ): Promise<{ error?: string; aviso?: string }> {
-    'use server'
-    await exigirEditor()
+  const editarAcuerdoTextoAction = acciones.editarAcuerdoTextoAction.bind(null, slug)
 
-    // El id viaja desde el navegador: se comprueba que la reunión sea de ESTA
-    // sala antes de colgarle nada, mismo criterio que `salaDeAcuerdo` en las
-    // acciones de acuerdos.
-    const reunion = await obtenerReunion(reunionId)
-    if (!reunion || reunion.salaSlug !== slug) {
-      return { error: 'Esa reunión no es de este cliente.' }
-    }
+  const descartarBorradorAction = acciones.descartarBorradorAction.bind(null, slug)
 
-    const que = datos.que.trim()
-    if (que.length === 0) return { error: 'Escribe qué se acordó.' }
-
-    await crearAcuerdo(slug, {
-      que,
-      responsable: datos.responsable.trim() || 'por asignar',
-      reunionOrigenId: reunionId,
-      // Mismo arreglo de la fecha que `crearAcuerdoAction`, arriba: el día
-      // civil que se eligió, no el que sale de interpretar la cadena en UTC.
-      fechaCompromiso: datos.fechaCompromiso ? instanteEnCDMX(datos.fechaCompromiso, '12:00') : null,
-    })
-
-    const minuta = await obtenerMinuta(reunionId)
-    let aviso: string | undefined
-    if (minuta?.textoFinal) {
-      const conLaFila = insertarAcuerdoEnMinuta(minuta.textoFinal, {
-        que,
-        responsable: datos.responsable.trim() || 'por asignar',
-        fechaCompromiso: datos.fechaCompromiso,
-      })
-      if (conLaFila) await editarTextoMinuta(reunionId, conLaFila)
-      else aviso = 'El acuerdo se guardó, pero su minuta no tiene tabla de acuerdos donde añadirlo: revísala a mano.'
-    }
-
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-    revalidatePath('/acuerdos')
-    return aviso ? { aviso } : {}
-  }
-
-  /**
-   * CORREGIR UN ACUERDO YA PUBLICADO: su texto y su responsable.
-   *
-   * Franco preguntó *"¿cómo hago para editar un acuerdo ya publicado?"* y la
-   * respuesta era: no se podía. Editar el texto solo existía en la bandeja
-   * (`/acuerdos/bandeja`) y solo mientras el acuerdo seguía `pendiente` —
-   * `editarEnBandejaAction` corta con `if (fila.bandeja !== 'pendiente')
-   * return`. Una vez en la sala, la única salida ante una errata o un dueño
-   * mal asignado era borrarlo y volver a crearlo, perdiendo su origen.
-   *
-   * ⚠️ `exigirEditor()`, NO `exigirEdicionDeAcuerdos(slug)` — es la única
-   * acción de acuerdos de esta pantalla que NO deja pasar al director de la
-   * UDN, y es lo que pidió Franco: *"solo el admin y editores pueden hacer
-   * cambios en los acuerdos ya publicados"*. El director sigue moviendo el
-   * estatus y la fecha de los suyos (eso no cambia); lo que no hace es
-   * reescribir el compromiso ni cambiarse el dueño.
-   *
-   * SIN RASTRO VISIBLE, también por petición suya (*"no queda registro
-   * histórico y desaparece de todos lados"*): el texto viejo no se enseña en
-   * ninguna parte. La columna `acuerdos.historia` sigue registrando el cambio
-   * porque es infraestructura interna que ninguna pantalla pinta —lo
-   * comprobado antes de escribir esto— y quitarla sería perder la auditoría
-   * de estatus que ya existía por algo que nunca se ve.
-   *
-   * Y REVALIDA LAS CUATRO PANTALLAS donde este acuerdo puede estar: su sala,
-   * el Home, el espacio de acuerdos y la bandeja. "Desaparece de todos lados"
-   * es literalmente eso — si faltara una, el texto viejo seguiría ahí hasta
-   * que a alguien le caducara la caché.
-   */
-  async function editarAcuerdoTextoAction(
-    acuerdoId: string,
-    cambios: { que: string; responsable: string },
-  ): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
-    const que = cambios.que.trim()
-    if (que.length === 0) return { error: 'El acuerdo necesita decir qué hay que hacer.' }
-    // Que sea de ESTA sala: el id lo manda el navegador y una Server Action
-    // es un endpoint. Sin esto, quien tenga el id de un acuerdo de otro
-    // cliente podría reescribirlo desde aquí.
-    //
-    // ⚠️ SE PREGUNTA A LA BASE, NO A `s.acuerdos` — que es lo que la página ya
-    // tenía cargado y sería lo cómodo. Alcanzar ese objeto desde dentro de la
-    // acción mete su contenido en el cierre que React serializa hacia el
-    // cliente, y salta "Functions cannot be passed directly to Client
-    // Components… [function some]": la sala entera con un 500. Es la CUARTA
-    // vez hoy que este patrón muerde (ver `bloqueValido` en el benchmark,
-    // `guardarEnlaceDeSala` aquí mismo y `revalidarDocumento` en el editor).
-    // Y además es más correcto: lo cargado es una foto del render, y entre
-    // eso y el clic pueden pasar minutos.
-    if ((await salaDeAcuerdo(acuerdoId)) !== slug) {
-      return { error: 'Ese acuerdo no es de este cliente.' }
-    }
-    try {
-      await editarAcuerdo(acuerdoId, {
-        que,
-        responsable: cambios.responsable.trim() || 'por asignar',
-      })
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo guardar el cambio.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-    revalidatePath('/acuerdos')
-    revalidatePath('/acuerdos/bandeja')
-    return {}
-  }
-
-  /**
-   * TIRAR EL BORRADOR DE UNA PRESENTACIÓN, sin tocar su reunión (ronda 13).
-   *
-   * Franco: *"aparece un elemento llamado 'documento', no sé qué hace ahí y no
-   * lo puedo eliminar"*. La acción existía —`descartarPresentacionAction`—
-   * pero solo DENTRO del editor, y para llegar allí hay que abrir
-   * `/deck/<id>`, que CREA el documento si no existe: el único camino para
-   * deshacerse de uno pasaba por garantizar que hubiera uno.
-   *
-   * Se comprueba que la reunión sea de ESTA sala en el servidor, como el
-   * borrado de acuerdos y el de reuniones: el id llega del navegador.
-   */
-  async function descartarBorradorAction(reunionId: string) {
-    'use server'
-    await exigirEditor()
-    const reunion = await obtenerReunion(reunionId)
-    if (!reunion || reunion.salaSlug !== slug) return
-    await eliminarDocumentoDeReunion(reunionId)
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-    revalidatePath('/deck')
-  }
-
-  async function eliminarAcuerdoAction(acuerdoId: string) {
-    'use server'
-    await exigirEditor()
-    await eliminarAcuerdo(acuerdoId)
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const eliminarAcuerdoAction = acciones.eliminarAcuerdoAction.bind(null, slug)
 
   /**
    * Preparar una presentación desde la sala (Franco, punto 3).
@@ -645,76 +353,7 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * hacer con cada caso (cae a `tituloPorDefecto` si llega vacío o solo
    * espacios — ver su comentario, `src/db/documentos.ts`).
    */
-  /**
-   * CREAR LA REUNIÓN. SOLO LA REUNIÓN.
-   *
-   * Franco: *"aparece un botón que dice crear presentación y debería ser
-   * crear reunión; una vez que la creo debo decidir si la creo con el editor
-   * de presentaciones o cargar un archivo ya creado"*.
-   *
-   * Esto llamaba a `crearReunionConDocumento` y terminaba con
-   * `redirect(/deck/<id>)`: agendar una junta y empezar a maquetar su deck
-   * eran el mismo gesto, sin punto intermedio donde decidir. Quien ya tenía
-   * la presentación hecha acababa igual dentro del editor, con ocho secciones
-   * vacías que nadie iba a llenar — y esa reunión aparecía después en la sala
-   * como "a medio armar" sin que nadie la hubiera empezado.
-   *
-   * Ahora nace la reunión y ya. La decisión —armarla aquí o subir la que ya
-   * existe— se toma en la sala, en "Lo que viene", donde están las dos vías
-   * una al lado de la otra. Sin `redirect`: quien crea se queda donde estaba
-   * y ve aparecer su reunión.
-   *
-   * La plantilla elegida NO se pierde: se guarda en la reunión (migración
-   * 0035) y el editor la usa el día que se pulse "armarla en el editor".
-   *
-   * EDITOR, no `exigirEdicionDeAcuerdos`: crear una reunión no es editar un
-   * acuerdo. El director de la UDN mueve sus compromisos; no agenda la junta
-   * en la que se los van a presentar.
-   */
-  async function crearSesionAction(
-    datos: { plantilla: string; dia: string; titulo: string },
-  ): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
-    // `datos.plantilla` LLEGA `''` CUANDO NADIE TOCÓ EL DESPLEGABLE (H3,
-    // revisión de esta ronda — `NuevaSesionSala.tsx` arranca sin clasificar
-    // ahora, mismo criterio que `agendarRapidoAction` ya usaba para el atajo
-    // del Home): validar solo cuando SÍ llega algo, con el mismo `if
-    // (plantillaCampo && ...)` que ya usa `/deck/nueva` (`page.tsx`) para
-    // esta misma pregunta — antes esta acción rechazaba CUALQUIER envío sin
-    // clase con "Plantilla desconocida", lo que habría dejado el botón
-    // "Crear reunión" roto para quien la dejara sin elegir.
-    if (datos.plantilla && !PLANTILLAS.some((p) => p.id === datos.plantilla)) {
-      return { error: 'Plantilla desconocida.' }
-    }
-    try {
-      await crearReunion({
-        salaSlug: slug,
-        // `|| null`, no la cadena tal cual: `crearReunion` guarda
-        // `datos.plantilla ?? null` (solo `null`/`undefined` se convierten;
-        // `''` se habría guardado literal como una plantilla vacía en la
-        // base). Mismo patrón que ya usan `agendarRapidoAction` (`app/page.tsx`)
-        // y las acciones de `/reuniones` (`app/reuniones/acciones.ts`) para
-        // esta misma traducción.
-        plantilla: datos.plantilla || null,
-        tipo: 'mensual',
-        alcance: 'todos',
-        // Las 10:00 de CDMX, no la medianoche UTC: sin huso explícito una
-        // reunión "del 19" se guarda como las 18:00 del 18 en México. Ver
-        // `instanteEnCDMX`, src/lib/fecha.ts.
-        fecha: instanteEnCDMX(datos.dia, '10:00'),
-        // Vacío se resuelve en el servidor con un título legible — el mismo
-        // `tituloPorDefecto` que usaba `crearReunionConDocumento`.
-        titulo: datos.titulo.trim() || tituloPorDefecto('mensual', instanteEnCDMX(datos.dia, '10:00')),
-        // Nace agendada: agendar no es haber ocurrido.
-      })
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo crear la reunión.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-    return {}
-  }
+  const crearSesionAction = acciones.crearSesionAction.bind(null, slug)
 
   // ---- Confirmar si una reunión se dio o no (punto 2/3) ----
   //
@@ -725,32 +364,11 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
   // una sesión: exigen editor primero y quedan enganchadas a
   // `registrarEdicion`, que nunca propaga un fallo suyo.
 
-  async function marcarPresentadaAction(reunionId: string) {
-    'use server'
-    const quien = await exigirEditor()
-    await marcarDada(reunionId)
-    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const marcarPresentadaAction = acciones.marcarPresentadaAction.bind(null, slug)
 
-  async function marcarNoDadaAction(reunionId: string) {
-    'use server'
-    const quien = await exigirEditor()
-    await marcarNoDada(reunionId)
-    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const marcarNoDadaAction = acciones.marcarNoDadaAction.bind(null, slug)
 
-  async function desmarcarNoDadaAction(reunionId: string) {
-    'use server'
-    const quien = await exigirEditor()
-    await desmarcarNoDada(reunionId)
-    if (quien.sub) await registrarEdicion(reunionId, quien.sub)
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/')
-  }
+  const desmarcarNoDadaAction = acciones.desmarcarNoDadaAction.bind(null, slug)
 
   // ---- El freeze de esta sala (tarea 12, ronda 7) ----
   // EL FREEZE SE GOBIERNA EN AJUSTES (ronda 12). `pausarEstaSalaAction` y
@@ -768,264 +386,20 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
 
   // ---- Server actions: archivos colgados en la sala ----
 
-  async function registrarArchivoAction(datos: {
-    categoria: CategoriaArchivo
-    titulo: string
-    fecha: string | null
-    ruta: string
-    nombreOriginal: string
-    tipoContenido: string | null
-    tamanoBytes: number | null
-    /**
-     * De qué reunión es, cuando el archivo se sube desde dentro de una
-     * reunión (Tarea 9, `CarasDeReunion`) — `undefined`/`null` para lo que
-     * sigue siendo de sala, sin reunión de por medio (p. ej. "archivos de
-     * interés", vía `ArchivosSala`). Opcional a propósito: los llamadores que
-     * ya existían nunca lo mandaban, y sin un `reunionId` un PDF subido desde
-     * una reunión no quedaba referenciado a la junta — quedaba en el limbo.
-     */
-    reunionId?: string | null
-  }): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
-    /**
-     * LA REUNIÓN, SI SE MANDA UNA, TIENE QUE SER DE ESTA SALA (revisión
-     * final de la ronda 10, hallazgo 4a). `puedeVerlo`
-     * (`src/app/api/archivo/[id]/route.ts`) da prioridad a `reunionId` sobre
-     * `salaSlug` al decidir quién puede LEER el archivo después: un archivo
-     * registrado bajo la sala A pero apuntando a una reunión de la sala B lo
-     * leería el director de B. Hoy no es explotable —solo editores llaman
-     * esta acción y la UI nunca cruza salas— pero esconder el botón no
-     * protege el endpoint: la comprobación va aquí, no solo en la interfaz.
-     */
-    if (datos.reunionId) {
-      const reunionDelArchivo = await obtenerReunion(datos.reunionId)
-      if (!reunionDelArchivo || reunionDelArchivo.salaSlug !== slug) {
-        // El binario ya pudo haber subido antes de llegar aquí (la subida es
-        // navegador → Blob directo — ver el comentario de `ArchivosSala`):
-        // sin fila que lo registre, es basura invisible que se sigue pagando.
-        await del(datos.ruta).catch(() => {})
-        return { error: 'Esa reunión no es de esta sala.' }
-      }
-    }
-    try {
-      await registrarArchivo({
-        salaSlug: slug,
-        reunionId: datos.reunionId ?? null,
-        categoria: datos.categoria,
-        titulo: datos.titulo,
-        // `instanteEnCDMX` y NO `new Date(fecha)` a secas (arreglo de ronda
-        // 14, tarea 6 — encargo directo de Franco): medido el 14-ago,
-        // `new Date('2026-09-01')` guarda el día civil "2026-08-31" —
-        // medianoche UTC son las 18:00 del día anterior en México. Es la
-        // MISMA columna que la Tarea 2 arregló para `fechaCompromiso`
-        // (`archivos.fecha`, nota de prensa y material), pero NO el mismo
-        // arreglo a secas: a diferencia de `fechaCompromiso`, `datos.fecha`
-        // aquí es POLIMÓRFICO. `ReunionesSala` (Tarea 9b, "+ Subir
-        // presentación") manda el INSTANTE COMPLETO de la reunión
-        // (`reunion.fecha`, p. ej. "2026-06-15T10:00:00.000Z") y no un día
-        // civil — pasarlo por `instanteEnCDMX(fecha, '12:00')` concatenaría
-        // una hora fija a una fecha que YA la trae y produciría una fecha
-        // inválida. El criterio para distinguir los dos casos es el mismo
-        // que usa `instanteDe` (privado, `src/lib/fecha.ts`): si el string
-        // trae 'T', ya es un instante y se usa tal cual; si no, es un día
-        // civil ('YYYY-MM-DD', el que escribe una persona) y se ancla al
-        // mediodía CDMX.
-        //
-        // POR QUÉ ESTE CASO SE ESCAPÓ TANTO TIEMPO (y por qué se arregla
-        // igual aunque hoy nadie lo vea en pantalla): al LEER, `desdeFila`
-        // (`src/db/archivos.ts:97`) pasa el `Date` guardado por su propio
-        // `isoFecha = d.toISOString().slice(0,10)`, que trunca a día UTC y
-        // ya descarta la hora corrida; al PINTAR, `MaterialesSala`/
-        // `NotasDePrensa` usan `fechaBreveConAnio` (`src/lib/fecha.ts`), que
-        // ancla ese día civil sin hora al MEDIODÍA UTC (`instanteDe`,
-        // privado) — lejos de cualquier frontera de día en CDMX. Esas dos
-        // compensaciones se encadenan y dejan el RENDER de hoy sin síntoma
-        // visible (confirmado con un print real contra la sala pausada de
-        // Zeus, ver `.superpowers/sdd/…/task-6-report.md`), pero el `Date`
-        // que queda guardado en la columna sigue significando el día
-        // ANTERIOR por sí solo. Este cambio hace que el instante guardado
-        // sea correcto sin depender de esas dos casualidades de lectura.
-        fecha: datos.fecha
-          ? (datos.fecha.includes('T') ? new Date(datos.fecha) : instanteEnCDMX(datos.fecha, '12:00'))
-          : null,
-        ruta: datos.ruta,
-        nombreOriginal: datos.nombreOriginal,
-        tipoContenido: datos.tipoContenido,
-        tamanoBytes: datos.tamanoBytes,
-      })
-    } catch (error) {
-      // El binario ya está en el almacén: si la fila no se puede crear, se
-      // quita también el archivo. Un blob sin fila es basura invisible que
-      // se sigue pagando.
-      await del(datos.ruta).catch(() => {})
-      return { error: error instanceof Error ? error.message : 'No se pudo registrar el archivo.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    return {}
-  }
+  const registrarArchivoAction = acciones.registrarArchivoAction.bind(null, slug)
 
-  /**
-   * REGISTRAR UN ARCHIVO en uno de los dos módulos de la sala.
-   *
-   * CUATRO ACCIONES Y NO UNA CON UN PARÁMETRO, y no es repetición gratuita:
-   * cada una es un endpoint distinto y su categoría queda FIJADA EN EL
-   * SERVIDOR. Si la categoría viajara desde el navegador, quien conociera la
-   * acción podría escribir en cualquiera de ellas — incluida `evidencia`, que
-   * tiene reglas propias, o `presentacion`, que ordena la línea de tiempo de
-   * la sala.
-   *
-   * Y NINGUNA ES UNA FLECHA INLINE en el JSX
-   * (`(d) => registrarArchivoAction({...d, categoria})`): eso es un closure
-   * creado en el componente de servidor, y React lo rechaza al serializarlo
-   * hacia un componente cliente —"Functions cannot be passed directly to
-   * Client Components"—, con un 500 en la sala entera. No lo cazó ningún
-   * test: el test invoca la página directamente y no cruza esa frontera. Lo
-   * cazó el print.
-   */
-  async function registrarMaterialArchivoAction(datos: {
-    titulo: string
-    ruta: string
-    nombreOriginal: string
-    tipoContenido: string | null
-    tamanoBytes: number | null
-  }): Promise<{ error?: string }> {
-    'use server'
-    return registrarArchivoAction({ ...datos, categoria: 'comercial', fecha: null })
-  }
+  const registrarMaterialArchivoAction = acciones.registrarMaterialArchivoAction.bind(null, slug)
 
   /** Lo mismo, para Archivos de Interés. Ver el comentario de arriba. */
-  async function registrarInteresArchivoAction(datos: {
-    titulo: string
-    ruta: string
-    nombreOriginal: string
-    tipoContenido: string | null
-    tamanoBytes: number | null
-  }): Promise<{ error?: string }> {
-    'use server'
-    return registrarArchivoAction({ ...datos, categoria: 'interes', fecha: null })
-  }
+  const registrarInteresArchivoAction = acciones.registrarInteresArchivoAction.bind(null, slug)
 
-  /**
-   * REGISTRAR UN ENLACE (vídeo de YouTube, nota de prensa, caso publicado).
-   *
-   * Server Action aparte de `registrarArchivoAction` y no un parámetro más:
-   * el camino del archivo tiene que limpiar el binario de Blob si la fila
-   * falla, y el del enlace no tiene binario que limpiar. Meterlos en la
-   * misma función obligaría a ramificar esa limpieza dentro del `catch`,
-   * que es justo donde no conviene tener condiciones.
-   *
-   * La categoría se fija aquí, en el servidor: los enlaces solo existen como
-   * material de sala. Una presentación de una reunión o una imagen de un
-   * documento siempre son un fichero.
-   */
-  async function registrarEnlaceAction(datos: {
-    titulo: string
-    enlace: string
-  }): Promise<{ error?: string }> {
-    'use server'
-    const r = await guardarEnlaceDeSala(slug, 'comercial', datos)
-    if (!r.error) revalidatePath(`/cliente/${slug}`)
-    return r
-  }
+  const registrarEnlaceAction = acciones.registrarEnlaceAction.bind(null, slug)
 
-  async function registrarEnlaceInteresAction(datos: {
-    titulo: string
-    enlace: string
-  }): Promise<{ error?: string }> {
-    'use server'
-    const r = await guardarEnlaceDeSala(slug, 'interes', datos)
-    if (!r.error) revalidatePath(`/cliente/${slug}`)
-    return r
-  }
+  const registrarEnlaceInteresAction = acciones.registrarEnlaceInteresAction.bind(null, slug)
 
-  /**
-   * DAR DE ALTA UNA NOTA DE PRENSA (ronda 13).
-   *
-   * No usa `guardarEnlaceDeSala` porque una nota lleva tres cosas que un
-   * enlace de material no tiene —medio, fecha de publicación y una portada
-   * opcional— y porque su regla de validación es la contraria: el enlace es
-   * OBLIGATORIO (es el destino) y la `ruta` es ilustración, no alternativa.
-   * Ver la excepción documentada en `registrarArchivo`.
-   *
-   * El enlace se vuelve a normalizar aquí aunque el navegador ya lo hiciera:
-   * lo de allá es comodidad, esto es la comprobación — sin ella un
-   * `javascript:` llega a la base y de ahí al href que ve la UDN.
-   */
-  async function registrarNotaDePrensaAction(datos: {
-    titulo: string
-    enlace: string
-    medio: string
-    fecha: string | null
-    portada: { ruta: string; nombreOriginal: string; tipoContenido: string | null; tamanoBytes: number | null } | null
-  }): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
-    const normalizado = normalizarEnlace(datos.enlace)
-    if ('error' in normalizado) return { error: normalizado.error }
-    try {
-      await registrarArchivo({
-        salaSlug: slug,
-        categoria: 'prensa',
-        titulo: datos.titulo,
-        enlace: normalizado.url,
-        medio: datos.medio,
-        // La fecha de la NOTA, no la de subida: una nota de mayo cargada hoy
-        // se ordena en mayo (ver `porFechaDesc` en src/db/archivos.ts).
-        fecha: datos.fecha ? instanteEnCDMX(datos.fecha, '10:00') : null,
-        ruta: datos.portada?.ruta ?? null,
-        nombreOriginal: datos.portada?.nombreOriginal ?? null,
-        tipoContenido: datos.portada?.tipoContenido ?? null,
-        tamanoBytes: datos.portada?.tamanoBytes ?? null,
-      })
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo guardar la nota.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    return {}
-  }
+  const registrarNotaDePrensaAction = acciones.registrarNotaDePrensaAction.bind(null, slug)
 
-  /**
-   * `cambios.fecha` es OPCIONAL desde la Tarea 3 de la ronda 11 (antes era
-   * obligatorio): `ArchivosSala` (archivos de interés) sigue mandándola
-   * siempre —incluso `null`, cuando no aplica—, pero `CarasDeReunion`
-   * (archivos de reunión, misma ronda) edita SOLO el título y no la trae en
-   * absoluto. `editarArchivo` (`src/db/archivos.ts`) distingue `undefined`
-   * ("no la toques") de `null` ("bórrala") — con `cambios.fecha` OMITIDO no
-   * se le pasa esa clave en absoluto, así que la fecha existente del archivo
-   * no se toca. Mandar `fecha: null` aquí para un archivo de reunión la
-   * habría borrado sin que nadie lo pidiera: esa fecha es la de SU reunión,
-   * no una propia (`CaraArchivo`, `dominio/reunion.ts`, no la trae).
-   */
-  async function editarArchivoAction(id: string, cambios: { titulo: string; fecha?: string | null }) {
-    'use server'
-    await exigirEditor()
-    await editarArchivo(id, {
-      titulo: cambios.titulo,
-      // `instanteEnCDMX` y NO `new Date(fecha)` a secas (arreglo de ronda 14,
-      // tarea 6): mismo bug y mismo número medido que en `registrarArchivoAction`
-      // (arriba) — `new Date('2026-09-01')` guarda "2026-08-31". El único
-      // llamador real de este campo (`MaterialesSala`, botón "Renombrar")
-      // manda `material.fecha`, que ya sale de la base como día civil puro
-      // ('YYYY-MM-DD', ver `isoFecha` en `src/db/archivos.ts`) — nunca un
-      // instante con hora — pero se guarda el mismo criterio de
-      // `datos.fecha.includes('T')` que en `registrarArchivoAction` para no
-      // dejar este campo genérico expuesto al mismo riesgo si mañana algún
-      // llamador nuevo le manda un instante completo.
-      //
-      // Por qué se escapó y por qué se arregla igual sin síntoma visible hoy:
-      // mismo razonamiento que el comentario de `registrarArchivoAction`
-      // (arriba) — `isoFecha` (lectura) trunca a día UTC y `instanteDe`
-      // (pintado, privado en `src/lib/fecha.ts`) ancla ese día sin hora al
-      // mediodía UTC; las dos compensaciones dejan el render de
-      // `MaterialesSala` a salvo hoy, pero el `Date` que quedaba guardado
-      // seguía significando el día anterior por sí solo.
-      ...(cambios.fecha !== undefined
-        ? { fecha: cambios.fecha ? (cambios.fecha.includes('T') ? new Date(cambios.fecha) : instanteEnCDMX(cambios.fecha, '12:00')) : null }
-        : {}),
-    })
-    revalidatePath(`/cliente/${slug}`)
-  }
+  const editarArchivoAction = acciones.editarArchivoAction.bind(null, slug)
 
   /**
    * BORRAR UNA REUNIÓN DESDE LA SALA (Franco: *"la otra reunión tampoco puedo
@@ -1046,104 +420,13 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * no. Los acuerdos ya publicados NO se van: cuelgan de la sala y pueden
    * llevar semanas moviéndose (`eliminarReunion` les suelta el origen).
    */
-  /**
-   * RENOMBRAR UNA REUNIÓN DESDE SU PROPIA SALA.
-   *
-   * Franco: *"no puedo cambiar el nombre de una reunión que ya ocurrió desde
-   * la sala de un cliente"*. Era cierto y el hueco era llamativo: en esta
-   * misma pantalla se podía renombrar un ARCHIVO de la reunión con su lápiz
-   * (`editarArchivoAction`, arriba), pero el título de la reunión —el que da
-   * nombre a la fila entera, al historial y a la minuta— solo se podía tocar
-   * desde el formulario completo de `/reuniones`, que además de estar en otra
-   * pantalla exige repasar fecha, tipo, clase, participantes y lugar para
-   * cambiar una palabra.
-   *
-   * ⚠️ SOLO EL TÍTULO, Y POR ESO NO REUTILIZA `editarReunionAction`. La acción
-   * de `/reuniones` recibe el formulario entero (`DatosFormulario`), así que
-   * llamarla desde aquí obligaría a inventar valores para los campos que esta
-   * pantalla no pregunta — y cualquier omisión los sobrescribiría. `editarReunion`
-   * distingue `undefined` ("no lo toques") de un valor, así que pasarle solo
-   * `titulo` deja fecha, tipo, participantes y lugar exactamente como estaban.
-   * La clase también: su validación acepta `undefined` y el `!== undefined` de
-   * `editarReunion` no la escribe, de modo que renombrar NO desclasifica una
-   * junta (que es justo el defecto que la ronda 14.2 tuvo que arreglar en la
-   * dirección contraria).
-   *
-   * Y COMPRUEBA QUE LA REUNIÓN SEA DE ESTA SALA, igual que `eliminarReunionAction`:
-   * el id viaja desde el navegador, así que sin este filtro un editor podría
-   * renombrar la junta de otro cliente pasando su id a mano.
-   */
-  async function renombrarReunionAction(
-    reunionId: string,
-    titulo: string,
-  ): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
-    const laReunion = await obtenerReunion(reunionId)
-    if (!laReunion || laReunion.salaSlug !== slug) {
-      return { error: 'Esa reunión no es de este cliente.' }
-    }
-    try {
-      await editarReunion(reunionId, { titulo })
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo renombrar la reunión.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/reuniones')
-    revalidatePath('/')
-    return {}
-  }
+  const renombrarReunionAction = acciones.renombrarReunionAction.bind(null, slug)
 
-  async function eliminarReunionAction(reunionId: string): Promise<{ error?: string }> {
-    'use server'
-    await exigirEditor()
-    const laReunion = await obtenerReunion(reunionId)
-    if (!laReunion || laReunion.salaSlug !== slug) {
-      return { error: 'Esa reunión no es de este cliente.' }
-    }
-    try {
-      await eliminarReunion(reunionId, eliminarDocumentoDeReunion)
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'No se pudo borrar la reunión.' }
-    }
-    revalidatePath(`/cliente/${slug}`)
-    revalidatePath('/deck')
-    revalidatePath('/')
-    return {}
-  }
+  const eliminarReunionAction = acciones.eliminarReunionAction.bind(null, slug)
 
-  /**
-   * REUBICA LOS MATERIALES DE UN MÓDULO: quién va en qué subcategoría y en
-   * qué orden (Franco: *"debo poder crear subcategorías… y reubicar su orden
-   * drag and drop"*).
-   *
-   * Recibe la lista COMPLETA tal como quedó tras arrastrar, no un "mueve este
-   * de aquí a allá": así no hay huecos que calcular y dos personas moviendo a
-   * la vez no se dejan dos materiales en la misma posición. `reubicarMateriales`
-   * filtra además por sala en el WHERE — el id viaja desde el navegador.
-   */
-  async function reubicarMaterialesAction(
-    enOrden: Array<{ id: string; grupo: string | null }>,
-  ): Promise<void> {
-    'use server'
-    await exigirEditor()
-    await reubicarMateriales(slug, enOrden)
-    revalidatePath(`/cliente/${slug}`)
-  }
+  const reubicarMaterialesAction = acciones.reubicarMaterialesAction.bind(null, slug)
 
-  async function eliminarArchivoAction(id: string) {
-    'use server'
-    await exigirEditor()
-    // Franco: "si algo se elimina también se elimina del almacenamiento".
-    // Primero la fila, luego el binario: al revés, un fallo al borrar el
-    // archivo dejaría una fila que apunta a la nada.
-    const quitado = await eliminarArchivo(id)
-    // `quitado.ruta` es nula si el material era un ENLACE: no hay binario que
-    // borrar, y llamar a `del(null)` sería un error donde no hay nada que
-    // limpiar.
-    if (quitado?.ruta) await del(quitado.ruta).catch(() => {})
-    revalidatePath(`/cliente/${slug}`)
-  }
+  const eliminarArchivoAction = acciones.eliminarArchivoAction.bind(null, slug)
 
   // El texto de los módulos plegados y el velo que lo sostiene, calculados
   // contra el degradado ENTERO. Ver el comentario de `--texto-sobre-gradiente`.
