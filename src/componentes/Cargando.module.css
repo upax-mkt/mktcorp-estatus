@@ -1,0 +1,78 @@
+/* EL ESQUELETO DE UNA PANTALLA QUE TODAVÍA CONSULTA NEON.
+
+   Las 22 rutas de esta app son dinámicas: cada una pregunta a la base antes de
+   pintar nada. Sin un `loading.tsx`, Next se queda con la pantalla ANTERIOR
+   congelada mientras tanto —medio segundo largo en la sala de un cliente— y
+   eso, en la app que un director abre la víspera de su reunión, no se lee como
+   "está cargando" sino como "no responde".
+
+   SOBRIO A PROPÓSITO. Esto no es un espectáculo: son las barras de lo que va a
+   aparecer, en su sitio y con su tamaño, para que al llegar el contenido no
+   salte nada. Un spinner centrado sería más fácil y peor: no dice dónde va a
+   caer qué. */
+
+/* ⚠️ EL `width: 100%` NO SOBRA, Y SIN ÉL ESTO NO SE VE.
+
+   El `<body>` de esta app es `display: flex; flex-direction: column`. En un
+   contenedor flex, un hijo con `margin: 0 auto` DEJA de estirarse en el eje
+   cruzado: los márgenes automáticos ganan al `stretch` implícito, y el ítem
+   pasa a medir lo que mida su contenido. El contenido de un esqueleto son
+   divs VACÍOS, así que medía 80 px —el puro padding— y la pantalla salía en
+   blanco. Medido: barras de 56 px de alto y CERO de ancho.
+
+   El mismo `max-width` + `margin: 0 auto` funciona en `/reuniones` porque allí
+   el contenido tiene ancho propio (texto, tarjetas) y arrastra la caja. Aquí no
+   hay nada que arrastre. La pantalla que existe para RESERVAR EL SITIO no
+   reservaba ninguno. */
+.pantalla {
+  width: 100%;
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+}
+
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* La barra. El pulso va sobre `opacity` y no sobre un degradado que se
+   desplaza: un `background-position` animado a lo ancho de la pantalla obliga
+   al navegador a repintar en cada fotograma, y esto se enseña justo cuando el
+   hilo está ocupado esperando a la base. */
+.barra {
+  height: 56px;
+  border-radius: var(--r-3, 16px);
+  background: var(--linea, oklch(0.93 0.004 250));
+  animation: respirar 1.6s ease-in-out infinite;
+}
+
+.titulo {
+  height: 28px;
+  width: min(280px, 60%);
+  margin-bottom: 22px;
+  border-radius: 8px;
+  background: var(--linea, oklch(0.93 0.004 250));
+  animation: respirar 1.6s ease-in-out infinite;
+}
+
+/* Cada barra entra en el ciclo un poco después que la anterior: el desfase es
+   lo que hace que se lea como una lista viva y no como un bloque parpadeando. */
+.barra:nth-child(2) { animation-delay: 0.12s }
+.barra:nth-child(3) { animation-delay: 0.24s }
+.barra:nth-child(4) { animation-delay: 0.36s }
+.barra:nth-child(5) { animation-delay: 0.48s }
+.barra:nth-child(6) { animation-delay: 0.6s }
+
+@keyframes respirar {
+  0%, 100% { opacity: 1 }
+  50% { opacity: 0.45 }
+}
+
+/* Misma cortesía que el resto de las hojas del repo: quien pidió menos
+   movimiento no lo recibe. El esqueleto sigue ahí, quieto — que es lo que de
+   verdad importa: reservar el sitio. */
+@media (prefers-reduced-motion: reduce) {
+  .barra, .titulo { animation: none }
+}
