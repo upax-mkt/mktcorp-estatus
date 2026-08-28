@@ -22,6 +22,7 @@ import { CuentaRegresiva } from '@/componentes/concurso/CuentaRegresiva'
 import { FormularioPropuesta } from '@/componentes/concurso/FormularioPropuesta'
 import { GaleriaConcurso } from '@/componentes/concurso/GaleriaConcurso'
 import { PanelJurado } from '@/componentes/concurso/PanelJurado'
+import { IconoSolo, IconoDupla } from '@/componentes/concurso/IconosPremio'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,9 +96,9 @@ export default async function PaginaConcurso() {
             <p className={estilos.eyebrow}>01 · LO QUE ESTÁ EN JUEGO</p>
             <h2>EL DISEÑO GANADOR<br /><span>SE LLEVA TODO</span></h2>
             <div className={estilos.premioGrid}>
-              <article><small>INDIVIDUAL</small><strong>Pase doble Arena CDMX</strong><span>Gift card $1,000 MXN</span><span>+ 1 día adicional</span></article>
+              <article><IconoSolo className={estilos.iconoPremio} /><small>INDIVIDUAL</small><strong>Pase doble Arena CDMX</strong><span>Gift card $1,000 MXN</span><span>+ 1 día adicional</span></article>
               <div className={estilos.rayo} aria-hidden="true">ϟ</div>
-              <article><small>DUPLA · CADA PERSONA</small><strong>Pase doble Arena CDMX</strong><span>Gift card $500 MXN</span><span>+ 1 día adicional</span></article>
+              <article><IconoDupla className={estilos.iconoPremio} /><small>DUPLA · CADA PERSONA</small><strong>Pase doble Arena CDMX</strong><span>Gift card $500 MXN</span><span>+ 1 día adicional</span></article>
             </div>
             <p className={estilos.legal}>Pases sujetos a disponibilidad. Día adicional previa coordinación con tu formador.</p>
           </section>

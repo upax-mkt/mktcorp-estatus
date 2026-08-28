@@ -45,9 +45,22 @@
    sobre. Aquí viven antetítulo, titular y bajada con un ritmo declarado una
    vez, en vez de tres márgenes que se pisaban entre sí. */
 .heroMensaje { grid-row: 2; display: grid; align-content: center; justify-items: start; gap: clamp(.6rem, 1.6vh, 1.1rem); }
+/* La virgulilla de la Ñ sube por encima de la altura de mayúscula, así que el
+   antetítulo necesita más aire que el resto: con el `gap` a secas se tocaban. */
+.heroMensaje .eyebrow { margin-bottom: clamp(.3rem, 1vh, .7rem); }
+/* Y la bajada, que quedaba a 8 px del titular. */
+.heroMensaje .heroBajada { margin-top: clamp(.4rem, 1.2vh, .9rem); }
 /* Acotado al 62% del lienzo (ver `.heroBajada`): a partir de ahí empieza la
    diagonal, y el titular se metía debajo. */
-.hero h1, .popupTitulo { margin: 0; max-width: min(62%, 14ch); font-size: clamp(3.2rem, 7.5vw, 7rem); line-height: .78; letter-spacing: -.075em; font-weight: 950; text-transform: uppercase; transform: rotate(-1deg); }
+/* ⚠️ `line-height: .78` HACÍA QUE LAS LÍNEAS SE PISARAN. Medido en cuatro
+   anchos: la caja de «LO QUE SOMOS» empezaba entre 53 y 67 px POR ENCIMA de
+   donde acababa la de «DISEÑA», y la virgulilla de la Ñ se metía 10 px dentro
+   del antetítulo. Con una grotesca black en mayúsculas, .78 es menos que el
+   alto real de la tinta: la caja de línea recorta y las letras se salen por
+   arriba y por abajo.
+   .92 sigue siendo apretado —el titular no pierde su golpe— y deja de chocar.
+   Franco: "todos los elementos del herobanner se enciman". */
+.hero h1, .popupTitulo { margin: 0; max-width: min(62%, 14ch); font-size: clamp(3.2rem, 7.5vw, 7rem); line-height: .92; letter-spacing: -.075em; font-weight: 950; text-transform: uppercase; transform: rotate(-1deg); }
 .hero h1 span, .popupTitulo span, .premio h2 span { color: var(--rosa); -webkit-text-stroke: 1px white; text-shadow: 5px 5px 0 var(--azul); }
 .heroBajada { margin: 0; max-width: 35rem; font-size: clamp(.95rem, 1.6vw, 1.2rem); line-height: 1.45; font-weight: 600; }
 /* CONTADOR Y FECHAS COMPARTEN LA BANDA DE ABAJO, en fila y alineados por su
@@ -260,3 +273,8 @@
    por qué no está en vez de dejar un campo vacío que no se puede usar. */
 .notaDupla { margin: 0; align-self: center; font-size: .85rem; line-height: 1.4; color: #4a4d55; }
 .notaDupla strong { color: var(--negro); }
+
+/* Los iconos de premio: mismo grado y medio de inclinación que las tarjetas y
+   los botones de esta página, para que pertenezcan al collage en vez de
+   posarse encima. El color lo heredan de su tarjeta (`currentColor`). */
+.iconoPremio { display: block; width: clamp(2.2rem, 4vw, 2.9rem); height: auto; margin-bottom: .2rem; color: #ff8db6; transform: rotate(-1.5deg); }
