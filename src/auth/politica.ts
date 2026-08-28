@@ -25,8 +25,30 @@
  */
 import type { Sesion } from './firma'
 
-/** Rutas que deben responder sin sesión: si no, no habría forma de entrar. */
-const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/retorno']
+/**
+ * Rutas que responden sin sesión.
+ *
+ * Las tres primeras, porque si no no habría forma de entrar.
+ *
+ * `/concurso` se sumó el 28-ago-2026 por decisión de Franco: *«no pidas login
+ * para ver la página; el login es para participar u obtener el pase de
+ * votación»*. Una convocatoria que exige autenticarse para leerse no es una
+ * convocatoria. Y era además lo que rompía la vista previa del enlace en Slack:
+ * sin sesión la ruta respondía 307 y el bot no alcanzaba las etiquetas `og:`.
+ *
+ * ⚠️ ABRE LA PORTADA, NO EL CONCURSO. Lo que se ve sin sesión son las bases, el
+ * premio y las fechas. Lo que sigue cerrado lo exige el propio spec: las
+ * propuestas y sus imágenes antes de que abra la galería (invariante 5), los
+ * conteos y el resultado antes de la ceremonia (invariante 6), y subir
+ * propuesta o votar, que son escrituras con `exigirLectura()` dentro de la
+ * acción. La página decide qué pinta según haya sesión o no; esta lista solo
+ * dice que la ruta responde.
+ *
+ * La comparación es por ruta EXACTA (`includes`, no `startsWith`): `/concurso`
+ * abre y cualquier cosa que cuelgue de ahí en el futuro nace cerrada, que es el
+ * criterio de lista blanca de este módulo.
+ */
+const RUTAS_PUBLICAS = ['/entrar', '/api/auth/slack/inicio', '/api/auth/slack/retorno', '/concurso']
 
 /**
  * LA SALA DE UN CLIENTE SE ABRE SIN SESIÓN, EN SOLO LECTURA.

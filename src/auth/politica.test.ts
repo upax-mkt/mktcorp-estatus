@@ -302,3 +302,45 @@ describe('la agenda pública, y solo ella', () => {
     expect(puedeVerRuta(dir, '/cliente/zeus/ajustes')).toBe(false)
   })
 })
+
+/**
+ * LA CONVOCATORIA DEL CONCURSO SE VE SIN ENTRAR (28-ago-2026).
+ *
+ * Franco: *«no pidas login para ver la página; el login es para participar u
+ * obtener el pase de votación»*. Y tiene razón de fondo: una convocatoria que
+ * exige autenticarse para leerse no es una convocatoria, es un trámite. Además
+ * era lo que rompía la vista previa del enlace en Slack —sin sesión, la ruta
+ * respondía 307 y el bot no llegaba nunca a las etiquetas `og:`.
+ *
+ * Lo que se abre es SOLO `/concurso`: la portada con las bases, el premio y las
+ * fechas. Lo que sigue cerrado, porque el spec lo exige:
+ *
+ *  - las propuestas y sus imágenes antes de que abra la galería (invariante 5),
+ *  - los conteos y el resultado antes de la ceremonia (invariante 6),
+ *  - subir propuesta y votar, que son escrituras con `exigirLectura()` dentro.
+ *
+ * Por eso la comprobación es por ruta EXACTA y no por prefijo: `/concurso`
+ * abre, pero cualquier cosa que cuelgue de ahí en el futuro nace cerrada, que
+ * es el criterio de lista blanca de este módulo.
+ */
+describe('la portada del concurso es pública', () => {
+  it('se puede ver sin sesión', () => {
+    expect(esRutaPublica('/concurso')).toBe(true)
+    expect(puedeVerRuta(null, '/concurso')).toBe(true)
+  })
+
+  it('pero nada que cuelgue de ella se abre por arrastre', () => {
+    expect(esRutaPublica('/concurso/propuestas')).toBe(false)
+    expect(esRutaPublica('/concurso/admin')).toBe(false)
+    expect(puedeVerRuta(null, '/concurso/loquesea')).toBe(false)
+  })
+
+  it('y la maquinaria interna sigue pidiendo sesión', () => {
+    expect(puedeVerRuta(null, '/')).toBe(false)
+    expect(puedeVerRuta(null, '/acuerdos')).toBe(false)
+    expect(puedeVerRuta(null, '/personas')).toBe(false)
+    expect(puedeVerRuta(null, '/reuniones')).toBe(false)
+    // `/cliente/<slug>` NO entra en esta lista: la sala de un cliente ya era
+    // pública por decisión de Franco, y su director entra por enlace.
+  })
+})

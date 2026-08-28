@@ -3,8 +3,9 @@ import Image from 'next/image'
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import estilos from './concurso.module.css'
-import { exigirLectura, esAdmin } from '@/auth/roles'
-import { cerrarSesion } from '@/auth/sesion'
+import { esAdmin } from '@/auth/roles'
+import { puedeLeer } from '@/auth/politica'
+import { cerrarSesion, sesionActual } from '@/auth/sesion'
 import { buscarPersona, normalizarCorreo } from '@/db/directorio'
 import {
   galeriaConcurso,
@@ -80,11 +81,27 @@ export const metadata: Metadata = {
 }
 
 export default async function PaginaConcurso() {
-  const sesion = await exigirLectura()
+  /**
+   * ⚠️ ESTA PÁGINA NO EXIGE SESIÓN, y es la única de la app además de la
+   * agenda compartida.
+   *
+   * Franco: *«no pidas login para ver la página; el login es para participar u
+   * obtener el pase de votación»* y *«el link es informativo: una persona con
+   * el link solo puede ver la info, no puede ver ninguna otra pestaña»*.
+   *
+   * `sesionActual()` en vez de `exigirLectura()`: la segunda LANZA sin sesión,
+   * que es justo lo que hacía que un enlace compartido acabara en el login. Lo
+   * que se ve sin sesión es la convocatoria —premio, bases, fechas—; el
+   * formulario, el pase y la galería solo aparecen con ella, y cada acción de
+   * escritura revalida por su cuenta. La política de rutas abre `/concurso` y
+   * nada de lo que cuelgue de ella (ver `RUTAS_PUBLICAS`, src/auth/politica.ts).
+   */
+  const sesion = await sesionActual()
+  const identificado = puedeLeer(sesion)
   await connection()
   const ahora = new Date()
   const fase = faseDelConcurso(ahora)
-  const correo = sesion.sub ? normalizarCorreo(sesion.sub) : null
+  const correo = identificado && sesion?.sub ? normalizarCorreo(sesion.sub) : null
 
   async function salir() {
     'use server'
@@ -92,7 +109,7 @@ export default async function PaginaConcurso() {
     redirect('/entrar')
   }
 
-  const admin = await esAdmin()
+  const admin = identificado ? await esAdmin() : false
   const [persona, propia, disponibles, galeria, voto, resultados, clientes, propuestasAdmin, estadoJurado] = await Promise.all([
     correo ? buscarPersona(correo) : null,
     correo ? propuestaDePersona(correo) : null,
@@ -121,7 +138,18 @@ export default async function PaginaConcurso() {
 
   return (
     <div className={estilos.app}>
-      <BarraNavegacion seccionActiva="concurso" hoy={ahora} admin={admin} clientes={clientes} salirAction={salir} />
+      {/* SIN SESIÓN NO HAY BARRA. Quien llega por el enlace ve la
+          convocatoria y nada más: ofrecerle pestañas que no puede abrir sería
+          enseñarle puertas cerradas. En su lugar, una cabecera mínima con el
+          logotipo y la salida que sí le sirve, entrar. */}
+      {identificado
+        ? <BarraNavegacion seccionActiva="concurso" hoy={ahora} admin={admin} clientes={clientes} salirAction={salir} />
+        : (
+          <header className={estilos.barraInvitado}>
+            <Image src="/logos/marketing-corp-color.png" width={600} height={202} alt="Marketing Corp" className={estilos.barraInvitadoLogo} />
+            <a href="/entrar?destino=%2Fconcurso" className={estilos.barraInvitadoEntrar}>Entrar para participar</a>
+          </header>
+        )}
       <main>
         <section className={estilos.hero}>
           <div className={estilos.halftone} aria-hidden="true" />
@@ -228,7 +256,18 @@ export default async function PaginaConcurso() {
           {fase === 'recepcion' && persona && (
             <FormularioPropuesta persona={persona} disponibles={disponibles} existente={propia} />
           )}
-          {fase === 'recepcion' && !persona && (
+          {/* EL INVITADO VE LO QUE SE GANA Y CÓMO ENTRAR, y aquí es donde se
+              le pide la sesión: al final de las bases, cuando ya sabe qué hay
+              en juego. Pedirla antes —en la puerta— es lo que Franco quitó. */}
+          {!identificado && (
+            <section className={estilos.invitacion}>
+              <p className={estilos.invitacionEtiqueta}>03 · TU TURNO</p>
+              <h2>Para subir tu propuesta, entra con tu cuenta</h2>
+              <p>Con tu cuenta de Marketing Corporativo se abre el formulario y recibes tu pase de votación con tu código.</p>
+              <a href="/entrar?destino=%2Fconcurso" className={estilos.botonPunk}>Entrar y participar →</a>
+            </section>
+          )}
+          {fase === 'recepcion' && identificado && !persona && (
             <section className={estilos.aviso} role="alert"><strong>No te encontramos en el directorio.</strong><p>Avisa a Marketing Corporativo para que te den de alta en Personas y puedas participar.</p></section>
           )}
           {fase === 'recepcion' && (

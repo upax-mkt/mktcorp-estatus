@@ -373,3 +373,19 @@
 .descargasEnlaces a:hover { background: var(--rosa); border-color: var(--rosa); }
 .descargasEnlaces a:focus-visible { outline: 3px solid var(--azul); outline-offset: 3px; }
 .descargasNota { margin: .8rem 0 0; font-size: .78rem; color: #5a5d66; }
+
+/* LA CABECERA DEL INVITADO. Sin pestañas: quien llega por el enlace no puede
+   abrir ninguna, y enseñárselas sería ofrecerle puertas cerradas. Solo el
+   logotipo, para saber de quién es esto, y la única acción que sí le sirve. */
+.barraInvitado { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem clamp(1rem, 4vw, 2rem); background: #fff; border-bottom: 1px solid var(--linea, #e7e5df); }
+.barraInvitadoLogo { width: auto; height: 26px; object-fit: contain; }
+.barraInvitadoEntrar { padding: .55rem .9rem; border: 2px solid var(--negro); background: var(--negro); color: #fff; font-size: .8rem; font-weight: 800; text-decoration: none; }
+.barraInvitadoEntrar:hover { background: var(--rosa); border-color: var(--rosa); }
+.barraInvitadoEntrar:focus-visible { outline: 3px solid var(--azul); outline-offset: 3px; }
+
+/* LA INVITACIÓN, al final de las bases y no en la puerta: se pide la sesión
+   cuando ya se sabe qué hay en juego. */
+.invitacion { display: grid; justify-items: start; gap: .8rem; margin: 3.5rem 0; padding: clamp(1.5rem, 4vw, 2.5rem); border: 3px solid var(--negro); background: #fff; box-shadow: 10px 10px 0 var(--rosa); }
+.invitacionEtiqueta { margin: 0; font-size: .72rem; font-weight: 900; letter-spacing: .14em; color: var(--rosa); }
+.invitacion h2 { margin: 0; font-size: clamp(1.4rem, 4vw, 2.2rem); line-height: 1.05; text-transform: uppercase; letter-spacing: -.02em; }
+.invitacion p { margin: 0; max-width: 52ch; line-height: 1.5; color: #3d3f47; }
