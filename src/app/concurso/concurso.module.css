@@ -363,3 +363,13 @@
 @media (max-width: 860px) {
   .paseExplicado { grid-template-columns: 1fr; }
 }
+
+/* LOS LOGOS OBLIGATORIOS, a mano. Van antes de la letra chica y no dentro:
+   no son una condición que se lee, son un material que se recoge. */
+.descargas { margin-top: 2.5rem; padding: 1.3rem clamp(1.2rem, 3vw, 1.8rem); border: 2px dashed var(--negro); background: #fff; }
+.descargasTitulo { margin: 0 0 .9rem; font-size: .8rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.descargasEnlaces { display: flex; flex-wrap: wrap; gap: .5rem; }
+.descargasEnlaces a { padding: .5rem .8rem; border: 2px solid var(--negro); background: var(--negro); color: #fff; font-size: .78rem; font-weight: 800; text-decoration: none; }
+.descargasEnlaces a:hover { background: var(--rosa); border-color: var(--rosa); }
+.descargasEnlaces a:focus-visible { outline: 3px solid var(--azul); outline-offset: 3px; }
+.descargasNota { margin: .8rem 0 0; font-size: .78rem; color: #5a5d66; }

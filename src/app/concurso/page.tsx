@@ -187,6 +187,24 @@ export default async function PaginaConcurso() {
                 <p>El 7 se publican todas a la vez y cada persona tiene un voto. El resultado es <strong>70% del equipo y 30% del jurado</strong>.</p>
               </li>
             </ol>
+            {/* LOS LOGOS, DESCARGABLES DESDE AQUÍ. Las bases exigen incluir los
+                dos «sin alterar», y el 28-ago el equipo entero se pasó la
+                mañana en #general buscándolos: Iris preguntando, Paul, César y
+                Diana respondiendo que no los tenían. Pedir un requisito cuyo
+                material no se reparte es dejar el concurso encallado antes de
+                empezar. Ya estaban en `public/logos/`; lo que faltaba era
+                decirlo donde se necesita. */}
+            <div className={estilos.descargas}>
+              <p className={estilos.descargasTitulo}>Los dos logos obligatorios, para descargar</p>
+              <div className={estilos.descargasEnlaces}>
+                <a href="/logos/grupo-upax-color.png" download>Grupo UPAX · color</a>
+                <a href="/logos/grupo-upax-blanco.png" download>Grupo UPAX · blanco</a>
+                <a href="/logos/marketing-corp-color.png" download>Marketing Corp · color</a>
+                <a href="/logos/marketing-corp-blanco.png" download>Marketing Corp · blanco</a>
+              </div>
+              <p className={estilos.descargasNota}>PNG con fondo transparente. Van sin alterar: no cambies sus colores ni sus proporciones.</p>
+            </div>
+
             <div className={estilos.letraChica}>
               <h3>La letra chica, que sí es corta</h3>
               <ul>
