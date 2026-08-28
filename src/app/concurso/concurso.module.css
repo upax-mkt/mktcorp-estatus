@@ -278,3 +278,73 @@
    los botones de esta página, para que pertenezcan al collage en vez de
    posarse encima. El color lo heredan de su tarjeta (`currentColor`). */
 .iconoPremio { display: block; width: clamp(2.2rem, 4vw, 2.9rem); height: auto; margin-bottom: .2rem; color: #ff8db6; transform: rotate(-1.5deg); }
+
+/* ══ EL PASE, como `ticket*` ══════════════════════════════════════════════
+   ⚠️ NO se llama `.pase`: esa clase YA EXISTE en esta hoja, para el botón de
+   votar de la galería, y trae `color: white` con `text-transform: uppercase`.
+   Al reutilizar el nombre, el nombre y el código del pase salían BLANCOS SOBRE
+   BLANCO —invisibles— y el resto en mayúsculas. Se vio en el print; ningún
+   test lo habría cazado, porque el DOM era correcto.
+
+   Dibujado como una entrada de concierto porque esa silueta se reconoce sin
+   leer: cuerpo + troquel + talón. El troquel son dos muescas hechas con
+   `radial-gradient` sobre el fondo, no imágenes: escalan solas y no piden una
+   petición más. */
+.ticket {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 0 2.5rem;
+  border: 3px solid var(--negro);
+  background: #fff;
+  box-shadow: 10px 10px 0 var(--azul);
+  transform: rotate(-.6deg);
+}
+.ticketCuerpo { padding: 1.4rem 1.5rem 1.1rem; }
+.ticketEtiqueta { margin: 0 0 .5rem; font-size: .7rem; font-weight: 900; letter-spacing: .16em; color: var(--rosa); }
+.ticketNombre { margin: 0; font-size: 1.35rem; font-weight: 900; text-transform: uppercase; letter-spacing: -.02em; line-height: 1.05; }
+/* Monoespaciada y muy abierto: este código se dicta en voz alta. */
+.ticketCodigo {
+  margin: .7rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+/* El troquel: la línea de puntos y las dos muescas laterales que la rematan. */
+.ticketTalon {
+  position: relative;
+  padding: 1.1rem 1.5rem 1.3rem;
+  border-top: 3px dashed var(--negro);
+}
+.ticketTalon::before, .ticketTalon::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--negro);
+  border-radius: 50%;
+  background: var(--papel, #f7f2e7);
+}
+.ticketTalon::before { left: -14px; }
+.ticketTalon::after { right: -14px; }
+.ticketDato { display: grid; gap: .1rem; margin: 0 0 .6rem; font-size: .95rem; font-weight: 700; }
+.ticketDato small { font-size: .64rem; font-weight: 900; letter-spacing: .14em; color: #6a6d76; }
+.ticketNota { margin: 0; font-size: .78rem; line-height: 1.4; color: #5a5d66; }
+
+/* EL DORADO. No es un amarillo cualquiera: es el mismo negro de la casa con
+   una franja metálica, para que se lea como una versión especial del mismo
+   pase y no como otro objeto. */
+.ticketDorado { border-color: #0c0a04; background: linear-gradient(158deg, #fff6d8 0%, #ffe9a8 38%, #f7d271 100%); box-shadow: 10px 10px 0 #08090c; }
+.ticketDorado .ticketEtiqueta { color: #8a5a00; }
+.ticketDorado .ticketTalon { border-top-color: #0c0a04; }
+.ticketDorado .ticketTalon::before, .ticketDorado .ticketTalon::after { border-color: #0c0a04; }
+.ticketDorado .ticketDato small { color: #7a5c14; }
+.ticketDorado .ticketNota { color: #5c4410; }
+
+@media (max-width: 560px) {
+  .ticket { transform: none; box-shadow: 6px 6px 0 var(--azul); }
+  .ticketDorado { box-shadow: 6px 6px 0 #08090c; }
+}

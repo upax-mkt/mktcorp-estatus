@@ -14,6 +14,7 @@ import {
   estadoJuradoConcurso,
   resultadosConcurso,
   votoDePersona,
+  hashVotante,
 } from '@/db/concurso'
 import { faseDelConcurso } from '@/concurso/fase'
 import { FECHAS_CONCURSO } from '@/concurso/config'
@@ -23,6 +24,8 @@ import { FormularioPropuesta } from '@/componentes/concurso/FormularioPropuesta'
 import { GaleriaConcurso } from '@/componentes/concurso/GaleriaConcurso'
 import { PanelJurado } from '@/componentes/concurso/PanelJurado'
 import { IconoSolo, IconoDupla } from '@/componentes/concurso/IconosPremio'
+import { PaseConcurso } from '@/componentes/concurso/PaseConcurso'
+import { paseDe } from '@/concurso/pase'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +59,19 @@ export default async function PaginaConcurso() {
     admin ? propuestasAdministracionConcurso() : [],
     admin ? estadoJuradoConcurso() : { nombres: [], calificaciones: [] },
   ])
+
+  /**
+   * EL PASE, armado con lo que ya está cargado: no añade ni una consulta. El
+   * código se DERIVA del mismo HMAC que identifica al votante, así que no hay
+   * nada que generar ni que guardar — ver `src/concurso/pase.ts`.
+   *
+   * Lo tiene todo el equipo, porque el resultado es 70% del voto de las 23
+   * personas y no solo de quienes compiten. El de quien subió propuesta es el
+   * dorado.
+   */
+  const pase = correo && persona
+    ? paseDe(hashVotante(correo), propia?.titulo ?? null, galeria.find((g) => g.id === voto)?.titulo ?? null)
+    : null
   const ganador = resultados[0]
 
   return (
@@ -147,6 +163,7 @@ export default async function PaginaConcurso() {
               veía siquiera el formulario. Las bases dicen «cualquier colaborador
               activo, sin importar puesto o squad»; lo único que el squad decide
               es si puedes ir en dupla. Ver `validarIntegrantes`. */}
+          {pase && persona && <PaseConcurso pase={pase} nombre={persona.nombre} />}
           {fase === 'recepcion' && persona && (
             <FormularioPropuesta persona={persona} disponibles={disponibles} existente={propia} />
           )}
