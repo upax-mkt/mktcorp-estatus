@@ -13,8 +13,20 @@
 .hero {
   position: relative;
   overflow: hidden;
-  min-height: 42rem;
-  padding: clamp(2rem, 6vw, 5rem) clamp(1rem, 7vw, 6rem) 3rem;
+  /* ⚠️ CABE EN PANTALLA, Y ANTES NO. Medido: `min-height: 42rem` más el padding
+     daba 985 px en un viewport de 900 — el hero no cabía entero y empujaba
+     todo lo demás fuera de la vista. Ahora se acota al alto real de la
+     ventana, descontando la barra de navegación, con un piso para pantallas
+     muy bajas. */
+  min-height: min(38rem, calc(100dvh - 62px));
+  /* TRES BANDAS: logo arriba, mensaje al centro, datos abajo. Antes era una
+     pila donde el espaciado lo ponía cada elemento por su cuenta, y salía
+     68 px bajo el logo, 5 px bajo el antetítulo y −6 px en la bajada (que se
+     solapaba con el titular). El ritmo lo decide la rejilla, no cada hijo. */
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(1.5rem, 4vh, 3rem);
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 7vw, 6rem) clamp(1.5rem, 4vw, 3rem);
   color: white;
   background:
     linear-gradient(112deg, transparent 0 53%, color-mix(in srgb, var(--rosa) 78%, transparent) 53.2% 68%, transparent 68.2%),
@@ -24,18 +36,29 @@
 .hero::before { content: ''; position: absolute; inset: auto -8% -14% 38%; height: 48%; background: var(--naranja); transform: rotate(-7deg); z-index: -1; clip-path: polygon(0 30%, 100% 0, 91% 100%, 8% 82%); }
 .hero::after { content: '/// MKT CORP /// MKT CORP ///'; position: absolute; right: -3rem; top: 10rem; color: #fff; opacity: .13; font-weight: 900; font-size: clamp(2rem, 5vw, 5rem); transform: rotate(90deg); transform-origin: right top; white-space: nowrap; z-index: -1; }
 .halftone { position: absolute; inset: 0; z-index: -1; opacity: .22; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 9px 9px; mask-image: linear-gradient(90deg, #000, transparent 68%); }
-.heroLogo { width: min(28rem, 72vw); height: auto; object-fit: contain; object-position: left center; margin-bottom: clamp(2rem, 5vw, 4rem); }
-.eyebrow { margin: 0 0 .75rem; font-size: .78rem; letter-spacing: .18em; font-weight: 900; }
+/* Sin `margin-bottom`: el hueco lo pone el `gap` de la rejilla. Ese margen de
+   hasta 4rem era el "logo ultra separado de todo" — 68 px de aire bajo el logo
+   contra 5 px bajo el antetítulo. Y más pequeño: es una firma, no el mensaje. */
+.heroLogo { grid-row: 1; width: min(19rem, 52vw); height: auto; object-fit: contain; object-position: left center; }
+.eyebrow { margin: 0; font-size: .78rem; letter-spacing: .18em; font-weight: 900; }
+/* EL MENSAJE, en su propia banda y centrado verticalmente en el hueco que
+   sobre. Aquí viven antetítulo, titular y bajada con un ritmo declarado una
+   vez, en vez de tres márgenes que se pisaban entre sí. */
+.heroMensaje { grid-row: 2; display: grid; align-content: center; justify-items: start; gap: clamp(.6rem, 1.6vh, 1.1rem); }
 /* Acotado al 62% del lienzo (ver `.heroBajada`): a partir de ahí empieza la
    diagonal, y el titular se metía debajo. */
-.hero h1, .popupTitulo { margin: 0; max-width: min(62%, 14ch); font-size: clamp(4.2rem, 11vw, 9.5rem); line-height: .78; letter-spacing: -.075em; font-weight: 950; text-transform: uppercase; transform: rotate(-1deg); }
+.hero h1, .popupTitulo { margin: 0; max-width: min(62%, 14ch); font-size: clamp(3.2rem, 7.5vw, 7rem); line-height: .78; letter-spacing: -.075em; font-weight: 950; text-transform: uppercase; transform: rotate(-1deg); }
 .hero h1 span, .popupTitulo span, .premio h2 span { color: var(--rosa); -webkit-text-stroke: 1px white; text-shadow: 5px 5px 0 var(--azul); }
-.heroBajada { max-width: 35rem; font-size: clamp(1rem, 2vw, 1.35rem); line-height: 1.45; font-weight: 600; }
-.fechasHero { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 2rem; }
+.heroBajada { margin: 0; max-width: 35rem; font-size: clamp(.95rem, 1.6vw, 1.2rem); line-height: 1.45; font-weight: 600; }
+/* CONTADOR Y FECHAS COMPARTEN LA BANDA DE ABAJO, en fila y alineados por su
+   base. Apilados dejaban el hero creciendo hacia abajo y toda la mitad derecha
+   del lienzo vacía. */
+.heroPie { grid-row: 3; display: flex; flex-wrap: wrap; align-items: flex-end; gap: clamp(1rem, 3vw, 2rem); }
+.fechasHero { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; }
 .fechasHero span { border: 1px solid #ffffff70; background: #08090c99; padding: .5rem .7rem; font-size: .72rem; font-weight: 900; letter-spacing: .08em; }
 .contenido { width: min(74rem, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0 6rem; }
 
-.contador { width: fit-content; margin-top: 2rem; padding: .75rem; color: var(--negro); background: #fff; box-shadow: 8px 8px 0 var(--azul); transform: rotate(.5deg); }
+.contador { width: fit-content; margin: 0; padding: .75rem; color: var(--negro); background: #fff; box-shadow: 8px 8px 0 var(--azul); transform: rotate(.5deg); }
 .contadorEtiqueta { margin: 0 0 .5rem; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 900; }
 .contadorNumeros { display: flex; gap: .35rem; }
 .contadorBloque { display: grid; min-width: 4.1rem; padding: .4rem; text-align: center; background: var(--negro); color: white; }

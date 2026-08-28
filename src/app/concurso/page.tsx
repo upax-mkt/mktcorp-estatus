@@ -71,14 +71,23 @@ export default async function PaginaConcurso() {
             className={estilos.heroLogo}
             priority
           />
-          <p className={estilos.eyebrow}>CONCURSO INTERNO · EDICIÓN 2026</p>
-          <h1>DISEÑA<br /><span>LO QUE SOMOS</span></h1>
-          <p className={estilos.heroBajada}>Tu idea. Nuestra sudadera. Una pieza para llevar el talento de MKT Corp puesto.</p>
-          {fase === 'recepcion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierrePropuestas.toISOString()} etiqueta="La galería se revela en" />}
-          {fase === 'votacion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierreVotacion.toISOString()} etiqueta="Tu pase cierra en" />}
-          {fase === 'cerrado' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.ceremonia.toISOString()} etiqueta="El ganador se revela en" />}
-          {fase === 'resultados' && ganador && <div className={estilos.ganadorHero}><small>GANADOR 2026</small><strong>{ganador.propuesta.titulo}</strong><span>{ganador.propuesta.integrantes.map((p) => p.nombre).join(' + ')}</span></div>}
-          <div className={estilos.fechasHero}><span>VOTA 7–8 SEP</span><span>REVELACIÓN 9 SEP · 15 H</span><span>SKY LOBBY · SALA 2</span></div>
+          {/* TRES BANDAS, no una pila. El logo es la primera, el mensaje la
+              segunda —centrado en el hueco que sobre— y los datos la tercera.
+              Antes los seis bloques colgaban sueltos del hero y cada uno ponía
+              su propio margen: salían 68 px bajo el logo, 5 bajo el antetítulo
+              y −6 en la bajada, que se solapaba con el titular. */}
+          <div className={estilos.heroMensaje}>
+            <p className={estilos.eyebrow}>CONCURSO INTERNO · EDICIÓN 2026</p>
+            <h1>DISEÑA<br /><span>LO QUE SOMOS</span></h1>
+            <p className={estilos.heroBajada}>Tu idea. Nuestra sudadera. Una pieza para llevar el talento de MKT Corp puesto.</p>
+          </div>
+          <div className={estilos.heroPie}>
+            {fase === 'recepcion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierrePropuestas.toISOString()} etiqueta="La galería se revela en" />}
+            {fase === 'votacion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierreVotacion.toISOString()} etiqueta="Tu pase cierra en" />}
+            {fase === 'cerrado' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.ceremonia.toISOString()} etiqueta="El ganador se revela en" />}
+            {fase === 'resultados' && ganador && <div className={estilos.ganadorHero}><small>GANADOR 2026</small><strong>{ganador.propuesta.titulo}</strong><span>{ganador.propuesta.integrantes.map((p) => p.nombre).join(' + ')}</span></div>}
+            <div className={estilos.fechasHero}><span>VOTA 7–8 SEP</span><span>REVELACIÓN 9 SEP · 15 H</span><span>SKY LOBBY · SALA 2</span></div>
+          </div>
         </section>
 
         <div className={estilos.contenido}>
