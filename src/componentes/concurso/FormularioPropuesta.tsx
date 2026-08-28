@@ -97,7 +97,7 @@ export function FormularioPropuesta({
   return (
     <form className={estilos.formulario} onSubmit={enviar}>
       <div className={estilos.formularioCabecera}>
-        <span className={estilos.numeroGrande}>{existente ? 'EDIT' : '01'}</span>
+        <span className={estilos.numeroGrande}>{existente ? 'EDIT' : '03'}</span>
         <div><h2>{existente ? 'Ajusta tu propuesta' : 'Sube tu propuesta'}</h2><p>Tu autoría será pública cuando abra la galería.</p></div>
       </div>
 

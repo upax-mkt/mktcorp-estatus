@@ -26,7 +26,9 @@
 .halftone { position: absolute; inset: 0; z-index: -1; opacity: .22; background-image: radial-gradient(circle, #fff 1px, transparent 1.4px); background-size: 9px 9px; mask-image: linear-gradient(90deg, #000, transparent 68%); }
 .heroLogo { width: min(28rem, 72vw); height: auto; object-fit: contain; object-position: left center; margin-bottom: clamp(2rem, 5vw, 4rem); }
 .eyebrow { margin: 0 0 .75rem; font-size: .78rem; letter-spacing: .18em; font-weight: 900; }
-.hero h1, .popupTitulo { margin: 0; max-width: 10ch; font-size: clamp(4.2rem, 11vw, 9.5rem); line-height: .78; letter-spacing: -.075em; font-weight: 950; text-transform: uppercase; transform: rotate(-1deg); }
+/* Acotado al 62% del lienzo (ver `.heroBajada`): a partir de ahí empieza la
+   diagonal, y el titular se metía debajo. */
+.hero h1, .popupTitulo { margin: 0; max-width: min(62%, 14ch); font-size: clamp(4.2rem, 11vw, 9.5rem); line-height: .78; letter-spacing: -.075em; font-weight: 950; text-transform: uppercase; transform: rotate(-1deg); }
 .hero h1 span, .popupTitulo span, .premio h2 span { color: var(--rosa); -webkit-text-stroke: 1px white; text-shadow: 5px 5px 0 var(--azul); }
 .heroBajada { max-width: 35rem; font-size: clamp(1rem, 2vw, 1.35rem); line-height: 1.45; font-weight: 600; }
 .fechasHero { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 2rem; }
@@ -89,12 +91,44 @@
 .ticketConfirmado { width: fit-content; margin: 2rem auto 0; padding: .75rem 1rem; border: 2px dashed var(--negro); background: #fff; font-weight: 900; transform: rotate(-1deg); }
 
 .bases { margin: 5rem 0; }
-.basesGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.basesGrid article { min-height: 12rem; padding: 1.2rem; border: 2px solid var(--negro); background: #fff; }
-.basesGrid article:nth-child(even) { background: var(--negro); color: white; transform: rotate(.7deg); }
-.basesGrid b { color: var(--rosa); font-size: 2.2rem; }
-.basesGrid h3 { margin: .3rem 0; text-transform: uppercase; }
-.basesGrid p { color: inherit; opacity: .72; line-height: 1.45; }
+
+/* LOS TRES PASOS. Antes eran seis tarjetas iguales en rejilla —la
+   anti-referencia literal del PRODUCT.md— y, peor, no contaban un proceso:
+   seis reglas del mismo tamaño donde nada decía por dónde se empieza.
+   Ahora es una LISTA ORDENADA, que es lo que son, y el número pesa de verdad:
+   una secuencia se lee por su orden, no por su rejilla. */
+.pasos { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; counter-reset: paso; }
+.pasos li {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 7rem) 1fr;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  align-items: start;
+  padding: clamp(1.5rem, 3vw, 2.2rem) 0;
+  border-top: 2px solid var(--negro);
+}
+.pasos li:last-child { border-bottom: 2px solid var(--negro); }
+.pasos b {
+  font-size: clamp(2.6rem, 7vw, 4.4rem);
+  line-height: .8;
+  color: var(--rosa);
+  letter-spacing: -.05em;
+}
+/* El título y el párrafo van los DOS en la segunda columna: sin esto el
+   párrafo cae en la fila siguiente bajo el número, en una tira de 60 px. */
+.pasos h3, .pasos p { grid-column: 2; }
+.pasos h3 { margin: 0 0 .45rem; font-size: clamp(1.1rem, 2.6vw, 1.6rem); text-transform: uppercase; letter-spacing: -.01em; }
+/* Tope de medida: un párrafo de 110 caracteres por línea no se lee. */
+.pasos p { max-width: 62ch; margin: 0; line-height: 1.5; color: #3d3f47; }
+.pasos em { font-style: normal; box-shadow: inset 0 -.45em 0 #ffe5ea; }
+
+/* LA LETRA CHICA, que es letra chica de verdad. Estas cinco condiciones
+   estaban al mismo tamaño que los pasos, compitiendo con ellos por la
+   atención; aquí pesan lo que valen y siguen siendo legibles. */
+.letraChica { margin-top: 2.5rem; padding: 1.5rem clamp(1.2rem, 3vw, 2rem); background: var(--negro); color: #e7e8ec; }
+.letraChica h3 { margin: 0 0 .9rem; font-size: .95rem; text-transform: uppercase; letter-spacing: .08em; color: #ff8db6; }
+.letraChica ul { display: grid; gap: .5rem; margin: 0; padding-left: 1.1rem; }
+.letraChica li { line-height: 1.45; font-size: .92rem; }
+.letraChica strong { color: #fff; }
 .premio { position: relative; overflow: hidden; padding: clamp(2rem, 6vw, 4rem); color: white; background: var(--negro); border: 3px solid var(--negro); }
 .premio::after { content: ''; position: absolute; inset: 0; opacity: .13; background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 8px 8px; pointer-events: none; }
 .premio h2 { position: relative; z-index: 1; margin: 0 0 2rem; font-size: clamp(2.5rem, 7vw, 5.5rem); line-height: .88; letter-spacing: -.06em; }
@@ -120,7 +154,14 @@
 .adminLista li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem; background: #eee9df; }
 .adminLista button { border: 1px solid var(--negro); background: white; padding: .4rem .65rem; font-weight: 800; cursor: pointer; }
 
-.popup { --negro: #08090c; --rosa: #f20865; --azul: #2588f4; width: min(42rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 3px solid white; padding: clamp(1.3rem, 5vw, 3rem); color: white; background: var(--negro); box-shadow: 14px 14px 0 var(--azul); }
+/* ⚠️ `margin: auto` NO SOBRA, Y SIN ÉL EL ANUNCIO SALE EN LA ESQUINA.
+   Un `<dialog>` abierto con `showModal()` lo centra el NAVEGADOR, con el
+   `margin: auto` de su hoja de agente de usuario. El reset de `globals.css`
+   —`* { margin: 0 }`, que aplica también al dialog— lo pisa, y el modal cae
+   pegado arriba a la izquierda. Es un fallo que solo existe en un navegador
+   de verdad: jsdom no calcula posición, así que ningún test de render lo ve.
+   Se declara aquí y `anuncio-centrado.test.ts` lo fija leyendo esta hoja. */
+.popup { --negro: #08090c; --rosa: #f20865; --azul: #2588f4; margin: auto; width: min(42rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 3px solid white; padding: clamp(1.3rem, 5vw, 3rem); color: white; background: var(--negro); box-shadow: 14px 14px 0 var(--azul); }
 .popup::backdrop { background: #05060acc; backdrop-filter: blur(6px); }
 .popupRuido { position: absolute; inset: 0; pointer-events: none; opacity: .18; background-image: radial-gradient(circle, #fff 1px, transparent 1.2px); background-size: 8px 8px; mask-image: linear-gradient(120deg, #000, transparent 70%); }
 .popupCerrar { position: absolute; z-index: 2; top: .7rem; right: .7rem; width: 2.5rem; height: 2.5rem; border: 2px solid white; background: #08090c; color: white; font-size: 1.6rem; cursor: pointer; }
@@ -136,7 +177,11 @@
 @media (max-width: 48rem) {
   .hero { min-height: auto; }
   .hero h1 { font-size: clamp(3.5rem, 20vw, 6rem); }
-  .identidadGrid, .galeriaGrid, .basesGrid, .premioGrid, .adminGrid { grid-template-columns: 1fr; }
+  .identidadGrid, .galeriaGrid, .premioGrid, .adminGrid { grid-template-columns: 1fr; }
+  /* En móvil el número se pone encima: dos columnas dejarían el texto en 40 px. */
+  .pasos li { grid-template-columns: 1fr; gap: .4rem; }
+  .pasos h3, .pasos p { grid-column: 1; }
+  .pasos b { font-size: 2.4rem; }
   .rayo { text-align: center; transform: rotate(90deg); }
   .contadorBloque { min-width: 3.1rem; }
   .contadorBloque strong { font-size: 1.25rem; }
@@ -145,3 +190,11 @@
 @media (prefers-reduced-motion: reduce) {
   .botonPunk, .pase, .popupCta, .propuesta, .espera, .ganadorHero { transform: none; transition: none; }
 }
+
+/* EL ANUNCIO CUANDO ES UN CARTEL. La imagen ocupa el ancho y el modal se
+   ciñe a ella: sin padding que la enmarque, porque un cartel ya trae su
+   propio margen dibujado. El enlace queda debajo, que es lo único que la
+   imagen no puede hacer sola. */
+.popupCartel { display: grid; gap: 1rem; padding: 0; overflow: hidden; }
+.popupImagen { display: block; width: 100%; height: auto; }
+.popupCartel .popupCta { margin: 0 clamp(1rem, 4vw, 2rem) clamp(1rem, 4vw, 2rem); }

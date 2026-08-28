@@ -82,6 +82,54 @@ export default async function PaginaConcurso() {
         </section>
 
         <div className={estilos.contenido}>
+          <section className={estilos.premio}>
+            <p className={estilos.eyebrow}>01 · LO QUE ESTÁ EN JUEGO</p>
+            <h2>EL DISEÑO GANADOR<br /><span>SE LLEVA TODO</span></h2>
+            <div className={estilos.premioGrid}>
+              <article><small>INDIVIDUAL</small><strong>Pase doble Arena CDMX</strong><span>Gift card $1,000 MXN</span><span>+ 1 día adicional</span></article>
+              <div className={estilos.rayo} aria-hidden="true">ϟ</div>
+              <article><small>DUPLA · CADA PERSONA</small><strong>Pase doble Arena CDMX</strong><span>Gift card $500 MXN</span><span>+ 1 día adicional</span></article>
+            </div>
+            <p className={estilos.legal}>Pases sujetos a disponibilidad. Día adicional previa coordinación con tu formador.</p>
+          </section>
+          {/* LA DINÁMICA, COMO SECUENCIA Y NO COMO SEIS CAJAS IGUALES.
+              Eran seis `article` del mismo tamaño con número, título y párrafo
+              — la anti-referencia literal del PRODUCT.md ("tarjetas idénticas
+              con icono+título+texto repetidas")— y sobre todo no contaban un
+              proceso: seis reglas sueltas en las que nada indicaba por dónde
+              empezar. Ahora son TRES PASOS numerados, que es lo que de verdad
+              hay que hacer, y las condiciones bajan a letra chica agrupada,
+              que es su peso real. */}
+          <section className={estilos.bases} id="bases">
+            <div className={estilos.tituloSeccion}><span>02</span><div><p>TRES PASOS</p><h2>Cómo entrar al escenario</h2></div></div>
+            <ol className={estilos.pasos}>
+              <li>
+                <b>01</b>
+                <h3>Diseña</h3>
+                <p>Con o sin capucha; frente, espalda o mangas. Base negra, blanca, gris, arena o azul marino. Vale un diseño terminado <em>o</em> un concepto: si gana un boceto, te ayudamos a rematarlo.</p>
+              </li>
+              <li>
+                <b>02</b>
+                <h3>Súbelo antes del 7 de septiembre</h3>
+                <p>Hasta tres imágenes JPG o PNG y una explicación corta. Puedes editarlo todas las veces que quieras hasta que cierre la recepción.</p>
+              </li>
+              <li>
+                <b>03</b>
+                <h3>Que el equipo lo vote</h3>
+                <p>El 7 se publican todas a la vez y cada persona tiene un voto. El resultado es <strong>70% del equipo y 30% del jurado</strong>.</p>
+              </li>
+            </ol>
+            <div className={estilos.letraChica}>
+              <h3>La letra chica, que sí es corta</h3>
+              <ul>
+                <li>Una propuesta por persona, sola o en dupla — y la dupla une <strong>squads distintos</strong>.</li>
+                <li>Tres firmas obligatorias y sin alterar: Grupo UPAX, Marketing Corp y «¡ASÍ SOMOS!».</li>
+                <li>Hecho por ti: <strong>sin IA generativa</strong>.</li>
+                <li>El archivo editable solo se le pide al ganador.</li>
+                <li>El jurado puntúa creatividad, cultura, viabilidad y atractivo visual.</li>
+              </ul>
+            </div>
+          </section>
           {admin && <PanelJurado propuestas={propuestasAdmin} estado={estadoJurado} />}
           {fase === 'recepcion' && persona && persona.squad && (
             <FormularioPropuesta persona={persona} disponibles={disponibles} existente={propia} />
@@ -91,7 +139,7 @@ export default async function PaginaConcurso() {
           )}
           {fase === 'recepcion' && (
             <section className={estilos.espera}>
-              <span className={estilos.numeroGrande}>02</span><h2>El lineup sigue bajo llave</h2>
+              <span className={estilos.numeroGrande}>04</span><h2>El lineup sigue bajo llave</h2>
               <p>Todas las propuestas se revelan al mismo tiempo el lunes 7 de septiembre a las 11:00.</p>
             </section>
           )}
@@ -99,28 +147,7 @@ export default async function PaginaConcurso() {
             <GaleriaConcurso propuestas={galeria} miCorreo={correo} votoInicial={voto} votacionAbierta={fase === 'votacion'} />
           )}
 
-          <section className={estilos.bases} id="bases">
-            <div className={estilos.tituloSeccion}><span>03</span><div><p>NO HAY LETRA CHIQUITA</p><h2>Cómo entrar al escenario</h2></div></div>
-            <div className={estilos.basesGrid}>
-              <article><b>01</b><h3>Solo o en dupla</h3><p>Una propuesta por persona. Las duplas deben unir squads distintos.</p></article>
-              <article><b>02</b><h3>Diseña libre</h3><p>Con o sin capucha, frente, espalda o mangas. Base negra, blanca, gris, arena o azul marino.</p></article>
-              <article><b>03</b><h3>Tres firmas</h3><p>Incluye Grupo UPAX, Marketing Corp y “¡ASÍ SOMOS!” sin alterar los logos.</p></article>
-              <article><b>04</b><h3>Hazlo humano</h3><p>Diseño terminado o concepto propio. No se permite inteligencia artificial generativa.</p></article>
-              <article><b>05</b><h3>Entrega visual</h3><p>Hasta tres JPG o PNG, máximo 25 MB cada uno. El editable se pedirá solo al ganador.</p></article>
-              <article><b>06</b><h3>70 + 30</h3><p>70% pase del equipo y 30% jurado: creatividad, cultura, viabilidad y atractivo visual.</p></article>
-            </div>
-          </section>
 
-          <section className={estilos.premio}>
-            <p className={estilos.eyebrow}>HEADLINER PRIZE</p>
-            <h2>EL DISEÑO GANADOR<br /><span>SE LLEVA TODO</span></h2>
-            <div className={estilos.premioGrid}>
-              <article><small>INDIVIDUAL</small><strong>Pase doble Arena CDMX</strong><span>Gift card $1,000 MXN</span><span>+ 1 día adicional</span></article>
-              <div className={estilos.rayo} aria-hidden="true">ϟ</div>
-              <article><small>DUPLA · CADA PERSONA</small><strong>Pase doble Arena CDMX</strong><span>Gift card $500 MXN</span><span>+ 1 día adicional</span></article>
-            </div>
-            <p className={estilos.legal}>Pases sujetos a disponibilidad. Día adicional previa coordinación con tu formador.</p>
-          </section>
         </div>
       </main>
     </div>

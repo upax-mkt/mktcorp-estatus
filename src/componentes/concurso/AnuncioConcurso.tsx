@@ -7,6 +7,19 @@ import estilos from '@/app/concurso/concurso.module.css'
 
 const LLAVE = 'mktcorp-concurso-sudadera-2026-visto'
 
+/**
+ * LA RUTA DEL CARTEL, cuando exista.
+ *
+ * Franco va a diseñar un póster y este anuncio será ese póster. Hasta que el
+ * archivo esté en `public/concurso/`, se enseña la versión tipográfica de
+ * abajo — que no es un placeholder: es una pieza terminada que puede vivir
+ * sola. Poner el PNG en esa ruta cambia el anuncio sin tocar código.
+ *
+ * `null` (y no una ruta a un archivo que no está) porque `next/image` con un
+ * src inexistente rompe el modal entero: el anuncio se quedaría en blanco.
+ */
+const CARTEL: { src: string; ancho: number; alto: number; alt: string } | null = null
+
 export function AnuncioConcurso({ activo }: { activo: boolean }) {
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -30,6 +43,21 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
   }
 
   if (!activo) return null
+
+  // CON CARTEL: la imagen manda y el texto sobra — repetir debajo lo que el
+  // cartel ya dice sería ruido. Se conservan el botón de cerrar y el enlace,
+  // que son lo único que el cartel no puede hacer por sí mismo, y el `alt`
+  // lleva la convocatoria completa para quien no ve la imagen.
+  if (CARTEL) {
+    return (
+      <dialog ref={dialogo} className={`${estilos.popup} ${estilos.popupCartel}`} onClose={cerrar} aria-label="Concurso: diseña la sudadera de MKT Corp">
+        <button className={estilos.popupCerrar} type="button" onClick={cerrar} aria-label="Cerrar anuncio">×</button>
+        <Image src={CARTEL.src} width={CARTEL.ancho} height={CARTEL.alto} alt={CARTEL.alt} className={estilos.popupImagen} priority />
+        <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
+      </dialog>
+    )
+  }
+
   return (
     <dialog ref={dialogo} className={estilos.popup} onClose={cerrar} aria-labelledby="concurso-popup-titulo">
       <div className={estilos.popupRuido} aria-hidden="true" />
