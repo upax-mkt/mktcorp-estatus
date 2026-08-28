@@ -25,7 +25,7 @@ Antes de la votación ninguna propuesta ajena es visible. La portada muestra una
 - Obligatorios, sin alterar: logo Grupo UPAX, logo Marketing Corp y frase «¡ASÍ SOMOS!».
 - Libertad de composición en frente, espalda y mangas.
 - Se aceptan diseño terminado o concepto/boceto; si gana un concepto, se apoya su desarrollo gráfico.
-- Sin IA generativa.
+- ~~Sin IA generativa.~~ **Retirada por Franco el 28-ago-2026.** La herramienta con la que alguien llega a su idea deja de ser una condición: lo que se juzga es el diseño. Se tacha en vez de borrarse porque estuvo publicada y conviene que se vea que se quitó a propósito.
 - Entrega: nombre, descripción de máximo 500 caracteres y hasta tres JPG/PNG de máximo 25 MB cada uno.
 - No se exige editable al participar; se solicitará a la propuesta ganadora.
 - La publicación no requiere moderación previa, pero un admin puede ocultar incumplimientos.
@@ -51,7 +51,7 @@ Antes de la votación ninguna propuesta ajena es visible. La portada muestra una
 
 ## Identidad visual
 
-Collage punk/rock original: alto contraste, tramas de semitono, recortes, desregistro cromático, diagonales, cinta y tipografía contundente. No usa arte, personajes, logotipos ni composiciones de Spider-Man/Spider-Verse. No se generan imágenes con IA.
+Collage punk/rock original: alto contraste, tramas de semitono, recortes, desregistro cromático, diagonales, cinta y tipografía contundente. No usa arte, personajes, logotipos ni composiciones de Spider-Man/Spider-Verse.
 
 ## Invariantes técnicas
 

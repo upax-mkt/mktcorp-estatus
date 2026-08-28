@@ -46,7 +46,7 @@ const PREVIAS: Record<string, { titulo: string; descripcion: string; imagen?: st
     titulo: 'Diseña lo que somos · Concurso interno 2026',
     descripcion:
       'Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el 7 de septiembre: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.',
-    imagen: '/concurso/cartel.png',
+    imagen: '/concurso/og-concurso.png',
   },
 }
 
@@ -70,7 +70,7 @@ export async function generateMetadata({
       type: 'website',
       locale: 'es_MX',
       siteName: 'Meeting Hub · Marketing Corp',
-      ...(previa.imagen ? { images: [{ url: previa.imagen, width: 1024, height: 1536 }] } : {}),
+      ...(previa.imagen ? { images: [{ url: previa.imagen, width: 1200, height: 630 }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',

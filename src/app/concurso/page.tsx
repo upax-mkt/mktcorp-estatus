@@ -59,9 +59,12 @@ export const metadata: Metadata = {
     locale: 'es_MX',
     siteName: 'Meeting Hub · Marketing Corp',
     images: [{
-      url: '/concurso/cartel.png',
-      width: 1024,
-      height: 1536,
+      // HORIZONTAL, no el cartel a pelo: Slack pinta el unfurl en 1200×630 y una
+      // imagen 2:3 vertical la encoge o le recorta el titular. Esta compone el
+      // cartel entero sobre textura sacada de su propia esquina sin texto.
+      url: '/concurso/og-concurso.png',
+      width: 1200,
+      height: 630,
       // El `alt` viaja a quien usa lector de pantalla en Slack o en Teams.
       alt: 'Cartel del concurso «Diseña lo que somos»: la sudadera oficial de Marketing Corp, con el premio de pase doble a la Arena CDMX.',
     }],
@@ -72,7 +75,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Diseña lo que somos · Concurso interno 2026',
     description: RESUMEN,
-    images: ['/concurso/cartel.png'],
+    images: ['/concurso/og-concurso.png'],
   },
 }
 
@@ -210,7 +213,6 @@ export default async function PaginaConcurso() {
               <ul>
                 <li>Una propuesta por persona, sola o en dupla — y la dupla une <strong>squads distintos</strong>.</li>
                 <li>Tres firmas obligatorias y sin alterar: Grupo UPAX, Marketing Corp y «¡ASÍ SOMOS!».</li>
-                <li>Hecho por ti: <strong>sin IA generativa</strong>.</li>
                 <li>El archivo editable solo se le pide al ganador.</li>
                 <li>El jurado puntúa creatividad, cultura, viabilidad y atractivo visual.</li>
               </ul>
