@@ -389,3 +389,26 @@
 .invitacionEtiqueta { margin: 0; font-size: .72rem; font-weight: 900; letter-spacing: .14em; color: var(--rosa); }
 .invitacion h2 { margin: 0; font-size: clamp(1.4rem, 4vw, 2.2rem); line-height: 1.05; text-transform: uppercase; letter-spacing: -.02em; }
 .invitacion p { margin: 0; max-width: 52ch; line-height: 1.5; color: #3d3f47; }
+
+/* ⚠️ EL BOTÓN DE CERRAR, A MEDIDA TÁCTIL. Medía 40×40: por debajo de los 44 px
+   que pide Apple y de los 48 de Android, y encima colocado en una esquina
+   sobre el cartel oscuro, donde ni se distingue. Ahora 48, con fondo sólido y
+   borde para que se despegue de la imagen que tiene debajo. */
+.popupCerrar { width: 3rem; height: 3rem; font-size: 1.9rem; line-height: 1; }
+
+/* El pie del cartel: el enlace y la salida escrita, en fila. */
+.popupAcciones { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; }
+.popupCerrarTexto {
+  padding: .8rem .4rem;
+  border: none;
+  background: none;
+  color: #c9ccd4;
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.popupCerrarTexto:hover { color: #fff; }
+.popupCerrarTexto:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }

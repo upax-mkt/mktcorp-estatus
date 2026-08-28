@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type MouseEvent } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
 
 const LLAVE = 'mktcorp-concurso-sudadera-2026-visto'
@@ -52,6 +52,30 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
     }
   }, [activo])
 
+  /**
+   * TOCAR FUERA CIERRA. Franco: *«no puedo cerrar el pop up en mobile»*.
+   *
+   * Un `<dialog>` NO se cierra al pulsar su backdrop; hay que hacerlo a mano. Y
+   * el click del backdrop llega al propio `<dialog>` como diana —no a un
+   * elemento de fuera— así que no vale con comparar `event.target`: se compara
+   * la posición del puntero contra la caja del diálogo. Si cae fuera, era el
+   * fondo.
+   *
+   * En un escritorio esto es una comodidad; en un teléfono es LA forma de
+   * cerrar que la gente intenta primero, antes de buscar ninguna equis.
+   */
+  function alPulsar(evento: MouseEvent<HTMLDialogElement>) {
+    const d = dialogo.current
+    if (!d || evento.target !== d) return
+    const caja = d.getBoundingClientRect()
+    const dentro =
+      evento.clientX >= caja.left && evento.clientX <= caja.right &&
+      evento.clientY >= caja.top && evento.clientY <= caja.bottom
+    // (0,0) es lo que manda un click sintético del teclado sobre el dialog:
+    // cerrar ahí sería cerrar al pulsar Enter dentro del modal.
+    if (!dentro && (evento.clientX !== 0 || evento.clientY !== 0)) cerrar()
+  }
+
   function cerrar() {
     try {
       window.localStorage?.setItem(LLAVE, '1')
@@ -69,7 +93,7 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
   // lleva la convocatoria completa para quien no ve la imagen.
   if (CARTEL) {
     return (
-      <dialog ref={dialogo} className={`${estilos.popup} ${estilos.popupCartel}`} onClose={cerrar} aria-label="Concurso: diseña la sudadera de MKT Corp">
+      <dialog ref={dialogo} className={`${estilos.popup} ${estilos.popupCartel}`} onClose={cerrar} onClick={alPulsar} aria-label="Concurso: diseña la sudadera de MKT Corp">
         <button className={estilos.popupCerrar} type="button" onClick={cerrar} aria-label="Cerrar anuncio">×</button>
         <Image src={CARTEL.src} width={CARTEL.ancho} height={CARTEL.alto} alt={CARTEL.alt} className={estilos.popupImagen} priority />
         {/* Las fechas van FUERA del cartel, no dentro: en la imagen quedarían
@@ -80,14 +104,20 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
             <strong>Sube tu propuesta hasta el 7 de septiembre, 11:00.</strong>
             {' '}Se vota del 7 al 8 y el ganador se revela el 9 a las 15:00 en Sky Lobby, Sala 2.
           </p>
-          <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
+          <div className={estilos.popupAcciones}>
+            <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
+            {/* Una salida CON PALABRA, además de la equis. En un teléfono la
+                equis es un objetivo de 40 px sobre una imagen oscura; esto está
+                donde ya se está mirando y dice lo que hace. */}
+            <button type="button" className={estilos.popupCerrarTexto} onClick={cerrar}>Ahora no</button>
+          </div>
         </div>
       </dialog>
     )
   }
 
   return (
-    <dialog ref={dialogo} className={estilos.popup} onClose={cerrar} aria-labelledby="concurso-popup-titulo">
+    <dialog ref={dialogo} className={estilos.popup} onClose={cerrar} onClick={alPulsar} aria-labelledby="concurso-popup-titulo">
       <div className={estilos.popupRuido} aria-hidden="true" />
       <button className={estilos.popupCerrar} type="button" onClick={cerrar} aria-label="Cerrar anuncio">×</button>
       <Image
