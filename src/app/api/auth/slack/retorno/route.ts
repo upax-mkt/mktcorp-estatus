@@ -46,16 +46,50 @@ export async function GET(request: Request) {
   const estadoEsperado = cookieStore.get(COOKIE_ESTADO_SLACK)?.value
   cookieStore.delete(COOKIE_ESTADO_SLACK)
 
-  // El state debe venir, coincidir con el que emitimos y no haber caducado.
-  if (!code || !state || !estadoEsperado || state !== estadoEsperado) {
-    redirect('/entrar?error=slack')
-  }
-  if (!(await verificar(state, secreto))) redirect('/entrar?error=slack')
+  // Sin código o sin state no hay nada que canjear: Slack no completó.
+  if (!code || !state) redirect('/entrar?error=slack')
+
+  /**
+   * ⚠️ EL STATE SE VALIDA POR FIRMA, Y LA COOKIE ES UN REFUERZO — NO AL REVÉS.
+   *
+   * Franco, 28-ago-2026: *«el login en móvil tira error después de meter las
+   * credenciales correctas; en desktop funciona todo bien»*.
+   *
+   * Ese es el síntoma clásico de esta comprobación en un teléfono. El flujo
+   * empieza en un navegador, salta a la app de Slack para autorizar y vuelve —
+   * y ese viaje de ida y vuelta no siempre conserva el mismo contenedor de
+   * cookies: el navegador embebido de Slack tiene el suyo, y iOS y Android
+   * deciden por su cuenta dónde abrir cada paso. Si el retorno aterriza donde
+   * la cookie no está, `estadoEsperado` llega vacío y el login falla DESPUÉS de
+   * haber tecleado bien las credenciales, que es lo que más desconcierta.
+   *
+   * Qué prueba cada cosa:
+   *
+   *  - LA FIRMA del `state` prueba que lo emitimos NOSOTROS —va firmado con
+   *    `SESSION_SECRET`, que no sale de aquí— y que no han pasado 10 minutos.
+   *    Es la garantía fuerte, y no depende del navegador.
+   *  - LA COOKIE prueba, además, que el flujo lo inició ESTE navegador. Es la
+   *    defensa contra un CSRF de login: que alguien te complete el flujo con
+   *    SU código y acabes dentro con su identidad.
+   *
+   * Así que la cookie se exige cuando ESTÁ, y su ausencia deja de tumbar el
+   * login. Lo que queda expuesto está acotado: quien montara ese ataque tendría
+   * que pertenecer al workspace de Slack de UPAX —lo comprueba
+   * `esEquipoPermitido` unas líneas más abajo— y el resultado sería que la
+   * víctima ve la app con la identidad del atacante, no al revés. Frente a eso:
+   * sin este cambio, ninguna de las 23 personas del equipo puede entrar desde
+   * su teléfono.
+   *
+   * Cada motivo lleva su propio código para que un fallo se pueda diagnosticar
+   * sin adivinar; `/entrar` los traduce a un mensaje que dice qué hacer.
+   */
+  if (estadoEsperado && state !== estadoEsperado) redirect('/entrar?error=slack-estado')
+  if (!(await verificar(state, secreto))) redirect('/entrar?error=slack-caducado')
 
   const identidad = await identidadDesdeCodigo(code, urlDeRetornoSlack(request.url))
-  if (!identidad) redirect('/entrar?error=slack')
+  if (!identidad) redirect('/entrar?error=slack-codigo')
   if (!esEquipoPermitido(identidad.equipo, equipoExigido(), identidad.organizacion)) {
-    redirect('/entrar?error=slack')
+    redirect('/entrar?error=slack-workspace')
   }
 
   // EL PORTILLO DE EMERGENCIA, y no es un descuido.

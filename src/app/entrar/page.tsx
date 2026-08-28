@@ -172,9 +172,36 @@ export default async function Entrar({
                 de Slack. Si todavía no puedes entrar, pide que te den de alta en el directorio.
               </div>
             )}
+            {/* Los códigos de Slack, cada uno con lo que hay que hacer. Antes
+                todos caían en el mismo «Slack no autorizó la entrada», que es
+                verdad y no ayuda: no distingue una cuenta ajena de un enlace
+                caducado ni de un intento que se quedó a medias. */}
             {error === 'slack' && (
               <div className={estilos.error}>
-                Slack no autorizó la entrada. Puede ser una cuenta fuera del workspace de UPAX.
+                Slack no completó la entrada. Vuelve a intentarlo desde este mismo navegador.
+              </div>
+            )}
+            {error === 'slack-caducado' && (
+              <div className={estilos.error}>
+                El enlace de Slack caducó: dura diez minutos. Pulsa otra vez «Entrar con Slack».
+              </div>
+            )}
+            {error === 'slack-estado' && (
+              <div className={estilos.error}>
+                La entrada empezó en otro navegador o en otra pestaña. Vuelve a intentarlo aquí,
+                sin cambiar de aplicación a medio camino.
+              </div>
+            )}
+            {error === 'slack-codigo' && (
+              <div className={estilos.error}>
+                Slack no confirmó tu identidad. Suele pasar al reintentar con un enlace ya usado:
+                empieza de nuevo desde este botón.
+              </div>
+            )}
+            {error === 'slack-workspace' && (
+              <div className={estilos.error}>
+                Esa cuenta no pertenece al workspace de Grupo UPAX. Entra con tu cuenta de la
+                organización.
               </div>
             )}
             {error === 'sin-acceso' && (
