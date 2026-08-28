@@ -18,7 +18,15 @@ const LLAVE = 'mktcorp-concurso-sudadera-2026-visto'
  * `null` (y no una ruta a un archivo que no está) porque `next/image` con un
  * src inexistente rompe el modal entero: el anuncio se quedaría en blanco.
  */
-const CARTEL: { src: string; ancho: number; alto: number; alt: string } | null = null
+const CARTEL: { src: string; ancho: number; alto: number; alt: string } | null = {
+  src: '/concurso/cartel.png',
+  ancho: 1024,
+  alto: 1536,
+  // El `alt` lleva la convocatoria ENTERA, no una descripción del dibujo: para
+  // quien no ve la imagen, este texto ES el anuncio. Incluye lo que el cartel
+  // dice y lo único que le falta —las fechas—, que van además impresas debajo.
+  alt: 'Concurso interno 2026 de Grupo UPAX y Marketing Corp: «Diseña lo que somos». Diseña la sudadera oficial de Marketing Corp. El ganador se lleva un pase doble para la Arena CDMX, una gift card de 1.000 pesos y un día de vacaciones.',
+}
 
 export function AnuncioConcurso({ activo }: { activo: boolean }) {
   const dialogo = useRef<HTMLDialogElement>(null)
@@ -53,7 +61,16 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
       <dialog ref={dialogo} className={`${estilos.popup} ${estilos.popupCartel}`} onClose={cerrar} aria-label="Concurso: diseña la sudadera de MKT Corp">
         <button className={estilos.popupCerrar} type="button" onClick={cerrar} aria-label="Cerrar anuncio">×</button>
         <Image src={CARTEL.src} width={CARTEL.ancho} height={CARTEL.alto} alt={CARTEL.alt} className={estilos.popupImagen} priority />
-        <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
+        {/* Las fechas van FUERA del cartel, no dentro: en la imagen quedarían
+            a cuerpo diminuto dentro de un modal de 42rem, y además cambian sin
+            que nadie quiera reexportar un PNG por ello. */}
+        <div className={estilos.popupPie}>
+          <p className={estilos.popupFechas}>
+            <strong>Sube tu propuesta hasta el 7 de septiembre, 11:00.</strong>
+            {' '}Se vota del 7 al 8 y el ganador se revela el 9 a las 15:00 en Sky Lobby, Sala 2.
+          </p>
+          <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
+        </div>
       </dialog>
     )
   }

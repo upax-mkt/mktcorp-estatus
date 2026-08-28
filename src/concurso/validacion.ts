@@ -22,8 +22,25 @@ export interface DatosPropuesta {
 export function validarIntegrantes(integrantes: IntegrantePropuesta[]): string[] {
   const errores: string[] = []
   if (integrantes.length < 1 || integrantes.length > 2) errores.push('Participa individualmente o en dupla.')
-  if (integrantes.some((p) => p.squad === null)) {
-    errores.push('Todos los participantes necesitan un squad asignado en Personas.')
+  // ⚠️ EL SQUAD SOLO SE EXIGE PARA LA DUPLA, no para participar.
+  //
+  // Esto pedía squad a TODO EL MUNDO y dejaba fuera del concurso a quien no
+  // pertenece a ninguno: el CMO —que está por encima de los seis squads— y las
+  // personas indirectas de marketing. O sea, excluía a quien lo convoca.
+  //
+  // Las bases dicen lo contrario en su objetivo: «puede participar cualquier
+  // colaborador activo, SIN IMPORTAR PUESTO O SQUAD». Y su invariante 7 acota
+  // la exigencia justo donde tiene sentido: «la falta de squad no vuelve
+  // elegible una DUPLA inválida». En una dupla la única regla es unir squads
+  // distintos, y eso no se puede comprobar contra un dato que no existe;
+  // dejarlo pasar sería interpretar la ausencia a favor.
+  //
+  // `'Sin squad'` NO entra aquí: es un valor del catálogo, no una ausencia
+  // (Ángel lo tiene porque reporta directo a Franco al frente de la vertical
+  // político-electoral). Participa solo y hace dupla con cualquiera de otro
+  // squad; la regla de squads distintos lo resuelve sin ningún caso especial.
+  if (integrantes.length === 2 && integrantes.some((p) => p.squad === null)) {
+    errores.push('En dupla, los dos necesitan squad asignado en Personas.')
   }
   if (new Set(integrantes.map((p) => p.correo.toLowerCase())).size !== integrantes.length) {
     errores.push('Una persona no puede ocupar los dos lugares de la dupla.')

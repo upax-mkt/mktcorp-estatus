@@ -140,11 +140,17 @@ export default async function PaginaConcurso() {
             </div>
           </section>
           {admin && <PanelJurado propuestas={propuestasAdmin} estado={estadoJurado} />}
-          {fase === 'recepcion' && persona && persona.squad && (
+          {/* SIN SQUAD TAMBIÉN SE PARTICIPA. El formulario se condicionaba a
+              `persona.squad`, así que quien no pertenece a ningún squad —el CMO,
+              que está por encima de los seis, y las personas indirectas— no
+              veía siquiera el formulario. Las bases dicen «cualquier colaborador
+              activo, sin importar puesto o squad»; lo único que el squad decide
+              es si puedes ir en dupla. Ver `validarIntegrantes`. */}
+          {fase === 'recepcion' && persona && (
             <FormularioPropuesta persona={persona} disponibles={disponibles} existente={propia} />
           )}
-          {fase === 'recepcion' && (!persona || !persona.squad) && (
-            <section className={estilos.aviso} role="alert"><strong>Falta asignar tu squad.</strong><p>Pide a un administrador que lo seleccione en Personas para poder participar.</p></section>
+          {fase === 'recepcion' && !persona && (
+            <section className={estilos.aviso} role="alert"><strong>No te encontramos en el directorio.</strong><p>Avisa a Marketing Corporativo para que te den de alta en Personas y puedas participar.</p></section>
           )}
           {fase === 'recepcion' && (
             <section className={estilos.espera}>

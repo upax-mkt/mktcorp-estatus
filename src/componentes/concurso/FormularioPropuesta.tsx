@@ -32,8 +32,13 @@ export function FormularioPropuesta({
   const [subiendo, setSubiendo] = useState(false)
   const [pendiente, comenzar] = useTransition()
 
-  const parejas = useMemo(() => disponibles.filter(
-    (p) => p.correo !== persona.correo && p.squad !== persona.squad,
+  // Sin squad no hay dupla posible —su única regla es unir squads distintos y
+  // eso no se comprueba contra un dato que no existe—, así que la lista sale
+  // vacía y abajo se explica en vez de ofrecer un desplegable inútil.
+  const parejas = useMemo(() => (
+    persona.squad === null
+      ? []
+      : disponibles.filter((p) => p.correo !== persona.correo && p.squad !== persona.squad)
   ), [disponibles, persona])
   const tieneImagen = archivos.length > 0 || Boolean(existente?.imagenes.length)
 
@@ -103,8 +108,11 @@ export function FormularioPropuesta({
 
       <div className={estilos.identidadGrid}>
         <label><span>Nombre</span><select value={persona.correo} onChange={() => {}} aria-readonly="true"><option value={persona.correo}>{persona.nombre}</option></select></label>
-        <label><span>Squad</span><select value={persona.squad ?? ''} onChange={() => {}} aria-readonly="true"><option value={persona.squad ?? ''}>{persona.squad ?? 'Por asignar'}</option></select></label>
-        {!existente && (
+        <label><span>Squad</span><select value={persona.squad ?? ''} onChange={() => {}} aria-readonly="true"><option value={persona.squad ?? ''}>{persona.squad ?? 'Sin squad asignado'}</option></select></label>
+        {!existente && persona.squad === null && (
+          <p className={estilos.notaDupla}><strong>Participación individual.</strong> Para ir en dupla hace falta tener squad asignado: la dupla debe unir dos squads distintos.</p>
+        )}
+        {!existente && persona.squad !== null && (
           <label><span>Dupla · opcional</span><select value={coautor} onChange={(e) => setCoautor(e.target.value)}><option value="">Participación individual</option>{parejas.map((p) => <option value={p.correo} key={p.correo}>{p.nombre} · {p.squad}</option>)}</select></label>
         )}
       </div>

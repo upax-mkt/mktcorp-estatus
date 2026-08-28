@@ -218,6 +218,35 @@
    ciñe a ella: sin padding que la enmarque, porque un cartel ya trae su
    propio margen dibujado. El enlace queda debajo, que es lo único que la
    imagen no puede hacer sola. */
-.popupCartel { display: grid; gap: 1rem; padding: 0; overflow: hidden; }
-.popupImagen { display: block; width: 100%; height: auto; }
-.popupCartel .popupCta { margin: 0 clamp(1rem, 4vw, 2rem) clamp(1rem, 4vw, 2rem); }
+/* EL ANUNCIO CUANDO ES UN CARTEL. La imagen manda: sin padding que la
+   enmarque —un cartel ya trae su propio margen dibujado— y el modal se ciñe a
+   su proporción. Más estrecho que el tipográfico (34rem, no 42) porque el
+   cartel es vertical 2:3: a 42rem no cabría de alto en una pantalla normal. */
+/* ⚠️ EL PIE NO SE SALE DE LA PANTALLA, y antes sí. Un cartel 2:3 a 34rem de
+   ancho mide 816 px de alto; más el pie, 868, en un viewport de 900. El botón
+   «Entrar al concurso» quedaba fuera de vista, y un modal que hay que
+   descubrir haciendo scroll no lleva a nadie a ninguna parte.
+
+   La rejilla reparte: la IMAGEN se lleva el hueco que sobre (`1fr`, con
+   `min-height: 0` para que pueda encoger — sin eso un hijo de grid nunca baja
+   de su tamaño intrínseco) y el pie toma lo suyo (`auto`). `contain` conserva
+   la proporción del cartel al encoger. */
+.popupCartel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  width: min(32rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  overflow: hidden;
+}
+.popupImagen { display: block; min-height: 0; width: 100%; height: 100%; object-fit: contain; object-position: center top; }
+.popupPie { display: grid; gap: .9rem; padding: clamp(1rem, 4vw, 1.5rem); background: var(--negro); }
+.popupFechas { margin: 0; font-size: .85rem; line-height: 1.45; color: #c9ccd4; }
+.popupFechas strong { display: block; color: #fff; }
+.popupCartel .popupCta { margin: 0; }
+
+/* La nota que sustituye al desplegable de dupla cuando no hay squad: explica
+   por qué no está en vez de dejar un campo vacío que no se puede usar. */
+.notaDupla { margin: 0; align-self: center; font-size: .85rem; line-height: 1.4; color: #4a4d55; }
+.notaDupla strong { color: var(--negro); }
