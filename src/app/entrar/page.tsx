@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import estilos from './entrar.module.css'
@@ -21,6 +22,65 @@ export const dynamic = 'force-dynamic'
  * despliegue tiene las credenciales). Los directores de UDN NO pasan por aquí:
  * entran por su link firmado, que el proxy canjea por una cookie de sala.
  */
+/**
+ * ⚠️ LA VISTA PREVIA DEL ENLACE SE RESUELVE AQUÍ, Y NO EN LA PÁGINA QUE SE
+ * COMPARTE.
+ *
+ * Cuando Franco pega `…/concurso` en Slack, el bot que genera la tarjeta NO
+ * tiene sesión: el proxy lo manda a `/entrar?destino=/concurso` y las etiquetas
+ * `og:` de la página protegida no llegan a servirse nunca. Comprobado: sin
+ * cookie, `/concurso` responde 307 y cero `og:image`. Sin esto, el enlace del
+ * concurso se desplegaría en Slack como un login sin imagen.
+ *
+ * `/entrar` sí es pública y el bot la alcanza siguiendo el redirect, así que
+ * es aquí donde tienen que estar. NO se abre nada: quien no tenga sesión sigue
+ * viendo el formulario de siempre; lo único que viaja de más son un título, una
+ * descripción y un cartel que ya son públicos por definición — están hechos
+ * para repartirse.
+ *
+ * Se resuelve por `destino` y no fijo al concurso: el día que se comparta otra
+ * pantalla protegida, este es el sitio donde añadir su tarjeta.
+ */
+const PREVIAS: Record<string, { titulo: string; descripcion: string; imagen?: string }> = {
+  '/concurso': {
+    titulo: 'Diseña lo que somos · Concurso interno 2026',
+    descripcion:
+      'Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el 7 de septiembre: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.',
+    imagen: '/concurso/cartel.png',
+  },
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; destino?: string }>
+}): Promise<Metadata> {
+  const { destino } = await searchParams
+  // Solo rutas propias: un `destino` que llegue con una URL ajena no puede
+  // decidir lo que este dominio anuncia de sí mismo.
+  const clave = destino && destino.startsWith('/') && !destino.startsWith('//') ? destino : null
+  const previa = clave ? PREVIAS[clave] : null
+  if (!previa) return { title: 'Entrar' }
+  return {
+    title: previa.titulo,
+    description: previa.descripcion,
+    openGraph: {
+      title: previa.titulo,
+      description: previa.descripcion,
+      type: 'website',
+      locale: 'es_MX',
+      siteName: 'Meeting Hub · Marketing Corp',
+      ...(previa.imagen ? { images: [{ url: previa.imagen, width: 1024, height: 1536 }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: previa.titulo,
+      description: previa.descripcion,
+      ...(previa.imagen ? { images: [previa.imagen] } : {}),
+    },
+  }
+}
+
 export default async function Entrar({
   searchParams,
 }: {

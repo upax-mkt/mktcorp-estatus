@@ -348,3 +348,18 @@
   .ticket { transform: none; box-shadow: 6px 6px 0 var(--azul); }
   .ticketDorado { box-shadow: 6px 6px 0 #08090c; }
 }
+
+/* EL PASE, EXPLICADO. Dos columnas en pantalla ancha —el objeto a la izquierda,
+   lo que hay que saber a la derecha— porque el ticket se entiende mirándolo y
+   el texto responde a las tres preguntas que deja: qué es, para qué y cuándo.
+   En una sola columna el ticket quedaría enorme sobre un párrafo largo. */
+.bloquePase { margin: 5rem 0; }
+.paseExplicado { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start; }
+.paseTexto { display: grid; gap: .9rem; }
+.paseTexto p { margin: 0; max-width: 58ch; line-height: 1.55; color: #3d3f47; }
+.paseTexto strong { color: var(--negro); }
+.paseAviso { padding-top: .3rem; font-weight: 700; }
+
+@media (max-width: 860px) {
+  .paseExplicado { grid-template-columns: 1fr; }
+}

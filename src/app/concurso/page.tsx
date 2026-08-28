@@ -29,9 +29,51 @@ import { paseDe } from '@/concurso/pase'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * LO QUE SE VE AL PEGAR ESTE ENLACE EN SLACK.
+ *
+ * Es la primera impresión del concurso para 23 personas: Franco reparte la URL
+ * y lo que aparece en la tarjeta desplegada decide si alguien entra. Sin esto,
+ * Slack enseñaba el título genérico del layout —«Meeting Hub · Marketing
+ * Corp»— y ninguna imagen: una convocatoria descrita como una herramienta.
+ *
+ * La imagen es EL CARTEL, no una composición aparte: ya dice el nombre, el
+ * premio y la edición, y que la tarjeta de Slack y el anuncio de la app sean la
+ * misma pieza es lo que hace que se reconozca al segundo vistazo.
+ *
+ * `metadataBase` lo pone el layout raíz desde el entorno, así que la ruta
+ * relativa se resuelve sola a la URL de producción y un preview de Vercel
+ * anuncia la suya. La descripción lleva la FECHA DE CIERRE: en una lista de
+ * mensajes sin abrir, esa línea es lo único que transmite urgencia.
+ */
+const RESUMEN =
+  'Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el 7 de septiembre: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.'
+
 export const metadata: Metadata = {
   title: 'Diseña lo que somos',
-  description: 'Concurso interno para crear la sudadera oficial de Marketing Corporativo.',
+  description: RESUMEN,
+  openGraph: {
+    title: 'Diseña lo que somos · Concurso interno 2026',
+    description: RESUMEN,
+    type: 'website',
+    locale: 'es_MX',
+    siteName: 'Meeting Hub · Marketing Corp',
+    images: [{
+      url: '/concurso/cartel.png',
+      width: 1024,
+      height: 1536,
+      // El `alt` viaja a quien usa lector de pantalla en Slack o en Teams.
+      alt: 'Cartel del concurso «Diseña lo que somos»: la sudadera oficial de Marketing Corp, con el premio de pase doble a la Arena CDMX.',
+    }],
+  },
+  twitter: {
+    // `summary_large_image` y no `summary`: con `summary` el cartel sale en una
+    // miniatura cuadrada que le recorta el titular por los dos lados.
+    card: 'summary_large_image',
+    title: 'Diseña lo que somos · Concurso interno 2026',
+    description: RESUMEN,
+    images: ['/concurso/cartel.png'],
+  },
 }
 
 export default async function PaginaConcurso() {
@@ -163,7 +205,6 @@ export default async function PaginaConcurso() {
               veía siquiera el formulario. Las bases dicen «cualquier colaborador
               activo, sin importar puesto o squad»; lo único que el squad decide
               es si puedes ir en dupla. Ver `validarIntegrantes`. */}
-          {pase && persona && <PaseConcurso pase={pase} nombre={persona.nombre} />}
           {fase === 'recepcion' && persona && (
             <FormularioPropuesta persona={persona} disponibles={disponibles} existente={propia} />
           )}
@@ -178,6 +219,29 @@ export default async function PaginaConcurso() {
           )}
           {fase !== 'recepcion' && correo && (
             <GaleriaConcurso propuestas={galeria} miCorreo={correo} votoInicial={voto} votacionAbierta={fase === 'votacion'} />
+          )}
+
+          {/* EL PASE VA DESPUÉS DEL LINEUP, no antes del formulario. Aquí es
+              donde cobra sentido: se acaba de decir que las propuestas se
+              revelan el 7, y lo siguiente que uno quiere saber es con qué las
+              va a votar. Antes del formulario aparecía sin que nadie hubiera
+              mencionado todavía que hay una votación. */}
+          {pase && persona && (
+            <section className={estilos.bloquePase} id="pase">
+              <div className={estilos.tituloSeccion}>
+                <span>05</span>
+                <div><p>TU VOTO</p><h2>El pase que decide el ganador</h2></div>
+              </div>
+              <div className={estilos.paseExplicado}>
+                <PaseConcurso pase={pase} nombre={persona.nombre} />
+                <div className={estilos.paseTexto}>
+                  <p><strong>Qué es.</strong> Tu entrada a la votación. El código es tuyo y solo tuyo: nadie más tiene ese mismo, ni siquiera nosotros lo guardamos en ninguna lista.</p>
+                  <p><strong>Para qué sirve.</strong> Con él eliges el diseño que quieres ver en la sudadera. El voto del equipo pesa el <strong>70%</strong> del resultado; el 30% restante lo pone el jurado.</p>
+                  <p><strong>Cuándo se usa.</strong> Del <strong>7 de septiembre a las 11:00</strong> —cuando se publican todas las propuestas— <strong>hasta el 8 a las 18:00</strong>. Puedes cambiar de opinión y mover tu voto las veces que quieras mientras siga abierta; al cerrar, cuenta el último.</p>
+                  <p className={estilos.paseAviso}>Una sola cosa no se puede: votarte a ti mismo.</p>
+                </div>
+              </div>
+            </section>
           )}
 
 
