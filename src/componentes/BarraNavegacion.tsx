@@ -53,7 +53,7 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
  */
 
 /** Las cinco pestañas del ciclo — mismo orden que la barra siempre tuvo. */
-export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'salas' | 'personas'
+export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'concurso' | 'salas' | 'personas'
 
 /** Un cliente del desplegable: lo justo para pintar su fila. */
 export interface ClienteBarra {
@@ -186,6 +186,13 @@ export function BarraNavegacion({
           aria-current={seccionActiva === 'acuerdos' ? 'page' : undefined}
         >
           Acuerdos
+        </Link>
+        <Link
+          href="/concurso"
+          className={estilos.barraLink}
+          aria-current={seccionActiva === 'concurso' ? 'page' : undefined}
+        >
+          Concurso
         </Link>
         {/* /salas y /personas son las dos únicas secciones solo-admin
             (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el

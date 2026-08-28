@@ -18,6 +18,7 @@ import {
   timestamp,
   jsonb,
   primaryKey,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import type { RedesDeSala } from '@/dominio/redes'
 
@@ -524,10 +525,76 @@ export const personas = pgTable('personas', {
   correo: text('correo').primaryKey(),
   nombre: text('nombre').notNull(),
   rol: text('rol').notNull(),
+  /** Nulo cuando la fuente de verdad no identifica uno; nunca se infiere. */
+  squad: text('squad'),
   activa: boolean('activa').notNull().default(true),
   creadaEn: timestamp('creada_en', { withTimezone: true }).notNull().defaultNow(),
   ultimoAcceso: timestamp('ultimo_acceso', { withTimezone: true }),
 })
+
+// ---- Concurso de sudadera MKT Corp 2026 ----
+// Las tablas conservan `concurso_id` aunque hoy exista una sola convocatoria:
+// las claves de unicidad representan la regla de negocio (una propuesta y un
+// voto por persona DENTRO de un concurso), no una casualidad del lanzamiento.
+export const propuestasConcurso = pgTable('propuestas_concurso', {
+  id: text('id').primaryKey(),
+  concursoId: text('concurso_id').notNull(),
+  titulo: text('titulo').notNull(),
+  descripcion: text('descripcion').notNull(),
+  oculta: boolean('oculta').notNull().default(false),
+  motivoOculta: text('motivo_oculta'),
+  creadaEn: timestamp('creada_en', { withTimezone: true }).notNull().defaultNow(),
+  actualizadaEn: timestamp('actualizada_en', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const integrantesPropuestaConcurso = pgTable('integrantes_propuesta_concurso', {
+  concursoId: text('concurso_id').notNull(),
+  propuestaId: text('propuesta_id').notNull().references(() => propuestasConcurso.id, { onDelete: 'cascade' }),
+  correo: text('correo').notNull().references(() => personas.correo),
+  orden: integer('orden').notNull(),
+}, (t) => [
+  // La invariante principal: un correo no cabe en dos propuestas del mismo concurso.
+  primaryKey({ columns: [t.concursoId, t.correo] }),
+  uniqueIndex('integrantes_propuesta_orden_unico').on(t.propuestaId, t.orden),
+])
+
+export const imagenesPropuestaConcurso = pgTable('imagenes_propuesta_concurso', {
+  id: text('id').primaryKey(),
+  propuestaId: text('propuesta_id').notNull().references(() => propuestasConcurso.id, { onDelete: 'cascade' }),
+  ruta: text('ruta').notNull(),
+  nombreOriginal: text('nombre_original').notNull(),
+  tipoContenido: text('tipo_contenido').notNull(),
+  tamanoBytes: integer('tamano_bytes').notNull(),
+  orden: integer('orden').notNull(),
+  creadaEn: timestamp('creada_en', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('imagenes_propuesta_ruta_unica').on(t.ruta),
+  uniqueIndex('imagenes_propuesta_orden_unico').on(t.propuestaId, t.orden),
+])
+
+export const votosConcurso = pgTable('votos_concurso', {
+  concursoId: text('concurso_id').notNull(),
+  votanteHash: text('votante_hash').notNull(),
+  propuestaId: text('propuesta_id').notNull().references(() => propuestasConcurso.id),
+  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+  actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.concursoId, t.votanteHash] })])
+
+export const juradosConcurso = pgTable('jurados_concurso', {
+  concursoId: text('concurso_id').notNull(),
+  posicion: integer('posicion').notNull(),
+  nombre: text('nombre').notNull(),
+}, (t) => [primaryKey({ columns: [t.concursoId, t.posicion] })])
+
+export const calificacionesJuradoConcurso = pgTable('calificaciones_jurado_concurso', {
+  propuestaId: text('propuesta_id').notNull().references(() => propuestasConcurso.id, { onDelete: 'cascade' }),
+  posicionJurado: integer('posicion_jurado').notNull(),
+  creatividad: integer('creatividad').notNull(),
+  cultura: integer('cultura').notNull(),
+  viabilidad: integer('viabilidad').notNull(),
+  atractivo: integer('atractivo').notNull(),
+  actualizadaEn: timestamp('actualizada_en', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.propuestaId, t.posicionJurado] })])
 
 // ---- Participación (ronda 9, tarea 4) ----
 // Quién preparó cada reunión y quién la presentó. Ver src/db/participacion.ts

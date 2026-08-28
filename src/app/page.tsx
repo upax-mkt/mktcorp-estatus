@@ -30,6 +30,8 @@ import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacio
 import { Seccion } from '@/componentes/Seccion'
 import { IconoSeccion } from '@/componentes/IconoSeccion'
 import { colorDeTextoDeMarca } from '@/temas'
+import { faseDelConcurso } from '@/concurso/fase'
+import { AnuncioConcurso } from '@/componentes/concurso/AnuncioConcurso'
 
 /**
  * Día + hora del formulario de «Agendar rápido» → instante, anclado a CDMX
@@ -409,6 +411,7 @@ export default async function Hub() {
           Sin `seccionActiva`: el Home no es ninguna de las cinco pestañas del
           ciclo — a él se llega por el logo. */}
       <BarraNavegacion hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
+      <AnuncioConcurso activo={faseDelConcurso(hoy) !== 'resultados'} />
 
       <main className={estilos.main}>
         {/* SIN DATABASE_URL (revisión final de la rama, punto 5): antes esta

@@ -32,13 +32,20 @@
  * que es exactamente lo que le ocurre a un squad que ya no existe.
  */
 export const SQUADS_MKT_CORP = [
-  'Inbound Studio',
-  'Performance y Conversión',
+  'Squad Paid y RRSS',
+  'Squad Web y Contenidos',
   'RevOps & Analytics',
   'Portafolio y Ecosistema',
   'Outbound y Pipeline',
-  'BD Político',
+  'Sin squad',
 ] as const
+
+export type SquadMktCorp = (typeof SQUADS_MKT_CORP)[number]
+
+/** Datos externos o históricos no se convierten en un squad válido por cast. */
+export function esSquadMktCorp(valor: string): valor is SquadMktCorp {
+  return (SQUADS_MKT_CORP as readonly string[]).includes(valor)
+}
 
 export interface Equipos {
   /** Los squads de Marketing Corp. */

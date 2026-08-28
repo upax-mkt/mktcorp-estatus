@@ -8,7 +8,7 @@ import { cerrarSesion } from '@/auth/sesion'
 import { FilaPersona } from '@/componentes/personas/FilaPersona'
 import { FormularioAlta } from '@/componentes/personas/FormularioAlta'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
-import { altaPersonaAction, cambiarRolAction, activarPersonaAction } from './acciones'
+import { altaPersonaAction, cambiarRolAction, cambiarSquadAction, activarPersonaAction } from './acciones'
 
 export const dynamic = 'force-dynamic'
 
@@ -105,6 +105,7 @@ export default async function PagPersonas() {
                   persona={p}
                   esYo={miCorreo !== null && miCorreo === p.correo}
                   cambiarRol={cambiarRolAction.bind(null, p.correo)}
+                  cambiarSquad={cambiarSquadAction.bind(null, p.correo)}
                   activar={activarPersonaAction.bind(null, p.correo)}
                 />
               ))}

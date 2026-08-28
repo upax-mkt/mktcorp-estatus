@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from 'react'
 import estilos from '@/app/personas/personas.module.css'
 import type { NuevaPersona, RolPersona } from '@/db/directorio'
+import { SQUADS_MKT_CORP, type SquadMktCorp } from '@/lib/equipos'
 
 /**
  * DAR DE ALTA A UNA PERSONA (ronda 9, tarea 3) — correo, nombre y rol; queda
@@ -31,6 +32,7 @@ export function FormularioAlta({ altaAction }: Props) {
   const [correo, setCorreo] = useState('')
   const [nombre, setNombre] = useState('')
   const [rol, setRol] = useState<RolPersona>('viewer')
+  const [squad, setSquad] = useState<SquadMktCorp>('Squad Paid y RRSS')
   const [error, setError] = useState<string | null>(null)
   const [creada, setCreada] = useState(false)
   const [pendiente, empezar] = useTransition()
@@ -44,7 +46,7 @@ export function FormularioAlta({ altaAction }: Props) {
     setCreada(false)
     empezar(async () => {
       try {
-        const r = await altaAction({ correo: correo.trim(), nombre: nombre.trim(), rol })
+        const r = await altaAction({ correo: correo.trim(), nombre: nombre.trim(), rol, squad })
         if (r.error) {
           setError(r.error)
           return
@@ -52,6 +54,7 @@ export function FormularioAlta({ altaAction }: Props) {
         setCorreo('')
         setNombre('')
         setRol('viewer')
+        setSquad('Squad Paid y RRSS')
         setCreada(true)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -84,6 +87,19 @@ export function FormularioAlta({ altaAction }: Props) {
             placeholder="Nombre Apellido"
             required
           />
+        </label>
+
+        <label className={estilos.campo}>
+          <span className={estilos.etiqueta}>Squad</span>
+          <select
+            className={estilos.entrada}
+            value={squad}
+            onChange={(e) => setSquad(e.target.value as SquadMktCorp)}
+          >
+            {SQUADS_MKT_CORP.map((nombreSquad) => (
+              <option key={nombreSquad} value={nombreSquad}>{nombreSquad}</option>
+            ))}
+          </select>
         </label>
 
         <label className={estilos.campo}>

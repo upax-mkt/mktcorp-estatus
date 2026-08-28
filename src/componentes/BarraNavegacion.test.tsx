@@ -46,8 +46,8 @@ function salirAction() {
  * que cada aserción tenga que saberlo.
  */
 const pestanaClientes = () => screen.getByText('Clientes', { selector: 'summary' })
-/** Las cuatro pestañas que siguen siendo un enlace directo. */
-const PESTANAS_ENLACE = ['Reuniones', 'Presentaciones', 'Acuerdos', 'Personas']
+/** Las cinco pestañas que siguen siendo un enlace directo. */
+const PESTANAS_ENLACE = ['Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Personas']
 
 describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
   it('pinta las cinco pestañas del ciclo, en orden, cuando admin=true', () => {
@@ -59,7 +59,7 @@ describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
       .getAllByRole('link')
       .filter((a) => !a.closest('details'))
     expect(enlaces.map((a) => a.textContent)).toEqual([
-      'Reuniones', 'Presentaciones', 'Acuerdos', 'Personas',
+      'Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Personas',
     ])
     expect(pestanaClientes()).toBeInTheDocument()
   })
@@ -69,7 +69,7 @@ describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
 
     const nav = screen.getByRole('navigation')
     const enlaces = within(nav).getAllByRole('link')
-    expect(enlaces.map((a) => a.textContent)).toEqual(['Reuniones', 'Presentaciones', 'Acuerdos'])
+    expect(enlaces.map((a) => a.textContent)).toEqual(['Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso'])
     expect(screen.queryByText('Clientes', { selector: 'summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Personas' })).not.toBeInTheDocument()
     // Y sin la pestaña tampoco se filtra ni un cliente: el desplegable
@@ -83,6 +83,7 @@ describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
     expect(screen.getByRole('link', { name: 'Reuniones' })).toHaveAttribute('href', '/reuniones')
     expect(screen.getByRole('link', { name: 'Presentaciones' })).toHaveAttribute('href', '/deck')
     expect(screen.getByRole('link', { name: 'Acuerdos' })).toHaveAttribute('href', '/acuerdos')
+    expect(screen.getByRole('link', { name: 'Concurso' })).toHaveAttribute('href', '/concurso')
     expect(screen.getByRole('link', { name: 'Personas' })).toHaveAttribute('href', '/personas')
   })
 
@@ -134,7 +135,7 @@ describe('BarraNavegacion — aria-current marca la pestaña actual, no solo el 
     pintar({ hoy: HOY, admin: true, seccionActiva: 'deck', salirAction: salirAction })
 
     expect(screen.getByRole('link', { name: 'Presentaciones' })).toHaveAttribute('aria-current', 'page')
-    for (const nombre of ['Reuniones', 'Acuerdos', 'Personas']) {
+    for (const nombre of ['Reuniones', 'Acuerdos', 'Concurso', 'Personas']) {
       expect(screen.getByRole('link', { name: nombre })).not.toHaveAttribute('aria-current')
     }
     expect(pestanaClientes()).not.toHaveAttribute('aria-current')
@@ -144,6 +145,12 @@ describe('BarraNavegacion — aria-current marca la pestaña actual, no solo el 
     pintar({ hoy: HOY, admin: true, seccionActiva: 'reuniones', salirAction: salirAction })
     expect(screen.getByRole('link', { name: 'Reuniones' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Presentaciones' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('Concurso es visible para todo el equipo y marca su ruta', () => {
+    pintar({ hoy: HOY, admin: false, seccionActiva: 'concurso', salirAction: salirAction })
+    expect(screen.getByRole('link', { name: 'Concurso' })).toHaveAttribute('href', '/concurso')
+    expect(screen.getByRole('link', { name: 'Concurso' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('seccionActiva="salas" (Clientes) marca esa pestaña, no la de Presentaciones', () => {
@@ -213,6 +220,8 @@ describe('BarraNavegacion — accesibilidad estructural', () => {
     expect(nombres.indexOf('Reuniones')).toBeLessThan(nombres.indexOf('Presentaciones'))
     expect(nombres.indexOf('Presentaciones')).toBeLessThan(nombres.indexOf('Acuerdos'))
     expect(nombres.indexOf('Acuerdos')).toBeLessThan(nombres.indexOf('Clientes'))
+    expect(nombres.indexOf('Acuerdos')).toBeLessThan(nombres.indexOf('Concurso'))
+    expect(nombres.indexOf('Concurso')).toBeLessThan(nombres.indexOf('Clientes'))
     expect(nombres.indexOf('Clientes')).toBeLessThan(nombres.indexOf('Personas'))
   })
 })

@@ -3,6 +3,7 @@
 import { useState, useTransition, type ChangeEvent } from 'react'
 import estilos from '@/app/personas/personas.module.css'
 import type { Persona, RolPersona } from '@/db/directorio'
+import { SQUADS_MKT_CORP, type SquadMktCorp } from '@/lib/equipos'
 
 /**
  * UNA FILA DEL DIRECTORIO (ronda 9, tarea 3).
@@ -34,6 +35,7 @@ interface Props {
   esYo: boolean
   /** Ya ligada al correo de esta fila (ver `../../app/personas/page.tsx`, `.bind(null, correo)`). */
   cambiarRol: (rol: RolPersona) => Promise<{ error?: string } | void>
+  cambiarSquad: (squad: SquadMktCorp | null) => Promise<{ error?: string } | void>
   /** Ídem: ya ligada al correo de esta fila. */
   activar: (activa: boolean) => Promise<{ error?: string } | void>
 }
@@ -44,7 +46,7 @@ const ROLES: { valor: RolPersona; etiqueta: string }[] = [
   { valor: 'viewer', etiqueta: 'Viewer' },
 ]
 
-export function FilaPersona({ persona, esYo, cambiarRol, activar }: Props) {
+export function FilaPersona({ persona, esYo, cambiarRol, cambiarSquad, activar }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [pendiente, empezar] = useTransition()
 
@@ -58,6 +60,20 @@ export function FilaPersona({ persona, esYo, cambiarRol, activar }: Props) {
     empezar(async () => {
       try {
         const r = await cambiarRol(nuevo)
+        if (r?.error) setError(r.error)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    })
+  }
+
+  function alCambiarSquad(e: ChangeEvent<HTMLSelectElement>) {
+    const nuevo = e.target.value === '' ? null : e.target.value as SquadMktCorp
+    if (nuevo === persona.squad) return
+    setError(null)
+    empezar(async () => {
+      try {
+        const r = await cambiarSquad(nuevo)
         if (r?.error) setError(r.error)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -90,6 +106,19 @@ export function FilaPersona({ persona, esYo, cambiarRol, activar }: Props) {
         )}
         {!persona.activa && <span className="pildora">inactiva</span>}
       </div>
+
+      <select
+        aria-label={`Squad de ${persona.nombre}`}
+        className={estilos.entrada}
+        value={persona.squad ?? ''}
+        disabled={pendiente}
+        onChange={alCambiarSquad}
+      >
+        <option value="">Por asignar</option>
+        {SQUADS_MKT_CORP.map((squad) => (
+          <option key={squad} value={squad}>{squad}</option>
+        ))}
+      </select>
 
       <select
         aria-label="Rol"

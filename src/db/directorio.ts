@@ -1,6 +1,7 @@
 import { and, eq, isNotNull } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
+import { esSquadMktCorp, type SquadMktCorp } from '@/lib/equipos'
 
 /**
  * EL DIRECTORIO DE PERSONAS DE LA APP (ronda 9, tarea 1).
@@ -40,6 +41,7 @@ export interface Persona {
   correo: string
   nombre: string
   rol: RolPersona
+  squad: SquadMktCorp | null
   activa: boolean
 }
 
@@ -47,6 +49,7 @@ export interface NuevaPersona {
   correo: string
   nombre: string
   rol: RolPersona
+  squad: SquadMktCorp
 }
 
 /**
@@ -76,7 +79,13 @@ export function esRolValido(valor: string): valor is RolPersona {
  * inicial ('admin').
  */
 function aPersona(fila: typeof esquema.personas.$inferSelect): Persona {
-  return { correo: fila.correo, nombre: fila.nombre, rol: fila.rol as RolPersona, activa: fila.activa }
+  return {
+    correo: fila.correo,
+    nombre: fila.nombre,
+    rol: fila.rol as RolPersona,
+    squad: fila.squad && esSquadMktCorp(fila.squad) ? fila.squad : null,
+    activa: fila.activa,
+  }
 }
 
 /** La persona de este correo (normalizado antes de buscar), o `null` si no está o no hay base de datos. */
@@ -163,7 +172,13 @@ export async function altaPersona(datos: NuevaPersona): Promise<void> {
   const correo = normalizarCorreo(datos.correo)
   if (!correo) throw new Error(`Correo inválido: "${datos.correo}"`)
   if (!esRolValido(datos.rol)) throw new Error(`Rol inválido: "${datos.rol}"`)
-  await db().insert(esquema.personas).values({ correo, nombre: datos.nombre, rol: datos.rol })
+  if (!esSquadMktCorp(datos.squad)) throw new Error(`Squad inválido: "${datos.squad}"`)
+  await db().insert(esquema.personas).values({
+    correo,
+    nombre: datos.nombre,
+    rol: datos.rol,
+    squad: datos.squad,
+  })
 }
 
 /**

@@ -77,7 +77,10 @@ interface FilaFalsa {
   nombre: string
   rol: string
   activa: boolean
+  squad?: string | null
 }
+
+const SQUAD = 'Squad Paid y RRSS' as const
 
 type Nodo =
   | { tipo: 'eq'; columna: unknown; valor: unknown }
@@ -395,7 +398,7 @@ describe('activarPersonaAction — la guarda 2 es atómica: dos peticiones sobre
 describe('altaPersonaAction — guarda 2 desde el arranque: el directorio vacío no puede quedarse sin admin', () => {
   it('dar de alta a la primera persona como viewer se rechaza: el directorio quedaría sin ningún admin', async () => {
     exigirAdminMock.mockResolvedValueOnce(sesionAdmin('equipo-mkt-corp')) // el portillo de emergencia
-    const r = await altaPersonaAction({ correo: 'nueva@upax.com.mx', nombre: 'Nueva', rol: 'viewer' })
+    const r = await altaPersonaAction({ correo: 'nueva@upax.com.mx', nombre: 'Nueva', rol: 'viewer', squad: SQUAD })
     expect(r.error).toBeTruthy()
     expect(r.error).toMatch(/sin ningún administrador/i)
     expect(insertMock).not.toHaveBeenCalled()
@@ -404,14 +407,14 @@ describe('altaPersonaAction — guarda 2 desde el arranque: el directorio vacío
 
   it('dar de alta a la primera persona como admin sí funciona: es justo lo que rompe el portillo, a propósito', async () => {
     exigirAdminMock.mockResolvedValueOnce(sesionAdmin('equipo-mkt-corp'))
-    const r = await altaPersonaAction({ correo: 'franco@upax.com.mx', nombre: 'Franco', rol: 'admin' })
+    const r = await altaPersonaAction({ correo: 'franco@upax.com.mx', nombre: 'Franco', rol: 'admin', squad: SQUAD })
     expect(r.error).toBeUndefined()
     expect(filas.has('franco@upax.com.mx')).toBe(true)
   })
 
   it('con un admin activo ya en el directorio, dar de alta a alguien como viewer no necesita ser admin', async () => {
     filas.set('franco@upax.com.mx', { correo: 'franco@upax.com.mx', nombre: 'Franco', rol: 'admin', activa: true })
-    const r = await altaPersonaAction({ correo: 'nueva@upax.com.mx', nombre: 'Nueva', rol: 'viewer' })
+    const r = await altaPersonaAction({ correo: 'nueva@upax.com.mx', nombre: 'Nueva', rol: 'viewer', squad: SQUAD })
     expect(r.error).toBeUndefined()
     expect(filas.get('nueva@upax.com.mx')!.rol).toBe('viewer')
   })
@@ -421,7 +424,7 @@ describe('propagación de errores de la capa de abajo (src/db/directorio.ts)', (
   it('altaPersonaAction: un correo repetido lo rechaza la propia base, como {error}, no como promesa rota', async () => {
     filas.set('franco@upax.com.mx', { correo: 'franco@upax.com.mx', nombre: 'Franco', rol: 'admin', activa: true })
     await expect(
-      altaPersonaAction({ correo: 'franco@upax.com.mx', nombre: 'Otro Franco', rol: 'viewer' }),
+      altaPersonaAction({ correo: 'franco@upax.com.mx', nombre: 'Otro Franco', rol: 'viewer', squad: SQUAD }),
     ).resolves.toEqual({ error: expect.stringContaining('franco@upax.com.mx') })
   })
 
@@ -458,7 +461,7 @@ describe('las tres acciones exigen admin ANTES de tocar la base', () => {
       new Error('Esta acción es solo para administradores de Marketing Corporativo.'),
     )
     await expect(
-      altaPersonaAction({ correo: 'x@upax.com.mx', nombre: 'X', rol: 'admin' }),
+      altaPersonaAction({ correo: 'x@upax.com.mx', nombre: 'X', rol: 'admin', squad: SQUAD }),
     ).rejects.toThrow('solo para administradores')
     expect(insertMock).not.toHaveBeenCalled()
     expect(filas.size).toBe(0)
@@ -501,7 +504,7 @@ describe('sin base de datos', () => {
 
   it('altaPersonaAction rechaza con el motivo real', async () => {
     hayDBMock.mockReturnValueOnce(false)
-    const r = await altaPersonaAction({ correo: 'quien-sea@upax.com.mx', nombre: 'Quien Sea', rol: 'viewer' })
+    const r = await altaPersonaAction({ correo: 'quien-sea@upax.com.mx', nombre: 'Quien Sea', rol: 'viewer', squad: SQUAD })
     expect(r.error).toBe('Sin base de datos no se pueden dar de alta personas.')
   })
 })

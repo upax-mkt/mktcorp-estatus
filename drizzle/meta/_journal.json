@@ -309,6 +309,13 @@
       "when": 1787251195907,
       "tag": "0043_desmontaje_de_monday",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1787949031919,
+      "tag": "0044_squads_y_concurso",
+      "breakpoints": true
     }
   ]
 }

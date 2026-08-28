@@ -14,6 +14,7 @@ import {
   type RolPersona,
   type NuevaPersona,
 } from '@/db/directorio'
+import { esSquadMktCorp, type SquadMktCorp } from '@/lib/equipos'
 
 /**
  * LAS ACCIONES DE `/personas`: dar de alta, cambiar rol y activar/desactivar.
@@ -203,6 +204,32 @@ export async function cambiarRolAction(correo: string, rol: RolPersona): Promise
     return { error: error instanceof Error ? error.message : 'No se pudo cambiar el rol.' }
   }
   revalidatePath('/personas')
+  return {}
+}
+
+/** Asigna el squad canónico o lo deja pendiente; siempre del lado servidor. */
+export async function cambiarSquadAction(
+  correo: string,
+  squad: SquadMktCorp | null,
+): Promise<{ error?: string }> {
+  await exigirAdmin()
+  const normalizado = normalizarCorreo(correo)
+  if (!hayDB()) return { error: 'Sin base de datos no se puede cambiar el squad.' }
+  if (!normalizado) return { error: `Correo inválido: "${correo}"` }
+  if (squad !== null && !esSquadMktCorp(squad)) return { error: `Squad inválido: "${squad}"` }
+
+  try {
+    const actualizadas = await db()
+      .update(esquema.personas)
+      .set({ squad })
+      .where(eq(esquema.personas.correo, normalizado))
+      .returning({ correo: esquema.personas.correo })
+    if (actualizadas.length === 0) return { error: `Persona no encontrada: "${normalizado}"` }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'No se pudo cambiar el squad.' }
+  }
+  revalidatePath('/personas')
+  revalidatePath('/concurso')
   return {}
 }
 
