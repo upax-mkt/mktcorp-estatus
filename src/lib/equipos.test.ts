@@ -3,7 +3,11 @@ import { SQUADS_MKT_CORP, equiposPara, esEquipo, esSquadMktCorp } from './equipo
 
 describe('equipos que pueden ser responsables', () => {
   it('los squads de Mkt Corp son los seis de la foto vigente', () => {
-    expect(SQUADS_MKT_CORP).toHaveLength(6)
+    // Siete desde el 28-ago-2026: se suma 'Político-Electoral', la vertical de
+    // Ángel Toledano. Era el único en 'Sin squad', y esa etiqueta describía una
+    // carencia donde hay un encargo.
+    expect(SQUADS_MKT_CORP).toHaveLength(7)
+    expect(SQUADS_MKT_CORP).toContain('Político-Electoral')
     expect(SQUADS_MKT_CORP).toContain('Squad Paid y RRSS')
     expect(SQUADS_MKT_CORP).toContain('Squad Web y Contenidos')
     expect(SQUADS_MKT_CORP).toContain('RevOps & Analytics')

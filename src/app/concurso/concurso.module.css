@@ -184,7 +184,17 @@
    pegado arriba a la izquierda. Es un fallo que solo existe en un navegador
    de verdad: jsdom no calcula posición, así que ningún test de render lo ve.
    Se declara aquí y `anuncio-centrado.test.ts` lo fija leyendo esta hoja. */
-.popup { --negro: #08090c; --rosa: #f20865; --azul: #2588f4; margin: auto; width: min(42rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 3px solid white; padding: clamp(1.3rem, 5vw, 3rem); color: white; background: var(--negro); box-shadow: 14px 14px 0 var(--azul); }
+/* ⚠️ CINTURÓN Y TIRANTES SOBRE EL TOP LAYER. Un `<dialog>` abierto con
+   `showModal()` vive en el top layer del navegador y NADA puede taparlo: ni un
+   z-index, ni un stacking context. Pero eso vale solo mientras `showModal()`
+   haya funcionado. Si por lo que sea el diálogo acaba abierto por su atributo
+   `open` —una excepción al llamarlo, un navegador viejo, una extensión que
+   toque el DOM— deja de estar en el top layer y pasa a ser un elemento normal
+   del flujo... justo detrás de las tarjetas del Home, que llevan su propio
+   apilamiento.
+   `position: fixed` + `z-index` no hacen nada en el caso bueno y lo salvan en
+   el malo. Es la diferencia entre un modal que falla y uno que se ve raro. */
+.popup { --negro: #08090c; --rosa: #f20865; --azul: #2588f4; position: fixed; z-index: 9999; margin: auto; width: min(42rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 3px solid white; padding: clamp(1.3rem, 5vw, 3rem); color: white; background: var(--negro); box-shadow: 14px 14px 0 var(--azul); }
 .popup::backdrop { background: #05060acc; backdrop-filter: blur(6px); }
 .popupRuido { position: absolute; inset: 0; pointer-events: none; opacity: .18; background-image: radial-gradient(circle, #fff 1px, transparent 1.2px); background-size: 8px 8px; mask-image: linear-gradient(120deg, #000, transparent 70%); }
 .popupCerrar { position: absolute; z-index: 2; top: .7rem; right: .7rem; width: 2.5rem; height: 2.5rem; border: 2px solid white; background: #08090c; color: white; font-size: 1.6rem; cursor: pointer; }

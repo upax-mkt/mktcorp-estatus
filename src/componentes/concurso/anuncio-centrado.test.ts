@@ -37,3 +37,31 @@ describe('el anuncio del concurso', () => {
     expect(b).toMatch(/overflow:\s*auto/)
   })
 })
+
+/**
+ * ⚠️ EL ANUNCIO NO SE QUEDA DETRÁS DEL HOME (28-ago-2026).
+ *
+ * Franco: *"el popup queda detrás de las cards del home"*.
+ *
+ * En producción no se reproduce —el `<dialog>` abierto con `showModal()` vive
+ * en el top layer del navegador, donde nada puede taparlo— pero esa garantía
+ * depende por completo de que `showModal()` haya funcionado. Si el diálogo
+ * acaba abierto por su atributo `open` (una excepción al llamarlo, un
+ * navegador que no lo implementa, una extensión que toque el DOM), sale del
+ * top layer y pasa a ser un elemento normal del flujo, detrás de unas tarjetas
+ * que sí traen su propio apilamiento.
+ *
+ * `position: fixed` + `z-index` no hacen nada en el caso bueno y lo salvan en
+ * el malo. No se comprueba con un render porque jsdom no implementa el top
+ * layer ni calcula apilamiento: lo que se puede fijar es que la red esté
+ * puesta.
+ */
+describe('el anuncio por encima de todo', () => {
+  it('declara position fixed y un z-index alto, por si el top layer falla', () => {
+    const b = bloque('.popup')
+    expect(b).toMatch(/position:\s*fixed/)
+    const z = /z-index:\s*(\d+)/.exec(b)
+    expect(z, 'sin z-index, un diálogo fuera del top layer queda bajo el Home').not.toBeNull()
+    expect(Number(z![1])).toBeGreaterThanOrEqual(1000)
+  })
+})

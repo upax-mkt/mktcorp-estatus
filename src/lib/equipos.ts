@@ -37,6 +37,15 @@ export const SQUADS_MKT_CORP = [
   'RevOps & Analytics',
   'Portafolio y Ecosistema',
   'Outbound y Pipeline',
+  /* La vertical político-electoral. Es un squad de UNA persona —Ángel Toledano,
+     que reporta directo a Franco— y aun así lleva su nombre: el Org Truth lo
+     registra como "Head BD Político, a cargo de la vertical político-electoral",
+     y llamar a eso "Sin squad" describe una carencia donde hay un encargo. Que
+     sea de uno no lo vuelve menos real; el día que crezca, ya tiene sitio. */
+  'Político-Electoral',
+  /* Sigue existiendo para quien de verdad no pertenece a ninguno. NO es lo
+     mismo que `null`: `null` es "no lo sabemos", esto es "sabemos que no
+     tiene". La diferencia decide quién puede ir en dupla (`validarIntegrantes`). */
   'Sin squad',
 ] as const
 

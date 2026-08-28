@@ -38,7 +38,18 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
     } catch {
       // Un navegador que bloquea storage todavía puede mostrar el anuncio.
     }
-    dialogo.current?.showModal?.()
+    // `showModal()` puede lanzar —si el diálogo ya está abierto, si el
+    // navegador no lo implementa— y una excepción aquí dejaría el anuncio a
+    // medias. El fallback lo abre igual: sin top layer, pero el `z-index` de
+    // `.popup` lo mantiene por encima del Home. Ver ese comentario.
+    const d = dialogo.current
+    if (!d) return
+    try {
+      if (typeof d.showModal === 'function') d.showModal()
+      else d.setAttribute('open', '')
+    } catch {
+      d.setAttribute('open', '')
+    }
   }, [activo])
 
   function cerrar() {
