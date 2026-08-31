@@ -580,6 +580,16 @@ export const votosConcurso = pgTable('votos_concurso', {
   actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.concursoId, t.votanteHash] })])
 
+/**
+ * ⚠️ TABLAS MUERTAS. El concurso ya no tiene jurado (Franco, 31-ago-2026: el
+ * ganador sale ENTERO del voto del equipo). No queda código que lea ni escriba
+ * en ellas —ni acciones, ni consultas— y su contenido no interviene en ningún
+ * resultado.
+ *
+ * Siguen declaradas porque las tablas siguen existiendo en la base y tirarlas es
+ * una migración destructiva que nadie pidió. Si alguna vez vuelve un jurado, se
+ * empieza por decidir cómo pesa, no por reconectar esto.
+ */
 export const juradosConcurso = pgTable('jurados_concurso', {
   concursoId: text('concurso_id').notNull(),
   posicion: integer('posicion').notNull(),

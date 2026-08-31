@@ -7,8 +7,6 @@ import {
   actualizarPropuestaConcurso,
   eliminarPropuestaConcurso,
   crearPropuestaConcurso,
-  guardarCalificacionConcurso,
-  guardarJuradoConcurso,
   establecerVisibilidadPropuestaConcurso,
   registrarVotoConcurso,
   type DatosGuardarPropuesta,
@@ -91,32 +89,6 @@ export async function eliminarPropuestaAction(propuestaId: string): Promise<Esta
     for (const ruta of rutas) await del(ruta).catch(() => {})
     revalidatePath('/concurso')
     return { ok: 'Propuesta eliminada.' }
-  } catch (error) {
-    return { error: mensaje(error) }
-  }
-}
-
-export async function guardarJuradoAction(nombres: string[]): Promise<EstadoAccionConcurso> {
-  await exigirAdmin()
-  try {
-    await guardarJuradoConcurso(nombres)
-    revalidatePath('/concurso')
-    return { ok: 'Jurado guardado.' }
-  } catch (error) {
-    return { error: mensaje(error) }
-  }
-}
-
-export async function guardarCalificacionAction(
-  propuestaId: string,
-  posicionJurado: number,
-  rubrica: { creatividad: number; cultura: number; viabilidad: number; atractivo: number },
-): Promise<EstadoAccionConcurso> {
-  await exigirAdmin()
-  try {
-    await guardarCalificacionConcurso(propuestaId, posicionJurado, rubrica)
-    revalidatePath('/concurso')
-    return { ok: 'Evaluación guardada.' }
   } catch (error) {
     return { error: mensaje(error) }
   }

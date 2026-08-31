@@ -36,18 +36,6 @@ export interface ResultadoConcurso {
   puntaje: number
 }
 
-export interface EstadoJuradoConcurso {
-  nombres: string[]
-  calificaciones: Array<{
-    propuestaId: string
-    posicionJurado: number
-    creatividad: number
-    cultura: number
-    viabilidad: number
-    atractivo: number
-  }>
-}
-
 function exigirBase(): void {
   if (!hayDB()) throw new Error('Sin base de datos no se puede operar el concurso.')
 }
@@ -450,55 +438,4 @@ export async function establecerVisibilidadPropuestaConcurso(
       actualizadaEn: new Date(),
     })
     .where(and(eq(esquema.propuestasConcurso.id, propuestaId), eq(esquema.propuestasConcurso.concursoId, CONCURSO_ID)))
-}
-
-export async function estadoJuradoConcurso(): Promise<EstadoJuradoConcurso> {
-  if (!hayDB()) return { nombres: [], calificaciones: [] }
-  const [jurados, calificaciones] = await Promise.all([
-    db().select().from(esquema.juradosConcurso)
-      .where(eq(esquema.juradosConcurso.concursoId, CONCURSO_ID))
-      .orderBy(asc(esquema.juradosConcurso.posicion)),
-    db().select().from(esquema.calificacionesJuradoConcurso),
-  ])
-  return {
-    nombres: jurados.map((j) => j.nombre),
-    calificaciones: calificaciones.map((c) => ({
-      propuestaId: c.propuestaId,
-      posicionJurado: c.posicionJurado,
-      creatividad: c.creatividad,
-      cultura: c.cultura,
-      viabilidad: c.viabilidad,
-      atractivo: c.atractivo,
-    })),
-  }
-}
-
-export async function guardarJuradoConcurso(nombres: string[]): Promise<void> {
-  exigirBase()
-  const limpios = nombres.map((n) => n.trim()).filter(Boolean)
-  if (limpios.length !== 3) throw new Error('El jurado debe tener exactamente tres integrantes.')
-  for (const [indice, nombre] of limpios.entries()) {
-    await db().insert(esquema.juradosConcurso).values({ concursoId: CONCURSO_ID, posicion: indice + 1, nombre })
-      .onConflictDoUpdate({
-        target: [esquema.juradosConcurso.concursoId, esquema.juradosConcurso.posicion],
-        set: { nombre },
-      })
-  }
-}
-
-export async function guardarCalificacionConcurso(
-  propuestaId: string,
-  posicionJurado: number,
-  rubrica: { creatividad: number; cultura: number; viabilidad: number; atractivo: number },
-): Promise<void> {
-  exigirBase()
-  if (!Number.isInteger(posicionJurado) || posicionJurado < 1 || posicionJurado > 3) throw new Error('Jurado inválido.')
-  if (Object.values(rubrica).some((n) => !Number.isInteger(n) || n < 0 || n > 10)) {
-    throw new Error('Cada criterio debe calificarse con un entero de 0 a 10.')
-  }
-  await db().insert(esquema.calificacionesJuradoConcurso).values({ propuestaId, posicionJurado, ...rubrica })
-    .onConflictDoUpdate({
-      target: [esquema.calificacionesJuradoConcurso.propuestaId, esquema.calificacionesJuradoConcurso.posicionJurado],
-      set: { ...rubrica, actualizadaEn: new Date() },
-    })
 }

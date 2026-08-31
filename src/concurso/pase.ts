@@ -3,9 +3,9 @@
  *
  * Franco: *«una vez que la persona registra su propuesta debe generar su golden
  * ticket para después con ese código único quemar su voto entregándolo»*, y al
- * concretarlo: el pase lo tiene TODO EL EQUIPO —el resultado es 70% del voto de
- * los 23, no solo de quienes concursan— y el de quien sube propuesta es el
- * dorado. «Quemar» es la metáfora de usarlo: el voto sigue siendo movible hasta
+ * concretarlo: el pase lo tiene TODO EL EQUIPO —el resultado sale ENTERO del
+ * voto de los 23, no solo de quienes concursan— y el de quien sube propuesta es
+ * el dorado. «Quemar» es la metáfora de usarlo: el voto sigue siendo movible hasta
  * que cierra la votación, como prometen las bases.
  *
  * ⚠️ EL CÓDIGO SE DERIVA, NO SE GUARDA. Sale del mismo HMAC que ya identifica
