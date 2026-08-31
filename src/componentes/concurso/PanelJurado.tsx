@@ -2,9 +2,9 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
+import { AdminPropuestas } from './AdminPropuestas'
 import type { EstadoJuradoConcurso, PropuestaConcurso } from '@/db/concurso'
 import {
-  establecerVisibilidadPropuestaAction,
   guardarCalificacionAction,
   guardarJuradoAction,
 } from '@/app/concurso/acciones'
@@ -77,8 +77,12 @@ export function PanelJurado({
         )}
 
         <section>
-          <h3>Visibilidad</h3>
-          <ul className={estilos.adminLista}>{propuestas.map((p) => <li key={p.id}><span>{p.titulo} · {p.integrantes.map((i) => i.nombre).join(' + ')}</span><button type="button" disabled={pendiente} onClick={() => ejecutar(() => establecerVisibilidadPropuestaAction(p.id, p.oculta))}>{p.oculta ? 'Volver a publicar' : 'Ocultar'}</button></li>)}</ul>
+          <h3>Propuestas recibidas</h3>
+          {/* Era una lista de `título · nombres` con un botón de ocultar: no
+              dejaba ver el diseño ni permitía borrar nada, así que no servía
+              para lo único que hace falta aquí, decidir sobre una propuesta.
+              `AdminPropuestas` pinta lo que ya viajaba en los datos. */}
+          <AdminPropuestas propuestas={propuestas} />
         </section>
         {error && <p className={estilos.mensajeError} role="alert">{error}</p>}
         {mensaje && <p className={estilos.mensajeOk} role="status">{mensaje}</p>}

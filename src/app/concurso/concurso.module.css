@@ -424,3 +424,60 @@
 }
 .popupCerrarTexto:hover { color: #fff; }
 .popupCerrarTexto:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+
+/* ══ ADMINISTRADOR DE PROPUESTAS ═══════════════════════════════════════════
+   Una ficha por propuesta con SU IMAGEN a la vista: sin ver el diseño no se
+   puede decidir si cumple las bases, que es justo lo que se viene a hacer
+   aquí. Dos columnas —lo que se ve, y lo que se sabe— porque la imagen manda y
+   el texto la explica. */
+.adminPropuestas { display: grid; gap: 1.2rem; }
+.adminConteo { margin: 0; font-size: .8rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: #6a6d76; }
+.adminVacio { margin: 0; padding: 1.5rem; border: 2px dashed var(--negro); color: #5a5d66; }
+
+.adminFicha { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 1.2rem; padding: 1rem; border: 2px solid var(--negro); background: #fff; }
+/* Una oculta se lee como retirada, sin desaparecer: sigue siendo administrable. */
+.adminOculta { opacity: .62; border-style: dashed; }
+
+.adminImagenes { display: grid; grid-auto-flow: row; gap: .5rem; align-content: start; }
+/* ⚠️ TABLERO DE AJEDREZ, y no un color liso. La primera propuesta subida al
+   concurso fue un logo BLANCO con fondo transparente: sobre el crema de la app
+   era literalmente invisible, y la ficha parecía no tener imagen. Un
+   administrador tiene que poder ver tanto un diseño claro como uno oscuro, y de
+   paso saber si el PNG trae transparencia. Es el mismo recurso que usa
+   cualquier editor de imagen, por la misma razón. */
+.adminImagenes a {
+  display: block;
+  border: 1px solid var(--linea, #e7e5df);
+  background-color: #d8d5cc;
+  background-image:
+    linear-gradient(45deg, #b9b6ad 25%, transparent 25%, transparent 75%, #b9b6ad 75%),
+    linear-gradient(45deg, #b9b6ad 25%, transparent 25%, transparent 75%, #b9b6ad 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+}
+.adminImagenes img { display: block; width: 100%; height: auto; max-height: 16rem; object-fit: contain; }
+.adminImagenes a:hover { border-color: var(--rosa); }
+.adminImagenes a:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+.adminSinImagen { display: grid; place-items: center; min-height: 7rem; border: 2px dashed var(--linea, #d9d6cd); color: #8a8d96; font-size: .8rem; }
+
+.adminDatos { display: grid; gap: .5rem; align-content: start; }
+.adminDatos h4 { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: -.01em; }
+.adminEtiquetaOculta { padding: .15rem .45rem; background: var(--negro); color: #fff; font-size: .6rem; letter-spacing: .12em; }
+.adminAutores { margin: 0; font-size: .88rem; font-weight: 700; color: var(--rosa); }
+.adminDescripcion { margin: 0; max-width: 60ch; line-height: 1.5; color: #3d3f47; }
+.adminMeta { margin: 0; font-size: .76rem; color: #6a6d76; }
+
+.adminAcciones { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .4rem; }
+.adminAcciones button { padding: .5rem .8rem; border: 2px solid var(--negro); background: #fff; font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.adminAcciones button:hover { background: var(--negro); color: #fff; }
+.adminAcciones button:disabled { opacity: .5; cursor: default; }
+.adminBorrar { border-color: #c1121f !important; color: #c1121f; }
+.adminBorrar:hover { background: #c1121f !important; color: #fff; }
+/* La confirmación dice QUÉ se pierde, no «¿estás seguro?». */
+.adminConfirmar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem .7rem; border: 2px solid #c1121f; background: #fff5f5; }
+.adminConfirmar strong { font-size: .78rem; color: #7a0b14; }
+
+@media (max-width: 720px) {
+  .adminFicha { grid-template-columns: 1fr; }
+  .adminImagenes img { max-height: 12rem; }
+}

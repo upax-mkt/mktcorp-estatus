@@ -277,6 +277,35 @@ export async function propuestasAdministracionConcurso(): Promise<PropuestaConcu
   return ensamblarPropuestas()
 }
 
+/**
+ * BORRA UNA PROPUESTA ENTERA. Es de admin y no tiene vuelta atrás.
+ *
+ * Franco: *«no puedo eliminar por ejemplo una propuesta realizada por error o
+ * algo que no cumpla bases»*. Ocultar no basta para los dos casos que importan:
+ * alguien que sube una prueba y quiere deshacerla, y algo que no debería
+ * quedarse ni archivado.
+ *
+ * ⚠️ EL ORDEN DE BORRADO NO ES ARBITRARIO. Las imágenes, los integrantes y las
+ * calificaciones cuelgan con `ON DELETE cascade` y se van solos. Los VOTOS no:
+ * su clave foránea es `no action` (migración 0044), así que borrar la propuesta
+ * sin quitarlos antes falla con una violación de integridad. Se quitan primero,
+ * a propósito y no por si acaso.
+ *
+ * Devuelve las rutas de los binarios para que quien llama los borre de Blob:
+ * esta capa no habla con el almacenamiento, y saberlo DESPUÉS de borrar la fila
+ * sería imposible.
+ */
+export async function eliminarPropuestaConcurso(propuestaId: string): Promise<string[]> {
+  exigirBase()
+  const propuesta = (await ensamblarPropuestas([propuestaId]))[0]
+  if (!propuesta) throw new Error('Esa propuesta ya no existe.')
+  const rutas = propuesta.imagenes.map((i) => i.ruta)
+  // Primero los votos, que no caen en cascada.
+  await db().delete(esquema.votosConcurso).where(eq(esquema.votosConcurso.propuestaId, propuestaId))
+  await db().delete(esquema.propuestasConcurso).where(eq(esquema.propuestasConcurso.id, propuestaId))
+  return rutas
+}
+
 export async function registrarVotoConcurso(correoSesion: string, propuestaId: string, ahora = new Date()): Promise<void> {
   exigirBase()
   if (faseDelConcurso(ahora) !== 'votacion') throw new Error('La votación no está abierta.')

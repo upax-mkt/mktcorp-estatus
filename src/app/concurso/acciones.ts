@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { exigirAdmin, exigirLectura } from '@/auth/roles'
+import { del } from '@vercel/blob'
 import {
   actualizarPropuestaConcurso,
+  eliminarPropuestaConcurso,
   crearPropuestaConcurso,
   guardarCalificacionConcurso,
   guardarJuradoConcurso,
@@ -70,6 +72,25 @@ export async function establecerVisibilidadPropuestaAction(
     await establecerVisibilidadPropuestaConcurso(propuestaId, visible, motivo)
     revalidatePath('/concurso')
     return { ok: visible ? 'Propuesta visible.' : 'Propuesta oculta.' }
+  } catch (error) {
+    return { error: mensaje(error) }
+  }
+}
+
+/**
+ * Borrar una propuesta: solo admin, y se lleva también sus binarios.
+ *
+ * `del(...).catch(() => {})` en cada uno, como el resto de la app: un fallo al
+ * borrar el binario no puede tumbar una operación que YA quitó la fila, y lo
+ * que quede huérfano lo caza `scripts/blobs-huerfanos.ts`.
+ */
+export async function eliminarPropuestaAction(propuestaId: string): Promise<EstadoAccionConcurso> {
+  await exigirAdmin()
+  try {
+    const rutas = await eliminarPropuestaConcurso(propuestaId)
+    for (const ruta of rutas) await del(ruta).catch(() => {})
+    revalidatePath('/concurso')
+    return { ok: 'Propuesta eliminada.' }
   } catch (error) {
     return { error: mensaje(error) }
   }
