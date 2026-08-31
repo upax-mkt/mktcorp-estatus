@@ -109,3 +109,40 @@ describe('el anuncio recuerda que ya se cerró', () => {
     expect((cuerpo.match(/catch/g) ?? []).length).toBeGreaterThanOrEqual(2)
   })
 })
+
+/**
+ * ⚠️⚠️ EL DIÁLOGO CERRADO DESAPARECE DE LA PANTALLA (31-ago-2026).
+ *
+ * Franco, dos veces: *«no puedo cerrar el pop up»*, *«no se puede, en
+ * desktop!»*. Y las dos veces yo comprobé que sí cerraba… midiendo lo que no
+ * era.
+ *
+ * EL DEFECTO: `.popupCartel { display: grid }`. El navegador oculta un diálogo
+ * cerrado con `dialog:not([open]) { display: none }` en su hoja de agente de
+ * usuario, y esa hoja pierde SIEMPRE frente a una regla de autor —manda el
+ * origen, no la especificidad del selector—. Así que ese `display: grid`
+ * ganaba también con el diálogo ya cerrado: se pulsaba la equis, el `<dialog>`
+ * se cerraba de verdad… y el cartel seguía tapando la pantalla.
+ *
+ * ⚠️ Y POR QUÉ MIS PRUEBAS DECÍAN QUE FUNCIONABA: comprobaban
+ * `document.querySelector('dialog[open]')`, es decir, el ATRIBUTO. El atributo
+ * se quitaba correctamente, así que salía ✓ mientras Franco tenía el cartel
+ * delante. Medí lo que era cómodo de medir en vez de lo que el usuario ve. La
+ * pregunta correcta no era «¿se cerró?» sino «¿desapareció?».
+ */
+describe('el diálogo cerrado no ocupa pantalla', () => {
+  it('declara display:none para el diálogo sin open', () => {
+    // Sin esta regla, cualquier `display` de autor sobre el diálogo lo deja
+    // visible al cerrarlo.
+    expect(CSS).toMatch(/\.popup:not\(\[open\]\)\s*\{[^}]*display:\s*none/)
+  })
+
+  it('y esa regla va ANTES de la que pone display en el cartel', () => {
+    // Misma especificidad ⇒ gana la última. Si `.popupCartel { display: grid }`
+    // se declarara después sin `[open]`, volvería el defecto.
+    const iOculta = CSS.indexOf('.popup:not([open])')
+    const iCartel = CSS.indexOf('.popupCartel {')
+    expect(iOculta).toBeGreaterThan(-1)
+    expect(iCartel).toBeGreaterThan(iOculta)
+  })
+})

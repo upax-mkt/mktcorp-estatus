@@ -254,6 +254,18 @@
    `min-height: 0` para que pueda encoger — sin eso un hijo de grid nunca baja
    de su tamaño intrínseco) y el pie toma lo suyo (`auto`). `contain` conserva
    la proporción del cartel al encoger. */
+/* ⚠️⚠️ UN `display` DE AUTOR SOBRE UN `<dialog>` LO DEJA VISIBLE AL CERRARLO.
+   ESTE es el «no se puede cerrar» que reportó Franco, dos veces.
+   El navegador oculta un diálogo cerrado con `dialog:not([open]) {display:none}`
+   en SU hoja de agente de usuario. Esa hoja pierde SIEMPRE frente a una regla
+   nuestra, sin importar la especificidad: manda el ORIGEN, no el peso del
+   selector. Así que `display: grid` aquí ganaba también cuando el diálogo ya
+   estaba cerrado, y el cartel seguía ocupando la pantalla con el `open` ya
+   quitado. Pulsar la equis funcionaba —el diálogo se cerraba de verdad— y no
+   pasaba nada visible, que es la peor forma de romperse.
+   La regla de abajo devuelve al navegador lo que era suyo. */
+.popup:not([open]) { display: none; }
+
 .popupCartel {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
