@@ -32,16 +32,19 @@ Antes de la votación ninguna propuesta ajena es visible. La portada muestra una
 - Los autores pueden editar texto e imágenes hasta el cierre de recepción.
 - La identidad y el squad parten del login/directorio. La identidad autenticada se valida en servidor.
 
-## Votación y jurado
+## Votación
 
-- Propuestas públicas y atribuidas cuando abre la galería; voto individual anónimo.
+**Cambios del 31-ago-2026, decididos por Franco.** Se tachan en vez de borrarse: estuvieron publicados.
+
+- ~~Propuestas públicas y **atribuidas**~~ → **las propuestas se publican SIN AUTOR**. Se vota el diseño, no la firma. El nombre solo se ve desde la administración, y se revela en la ceremonia.
+- Voto individual anónimo.
 - Cada colaborador tiene un pase digital: un único voto activo, modificable hasta el cierre.
 - Nadie puede votar por su propia propuesta.
 - Los conteos permanecen ocultos hasta la ceremonia.
-- Resultado: 70% voto del equipo y 30% jurado externo.
-- Jurado: la organización y dos directores, designables antes de votar.
-- Rúbrica del jurado: creatividad 30%, cultura/equipo 25%, viabilidad 20%, atractivo visual 25%.
-- Empate: mayor evaluación total del jurado; después, mayor creatividad.
+- ~~Resultado: 70% voto del equipo y 30% jurado externo~~ → **el resultado es el voto del equipo, al 100%. NO HAY JURADO.** Gana la más votada.
+- ~~Jurado: la organización y dos directores~~ — retirado.
+- ~~Rúbrica del jurado~~ — retirada.
+- ~~Empate: mayor evaluación del jurado~~ → sin jurado no queda criterio automático: **un empate a votos se resuelve a mano**, y se deja a la vista en lugar de romperlo con una regla inventada.
 
 ## Premio
 
@@ -66,6 +69,7 @@ Collage punk/rock original: alto contraste, tramas de semitono, recortes, desreg
 ## Criterios de aceptación
 
 - Personas muestra y permite cambiar squad; las altas lo solicitan.
+- La galería NO expone autoría: los nombres no viajan al navegador, no solo se ocultan en pantalla.
 - El directorio usa el catálogo vigente del Org Truth Sheet y conserva `null` cuando la fuente no identifica squad.
 - La navegación incluye Concurso para cualquier rol de equipo.
 - El Home enseña un anuncio accesible una vez por navegador y enlaza al concurso.

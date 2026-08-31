@@ -12,7 +12,6 @@ import {
   participantesDisponiblesConcurso,
   propuestaDePersona,
   propuestasAdministracionConcurso,
-  estadoJuradoConcurso,
   resultadosConcurso,
   votoDePersona,
   hashVotante,
@@ -110,16 +109,15 @@ export default async function PaginaConcurso() {
   }
 
   const admin = identificado ? await esAdmin() : false
-  const [persona, propia, disponibles, galeria, voto, resultados, clientes, propuestasAdmin, estadoJurado] = await Promise.all([
+  const [persona, propia, disponibles, galeria, voto, resultados, clientes, propuestasAdmin] = await Promise.all([
     correo ? buscarPersona(correo) : null,
     correo ? propuestaDePersona(correo) : null,
     fase === 'recepcion' ? participantesDisponiblesConcurso() : [],
-    galeriaConcurso(ahora),
+    galeriaConcurso(ahora, correo),
     correo && fase !== 'recepcion' ? votoDePersona(correo) : null,
     resultadosConcurso(ahora),
     clientesParaBarra(),
     admin ? propuestasAdministracionConcurso() : [],
-    admin ? estadoJuradoConcurso() : { nombres: [], calificaciones: [] },
   ])
 
   /**
@@ -127,9 +125,9 @@ export default async function PaginaConcurso() {
    * código se DERIVA del mismo HMAC que identifica al votante, así que no hay
    * nada que generar ni que guardar — ver `src/concurso/pase.ts`.
    *
-   * Lo tiene todo el equipo, porque el resultado es 70% del voto de las 23
-   * personas y no solo de quienes compiten. El de quien subió propuesta es el
-   * dorado.
+   * Lo tiene todo el equipo: desde el 31-ago el resultado lo decide ÚNICAMENTE
+   * el voto de las 23 personas, sin jurado, así que cada pase pesa de verdad.
+   * El de quien subió propuesta es el dorado.
    */
   const pase = correo && persona
     ? paseDe(hashVotante(correo), propia?.titulo ?? null, galeria.find((g) => g.id === voto)?.titulo ?? null)
@@ -215,7 +213,7 @@ export default async function PaginaConcurso() {
               <li>
                 <b>03</b>
                 <h3>Que el equipo lo vote</h3>
-                <p>El 7 se publican todas a la vez y cada persona tiene un voto. El resultado es <strong>70% del equipo y 30% del jurado</strong>.</p>
+                <p>El 7 se publican todas a la vez, <strong>sin firma</strong>, y cada persona tiene un voto. Gana la más votada: <strong>lo decide el equipo, sin jurado</strong>.</p>
               </li>
             </ol>
             {/* LOS LOGOS, DESCARGABLES DESDE AQUÍ. Las bases exigen incluir los
@@ -240,13 +238,13 @@ export default async function PaginaConcurso() {
               <h3>La letra chica, que sí es corta</h3>
               <ul>
                 <li>Una propuesta por persona, sola o en dupla — y la dupla une <strong>squads distintos</strong>.</li>
+                <li>En la galería las propuestas van <strong>sin autor</strong>. Se revela en la ceremonia.</li>
                 <li>Tres firmas obligatorias y sin alterar: Grupo UPAX, Marketing Corp y «¡ASÍ SOMOS!».</li>
                 <li>El archivo editable solo se le pide al ganador.</li>
-                <li>El jurado puntúa creatividad, cultura, viabilidad y atractivo visual.</li>
               </ul>
             </div>
           </section>
-          {admin && <PanelJurado propuestas={propuestasAdmin} estado={estadoJurado} />}
+          {admin && <PanelJurado propuestas={propuestasAdmin} />}
           {/* SIN SQUAD TAMBIÉN SE PARTICIPA. El formulario se condicionaba a
               `persona.squad`, así que quien no pertenece a ningún squad —el CMO,
               que está por encima de los seis, y las personas indirectas— no
@@ -270,38 +268,41 @@ export default async function PaginaConcurso() {
           {fase === 'recepcion' && identificado && !persona && (
             <section className={estilos.aviso} role="alert"><strong>No te encontramos en el directorio.</strong><p>Avisa a Marketing Corporativo para que te den de alta en Personas y puedas participar.</p></section>
           )}
-          {fase === 'recepcion' && (
-            <section className={estilos.espera}>
-              <span className={estilos.numeroGrande}>04</span><h2>El lineup sigue bajo llave</h2>
-              <p>Todas las propuestas se revelan al mismo tiempo el lunes 7 de septiembre a las 11:00.</p>
-            </section>
-          )}
-          {fase !== 'recepcion' && correo && (
-            <GaleriaConcurso propuestas={galeria} miCorreo={correo} votoInicial={voto} votacionAbierta={fase === 'votacion'} />
-          )}
 
-          {/* EL PASE VA DESPUÉS DEL LINEUP, no antes del formulario. Aquí es
-              donde cobra sentido: se acaba de decir que las propuestas se
-              revelan el 7, y lo siguiente que uno quiere saber es con qué las
-              va a votar. Antes del formulario aparecía sin que nadie hubiera
-              mencionado todavía que hay una votación. */}
+          {/* EL ORDEN CUENTA UNA HISTORIA (31-ago-2026, decisión de Franco):
+              qué ganas → cómo entras → sube lo tuyo → este es tu voto → y esto
+              es lo que hay que votar. El pase va ANTES del lineup a propósito:
+              primero se sabe con qué se vota y luego se ve qué votar. Al revés
+              —que es como estaba— uno se topa con las propuestas sin saber
+              todavía que tiene un voto. */}
           {pase && persona && (
             <section className={estilos.bloquePase} id="pase">
               <div className={estilos.tituloSeccion}>
-                <span>05</span>
+                <span>04</span>
                 <div><p>TU VOTO</p><h2>El pase que decide el ganador</h2></div>
               </div>
               <div className={estilos.paseExplicado}>
                 <PaseConcurso pase={pase} nombre={persona.nombre} />
                 <div className={estilos.paseTexto}>
                   <p><strong>Qué es.</strong> Tu entrada a la votación. El código es tuyo y solo tuyo: nadie más tiene ese mismo, ni siquiera nosotros lo guardamos en ninguna lista.</p>
-                  <p><strong>Para qué sirve.</strong> Con él eliges el diseño que quieres ver en la sudadera. El voto del equipo pesa el <strong>70%</strong> del resultado; el 30% restante lo pone el jurado.</p>
+                  <p><strong>Para qué sirve.</strong> Con él eliges el diseño que quieres ver en la sudadera. <strong>El equipo decide solo:</strong> no hay jurado, gana la propuesta más votada.</p>
                   <p><strong>Cuándo se usa.</strong> Del <strong>7 de septiembre a las 11:00</strong> —cuando se publican todas las propuestas— <strong>hasta el 8 a las 18:00</strong>. Puedes cambiar de opinión y mover tu voto las veces que quieras mientras siga abierta; al cerrar, cuenta el último.</p>
                   <p className={estilos.paseAviso}>Una sola cosa no se puede: votarte a ti mismo.</p>
                 </div>
               </div>
             </section>
           )}
+          {fase === 'recepcion' && (
+            <section className={estilos.espera}>
+              <span className={estilos.numeroGrande}>05</span><h2>El lineup sigue bajo llave</h2>
+              <p>Todas las propuestas se revelan al mismo tiempo el lunes 7 de septiembre a las 11:00, <strong>y sin el nombre de quien las firma</strong>: se vota el diseño, no a la persona.</p>
+            </section>
+          )}
+
+          {fase !== 'recepcion' && correo && (
+            <GaleriaConcurso propuestas={galeria} votoInicial={voto} votacionAbierta={fase === 'votacion'} />
+          )}
+
 
 
         </div>

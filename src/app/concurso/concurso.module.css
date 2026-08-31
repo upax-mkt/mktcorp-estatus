@@ -481,3 +481,12 @@
   .adminFicha { grid-template-columns: 1fr; }
   .adminImagenes img { max-height: 12rem; }
 }
+
+/* La línea que sustituye a los autores en el lineup: dice que el anonimato es
+   deliberado. Un hueco en blanco donde antes había un nombre se lee como un
+   fallo, no como una decisión. */
+.propuestaAnonima { margin: 0; font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #6a6d76; }
+
+/* El aviso del panel: dice en voz alta que aquí y solo aquí se ve quién firma.
+   Sin eso, un administrador podría creer que el lineup también los muestra. */
+.adminAviso { margin: 0 0 1.2rem; padding: .8rem 1rem; border-left: none; background: #fff8e1; font-size: .85rem; line-height: 1.45; color: #5c4410; }

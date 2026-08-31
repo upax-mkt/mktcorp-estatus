@@ -9,7 +9,7 @@ import { CONCURSO_ID } from '@/concurso/config'
 import { faseDelConcurso } from '@/concurso/fase'
 import { filasDeImagenes } from '@/concurso/filas-imagenes'
 import { validarIntegrantes, validarPropuesta, type ArchivoPropuesta } from '@/concurso/validacion'
-import { calificacionJurado, puntajeFinal } from '@/concurso/resultados'
+import { puntajeFinal } from '@/concurso/resultados'
 
 export interface PropuestaConcurso {
   id: string
@@ -32,10 +32,8 @@ export interface DatosGuardarPropuesta {
 export interface ResultadoConcurso {
   propuesta: PropuestaConcurso
   votos: number
-  porcentajeEquipo: number
-  promedioJurado: number
+  /** El puntaje ES el porcentaje: sin jurado, no hay dos escalas que combinar. */
   puntaje: number
-  creatividad: number
 }
 
 export interface EstadoJuradoConcurso {
@@ -267,10 +265,46 @@ export async function propuestaDePersona(correo: string): Promise<PropuestaConcu
   return (await ensamblarPropuestas([miembro.propuestaId]))[0] ?? null
 }
 
-export async function galeriaConcurso(ahora = new Date()): Promise<PropuestaConcurso[]> {
+/**
+ * UNA PROPUESTA COMO LA VE EL EQUIPO: sin autor.
+ *
+ * Franco, 31-ago-2026: *«en el lineup las propuestas serán anónimas, solo yo
+ * podré ver desde la administración quién fue»*.
+ *
+ * ⚠️ EL ANONIMATO NO ES OCULTAR EL NOMBRE EN PANTALLA. Si los integrantes
+ * viajan al navegador y el componente decide no pintarlos, cualquiera los lee
+ * abriendo las herramientas del navegador o mirando el HTML que llega. Por eso
+ * este tipo NO TIENE el campo: los nombres no salen del servidor, y el
+ * anonimato deja de depender de que nadie toque el JSX.
+ *
+ * `esMia` lo calcula el servidor y es lo único que se dice sobre autoría —a
+ * cada quien, de sí mismo—: hace falta para no ofrecerle votar su propia
+ * propuesta, y no revela nada que esa persona no supiera ya.
+ */
+export interface PropuestaAnonima {
+  id: string
+  titulo: string
+  descripcion: string
+  imagenes: PropuestaConcurso['imagenes']
+  esMia: boolean
+}
+
+export async function galeriaConcurso(
+  ahora = new Date(),
+  correoDeQuienMira?: string | null,
+): Promise<PropuestaAnonima[]> {
   const fase = faseDelConcurso(ahora)
   if (fase === 'recepcion') return []
-  return (await ensamblarPropuestas()).filter((p) => !p.oculta)
+  const mio = correoDeQuienMira ? normalizarCorreo(correoDeQuienMira) : null
+  return (await ensamblarPropuestas())
+    .filter((p) => !p.oculta)
+    .map(({ id, titulo, descripcion, imagenes, integrantes }) => ({
+      id,
+      titulo,
+      descripcion,
+      imagenes,
+      esMia: Boolean(mio && integrantes.some((i) => i.correo === mio)),
+    }))
 }
 
 export async function propuestasAdministracionConcurso(): Promise<PropuestaConcurso[]> {
@@ -371,36 +405,36 @@ export async function imagenConcursoParaServir(
 
 export async function resultadosConcurso(ahora = new Date()): Promise<ResultadoConcurso[]> {
   if (faseDelConcurso(ahora) !== 'resultados' || !hayDB()) return []
-  const propuestas = await galeriaConcurso(ahora)
+  /**
+   * Aquí SÍ se leen las propuestas con su autor, y no la versión anónima.
+   * El anonimato cubre la votación —para que nadie vote por quién firma en vez
+   * de por el diseño—; la ceremonia del 9 de septiembre existe justamente para
+   * revelar de quién era. Esta función solo devuelve algo en fase
+   * `resultados`, así que la revelación no puede adelantarse.
+   */
+  const propuestas = (await ensamblarPropuestas()).filter((p) => !p.oculta)
   if (propuestas.length === 0) return []
-  const ids = propuestas.map((p) => p.id)
-  const [votos, notas] = await Promise.all([
-    db().select({ propuestaId: esquema.votosConcurso.propuestaId, cantidad: sql<number>`count(*)::int` })
-      .from(esquema.votosConcurso)
-      .where(eq(esquema.votosConcurso.concursoId, CONCURSO_ID))
-      .groupBy(esquema.votosConcurso.propuestaId),
-    db().select().from(esquema.calificacionesJuradoConcurso)
-      .where(inArray(esquema.calificacionesJuradoConcurso.propuestaId, ids)),
-  ])
+  // Una sola consulta: contar los votos. Antes eran dos, con la de las
+  // calificaciones del jurado que ya no existe.
+  const votos = await db()
+    .select({ propuestaId: esquema.votosConcurso.propuestaId, cantidad: sql<number>`count(*)::int` })
+    .from(esquema.votosConcurso)
+    .where(eq(esquema.votosConcurso.concursoId, CONCURSO_ID))
+    .groupBy(esquema.votosConcurso.propuestaId)
   const votosTotales = votos.reduce((total, v) => total + v.cantidad, 0)
   return propuestas.map((propuesta) => {
     const cantidad = votos.find((v) => v.propuestaId === propuesta.id)?.cantidad ?? 0
-    const rubricas = notas.filter((n) => n.propuestaId === propuesta.id)
-    const promedioJurado = rubricas.length > 0
-      ? rubricas.reduce((total, n) => total + calificacionJurado(n), 0) / rubricas.length
-      : 0
-    const creatividad = rubricas.length > 0
-      ? rubricas.reduce((total, n) => total + n.creatividad, 0) / rubricas.length
-      : 0
     return {
       propuesta,
       votos: cantidad,
-      porcentajeEquipo: votosTotales > 0 ? cantidad / votosTotales * 100 : 0,
-      promedioJurado,
-      puntaje: puntajeFinal({ votos: cantidad, votosTotales, jurado: promedioJurado }),
-      creatividad,
+      puntaje: puntajeFinal({ votos: cantidad, votosTotales }),
     }
-  }).sort((a, b) => b.puntaje - a.puntaje || b.promedioJurado - a.promedioJurado || b.creatividad - a.creatividad)
+  })
+    // Sin jurado no queda criterio de desempate automático: si dos empatan a
+    // votos, empatan de verdad, y eso lo resuelve una persona. Se ordena solo
+    // por votos y el empate se deja a la vista en vez de romperlo con una
+    // regla inventada aquí.
+    .sort((a, b) => b.puntaje - a.puntaje)
 }
 
 export async function establecerVisibilidadPropuestaConcurso(

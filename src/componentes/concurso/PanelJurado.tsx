@@ -1,93 +1,41 @@
-'use client'
-
-import { useMemo, useState, useTransition } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
 import { AdminPropuestas } from './AdminPropuestas'
-import type { EstadoJuradoConcurso, PropuestaConcurso } from '@/db/concurso'
-import {
-  guardarCalificacionAction,
-  guardarJuradoAction,
-} from '@/app/concurso/acciones'
+import type { PropuestaConcurso } from '@/db/concurso'
 
-export function PanelJurado({
-  propuestas,
-  estado,
-}: {
-  propuestas: PropuestaConcurso[]
-  estado: EstadoJuradoConcurso
-}) {
-  const [nombres, setNombres] = useState<[string, string, string]>([
-    estado.nombres[0] ?? 'Franco Cruzat',
-    estado.nombres[1] ?? '',
-    estado.nombres[2] ?? '',
-  ])
-  const [propuestaId, setPropuestaId] = useState(propuestas[0]?.id ?? '')
-  const [posicion, setPosicion] = useState(1)
-  const guardada = useMemo(() => estado.calificaciones.find(
-    (c) => c.propuestaId === propuestaId && c.posicionJurado === posicion,
-  ), [estado.calificaciones, posicion, propuestaId])
-  const [creatividad, setCreatividad] = useState(guardada?.creatividad ?? 0)
-  const [cultura, setCultura] = useState(guardada?.cultura ?? 0)
-  const [viabilidad, setViabilidad] = useState(guardada?.viabilidad ?? 0)
-  const [atractivo, setAtractivo] = useState(guardada?.atractivo ?? 0)
-  const [mensaje, setMensaje] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [pendiente, comenzar] = useTransition()
-
-  function ejecutar(tarea: () => Promise<{ error?: string; ok?: string }>) {
-    setError(null); setMensaje(null)
-    comenzar(async () => {
-      const resultado = await tarea()
-      if (resultado.error) setError(resultado.error)
-      else setMensaje(resultado.ok ?? 'Guardado.')
-    })
-  }
-
+/**
+ * EL PANEL DE ADMINISTRACIÓN DEL CONCURSO.
+ *
+ * ⚠️ YA NO HAY JURADO. Franco, 31-ago-2026: *«hoy definimos que no habrá
+ * jurado, solo voto del equipo»*. Este panel tenía dos secciones más —designar
+ * a los tres jueces y capturar su rúbrica de creatividad, cultura, viabilidad y
+ * atractivo— retiradas enteras, junto con el estado que las sostenía. Lo que
+ * queda es lo único que Franco necesita: ver las propuestas y decidir sobre
+ * ellas.
+ *
+ * DEJA DE SER UN CLIENTE. Sin formularios de jurado no hay estado que guardar
+ * aquí, así que el `'use client'` y sus tres `useState` se van: la interacción
+ * vive dentro de `AdminPropuestas`, que sí la necesita. Un componente de
+ * servidor menos que hidratar.
+ *
+ * Y ES EL ÚNICO SITIO CON LOS NOMBRES. El lineup es anónimo (ver
+ * `PropuestaAnonima`, src/db/concurso.ts): aquí llegan las propuestas
+ * completas, con autor y squad, porque administrar sin saber de quién es cada
+ * cosa no es administrar.
+ *
+ * El nombre del archivo se conserva a propósito para no mover imports en una
+ * semana de cambios diarios; su contenido ya no es un jurado.
+ */
+export function PanelJurado({ propuestas }: { propuestas: PropuestaConcurso[] }) {
   return (
     <details className={estilos.admin}>
-      <summary>Administración · jurado y visibilidad</summary>
-      <div className={estilos.adminInterior}>
-        <section>
-          <h3>Jurado externo</h3>
-          <div className={estilos.adminGrid}>
-            {nombres.map((nombre, indice) => (
-              <label key={indice}><span>Integrante {indice + 1}</span><input value={nombre} onChange={(e) => setNombres((actual) => actual.map((n, i) => i === indice ? e.target.value : n) as [string, string, string])} /></label>
-            ))}
-          </div>
-          <button type="button" className={estilos.botonPunk} disabled={pendiente} onClick={() => ejecutar(() => guardarJuradoAction(nombres))}>Guardar jurado</button>
-        </section>
-
-        {propuestas.length > 0 && (
-          <section>
-            <h3>Capturar evaluación</h3>
-            <div className={estilos.adminGrid}>
-              <label><span>Propuesta</span><select value={propuestaId} onChange={(e) => setPropuestaId(e.target.value)}>{propuestas.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}</select></label>
-              <label><span>Jurado</span><select value={posicion} onChange={(e) => setPosicion(Number(e.target.value))}>{[1, 2, 3].map((n) => <option value={n} key={n}>{nombres[n - 1] || `Integrante ${n}`}</option>)}</select></label>
-              {([
-                ['Creatividad', creatividad, setCreatividad],
-                ['Cultura', cultura, setCultura],
-                ['Viabilidad', viabilidad, setViabilidad],
-                ['Atractivo', atractivo, setAtractivo],
-              ] as const).map(([etiqueta, valor, setter]) => (
-                <label key={etiqueta}><span>{etiqueta} · 0–10</span><input type="number" min={0} max={10} step={1} value={valor} onChange={(e) => setter(Number(e.target.value))} /></label>
-              ))}
-            </div>
-            <button type="button" className={estilos.botonPunk} disabled={pendiente || !propuestaId} onClick={() => ejecutar(() => guardarCalificacionAction(propuestaId, posicion, { creatividad, cultura, viabilidad, atractivo }))}>Guardar evaluación</button>
-          </section>
-        )}
-
-        <section>
-          <h3>Propuestas recibidas</h3>
-          {/* Era una lista de `título · nombres` con un botón de ocultar: no
-              dejaba ver el diseño ni permitía borrar nada, así que no servía
-              para lo único que hace falta aquí, decidir sobre una propuesta.
-              `AdminPropuestas` pinta lo que ya viajaba en los datos. */}
-          <AdminPropuestas propuestas={propuestas} />
-        </section>
-        {error && <p className={estilos.mensajeError} role="alert">{error}</p>}
-        {mensaje && <p className={estilos.mensajeOk} role="status">{mensaje}</p>}
+      <summary>Administración · propuestas recibidas</summary>
+      <div className={estilos.adminCuerpo}>
+        <p className={estilos.adminAviso}>
+          Solo tú ves esta sección, y es el único sitio donde aparece quién firma cada propuesta:
+          en la galería van sin autor hasta la revelación.
+        </p>
+        <AdminPropuestas propuestas={propuestas} />
       </div>
     </details>
   )
 }
-

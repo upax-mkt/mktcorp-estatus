@@ -2,17 +2,30 @@
 
 import { useState, useTransition } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
-import type { PropuestaConcurso } from '@/db/concurso'
+import type { PropuestaAnonima } from '@/db/concurso'
 import { votarAction } from '@/app/concurso/acciones'
 
+/**
+ * EL LINEUP, ANÓNIMO.
+ *
+ * Franco, 31-ago-2026: *«en el lineup las propuestas serán anónimas, solo yo
+ * podré ver desde la administración quién fue»*. Se vota el diseño, no la
+ * firma — que es lo que evita que gane quien más amigos tiene.
+ *
+ * ⚠️ NO RECIBE `miCorreo` NI LOS INTEGRANTES, y eso es el arreglo, no un
+ * descuido. Antes llegaban todos los autores y el componente comparaba correos
+ * en el navegador para saber cuál era la tuya: con ese diseño, ocultar los
+ * nombres en el JSX no sería anonimato, porque seguirían viajando en el HTML al
+ * alcance de cualquiera que abra las herramientas del navegador. Ahora el
+ * servidor manda `esMia` ya resuelto (`PropuestaAnonima`, src/db/concurso.ts) y
+ * los nombres no salen de allí.
+ */
 export function GaleriaConcurso({
   propuestas,
-  miCorreo,
   votoInicial,
   votacionAbierta,
 }: {
-  propuestas: PropuestaConcurso[]
-  miCorreo: string
+  propuestas: PropuestaAnonima[]
   votoInicial: string | null
   votacionAbierta: boolean
 }) {
@@ -31,11 +44,11 @@ export function GaleriaConcurso({
 
   return (
     <section className={estilos.galeria} aria-labelledby="galeria-titulo">
-      <div className={estilos.tituloSeccion}><span>02</span><div><p>EL LINEUP</p><h2 id="galeria-titulo">Elige lo que vamos a vestir</h2></div></div>
+      <div className={estilos.tituloSeccion}><span>05</span><div><p>EL LINEUP · SIN FIRMAS</p><h2 id="galeria-titulo">Elige lo que vamos a vestir</h2></div></div>
       {error && <p className={estilos.mensajeError} role="alert">{error}</p>}
       <div className={estilos.galeriaGrid}>
         {propuestas.map((propuesta, indice) => {
-          const propia = propuesta.integrantes.some((p) => p.correo === miCorreo)
+          const propia = propuesta.esMia
           const seleccionada = voto === propuesta.id
           return (
             <article className={estilos.propuesta} key={propuesta.id} data-seleccionada={seleccionada || undefined}>
@@ -49,7 +62,10 @@ export function GaleriaConcurso({
               <div className={estilos.propuestaCuerpo}>
                 <h3>{propuesta.titulo}</h3>
                 <p>{propuesta.descripcion}</p>
-                <ul>{propuesta.integrantes.map((p) => <li key={p.correo}><strong>{p.nombre}</strong><span>{p.squad}</span></li>)}</ul>
+                {/* Sin autores: el lineup es anónimo. Se dice en voz alta en
+                    vez de dejar un hueco, porque un espacio en blanco donde
+                    antes había un nombre se lee como un fallo. */}
+                <p className={estilos.propuestaAnonima}>{propia ? 'Tu propuesta' : 'Autoría anónima hasta la revelación'}</p>
                 {votacionAbierta && (
                   <button className={estilos.pase} type="button" disabled={propia || pendiente} onClick={() => votar(propuesta.id)}>
                     {propia ? 'Es tu propuesta' : seleccionada ? '✓ Pase registrado' : '⚡ Usar mi pase'}
