@@ -65,3 +65,47 @@ describe('el anuncio por encima de todo', () => {
     expect(Number(z![1])).toBeGreaterThanOrEqual(1000)
   })
 })
+
+/**
+ * ⚠️ EL ANUNCIO RECUERDA QUE SE CERRÓ AUNQUE EL NAVEGADOR NO GUARDE NADA
+ * (31-ago-2026).
+ *
+ * Franco: *«el lightbox del concurso no se puede cerrar»*. Y cerrarse se
+ * cerraba —comprobado en producción, las tres salidas funcionaban—: lo que
+ * hacía era VOLVER A SALIR en cada carga, que desde fuera es la misma sensación
+ * y peor, porque parece que la app te ignora.
+ *
+ * La causa: el «ya lo vi» vivía solo en `localStorage`, dentro de un `try/catch`
+ * que se tragaba el fallo en silencio. En un navegador embebido —el que abre
+ * Slack al pulsar un enlace desde la app, que es por donde va a llegar el
+ * equipo entero— ese almacén puede estar restringido: la escritura lanza, el
+ * catch la ignora y al recargar el anuncio no sabe que ya se cerró. Reproducido
+ * simulando el bloqueo antes de tocar nada.
+ *
+ * Cuatro recuerdos, de más a menos permanente: `localStorage`,
+ * `sessionStorage`, una cookie y una variable de módulo. Ninguno es
+ * imprescindible y basta con que uno sobreviva.
+ */
+describe('el anuncio recuerda que ya se cerró', () => {
+  const FUENTE = readFileSync(join(__dirname, 'AnuncioConcurso.tsx'), 'utf8')
+
+  it('no depende de un solo almacén', () => {
+    expect(FUENTE).toContain('sessionStorage')
+    expect(FUENTE).toContain('document.cookie')
+  })
+
+  it('guarda en memoria antes que nada, que es lo único que nunca falla', () => {
+    // `cerradoEnMemoria = true` va PRIMERO en `marcarVisto`: si una excepción
+    // tumbara los demás, ese ya está puesto.
+    const cuerpo = FUENTE.slice(FUENTE.indexOf('function marcarVisto'))
+    const enMemoria = cuerpo.indexOf('cerradoEnMemoria = true')
+    const primerAlmacen = cuerpo.indexOf('setItem')
+    expect(enMemoria).toBeGreaterThan(-1)
+    expect(enMemoria).toBeLessThan(primerAlmacen)
+  })
+
+  it('cada intento de guardar va protegido: uno que lance no tumba los otros', () => {
+    const cuerpo = FUENTE.slice(FUENTE.indexOf('function marcarVisto'), FUENTE.indexOf('function yaSeVio'))
+    expect((cuerpo.match(/catch/g) ?? []).length).toBeGreaterThanOrEqual(2)
+  })
+})

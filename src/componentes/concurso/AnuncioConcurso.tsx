@@ -8,6 +8,66 @@ import estilos from '@/app/concurso/concurso.module.css'
 const LLAVE = 'mktcorp-concurso-sudadera-2026-visto'
 
 /**
+ * ⚠️ TRES SITIOS DONDE RECORDAR QUE YA SE CERRÓ, Y NO UNO.
+ *
+ * Franco: *«el lightbox del concurso no se puede cerrar»*. Y cerrarse, se
+ * cerraba: reproducido en producción, las tres salidas funcionan. Lo que
+ * pasaba es que VOLVÍA A SALIR en cada carga, que desde fuera es exactamente
+ * la misma sensación — y peor, porque parece que la app te ignora.
+ *
+ * La causa: el «ya lo vi» se guardaba solo en `localStorage`, envuelto en un
+ * `try/catch` que se tragaba el fallo en silencio. En un navegador embebido
+ * —el que abre Slack al pulsar un enlace desde la app, que es justo por donde
+ * va a llegar todo el equipo— el almacenamiento puede estar restringido: la
+ * escritura lanza, el catch la ignora, y al recargar el anuncio no sabe que ya
+ * se cerró. Reproducido simulando ese bloqueo.
+ *
+ * Ahora se intentan tres, en orden de permanencia: `localStorage` (sobrevive a
+ * todo), `sessionStorage` (sobrevive a recargas dentro de la pestaña) y, si
+ * los dos fallan, una variable de módulo que al menos aguanta mientras dure la
+ * navegación. Ninguno es imprescindible: el peor caso ya no es «reaparece
+ * siempre», sino «reaparece si cierras la pestaña y vuelves».
+ */
+let cerradoEnMemoria = false
+
+function marcarVisto(): void {
+  cerradoEnMemoria = true
+  for (const almacen of ['localStorage', 'sessionStorage'] as const) {
+    try {
+      window[almacen]?.setItem(LLAVE, '1')
+    } catch {
+      // Cada almacén puede fallar por su cuenta: se prueban los dos.
+    }
+  }
+  try {
+    // Y una cookie, que es el único recuerdo que sobrevive a un navegador con
+    // AMBOS almacenes bloqueados. 30 bytes que viajan en cada petición: un
+    // precio ridículo comparado con un anuncio que reaparece para siempre.
+    // `SameSite=Lax` y sin `Secure` para que valga también en local.
+    document.cookie = `${LLAVE}=1; max-age=2592000; path=/; SameSite=Lax`
+  } catch {
+    // Queda `cerradoEnMemoria`, que aguanta lo que dure la navegación.
+  }
+}
+
+function yaSeVio(): boolean {
+  if (cerradoEnMemoria) return true
+  for (const almacen of ['localStorage', 'sessionStorage'] as const) {
+    try {
+      if (window[almacen]?.getItem(LLAVE)) return true
+    } catch {
+      // Un almacén que ni siquiera deja LEER no dice nada: se sigue probando.
+    }
+  }
+  try {
+    if (document.cookie.split('; ').some((c) => c.startsWith(`${LLAVE}=`))) return true
+  } catch {
+    // Sin cookies tampoco: se enseña, que es el fallo tolerable.
+  }
+  return false
+}
+
+/**
  * LA RUTA DEL CARTEL, cuando exista.
  *
  * Franco va a diseñar un póster y este anuncio será ese póster. Hasta que el
@@ -33,11 +93,7 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
 
   useEffect(() => {
     if (!activo) return
-    try {
-      if (window.localStorage?.getItem(LLAVE)) return
-    } catch {
-      // Un navegador que bloquea storage todavía puede mostrar el anuncio.
-    }
+    if (yaSeVio()) return
     // `showModal()` puede lanzar —si el diálogo ya está abierto, si el
     // navegador no lo implementa— y una excepción aquí dejaría el anuncio a
     // medias. El fallback lo abre igual: sin top layer, pero el `z-index` de
@@ -77,11 +133,7 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
   }
 
   function cerrar() {
-    try {
-      window.localStorage?.setItem(LLAVE, '1')
-    } catch {
-      // El cierre no depende de que el navegador permita persistirlo.
-    }
+    marcarVisto()
     dialogo.current?.close?.()
   }
 
