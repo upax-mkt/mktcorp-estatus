@@ -19,6 +19,7 @@ import {
   jsonb,
   primaryKey,
   uniqueIndex,
+  unique,
 } from 'drizzle-orm/pg-core'
 import type { RedesDeSala } from '@/dominio/redes'
 
@@ -200,7 +201,30 @@ export const reuniones = pgTable('reuniones', {
   participantes: jsonb('participantes').$type<unknown[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
+}, (t) => [
+  /**
+   * LA MISMA JUNTA NO SE AGENDA DOS VECES (1-sep-2026, migración 0046).
+   *
+   * Franco encontró 7 copias de "Estatus de agosto" de Zeus —misma sala,
+   * misma fecha, mismo título— nacidas en 26 segundos. Aquellas resultaron
+   * ser basura de una sesión de desarrollo apuntando a esta base; pero al
+   * investigarlo quedó claro que la tabla no tenía más unicidad que su `id`,
+   * y un `id` es un UUID nuevo en cada llamada: no impedía nada.
+   *
+   * `nullsNotDistinct` NO ES UN DETALLE: por defecto Postgres considera que
+   * dos NULL son distintos, así que un constraint normal dejaría pasar
+   * exactamente los comités sin sala (`sala_slug` nulo) —los "Comité de
+   * marca" repetidos que también aparecieron— mientras protege al resto. Es
+   * el agujero que el índice parecería tapar y no taparía.
+   *
+   * Es la mitad dura de la protección. `yaExisteLaMismaJunta`
+   * (`src/db/reuniones.ts`) da el mensaje legible; esto es lo que sobrevive a
+   * dos peticiones simultáneas, que es la forma exacta del doble clic.
+   */
+  unique('reuniones_misma_junta_no_se_repite')
+    .on(t.salaSlug, t.fecha, t.titulo)
+    .nullsNotDistinct(),
+])
 
 // ---- Documento (ronda 10, tarea 1) ----
 // Lo que se prepara PARA una reunión: la cara del deck. Nace vacía, igual

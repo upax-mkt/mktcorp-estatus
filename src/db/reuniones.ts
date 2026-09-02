@@ -16,7 +16,7 @@
  * Este módulo es una implementación nueva e independiente contra el esquema
  * nuevo (`esquema.reuniones`), no un refactor de la vieja.
  */
-import { and, asc, desc, eq, gte, inArray, lt } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
 import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import * as memoria from './store-memoria'
@@ -242,6 +242,55 @@ function esPlantillaConocida(id: string | null | undefined): boolean {
   return !id || PLANTILLAS.some((p) => p.id === id)
 }
 
+/**
+ * ¿YA ESTÁ ESTA MISMA JUNTA EN LA BASE? (1-sep-2026, a raíz de encontrar 7
+ * copias de "Estatus de agosto" de Zeus creadas en 26 segundos.)
+ *
+ * "La misma" = misma sala + mismo instante + mismo título. Definición
+ * conservadora a propósito: dos juntas de la misma sala a la misma hora con
+ * títulos distintos son plausibles —un estatus partido en dos bloques—; dos
+ * con el mismo título no lo son nunca. Ver el comentario largo del test en
+ * `reuniones.test.ts` para el caso que la motivó.
+ *
+ * ESTO SOLO ES LA MITAD DE LA PROTECCIÓN. Un `if` en el servidor no cubre la
+ * carrera de dos peticiones que llegan a la vez —justo lo que produce el
+ * doble clic que esto quiere evitar—: las dos consultan, las dos no ven nada,
+ * las dos insertan. La otra mitad es el índice único de la migración 0046,
+ * que sí lo cierra. Este `if` existe para dar un mensaje que se entienda, no
+ * un error de Postgres crudo; el índice existe para que sea verdad.
+ *
+ * SIN DB no se comprueba nada aquí: el store en memoria se recorre entero
+ * abajo, en la misma rama que ya sabe leerlo.
+ */
+async function yaExisteLaMismaJunta(
+  datos: Pick<DatosDeReunion, 'salaSlug' | 'fecha' | 'titulo'>,
+): Promise<boolean> {
+  const mismoTitulo = (t: string) => t === datos.titulo
+  const mismoInstante = (f: Date) => f.getTime() === datos.fecha.getTime()
+  const mismaSala = (s: string | null | undefined) => (s ?? null) === (datos.salaSlug ?? null)
+
+  if (!hayDB()) {
+    return memoria
+      .listarReunionesMemoria()
+      .some((f) => mismaSala(f.salaSlug) && mismoInstante(f.fecha) && mismoTitulo(f.titulo))
+  }
+
+  // `is null` y no `eq(..., null)`: en SQL `columna = NULL` nunca es cierto,
+  // y los comités sin sala son precisamente el caso que hay que cubrir.
+  const filas = await db()
+    .select({ id: esquema.reuniones.id })
+    .from(esquema.reuniones)
+    .where(
+      and(
+        datos.salaSlug ? eq(esquema.reuniones.salaSlug, datos.salaSlug) : isNull(esquema.reuniones.salaSlug),
+        eq(esquema.reuniones.fecha, datos.fecha),
+        eq(esquema.reuniones.titulo, datos.titulo),
+      ),
+    )
+    .limit(1)
+  return filas.length > 0
+}
+
 // ---- Escritura ----
 
 export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string }> {
@@ -285,6 +334,13 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
     )
   }
 
+  // LA MISMA JUNTA NO SE AGENDA DOS VECES (1-sep-2026) — ver
+  // `yaExisteLaMismaJunta`, arriba, y el índice único de la migración 0046
+  // que cierra la carrera que este `if` por sí solo no puede cerrar.
+  if (await yaExisteLaMismaJunta(datos)) {
+    throw new Error(`"${datos.titulo}" ya está agendada para esa fecha.`)
+  }
+
   const id = crypto.randomUUID()
   const ahora = new Date()
   const comun = {
@@ -312,11 +368,36 @@ export async function crearReunion(datos: DatosDeReunion): Promise<{ id: string 
   }
 
   if (hayDB()) {
-    await db().insert(esquema.reuniones).values(comun)
+    try {
+      await db().insert(esquema.reuniones).values(comun)
+    } catch (error) {
+      // LA CARRERA QUE EL `if` DE ARRIBA NO PUEDE GANAR: dos peticiones a la
+      // vez consultan, ninguna ve nada, las dos insertan — y aquí es donde el
+      // constraint de la migración 0046 para a la segunda. Sin esta
+      // traducción, quien hizo doble clic ve un error de Postgres en crudo
+      // ("duplicate key value violates unique constraint...") en lugar de la
+      // frase que sí explica qué pasó. Mismo mensaje que el camino normal, a
+      // propósito: para quien lo lee es el mismo hecho.
+      if (esViolacionDeUnicidad(error)) {
+        throw new Error(`"${datos.titulo}" ya está agendada para esa fecha.`)
+      }
+      throw error
+    }
   } else {
     memoria.insertarReunionMemoria({ ...comun, createdAt: ahora, updatedAt: ahora })
   }
   return { id }
+}
+
+/**
+ * `23505` es el `unique_violation` de Postgres. Se busca por CÓDIGO y no por
+ * el texto del mensaje —que cambia con la versión y con el idioma del
+ * servidor— y se mira también en `cause` porque el driver de Neon envuelve el
+ * error original ahí.
+ */
+function esViolacionDeUnicidad(error: unknown): boolean {
+  const codigo = (e: unknown) => (e as { code?: unknown } | null)?.code
+  return codigo(error) === '23505' || codigo((error as { cause?: unknown } | null)?.cause) === '23505'
 }
 
 export async function listarReuniones(): Promise<ReunionResumen[]> {

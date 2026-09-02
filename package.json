@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:prod": "node scripts/migrar-produccion.mjs",
+    "db:respaldo": "node scripts/respaldar-base.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",

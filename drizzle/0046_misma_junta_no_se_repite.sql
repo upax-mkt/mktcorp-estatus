@@ -1,0 +1,1 @@
+ALTER TABLE "reuniones" ADD CONSTRAINT "reuniones_misma_junta_no_se_repite" UNIQUE NULLS NOT DISTINCT("sala_slug","fecha","titulo");

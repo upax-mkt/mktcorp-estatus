@@ -104,13 +104,20 @@ describe('crearReunion', () => {
    * validación, que solo decide "¿se admite?", no "¿cómo se normaliza?".)
    */
   it('I3: `null` y `\'\'` siguen siendo clases válidas — "sin clasificar", no un rechazo', async () => {
+    // Las dos juntas llevan fecha y título DISTINTOS a propósito: al test solo
+    // le importa la plantilla, pero las dos `new Date()` que tenía antes caían
+    // en el mismo milisegundo con el mismo título y la misma sala, y desde la
+    // guarda anti-duplicado (1-sep) eso es exactamente lo que se rechaza. El
+    // fallo era del test, no de la regla.
     const { id: idNulo } = await crearReunion({
-      salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: null,
+      salaSlug: 'zeus', fecha: new Date('2026-09-01T16:00:00Z'), titulo: 'Sin clase', tipo: 'mensual', plantilla: null,
     })
     expect((await obtenerReunion(idNulo))!.plantilla).toBeNull()
 
     await expect(
-      crearReunion({ salaSlug: 'zeus', fecha: new Date(), titulo: 'x', tipo: 'mensual', plantilla: '' }),
+      crearReunion({
+        salaSlug: 'zeus', fecha: new Date('2026-09-02T16:00:00Z'), titulo: 'Con clase vacía', tipo: 'mensual', plantilla: '',
+      }),
     ).resolves.toBeDefined()
   })
 
@@ -173,6 +180,60 @@ describe('crearReunion', () => {
     // `salaEstaActiva` ni se llama — no hay sala de la que preguntar.
     await crearReunion({ salaSlug: null, fecha: new Date(), titulo: 'x', tipo: 'mensual' })
     expect(salaEstaActivaMock).not.toHaveBeenCalled()
+  })
+
+  /**
+   * LA MISMA JUNTA NO SE AGENDA DOS VECES (1-sep-2026, hallazgo de Franco:
+   * "veo muchísimas reuniones creadas repetidas").
+   *
+   * El 31-ago aparecieron en la base 7 copias de "Estatus de agosto" de Zeus
+   * —misma sala, misma fecha, mismo título— nacidas en 26 segundos. Aquel
+   * caso concreto resultó ser basura de una sesión de desarrollo apuntando a
+   * la base de producción, no un doble clic de nadie; pero al investigarlo
+   * quedó claro que NADA lo impedía: `crearReunion` genera un `crypto.randomUUID()`
+   * nuevo en cada llamada y la tabla solo tenía índice único en `id`. Un
+   * doble envío del formulario —o dos personas agendando la misma junta— las
+   * creaba por duplicado sin protestar.
+   *
+   * QUÉ CUENTA COMO "LA MISMA": sala + instante + título. Es la definición
+   * conservadora a propósito. Dos juntas de la misma sala a la misma hora con
+   * títulos distintos son plausibles (se parte un estatus en dos bloques);
+   * dos con el MISMO título no lo son nunca.
+   *
+   * VIVE AQUÍ, en la capa de datos, por el mismo motivo que `esPlantillaConocida`
+   * (ver su comentario en `reuniones.ts`): es la única puerta por la que todos
+   * los llamadores pasan. Y se dobla con un índice único en la base
+   * (migración 0046, `NULLS NOT DISTINCT` para que los comités sin sala
+   * también queden cubiertos) porque un `if` en el servidor no protege contra
+   * dos peticiones que llegan a la vez — la carrera que produce justo el
+   * doble clic que esto quiere evitar.
+   */
+  it('no admite dos veces la misma junta: misma sala, misma fecha, mismo título', async () => {
+    const fecha = new Date('2026-08-19T16:00:00Z')
+    await crearReunion({ salaSlug: 'zeus', fecha, titulo: 'Estatus de agosto', tipo: 'mensual' })
+    await expect(crearReunion({ salaSlug: 'zeus', fecha, titulo: 'Estatus de agosto', tipo: 'mensual' }))
+      .rejects.toThrow(/ya está agendada/i)
+  })
+
+  it('...y tampoco para un comité sin sala, donde el NULL no debe eximir de la regla', async () => {
+    const fecha = new Date('2026-08-31T17:00:00Z')
+    await crearReunion({ salaSlug: null, fecha, titulo: 'Comité de marca', tipo: 'mensual' })
+    await expect(crearReunion({ salaSlug: null, fecha, titulo: 'Comité de marca', tipo: 'mensual' }))
+      .rejects.toThrow(/ya está agendada/i)
+  })
+
+  it('pero dos juntas distintas a la misma hora sí pasan: lo que se repite es el título, no el hueco', async () => {
+    const fecha = new Date('2026-08-19T16:00:00Z')
+    await crearReunion({ salaSlug: 'zeus', fecha, titulo: 'Estatus de agosto', tipo: 'mensual' })
+    await expect(crearReunion({ salaSlug: 'zeus', fecha, titulo: 'Comité aparte', tipo: 'mensual' }))
+      .resolves.toBeTruthy()
+  })
+
+  it('y la misma junta en OTRA sala no es la misma junta', async () => {
+    const fecha = new Date('2026-08-19T16:00:00Z')
+    await crearReunion({ salaSlug: 'zeus', fecha, titulo: 'Estatus de agosto', tipo: 'mensual' })
+    await expect(crearReunion({ salaSlug: 'neracode', fecha, titulo: 'Estatus de agosto', tipo: 'mensual' }))
+      .resolves.toBeTruthy()
   })
 })
 
