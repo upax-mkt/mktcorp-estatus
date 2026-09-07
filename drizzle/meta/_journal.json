@@ -330,6 +330,13 @@
       "when": 1788308112566,
       "tag": "0046_misma_junta_no_se_repite",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788823933941,
+      "tag": "0047_interruptor_del_concurso",
+      "breakpoints": true
     }
   ]
 }

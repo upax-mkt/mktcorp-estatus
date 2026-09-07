@@ -7,7 +7,7 @@ import { MAX_ARCHIVOS, MAX_BYTES_ARCHIVO, TIPOS_IMAGEN_CONCURSO } from '@/concur
 import type { ArchivoPropuesta } from '@/concurso/validacion'
 import type { Persona } from '@/db/directorio'
 import type { PropuestaConcurso } from '@/db/concurso'
-import { actualizarPropuestaAction, crearPropuestaAction } from '@/app/concurso/acciones'
+import { actualizarPropuestaAction, crearPropuestaAction, eliminarMiPropuestaAction } from '@/app/concurso/acciones'
 
 function rutaSegura(nombre: string): string {
   const limpio = nombre.replace(/[^\w.\-]+/g, '-').replace(/\.{2,}/g, '.').slice(-80)
@@ -30,6 +30,7 @@ export function FormularioPropuesta({
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
+  const [confirmandoRetiro, setConfirmandoRetiro] = useState(false)
   const [pendiente, comenzar] = useTransition()
 
   // Sin squad no hay dupla posible —su única regla es unir squads distintos y
@@ -99,6 +100,24 @@ export function FormularioPropuesta({
     })
   }
 
+  /**
+   * RETIRAR LA PROPIA PROPUESTA. No es `enviar` con otro nombre: no sube nada,
+   * no valida campos y no tiene vuelta atrás, así que va por su cuenta y pide
+   * confirmación en dos tiempos —la misma forma que usa administración para
+   * borrar, y por la misma razón: el segundo botón dice qué se pierde.
+   */
+  function retirar() {
+    if (!existente || pendiente || subiendo) return
+    setError(null)
+    setOk(null)
+    setConfirmandoRetiro(false)
+    comenzar(async () => {
+      const resultado = await eliminarMiPropuestaAction(existente.id)
+      if (resultado.error) return setError(resultado.error)
+      setOk(resultado.ok ?? 'Propuesta retirada.')
+    })
+  }
+
   return (
     <form className={estilos.formulario} onSubmit={enviar}>
       <div className={estilos.formularioCabecera}>
@@ -130,6 +149,27 @@ export function FormularioPropuesta({
       <button className={estilos.botonPunk} type="submit" disabled={!tieneImagen || pendiente || subiendo}>
         {subiendo ? 'Subiendo imágenes…' : pendiente ? 'Guardando…' : existente ? 'Guardar cambios' : 'Lanzar propuesta'}
       </button>
+
+      {/* RETIRAR SOLO APARECE SI YA HAY PROPUESTA, y siempre debajo de guardar:
+          es la salida, no una alternativa a la misma altura. `type="button"`
+          en los dos, o el primero enviaría el formulario. */}
+      {existente && (
+        <div className={estilos.adminAcciones}>
+          {confirmandoRetiro ? (
+            <span className={estilos.adminConfirmar}>
+              <strong>Se borra tu propuesta y sus imágenes. No se puede deshacer.</strong>
+              <button type="button" className={estilos.adminBorrar} disabled={pendiente || subiendo} onClick={retirar}>
+                Sí, retirarla
+              </button>
+              <button type="button" disabled={pendiente || subiendo} onClick={() => setConfirmandoRetiro(false)}>Cancelar</button>
+            </span>
+          ) : (
+            <button type="button" className={estilos.adminBorrar} disabled={pendiente || subiendo} onClick={() => setConfirmandoRetiro(true)}>
+              Retirar mi propuesta
+            </button>
+          )}
+        </div>
+      )}
     </form>
   )
 }

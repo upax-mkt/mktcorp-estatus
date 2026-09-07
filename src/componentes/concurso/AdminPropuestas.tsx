@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
 import type { PropuestaConcurso } from '@/db/concurso'
-import { eliminarPropuestaAction, establecerVisibilidadPropuestaAction } from '@/app/concurso/acciones'
+import { editarPropuestaComoAdminAction, eliminarPropuestaAction, establecerVisibilidadPropuestaAction } from '@/app/concurso/acciones'
+import { LIMITE_DESCRIPCION } from '@/concurso/config'
 
 /**
  * EL ADMINISTRADOR DE PROPUESTAS, con lo que hace falta para decidir sobre ellas.
@@ -29,6 +30,13 @@ export function AdminPropuestas({ propuestas }: { propuestas: PropuestaConcurso[
   const [mensaje, setMensaje] = useState<string | null>(null)
   /** Qué propuesta está pidiendo confirmación de borrado. */
   const [borrando, setBorrando] = useState<string | null>(null)
+  /**
+   * Qué propuesta se está corrigiendo, y su texto en curso. Un solo borrador
+   * para toda la lista: solo se edita una a la vez, y guardar varios a medias
+   * invitaría a perderlos al recargar sin avisar de nada.
+   */
+  const [editando, setEditando] = useState<string | null>(null)
+  const [borrador, setBorrador] = useState({ titulo: '', descripcion: '' })
 
   function ejecutar(accion: () => Promise<{ error?: string; ok?: string }>) {
     setError(null)
@@ -91,6 +99,17 @@ export function AdminPropuestas({ propuestas }: { propuestas: PropuestaConcurso[
                 {p.oculta ? 'Volver a publicar' : 'Ocultar de la galería'}
               </button>
 
+              <button
+                type="button"
+                disabled={pendiente}
+                onClick={() => {
+                  setEditando(editando === p.id ? null : p.id)
+                  setBorrador({ titulo: p.titulo, descripcion: p.descripcion })
+                }}
+              >
+                {editando === p.id ? 'Cancelar edición' : 'Corregir texto'}
+              </button>
+
               {/* BORRAR PIDE CONFIRMACIÓN EN DOS TIEMPOS, y no un `confirm()`
                   del navegador: esto no tiene deshacer —se lleva la propuesta,
                   sus imágenes y los votos que hubiera recibido— y el segundo
@@ -109,6 +128,48 @@ export function AdminPropuestas({ propuestas }: { propuestas: PropuestaConcurso[
                 </button>
               )}
             </div>
+
+            {/* CORREGIR TEXTO, NO REHACER LA PROPUESTA. Título y concepto y
+                nada más: cambiar las imágenes desde aquí obligaría a subir
+                binarios a Blob en nombre de otra persona y a dejar huérfanos
+                los suyos. Para eso está el interruptor de fase — se reabre la
+                recepción y corrige quien tiene el archivo. */}
+            {editando === p.id && (
+              <div className={estilos.adminEditar}>
+                <label>
+                  <span>Nombre de la propuesta</span>
+                  <input
+                    value={borrador.titulo}
+                    onChange={(e) => setBorrador({ ...borrador, titulo: e.target.value })}
+                    minLength={2}
+                    maxLength={80}
+                  />
+                </label>
+                <label>
+                  <span>Concepto</span>
+                  <textarea
+                    value={borrador.descripcion}
+                    onChange={(e) => setBorrador({ ...borrador, descripcion: e.target.value })}
+                    maxLength={LIMITE_DESCRIPCION}
+                    rows={4}
+                  />
+                  <small>{borrador.descripcion.length}/{LIMITE_DESCRIPCION}</small>
+                </label>
+                <div className={estilos.adminAcciones}>
+                  <button
+                    type="button"
+                    disabled={pendiente}
+                    onClick={() => {
+                      setEditando(null)
+                      ejecutar(() => editarPropuestaComoAdminAction(p.id, borrador))
+                    }}
+                  >
+                    Guardar corrección
+                  </button>
+                  <button type="button" disabled={pendiente} onClick={() => setEditando(null)}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
         </article>
       ))}

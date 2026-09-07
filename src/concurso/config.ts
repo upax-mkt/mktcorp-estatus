@@ -9,15 +9,21 @@ export const CONCURSO_ID = 'sudadera-mkt-corp-2026'
  * entera; escribir una fecha a mano en una pantalla vuelve a abrir la fuga que
  * `fuente-unica.test.ts` cierra.
  *
- * PRÓRROGA (7-sep-2026, decisión de Franco): la recepción cerraba hoy a las
- * 11:00 y se corre al miércoles a las 10:00. La votación arranca ahí mismo y
- * corre hasta las 15:00, que es cuando empieza la premiación en vivo en Sky
- * Lobby. `cierreVotacion` y `ceremonia` coinciden a propósito: no hay ventana
- * muerta entre «se cierra el pase» y «se revela el ganador».
+ * PRÓRROGA (7-sep-2026, decisión de Franco): la recepción cerraba el 7 a las
+ * 11:00 y se corrió al miércoles. La votación arranca al cerrarse la recepción
+ * y corre hasta las 15:00, que es cuando empieza la premiación en vivo.
+ * `cierreVotacion` y `ceremonia` coinciden a propósito: no hay ventana muerta
+ * entre «se cierra el pase» y «se revela el ganador».
+ *
+ * SEGUNDA PRÓRROGA (9-sep-2026, decisión de César): de las 10:00 a las 13:00.
+ * La recepción se cerró sola a las 10:00 con gente todavía subiendo, y se
+ * reabre hasta la una. SOLO SE MUEVE `cierrePropuestas`: la premiación sigue
+ * clavada a las 15:00 porque es un acto presencial ya convocado, así que lo
+ * que se acorta es la votación —de cinco horas a dos—, no la ceremonia.
  */
 export const FECHAS_CONCURSO = {
   lanzamiento: new Date('2026-08-28T00:00:00-06:00'),
-  cierrePropuestas: new Date('2026-09-09T10:00:00-06:00'),
+  cierrePropuestas: new Date('2026-09-09T13:00:00-06:00'),
   cierreVotacion: new Date('2026-09-09T15:00:00-06:00'),
   ceremonia: new Date('2026-09-09T15:00:00-06:00'),
 } as const

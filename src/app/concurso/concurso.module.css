@@ -477,6 +477,29 @@
 .adminConfirmar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem .7rem; border: 2px solid #c1121f; background: #fff5f5; }
 .adminConfirmar strong { font-size: .78rem; color: #7a0b14; }
 
+/* EL INTERRUPTOR DE FASE. Va arriba del todo en administración y separado por
+   una regla gruesa: no es una acción sobre una propuesta, es sobre el concurso
+   entero, y confundirlo con los botones de una ficha sería caro. */
+.faseControl { margin: 0 0 1.4rem; padding: .9rem 1rem; border: 3px solid var(--negro); background: #f4f4f4; }
+.faseControl h4 { margin: 0 0 .2rem; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+.faseEstado { margin: 0 0 .7rem; font-size: .85rem; line-height: 1.45; }
+.faseEstado strong { text-transform: uppercase; letter-spacing: .04em; }
+.faseManual { color: #7a0b14; }
+.faseBotones { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.faseBotones button { padding: .5rem .8rem; border: 2px solid var(--negro); background: #fff; font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.faseBotones button:hover { background: var(--negro); color: #fff; }
+.faseBotones button:disabled { opacity: .5; cursor: default; }
+.faseActiva { background: var(--negro) !important; color: #fff; }
+.faseAuto { border-color: #1b7f3b !important; color: #1b7f3b; }
+.faseAuto:hover { background: #1b7f3b !important; color: #fff; }
+
+/* La edición de texto desde administración: campos sobrios dentro de la ficha,
+   para que no compitan con la imagen, que es lo que se viene a mirar. */
+.adminEditar { display: grid; gap: .5rem; margin-top: .6rem; padding: .7rem; border: 2px dashed var(--negro); background: #fff; }
+.adminEditar label { display: grid; gap: .2rem; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.adminEditar input, .adminEditar textarea { padding: .45rem .55rem; border: 2px solid var(--negro); background: #fff; font: inherit; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.adminEditar small { font-size: .7rem; color: #555; }
+
 @media (max-width: 720px) {
   .adminFicha { grid-template-columns: 1fr; }
   .adminImagenes img { max-height: 12rem; }

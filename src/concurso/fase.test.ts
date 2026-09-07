@@ -3,8 +3,8 @@ import { faseDelConcurso } from './fase'
 import { FECHAS_CONCURSO } from './config'
 
 describe('faseDelConcurso', () => {
-  it('recibe propuestas hasta el 9 de septiembre a las 10:00 CDMX', () => {
-    expect(faseDelConcurso(new Date('2026-09-09T09:59:59-06:00'))).toBe('recepcion')
+  it('recibe propuestas hasta el 9 de septiembre a las 13:00 CDMX', () => {
+    expect(faseDelConcurso(new Date('2026-09-09T12:59:59-06:00'))).toBe('recepcion')
   })
 
   it('sigue en recepción el lunes 7, que era el cierre viejo (prórroga de Franco)', () => {
@@ -12,8 +12,17 @@ describe('faseDelConcurso', () => {
     expect(faseDelConcurso(new Date('2026-09-08T18:00:00-06:00'))).toBe('recepcion')
   })
 
+  /**
+   * Y sigue abierta a las 10:00 del miércoles, que fue el cierre que se movió
+   * el propio día (segunda prórroga, de César): a esa hora se cerró sola con
+   * gente todavía subiendo.
+   */
+  it('sigue en recepción a las 10:00 del miércoles, tras la segunda prórroga', () => {
+    expect(faseDelConcurso(new Date('2026-09-09T10:00:00-06:00'))).toBe('recepcion')
+  })
+
   it('abre galería y votación exactamente al cerrar propuestas', () => {
-    expect(faseDelConcurso(new Date('2026-09-09T10:00:00-06:00'))).toBe('votacion')
+    expect(faseDelConcurso(new Date('2026-09-09T13:00:00-06:00'))).toBe('votacion')
     expect(faseDelConcurso(new Date('2026-09-09T14:59:59-06:00'))).toBe('votacion')
   })
 
@@ -26,5 +35,18 @@ describe('faseDelConcurso', () => {
   it('revela resultados en la ceremonia del miércoles a las 15:00, sin fase intermedia', () => {
     expect(FECHAS_CONCURSO.cierreVotacion.getTime()).toBe(FECHAS_CONCURSO.ceremonia.getTime())
     expect(faseDelConcurso(new Date('2026-09-09T15:00:00-06:00'))).toBe('resultados')
+  })
+
+  /**
+   * Lo mismo, pero barriendo el tramo entero en vez de un instante suelto: si
+   * alguien reabre el hueco, la premiación enseñaría una cuenta regresiva en
+   * lugar del ganador.
+   */
+  it('no deja ningún hueco cerrado entre el voto y el resultado', () => {
+    const arranque = FECHAS_CONCURSO.cierrePropuestas.getTime()
+    for (let minuto = 0; minuto <= 60 * 4; minuto += 5) {
+      const instante = new Date(arranque + minuto * 60_000)
+      expect(faseDelConcurso(instante), instante.toISOString()).not.toBe('cerrado')
+    }
   })
 })

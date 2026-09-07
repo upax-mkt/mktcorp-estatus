@@ -45,7 +45,7 @@ const PREVIAS: Record<string, { titulo: string; descripcion: string; imagen?: st
   '/concurso': {
     titulo: 'Diseña lo que somos · Concurso interno 2026',
     descripcion:
-      'Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el 7 de septiembre: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.',
+      'Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el 9 de septiembre: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.',
     imagen: '/concurso/og-concurso.png',
   },
 }

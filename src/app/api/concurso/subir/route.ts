@@ -1,7 +1,7 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextResponse, type NextRequest } from 'next/server'
 import { esLector } from '@/auth/roles'
-import { faseDelConcurso } from '@/concurso/fase'
+import { faseActualConcurso } from '@/db/concurso'
 import { MAX_BYTES_ARCHIVO, TIPOS_IMAGEN_CONCURSO } from '@/concurso/config'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname) => {
         if (!(await esLector())) throw new Error('Inicia sesión con tu cuenta de Marketing Corporativo.')
-        if (faseDelConcurso() !== 'recepcion') throw new Error('La recepción de propuestas ya cerró.')
+        if (await faseActualConcurso() !== 'recepcion') throw new Error('La recepción de propuestas ya cerró.')
         if (!pathname.startsWith('concurso/sudadera-mkt-corp-2026/')) {
           throw new Error('Ruta de archivo inválida.')
         }

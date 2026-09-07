@@ -6,9 +6,9 @@ import { db, hayDB } from './cliente'
 import * as esquema from './esquema'
 import { buscarPersona, listarPersonas, normalizarCorreo, type Persona } from './directorio'
 import { CONCURSO_ID } from '@/concurso/config'
-import { faseDelConcurso } from '@/concurso/fase'
+import { faseVigente, type FaseConcurso } from '@/concurso/fase'
 import { filasDeImagenes } from '@/concurso/filas-imagenes'
-import { validarIntegrantes, validarPropuesta, type ArchivoPropuesta } from '@/concurso/validacion'
+import { validarIntegrantes, validarPropuesta, validarTextoPropuesta, type ArchivoPropuesta } from '@/concurso/validacion'
 import { puntajeFinal } from '@/concurso/resultados'
 
 export interface PropuestaConcurso {
@@ -40,11 +40,21 @@ function exigirBase(): void {
   if (!hayDB()) throw new Error('Sin base de datos no se puede operar el concurso.')
 }
 
+/**
+ * TRADUCE UN FALLO DE POSTGRES A ALGO QUE UNA PERSONA PUEDA LEER.
+ *
+ * ⚠️ Y SOBRE TODO, NO DEVUELVE EL ERROR CRUDO. Drizzle mete la consulta
+ * entera y sus parámetros en `message`; devolverlo tal cual lo pintaba en el
+ * formulario del concurso, y el 7-sep-2026 quien intentó reemplazar su imagen
+ * se encontró en pantalla el CTE completo con su correo dentro. El detalle
+ * técnico sigue viajando en `cause` para quien lea los logs; a la pantalla
+ * solo llega la frase.
+ */
 function errorDeBase(error: unknown): Error {
   if (error instanceof Error && /integrantes_propuesta_concurso.*(pk|unique)|duplicate key/i.test(error.message)) {
     return new Error('Uno de los participantes ya forma parte de otra propuesta.')
   }
-  return error instanceof Error ? error : new Error('No se pudo completar la operación.')
+  return new Error('No se pudo guardar en la base. Intenta de nuevo o avisa a quien organiza.', { cause: error })
 }
 
 function secretoDeVoto(): string {
@@ -63,6 +73,63 @@ export function hashVotante(correo: string): string {
 
 export async function participantesElegibles(): Promise<Persona[]> {
   return (await listarPersonas()).filter((p) => p.activa && p.squad !== null)
+}
+
+/**
+ * LA FASE QUE MANDA AHORA MISMO: el interruptor de administración si está
+ * puesto, y si no el calendario.
+ *
+ * ⚠️ TODO EL CONCURSO PASA POR AQUÍ, y esa es la única forma de que el
+ * interruptor sirva de algo. Si una sola comprobación siguiera midiendo las
+ * fechas por su cuenta, cerrar la votación desde la pantalla dejaría esa
+ * puerta abierta —y las puertas son subir imágenes, votar, ver la galería y
+ * publicar el resultado—. `fase.ts` conserva la función de fechas pura porque
+ * es lo que esta compone; fuera de aquí, nadie debería llamarla.
+ */
+export async function faseActualConcurso(ahora = new Date()): Promise<FaseConcurso> {
+  return faseVigente(await faseForzadaConcurso(), ahora)
+}
+
+/**
+ * El valor crudo del interruptor: `null` es automático. Lo lee la administración.
+ *
+ * ⚠️ SI LA LECTURA FALLA, SE SIGUE EL CALENDARIO en vez de reventar. No es
+ * tragarse errores por comodidad: Vercel despliega al hacer push y la
+ * migración de `ajustes_concurso` se corre a mano, así que existe una ventana
+ * real en la que este código está vivo y la tabla todavía no. Sin esta red,
+ * esa ventana tumba el home, la página del concurso y la subida de imágenes
+ * —las tres preguntan la fase— por una tabla que solo sirve para un
+ * interruptor que nadie ha tocado aún.
+ *
+ * Y no esconde el problema: ESCRIBIR no lleva red. Si la tabla falta, quien
+ * administre verá el error en cuanto pulse un botón de fase, que es justo
+ * cuando importa saberlo.
+ */
+export async function faseForzadaConcurso(): Promise<FaseConcurso | null> {
+  if (!hayDB()) return null
+  try {
+    const fila = (await db().select({ faseForzada: esquema.ajustesConcurso.faseForzada })
+      .from(esquema.ajustesConcurso)
+      .where(eq(esquema.ajustesConcurso.concursoId, CONCURSO_ID))
+      .limit(1))[0]
+    return (fila?.faseForzada as FaseConcurso | null) ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Fija el interruptor, o lo suelta con `null` para volver al calendario.
+ * Queda escrito quién lo movió: abrir o cerrar la votación decide un premio.
+ */
+export async function establecerFaseConcurso(fase: FaseConcurso | null, quien: string): Promise<void> {
+  exigirBase()
+  await db().insert(esquema.ajustesConcurso)
+    .values({ concursoId: CONCURSO_ID, faseForzada: fase, cambiadaPor: quien, cambiadaEn: new Date() })
+    .onConflictDoUpdate({
+      target: esquema.ajustesConcurso.concursoId,
+      set: { faseForzada: fase, cambiadaPor: quien, cambiadaEn: new Date() },
+    })
 }
 
 export async function participantesDisponiblesConcurso(): Promise<Persona[]> {
@@ -96,7 +163,7 @@ export async function crearPropuestaConcurso(
   ahora = new Date(),
 ): Promise<string> {
   exigirBase()
-  if (faseDelConcurso(ahora) !== 'recepcion') throw new Error('La recepción de propuestas ya cerró.')
+  if (await faseActualConcurso(ahora) !== 'recepcion') throw new Error('La recepción de propuestas ya cerró.')
   const errores = validarPropuesta(datos)
   if (errores.length > 0) throw new Error(errores[0])
   const integrantes = await integrantesConfiables(autorCorreo, datos.coautorCorreo)
@@ -145,6 +212,30 @@ export async function crearPropuestaConcurso(
   }
 }
 
+/**
+ * EDITAR UNA PROPUESTA: título, concepto e imágenes, todo o nada.
+ *
+ * ⚠️ ESTO NO PUEDE SER UN SOLO CTE, y el motivo es exactamente por qué nadie
+ * pudo reemplazar su imagen el 7-sep-2026.
+ *
+ * Antes era una sentencia con `borradas` (DELETE) e `imagenes` (INSERT) en el
+ * mismo `WITH`. Las subconsultas de un CTE comparten snapshot y no ven los
+ * efectos de las otras: cuando el INSERT comprueba el índice único
+ * `imagenes_propuesta_orden_unico` sobre (propuesta_id, orden), la fila que el
+ * DELETE acaba de marcar SIGUE AHÍ para esa comprobación. Reemplazar la imagen
+ * de orden 1 por otra de orden 1 —o sea, el caso normal, porque `filasDeImagenes`
+ * numera desde 1— moría siempre con clave duplicada.
+ *
+ * `batch()` manda las tres sentencias en UNA transacción, pero como COMANDOS
+ * SEPARADOS: cuando corre el INSERT, el DELETE ya ocurrió de verdad. No sirve
+ * `db().transaction()`: el driver HTTP de Neon no tiene transacciones
+ * interactivas y lanza «No transactions support in neon-http driver».
+ *
+ * EL PERMISO VIAJA EN LAS TRES, no solo en la primera. Un lote no se puede
+ * abortar a media marcha en función de lo que devolvió la anterior, así que
+ * cada sentencia repite el `EXISTS`: quien no es integrante no encaja en
+ * ninguna y el lote entero no escribe nada.
+ */
 export async function actualizarPropuestaConcurso(
   propuestaId: string,
   autorCorreo: string,
@@ -152,7 +243,7 @@ export async function actualizarPropuestaConcurso(
   ahora = new Date(),
 ): Promise<void> {
   exigirBase()
-  if (faseDelConcurso(ahora) !== 'recepcion') throw new Error('La recepción de propuestas ya cerró.')
+  if (await faseActualConcurso(ahora) !== 'recepcion') throw new Error('La recepción de propuestas ya cerró.')
   const correo = normalizarCorreo(autorCorreo)
   if (!correo) throw new Error('La sesión no contiene un correo válido.')
   const errores = validarPropuesta(datos)
@@ -161,37 +252,45 @@ export async function actualizarPropuestaConcurso(
   // dominio es camelCase y `jsonb_to_recordset` lee los nombres de columna.
   // Ver el comentario de ese módulo: mezclarlos dejó el concurso inservible.
   const imagenesJson = JSON.stringify(filasDeImagenes(datos.archivos, randomUUID))
+  const esIntegrante = sql`EXISTS (
+    SELECT 1 FROM ${esquema.integrantesPropuestaConcurso}
+    WHERE propuesta_id = ${propuestaId} AND correo = ${correo}
+  )`
 
-  const resultado = await db().execute<{ id: string }>(sql`
-    WITH actualizada AS (
+  const lote = await db().batch([
+    db().execute<{ id: string }>(sql`
       UPDATE ${esquema.propuestasConcurso}
       SET titulo = ${datos.titulo.trim()}, descripcion = ${datos.descripcion.trim()}, actualizada_en = now()
-      WHERE id = ${propuestaId} AND concurso_id = ${CONCURSO_ID}
-        AND EXISTS (
-          SELECT 1 FROM ${esquema.integrantesPropuestaConcurso}
-          WHERE propuesta_id = ${propuestaId} AND correo = ${correo}
-        )
+      WHERE id = ${propuestaId} AND concurso_id = ${CONCURSO_ID} AND ${esIntegrante}
       RETURNING id
-    ), borradas AS (
+    `),
+    db().execute(sql`
       DELETE FROM ${esquema.imagenesPropuestaConcurso}
-      WHERE propuesta_id IN (SELECT id FROM actualizada)
-      RETURNING propuesta_id
-    ), imagenes AS (
+      WHERE propuesta_id = ${propuestaId} AND ${esIntegrante}
+    `),
+    db().execute<{ propuesta_id: string }>(sql`
       INSERT INTO ${esquema.imagenesPropuestaConcurso}
         (id, propuesta_id, ruta, nombre_original, tipo_contenido, tamano_bytes, orden)
-      SELECT entrada.id, actualizada.id, entrada.ruta, entrada.nombre_original,
+      SELECT entrada.id, ${propuestaId}, entrada.ruta, entrada.nombre_original,
         entrada.tipo_contenido, entrada.tamano_bytes, entrada.orden
-      FROM actualizada,
-        jsonb_to_recordset(${imagenesJson}::jsonb) AS entrada(
-          id text, ruta text, nombre_original text, tipo_contenido text,
-          tamano_bytes integer, orden integer
-        )
+      FROM jsonb_to_recordset(${imagenesJson}::jsonb) AS entrada(
+        id text, ruta text, nombre_original text, tipo_contenido text,
+        tamano_bytes integer, orden integer
+      )
+      WHERE ${esIntegrante}
       RETURNING propuesta_id
-    )
-    SELECT id FROM actualizada
-    WHERE (SELECT count(*) FROM imagenes) = ${datos.archivos.length}
-  `)
-  if (!resultado.rows[0]) throw new Error('No encontramos una propuesta tuya para editar.')
+    `),
+  ]).catch((error) => {
+    throw errorDeBase(error)
+  })
+
+  // Sin propuesta propia las tres sentencias no tocaron una sola fila: el lote
+  // ya cerró, pero no dejó nada escrito, así que basta con decirlo.
+  const [actualizada, , insertadas] = lote
+  if (!actualizada.rows[0]) throw new Error('No encontramos una propuesta tuya para editar.')
+  if (insertadas.rows.length !== datos.archivos.length) {
+    throw new Error('No se guardaron todas las imágenes de la propuesta.')
+  }
 }
 
 async function ensamblarPropuestas(ids?: string[]): Promise<PropuestaConcurso[]> {
@@ -281,7 +380,7 @@ export async function galeriaConcurso(
   ahora = new Date(),
   correoDeQuienMira?: string | null,
 ): Promise<PropuestaAnonima[]> {
-  const fase = faseDelConcurso(ahora)
+  const fase = await faseActualConcurso(ahora)
   if (fase === 'recepcion') return []
   const mio = correoDeQuienMira ? normalizarCorreo(correoDeQuienMira) : null
   return (await ensamblarPropuestas())
@@ -328,9 +427,77 @@ export async function eliminarPropuestaConcurso(propuestaId: string): Promise<st
   return rutas
 }
 
+/**
+ * CORRECCIÓN DE ADMINISTRACIÓN: título y concepto de una propuesta ajena.
+ *
+ * No pasa por `actualizarPropuestaConcurso` porque no comparte ni una de sus
+ * dos guardas: no exige ser integrante —el sentido de esto es corregir lo de
+ * otra persona— ni exige fase de recepción, porque una falta de ortografía en
+ * el título se descubre justo cuando la galería se abre y todo el mundo la lee.
+ *
+ * ⚠️ NO TOCA LAS IMÁGENES, y es deliberado. Reemplazarlas exige subir binarios
+ * a Blob desde el navegador de quien administra y dejar huérfanos los
+ * anteriores; para eso está el interruptor de fase: se reabre la recepción y
+ * quien firma la propuesta la corrige, que además es quien tiene el archivo.
+ *
+ * El texto se mide con `validarTextoPropuesta`, la misma vara que el
+ * formulario: administrar no es poder dejar un título de una letra.
+ */
+export async function editarPropuestaComoAdmin(
+  propuestaId: string,
+  datos: { titulo: string; descripcion: string },
+): Promise<void> {
+  exigirBase()
+  const errores = validarTextoPropuesta(datos)
+  if (errores.length > 0) throw new Error(errores[0])
+  const filas = await db().update(esquema.propuestasConcurso)
+    .set({ titulo: datos.titulo.trim(), descripcion: datos.descripcion.trim(), actualizadaEn: new Date() })
+    .where(and(
+      eq(esquema.propuestasConcurso.id, propuestaId),
+      eq(esquema.propuestasConcurso.concursoId, CONCURSO_ID),
+    ))
+    .returning({ id: esquema.propuestasConcurso.id })
+  if (!filas[0]) throw new Error('Esa propuesta ya no existe.')
+}
+
+/**
+ * QUIEN SUBIÓ SU PROPUESTA PUEDE RETIRARLA, sin pedírselo a nadie.
+ *
+ * Reutiliza el borrado de administración —mismo orden de tablas, mismos
+ * binarios devueltos— y solo le antepone las dos guardas que la diferencian:
+ *
+ *  1. HAY QUE SER INTEGRANTE. Se comprueba contra la propuesta que se va a
+ *     borrar, no contra la que dice quien pide.
+ *  2. SOLO EN RECEPCIÓN. Retirarla con la votación abierta se llevaría por
+ *     delante los votos que otras personas ya emitieron —`eliminar` los borra
+ *     primero, porque su clave foránea no cae en cascada—, y nadie debería
+ *     poder anular el voto ajeno cerrando su propia puerta. Cuando la galería
+ *     ya está abierta, retirar algo es decisión de administración.
+ */
+export async function eliminarMiPropuestaConcurso(
+  propuestaId: string,
+  correoSesion: string,
+  ahora = new Date(),
+): Promise<string[]> {
+  exigirBase()
+  if (await faseActualConcurso(ahora) !== 'recepcion') {
+    throw new Error('Con la galería abierta ya no puedes retirarla; pídeselo a quien organiza.')
+  }
+  const correo = normalizarCorreo(correoSesion)
+  if (!correo) throw new Error('La sesión no contiene un correo válido.')
+  const miembro = (await db().select({ correo: esquema.integrantesPropuestaConcurso.correo })
+    .from(esquema.integrantesPropuestaConcurso)
+    .where(and(
+      eq(esquema.integrantesPropuestaConcurso.propuestaId, propuestaId),
+      eq(esquema.integrantesPropuestaConcurso.correo, correo),
+    )).limit(1))[0]
+  if (!miembro) throw new Error('No encontramos una propuesta tuya para retirar.')
+  return eliminarPropuestaConcurso(propuestaId)
+}
+
 export async function registrarVotoConcurso(correoSesion: string, propuestaId: string, ahora = new Date()): Promise<void> {
   exigirBase()
-  if (faseDelConcurso(ahora) !== 'votacion') throw new Error('La votación no está abierta.')
+  if (await faseActualConcurso(ahora) !== 'votacion') throw new Error('La votación no está abierta.')
   const votante = await buscarPersona(correoSesion)
   if (!votante || !votante.activa) throw new Error('Tu perfil no está activo en Personas.')
   const propuesta = (await ensamblarPropuestas([propuestaId]))[0]
@@ -378,7 +545,7 @@ export async function imagenConcursoParaServir(
     .where(eq(esquema.imagenesPropuestaConcurso.id, imagenId)).limit(1))[0]
   if (!fila) return null
   if (fila.oculta && !admin) return null
-  if (faseDelConcurso(ahora) !== 'recepcion') return fila
+  if (await faseActualConcurso(ahora) !== 'recepcion') return fila
   if (admin) return fila
   const correo = normalizarCorreo(correoSesion)
   if (!correo) return null
@@ -392,7 +559,7 @@ export async function imagenConcursoParaServir(
 }
 
 export async function resultadosConcurso(ahora = new Date()): Promise<ResultadoConcurso[]> {
-  if (faseDelConcurso(ahora) !== 'resultados' || !hayDB()) return []
+  if (!hayDB() || await faseActualConcurso(ahora) !== 'resultados') return []
   /**
    * Aquí SÍ se leen las propuestas con su autor, y no la versión anónima.
    * El anonimato cubre la votación —para que nadie vote por quién firma en vez

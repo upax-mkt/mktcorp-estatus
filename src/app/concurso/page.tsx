@@ -8,6 +8,8 @@ import { puedeLeer } from '@/auth/politica'
 import { cerrarSesion, sesionActual } from '@/auth/sesion'
 import { buscarPersona, normalizarCorreo } from '@/db/directorio'
 import {
+  faseActualConcurso,
+  faseForzadaConcurso,
   galeriaConcurso,
   participantesDisponiblesConcurso,
   propuestaDePersona,
@@ -16,7 +18,6 @@ import {
   votoDePersona,
   hashVotante,
 } from '@/db/concurso'
-import { faseDelConcurso } from '@/concurso/fase'
 import { CEREMONIA, FECHAS_CONCURSO } from '@/concurso/config'
 import { diaDelMes, diaYFecha, fechaCorta, fechaLarga, franjaCeremonia, hora, horaCompacta, mismoDia } from '@/concurso/textos'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
@@ -100,7 +101,7 @@ export default async function PaginaConcurso() {
   const identificado = puedeLeer(sesion)
   await connection()
   const ahora = new Date()
-  const fase = faseDelConcurso(ahora)
+  const fase = await faseActualConcurso(ahora)
   const correo = identificado && sesion?.sub ? normalizarCorreo(sesion.sub) : null
 
   async function salir() {
@@ -110,7 +111,7 @@ export default async function PaginaConcurso() {
   }
 
   const admin = identificado ? await esAdmin() : false
-  const [persona, propia, disponibles, galeria, voto, resultados, clientes, propuestasAdmin] = await Promise.all([
+  const [persona, propia, disponibles, galeria, voto, resultados, clientes, propuestasAdmin, faseForzada] = await Promise.all([
     correo ? buscarPersona(correo) : null,
     correo ? propuestaDePersona(correo) : null,
     fase === 'recepcion' ? participantesDisponiblesConcurso() : [],
@@ -119,6 +120,7 @@ export default async function PaginaConcurso() {
     resultadosConcurso(ahora),
     clientesParaBarra(),
     admin ? propuestasAdministracionConcurso() : [],
+    admin ? faseForzadaConcurso() : null,
   ])
 
   /**
@@ -254,7 +256,7 @@ export default async function PaginaConcurso() {
               </ul>
             </div>
           </section>
-          {admin && <PanelJurado propuestas={propuestasAdmin} />}
+          {admin && <PanelJurado propuestas={propuestasAdmin} faseActual={fase} faseForzada={faseForzada} />}
           {/* SIN SQUAD TAMBIÉN SE PARTICIPA. El formulario se condicionaba a
               `persona.squad`, así que quien no pertenece a ningún squad —el CMO,
               que está por encima de los seis, y las personas indirectas— no

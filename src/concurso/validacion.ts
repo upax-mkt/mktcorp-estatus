@@ -51,12 +51,26 @@ export function validarIntegrantes(integrantes: IntegrantePropuesta[]): string[]
   return errores
 }
 
-export function validarPropuesta(datos: DatosPropuesta): string[] {
+/**
+ * LAS REGLAS DEL TEXTO, SEPARADAS DE LAS DE LA IMAGEN.
+ *
+ * Existe porque quien administra puede corregir el título o el concepto de una
+ * propuesta ajena —una falta de ortografía, un nombre que no cumple las bases—
+ * sin volver a subir sus imágenes. Esa corrección tiene que medirse con la
+ * MISMA vara que la propuesta original: si vivieran en dos sitios, el admin
+ * podría dejar un título de una letra que el formulario nunca habría aceptado.
+ */
+export function validarTextoPropuesta(datos: Pick<DatosPropuesta, 'titulo' | 'descripcion'>): string[] {
   const errores: string[] = []
   const titulo = datos.titulo.trim()
   if (titulo.length < 2 || titulo.length > 80) errores.push('El nombre debe tener entre 2 y 80 caracteres.')
   if (datos.descripcion.trim().length === 0) errores.push('Explica brevemente el concepto.')
   if (datos.descripcion.length > LIMITE_DESCRIPCION) errores.push('La explicación no puede superar 500 caracteres.')
+  return errores
+}
+
+export function validarPropuesta(datos: DatosPropuesta): string[] {
+  const errores: string[] = validarTextoPropuesta(datos)
   if (datos.archivos.length === 0) errores.push('Sube al menos una imagen.')
   if (datos.archivos.length > MAX_ARCHIVOS) errores.push('Puedes subir hasta tres imágenes.')
   if (datos.archivos.some((a) => !(TIPOS_IMAGEN_CONCURSO as readonly string[]).includes(a.tipoContenido))) {

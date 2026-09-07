@@ -71,7 +71,7 @@ describe('la galería no revela quién firma', () => {
    */
   it('y la revelación del ganador lleva su nombre', () => {
     const cuerpo = DB.slice(DB.indexOf('export async function resultadosConcurso'))
-    expect(cuerpo).toContain("faseDelConcurso(ahora) !== 'resultados'")
+    expect(cuerpo).toContain("faseActualConcurso(ahora) !== 'resultados'")
     expect(cuerpo).toContain('ensamblarPropuestas()')
   })
 })

@@ -1,6 +1,8 @@
 import estilos from '@/app/concurso/concurso.module.css'
 import { AdminPropuestas } from './AdminPropuestas'
+import { ControlFaseConcurso } from './ControlFaseConcurso'
 import type { PropuestaConcurso } from '@/db/concurso'
+import type { FaseConcurso } from '@/concurso/fase'
 
 /**
  * EL PANEL DE ADMINISTRACIÓN DEL CONCURSO.
@@ -25,7 +27,15 @@ import type { PropuestaConcurso } from '@/db/concurso'
  * El nombre del archivo se conserva a propósito para no mover imports en una
  * semana de cambios diarios; su contenido ya no es un jurado.
  */
-export function PanelJurado({ propuestas }: { propuestas: PropuestaConcurso[] }) {
+export function PanelJurado({
+  propuestas,
+  faseActual,
+  faseForzada,
+}: {
+  propuestas: PropuestaConcurso[]
+  faseActual: FaseConcurso
+  faseForzada: FaseConcurso | null
+}) {
   return (
     <details className={estilos.admin}>
       <summary>Administración · propuestas recibidas</summary>
@@ -34,6 +44,10 @@ export function PanelJurado({ propuestas }: { propuestas: PropuestaConcurso[] })
           Solo tú ves esta sección, y es el único sitio donde aparece quién firma cada propuesta:
           en la galería van sin autor hasta la revelación.
         </p>
+        {/* EL INTERRUPTOR VA PRIMERO, antes que las fichas: decide sobre el
+            concurso entero y no sobre una propuesta, y quien entra aquí en
+            mitad de un problema viene a eso. */}
+        <ControlFaseConcurso faseActual={faseActual} faseForzada={faseForzada} />
         <AdminPropuestas propuestas={propuestas} />
       </div>
     </details>

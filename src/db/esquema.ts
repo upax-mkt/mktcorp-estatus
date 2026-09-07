@@ -596,6 +596,27 @@ export const imagenesPropuestaConcurso = pgTable('imagenes_propuesta_concurso', 
   uniqueIndex('imagenes_propuesta_orden_unico').on(t.propuestaId, t.orden),
 ])
 
+/**
+ * EL INTERRUPTOR MANUAL DEL CONCURSO. Una fila por convocatoria, o ninguna.
+ *
+ * `fase_forzada` NULL —o la fila ausente— significa AUTOMÁTICO: manda el
+ * calendario de `src/concurso/config.ts`. Con valor, manda ese valor y las
+ * fechas quedan en suspenso hasta que alguien vuelva a poner automático.
+ *
+ * Existe por el 7-sep-2026: la recepción cerró sola a las 11:00 mientras un
+ * defecto impedía subir imágenes, y reabrirla costó un redespliegue para
+ * cambiar una constante. Quien administra no debería depender de eso.
+ *
+ * Se guarda quién y cuándo porque abrir o cerrar la votación decide un premio:
+ * si alguien la reabre después de contar votos, tiene que quedar rastro.
+ */
+export const ajustesConcurso = pgTable('ajustes_concurso', {
+  concursoId: text('concurso_id').primaryKey(),
+  faseForzada: text('fase_forzada'),
+  cambiadaPor: text('cambiada_por'),
+  cambiadaEn: timestamp('cambiada_en', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const votosConcurso = pgTable('votos_concurso', {
   concursoId: text('concurso_id').notNull(),
   votanteHash: text('votante_hash').notNull(),

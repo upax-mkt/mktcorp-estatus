@@ -55,6 +55,16 @@ vi.mock('@/db/consultas', () => ({
   pulsoDelMes: () => pulsoDelMesMock(),
 }))
 
+/**
+ * El Home decide si enseña el anuncio del concurso con la fase VIGENTE, que
+ * puede venir del interruptor de administración y no solo del calendario. Esa
+ * lectura vive en `@/db/concurso`, que importa `server-only` y no se puede
+ * montar aquí; se dobla como el resto de módulos de datos de esta suite.
+ */
+vi.mock('@/db/concurso', () => ({
+  faseActualConcurso: vi.fn().mockResolvedValue('recepcion'),
+}))
+
 vi.mock('@/db/acuerdos', () => ({
   moverEstatus: vi.fn(),
   editarAcuerdo: vi.fn(),

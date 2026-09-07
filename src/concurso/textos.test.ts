@@ -5,18 +5,18 @@ import { diaSemana, diaYFecha, fechaCorta, fechaLarga, hora, horaCompacta, mismo
 /**
  * Se comprueba en CDMX y también desde un instante UTC, porque el servidor de
  * Vercel corre en UTC: si el formateo se hiciera con la hora local del proceso,
- * el cierre de las 10:00 se anunciaría como las 16:00 en producción y como las
- * 10:00 en la laptop de quien lo probó. Es el mismo bug de zona que ya mordió
+ * el cierre de las 13:00 se anunciaría como las 19:00 en producción y como las
+ * 13:00 en la laptop de quien lo probó. Es el mismo bug de zona que ya mordió
  * en las reuniones.
  */
 describe('los textos de fecha del concurso', () => {
   const { cierrePropuestas, cierreVotacion, ceremonia } = FECHAS_CONCURSO
 
   it('dice la hora de pared de CDMX, no la del proceso', () => {
-    expect(hora(cierrePropuestas)).toBe('10:00')
+    expect(hora(cierrePropuestas)).toBe('13:00')
     expect(hora(cierreVotacion)).toBe('15:00')
-    // El mismo instante escrito en UTC: 10:00 CDMX = 16:00 UTC.
-    expect(hora(new Date('2026-09-09T16:00:00Z'))).toBe('10:00')
+    // El mismo instante escrito en UTC: 13:00 CDMX = 19:00 UTC.
+    expect(hora(new Date('2026-09-09T19:00:00Z'))).toBe('13:00')
   })
 
   it('escribe el día y el mes en español', () => {
@@ -37,6 +37,6 @@ describe('los textos de fecha del concurso', () => {
   })
 
   it('resume la ventana de votación de un solo día en una frase', () => {
-    expect(ventanaVotacion()).toBe('ese mismo día de 10:00 a 15:00')
+    expect(ventanaVotacion()).toBe('ese mismo día de 13:00 a 15:00')
   })
 })
