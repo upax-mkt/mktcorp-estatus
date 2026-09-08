@@ -17,7 +17,8 @@ import {
   hashVotante,
 } from '@/db/concurso'
 import { faseDelConcurso } from '@/concurso/fase'
-import { FECHAS_CONCURSO } from '@/concurso/config'
+import { CEREMONIA, FECHAS_CONCURSO } from '@/concurso/config'
+import { fechaCorta, fechaLarga, diaYFecha, franjaCeremonia, hora, horaCompacta, mismoDia } from '@/concurso/textos'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { CuentaRegresiva } from '@/componentes/concurso/CuentaRegresiva'
 import { FormularioPropuesta } from '@/componentes/concurso/FormularioPropuesta'
@@ -47,7 +48,7 @@ export const dynamic = 'force-dynamic'
  * mensajes sin abrir, esa línea es lo único que transmite urgencia.
  */
 const RESUMEN =
-  'Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el 7 de septiembre: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.'
+  `Diseña la sudadera oficial de Marketing Corp. Sube tu propuesta hasta el ${fechaLarga(FECHAS_CONCURSO.cierrePropuestas)}: el diseño ganador se lleva un pase doble a la Arena CDMX, gift card y un día de vacaciones.`
 
 export const metadata: Metadata = {
   title: 'Diseña lo que somos',
@@ -172,9 +173,18 @@ export default async function PaginaConcurso() {
           <div className={estilos.heroPie}>
             {fase === 'recepcion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierrePropuestas.toISOString()} etiqueta="La galería se revela en" />}
             {fase === 'votacion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierreVotacion.toISOString()} etiqueta="Tu pase cierra en" />}
+            {/* Con el calendario de hoy —el pase cierra en el mismo instante en
+                que empieza la premiación— esta fase dura cero y no llega a verse.
+                Se conserva porque separar otra vez las dos fechas la revive. */}
             {fase === 'cerrado' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.ceremonia.toISOString()} etiqueta="El ganador se revela en" />}
             {fase === 'resultados' && ganador && <div className={estilos.ganadorHero}><small>GANADOR 2026</small><strong>{ganador.propuesta.titulo}</strong><span>{ganador.propuesta.integrantes.map((p) => p.nombre).join(' + ')}</span></div>}
-            <div className={estilos.fechasHero}><span>VOTA 7–8 SEP</span><span>REVELACIÓN 9 SEP · 15 H</span><span>SKY LOBBY · SALA 2</span></div>
+            <div className={estilos.fechasHero}>
+              <span>{mismoDia(FECHAS_CONCURSO.cierrePropuestas, FECHAS_CONCURSO.cierreVotacion)
+                ? `VOTA ${fechaCorta(FECHAS_CONCURSO.cierrePropuestas)} · ${horaCompacta(FECHAS_CONCURSO.cierrePropuestas)}–${horaCompacta(FECHAS_CONCURSO.cierreVotacion)} H`
+                : `VOTA ${fechaCorta(FECHAS_CONCURSO.cierrePropuestas)}–${fechaCorta(FECHAS_CONCURSO.cierreVotacion)}`}</span>
+              <span>{`REVELACIÓN ${fechaCorta(FECHAS_CONCURSO.ceremonia)} · ${franjaCeremonia()}`}</span>
+              <span>{CEREMONIA.lugar.toUpperCase()}</span>
+            </div>
           </div>
         </section>
 
@@ -207,7 +217,7 @@ export default async function PaginaConcurso() {
               </li>
               <li>
                 <b>02</b>
-                <h3>Súbelo antes del 7 de septiembre</h3>
+                <h3>{`Súbelo antes del ${fechaLarga(FECHAS_CONCURSO.cierrePropuestas)}`}</h3>
                 <p>Hasta tres imágenes JPG o PNG y una explicación corta. Puedes editarlo todas las veces que quieras hasta que cierre la recepción.</p>
               </li>
               <li>
@@ -286,7 +296,9 @@ export default async function PaginaConcurso() {
                 <div className={estilos.paseTexto}>
                   <p><strong>Qué es.</strong> Tu entrada a la votación. El código es tuyo y solo tuyo: nadie más tiene ese mismo, ni siquiera nosotros lo guardamos en ninguna lista.</p>
                   <p><strong>Para qué sirve.</strong> Con él eliges el diseño que quieres ver en la sudadera. <strong>El equipo decide solo:</strong> no hay jurado, gana la propuesta más votada.</p>
-                  <p><strong>Cuándo se usa.</strong> Del <strong>7 de septiembre a las 11:00</strong> —cuando se publican todas las propuestas— <strong>hasta el 8 a las 18:00</strong>. Puedes cambiar de opinión y mover tu voto las veces que quieras mientras siga abierta; al cerrar, cuenta el último.</p>
+                  <p><strong>Cuándo se usa.</strong> Del <strong>{`${fechaLarga(FECHAS_CONCURSO.cierrePropuestas)} a las ${hora(FECHAS_CONCURSO.cierrePropuestas)}`}</strong> —cuando se publican todas las propuestas— <strong>{mismoDia(FECHAS_CONCURSO.cierrePropuestas, FECHAS_CONCURSO.cierreVotacion)
+                    ? `hasta las ${hora(FECHAS_CONCURSO.cierreVotacion)} de ese mismo día`
+                    : `hasta el ${fechaLarga(FECHAS_CONCURSO.cierreVotacion)} a las ${hora(FECHAS_CONCURSO.cierreVotacion)}`}</strong>. Puedes cambiar de opinión y mover tu voto las veces que quieras mientras siga abierta; al cerrar, cuenta el último.</p>
                   <p className={estilos.paseAviso}>Una sola cosa no se puede: votarte a ti mismo.</p>
                 </div>
               </div>
@@ -295,7 +307,7 @@ export default async function PaginaConcurso() {
           {fase === 'recepcion' && (
             <section className={estilos.espera}>
               <span className={estilos.numeroGrande}>05</span><h2>El lineup sigue bajo llave</h2>
-              <p>Todas las propuestas se revelan al mismo tiempo el lunes 7 de septiembre a las 11:00, <strong>y sin el nombre de quien las firma</strong>: se vota el diseño, no a la persona.</p>
+              <p>Todas las propuestas se revelan al mismo tiempo el {`${diaYFecha(FECHAS_CONCURSO.cierrePropuestas)} a las ${hora(FECHAS_CONCURSO.cierrePropuestas)}`}, <strong>y sin el nombre de quien las firma</strong>: se vota el diseño, no a la persona.</p>
             </section>
           )}
 

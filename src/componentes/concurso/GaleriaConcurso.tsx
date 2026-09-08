@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
 import type { PropuestaAnonima } from '@/db/concurso'
 import { votarAction } from '@/app/concurso/acciones'
+import { FECHAS_CONCURSO } from '@/concurso/config'
+import { diaSemana, hora } from '@/concurso/textos'
 
 /**
  * EL LINEUP, ANÓNIMO.
@@ -76,7 +78,7 @@ export function GaleriaConcurso({
           )
         })}
       </div>
-      {votacionAbierta && voto && <p className={estilos.ticketConfirmado} role="status">ADMIT ONE · Tu pase está activo. Puedes moverlo hasta el martes a las 18:00.</p>}
+      {votacionAbierta && voto && <p className={estilos.ticketConfirmado} role="status">{`ADMIT ONE · Tu pase está activo. Puedes moverlo hasta el ${diaSemana(FECHAS_CONCURSO.cierreVotacion)} a las ${hora(FECHAS_CONCURSO.cierreVotacion)}.`}</p>}
     </section>
   )
 }

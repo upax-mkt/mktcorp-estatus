@@ -19,7 +19,8 @@ import { eliminarPropuestaAction, establecerVisibilidadPropuestaAction } from '@
  *
  * LA IMAGEN VA POR `/api/concurso/imagen/<id>`, no por su URL de Blob. Esa ruta
  * comprueba sesión, autoría y fase antes de servir un byte (`imagenConcursoParaServir`),
- * que es lo que mantiene la galería cerrada hasta el 7 de septiembre. Un `<img>`
+ * que es lo que mantiene la galería cerrada hasta que cierra la recepción
+ * (`FECHAS_CONCURSO.cierrePropuestas`, y no una fecha escrita aquí). Un `<img>`
  * apuntando al blob se saltaría esa puerta.
  */
 export function AdminPropuestas({ propuestas }: { propuestas: PropuestaConcurso[] }) {

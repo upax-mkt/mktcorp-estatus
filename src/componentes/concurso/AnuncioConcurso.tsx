@@ -4,6 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, type MouseEvent } from 'react'
 import estilos from '@/app/concurso/concurso.module.css'
+import { CEREMONIA, FECHAS_CONCURSO } from '@/concurso/config'
+import { fechaCorta, fechaLarga, hora, mismoDia, ventanaVotacion } from '@/concurso/textos'
 
 const LLAVE = 'mktcorp-concurso-sudadera-2026-visto'
 
@@ -153,8 +155,10 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
             que nadie quiera reexportar un PNG por ello. */}
         <div className={estilos.popupPie}>
           <p className={estilos.popupFechas}>
-            <strong>Sube tu propuesta hasta el 7 de septiembre, 11:00.</strong>
-            {' '}Se vota del 7 al 8 y el ganador se revela el 9 a las 15:00 en Sky Lobby, Sala 2.
+            <strong>{`Sube tu propuesta hasta el ${fechaLarga(FECHAS_CONCURSO.cierrePropuestas)}, ${hora(FECHAS_CONCURSO.cierrePropuestas)}.`}</strong>
+            {' '}{`Se vota ${ventanaVotacion()} y el ganador se revela ${mismoDia(FECHAS_CONCURSO.cierreVotacion, FECHAS_CONCURSO.ceremonia)
+              ? `a las ${hora(FECHAS_CONCURSO.ceremonia)}`
+              : `el ${fechaLarga(FECHAS_CONCURSO.ceremonia)} a las ${hora(FECHAS_CONCURSO.ceremonia)}`} en vivo, en ${CEREMONIA.lugar}.`}
           </p>
           <div className={estilos.popupAcciones}>
             <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
@@ -189,7 +193,7 @@ export function AnuncioConcurso({ activo }: { activo: boolean }) {
         <strong>ARENA CDMX</strong><span>+</span><strong>GIFT CARD</strong><span>+</span><strong>1 DÍA</strong>
       </div>
       <Link href="/concurso" className={estilos.popupCta} onClick={cerrar}>Entrar al concurso →</Link>
-      <p className={estilos.popupFecha}>Propuestas hasta el 7 SEP · 11:00 H</p>
+      <p className={estilos.popupFecha}>{`Propuestas hasta el ${fechaCorta(FECHAS_CONCURSO.cierrePropuestas)} · ${hora(FECHAS_CONCURSO.cierrePropuestas)} H`}</p>
     </dialog>
   )
 }
