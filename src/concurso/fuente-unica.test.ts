@@ -43,6 +43,12 @@ const PROHIBIDO: Array<[string, RegExp]> = [
   // La sede se movió de «Sky Lobby, Sala 2» a «Sky 1» el mismo día que las
   // fechas, y estaba escrita a mano en dos pantallas. Ahora vive en CEREMONIA.
   ['la sede escrita a mano', /sky\s*(lobby|\d)/i],
+  // ⚠️ ESTE PATRÓN LLEGÓ TARDE, Y ESA ES LA LECCIÓN. Los tres de arriba
+  // pasaron en verde mientras el paso 03 de las bases seguía diciendo «El 7 se
+  // publican todas a la vez»: un día suelto, sin mes ni hora, no encajaba en
+  // ninguno. Lo encontró un print de la página ya en producción, no la suite.
+  // Una medición exhaustiva solo lo es dentro de las formas que sabe mirar.
+  ['un día del mes suelto', /\b(el|del|al|hasta el)\s+\d{1,2}\b(?!\s*(px|rem|%|\)))/i],
 ]
 
 describe('las fechas del concurso salen de una sola fuente', () => {
@@ -55,6 +61,25 @@ describe('las fechas del concurso salen de una sola fuente', () => {
         `${ruta} trae ${que} (${encontrado?.[0]}). Derívala de FECHAS_CONCURSO con concurso/textos.ts.`,
       ).toBeNull()
     }
+  })
+
+  /**
+   * LA RED SE PRUEBA CON PECES. Un test que solo mira archivos limpios pasa
+   * igual de verde con los patrones rotos: fue exactamente lo que pasó con «El
+   * 7 se publican todas a la vez». Aquí se comprueba que cada patrón caza la
+   * frase que se le escapó a alguien alguna vez.
+   */
+  it.each([
+    ['El 7 se publican todas a la vez', 'un día del mes suelto'],
+    ['Súbelo antes del 7 de septiembre', 'un mes escrito con letra'],
+    ['VOTA 7–8 SEP', 'un mes abreviado'],
+    ['hasta el 8 a las 18:00', 'una hora de reloj'],
+    ['en Sky Lobby, Sala 2', 'la sede escrita a mano'],
+    ['en Sky 1', 'la sede escrita a mano'],
+  ])('caza «%s»', (frase, que) => {
+    const patron = PROHIBIDO.find(([nombre]) => nombre === que)?.[1]
+    expect(patron, `no existe el patrón ${que}`).toBeDefined()
+    expect(patron!.test(frase)).toBe(true)
   })
 
   it('las pantallas leen la configuración en vez de repetirla', () => {

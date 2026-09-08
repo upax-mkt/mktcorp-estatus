@@ -59,6 +59,11 @@ export function fechaLarga(fecha: Date): string {
   return `${r.dia} de ${MESES[r.mes - 1]}`
 }
 
+/** "9" — el día del mes a secas, para las frases que ya traen el mes en el aire. */
+export function diaDelMes(fecha: Date): string {
+  return String(reloj(fecha).dia)
+}
+
 /** "9 SEP" */
 export function fechaCorta(fecha: Date): string {
   const r = reloj(fecha)

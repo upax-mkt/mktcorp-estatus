@@ -18,7 +18,7 @@ import {
 } from '@/db/concurso'
 import { faseDelConcurso } from '@/concurso/fase'
 import { CEREMONIA, FECHAS_CONCURSO } from '@/concurso/config'
-import { fechaCorta, fechaLarga, diaYFecha, franjaCeremonia, hora, horaCompacta, mismoDia } from '@/concurso/textos'
+import { diaDelMes, diaYFecha, fechaCorta, fechaLarga, franjaCeremonia, hora, horaCompacta, mismoDia } from '@/concurso/textos'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 import { CuentaRegresiva } from '@/componentes/concurso/CuentaRegresiva'
 import { FormularioPropuesta } from '@/componentes/concurso/FormularioPropuesta'
@@ -223,7 +223,7 @@ export default async function PaginaConcurso() {
               <li>
                 <b>03</b>
                 <h3>Que el equipo lo vote</h3>
-                <p>El 7 se publican todas a la vez, <strong>sin firma</strong>, y cada persona tiene un voto. Gana la más votada: <strong>lo decide el equipo, sin jurado</strong>.</p>
+                <p>{`El ${diaDelMes(FECHAS_CONCURSO.cierrePropuestas)} se publican todas a la vez`}, <strong>sin firma</strong>, y cada persona tiene un voto. Gana la más votada: <strong>lo decide el equipo, sin jurado</strong>.</p>
               </li>
             </ol>
             {/* LOS LOGOS, DESCARGABLES DESDE AQUÍ. Las bases exigen incluir los
