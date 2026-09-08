@@ -171,12 +171,12 @@ export default async function PaginaConcurso() {
             <p className={estilos.heroBajada}>Tu idea. Nuestra sudadera. Una pieza para llevar el talento de MKT Corp puesto.</p>
           </div>
           <div className={estilos.heroPie}>
-            {fase === 'recepcion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierrePropuestas.toISOString()} etiqueta="La galería se revela en" />}
-            {fase === 'votacion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierreVotacion.toISOString()} etiqueta="Tu pase cierra en" />}
+            {fase === 'recepcion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierrePropuestas.toISOString()} etiqueta="La galería se revela en" desde={ahora.toISOString()} />}
+            {fase === 'votacion' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.cierreVotacion.toISOString()} etiqueta="Tu pase cierra en" desde={ahora.toISOString()} />}
             {/* Con el calendario de hoy —el pase cierra en el mismo instante en
                 que empieza la premiación— esta fase dura cero y no llega a verse.
                 Se conserva porque separar otra vez las dos fechas la revive. */}
-            {fase === 'cerrado' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.ceremonia.toISOString()} etiqueta="El ganador se revela en" />}
+            {fase === 'cerrado' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.ceremonia.toISOString()} etiqueta="El ganador se revela en" desde={ahora.toISOString()} />}
             {fase === 'resultados' && ganador && <div className={estilos.ganadorHero}><small>GANADOR 2026</small><strong>{ganador.propuesta.titulo}</strong><span>{ganador.propuesta.integrantes.map((p) => p.nombre).join(' + ')}</span></div>}
             <div className={estilos.fechasHero}>
               <span>{mismoDia(FECHAS_CONCURSO.cierrePropuestas, FECHAS_CONCURSO.cierreVotacion)

@@ -13,8 +13,22 @@ function partes(restante: number) {
   }
 }
 
-export function CuentaRegresiva({ objetivo, etiqueta }: { objetivo: string; etiqueta: string }) {
-  const [restante, setRestante] = useState(() => new Date(objetivo).getTime() - Date.now())
+/**
+ * `desde` ES EL INSTANTE DEL SERVIDOR, Y NO UN LUJO.
+ *
+ * El primer render ocurre DOS veces —una en el servidor, que pinta el HTML, y
+ * otra en el navegador, que lo hidrata— y tiene que dar exactamente lo mismo.
+ * Con `Date.now()` nunca daba: entre las dos pasa el viaje de red, así que los
+ * segundos del HTML jamás eran los que el cliente calculaba y React tiraba el
+ * árbol entero (error #418 en la consola de producción, en cada carga).
+ *
+ * Pasando el reloj del servidor como dato, los dos primeros renders parten del
+ * mismo número. El reloj real entra en el efecto, que no corre durante la
+ * hidratación: para cuando el contador empieza a moverse, ya no hay nada que
+ * comparar.
+ */
+export function CuentaRegresiva({ objetivo, etiqueta, desde }: { objetivo: string; etiqueta: string; desde: string }) {
+  const [restante, setRestante] = useState(() => new Date(objetivo).getTime() - new Date(desde).getTime())
 
   useEffect(() => {
     const actualizar = () => setRestante(new Date(objetivo).getTime() - Date.now())
