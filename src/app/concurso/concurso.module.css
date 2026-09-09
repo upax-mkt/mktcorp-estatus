@@ -611,3 +611,58 @@
 @media (prefers-reduced-motion: reduce) {
   .podioCuerpo > *, .podioCuerpo > .podioTitulo, .podioRayo { animation: none; opacity: 1; transform: none; }
 }
+
+/* ── EL PODIO FINAL · el concurso ya terminó ──────────────────────────────
+   Reemplaza a toda la dinámica de la página. Ya no hay nada que hacer aquí:
+   ni subir, ni votar, ni consultar bases. Solo queda mirar quién ganó. */
+.podioFinal { position: relative; display: grid; justify-items: center; gap: .8rem;
+  margin: 0 0 4rem; padding: clamp(2rem, 5vw, 3.5rem) 1.2rem; text-align: center;
+  border: 4px solid var(--negro); box-shadow: 14px 14px 0 var(--rosa); background: #fffdf7; }
+.podioFinalTitulo { margin: 0 0 1.5rem; font-size: clamp(2.4rem, 7vw, 4.5rem); line-height: .95;
+  text-transform: uppercase; }
+
+.gradas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end;
+  gap: 1.2rem; width: 100%; margin: 0; padding: 0; list-style: none; }
+.grada { display: grid; gap: .35rem; padding: 1.2rem; text-align: left;
+  border: 3px solid var(--negro); background: #fff; }
+/* 2 · 1 · 3: el ganador al centro y más alto, que es como se lee un podio. */
+.grada1 { order: 2; box-shadow: 10px 10px 0 var(--azul); }
+.grada2 { order: 1; }
+.grada3 { order: 3; }
+/* Las gradas bajan de verdad: el 2º un escalón y el 3º dos. Con el mismo
+   margen para ambos, la altura la acababa marcando el largo del texto de
+   squads y el 3º podía quedar por encima del 2º — un podio al revés. */
+.grada2 { margin-bottom: 1.6rem; }
+.grada3 { margin-bottom: 3.4rem; }
+
+.gradaLugar { font-size: 2.2rem; font-weight: 900; line-height: 1; color: var(--rosa); }
+.grada1 .gradaLugar { font-size: 3.4rem; }
+.gradaImagen { margin: .4rem 0 .6rem; border: 2px solid var(--negro); }
+.gradaTitulo { margin: 0; font-size: 1.1rem; line-height: 1.1; text-transform: uppercase; }
+.grada1 .gradaTitulo { font-size: 1.9rem; }
+.gradaFirmas { margin: 0; font-weight: 900; }
+.gradaSquads { margin: 0; color: #626771; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+.gradaConcepto { margin: .5rem 0 0; color: #454a55; font-size: .9rem; line-height: 1.5; }
+.gradaVotos { margin: .6rem 0 0; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+.gradaVotos strong { font-size: 1.3rem; }
+
+.podioTotal { margin: 1.8rem 0 0; color: #626771; font-size: .8rem; letter-spacing: .08em;
+  text-transform: uppercase; }
+.despedida { margin: 2.2rem 0 0; padding-top: 1.8rem; border-top: 3px solid var(--negro);
+  width: min(34rem, 100%); font-size: clamp(1.2rem, 3.5vw, 1.7rem); font-weight: 900;
+  text-transform: uppercase; line-height: 1.15; }
+
+/* Texto que solo existe para un lector de pantalla: el número del lugar se
+   pinta suelto y en grande, y sin esto se leería «1º» separado del título. */
+.soloLectores { position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; }
+
+/* EN UNA COLUMNA EL CENTRO NO EXISTE. En un teléfono las gradas van 1 · 2 · 3:
+   lo primero que se ve tiene que ser quien ganó, no el segundo lugar. */
+@media (max-width: 52rem) {
+  .gradas { grid-template-columns: minmax(0, 1fr); }
+  .grada1 { order: 1; }
+  .grada2 { order: 2; }
+  .grada3 { order: 3; }
+  .grada2, .grada3 { margin-bottom: 0; }
+}

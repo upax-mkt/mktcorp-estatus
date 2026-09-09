@@ -25,7 +25,7 @@ import { CuentaRegresiva } from '@/componentes/concurso/CuentaRegresiva'
 import { FormularioPropuesta } from '@/componentes/concurso/FormularioPropuesta'
 import { GaleriaConcurso } from '@/componentes/concurso/GaleriaConcurso'
 import { PanelJurado } from '@/componentes/concurso/PanelJurado'
-import { PodioGanador } from '@/componentes/concurso/PodioGanador'
+import { PodioFinal } from '@/componentes/concurso/PodioFinal'
 import { IconoSolo, IconoDupla } from '@/componentes/concurso/IconosPremio'
 import { PaseConcurso } from '@/componentes/concurso/PaseConcurso'
 import { paseDe } from '@/concurso/pase'
@@ -136,8 +136,63 @@ export default async function PaginaConcurso() {
   const pase = correo && persona
     ? paseDe(hashVotante(correo), propia?.titulo ?? null, galeria.find((g) => g.id === voto)?.titulo ?? null)
     : null
-  const ganador = resultados[0]
   const votosTotales = resultados.reduce((n, r) => n + r.votos, 0)
+
+  /**
+   * EL CONCURSO TERMINÓ: LA PÁGINA SE VACÍA Y QUEDA EL PODIO.
+   *
+   * (9-sep-2026, Franco, con la premiación ya dada: *«saca toda la dinámica y
+   * deja el podio 3er, 2do y 1er lugar y abajo un texto nos vemos en el
+   * próximo concurso»*.)
+   *
+   * Es una SALIDA TEMPRANA y no un puñado de condiciones repartidas por el
+   * árbol de abajo. Con el concurso cerrado, el premio, las bases, el
+   * formulario, el pase y el lineup no es que sobren de a poco: no tienen a
+   * quién servir. Enseñar «cómo entrar al escenario» cuando el escenario ya se
+   * desmontó es peor que no enseñar nada, porque invita a hacer algo que ya no
+   * se puede.
+   *
+   * El panel de administración sigue disponible: es el que puede devolver la
+   * fase a automático o reabrir el concurso, y esconderlo dejaría la página
+   * clavada aquí sin manera de salir que no fuera redesplegar.
+   */
+  if (fase === 'resultados') {
+    return (
+      <div className={estilos.app}>
+        {identificado
+          ? <BarraNavegacion seccionActiva="concurso" hoy={ahora} admin={admin} clientes={clientes} salirAction={salir} />
+          : (
+            <header className={estilos.barraInvitado}>
+              <Image src="/logos/marketing-corp-color.png" width={600} height={202} alt="Marketing Corp" className={estilos.barraInvitadoLogo} />
+              <a href="/entrar?destino=%2Fconcurso" className={estilos.barraInvitadoEntrar}>Entrar</a>
+            </header>
+          )}
+        <main>
+          <section className={estilos.hero}>
+            <div className={estilos.halftone} aria-hidden="true" />
+            <Image
+              src="/logos/mkt-corp-grupo-upax-blanco.png"
+              width={4500}
+              height={1516}
+              alt="Marketing Corp y Grupo UPAX"
+              className={estilos.heroLogo}
+              priority
+            />
+            <div className={estilos.heroMensaje}>
+              <p className={estilos.eyebrow}>CONCURSO INTERNO · EDICIÓN 2026</p>
+              <h1>DISEÑA<br /><span>LO QUE SOMOS</span></h1>
+              <p className={estilos.heroBajada}>Ya tenemos sudadera. Esto es lo que votó MKT Corp.</p>
+            </div>
+          </section>
+
+          <div className={estilos.contenido}>
+            <PodioFinal resultados={resultados} votosTotales={votosTotales} />
+            {admin && <PanelJurado propuestas={propuestasAdmin} faseActual={fase} faseForzada={faseForzada} />}
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className={estilos.app}>
@@ -181,7 +236,6 @@ export default async function PaginaConcurso() {
                 que empieza la premiación— esta fase dura cero y no llega a verse.
                 Se conserva porque separar otra vez las dos fechas la revive. */}
             {fase === 'cerrado' && <CuentaRegresiva objetivo={FECHAS_CONCURSO.ceremonia.toISOString()} etiqueta="El ganador se revela en" desde={ahora.toISOString()} />}
-            {fase === 'resultados' && ganador && <div className={estilos.ganadorHero}><small>GANADOR 2026</small><strong>{ganador.propuesta.titulo}</strong><span>{ganador.propuesta.integrantes.map((p) => p.nombre).join(' + ')}</span></div>}
             <div className={estilos.fechasHero}>
               <span>{mismoDia(FECHAS_CONCURSO.cierrePropuestas, FECHAS_CONCURSO.cierreVotacion)
                 ? `VOTA ${fechaCorta(FECHAS_CONCURSO.cierrePropuestas)} · ${horaCompacta(FECHAS_CONCURSO.cierrePropuestas)}–${horaCompacta(FECHAS_CONCURSO.cierreVotacion)} H`
@@ -320,18 +374,15 @@ export default async function PaginaConcurso() {
               igual que durante la votación, así que la pantalla del momento más
               esperado del concurso no se distinguía de la de diez minutos
               antes. */}
-          {fase === 'resultados' && ganador && (
-            <PodioGanador ganador={ganador} votosTotales={votosTotales} />
-          )}
           {fase !== 'recepcion' && correo && (
             <GaleriaConcurso
               propuestas={galeria}
               votoInicial={voto}
               votacionAbierta={fase === 'votacion'}
               admin={admin}
-              enFila={fase === 'resultados'}
-              titulo={fase === 'resultados' ? 'Todas las que compitieron' : 'Elige lo que vamos a vestir'}
-              antetitulo={fase === 'resultados' ? 'EL LINEUP COMPLETO' : 'EL LINEUP · SIN FIRMAS'}
+              enFila={false}
+              titulo="Elige lo que vamos a vestir"
+              antetitulo="EL LINEUP · SIN FIRMAS"
             />
           )}
 
