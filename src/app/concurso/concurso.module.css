@@ -573,3 +573,41 @@
 .podioCifras span { display: grid; min-width: 6rem; padding: .6rem .9rem; border: 2px solid var(--negro); background: #fff; }
 .podioCifras strong { font-size: 1.7rem; line-height: 1; }
 .podioCifras small { color: #626771; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; }
+
+/* ── LA REVELACIÓN, ESCALONADA ────────────────────────────────────────────
+   El podio ya traía confeti, pero entraba entero y de golpe: en una sala con
+   la gente mirando, todo a la vez es lo mismo que nada: el ojo no sabe dónde
+   posarse y el nombre del ganador llega al mismo tiempo que el pie de foto.
+
+   Aquí cada pieza entra en su turno —el rótulo, el título, quién firma, el
+   diseño y al final las cifras—, que es el orden en que se cuenta en voz
+   alta. Es CSS y nada más: sin estado, sin efecto y sin reloj, así que el
+   render del servidor y el de la hidratación siguen siendo idénticos. */
+@keyframes entraPodio {
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes entraTitulo {
+  0%   { opacity: 0; transform: translateY(26px) scale(.9) rotate(-2deg); }
+  70%  { opacity: 1; transform: translateY(0) scale(1.04) rotate(.5deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+.podioCuerpo > * { animation: entraPodio .55s cubic-bezier(.2, .8, .3, 1) both; }
+.podioCuerpo > .podioEyebrow  { animation-delay: .05s; }
+/* El título es el momento: se pasa de largo y regresa, para que aterrice. */
+.podioCuerpo > .podioTitulo   { animation: entraTitulo .75s cubic-bezier(.2, .9, .25, 1) .35s both; }
+.podioCuerpo > .podioFirmas   { animation-delay: 1.0s; }
+.podioCuerpo > .podioSquads   { animation-delay: 1.15s; }
+.podioCuerpo > .podioImagen   { animation-delay: 1.4s; }
+.podioCuerpo > .podioConcepto { animation-delay: 1.7s; }
+.podioCuerpo > .podioCifras   { animation-delay: 1.9s; }
+
+/* El rótulo sigue latiendo después de entrar: es lo único que se mueve una
+   vez que el podio se asentó, y mantiene vivo el cuadro mientras se habla. */
+@keyframes lateRayo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+.podioRayo { display: inline-block; color: var(--rosa); animation: lateRayo 1.4s ease-in-out 2.2s infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .podioCuerpo > *, .podioCuerpo > .podioTitulo, .podioRayo { animation: none; opacity: 1; transform: none; }
+}
