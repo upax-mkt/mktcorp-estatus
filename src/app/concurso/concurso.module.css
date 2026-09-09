@@ -115,8 +115,19 @@
 .propuesta { position: relative; background: white; border: 3px solid var(--negro); box-shadow: 9px 9px 0 var(--negro); }
 .propuesta[data-seleccionada] { box-shadow: 9px 9px 0 var(--rosa); }
 .propuestaNumero { position: absolute; z-index: 2; top: .7rem; left: .7rem; padding: .25rem .5rem; background: var(--negro); color: white; font-weight: 900; }
-.imagenesGrid { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; overflow-x: auto; scroll-snap-type: x mandatory; background: #dedbd4; }
-.imagenesGrid img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; scroll-snap-align: start; }
+/* TODAS LAS VISTAS, UNA BAJO OTRA.
+   ⚠️ ESTO ERA UN CARRUSEL Y SE VOTABA A CIEGAS (9-sep-2026). Con
+   `grid-auto-flow: column` + `grid-auto-columns: 100%` cada imagen ocupaba el
+   ancho entero y la 2 y la 3 quedaban fuera del recuadro: sin flecha, sin
+   puntos, sin asomo de la siguiente y —en macOS, que oculta las barras— sin
+   scrollbar que insinuara nada. Quien subió tres vistas de su sudadera se votó
+   por una. Apilarlas no esconde ninguna y no exige gesto: la tarjeta crece, que
+   es exactamente lo que hace falta cuando lo que se juzga es un diseño. */
+.imagenesGrid { display: grid; gap: 3px; background: #dedbd4; }
+.imagenesGrid a { display: block; }
+.imagenesGrid img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #dedbd4; }
+/* Solo aparece con más de una vista: con una sola sobra y sería ruido. */
+.vistasEtiqueta { margin: 0 0 .6rem; font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #626771; }
 .propuestaCuerpo { padding: 1.2rem; }
 .propuestaCuerpo h3 { margin: 0; font-size: 1.65rem; text-transform: uppercase; }
 .propuestaCuerpo > p { color: #555a63; line-height: 1.5; }

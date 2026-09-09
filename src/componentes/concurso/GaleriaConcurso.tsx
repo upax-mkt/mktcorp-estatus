@@ -55,13 +55,27 @@ export function GaleriaConcurso({
           return (
             <article className={estilos.propuesta} key={propuesta.id} data-seleccionada={seleccionada || undefined}>
               <span className={estilos.propuestaNumero}>#{String(indice + 1).padStart(2, '0')}</span>
+              {/* Un enlace por vista, como en el panel de administración: mirar
+                  un diseño a tamaño real es lo que se viene a hacer aquí, y
+                  abrirlo en otra pestaña no cuesta mantener un visor propio. */}
               <div className={estilos.imagenesGrid}>
                 {propuesta.imagenes.map((imagen, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={imagen.id} src={`/api/concurso/imagen/${imagen.id}`} alt={`${propuesta.titulo}, vista ${i + 1}`} />
+                  <a
+                    key={imagen.id}
+                    href={`/api/concurso/imagen/${imagen.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`${propuesta.titulo}, vista ${i + 1} de ${propuesta.imagenes.length} — abrir a tamaño real`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/concurso/imagen/${imagen.id}`} alt={`${propuesta.titulo}, vista ${i + 1} de ${propuesta.imagenes.length}`} />
+                  </a>
                 ))}
               </div>
               <div className={estilos.propuestaCuerpo}>
+                {propuesta.imagenes.length > 1 && (
+                  <p className={estilos.vistasEtiqueta}>{`${propuesta.imagenes.length} vistas de esta propuesta`}</p>
+                )}
                 <h3>{propuesta.titulo}</h3>
                 <p>{propuesta.descripcion}</p>
                 {/* Sin autores: el lineup es anónimo. Se dice en voz alta en
