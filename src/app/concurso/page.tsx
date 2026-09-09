@@ -25,6 +25,7 @@ import { CuentaRegresiva } from '@/componentes/concurso/CuentaRegresiva'
 import { FormularioPropuesta } from '@/componentes/concurso/FormularioPropuesta'
 import { GaleriaConcurso } from '@/componentes/concurso/GaleriaConcurso'
 import { PanelJurado } from '@/componentes/concurso/PanelJurado'
+import { PodioGanador } from '@/componentes/concurso/PodioGanador'
 import { IconoSolo, IconoDupla } from '@/componentes/concurso/IconosPremio'
 import { PaseConcurso } from '@/componentes/concurso/PaseConcurso'
 import { paseDe } from '@/concurso/pase'
@@ -136,6 +137,7 @@ export default async function PaginaConcurso() {
     ? paseDe(hashVotante(correo), propia?.titulo ?? null, galeria.find((g) => g.id === voto)?.titulo ?? null)
     : null
   const ganador = resultados[0]
+  const votosTotales = resultados.reduce((n, r) => n + r.votos, 0)
 
   return (
     <div className={estilos.app}>
@@ -313,8 +315,24 @@ export default async function PaginaConcurso() {
             </section>
           )}
 
+          {/* LA REVELACIÓN: primero quién ganó, y debajo el resto en una fila.
+              Antes el resultado era una línea en el hero y la galería seguía
+              igual que durante la votación, así que la pantalla del momento más
+              esperado del concurso no se distinguía de la de diez minutos
+              antes. */}
+          {fase === 'resultados' && ganador && (
+            <PodioGanador ganador={ganador} votosTotales={votosTotales} />
+          )}
           {fase !== 'recepcion' && correo && (
-            <GaleriaConcurso propuestas={galeria} votoInicial={voto} votacionAbierta={fase === 'votacion'} />
+            <GaleriaConcurso
+              propuestas={galeria}
+              votoInicial={voto}
+              votacionAbierta={fase === 'votacion'}
+              admin={admin}
+              enFila={fase === 'resultados'}
+              titulo={fase === 'resultados' ? 'Todas las que compitieron' : 'Elige lo que vamos a vestir'}
+              antetitulo={fase === 'resultados' ? 'EL LINEUP COMPLETO' : 'EL LINEUP · SIN FIRMAS'}
+            />
           )}
 
 

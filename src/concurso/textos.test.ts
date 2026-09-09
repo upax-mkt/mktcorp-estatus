@@ -14,7 +14,7 @@ describe('los textos de fecha del concurso', () => {
 
   it('dice la hora de pared de CDMX, no la del proceso', () => {
     expect(hora(cierrePropuestas)).toBe('13:00')
-    expect(hora(cierreVotacion)).toBe('15:00')
+    expect(hora(cierreVotacion)).toBe('16:00')
     // El mismo instante escrito en UTC: 13:00 CDMX = 19:00 UTC.
     expect(hora(new Date('2026-09-09T19:00:00Z'))).toBe('13:00')
   })
@@ -37,6 +37,6 @@ describe('los textos de fecha del concurso', () => {
   })
 
   it('resume la ventana de votación de un solo día en una frase', () => {
-    expect(ventanaVotacion()).toBe('ese mismo día de 13:00 a 15:00')
+    expect(ventanaVotacion()).toBe('ese mismo día de 13:00 a 16:00')
   })
 })

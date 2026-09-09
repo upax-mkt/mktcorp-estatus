@@ -27,14 +27,30 @@ describe('faseDelConcurso', () => {
   })
 
   /**
-   * NO HAY VENTANA MUERTA, Y ES A PROPÓSITO. El pase cierra en el mismo
-   * instante en que arranca la premiación en vivo, así que la fase `cerrado`
-   * dura cero: de votar se pasa directo a ver al ganador. Si alguien vuelve a
-   * separar las dos fechas, este test lo dice en voz alta.
+   * SE VOTA DENTRO DE LA PREMIACIÓN (César, 9-sep-2026). El pase ya no cierra
+   * cuando la sala se reúne: sigue una hora más, hasta las 16:00. Si esto
+   * volviera a cerrar a las 15:00, el voto moriría justo cuando todo el mundo
+   * está mirando la pantalla.
    */
-  it('revela resultados en la ceremonia del miércoles a las 15:00, sin fase intermedia', () => {
-    expect(FECHAS_CONCURSO.cierreVotacion.getTime()).toBe(FECHAS_CONCURSO.ceremonia.getTime())
-    expect(faseDelConcurso(new Date('2026-09-09T15:00:00-06:00'))).toBe('resultados')
+  it('mantiene el pase abierto durante la premiación, hasta las 16:00', () => {
+    expect(faseDelConcurso(new Date('2026-09-09T15:00:00-06:00'))).toBe('votacion')
+    expect(faseDelConcurso(new Date('2026-09-09T15:59:59-06:00'))).toBe('votacion')
+  })
+
+  it('revela resultados al cerrarse el pase, a las 16:00', () => {
+    expect(faseDelConcurso(new Date('2026-09-09T16:00:00-06:00'))).toBe('resultados')
+  })
+
+  /**
+   * NO HAY VENTANA MUERTA, Y SIGUE SIENDO A PROPÓSITO —aunque ya no por la
+   * razón de antes—. Cuando el pase cerraba a la vez que empezaba la ceremonia,
+   * la fase `cerrado` duraba cero porque las dos fechas eran idénticas; ahora
+   * dura cero porque el pase cierra DESPUÉS. La invariante que importa no es
+   * que las fechas coincidan, sino que de votar se pase directo al ganador, así
+   * que se comprueba eso y no la igualdad.
+   */
+  it('nunca pasa por la fase intermedia, con estas fechas', () => {
+    expect(FECHAS_CONCURSO.cierreVotacion.getTime()).toBeGreaterThanOrEqual(FECHAS_CONCURSO.ceremonia.getTime())
   })
 
   /**

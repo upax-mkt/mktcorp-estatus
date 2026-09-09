@@ -17,15 +17,25 @@ export const CONCURSO_ID = 'sudadera-mkt-corp-2026'
  *
  * SEGUNDA PRÓRROGA (9-sep-2026, decisión de César): de las 10:00 a las 13:00.
  * La recepción se cerró sola a las 10:00 con gente todavía subiendo, y se
- * reabre hasta la una. SOLO SE MUEVE `cierrePropuestas`: la premiación sigue
- * clavada a las 15:00 porque es un acto presencial ya convocado, así que lo
- * que se acorta es la votación —de cinco horas a dos—, no la ceremonia.
+ * reabre hasta la una.
+ *
+ * ⚠️ Y EL PASE CIERRA A LAS 16:00, DESPUÉS DE QUE EMPIECE LA PREMIACIÓN
+ * (9-sep-2026, César). `cierreVotacion` ya NO coincide con `ceremonia`: la sala
+ * se reúne a las 15:00 y se sigue votando dentro, una hora más. La fase
+ * `cerrado` sigue sin ocurrir —al llegar a su comparación la ceremonia ya
+ * empezó—, así que del voto se pasa directo al ganador; lo vigila `fase.test.ts`
+ * barriendo el tramo, no comparando las dos fechas, que es lo que hacía cuando
+ * eran iguales.
+ *
+ * Estas fechas son el suelo, no la última palabra: administración puede cerrar
+ * la votación antes desde el panel («Cerrar votación», `ControlFaseConcurso`),
+ * y ese interruptor manda sobre todo lo de aquí.
  */
 export const FECHAS_CONCURSO = {
   lanzamiento: new Date('2026-08-28T00:00:00-06:00'),
   cierrePropuestas: new Date('2026-09-09T13:00:00-06:00'),
-  cierreVotacion: new Date('2026-09-09T15:00:00-06:00'),
   ceremonia: new Date('2026-09-09T15:00:00-06:00'),
+  cierreVotacion: new Date('2026-09-09T16:00:00-06:00'),
 } as const
 
 /**

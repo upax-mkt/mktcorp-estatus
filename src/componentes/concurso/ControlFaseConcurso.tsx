@@ -14,6 +14,10 @@ import type { FaseConcurso } from '@/concurso/fase'
  * exigió editar una constante y volver a desplegar. Las fechas siguen mandando
  * el 99% del tiempo; esto es el 1% restante.
  *
+ * Los botones se nombran por lo que HACEN —«Cerrar votación», no «Votación
+ * cerrada»—: se pulsan para cambiar algo, y leer un estado donde se espera una
+ * acción hace dudar de si ya está aplicado.
+ *
  * AUTOMÁTICO NO ES UNA FASE MÁS, y por eso su botón va aparte y en verde. Fijar
  * a mano la fase que el calendario ya daría parece inofensivo y no lo es: deja
  * el concurso clavado ahí, y a las 15:45 nadie se acordará de que el paso a
@@ -21,10 +25,10 @@ import type { FaseConcurso } from '@/concurso/fase'
  * reposo, no una opción equivalente.
  */
 const OPCIONES: ReadonlyArray<{ fase: FaseConcurso; boton: string; explica: string }> = [
-  { fase: 'recepcion', boton: 'Recepción abierta', explica: 'se suben propuestas y la galería está cerrada' },
-  { fase: 'votacion', boton: 'Votación abierta', explica: 'la galería es pública y se puede votar' },
-  { fase: 'cerrado', boton: 'Votación cerrada', explica: 'se ve la galería, ya no se vota, sin resultado' },
-  { fase: 'resultados', boton: 'Resultados', explica: 'se revela el ganador y quién firma cada propuesta' },
+  { fase: 'recepcion', boton: 'Abrir recepción', explica: 'se suben propuestas y la galería está cerrada' },
+  { fase: 'votacion', boton: 'Abrir votación', explica: 'la galería es pública y se puede votar' },
+  { fase: 'cerrado', boton: 'Cerrar votación', explica: 'se ve la galería, ya no se vota, sin resultado todavía' },
+  { fase: 'resultados', boton: 'Revelar ganador', explica: 'se cierra el voto y se revela quién firma cada propuesta' },
 ]
 
 export function ControlFaseConcurso({

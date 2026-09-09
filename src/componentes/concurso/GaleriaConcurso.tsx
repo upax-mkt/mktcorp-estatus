@@ -6,6 +6,7 @@ import type { PropuestaAnonima } from '@/db/concurso'
 import { votarAction } from '@/app/concurso/acciones'
 import { FECHAS_CONCURSO } from '@/concurso/config'
 import { diaSemana, hora } from '@/concurso/textos'
+import { SliderImagenes } from './SliderImagenes'
 
 /**
  * EL LINEUP, ANÓNIMO.
@@ -26,10 +27,31 @@ export function GaleriaConcurso({
   propuestas,
   votoInicial,
   votacionAbierta,
+  enFila = false,
+  admin = false,
+  titulo = 'Elige lo que vamos a vestir',
+  antetitulo = 'EL LINEUP · SIN FIRMAS',
 }: {
   propuestas: PropuestaAnonima[]
   votoInicial: string | null
   votacionAbierta: boolean
+  /**
+   * El conteo de vistas SOLO PARA ADMINISTRACIÓN (César, 9-sep-2026). A quien
+   * vota no le suma —los puntos del slider ya dicen cuántas hay— y quien
+   * administra necesita contarlas sin abrir propuesta por propuesta.
+   *
+   * Es una etiqueta, no un dato reservado: no revela autoría ni voto, así que
+   * no hace falta que el servidor la recorte como hace con los integrantes.
+   */
+  admin?: boolean
+  /**
+   * En la revelación las propuestas van en UNA SOLA FILA bajo el podio: ahí ya
+   * no se está eligiendo, se está repasando quién compitió, y una rejilla de
+   * dos columnas volvería a darles el peso de candidatas.
+   */
+  enFila?: boolean
+  titulo?: string
+  antetitulo?: string
 }) {
   const [voto, setVoto] = useState(votoInicial)
   const [error, setError] = useState<string | null>(null)
@@ -46,34 +68,18 @@ export function GaleriaConcurso({
 
   return (
     <section className={estilos.galeria} aria-labelledby="galeria-titulo">
-      <div className={estilos.tituloSeccion}><span>05</span><div><p>EL LINEUP · SIN FIRMAS</p><h2 id="galeria-titulo">Elige lo que vamos a vestir</h2></div></div>
+      <div className={estilos.tituloSeccion}><span>05</span><div><p>{antetitulo}</p><h2 id="galeria-titulo">{titulo}</h2></div></div>
       {error && <p className={estilos.mensajeError} role="alert">{error}</p>}
-      <div className={estilos.galeriaGrid}>
+      <div className={enFila ? estilos.galeriaFila : estilos.galeriaGrid}>
         {propuestas.map((propuesta, indice) => {
           const propia = propuesta.esMia
           const seleccionada = voto === propuesta.id
           return (
             <article className={estilos.propuesta} key={propuesta.id} data-seleccionada={seleccionada || undefined}>
               <span className={estilos.propuestaNumero}>#{String(indice + 1).padStart(2, '0')}</span>
-              {/* Un enlace por vista, como en el panel de administración: mirar
-                  un diseño a tamaño real es lo que se viene a hacer aquí, y
-                  abrirlo en otra pestaña no cuesta mantener un visor propio. */}
-              <div className={estilos.imagenesGrid}>
-                {propuesta.imagenes.map((imagen, i) => (
-                  <a
-                    key={imagen.id}
-                    href={`/api/concurso/imagen/${imagen.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={`${propuesta.titulo}, vista ${i + 1} de ${propuesta.imagenes.length} — abrir a tamaño real`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/concurso/imagen/${imagen.id}`} alt={`${propuesta.titulo}, vista ${i + 1} de ${propuesta.imagenes.length}`} />
-                  </a>
-                ))}
-              </div>
+              <SliderImagenes titulo={propuesta.titulo} imagenes={propuesta.imagenes} />
               <div className={estilos.propuestaCuerpo}>
-                {propuesta.imagenes.length > 1 && (
+                {admin && propuesta.imagenes.length > 1 && (
                   <p className={estilos.vistasEtiqueta}>{`${propuesta.imagenes.length} vistas de esta propuesta`}</p>
                 )}
                 <h3>{propuesta.titulo}</h3>
