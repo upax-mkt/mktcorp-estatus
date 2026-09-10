@@ -3,7 +3,7 @@
 -- Franco: *"en cada sala hay que agregar un módulo más, debe estar arriba de
 -- los acuerdos: es un iframe de un módulo que contiene data y analytics de la
 -- UDN"*. Las instrucciones las pasó Diego Luna (RevOps) en #squad-revops el
--- 12-ago: lo sirve ORBIT en `orbit-hub-fgap.vercel.app/embed/<slug>`, sin
+-- 12-ago: lo sirve ORBIT en `orbit-mkt.com/embed/<slug>`, sin
 -- login, y esa ruta SOLO se deja incrustar desde `mktcorp-estatus.vercel.app`
 -- (cabecera `Content-Security-Policy: frame-ancestors`, del lado de ORBIT).
 --

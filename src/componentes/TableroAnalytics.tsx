@@ -9,7 +9,7 @@ import estilos from '@/app/cliente/cliente.module.css'
  *
  * Franco: *"en cada sala hay que agregar un módulo más, arriba de los
  * acuerdos: es un iframe con data y analytics de la UDN"*. Lo sirve ORBIT
- * (RevOps) en `orbit-hub-fgap.vercel.app/embed/<slug>`, sin login, y esa ruta
+ * (RevOps) en `orbit-mkt.com/embed/<slug>`, sin login, y esa ruta
  * solo se deja incrustar desde el dominio que ORBIT tenga en su cabecera
  * `Content-Security-Policy: frame-ancestors`.
  *
@@ -103,7 +103,7 @@ const MINIMO_PARA_ESCALAR = 760
  */
 const ALTO_APILADO = 1700
 /** El hub entero, del que aquí solo se incrusta una vista. */
-const ORBIT = 'https://orbit-hub-fgap.vercel.app/'
+const ORBIT = 'https://orbit-mkt.com/'
 
 export function TableroAnalytics({
   url,

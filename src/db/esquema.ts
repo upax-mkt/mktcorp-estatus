@@ -138,7 +138,7 @@ export const salas = pgTable('salas', {
   /**
    * EL TABLERO DE DATA & ANALYTICS DE ESTA UDN, para incrustar.
    *
-   * Lo sirve ORBIT (`orbit-hub-fgap.vercel.app/embed/<slug>`), la app de
+   * Lo sirve ORBIT (`orbit-mkt.com/embed/<slug>`), la app de
    * RevOps. Se guarda la URL COMPLETA y no solo un interruptor "tiene
    * analytics", aunque hoy todas sigan el mismo patrón por slug: el día que
    * una UDN cuelgue de otra ruta —o de otro tablero— un booleano obligaría a
