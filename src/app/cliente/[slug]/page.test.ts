@@ -1986,14 +1986,14 @@ describe('VistaSala (/cliente/[slug]) — Data & Analytics', () => {
 
   it('con URL, el iframe apunta ahí y va ARRIBA de los acuerdos', async () => {
     cargarTemasMock.mockResolvedValue({
-      neracode: { ...TEMA_BASE, analyticsUrl: 'https://orbit-hub-fgap.vercel.app/embed/neracode' },
+      neracode: { ...TEMA_BASE, analyticsUrl: 'https://orbit-mkt.com/embed/neracode' },
     })
     esLectorMock.mockResolvedValue(true)
 
     const { container } = render(await invocar())
 
     const marco = container.querySelector('iframe')
-    expect(marco?.getAttribute('src')).toBe('https://orbit-hub-fgap.vercel.app/embed/neracode')
+    expect(marco?.getAttribute('src')).toBe('https://orbit-mkt.com/embed/neracode')
     // El orden importa y es lo que se pidió: primero los datos.
     const titulos = [...container.querySelectorAll<HTMLElement>('h2, summary')].map((t) => t.textContent ?? '')
     const analytics = titulos.findIndex((t) => /data & analytics/i.test(t))

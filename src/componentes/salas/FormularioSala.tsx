@@ -820,7 +820,7 @@ export function FormularioSala({ guardar, slugsUsados, sala, recalcularPaleta, v
               className={estilos.entrada}
               value={analyticsUrl}
               onChange={(e) => setAnalyticsUrl(e.target.value)}
-              placeholder="https://orbit-hub-fgap.vercel.app/embed/…"
+              placeholder="https://orbit-mkt.com/embed/…"
             />
             <p className={estilos.pista}>
               El tablero de ORBIT que se incrusta arriba de los acuerdos, en la sala. En blanco, el
