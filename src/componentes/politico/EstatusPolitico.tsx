@@ -15,8 +15,8 @@ import {
   REUNIONES,
   SIGUIENTES,
   embudo,
-  ganado,
   oportunidadesAbiertas,
+  partidosEnConversacion,
   pipelineAbierto,
   pipelinePorUdn,
   totalDe,
@@ -80,7 +80,6 @@ export function EstatusPolitico() {
   const maximoUdn = Math.max(...porUdn.map((f) => f.monto))
   const pasos = embudo()
   const maximoPaso = Math.max(...pasos.map((p) => p.valor))
-  const primerGanado = OPORTUNIDADES.find((o) => o.etapa === 'ganado')
   const abiertas = oportunidadesAbiertas().length
   const maximoLanding = Math.max(...LANDING.map((m) => m.visitas))
   const agosto = LANDING.find((m) => m.mes === 'Agosto')?.visitas ?? 0
@@ -125,9 +124,8 @@ export function EstatusPolitico() {
       {/* 2 · EL BIMESTRE: EL PIPELINE QUE ESTAMOS GENERANDO
           Eran dos láminas (las cuatro cifras en claro y el primer ganado en
           oscuro); Franco las fusionó el 30-sep-2026 con el look de la oscura.
-          La cifra grande es el PIPELINE ABIERTO, no el ganado: $200 mil es un
-          monto bajo y el mensaje es que la vertical ya genera pipeline (Franco,
-          30-sep-2026). El primer ganado va como una tarjeta más. */}
+          La cifra grande es el PIPELINE ABIERTO, no el ganado: el mensaje es
+          que la vertical ya genera pipeline (Franco, 30-sep-2026). */}
       <section data-layout="bimestre" className={`${estilos.pantalla} ${estilos.oscura} ${estilos.foco}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -154,13 +152,14 @@ export function EstatusPolitico() {
                 <CifraAnimada valor={INSTITUTOS.length} className={estilos.cifraValor} />
                 <p className={estilos.cifraRotulo}>institutos electorales estatales ya nos conocen</p>
               </article>
-              {primerGanado && (
-                <article className={`${estilos.cifraOscura} ${estilos.aparece}`} style={orden(6)}>
-                  <CifraAnimada valor={ganado() / 1000} prefijo="$" sufijo=" mil" className={estilos.cifraValor} />
-                  <p className={estilos.cifraRotulo}>primer negocio ganado</p>
-                  <p className={estilos.cifraRotulo}>{primerGanado.cliente}</p>
-                </article>
-              )}
+              {/* Era el primer ganado ($200 mil). Al 30-sep-2026 HubSpot no tiene
+                  ganado (quedó en Evaluando): la tercera cifra son los partidos
+                  con los que ya hay conversación. Si vuelve a haber un ganado,
+                  va en la tabla y en el embudo, no aquí. */}
+              <article className={`${estilos.cifraOscura} ${estilos.aparece}`} style={orden(6)}>
+                <CifraAnimada valor={partidosEnConversacion()} className={estilos.cifraValor} />
+                <p className={estilos.cifraRotulo}>partidos con los que ya estamos en conversación</p>
+              </article>
             </div>
           </div>
         </Escena>

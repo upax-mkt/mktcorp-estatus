@@ -519,9 +519,11 @@
 
 /* ---- partidos y candidatos ---- */
 
+/* Cuatro columnas desde el 30-sep-2026: con Añorve son siete tarjetas, y en tres
+   columnas la séptima quedaba sola en una fila. */
 .conversaciones {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(0.8rem, 1.6vw, 1.25rem);
   margin-top: 0.25rem;
 }
@@ -727,8 +729,8 @@
   color: oklch(1 0 0 / 0.86);
 }
 
-.lineaCompacta { gap: clamp(0.45rem, 1.2vh, 0.8rem); }
-.lineaCompacta .hito { padding-block: clamp(0.65rem, 1.7vh, 1.05rem); }
+.lineaCompacta { gap: clamp(0.4rem, 1vh, 0.7rem); }
+.lineaCompacta .hito { padding-block: clamp(0.55rem, 1.35vh, 0.9rem); }
 .lineaCompacta .hitoQue { font-size: clamp(1rem, 1.3vw, 1.5rem); }
 
 /* ---- movimiento ---- */

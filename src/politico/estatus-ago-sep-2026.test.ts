@@ -19,19 +19,21 @@ import {
  * mueven solos y aquí se ve.
  */
 describe('estatus político — los totales salen de las filas', () => {
-  it('el pipeline abierto es el total del deck: $5,701,774', () => {
-    expect(pipelineAbierto()).toBe(5_701_774)
+  it('el pipeline abierto, con la corrección de HubSpot del 30-sep: $5,901,774', () => {
+    // El deck daba $5,701,774 abiertos + $200,000 ganados. En HubSpot los $200,000
+    // de Mónica Sandoval quedaron en Evaluando: son pipeline, no ganado.
+    expect(pipelineAbierto()).toBe(5_901_774)
   })
 
-  it('lo ganado es el primer negocio: $200,000', () => {
-    expect(ganado()).toBe(200_000)
+  it('no hay ganado al 30-sep-2026', () => {
+    expect(ganado()).toBe(0)
   })
 
   it('por UDN: Research Land, Promo Espacio (corregido a $1.7M), Marketing United y Mexa', () => {
     expect(pipelinePorUdn()).toEqual([
       { udn: 'Research Land', monto: 2_953_454 },
       { udn: 'Promo Espacio', monto: 1_700_000 },
-      { udn: 'Marketing United', monto: 858_320 },
+      { udn: 'Marketing United', monto: 1_058_320 },
       { udn: 'Mexa Creativa', monto: 190_000 },
     ])
   })
@@ -48,8 +50,13 @@ describe('estatus político — los totales salen de las filas', () => {
 })
 
 describe('estatus político — el embudo baja y no se inventa', () => {
-  it('19 reuniones → 9 oportunidades → 6 en evaluación → 1 ganado', () => {
-    expect(embudo().map((e) => e.valor)).toEqual([19, 9, 6, 1])
+  it('19 reuniones → 9 oportunidades → 7 en evaluación, sin un «Ganado 0» al final', () => {
+    expect(embudo().map((e) => e.valor)).toEqual([19, 9, 7])
+  })
+
+  it('el paso «Ganado» vuelve solo si hay un ganado', () => {
+    const conGanado = OPORTUNIDADES.map((o, i) => (i === 0 ? { ...o, etapa: 'ganado' as const } : o))
+    expect(embudo(conGanado).map((e) => e.etapa)).toContain('Ganado')
   })
 
   it('cada paso es menor o igual que el anterior', () => {

@@ -34,18 +34,31 @@ describe('EstatusPolitico', () => {
     ])
   })
 
-  it('el bimestre cuenta el pipeline, no el ganado: $200 mil es una tarjeta más (Franco, 30-sep-2026)', () => {
+  it('el bimestre cuenta el pipeline (Franco, 30-sep-2026)', () => {
     const { container } = render(<EstatusPolitico />)
     const seccion = container.querySelector<HTMLElement>('[data-layout="bimestre"]')!
     const lamina = within(seccion)
     expect(lamina.getByRole('heading', { name: 'Estamos generando pipeline' })).toBeInTheDocument()
-    expect(lamina.getByText('de pipeline abierto, en 8 oportunidades')).toBeInTheDocument()
+    expect(lamina.getByText('de pipeline abierto, en 9 oportunidades')).toBeInTheDocument()
     // La primera cifra de la lámina —la grande— es el pipeline abierto.
     const cifras = [...seccion.querySelectorAll('span')].map((s) => s.textContent).filter((t) => t?.startsWith('$'))
-    expect(cifras[0]).toBe('$5.7 M')
-    expect(lamina.getByText('$200 mil')).toBeInTheDocument()
-    expect(lamina.getByText('primer negocio ganado')).toBeInTheDocument()
-    expect(lamina.getByText('H. Cámara de Diputados')).toBeInTheDocument()
+    expect(cifras[0]).toBe('$5.9 M')
+    expect(lamina.getByText('partidos con los que ya estamos en conversación')).toBeInTheDocument()
+  })
+
+  it('al 30-sep-2026 nada dice «ganado»: HubSpot dejó los $200 mil en evaluación', () => {
+    render(<EstatusPolitico />)
+    expect(screen.queryByText('Ganado por facturar')).not.toBeInTheDocument()
+    expect(screen.queryByText(/primer negocio ganado/i)).not.toBeInTheDocument()
+  })
+
+  it('Añorve está en partidos y en lo que sigue, con Jorge Teherán como contacto', () => {
+    const { container } = render(<EstatusPolitico />)
+    const partidos = within(container.querySelector<HTMLElement>('[data-layout="partidos"]')!)
+    expect(partidos.getByText('Senador Manuel Añorve · Guerrero')).toBeInTheDocument()
+    expect(partidos.getByText(/Jorge Teherán/)).toBeInTheDocument()
+    const sigue = within(container.querySelector<HTMLElement>('[data-layout="siguientes"]')!)
+    expect(sigue.getByText(/Visita a UPAX del senador Manuel Añorve/)).toBeInTheDocument()
   })
 
   it('lo que sigue pide el GO de Ceci para salir a vender Radar Político', () => {
@@ -58,9 +71,8 @@ describe('EstatusPolitico', () => {
 
   it('las cifras se ven en su valor final sin JavaScript de animación', () => {
     render(<EstatusPolitico />)
-    expect(screen.getAllByText('$200 mil').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('$5.7 M').length).toBeGreaterThan(0)
-    expect(screen.getByText('$5,701,774')).toBeInTheDocument()
+    expect(screen.getAllByText('$5.9 M').length).toBeGreaterThan(0)
+    expect(screen.getByText('$5,901,774')).toBeInTheDocument()
   })
 
   it('Promo Espacio suma $1,700,000 — la corrección del deck de Ángel', () => {
@@ -68,7 +80,7 @@ describe('EstatusPolitico', () => {
     expect(screen.getByText('$1,700,000')).toBeInTheDocument()
   })
 
-  it('el embudo baja de 19 reuniones a 1 ganado', () => {
+  it('el embudo baja de 19 reuniones a 9 oportunidades', () => {
     render(<EstatusPolitico />)
     expect(screen.getByRole('heading', { name: 'De 19 reuniones salieron 9 oportunidades' })).toBeInTheDocument()
   })

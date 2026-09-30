@@ -19,16 +19,23 @@
  *     Hidalgo no están entre los 17 que eligen gubernatura en 2027. Se dice lo
  *     que es cierto sin esa cuenta: nueve institutos electorales estatales.
  *
- * Lo que HubSpot todavía no refleja, y por eso aquí manda el deck: el
- * Instituto Electoral de la Ciudad de México ($500,000) no está capturado, y el
- * primer ganado vive en el pipeline de Research Land con monto $0 y su $200,000
- * en un cross-sell de Marketing United que sigue en «Reunión calificada».
+ * 30-SEP-2026, DESPUÉS DE LAS CORRECCIONES DE REVOPS. Franco le pidió a Ángel
+ * corregir HubSpot con César, y la presentación se alinea a lo que quedó:
+ *   · El Instituto Electoral de la Ciudad de México ya está capturado ($500,000,
+ *     en Grupo UPAX) y el duplicado de Guerrero en House of Films quedó perdido.
+ *   · NO HAY GANADO. César borró el «ganado por facturar» de $0 en Research Land
+ *     y dejó los $200,000 de la diputada Mónica Sandoval en «Evaluando» en
+ *     Marketing United. Si Ángel lo confirma como ganado, se cambia aquí la etapa
+ *     de esa fila y todo lo demás se recalcula solo.
+ *   · El Instituto Electoral del Estado de México sigue en «Reunión calificada»
+ *     en HubSpot; aquí va en «Evaluando», como lo reporta Ángel, y la corrección
+ *     se le pidió a él.
  *
  * FUENTE ÚNICA: ningún total se escribe a mano. Los calcula este archivo a
  * partir de las filas, y `estatus-ago-sep-2026.test.ts` lo vigila.
  */
 
-export const CORTE = '29 de septiembre de 2026'
+export const CORTE = '30 de septiembre de 2026'
 
 export type UdnVertical =
   | 'Research Land'
@@ -63,7 +70,8 @@ export const OPORTUNIDADES: Oportunidad[] = [
   {
     cliente: 'H. Cámara de Diputados',
     detalle: 'Dip. Mónica Sandoval, aspirante a la alcaldía Cuauhtémoc',
-    etapa: 'ganado',
+    // Era «ganado» en el deck; en HubSpot quedó en Evaluando (César, 30-sep-2026).
+    etapa: 'evaluando',
     montos: { 'Marketing United': 200_000 },
   },
   {
@@ -146,14 +154,19 @@ export function pipelinePorUdn(lista: Oportunidad[] = OPORTUNIDADES): { udn: Udn
  */
 export const REUNIONES = { realizadas: 19, credenciales: 14, acercamiento: 5, periodo: 'julio a septiembre' }
 
-/** El embudo que sí se puede rastrear, de arriba abajo. */
+/**
+ * El embudo que sí se puede rastrear, de arriba abajo. El paso «Ganado» solo
+ * aparece cuando hay ganados: un «Ganado 0» al final no informa nada que la
+ * tabla no diga, y el mensaje de la lámina es el pipeline (Franco, 30-sep-2026).
+ */
 export function embudo(lista: Oportunidad[] = OPORTUNIDADES): { etapa: string; valor: number }[] {
-  return [
+  const pasos = [
     { etapa: 'Reuniones realizadas', valor: REUNIONES.realizadas },
     { etapa: 'Oportunidades', valor: lista.length },
     { etapa: 'Propuestas en evaluación', valor: lista.filter((o) => o.etapa === 'evaluando').length },
-    { etapa: 'Ganado', valor: lista.filter((o) => o.etapa === 'ganado').length },
   ]
+  const ganados = lista.filter((o) => o.etapa === 'ganado').length
+  return ganados > 0 ? [...pasos, { etapa: 'Ganado', valor: ganados }] : pasos
 }
 
 export type PasoInstituto = 'credenciales' | 'acercamiento'
@@ -192,6 +205,12 @@ export const CONVERSACIONES: { quien: string; titulo: string; detalle: string }[
     detalle: 'Chihuahua, Aguascalientes, Querétaro, CDMX, Morelia y Monterrey, con cinco UDN; en Monterrey también NeraCode.',
   },
   {
+    // Franco, 30-sep-2026. Jorge Teherán es contacto de Ángel en HubSpot desde junio.
+    quien: 'PRI',
+    titulo: 'Senador Manuel Añorve · Guerrero',
+    detalle: 'Virtual candidato del PRI a la gubernatura de Guerrero. Nuestro contacto es su encargado de prensa, Jorge Teherán. Ángel busca su visita a UPAX para presentar credenciales y que conozca la empresa.',
+  },
+  {
     quien: 'PRI',
     titulo: 'Sinaloa',
     detalle: 'Diputado Mario Zamora, aspirante a gobernador: comunicación directa y visita pendiente. Senadora Paloma Sánchez, en calificación.',
@@ -207,6 +226,11 @@ export const CONVERSACIONES: { quien: string; titulo: string; detalle: string }[
     detalle: 'Santiago Nieto y Beatriz Mujica, por contactos periodísticos.',
   },
 ]
+
+/** Partidos distintos con los que hay conversación abierta (PAN, PRI, SOMOS MX, Morena y aliados). */
+export function partidosEnConversacion(lista = CONVERSACIONES): number {
+  return new Set(lista.map((c) => c.quien)).size
+}
 
 /**
  * LA LANDING DE LA VERTICAL (politico.upax.com.mx), sesiones en GA4. Julio y
@@ -245,7 +269,8 @@ export const RADAR = {
 export const SIGUIENTES: { cuando: string; que: string }[] = [
   { cuando: 'Esta semana', que: 'Propuesta económica a Leslie Staines, aspirante a la alcaldía Álvaro Obregón.' },
   { cuando: 'Jueves 1 de octubre', que: 'Visita de Carlos Castaños, director de comunicación del PAN nacional.' },
-  { cuando: 'Octubre', que: 'Facturar el primer negocio ganado: $200 mil con la diputada Mónica Sandoval.' },
+  { cuando: 'Octubre', que: 'Cerrar la propuesta de $200 mil con la diputada Mónica Sandoval, hoy en evaluación.' },
   { cuando: 'Octubre', que: 'Cotización para el Instituto Electoral de Michoacán.' },
+  { cuando: 'Por agendar', que: 'Visita a UPAX del senador Manuel Añorve (PRI, Guerrero) para presentarle credenciales.' },
   { cuando: 'Por agendar', que: 'Visita al diputado Mario Zamora, aspirante a gobernador de Sinaloa.' },
 ]
