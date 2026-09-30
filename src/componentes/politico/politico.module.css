@@ -39,8 +39,7 @@
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: clamp(3rem, 8vh, 6.5rem) clamp(1.25rem, 7vw, 8rem) clamp(4.5rem, 10vh, 7.5rem);
+  padding: clamp(4.5rem, 11vh, 7.5rem) clamp(1.25rem, 7vw, 8rem) clamp(4.5rem, 10vh, 7rem);
 }
 
 .clara {
@@ -56,22 +55,53 @@
     var(--indigo);
 }
 
+/* La escena ocupa todo el alto de la pantalla (`flex: 1`): así la cabecera se
+   queda arriba en TODAS las láminas y el contenido se centra en lo que sobra.
+   Antes todo se centraba junto y el título caía a una altura distinta en cada
+   pantalla, según cuánto midiera el contenido. */
 .escena {
   position: relative;
   z-index: 1;
+  flex: 1;
   width: 100%;
-  max-width: 1500px;
+  max-width: 1440px;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.9rem, 2.2vh, 1.6rem);
+  gap: clamp(1rem, 2.4vh, 1.75rem);
+}
+
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.45rem, 1.1vh, 0.8rem);
+}
+
+/* El contenido arranca a una distancia FIJA del título, no centrado en lo que
+   sobra: centrado, en una laptop quedaba un hueco de 200 px entre título y
+   contenido. Lo que llena la pantalla es el propio contenido, que escala con
+   la altura (`vh`) en vez de flotar. */
+.cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: clamp(1rem, 2.6vh, 1.9rem);
+  padding-top: clamp(1.25rem, 5vh, 3.5rem);
+}
+
+/* Al proyectar, ModoPresentar deja el título a 5vh del borde; se baja a 9vh
+   para que respire igual que en la lectura. Doble clase: gana a su regla sin
+   depender del orden en que se cargan las hojas. */
+:global([data-presentando='true']) .pantalla.pantalla {
+  padding-top: clamp(3rem, 9vh, 6.5rem);
 }
 
 /* ---- tipografía de proyección ---- */
 
 .antetitulo {
   margin: 0;
-  font-size: clamp(0.78rem, 0.95vw, 1.1rem);
+  font-size: clamp(0.8rem, 0.9vw, 1.05rem);
   font-weight: 700;
   letter-spacing: var(--track-micro);
   text-transform: uppercase;
@@ -81,9 +111,9 @@
 
 .titulo {
   margin: 0;
-  max-width: 26ch;
+  max-width: 34ch;
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(1.9rem, 4vw, 4.4rem);
+  font-size: clamp(1.8rem, 3.2vw, 3.6rem);
   font-weight: 700;
   line-height: 1.06;
   letter-spacing: var(--track-display);
@@ -93,8 +123,6 @@
 .degradado {
   display: inline-block;
   background: var(--grad);
-  background-size: 200% 100%;
-  background-position: 0% 50%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -127,7 +155,7 @@
 
 /* ---- portada ---- */
 
-.portada .escena { gap: clamp(0.8rem, 2vh, 1.4rem); }
+.portada .escena { justify-content: center; gap: clamp(0.8rem, 2vh, 1.4rem); }
 
 .logoPortada {
   width: clamp(150px, 14vw, 230px);
@@ -139,7 +167,7 @@
   margin: 0;
   max-width: 14ch;
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(2.8rem, 7.2vw, 6.8rem);
+  font-size: clamp(2.8rem, 6.2vw, 6.2rem);
   font-weight: 800;
   line-height: 0.98;
   letter-spacing: -0.045em;
@@ -190,8 +218,12 @@
 .cifra {
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: clamp(10rem, 24vh, 16rem);
   margin: 0;
-  padding: clamp(1.25rem, 2.2vw, 2rem);
+  padding: clamp(1.3rem, 2.2vw, 2.2rem);
   background: var(--papel);
   border-radius: var(--r-4);
   box-shadow: var(--e-2);
@@ -207,7 +239,7 @@
 .cifraValor {
   display: block;
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(2.1rem, 4.2vw, 5rem);
+  font-size: clamp(2.1rem, 3.2vw, 3.9rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: var(--track-display);
@@ -216,8 +248,8 @@
 }
 
 .cifraRotulo {
-  margin: 0.7rem 0 0;
-  font-size: clamp(0.92rem, 1.1vw, 1.3rem);
+  margin: 0.9rem 0 0;
+  font-size: clamp(1rem, 1.25vw, 1.45rem);
   line-height: 1.35;
   color: var(--tinta-2);
 }
@@ -231,15 +263,18 @@
     var(--indigo);
 }
 
+.foco .escena { justify-content: center; align-items: center; text-align: center; }
+.foco .cabecera { align-items: center; }
+.foco .cuerpo { flex: 0 0 auto; align-items: center; }
+
 .cifraGigante {
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(4.5rem, 15vw, 12rem);
+  font-size: clamp(4.5rem, 13vw, 11.5rem);
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  align-self: flex-start;
 }
 
 .fichaGanado {
@@ -264,44 +299,49 @@
 
 .embudo {
   list-style: none;
-  margin: 0.75rem 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  gap: clamp(0.7rem, 1.6vh, 1rem);
+  gap: clamp(0.9rem, 3vh, 2rem);
 }
 
 .pasoEmbudo {
   display: grid;
-  grid-template-columns: minmax(10rem, 17rem) minmax(0, 1fr) 4.5rem;
+  grid-template-columns: minmax(11rem, 16rem) minmax(0, 1fr);
   align-items: center;
-  gap: clamp(0.8rem, 1.6vw, 1.4rem);
+  gap: clamp(1rem, 2vw, 1.75rem);
 }
 
 .pasoNombre {
-  font-size: clamp(1rem, 1.35vw, 1.6rem);
+  font-size: clamp(1.05rem, 1.35vw, 1.6rem);
   font-weight: 600;
 }
 
+/* Barra y cifra en una sola línea: la cifra sigue a su barra. El 86 % deja
+   sitio a la cifra de la barra más larga sin que se salga del carril. */
 .pasoCarril {
   display: flex;
-  justify-content: center;
-  height: clamp(2.3rem, 5.5vh, 3.4rem);
+  align-items: center;
+  gap: clamp(0.7rem, 1.2vw, 1.1rem);
+  height: clamp(2.4rem, 6vh, 3.8rem);
 }
 
 .pasoBarra {
   display: block;
+  flex: none;
   height: 100%;
-  width: var(--ancho);
+  width: calc(var(--ancho) * 0.86);
+  min-width: 1.4rem;
   border-radius: var(--r-lleno);
   background: var(--grad);
-  box-shadow: 0 10px 26px oklch(0.55 0.2 15 / 0.22);
+  box-shadow: 0 8px 22px oklch(0.55 0.2 15 / 0.2);
+  transform-origin: left center;
 }
 
 .pasoValor {
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(1.6rem, 2.7vw, 3.2rem);
+  font-size: clamp(1.6rem, 2.5vw, 3rem);
   font-weight: 700;
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -309,17 +349,17 @@
 
 .udns {
   list-style: none;
-  margin: 0.75rem 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  gap: clamp(0.8rem, 1.8vh, 1.2rem);
+  gap: clamp(0.9rem, 3vh, 2rem);
 }
 
 .udn {
   display: grid;
-  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr) minmax(8.5rem, 11rem);
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);
   align-items: center;
-  gap: clamp(0.8rem, 1.8vw, 1.5rem);
+  gap: clamp(1rem, 2vw, 1.75rem);
 }
 
 .udnMarca {
@@ -329,34 +369,39 @@
   font-weight: 600;
 }
 
+/* Altura base por escala óptica (ver `LOGO_UDN` en EstatusPolitico.tsx). */
 .udnLogo {
-  height: clamp(26px, 3.8vh, 46px);
+  height: calc(clamp(26px, 3.8vh, 42px) * var(--escala-logo, 1));
   width: auto;
   max-width: 100%;
 }
 
+/* Mismo patrón que el embudo: la barra y su monto en una línea; el 78 % deja
+   sitio al monto más largo ($2,953,454) al final de la barra más larga. */
 .udnCarril {
-  height: clamp(2.1rem, 4.8vh, 2.8rem);
-  border-radius: var(--r-lleno);
-  background: var(--papel-hundido);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.7rem, 1.2vw, 1.1rem);
+  height: clamp(2.2rem, 5.6vh, 3.4rem);
 }
 
 .udnBarra {
   display: block;
+  flex: none;
   height: 100%;
-  width: var(--ancho);
-  border-radius: inherit;
+  width: calc(var(--ancho) * 0.78);
+  min-width: 1.2rem;
+  border-radius: var(--r-lleno);
   background: var(--grad);
   transform-origin: left center;
 }
 
 .udnMonto {
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(1.1rem, 1.7vw, 2rem);
+  font-size: clamp(1.1rem, 1.55vw, 1.85rem);
   font-weight: 700;
-  text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* ---- tabla de oportunidades ---- */
@@ -374,7 +419,7 @@
   grid-template-columns: minmax(0, 2.7fr) minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 1rem;
-  padding: clamp(0.5rem, 1.2vh, 0.8rem) clamp(1rem, 1.8vw, 1.5rem);
+  padding: clamp(0.55rem, 1.5vh, 1rem) clamp(1rem, 1.8vw, 1.5rem);
   border-top: 1px solid var(--linea);
   font-size: clamp(0.88rem, 1.02vw, 1.2rem);
 }
@@ -447,7 +492,7 @@
 
 .institutos {
   list-style: none;
-  margin: 0.75rem 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -458,7 +503,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  padding: clamp(1rem, 1.8vw, 1.4rem) clamp(1.1rem, 2vw, 1.6rem);
+  padding: clamp(1.1rem, 3.2vh, 2.1rem) clamp(1.1rem, 2vw, 1.75rem);
   border-radius: var(--r-4);
   background: oklch(1 0 0 / 0.06);
   box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.16);
@@ -470,7 +515,7 @@
 
 .institutoEstado {
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(1.15rem, 1.8vw, 2.1rem);
+  font-size: clamp(1.2rem, 2vw, 2.3rem);
   font-weight: 700;
   letter-spacing: var(--track-titulo);
 }
@@ -497,7 +542,7 @@
   flex-direction: column;
   gap: 0.45rem;
   margin: 0;
-  padding: clamp(1.1rem, 1.8vw, 1.5rem);
+  padding: clamp(1.2rem, 2.8vh, 2rem) clamp(1.1rem, 1.8vw, 1.6rem);
   background: var(--papel);
   border-radius: var(--r-4);
   box-shadow: var(--e-1);
@@ -534,17 +579,16 @@
 
 .inbound {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  align-items: end;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  align-items: center;
   gap: clamp(1.5rem, 4vw, 4rem);
-  margin-top: 0.75rem;
 }
 
 .columnas {
   display: flex;
   align-items: stretch;
-  gap: clamp(1rem, 3vw, 2.5rem);
-  height: clamp(15rem, 40vh, 24rem);
+  gap: clamp(1rem, 2.6vw, 2.25rem);
+  height: clamp(15rem, 46vh, 30rem);
 }
 
 .columna {
@@ -623,10 +667,10 @@
 
 .linea {
   list-style: none;
-  margin: 0.75rem 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  gap: clamp(0.6rem, 1.4vh, 0.9rem);
+  gap: clamp(0.6rem, 1.8vh, 1.2rem);
 }
 
 .hito {
@@ -634,7 +678,7 @@
   grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
   align-items: baseline;
   gap: clamp(0.8rem, 2vw, 1.75rem);
-  padding: clamp(0.8rem, 1.6vh, 1.1rem) clamp(1rem, 1.8vw, 1.4rem);
+  padding: clamp(0.9rem, 2.6vh, 1.6rem) clamp(1rem, 1.8vw, 1.5rem);
   border-radius: var(--r-4);
   background: oklch(1 0 0 / 0.06);
   box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.12);
@@ -675,11 +719,6 @@
   to { opacity: 1; transform: none; filter: none; }
 }
 
-@keyframes brillo {
-  from { background-position: 100% 50%; }
-  to { background-position: 0% 50%; }
-}
-
 @keyframes flotar {
   from { transform: translate3d(-4%, -3%, 0) scale(1); }
   to { transform: translate3d(5%, 4%, 0) scale(1.08); }
@@ -718,9 +757,6 @@
     animation: encender 700ms var(--muelle) both;
     animation-delay: calc(var(--i, 0) * 130ms);
   }
-  .escena[data-visible='true'] .degradado {
-    animation: brillo 2.4s var(--suave) both;
-  }
 }
 
 /* ---- pantallas angostas ---- */
@@ -735,10 +771,7 @@
   .pantalla { min-height: auto; }
   .cifras, .conversaciones { grid-template-columns: minmax(0, 1fr); }
   .institutos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pasoEmbudo { grid-template-columns: minmax(0, 1fr) auto; }
-  .pasoCarril { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
-  .udn { grid-template-columns: minmax(0, 1fr) auto; }
-  .udnCarril { grid-column: 1 / -1; grid-row: 2; }
+  .pasoEmbudo, .udn { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
   .filaTabla { grid-template-columns: minmax(0, 1fr) auto; }
   .cabeceraTabla > :nth-child(2), .cabeceraTabla > :nth-child(3) { display: none; }
   .hito { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
