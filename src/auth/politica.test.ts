@@ -209,6 +209,21 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(SALA_NC, '/acuerdos/lo-que-sea')).toBe(false)
   })
 
+  /**
+   * El estatus político-electoral (29-sep-2026) nombra a políticos, partidos y
+   * negocios en curso: es de equipo, nunca de un director ni del público.
+   */
+  it('un acceso de sala no entra al estatus político, y sin sesión tampoco', () => {
+    expect(puedeVerRuta(SALA_NC, '/politico')).toBe(false)
+    expect(puedeVerRuta(null, '/politico')).toBe(false)
+    expect(esRutaPublica('/politico')).toBe(false)
+  })
+
+  it('el equipo con rolApp sí entra al estatus político', () => {
+    expect(puedeVerRuta(VIEWER, '/politico')).toBe(true)
+    expect(puedeVerRuta(EDITOR, '/politico')).toBe(true)
+  })
+
   it('el equipo con rolApp sí entra al espacio de acuerdos y a su bandeja', () => {
     expect(puedeVerRuta(EDITOR, '/acuerdos')).toBe(true)
     expect(puedeVerRuta(EDITOR, '/acuerdos/bandeja')).toBe(true)

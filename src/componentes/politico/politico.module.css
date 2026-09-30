@@ -1,0 +1,751 @@
+/* EL ESTATUS POLÍTICO-ELECTORAL — una pantalla por sección.
+ *
+ * Se viste con la identidad de Grupo UPAX (el pipeline de la vertical vive en
+ * el suyo): el degradado naranja → magenta → azul y el índigo profundo de sus
+ * portadas. Los tokens de estructura —radios, elevación, curvas de
+ * movimiento, tracking— son los del sistema (`src/app/sistema.css`); aquí solo
+ * se añade lo propio de una presentación: tipografía de proyección y
+ * movimiento de entrada.
+ *
+ * EL MOVIMIENTO NUNCA ESCONDE CONTENIDO POR DEFECTO. Los estados de arranque
+ * (opacidad cero, barras en cero) solo se aplican bajo `[data-animar='true']`,
+ * que pone `Escena` ya montado en el navegador, y solo para quien no pidió
+ * menos movimiento. Sin JavaScript, al imprimir o con `prefers-reduced-motion`,
+ * cada pantalla se ve completa y quieta desde el HTML del servidor.
+ */
+
+.documento {
+  --indigo: #1e1b4b;
+  --indigo-2: #2b2770;
+  --naranja: #e34714;
+  --magenta: #d72a5a;
+  --azul: #5367e1;
+  --grad: linear-gradient(120deg, var(--naranja) 0%, var(--magenta) 52%, var(--azul) 100%);
+  /* Para rótulos sobre claro: el magenta de marca no llega a 4,5:1 sobre el
+     lienzo; este sí, con el mismo matiz. */
+  --acento-texto: #b01e4b;
+  /* Y sobre índigo, un naranja claro que sí se lee. */
+  --acento-oscuro: #ffa27f;
+  font-family: var(--fuente-texto, inherit);
+  color: var(--tinta);
+}
+
+/* ---- la pantalla ---- */
+
+.pantalla {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(3rem, 8vh, 6.5rem) clamp(1.25rem, 7vw, 8rem) clamp(4.5rem, 10vh, 7.5rem);
+}
+
+.clara {
+  background: var(--lienzo);
+  color: var(--tinta);
+}
+
+.oscura {
+  color: oklch(0.99 0 0);
+  background:
+    radial-gradient(120% 90% at 100% 0%, oklch(0.36 0.16 285 / 0.55) 0%, transparent 60%),
+    radial-gradient(90% 80% at 0% 100%, oklch(0.45 0.19 20 / 0.35) 0%, transparent 55%),
+    var(--indigo);
+}
+
+.escena {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1500px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.9rem, 2.2vh, 1.6rem);
+}
+
+/* ---- tipografía de proyección ---- */
+
+.antetitulo {
+  margin: 0;
+  font-size: clamp(0.78rem, 0.95vw, 1.1rem);
+  font-weight: 700;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--acento-texto);
+}
+.oscura .antetitulo { color: var(--acento-oscuro); }
+
+.titulo {
+  margin: 0;
+  max-width: 26ch;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.9rem, 4vw, 4.4rem);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: var(--track-display);
+  text-wrap: balance;
+}
+
+.degradado {
+  display: inline-block;
+  background: var(--grad);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nota {
+  margin: 0;
+  max-width: 60ch;
+  font-size: clamp(0.95rem, 1.1vw, 1.3rem);
+  color: var(--tinta-2);
+}
+.oscura .nota { color: oklch(1 0 0 / 0.72); }
+
+.pie {
+  position: absolute;
+  z-index: 1;
+  left: clamp(1.25rem, 7vw, 8rem);
+  bottom: clamp(1rem, 3vh, 2rem);
+  /* Angosto a propósito: al proyectar, los controles de ModoPresentar ocupan
+     el centro de esta misma franja, y una fuente a lo ancho se montaba sobre
+     ellos. Si no cabe, se parte en dos renglones a la izquierda. */
+  max-width: min(36rem, 30vw);
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--tinta-3);
+}
+.oscura .pie { color: oklch(1 0 0 / 0.5); }
+
+.derecha { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- portada ---- */
+
+.portada .escena { gap: clamp(0.8rem, 2vh, 1.4rem); }
+
+.logoPortada {
+  width: clamp(150px, 14vw, 230px);
+  height: auto;
+  margin-bottom: clamp(0.5rem, 3vh, 2rem);
+}
+
+.tituloPortada {
+  margin: 0;
+  max-width: 14ch;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(2.8rem, 7.2vw, 6.8rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.subtituloPortada {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.9vw, 2rem);
+  color: oklch(1 0 0 / 0.8);
+}
+
+.firma {
+  margin: clamp(0.5rem, 3vh, 2.5rem) 0 0;
+  font-size: clamp(0.85rem, 1vw, 1rem);
+  color: oklch(1 0 0 / 0.6);
+}
+
+.orbes {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.orbe {
+  position: absolute;
+  width: 58vmax;
+  height: 58vmax;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+}
+.orbe:nth-child(1) { background: var(--naranja); top: -30vmax; right: -18vmax; }
+.orbe:nth-child(2) { background: var(--magenta); bottom: -34vmax; right: 12vmax; opacity: 0.42; }
+.orbe:nth-child(3) { background: var(--azul); top: 10vmax; left: -34vmax; opacity: 0.38; }
+
+/* ---- cuatro cifras ---- */
+
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.9rem, 1.8vw, 1.5rem);
+  margin-top: 0.5rem;
+}
+
+.cifra {
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+  padding: clamp(1.25rem, 2.2vw, 2rem);
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-2);
+}
+.cifra::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: var(--grad);
+}
+
+.cifraValor {
+  display: block;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(2.1rem, 4.2vw, 5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cifraRotulo {
+  margin: 0.7rem 0 0;
+  font-size: clamp(0.92rem, 1.1vw, 1.3rem);
+  line-height: 1.35;
+  color: var(--tinta-2);
+}
+
+/* ---- el primer ganado ---- */
+
+.foco {
+  background:
+    radial-gradient(70% 60% at 50% 45%, oklch(0.55 0.2 15 / 0.35) 0%, transparent 70%),
+    radial-gradient(120% 90% at 100% 0%, oklch(0.36 0.16 285 / 0.55) 0%, transparent 60%),
+    var(--indigo);
+}
+
+.cifraGigante {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(4.5rem, 15vw, 12rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.fichaGanado {
+  max-width: 760px;
+  padding: 1.2rem 1.5rem;
+  border-radius: var(--r-4);
+  background: oklch(1 0 0 / 0.06);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
+}
+.fichaCliente {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.6vw, 1.7rem);
+  font-weight: 700;
+}
+.fichaDetalle {
+  margin: 0.3rem 0 0;
+  font-size: clamp(0.95rem, 1.2vw, 1.35rem);
+  color: oklch(1 0 0 / 0.74);
+}
+
+/* ---- embudo ---- */
+
+.embudo {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: clamp(0.7rem, 1.6vh, 1rem);
+}
+
+.pasoEmbudo {
+  display: grid;
+  grid-template-columns: minmax(10rem, 17rem) minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: clamp(0.8rem, 1.6vw, 1.4rem);
+}
+
+.pasoNombre {
+  font-size: clamp(1rem, 1.35vw, 1.6rem);
+  font-weight: 600;
+}
+
+.pasoCarril {
+  display: flex;
+  justify-content: center;
+  height: clamp(2.3rem, 5.5vh, 3.4rem);
+}
+
+.pasoBarra {
+  display: block;
+  height: 100%;
+  width: var(--ancho);
+  border-radius: var(--r-lleno);
+  background: var(--grad);
+  box-shadow: 0 10px 26px oklch(0.55 0.2 15 / 0.22);
+}
+
+.pasoValor {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.6rem, 2.7vw, 3.2rem);
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- pipeline por UDN ---- */
+
+.udns {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: clamp(0.8rem, 1.8vh, 1.2rem);
+}
+
+.udn {
+  display: grid;
+  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr) minmax(8.5rem, 11rem);
+  align-items: center;
+  gap: clamp(0.8rem, 1.8vw, 1.5rem);
+}
+
+.udnMarca {
+  display: flex;
+  align-items: center;
+  min-height: 2.4rem;
+  font-weight: 600;
+}
+
+.udnLogo {
+  height: clamp(26px, 3.8vh, 46px);
+  width: auto;
+  max-width: 100%;
+}
+
+.udnCarril {
+  height: clamp(2.1rem, 4.8vh, 2.8rem);
+  border-radius: var(--r-lleno);
+  background: var(--papel-hundido);
+  overflow: hidden;
+}
+
+.udnBarra {
+  display: block;
+  height: 100%;
+  width: var(--ancho);
+  border-radius: inherit;
+  background: var(--grad);
+  transform-origin: left center;
+}
+
+.udnMonto {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.1rem, 1.7vw, 2rem);
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- tabla de oportunidades ---- */
+
+.tabla {
+  margin-top: 0.25rem;
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-2);
+  overflow: hidden;
+}
+
+.filaTabla {
+  display: grid;
+  grid-template-columns: minmax(0, 2.7fr) minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: clamp(0.5rem, 1.2vh, 0.8rem) clamp(1rem, 1.8vw, 1.5rem);
+  border-top: 1px solid var(--linea);
+  font-size: clamp(0.88rem, 1.02vw, 1.2rem);
+}
+
+.cabeceraTabla {
+  border-top: none;
+  background: var(--papel-2);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.celdaCliente {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.celdaCliente small {
+  font-size: 0.86em;
+  font-weight: 400;
+  color: var(--tinta-2);
+}
+
+.etapa {
+  display: inline-flex;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--r-lleno);
+  font-size: clamp(0.8rem, 0.75vw, 1rem);
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--papel-hundido);
+  color: var(--tinta-2);
+}
+.etapa[data-etapa='ganado'] { background: var(--bien-tenue); color: var(--bien-texto); }
+.etapa[data-etapa='evaluando'] { background: oklch(0.55 0.16 275 / 0.12); color: oklch(0.45 0.16 275); }
+.etapa[data-etapa='cotizacion'] { background: var(--ojo-tenue); color: var(--ojo-texto); }
+
+.pastillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pastilla {
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--r-1);
+  font-size: clamp(0.75rem, 0.7vw, 0.95rem);
+  font-weight: 700;
+  background: var(--indigo);
+  color: oklch(1 0 0);
+}
+
+.pastillaVacia {
+  background: transparent;
+  color: var(--tinta-2);
+  box-shadow: inset 0 0 0 1px var(--linea-fuerte);
+}
+
+.totalTabla {
+  background: var(--indigo);
+  color: oklch(1 0 0);
+  font-weight: 700;
+  font-size: clamp(0.95rem, 1.15vw, 1.35rem);
+}
+
+/* ---- institutos ---- */
+
+.institutos {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.7rem, 1.4vw, 1.1rem);
+}
+
+.instituto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: clamp(1rem, 1.8vw, 1.4rem) clamp(1.1rem, 2vw, 1.6rem);
+  border-radius: var(--r-4);
+  background: oklch(1 0 0 / 0.06);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.16);
+}
+.instituto[data-paso='credenciales'] {
+  background: var(--grad);
+  box-shadow: 0 14px 34px oklch(0.55 0.2 15 / 0.3);
+}
+
+.institutoEstado {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.15rem, 1.8vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: var(--track-titulo);
+}
+
+.institutoPaso {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* ---- partidos y candidatos ---- */
+
+.conversaciones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.8rem, 1.6vw, 1.25rem);
+  margin-top: 0.25rem;
+}
+
+.conversacion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: clamp(1.1rem, 1.8vw, 1.5rem);
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1);
+}
+
+.partido {
+  align-self: flex-start;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--r-lleno);
+  font-size: clamp(0.74rem, 0.7vw, 0.92rem);
+  font-weight: 800;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  background: var(--indigo);
+  color: oklch(1 0 0);
+}
+
+.conversacionTitulo {
+  margin: 0;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.05rem, 1.45vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.conversacionDetalle {
+  margin: 0;
+  font-size: clamp(0.9rem, 1.02vw, 1.2rem);
+  line-height: 1.45;
+  color: var(--tinta-2);
+}
+
+/* ---- inbound ---- */
+
+.inbound {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  margin-top: 0.75rem;
+}
+
+.columnas {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  height: clamp(15rem, 40vh, 24rem);
+}
+
+.columna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.columnaValor {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.3rem, 2.1vw, 2.4rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La cifra vive DENTRO del carril, justo encima de su barra: arriba del todo
+   quedaba flotando lejos de las barras cortas (169 sobre una barra de un
+   sexto de alto). */
+.columnaCarril {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.columnaBarra {
+  display: block;
+  width: 100%;
+  /* 82 % y no 100 %: el carril también aloja la cifra de arriba. */
+  height: calc(var(--alto) * 0.82);
+  border-radius: var(--r-3) var(--r-3) 6px 6px;
+  background: var(--grad);
+  transform-origin: bottom center;
+}
+.columnaBarra[data-parcial='true'] { opacity: 0.55; }
+
+.columnaMes {
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.blog {
+  padding: clamp(1.25rem, 2.2vw, 1.9rem);
+  background: var(--papel);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-2);
+}
+
+.blogCifra {
+  margin: 0;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(2.4rem, 4.6vw, 5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: var(--track-display);
+}
+
+.blogRotulo {
+  margin: 0.6rem 0 0;
+  color: var(--tinta-2);
+  font-size: clamp(0.95rem, 1.1vw, 1.3rem);
+}
+
+.blogDestacado {
+  margin: 1rem 0 0;
+  font-weight: 600;
+  font-size: clamp(0.95rem, 1.1vw, 1.3rem);
+}
+
+/* ---- lo que sigue ---- */
+
+.linea {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: clamp(0.6rem, 1.4vh, 0.9rem);
+}
+
+.hito {
+  display: grid;
+  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: clamp(0.8rem, 2vw, 1.75rem);
+  padding: clamp(0.8rem, 1.6vh, 1.1rem) clamp(1rem, 1.8vw, 1.4rem);
+  border-radius: var(--r-4);
+  background: oklch(1 0 0 / 0.06);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.12);
+}
+
+.hitoCuando {
+  font-size: clamp(0.85rem, 0.85vw, 1.05rem);
+  font-weight: 800;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--acento-oscuro);
+}
+
+.hitoQue {
+  font-size: clamp(1.02rem, 1.5vw, 1.7rem);
+  line-height: 1.35;
+}
+
+/* ---- movimiento ---- */
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes crecerAncho {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes crecerAlto {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes encender {
+  from { opacity: 0; transform: scale(0.9); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes brillo {
+  from { background-position: 100% 50%; }
+  to { background-position: 0% 50%; }
+}
+
+@keyframes flotar {
+  from { transform: translate3d(-4%, -3%, 0) scale(1); }
+  to { transform: translate3d(5%, 4%, 0) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orbe { animation: flotar 18s ease-in-out infinite alternate; }
+  .orbe:nth-child(2) { animation-duration: 22s; animation-delay: -6s; }
+  .orbe:nth-child(3) { animation-duration: 26s; animation-delay: -11s; }
+
+  /* Arranque: solo con JS vivo (`data-animar`) y mientras no haya llegado. */
+  .escena[data-animar='true']:not([data-visible='true']) :is(.aparece, .pasoEmbudo, .udn, .columna, .instituto) {
+    opacity: 0;
+  }
+  .escena[data-animar='true']:not([data-visible='true']) :is(.pasoBarra, .udnBarra) {
+    transform: scaleX(0);
+  }
+  .escena[data-animar='true']:not([data-visible='true']) .columnaBarra {
+    transform: scaleY(0);
+  }
+
+  /* Llegada: en cascada, cada pieza con su `--i`. */
+  .escena[data-visible='true'] :is(.aparece, .pasoEmbudo, .udn, .columna) {
+    animation: aparecer 800ms var(--suave) both;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+  .escena[data-visible='true'] :is(.pasoBarra, .udnBarra) {
+    animation: crecerAncho 1100ms var(--suave) both;
+    animation-delay: calc(var(--i, 0) * 120ms + 180ms);
+  }
+  .escena[data-visible='true'] .columnaBarra {
+    animation: crecerAlto 1100ms var(--suave) both;
+    animation-delay: calc(var(--i, 0) * 140ms + 180ms);
+  }
+  .escena[data-visible='true'] .instituto {
+    animation: encender 700ms var(--muelle) both;
+    animation-delay: calc(var(--i, 0) * 130ms);
+  }
+  .escena[data-visible='true'] .degradado {
+    animation: brillo 2.4s var(--suave) both;
+  }
+}
+
+/* ---- pantallas angostas ---- */
+
+@media (max-width: 1000px) {
+  .cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .conversaciones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inbound { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+}
+
+@media (max-width: 700px) {
+  .pantalla { min-height: auto; }
+  .cifras, .conversaciones { grid-template-columns: minmax(0, 1fr); }
+  .institutos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pasoEmbudo { grid-template-columns: minmax(0, 1fr) auto; }
+  .pasoCarril { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+  .udn { grid-template-columns: minmax(0, 1fr) auto; }
+  .udnCarril { grid-column: 1 / -1; grid-row: 2; }
+  .filaTabla { grid-template-columns: minmax(0, 1fr) auto; }
+  .cabeceraTabla > :nth-child(2), .cabeceraTabla > :nth-child(3) { display: none; }
+  .hito { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+  .pie { position: static; max-width: none; margin-top: 1.5rem; }
+}
+
+@media print {
+  .orbes { display: none; }
+  .pantalla { min-height: auto; break-inside: avoid; }
+}
