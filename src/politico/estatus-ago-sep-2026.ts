@@ -226,6 +226,22 @@ export const BLOG = {
   masLeido: { titulo: 'Elecciones 2027 en México', lecturas: 327 },
 }
 
+/**
+ * RADAR POLÍTICO COMO PRODUCTO DE VENTA (Franco, 30-sep-2026). Por el interés
+ * real de la gente del PAN, NeraCode ayuda a desarrollar la infraestructura y a
+ * poner un precio inicial; el modelo de negocio va con Administración y
+ * Finanzas. Es la decisión que se le pide a Ceci en la última lámina.
+ */
+export const RADAR = {
+  pedido: 'Necesitamos tu GO',
+  titulo: 'Radar Político es una solución que podemos salir a vender',
+  puntos: [
+    'La gente del PAN mostró interés real en la herramienta.',
+    'NeraCode nos ayuda a desarrollar la infraestructura, con tecnologías aprobadas por GS, y a definir un precio inicial para los prospectos.',
+    'El modelo de negocio lo trabajamos con Administración y Finanzas.',
+  ],
+}
+
 export const SIGUIENTES: { cuando: string; que: string }[] = [
   { cuando: 'Esta semana', que: 'Propuesta económica a Leslie Staines, aspirante a la alcaldía Álvaro Obregón.' },
   { cuando: 'Jueves 1 de octubre', que: 'Visita de Carlos Castaños, director de comunicación del PAN nacional.' },

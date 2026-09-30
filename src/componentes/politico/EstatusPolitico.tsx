@@ -11,6 +11,7 @@ import {
   INSTITUTOS,
   LANDING,
   OPORTUNIDADES,
+  RADAR,
   REUNIONES,
   SIGUIENTES,
   embudo,
@@ -96,11 +97,14 @@ export function EstatusPolitico() {
           <span className={estilos.orbe} />
         </div>
         <Escena className={estilos.escena}>
+          {/* Grupo UPAX con Marketing Corp (Franco, 30-sep-2026): el mismo logo
+              combinado del concurso, recortado de su margen transparente para
+              que en la portada mida lo que se ve. */}
           <Image
-            src="/logos/grupo-upax-blanco.png"
-            alt="Grupo UPAX"
-            width={639}
-            height={164}
+            src="/logos/mkt-corp-grupo-upax-blanco-recortado.png"
+            alt="Grupo UPAX y Marketing Corp"
+            width={1600}
+            height={244}
             className={`${estilos.logoPortada} ${estilos.aparece}`}
             style={orden(0)}
             priority
@@ -118,66 +122,52 @@ export function EstatusPolitico() {
         </Escena>
       </section>
 
-      {/* 2 · EL BIMESTRE EN CUATRO CIFRAS */}
-      <section data-layout="cifras" className={`${estilos.pantalla} ${estilos.clara}`}>
+      {/* 2 · EL BIMESTRE: EL PIPELINE QUE ESTAMOS GENERANDO
+          Eran dos láminas (las cuatro cifras en claro y el primer ganado en
+          oscuro); Franco las fusionó el 30-sep-2026 con el look de la oscura.
+          La cifra grande es el PIPELINE ABIERTO, no el ganado: $200 mil es un
+          monto bajo y el mensaje es que la vertical ya genera pipeline (Franco,
+          30-sep-2026). El primer ganado va como una tarjeta más. */}
+      <section data-layout="bimestre" className={`${estilos.pantalla} ${estilos.oscura} ${estilos.foco}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
-            <p className={`${estilos.antetitulo} ${estilos.aparece}`} style={orden(0)}>El bimestre</p>
-            <h2 className={`${estilos.titulo} ${estilos.aparece}`} style={orden(1)}>Cuatro cifras</h2>
-          </header>
-          <div className={estilos.cuerpo}>
-            <div className={estilos.cifras}>
-              <article className={`${estilos.cifra} ${estilos.aparece}`} style={orden(2)}>
-                <CifraAnimada valor={ganado() / 1000} prefijo="$" sufijo=" mil" className={estilos.cifraValor} />
-                <p className={estilos.cifraRotulo}>primer negocio ganado, por facturar</p>
-              </article>
-              <article className={`${estilos.cifra} ${estilos.aparece}`} style={orden(3)}>
-                <CifraAnimada valor={abierto / 1_000_000} decimales={1} prefijo="$" sufijo=" M" className={estilos.cifraValor} />
-                <p className={estilos.cifraRotulo}>en {abiertas} oportunidades abiertas</p>
-              </article>
-              <article className={`${estilos.cifra} ${estilos.aparece}`} style={orden(4)}>
-                <CifraAnimada valor={REUNIONES.realizadas} className={estilos.cifraValor} />
-                <p className={estilos.cifraRotulo}>reuniones realizadas, de {REUNIONES.periodo}</p>
-              </article>
-              <article className={`${estilos.cifra} ${estilos.aparece}`} style={orden(5)}>
-                <CifraAnimada valor={INSTITUTOS.length} className={estilos.cifraValor} />
-                <p className={estilos.cifraRotulo}>institutos electorales estatales ya nos conocen</p>
-              </article>
-            </div>
-          </div>
-        </Escena>
-        <Pie>HubSpot y equipo de BD Político · corte al {CORTE}</Pie>
-      </section>
-
-      {/* 3 · EL PRIMER NEGOCIO GANADO */}
-      <section data-layout="ganado" className={`${estilos.pantalla} ${estilos.oscura} ${estilos.foco}`}>
-        <Escena className={estilos.escena}>
-          <header className={estilos.cabecera}>
-            <p className={`${estilos.antetitulo} ${estilos.aparece}`} style={orden(0)}>Primer cierre de la vertical</p>
-            <h2 className={`${estilos.titulo} ${estilos.aparece}`} style={orden(1)}>Ya tenemos el primer negocio ganado</h2>
+            <p className={`${estilos.antetitulo} ${estilos.aparece}`} style={orden(0)}>Agosto y septiembre</p>
+            <h2 className={`${estilos.titulo} ${estilos.aparece}`} style={orden(1)}>Estamos generando pipeline</h2>
           </header>
           <div className={estilos.cuerpo}>
             <CifraAnimada
-              valor={ganado() / 1000}
+              valor={abierto / 1_000_000}
+              decimales={1}
               prefijo="$"
-              sufijo=" mil"
+              sufijo=" M"
               className={`${estilos.cifraGigante} ${estilos.degradado} ${estilos.aparece}`}
             />
-            {primerGanado && (
-              <div className={`${estilos.fichaGanado} ${estilos.aparece}`} style={orden(3)}>
-                <p className={estilos.fichaCliente}>{primerGanado.cliente}</p>
-                <p className={estilos.fichaDetalle}>{primerGanado.detalle}</p>
-                <p className={estilos.fichaDetalle}>
-                  {ETIQUETA_ETAPA[primerGanado.etapa]} · lo ejecuta {Object.keys(primerGanado.montos).join(', ')}
-                </p>
-              </div>
-            )}
+            <p className={`${estilos.leyendaGigante} ${estilos.aparece}`} style={orden(3)}>
+              de pipeline abierto, en {abiertas} oportunidades
+            </p>
+            <div className={estilos.bimestre}>
+              <article className={`${estilos.cifraOscura} ${estilos.aparece}`} style={orden(4)}>
+                <CifraAnimada valor={REUNIONES.realizadas} className={estilos.cifraValor} />
+                <p className={estilos.cifraRotulo}>reuniones realizadas, de {REUNIONES.periodo}</p>
+              </article>
+              <article className={`${estilos.cifraOscura} ${estilos.aparece}`} style={orden(5)}>
+                <CifraAnimada valor={INSTITUTOS.length} className={estilos.cifraValor} />
+                <p className={estilos.cifraRotulo}>institutos electorales estatales ya nos conocen</p>
+              </article>
+              {primerGanado && (
+                <article className={`${estilos.cifraOscura} ${estilos.aparece}`} style={orden(6)}>
+                  <CifraAnimada valor={ganado() / 1000} prefijo="$" sufijo=" mil" className={estilos.cifraValor} />
+                  <p className={estilos.cifraRotulo}>primer negocio ganado</p>
+                  <p className={estilos.cifraRotulo}>{primerGanado.cliente}</p>
+                </article>
+              )}
+            </div>
           </div>
         </Escena>
-        <Pie>Deck de BD Político · corte al {CORTE}</Pie>
+        <Pie>HubSpot y deck de BD Político · corte al {CORTE}</Pie>
       </section>
 
-      {/* 4 · EL EMBUDO */}
+      {/* 3 · EL EMBUDO */}
       <section data-layout="embudo" className={`${estilos.pantalla} ${estilos.clara}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -212,7 +202,7 @@ export function EstatusPolitico() {
         <Pie>Reuniones: HubSpot, realizadas por BD Político · oportunidades: deck de BD Político · corte al {CORTE}</Pie>
       </section>
 
-      {/* 5 · EL PIPELINE POR UDN */}
+      {/* 4 · EL PIPELINE POR UDN */}
       <section data-layout="pipeline" className={`${estilos.pantalla} ${estilos.clara}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -260,7 +250,7 @@ export function EstatusPolitico() {
         <Pie>Deck de BD Político · corte al {CORTE}</Pie>
       </section>
 
-      {/* 6 · LAS OPORTUNIDADES */}
+      {/* 5 · LAS OPORTUNIDADES */}
       <section data-layout="oportunidades" className={`${estilos.pantalla} ${estilos.clara}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -309,7 +299,7 @@ export function EstatusPolitico() {
         <Pie>Deck de BD Político · corte al {CORTE}</Pie>
       </section>
 
-      {/* 7 · LOS INSTITUTOS ELECTORALES */}
+      {/* 6 · LOS INSTITUTOS ELECTORALES */}
       <section data-layout="institutos" className={`${estilos.pantalla} ${estilos.oscura}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -336,7 +326,7 @@ export function EstatusPolitico() {
         <Pie>Deck de BD Político · corte al {CORTE}</Pie>
       </section>
 
-      {/* 8 · PARTIDOS Y CANDIDATOS */}
+      {/* 7 · PARTIDOS Y CANDIDATOS */}
       <section data-layout="partidos" className={`${estilos.pantalla} ${estilos.clara}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -358,7 +348,7 @@ export function EstatusPolitico() {
         <Pie>Deck de BD Político · corte al {CORTE}</Pie>
       </section>
 
-      {/* 9 · INBOUND */}
+      {/* 8 · INBOUND */}
       <section data-layout="inbound" className={`${estilos.pantalla} ${estilos.clara}`}>
         <Escena className={estilos.escena}>
           <header className={estilos.cabecera}>
@@ -401,7 +391,7 @@ export function EstatusPolitico() {
         <Pie>GA4, sesiones en politico.upax.com.mx y lecturas del blog · *septiembre al día 28</Pie>
       </section>
 
-      {/* 10 · LO QUE SIGUE */}
+      {/* 9 · LO QUE SIGUE */}
       <section data-layout="siguientes" className={`${estilos.pantalla} ${estilos.oscura}`}>
         <div className={estilos.orbes} aria-hidden="true">
           <span className={estilos.orbe} />
@@ -413,9 +403,20 @@ export function EstatusPolitico() {
             <h2 className={`${estilos.titulo} ${estilos.aparece}`} style={orden(1)}>Lo que sigue</h2>
           </header>
           <div className={estilos.cuerpo}>
-            <ol className={estilos.linea}>
+            {/* LA DECISIÓN QUE SE LE PIDE A CECI, antes que la lista: es lo único
+                de esta lámina que no depende del equipo (Franco, 30-sep-2026). */}
+            <article className={`${estilos.decision} ${estilos.aparece}`} style={orden(2)}>
+              <p className={estilos.decisionPedido}>{RADAR.pedido}</p>
+              <h3 className={estilos.decisionTitulo}>{RADAR.titulo}</h3>
+              <ul className={estilos.decisionPuntos}>
+                {RADAR.puntos.map((punto) => (
+                  <li key={punto}>{punto}</li>
+                ))}
+              </ul>
+            </article>
+            <ol className={`${estilos.linea} ${estilos.lineaCompacta}`}>
               {SIGUIENTES.map((s, i) => (
-                <li key={`${s.cuando}-${i}`} className={`${estilos.hito} ${estilos.aparece}`} style={orden(i + 2)}>
+                <li key={`${s.cuando}-${i}`} className={`${estilos.hito} ${estilos.aparece}`} style={orden(i + 3)}>
                   <span className={estilos.hitoCuando}>{s.cuando}</span>
                   <span className={estilos.hitoQue}>{s.que}</span>
                 </li>

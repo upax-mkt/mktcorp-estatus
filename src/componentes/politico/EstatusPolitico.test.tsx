@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { EstatusPolitico } from './EstatusPolitico'
 
 /**
@@ -25,13 +25,35 @@ afterEach(() => {
 })
 
 describe('EstatusPolitico', () => {
-  it('son diez pantallas, cada una proyectable por ModoPresentar', () => {
+  it('son nueve pantallas, cada una proyectable por ModoPresentar', () => {
     const { container } = render(<EstatusPolitico />)
     const pantallas = container.querySelectorAll('[data-layout]')
-    expect(pantallas).toHaveLength(10)
+    expect(pantallas).toHaveLength(9)
     expect([...pantallas].map((p) => p.getAttribute('data-layout'))).toEqual([
-      'portada', 'cifras', 'ganado', 'embudo', 'pipeline', 'oportunidades', 'institutos', 'partidos', 'inbound', 'siguientes',
+      'portada', 'bimestre', 'embudo', 'pipeline', 'oportunidades', 'institutos', 'partidos', 'inbound', 'siguientes',
     ])
+  })
+
+  it('el bimestre cuenta el pipeline, no el ganado: $200 mil es una tarjeta más (Franco, 30-sep-2026)', () => {
+    const { container } = render(<EstatusPolitico />)
+    const seccion = container.querySelector<HTMLElement>('[data-layout="bimestre"]')!
+    const lamina = within(seccion)
+    expect(lamina.getByRole('heading', { name: 'Estamos generando pipeline' })).toBeInTheDocument()
+    expect(lamina.getByText('de pipeline abierto, en 8 oportunidades')).toBeInTheDocument()
+    // La primera cifra de la lámina —la grande— es el pipeline abierto.
+    const cifras = [...seccion.querySelectorAll('span')].map((s) => s.textContent).filter((t) => t?.startsWith('$'))
+    expect(cifras[0]).toBe('$5.7 M')
+    expect(lamina.getByText('$200 mil')).toBeInTheDocument()
+    expect(lamina.getByText('primer negocio ganado')).toBeInTheDocument()
+    expect(lamina.getByText('H. Cámara de Diputados')).toBeInTheDocument()
+  })
+
+  it('lo que sigue pide el GO de Ceci para salir a vender Radar Político', () => {
+    const { container } = render(<EstatusPolitico />)
+    const lamina = within(container.querySelector<HTMLElement>('[data-layout="siguientes"]')!)
+    expect(lamina.getByText('Necesitamos tu GO')).toBeInTheDocument()
+    expect(lamina.getByRole('heading', { name: 'Radar Político es una solución que podemos salir a vender' })).toBeInTheDocument()
+    expect(lamina.getByText(/NeraCode nos ayuda a desarrollar la infraestructura/)).toBeInTheDocument()
   })
 
   it('las cifras se ven en su valor final sin JavaScript de animación', () => {
