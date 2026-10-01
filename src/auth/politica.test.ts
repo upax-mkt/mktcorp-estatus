@@ -224,6 +224,17 @@ describe('puedeVerRuta', () => {
     expect(puedeVerRuta(EDITOR, '/politico')).toBe(true)
   })
 
+  /**
+   * El estatus Q3 con Ceci (1-oct-2026) trae pipeline, montos ganados y
+   * confirmados con empresa y cargo: igual que el político, solo equipo.
+   */
+  it('el estatus Q3 es de equipo: ni un acceso de sala ni alguien sin sesión entran', () => {
+    expect(puedeVerRuta(SALA_NC, '/estatus')).toBe(false)
+    expect(puedeVerRuta(null, '/estatus')).toBe(false)
+    expect(esRutaPublica('/estatus')).toBe(false)
+    expect(puedeVerRuta(VIEWER, '/estatus')).toBe(true)
+  })
+
   it('el equipo con rolApp sí entra al espacio de acuerdos y a su bandeja', () => {
     expect(puedeVerRuta(EDITOR, '/acuerdos')).toBe(true)
     expect(puedeVerRuta(EDITOR, '/acuerdos/bandeja')).toBe(true)

@@ -47,7 +47,7 @@ function salirAction() {
  */
 const pestanaClientes = () => screen.getByText('Clientes', { selector: 'summary' })
 /** Las cinco pestañas que siguen siendo un enlace directo. */
-const PESTANAS_ENLACE = ['Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Político', 'Personas']
+const PESTANAS_ENLACE = ['Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Político', 'Estatus Q3', 'Personas']
 
 describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
   it('pinta las cinco pestañas del ciclo, en orden, cuando admin=true', () => {
@@ -59,7 +59,7 @@ describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
       .getAllByRole('link')
       .filter((a) => !a.closest('details'))
     expect(enlaces.map((a) => a.textContent)).toEqual([
-      'Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Político', 'Personas',
+      'Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Político', 'Estatus Q3', 'Personas',
     ])
     expect(pestanaClientes()).toBeInTheDocument()
   })
@@ -69,7 +69,7 @@ describe('BarraNavegacion — el orden del ciclo, sin excepción', () => {
 
     const nav = screen.getByRole('navigation')
     const enlaces = within(nav).getAllByRole('link')
-    expect(enlaces.map((a) => a.textContent)).toEqual(['Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Político'])
+    expect(enlaces.map((a) => a.textContent)).toEqual(['Reuniones', 'Presentaciones', 'Acuerdos', 'Concurso', 'Político', 'Estatus Q3'])
     expect(screen.queryByText('Clientes', { selector: 'summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Personas' })).not.toBeInTheDocument()
     // Y sin la pestaña tampoco se filtra ni un cliente: el desplegable
@@ -135,7 +135,7 @@ describe('BarraNavegacion — aria-current marca la pestaña actual, no solo el 
     pintar({ hoy: HOY, admin: true, seccionActiva: 'deck', salirAction: salirAction })
 
     expect(screen.getByRole('link', { name: 'Presentaciones' })).toHaveAttribute('aria-current', 'page')
-    for (const nombre of ['Reuniones', 'Acuerdos', 'Concurso', 'Político', 'Personas']) {
+    for (const nombre of ['Reuniones', 'Acuerdos', 'Concurso', 'Político', 'Estatus Q3', 'Personas']) {
       expect(screen.getByRole('link', { name: nombre })).not.toHaveAttribute('aria-current')
     }
     expect(pestanaClientes()).not.toHaveAttribute('aria-current')
@@ -158,6 +158,13 @@ describe('BarraNavegacion — aria-current marca la pestaña actual, no solo el 
     expect(screen.getByRole('link', { name: 'Político' })).toHaveAttribute('href', '/politico')
     expect(screen.getByRole('link', { name: 'Político' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Concurso' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('Estatus Q3 es visible para todo el equipo y marca su ruta', () => {
+    pintar({ hoy: HOY, admin: false, seccionActiva: 'estatus', salirAction: salirAction })
+    expect(screen.getByRole('link', { name: 'Estatus Q3' })).toHaveAttribute('href', '/estatus')
+    expect(screen.getByRole('link', { name: 'Estatus Q3' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Político' })).not.toHaveAttribute('aria-current')
   })
 
   it('seccionActiva="salas" (Clientes) marca esa pestaña, no la de Presentaciones', () => {

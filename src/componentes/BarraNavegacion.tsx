@@ -53,7 +53,7 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
  */
 
 /** Las cinco pestañas del ciclo — mismo orden que la barra siempre tuvo. */
-export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'concurso' | 'politico' | 'salas' | 'personas'
+export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'concurso' | 'politico' | 'estatus' | 'salas' | 'personas'
 
 /** Un cliente del desplegable: lo justo para pintar su fila. */
 export interface ClienteBarra {
@@ -203,6 +203,16 @@ export function BarraNavegacion({
           aria-current={seccionActiva === 'politico' ? 'page' : undefined}
         >
           Político
+        </Link>
+        {/* ESTATUS Q3 (1-oct-2026): el estatus del área con Ceci, con la
+            agenda y el contenido del equipo. Mismo criterio que Político:
+            visible para todo el equipo; la página exige sesión de equipo. */}
+        <Link
+          href="/estatus"
+          className={estilos.barraLink}
+          aria-current={seccionActiva === 'estatus' ? 'page' : undefined}
+        >
+          Estatus Q3
         </Link>
         {/* /salas y /personas son las dos únicas secciones solo-admin
             (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
