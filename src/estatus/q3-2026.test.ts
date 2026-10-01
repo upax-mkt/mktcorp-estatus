@@ -95,3 +95,30 @@ describe('nombres', () => {
     expect(todo).not.toMatch(/Neracode|ResearchLand|House Of Films|Mexa creativa|Zeus/)
   })
 })
+
+describe('las lecturas que concluye cada lámina', () => {
+  it('lo ganado por empresa: Marketing United se lleva $3.21 M en 10 negocios', () => {
+    const [primera] = Q3.ganadoPorUdn()
+    expect(primera.udn).toBe('Marketing United')
+    expect(primera.negocios).toBe(10)
+    expect(primera.monto).toBeCloseTo(3_209_885.44, 2)
+  })
+
+  it('84% del pipeline abierto ya está en Evaluando; 92% de las notas fueron de Research Land', () => {
+    expect(Q3.parteEvaluando()).toBeCloseTo(0.844, 3)
+    expect(Q3.parteNotasRL()).toBeCloseTo(0.918, 3)
+  })
+
+  it('paid: $1,300 por MQL en promedio; web: una de cada 785 visitas deja sus datos', () => {
+    expect(Q3.costoPromedioMqlPaid()).toBeCloseTo(1300.67, 1)
+    expect(Q3.visitasPorMql()).toBeCloseTo(784.7, 1)
+    expect(Q3.sitiosPrimeraPagina()).toBe(4)
+  })
+
+  it('materiales listos por empresa suman los 16 hechos; Research Land tiene 6 de 7', () => {
+    const porUdn = Q3.materialesListosPorUdn()
+    expect(porUdn.reduce((n, f) => n + f.listos, 0)).toBe(16)
+    expect(porUdn.find((f) => f.udn === 'Research Land')).toEqual({ udn: 'Research Land', listos: 6, total: 7 })
+    expect(Q3.accionesRoadmap()).toBe(23)
+  })
+})

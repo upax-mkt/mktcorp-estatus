@@ -557,6 +557,9 @@ export const REDES = [
   { red: 'YouTube', seguidores: 22, impresiones: 10_682, interacciones: 445, engagement: 0.0417 },
 ]
 
+/** El dato de Q2 contra el que el squad compara el engagement de Instagram (insight de redes). */
+export const REDES_Q2 = { engagementInstagram: 0.0025 }
+
 export const PAID: { udn: Udn; mql: number | null; costoMql: number | null; sql: number | null; pipeline: number; facturado: number }[] = [
   { udn: 'Research Land', mql: 10, costoMql: 2077.82, sql: 3, pipeline: 1_660_000, facturado: 0 },
   { udn: 'Promo Espacio', mql: 45, costoMql: 713.03, sql: 19, pipeline: 1_790_000, facturado: 321_000 },
@@ -606,3 +609,51 @@ export const EQUIPO = {
     { eje: 'Comunicación y clima', titulo: '1:1 con el CMO', texto: 'Franco conversó uno a uno con cada integrante para escuchar de primera mano y dar seguimiento a inquietudes particulares.' },
   ],
 }
+
+/* ─────────── LECTURAS: lo que cada lámina concluye, calculado de sus tablas ─────────── */
+
+/** Lo ganado por empresa: monto, negocios y clientes. */
+export const ganadoPorUdn = () => {
+  const porUdn = new Map<Udn, { monto: number; negocios: number; clientes: Set<string> }>()
+  for (const g of GANADAS) {
+    const f = porUdn.get(g.udn) ?? { monto: 0, negocios: 0, clientes: new Set<string>() }
+    f.monto += g.valor
+    f.negocios += 1
+    f.clientes.add(g.empresa)
+    porUdn.set(g.udn, f)
+  }
+  return [...porUdn.entries()]
+    .map(([udn, f]) => ({ udn, monto: f.monto, negocios: f.negocios, clientes: [...f.clientes] }))
+    .sort((a, b) => b.monto - a.monto)
+}
+
+/** Parte del pipeline abierto que ya está en «Evaluando». */
+export const parteEvaluando = () =>
+  (PIPELINE_ETAPAS.find((e) => e.etapa === 'Evaluando')?.monto ?? 0) / PIPELINE.total
+
+/** Parte de las notas de PR que fue de Research Land. */
+export const parteNotasRL = () => (PR.porUdn.find((f) => f.udn === 'Research Land')?.notas ?? 0) / notasEnMedios()
+
+/** Costo promedio por MQL de paid, ponderado por los MQL de cada empresa. */
+export const costoPromedioMqlPaid = () => {
+  const conDato = PAID.filter((p) => p.mql !== null && p.costoMql !== null)
+  const mql = conDato.reduce((n, p) => n + (p.mql ?? 0), 0)
+  return conDato.reduce((n, p) => n + (p.mql ?? 0) * (p.costoMql ?? 0), 0) / mql
+}
+
+/** Visitas al sitio por cada MQL que dejó sus datos. */
+export const visitasPorMql = () => suma(WEB, (w) => w.visitas) / suma(WEB, (w) => w.mql)
+
+/** Sitios que aparecen en la primera página de Google. */
+export const sitiosPrimeraPagina = () => WEB.filter((w) => w.posicion.startsWith('1')).length
+
+/** Materiales hechos y aprobados, por empresa (columnas de la matriz). */
+export const materialesListosPorUdn = () =>
+  COLUMNAS_MATERIALES.map((udn, i) => ({
+    udn,
+    listos: MATERIALES.filter((f) => f.estados[i] === 'hecho').length,
+    total: MATERIALES.filter((f) => f.estados[i] !== 'noAplica').length,
+  }))
+
+/** Acciones del roadmap de Q4, en total y por carril. */
+export const accionesRoadmap = () => ROADMAP.reduce((n, c) => n + c.acciones.length, 0)
