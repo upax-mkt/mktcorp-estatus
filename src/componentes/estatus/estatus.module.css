@@ -1127,3 +1127,58 @@
   .tasa, .graficoNota, .panel, .camino, .cierreRuta { break-inside: avoid; }
   .innerCarta .enlaceDetalle { display: none !important; }
 }
+
+/* ───────────── ANEXO Y PDF NAVEGABLE (2-oct-2026) ─────────────
+   El anexo solo existe en `/estatus?anexo=1`, la versión que se captura para el PDF: todo lo que en pantalla vive
+   detrás de una pestaña, un diálogo o el cursor, desplegado. El contador de cada pie es un enlace a la portada. */
+.pie a { color: inherit; text-decoration: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.irAnexo { margin-left: 1.2rem; padding: .15rem .8rem; border-radius: 100px; color: var(--acento) !important; font-weight: 600; box-shadow: inset 0 0 0 1px currentColor; }
+.seccion > .volver { margin-left: auto; color: var(--acento); font-weight: 600; letter-spacing: .02em; text-transform: none; text-decoration: none; padding: .2rem .9rem; border-radius: 100px; box-shadow: inset 0 0 0 1px currentColor; }
+.cajaTabla { padding: clamp(.4rem, .8vw, .9rem) clamp(.8rem, 1.4vw, 1.6rem); }
+.tablaAnexo { width: 100%; border-collapse: collapse; }
+.tablaAnexo th, .tablaAnexo td { padding: clamp(.55rem, 1.35vh, 1rem) 1rem; border-bottom: 1px solid var(--borde); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: clamp(.95rem, 1.2vw, 1.32rem); }
+.tablaAnexo thead th { font-size: clamp(.72rem, .85vw, .9rem); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.tablaAnexo :is(th, td):first-child { text-align: left; }
+.tablaAnexo tbody th { font-weight: 500; }
+.tablaAnexo tbody th small { margin-left: .8em; color: var(--muted); font-weight: 400; font-size: .72em; }
+.tablaAnexo tbody tr:last-child :is(th, td) { border-bottom: 0; }
+.tablaAnexo tfoot :is(th, td) { border-top: 2px solid var(--tinta); border-bottom: 0; font-weight: 650; }
+.tablaAnexo tr[data-nota] :is(th, td) { color: var(--muted); font-size: clamp(.85rem, 1vw, 1.1rem); }
+.tablaAnexo td[data-mayor] { color: var(--azul-luz); font-weight: 650; }
+.tablaAnexo .logoUdn { vertical-align: middle; }
+.tablaDensa th, .tablaDensa td { padding-block: clamp(.28rem, .62vh, .5rem); font-size: clamp(.85rem, 1.02vw, 1.12rem); }
+.tablaDensa :is(th, td):nth-child(2), .tablaDensa :is(th, td):nth-child(3) { text-align: left; }
+.cargosAnexo { display: grid; grid-template-columns: 1.7fr 1fr 1fr .8fr; gap: clamp(.6rem, 1vw, 1rem); align-items: start; }
+.cargosAnexo > section > header { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; padding-bottom: .6rem; margin-bottom: .6rem; border-bottom: 1px solid var(--borde); }
+.cargosAnexo h3 { font-family: var(--titular); font-size: clamp(1.1rem, 1.5vw, 1.65rem); font-weight: 600; letter-spacing: -.02em; }
+.cargosAnexo header > span { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+.cargosAnexo ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .55rem; }
+.cargosAnexo > section:first-child ul { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem 1.2rem; }
+.cargosAnexo li { display: flex; flex-direction: column; gap: .1rem; break-inside: avoid; }
+.cargosAnexo li b { font-size: clamp(.9rem, 1.05vw, 1.15rem); font-weight: 600; }
+.cargosAnexo li span { color: var(--muted); font-size: clamp(.78rem, .88vw, .95rem); line-height: 1.3; }
+.piezasAnexo { display: flex; align-items: flex-start; justify-content: center; gap: clamp(.7rem, 1.1vw, 1.2rem); }
+.piezasAnexo figure { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.piezasAnexo figure[data-forma='vertical'] { flex: 0 0 auto; }
+.piezasAnexo figure[data-forma='horizontal'] { flex: 1 1 0; }
+.piezasAnexo img { display: block; border-radius: 12px; background: #1E1B4B; box-shadow: var(--sombra); }
+/* Las verticales se cortan por abajo, nunca por los lados: ancho fijo, alto con tope y la imagen anclada arriba. */
+.piezasAnexo figure[data-forma='vertical'] img { width: clamp(170px, 14.6vw, 280px); height: auto; max-height: clamp(300px, 53vh, 570px); object-fit: cover; object-position: top; }
+.piezasAnexo figure[data-forma='horizontal'] img { width: 100%; height: auto; }
+.piezasAnexo figcaption { display: flex; gap: .5rem; align-items: baseline; color: var(--tinta); font-size: clamp(.78rem, .9vw, .98rem); line-height: 1.25; max-width: clamp(170px, 14.6vw, 280px); }
+.piezasAnexo figure[data-forma='horizontal'] figcaption { max-width: none; }
+.piezasAnexo figcaption span { color: var(--acento); font-size: .8em; font-weight: 600; }
+.rendersAnexo { display: grid; grid-template-columns: minmax(0, 1.95fr) minmax(0, 1fr); gap: clamp(.6rem, 1vw, 1rem); align-items: stretch; }
+.rendersAnexo > div { display: grid; grid-template-rows: 1fr 1fr; gap: clamp(.6rem, 1vw, 1rem); min-height: 0; }
+/* La altura la pone el mapa (va entero, a su proporción); los dos renders de al lado se reparten esa misma altura. */
+.rendersAnexo figure { position: relative; padding: .5rem; overflow: hidden; }
+.rendersAnexo > figure img { display: block; width: 100%; height: auto; border-radius: 12px; }
+.rendersAnexo > div img { position: absolute; inset: .5rem; width: calc(100% - 1rem); height: calc(100% - 1rem); object-fit: cover; object-position: center top; border-radius: 12px; }
+/* El render del túnel trae un párrafo incrustado: mismo velo opaco que en la vista ampliada. */
+.rendersAnexo figure[data-recorte]::after { content: ''; position: absolute; inset: 50% .5rem .5rem; border-radius: 0 0 12px 12px; background: linear-gradient(180deg, transparent, #0b0a1f 46%); }
+.rendersAnexo figcaption { z-index: 1; }
+.dosTablas { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(.6rem, 1vw, 1rem); align-items: start; }
+.totalAnexo { color: var(--muted); font-size: clamp(.95rem, 1.2vw, 1.3rem); }
+.totalAnexo b { color: var(--tinta); font-family: var(--titular); font-size: 1.35em; letter-spacing: -.02em; margin-right: .3em; }
+.rendersAnexo figcaption { position: absolute; left: 1.1rem; bottom: 1rem; padding: .3rem .85rem; border-radius: 100px; background: #0b0a1fd9; color: #fff; font-family: var(--titular); font-weight: 550; font-size: clamp(.85rem, 1.05vw, 1.15rem); }
+.cuerpo > :is(.cargosAnexo, .piezasAnexo, .rendersAnexo, .cajaTabla, .dosTablas) { flex: 0 1 auto; }

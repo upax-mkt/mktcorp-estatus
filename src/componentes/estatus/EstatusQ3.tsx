@@ -7,6 +7,7 @@ import { DetalleQ3 } from './DetalleQ3'
 import { IconoQ3, type NombreIcono } from './IconoQ3'
 import { LogoUdn, lugarUdn, udnsEn } from './LogoUdn'
 import { IndiceQ3 } from './IndiceQ3'
+import { AnexoQ3, anexoDe } from './AnexoQ3'
 import {
   ARTEFACTOS, CONVERSION_Q3, CORTO, COLUMNAS_MATERIALES, CUMPLIMIENTO_REPORTADO_Q3,
   DEMANDA_Q3, DESTACADAS, EQUIPO, ESTADO_MATERIAL, EVENTOS, FACTURADO_POR_UDN,
@@ -110,11 +111,14 @@ const orden = (i: number) => ({ '--i': i }) as CSSProperties
  * (blanca, para leer datos; la foto, si la lleva, entra como banda lateral) y
  * `color` (el azul de la marca). `comp` cambia la composición entre vecinas.
  */
-function Lamina({ id, bloque, titulo, bajada, children, tono = 'claro', imagen, fondo, fuente = FUENTE, comp = 'arriba', cumbre = false }: {
+function Lamina({ id, bloque, titulo, bajada, children, tono = 'claro', imagen, fondo, fuente = FUENTE, comp = 'arriba', cumbre = false, conAnexo = false }: {
   id: LaminaId; bloque: BloqueId; titulo: ReactNode; bajada?: ReactNode; children: ReactNode
   tono?: 'foto' | 'claro' | 'color'; imagen?: string; fondo?: 'azul' | 'naranja' | 'rayo'; fuente?: string; comp?: 'arriba' | 'lado'; apertura?: boolean; cumbre?: boolean
+  /** En el PDF, la lámina dice dónde está desplegado lo que en pantalla vive detrás de una pestaña o un diálogo. */
+  conAnexo?: boolean
 }) {
   const pagina = LAMINAS_Q3.indexOf(id) + 1
+  const anexo = conAnexo ? anexoDe(id) : undefined
   return <section id={id} data-layout={id} data-bloque={bloque} data-tono={tono} data-comp={comp} data-cumbre={cumbre || undefined} data-imagen={imagen ? 'si' : undefined} data-luz={imagen?.startsWith('luz') || undefined} data-fondo={fondo} className={`${estilos.pantalla} ${estilos[tono]}`} aria-labelledby={`${id}-titulo`}>
     {imagen && <span className={estilos.fondo} style={foto(imagen)} aria-hidden="true" />}
     {/* Dos luces de marca que derivan muy despacio detrás de todo (Franco, 2-oct-2026): el fondo respira, no se mueve. */}
@@ -126,7 +130,8 @@ function Lamina({ id, bloque, titulo, bajada, children, tono = 'claro', imagen, 
         {bajada && <p className={`${estilos.bajada} ${estilos.entra}`} style={orden(1)}>{bajada}</p>}
       </header>
       <div className={`${estilos.cuerpo} ${estilos.entra}`} style={orden(2)}>{children}</div>
-      <footer className={estilos.pie}><span>{fuente}</span><span>{String(pagina).padStart(2, '0')} / {LAMINAS_Q3.length}</span></footer>
+      {/* El número de página es un enlace a la portada: en el PDF es la vuelta al índice desde cualquier lámina. */}
+      <footer className={estilos.pie}><span>{fuente}{anexo && <a className={estilos.irAnexo} href={`#anexo-${anexo.id}`}>Detalle completo en el anexo {anexo.letra} →</a>}</span><a href="#portada">{String(pagina).padStart(2, '0')} / {LAMINAS_Q3.length}</a></footer>
     </Escena>
   </section>
 }
@@ -196,8 +201,11 @@ function AgendaPorMes() {
   </div>
 }
 
-/** La narrativa se renderiza en servidor; solo cifras, gráficos, índice y exploración son interactivos. */
-export function EstatusQ3() {
+/**
+ * La narrativa se renderiza en servidor; solo cifras, gráficos, índice y exploración son interactivos.
+ * `anexo` es la versión para el PDF: añade al final las páginas con todo desplegado (ver `AnexoQ3`).
+ */
+export function EstatusQ3({ anexo = false }: { anexo?: boolean }) {
   const ganado = ganadoPorUdn()
   const estados: EstadoMaterial[] = ['hecho', 'aprobacion', 'modificacion', 'elaborar', 'noAplica', 'sinDato']
   const simbolos: Record<EstadoMaterial, string> = { hecho: '✓', aprobacion: 'A', modificacion: 'M', elaborar: '+', noAplica: '—', sinDato: '?' }
@@ -244,12 +252,12 @@ export function EstatusQ3() {
       <div className={estilos.eventos}>{EVENTOS.map((e, i) => <article key={e.id} className={estilos.entra} style={orden(3 + i)}><div className={estilos.eventoFoto} style={{ '--cartel': `url(${BANNER[e.id].src})` } as CSSProperties}><Image src={BANNER[e.id].src} alt={BANNER[e.id].alt} width={860} height={860} unoptimized /></div><div className={estilos.eventoTexto}><div className={estilos.eventoCabeza}><h3>{e.nombre}</h3><span className={estilos.eventoFecha}><IconoQ3 nombre="calendario" />{['08 OCT', '05 NOV', '19 NOV'][i]}</span></div><p>{['Ronqueo de atún y sake: tecnología y experiencia de usuario.', 'Miracle berry: transformar la percepción y provocar impacto.', 'Una experiencia inmersiva para presentar el estudio La Soledad.'][i]}</p><footer><b><IconoQ3 nombre="lugar" />{e.sede}</b><span><IconoQ3 nombre="reloj" />{e.hora} · CDMX</span></footer></div></article>)}</div>
     </Lamina>
 
-    <Lamina id="kaitai" bloque="eventos" titulo={<>Kaitai reúne a líderes de <em>cuatro industrias</em></>} bajada="Tecnología, innovación y experiencia de cliente: una conversación relevante para UiX y NeraCode." fuente={`${FUENTE} · confirmados / David Porchini`}>
+    <Lamina id="kaitai" conAnexo={anexo} bloque="eventos" titulo={<>Kaitai reúne a líderes de <em>cuatro industrias</em></>} bajada="Tecnología, innovación y experiencia de cliente: una conversación relevante para UiX y NeraCode." fuente={`${FUENTE} · confirmados / David Porchini`}>
       <div className={estilos.kaitaiCabecera}><div className={estilos.duoCifras}><Dato valor={KAITAI_CONFIRMADOS_REPORTADOS} etiqueta="confirmados al 30 de septiembre" /><Dato valor={marcasDestacadas()} etiqueta="empresas destacadas en la selección" /></div><ul className={estilos.cuandoDonde}><li><IconoQ3 nombre="calendario" /><b>Jueves 8 de octubre · 7:15 pm</b></li><li><IconoQ3 nombre="lugar" />Onomura · Col. Roma, CDMX</li></ul></div>
       <div className={estilos.sectores}>{KAITAI_SECTORES.map(s => <article key={s.nombre}><header><h3>{s.nombre}</h3><span>{personasDe(s)} {personasDe(s) === 1 ? 'persona' : 'personas'} · {s.empresas.length} {s.empresas.length === 1 ? 'empresa' : 'empresas'}</span></header><div className={estilos.logosSector}>{s.empresas.map(e => <Image key={e.empresa} src={e.logo} alt={e.empresa} width={200} height={90} unoptimized />)}</div><DetalleQ3 etiqueta="Ver empresas y cargos" titulo={`${s.nombre} · perfiles confirmados`}><ul className={estilos.listaCargos}>{s.empresas.map(e => <li key={e.empresa}><b>{e.empresa}</b>{e.cargos.map(c => <p key={c}>{c}</p>)}</li>)}</ul></DetalleQ3></article>)}</div>
     </Lamina>
 
-    <Lamina id="campanas" bloque="eventos" comp="lado" titulo={<>La experiencia empieza <em>desde la invitación</em></>} bajada="Un recorrido de comunicación que acompaña el registro y la confirmación de cada encuentro." fuente={`${FUENTE} · piezas reales / Iris Mugica y David Porchini`}>
+    <Lamina id="campanas" conAnexo={anexo} bloque="eventos" comp="lado" titulo={<>La experiencia empieza <em>desde la invitación</em></>} bajada="Un recorrido de comunicación que acompaña el registro y la confirmación de cada encuentro." fuente={`${FUENTE} · piezas reales / Iris Mugica y David Porchini`}>
       <GaleriaQ3 grupos={EVENTOS.map(e => ({ nombre: e.nombre, materiales: [...(e.id === 'miracle' && e.keyVisual ? [e.keyVisual] : []), ...e.materiales] }))} />
     </Lamina>
 
@@ -268,7 +276,7 @@ export function EstatusQ3() {
       <div className={estilos.definicionFunnel}><span>Cómo leerlo</span><p><b>Son cuatro conteos del trimestre, no un embudo de las mismas cuentas.</b> Cada círculo va a la misma escala de área. La tasa real divide un conteo entre el anterior; la ideal es la del Forecast 2026.</p></div>
     </Lamina>
 
-    <Lamina id="funnel-empresas" bloque="funnel" comp="lado" titulo={<>Promo Espacio y NeraCode aportan <em>{FUNNEL['Promo Espacio'].SQL + FUNNEL.NeraCode.SQL} de los {DEMANDA_Q3.SQL} SQL</em></>} bajada="La vista sigue el orden del funnel: MQL, SQL, propuestas y ganados. Las empresas van en orden alfabético; elige una para seguirla en toda la presentación." fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
+    <Lamina id="funnel-empresas" conAnexo={anexo} bloque="funnel" comp="lado" titulo={<>Promo Espacio y NeraCode aportan <em>{FUNNEL['Promo Espacio'].SQL + FUNNEL.NeraCode.SQL} de los {DEMANDA_Q3.SQL} SQL</em></>} bajada="La vista sigue el orden del funnel: MQL, SQL, propuestas y ganados. Las empresas van en orden alfabético; elige una para seguirla en toda la presentación." fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
       <GraficoComparativo titulo="Generación de demanda por empresa del grupo" metricas={[{ id: 'MQL', nombre: 'MQL', formato: 'entero' }, { id: 'SQL', nombre: 'SQL', formato: 'entero' }, { id: 'Propuestas', nombre: 'Propuestas', formato: 'entero' }, { id: 'Ganados', nombre: 'Ganados', formato: 'entero' }]} filas={UDNS_FUNNEL.map(u => ({ nombre: u, valores: FUNNEL[u] }))} nota={<>El total del grupo ({DEMANDA_Q3.MQL} MQL, {DEMANDA_Q3.SQL} SQL y {DEMANDA_Q3.Propuestas} propuestas) incluye a otras unidades que aquí no se desglosan.</>} />
       <Lectura etiqueta="Dónde enfocar la conversación">Mexa Creativa lidera los MQL; Promo Espacio, los SQL; Marketing United, las propuestas y los negocios ganados.</Lectura>
     </Lamina>
@@ -278,7 +286,7 @@ export function EstatusQ3() {
     </Lamina>
 
     {/* ── 03 · PIPELINE Y VENTA ── */}
-    <Lamina id="venta" bloque="venta" titulo={<><em>{millones(ventaGenerada())}</em> de venta generada: facturado y ganado por facturar</>} bajada={`${negociosVenta()} negocios. Lo facturado ya está en caja; lo ganado se suma cuando se factura. ${TRASLAPE_VENTA.negocios} negocios ya pasaron de ganado a facturado dentro del trimestre y se cuentan una sola vez.`} fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
+    <Lamina id="venta" conAnexo={anexo} bloque="venta" titulo={<><em>{millones(ventaGenerada())}</em> de venta generada: facturado y ganado por facturar</>} bajada={`${negociosVenta()} negocios. Lo facturado ya está en caja; lo ganado se suma cuando se factura. ${TRASLAPE_VENTA.negocios} negocios ya pasaron de ganado a facturado dentro del trimestre y se cuentan una sola vez.`} fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
       <div className={estilos.dosCortes}>
         <article>
           <p className={estilos.corteEtiqueta}><IconoQ3 nombre="recibo" /><b>Corte 1</b> Facturado en Q3 · ya en caja</p>
@@ -330,13 +338,13 @@ export function EstatusQ3() {
       <Lectura>Profundizar la conversación de negocio en LinkedIn y trasladar el aprendizaje de interacción a los demás formatos.</Lectura>
     </Lamina>
 
-    <Lamina id="paid" bloque="redes" comp="lado" tono="color" titulo={<>Paid aporta {suma(PAID, f => f.mql)} MQL y <em>{millones(PAID_PIPELINE_TOTAL)} de pipeline</em></>} bajada="Mexa Creativa aporta más MQL; Promo Espacio tiene el menor costo por MQL y el mayor número de SQL." fuente={`${FUENTE} · Orbit, fuente Paid Media / Fernando Borges e Iris Mugica`}>
+    <Lamina id="paid" conAnexo={anexo} bloque="redes" comp="lado" tono="color" titulo={<>Paid aporta {suma(PAID, f => f.mql)} MQL y <em>{millones(PAID_PIPELINE_TOTAL)} de pipeline</em></>} bajada="Mexa Creativa aporta más MQL; Promo Espacio tiene el menor costo por MQL y el mayor número de SQL." fuente={`${FUENTE} · Orbit, fuente Paid Media / Fernando Borges e Iris Mugica`}>
       <div className={estilos.franjaCifras}><Dato valor={suma(PAID, f => f.mql)} etiqueta="MQL" /><Dato valor={suma(PAID, f => f.sql)} etiqueta="SQL" /><Dato valor={PAID_PIPELINE_TOTAL / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="pipeline del canal" /><Dato valor={suma(PAID, f => f.facturado) / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturado y por facturar" /></div>
       <GraficoComparativo titulo="Paid por empresa" metricas={[{ id: 'mql', nombre: 'MQL', formato: 'entero' }, { id: 'costoMql', nombre: 'Costo por MQL', formato: 'dinero', mejor: 'menor' }, { id: 'sql', nombre: 'SQL', formato: 'entero' }, { id: 'pipeline', nombre: 'Pipeline', formato: 'millones' }, { id: 'facturado', nombre: 'Facturado + por facturar', formato: 'millones' }]} filas={PAID.map(p => ({ nombre: p.udn, detalle: p.nota, valores: { mql: p.mql, costoMql: costoMql(p), sql: p.sql, pipeline: p.pipeline, facturado: p.facturado } }))} />
       <Lectura etiqueta="Cómo leerlo">UiX no tiene MQL propios de paid: sus SQL llegan por cross-sell con NeraCode. El pipeline del canal incluye {millones(PAID_PIPELINE_TOTAL - suma(PAID, f => f.pipeline))} de otra unidad del grupo.</Lectura>
     </Lamina>
 
-    <Lamina id="web" bloque="redes" tono="foto" fondo="naranja" titulo={<>La web aporta 54 MQL y <em>$24.21{'\u00A0'}M de pipeline</em></>} bajada="Los siete sitios suman 25 SQL. NeraCode y UiX reúnen el mayor pipeline del canal; el siguiente paso es convertir mejor las 42,375 visitas." fuente={`${FUENTE} · reporte web del equipo`}>
+    <Lamina id="web" conAnexo={anexo} bloque="redes" tono="foto" fondo="naranja" titulo={<>La web aporta 54 MQL y <em>$24.21{'\u00A0'}M de pipeline</em></>} bajada="Los siete sitios suman 25 SQL. NeraCode y UiX reúnen el mayor pipeline del canal; el siguiente paso es convertir mejor las 42,375 visitas." fuente={`${FUENTE} · reporte web del equipo`}>
       <div className={estilos.franjaCifras}><Dato valor={54} etiqueta="MQL reportados" /><Dato valor={25} etiqueta="SQL" /><Dato valor={24.212} prefijo="$" sufijo=" M" decimales={2} etiqueta="pipeline del canal" /><Dato valor={3.108} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturado y por facturar" /></div>
       <GraficoComparativo titulo="Web por empresa" metricas={[{ id: 'visitas', nombre: 'Visitas', formato: 'entero' }, { id: 'mql', nombre: 'MQL', formato: 'entero' }, { id: 'sql', nombre: 'SQL', formato: 'entero' }, { id: 'pipeline', nombre: 'Pipeline', formato: 'millones' }, { id: 'facturado', nombre: 'Facturado + por facturar', formato: 'millones' }]} filas={WEB.map(w => ({ nombre: w.udn, valores: { visitas: w.visitas, mql: w.mql, sql: w.sql, pipeline: w.pipeline, facturado: w.facturado } }))} />
       <Lectura etiqueta="Cómo leerlo">Es el corte que reporta el canal. No se suma al de paid ni al pipeline de Orbit.</Lectura>
@@ -378,7 +386,7 @@ export function EstatusQ3() {
       <div className={estilos.contenidos}><article data-intro="true"><IconoQ3 nombre="personas" /><h3>Inner Circle</h3><p>{INNER_CIRCLE.beneficio}</p></article>{temas.map(c => <article key={c.udn}><h3><LogoUdn nombre={c.udn} /></h3><ul className={estilos.temasVista}>{c.corto.map(t => <li key={t}>{t}</li>)}</ul></article>)}</div>
     </Lamina>
 
-    <Lamina id="upax-one" bloque="relacion" titulo={<>UPAX ONE: un día para vivir <em>el ecosistema completo</em></>} bajada="El encuentro mayor de la comunidad: cada empresa muestra su oferta de valor y el grupo se entiende como uno solo." fuente={`${FUENTE} · propuesta conceptual / renders del equipo`}>
+    <Lamina id="upax-one" conAnexo={anexo} bloque="relacion" titulo={<>UPAX ONE: un día para vivir <em>el ecosistema completo</em></>} bajada="El encuentro mayor de la comunidad: cada empresa muestra su oferta de valor y el grupo se entiende como uno solo." fuente={`${FUENTE} · propuesta conceptual / renders del equipo`}>
       <div className={estilos.oneClaves}>{UPAX_ONE.claves.map((c, i) => <div key={c.titulo} className={`${estilos.panel} ${estilos.entra}`} style={orden(3 + i)}><Rotulo icono={c.icono}>{c.titulo}</Rotulo><strong>{c.dato}</strong><p>{c.texto}</p></div>)}</div>
       {/* PASAR EL CURSOR POR UN RENDER LO AMPLÍA (Franco, 2-oct-2026): en la lámina van recortados, y así se ven enteros
           y grandes sin salir de la ventana. Es solo CSS (`:has`): la miniatura es el contenido y la vista ampliada, un
@@ -410,5 +418,7 @@ export function EstatusQ3() {
         <div className={`${estilos.destino} ${estilos.entra}`} style={orden(9)}><MarcaRayo izquierda="Q" derecha="4" /><Image src={LOGO} alt="Marketing Corp · Grupo UPAX" width={660} height={160} className={estilos.logoCierre} unoptimized /><p className={estilos.lemaCierre}>Somos la chispa que inicia la llama.</p></div>
       </div>
     </Lamina>
+
+    {anexo && <AnexoQ3 laminas={LAMINAS_Q3} />}
   </main>
 }

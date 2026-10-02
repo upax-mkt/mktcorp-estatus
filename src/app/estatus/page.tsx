@@ -28,8 +28,10 @@ export const metadata: Metadata = {
  * blanca para una sesión de sala y `/estatus` no está en ella, y aquí
  * `exigirLectura()` es la verificación que manda, pegada al dato.
  */
-export default async function PaginaEstatus() {
+export default async function PaginaEstatus({ searchParams }: { searchParams: Promise<{ anexo?: string }> }) {
   await exigirLectura()
+  // `?anexo=1` es la versión para el PDF: las mismas láminas más el anexo con todo desplegado (ver AnexoQ3).
+  const { anexo } = await searchParams
   await connection()
   const hoy = new Date()
   const [admin, clientes] = await Promise.all([esAdmin(), clientesParaBarra()])
@@ -45,7 +47,7 @@ export default async function PaginaEstatus() {
       <BarraNavegacion seccionActiva="estatus" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
       <ProveedorTema tema={grupoUpax} superficie="clara">
         <ModoPresentar personas={[]}>
-          <EstatusQ3 />
+          <EstatusQ3 anexo={anexo === '1'} />
         </ModoPresentar>
       </ProveedorTema>
     </div>

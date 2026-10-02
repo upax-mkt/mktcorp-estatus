@@ -72,6 +72,31 @@ describe('presentación Q3', () => {
     }
   })
 
+  it('el anexo solo existe en la versión para el PDF, y ahí ningún enlace interno queda sin destino', () => {
+    // En pantalla: 24 láminas, sin anexo y sin avisos de «detalle en el anexo».
+    const enVivo = render(<EstatusQ3 />)
+    expect(enVivo.container.querySelectorAll('[data-bloque="anexo"]')).toHaveLength(0)
+    expect(enVivo.container.querySelectorAll('a[href^="#anexo-"]')).toHaveLength(0)
+    enVivo.unmount()
+
+    // Para el PDF: las mismas 24 más nueve de anexo, en el orden de las láminas a las que pertenecen.
+    const { container } = render(<EstatusQ3 anexo />)
+    const ids = [...container.querySelectorAll('[data-layout]')].map(s => s.getAttribute('data-layout'))
+    expect(ids.slice(0, LAMINAS_Q3.length)).toEqual([...LAMINAS_Q3])
+    expect(ids.slice(LAMINAS_Q3.length)).toEqual(['anexo-kaitai', 'anexo-piezas-kaitai', 'anexo-piezas-miracle', 'anexo-piezas-soledad', 'anexo-demanda', 'anexo-ganados', 'anexo-paid', 'anexo-web', 'anexo-upax-one'])
+    // Todo enlace interno (índice, «detalle completo», «volver a la lámina», contador) apunta a algo que existe.
+    const internos = [...container.querySelectorAll('a[href^="#"]')].map(a => a.getAttribute('href')!.slice(1))
+    expect(internos.length).toBeGreaterThan(40)
+    for (const id of internos) expect(container.querySelector(`[id="${id}"]`), `enlace a #${id}`).not.toBeNull()
+    // Las siete láminas con algo detrás de una pestaña, un diálogo o el cursor dicen dónde está desplegado.
+    const conDetalle = [...container.querySelectorAll('section:has(> div a[href^="#anexo-"]), section')].filter(s => !s.getAttribute('data-layout')?.startsWith('anexo-') && s.querySelector('footer a[href^="#anexo-"]')).map(s => s.getAttribute('data-layout'))
+    expect(conDetalle).toEqual(['kaitai', 'campanas', 'funnel-empresas', 'venta', 'paid', 'web', 'upax-one'])
+    // Y el anexo trae lo que en pantalla no se ve de un vistazo: las cuatro etapas, los 16 negocios y todas las piezas.
+    expect(within(container.querySelector('#anexo-demanda')!).getAllByRole('row')).toHaveLength(1 + 7 + 1 + 1)
+    expect(within(container.querySelector('#anexo-ganados')!).getAllByRole('row')).toHaveLength(2 + 16)
+    expect(container.querySelectorAll('#anexo-piezas-kaitai img, #anexo-piezas-miracle img, #anexo-piezas-soledad img')).toHaveLength(5 + 5 + 4)
+  })
+
   it('nadie que no presenta aparece como dueño de una lámina', () => {
     const { container } = render(<EstatusQ3 />)
     expect(container.textContent).not.toMatch(/Ileana/)
