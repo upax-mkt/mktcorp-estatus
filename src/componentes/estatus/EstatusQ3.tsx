@@ -159,6 +159,8 @@ function TablaGanados() {
  * sigue en los meses siguientes, lo dice. Las empresas van con su logo.
  */
 function AgendaPorMes() {
+  // Cada carril reserva las mismas filas en los tres meses: así «Contenidos» arranca a la misma altura en las tres columnas.
+  const filas = (carril: (typeof ROADMAP)[number]) => Math.max(...MESES.map((_, i) => carril.acciones.filter(a => a.desde === i + 1).length))
   return <div className={estilos.meses}>
     {MESES.map((mes, i) => {
       const m = i + 1
@@ -167,12 +169,11 @@ function AgendaPorMes() {
         <header><IconoQ3 nombre="calendario" /><h3>{mes}</h3><span>{total} {total === 1 ? 'acción arranca' : 'acciones arrancan'}</span></header>
         {ROADMAP.map(carril => {
           const acciones = carril.acciones.filter(a => a.desde === m)
-          if (!acciones.length) return null
-          return <div key={carril.carril} className={estilos.mesCarril}>
+          return <div key={carril.carril} className={estilos.mesCarril} style={{ '--filas': filas(carril) } as CSSProperties}>
             <p className={estilos.micro}><IconoQ3 nombre={carril.carril === 'Contenidos' ? 'documento' : 'megafono'} />{carril.carril}</p>
             <ul>{acciones.map(a => <li key={`${a.tema}-${a.quien}`} data-pendiente={a.tema === 'Tema por definir' || undefined}>
-              <span className={estilos.accionTema}>{a.tema}{a.hasta > a.desde && <small>hasta {MESES[a.hasta - 1].toLowerCase()}</small>}</span>
-              <span className={estilos.accionQuien} title={a.quien}>{udnsEn(a.quien).map(u => <LogoUdn key={u} nombre={u} />)}</span>
+              <span className={estilos.accionTema}>{a.tema}{a.hasta > a.desde && <small>hasta {MESES[a.hasta - 1].slice(0, 3).toLowerCase()}.</small>}</span>
+              <span className={estilos.accionQuien} data-varios={udnsEn(a.quien).length > 2 || undefined} title={a.quien}>{udnsEn(a.quien).map(u => <LogoUdn key={u} nombre={u} />)}</span>
             </li>)}</ul>
           </div>
         })}
