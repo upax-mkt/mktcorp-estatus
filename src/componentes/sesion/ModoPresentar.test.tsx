@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ModoPresentar } from './ModoPresentar'
@@ -120,5 +120,148 @@ describe('ModoPresentar — el diálogo de revisión no destruye la transcripci�
     // igual y llamaba a `salir()` al mismo tiempo que el navegador cerraba
     // el diálogo.
     expect(screen.queryByRole('button', { name: /^presentar$/i })).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * NAVEGAR AL PROYECTAR (2-oct-2026).
+ *
+ * Dos defectos reportados el mismo día y una función que faltaba:
+ *  - Franco: «navego a una slide anterior y se devuelve al principio». La
+ *    flecha restaba a un contador que solo movían las flechas; quien llegaba a
+ *    una lámina con el trackpad o con un enlace seguía contando desde la portada.
+ *  - César: «debe recordar el slide donde se quedó; al darle clic a presentar
+ *    de nuevo debe seguir en la misma». Entrar siempre iba a la primera.
+ *  - No había forma de ir a una lámina concreta: al proyectar no hay índice.
+ *
+ * jsdom no maqueta: `offsetParent`, `getBoundingClientRect` y `scrollIntoView`
+ * se simulan con una «pantalla» de 800 px en la que cabe una sección.
+ */
+describe('ModoPresentar — navegar al proyectar', () => {
+  const ALTO = 800
+  let enPantalla = 0
+  let saltos: { seccion: string | undefined; modo: ScrollBehavior | undefined }[] = []
+  const originales = {
+    offsetParent: Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent'),
+    rect: HTMLElement.prototype.getBoundingClientRect,
+    scroll: HTMLElement.prototype.scrollIntoView,
+  }
+
+  function secciones() {
+    return Array.from(document.querySelectorAll<HTMLElement>('[data-layout]'))
+  }
+
+  beforeEach(() => {
+    enPantalla = 0
+    saltos = []
+    Object.defineProperty(HTMLElement.prototype, 'offsetParent', { configurable: true, get: () => document.body })
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const i = secciones().indexOf(this)
+      const top = i < 0 ? 0 : (i - enPantalla) * ALTO
+      return { top, bottom: top + ALTO, left: 0, right: 1000, width: 1000, height: ALTO, x: 0, y: top, toJSON: () => ({}) } as DOMRect
+    }
+    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement, opciones?: boolean | ScrollIntoViewOptions) {
+      // Como en el navegador: lo pedido queda en pantalla.
+      enPantalla = secciones().indexOf(this)
+      saltos.push({ seccion: this.dataset.layout, modo: typeof opciones === 'object' ? opciones.behavior : undefined })
+    }
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: ALTO })
+  })
+
+  afterEach(() => {
+    if (originales.offsetParent) Object.defineProperty(HTMLElement.prototype, 'offsetParent', originales.offsetParent)
+    HTMLElement.prototype.getBoundingClientRect = originales.rect
+    HTMLElement.prototype.scrollIntoView = originales.scroll
+  })
+
+  function montarCuatro() {
+    return render(
+      <ModoPresentar personas={[]}>
+        <section data-layout="portada"><h1>Portada</h1></section>
+        <section data-layout="eventos"><h2>Tres experiencias</h2></section>
+        <section data-layout="venta"><h2>La venta del trimestre</h2></section>
+        <section data-layout="cierre"><h2>Cierre</h2></section>
+      </ModoPresentar>,
+    )
+  }
+
+  /** Quien presenta se mueve sin las flechas: trackpad, rueda o un enlace de la propia lámina. */
+  function desplazarA(indice: number) {
+    enPantalla = indice
+  }
+
+  it('«anterior» retrocede desde la lámina que se ve, no vuelve a la portada', async () => {
+    montarCuatro()
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    desplazarA(3)
+    saltos = []
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(saltos.at(-1)).toEqual({ seccion: 'venta', modo: 'smooth' })
+  })
+
+  it('las flechas de la barra también parten de lo que se ve', async () => {
+    montarCuatro()
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    desplazarA(2)
+    saltos = []
+    await userEvent.click(screen.getByRole('button', { name: 'Sección anterior' }))
+    expect(saltos.at(-1)?.seccion).toBe('eventos')
+  })
+
+  it('dos pulsaciones seguidas avanzan dos láminas, sin esperar a que termine el scroll', async () => {
+    montarCuatro()
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    saltos = []
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    // El scroll suave aún no llega: la pantalla sigue en la portada.
+    desplazarA(0)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(saltos.map((s) => s.seccion)).toEqual(['eventos', 'venta'])
+  })
+
+  it('volver a presentar sigue en la lámina donde se quedó', async () => {
+    montarCuatro()
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(enPantalla).toBe(2)
+    await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
+    // Al salir, la lectura se queda en la misma sección…
+    expect(saltos.at(-1)).toEqual({ seccion: 'venta', modo: 'instant' })
+    saltos = []
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    // …y al volver a entrar, la presentación arranca ahí y no en la portada.
+    expect(saltos.map((s) => s.seccion)).toEqual(['venta'])
+    expect(screen.getByRole('button', { name: /Lámina 3 de 4/ })).toBeInTheDocument()
+  })
+
+  it('presentar desde una sección a la que se llegó leyendo empieza en esa sección', async () => {
+    montarCuatro()
+    desplazarA(1)
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    expect(saltos.at(-1)).toEqual({ seccion: 'eventos', modo: 'instant' })
+  })
+
+  it('el contador abre el navegador con todas las láminas y salta a la elegida', async () => {
+    montarCuatro()
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Ir a otra lámina/ }))
+    const lista = screen.getByRole('group', { name: 'Todas las láminas' })
+    expect(Array.from(lista.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
+      '01Portada', '02Tres experiencias', '03La venta del trimestre', '04Cierre',
+    ])
+    saltos = []
+    await userEvent.click(screen.getByRole('button', { name: /La venta del trimestre/ }))
+    expect(saltos).toEqual([{ seccion: 'venta', modo: 'instant' }])
+    expect(screen.queryByRole('group', { name: 'Todas las láminas' })).not.toBeInTheDocument()
+  })
+
+  it('con el navegador abierto, Esc lo cierra y no saca de la presentación', async () => {
+    montarCuatro()
+    await userEvent.click(screen.getByRole('button', { name: /^presentar$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Ir a otra lámina/ }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('group', { name: 'Todas las láminas' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Salir' })).toBeInTheDocument()
   })
 })

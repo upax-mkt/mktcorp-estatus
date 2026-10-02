@@ -139,7 +139,10 @@
    depender de que alguien tenga el mouse encima: ver el comentario grande
    sobre `.grabarError`. */
 .controles:has(.grabarError),
-.controles:has(.confirmarSalida) {
+.controles:has(.confirmarSalida),
+/* Con el navegador de láminas abierto la barra no puede quedarse al 25 %:
+   la lista cuelga de ella y heredaría esa opacidad. */
+.controles:has(.navegador) {
   opacity: 1;
 }
 
@@ -172,6 +175,77 @@
   padding-inline: 0.3rem;
   min-width: 3.5rem;
   text-align: center;
+}
+/* El contador es un botón: abre el navegador de láminas. Anidado bajo
+   `.controles` para ganarle a `.controles button`. */
+.controles .contador {
+  font-size: 0.9rem;
+  padding-inline: 0.8rem;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--superficie, white) 35%, transparent);
+}
+.controles .contador[aria-expanded='true'] {
+  background: var(--superficie, white);
+  color: var(--texto, black);
+}
+
+/*
+ * EL NAVEGADOR DE LÁMINAS (2-oct-2026). Cuelga de la barra, hacia arriba:
+ * todas las secciones con su número y su título, y la actual marcada. Va
+ * DENTRO de `.controles` —y por tanto dentro del contenedor que entra en
+ * pantalla completa—: fuera de él existiría en el DOM y no se pintaría, que es
+ * lo que le pasó al láser.
+ */
+.navegador {
+  position: absolute;
+  bottom: calc(100% + 0.6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(94vw, 68rem);
+  max-height: min(72dvh, 44rem);
+  overflow-y: auto;
+  padding: 0.6rem;
+  border-radius: 18px;
+  background: color-mix(in oklch, var(--texto, black) 95%, transparent);
+  color: var(--superficie, white);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.5);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.navegador ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: row;
+  gap: 0.15rem 0.4rem;
+}
+.controles .navegador button {
+  width: 100%;
+  min-height: 44px;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  white-space: normal;
+}
+.controles .navegador button > span {
+  flex: none;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+.controles .navegador button[aria-current='true'] {
+  background: var(--superficie, white);
+  color: var(--texto, black);
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .navegador ol { grid-template-columns: 1fr; }
 }
 
 .salir {

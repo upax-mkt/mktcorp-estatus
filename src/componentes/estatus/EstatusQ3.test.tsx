@@ -41,6 +41,21 @@ describe('presentación Q3', () => {
     expect(web).toEqual(['Visitas', 'MQL', 'SQL', 'Pipeline', 'Facturado + por facturar'])
   })
 
+  it('Inner Circle enseña la carta sola, y UPAX ONE el mapa del evento con la ponencia y el concierto en cajas separadas', () => {
+    render(<EstatusQ3 />)
+    const carta = seccion('relacion').getAllByRole('img', { name: /Invitación a UPAX Inner Circle/ })[0]
+    expect(carta).toHaveAttribute('src', '/estatus-q3/inner-circle-carta.webp')
+    const one = seccion('upax-one')
+    expect(one.getByRole('img', { name: /mapa de UPAX ONE/ })).toHaveAttribute('src', '/estatus-q3/upax-one-mapa.webp')
+    // Dos cajas, no una: la ponencia magistral por un lado y el concierto por otro.
+    const ponencia = one.getByText('Ricardo Salinas').closest('div')
+    const concierto = one.getByText('Concierto').closest('div')
+    expect(ponencia).not.toBe(concierto)
+    expect(ponencia).toHaveTextContent('Ponencia magistral')
+    expect(concierto).not.toHaveTextContent(/Salinas|ponencia/i)
+    expect(one.getAllByRole('img')).toHaveLength(3)
+  })
+
   it('nadie que no presenta aparece como dueño de una lámina', () => {
     const { container } = render(<EstatusQ3 />)
     expect(container.textContent).not.toMatch(/Ileana/)

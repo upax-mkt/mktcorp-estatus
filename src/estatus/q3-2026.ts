@@ -445,6 +445,8 @@ export const INNER_CIRCLE = {
   remate: 'La plataforma relacional de Grupo UPAX con su ecosistema de tomadores de decisión.',
   /** Lo que el equipo explicó en la revisión del 2-oct-2026 y lo que dice la invitación que firma Cecilia. */
   frase: 'Las mejores conversaciones no terminan con un evento.',
+  /** La carta sola, la que mandó el equipo el 2-oct-2026. El render con estuche y tarjeta traía texto mal escrito. */
+  carta: { src: '/estatus-q3/inner-circle-carta.webp', ancho: 1189, alto: 1667 },
   meta: 100,
   metaTexto: 'tomadores de decisión en una comunidad activa al cierre de 2026',
   claves: [
@@ -532,13 +534,19 @@ export const UPAX_ONE = {
     'Nace como un ecosistema de relacionamiento que conecta a UPAX con líderes y tomadores de decisión a través de experiencias, conversaciones y capacidades que convergen.',
   convergencia:
     'Un encuentro mayor que reúne a la comunidad generada alrededor de los Ignites y presenta a UPAX no como un conjunto de empresas aisladas, sino como un ecosistema de capacidades que entiende y transforma los retos del negocio.',
-  /** Lo que el equipo contó en la revisión del 2-oct-2026. La ponencia magna es una propuesta, no un confirmado. */
+  /**
+   * Lo que el equipo contó en la revisión del 2-oct-2026. La ponencia y el concierto van en
+   * cajas separadas (Franco, 2-oct). La ponencia es la idea que se le presenta a Cecilia, no un confirmado.
+   */
   claves: [
     { titulo: 'Cuándo', icono: 'calendario' as const, dato: 'Primavera 2027', texto: 'Marzo o abril.' },
     { titulo: 'Quiénes', icono: 'personas' as const, dato: '150 a 200', texto: 'Líderes y tomadores de decisión de la comunidad que nace en los Ignites.' },
     { titulo: 'Qué se vive', icono: 'chispa' as const, dato: 'Un día completo', texto: 'Experiencia inmersiva: conferencias, experiencias de cada empresa y speakers externos.' },
-    { titulo: 'Cómo cierra', icono: 'estrella' as const, dato: 'Ponencia magna y concierto', texto: 'Propuesta: ponencia magna de Ricardo Salinas, y cierre con concierto y coctel.' },
+    { titulo: 'Ponencia magistral', icono: 'megafono' as const, dato: 'Ricardo Salinas', texto: 'La idea es que dé la conferencia central del encuentro.' },
+    { titulo: 'Cierre', icono: 'estrella' as const, dato: 'Concierto', texto: 'En vivo, con coctel al terminar.' },
   ],
+  /** El render del mapa del evento (David, 2-oct-2026): el escenario al centro y un espacio por cada empresa. */
+  mapa: { src: '/estatus-q3/upax-one-mapa.webp', ancho: 1800, alto: 848 },
 }
 
 export const LANZAMIENTO_RL_IA = [

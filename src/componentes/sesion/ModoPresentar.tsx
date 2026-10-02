@@ -45,6 +45,47 @@ interface Props {
   registrarPresentacionAction?: (reunionId: string) => Promise<void>
 }
 
+/**
+ * Solo las secciones que se ven. La agenda se esconde al proyectar (repite lo
+ * que viene después), y contarla hacía dos cosas mal: el contador decía
+ * "1 / 14" habiendo 13 alcanzables, y la primera flecha no hacía nada porque
+ * `scrollIntoView` sobre un `display: none` es un no-op.
+ */
+function seccionesDe(raiz: HTMLElement | null): HTMLElement[] {
+  if (!raiz) return []
+  return Array.from(raiz.querySelectorAll<HTMLElement>('[data-layout]')).filter(
+    (seccion) => seccion.offsetParent !== null,
+  )
+}
+
+/**
+ * LA SECCIÓN QUE SE ESTÁ VIENDO, leída de la pantalla y no de un contador.
+ *
+ * Es la última que empieza antes del centro de lo visible. `presentando`
+ * dice quién hace scroll: el contenedor al proyectar, la ventana al leer.
+ */
+function enVistaDe(raiz: HTMLElement | null, presentando: boolean): number {
+  const lista = seccionesDe(raiz)
+  if (!raiz || lista.length === 0) return 0
+  const marco = presentando ? raiz.getBoundingClientRect() : { top: 0, height: window.innerHeight }
+  const centro = marco.top + marco.height / 2
+  let indice = 0
+  for (let i = 0; i < lista.length; i++) {
+    if (lista[i].getBoundingClientRect().top <= centro) indice = i
+    else break
+  }
+  return indice
+}
+
+/** El título con el que una sección se anuncia en el navegador: su encabezado, o el nombre de su layout. */
+function tituloDe(seccion: HTMLElement, i: number): string {
+  const id = seccion.getAttribute('aria-labelledby')
+  const nodo = (id ? document.getElementById(id) : null) ?? seccion.querySelector<HTMLElement>('h1, h2, h3')
+  // `innerText` respeta los saltos de línea de un título partido con <br>; jsdom no lo tiene.
+  const texto = (nodo?.innerText ?? nodo?.textContent ?? '').replace(/\s+/g, ' ').trim()
+  return texto || seccion.dataset.layout || `Sección ${i + 1}`
+}
+
 export function ModoPresentar({ children, reunionId, equipo, personas, registrarPresentacionAction }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
@@ -52,6 +93,21 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
   const [total, setTotal] = useState(0)
   const [arrancadoEn, setArrancadoEn] = useState(0)
   const [laser, setLaser] = useState(false)
+  /** El navegador de láminas abierto: la lista de secciones con su título. `null` = cerrado. */
+  const [navegador, setNavegador] = useState<string[] | null>(null)
+  /**
+   * El salto que esta barra acaba de pedir. Mientras el scroll suave llega,
+   * manda él: ni el contador ni la siguiente flecha se guían por la sección
+   * que va pasando a medio camino.
+   */
+  const destino = useRef({ indice: -1, hasta: 0 })
+  /**
+   * LA SECCIÓN DONDE HAY QUE QUEDARSE AL ENTRAR Y AL SALIR. Al presentar hace
+   * scroll el contenedor; al leer, la ventana: la posición no viaja sola de uno
+   * a otro. Se guarda la SECCIÓN y no su número, porque la lista visible cambia
+   * entre los dos modos (la agenda se esconde al proyectar).
+   */
+  const ancla = useRef<HTMLElement | null>(null)
   /**
    * Lo grabado, esperando a que alguien lo revise y lo convierta en minuta.
    *
@@ -107,21 +163,26 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
   // Compiler, que memoiza por su cuenta y avisa (como error de lint) cuando una
   // memoización manual le impide hacerlo.
   function secciones(): HTMLElement[] {
-    const raiz = contenedor.current
-    if (!raiz) return []
-    // Solo las que se ven. La agenda se esconde al proyectar (repite lo que
-    // viene después), y contarla hacía dos cosas mal: el contador decía
-    // "1 / 14" habiendo 13 alcanzables, y la primera flecha no hacía nada
-    // porque `scrollIntoView` sobre un `display: none` es un no-op.
-    return Array.from(raiz.querySelectorAll<HTMLElement>('[data-layout]')).filter(
-      (seccion) => seccion.offsetParent !== null,
-    )
+    return seccionesDe(contenedor.current)
   }
 
   async function entrar() {
     const raiz = contenedor.current
     if (!raiz) return
-    setTotal(secciones().length)
+    /*
+     * SE EMPIEZA DONDE ESTÁ QUIEN LEE, no en la portada (César, 2-oct-2026:
+     * «debe recordar el slide donde se quedó; al darle clic a presentar de
+     * nuevo debe seguir en la misma»). Antes siempre se iba a la primera:
+     * salir un momento para abrir un enlace devolvía la junta al principio.
+     * Como al salir se deja la lectura en la sección que se proyectaba, volver
+     * a entrar continúa ahí; y quien baja leyendo hasta una sección y pulsa
+     * «Presentar» proyecta desde esa.
+     */
+    const lista = secciones()
+    const inicio = enVistaDe(raiz, false)
+    ancla.current = lista[inicio] ?? null
+    setTotal(lista.length)
+    setActual(inicio)
     try {
       // Si el navegador la niega (permisos, iframe), se presenta igual en la
       // ventana: el modo es útil aunque no haya pantalla completa.
@@ -133,7 +194,6 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
     // El reloj arranca AQUÍ y no al montar: mide la reunión, no el rato que
     // alguien lleva con el documento abierto.
     setArrancadoEn(Date.now())
-    irA(0)
 
     // Sin esperar y tragándose el error: ver el comentario de la prop. Entrar
     // en vivo no puede depender de que esta bitácora responda.
@@ -171,6 +231,9 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
       return
     }
     setConfirmarSalida(false)
+    setNavegador(null)
+    // La lectura se queda en la sección que se estaba proyectando (ver `ancla`).
+    ancla.current = secciones()[enVistaDe(contenedor.current, true)] ?? null
 
     if (document.fullscreenElement) {
       try {
@@ -225,38 +288,129 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
     setRevisionAbierta(false)
   }
 
-  function irA(indice: number) {
+  /** `directo` salta sin recorrido: es para el navegador, donde un scroll suave cruzaría veinte secciones. */
+  function irA(indice: number, modo: 'suave' | 'directo' = 'suave') {
     const lista = secciones()
     if (lista.length === 0) return
-    const destino = Math.max(0, Math.min(indice, lista.length - 1))
-    lista[destino].scrollIntoView({ behavior: 'smooth', block: 'start' })
-    setActual(destino)
+    const i = Math.max(0, Math.min(indice, lista.length - 1))
+    // Un salto directo ya llegó cuando esta línea termina: no deja nada pendiente. El suave tarda.
+    destino.current = modo === 'directo' ? { indice: -1, hasta: 0 } : { indice: i, hasta: Date.now() + 900 }
+    lista[i].scrollIntoView({ behavior: modo === 'directo' ? 'instant' : 'smooth', block: 'start' })
+    setActual(i)
   }
+
+  /**
+   * AVANZAR O RETROCEDER DESDE LO QUE SE VE, no desde un contador.
+   *
+   * El defecto que reportó Franco (2-oct-2026): «navego a una slide anterior y
+   * se devuelve al principio». La flecha sumaba o restaba a `actual`, y
+   * `actual` solo lo movían las flechas. Quien llegaba a una sección por otro
+   * camino —un enlace de la propia lámina, el trackpad, la rueda— seguía
+   * teniendo `actual` en 0: «anterior» era la portada y «siguiente», la
+   * segunda. Ahora se pregunta a la pantalla dónde está. Varias pulsaciones
+   * seguidas encadenan desde el destino pendiente, para no leer una sección
+   * que el scroll suave todavía va cruzando.
+   */
+  function mover(paso: number) {
+    const pendiente = destino.current
+    const desde =
+      pendiente.indice >= 0 && Date.now() < pendiente.hasta
+        ? pendiente.indice
+        : enVistaDe(contenedor.current, true)
+    irA(desde + paso)
+  }
+
+  /** Abre o cierra el navegador de láminas. La lista se lee al abrir: es la de lo que se ve en ese momento. */
+  function alternarNavegador() {
+    setNavegador((abierto) => (abierto ? null : secciones().map(tituloDe)))
+  }
+
+  /**
+   * Lo que el teclado puede pedir, en un ref. El efecto del teclado se
+   * suscribe una vez por presentación y llama a lo que haya aquí: así nunca
+   * ejecuta un cierre de un render viejo (mismo criterio que
+   * `confirmarSalidaRef`, arriba).
+   */
+  const acciones = useRef({ mover, irA, salir, navegadorAbierto: false, cerrarNavegador: () => setNavegador(null) })
+  useEffect(() => {
+    acciones.current = { mover, irA, salir, navegadorAbierto: navegador !== null, cerrarNavegador: () => setNavegador(null) }
+  })
 
   // Salir con Esc lo maneja el navegador: hay que enterarse para sincronizar.
   useEffect(() => {
     function alCambiarPantalla() {
-      if (!document.fullscreenElement) setPresentando(false)
+      if (document.fullscreenElement) return
+      // Mismo recuerdo que en `salir()`: el Esc nativo no pasa por ahí.
+      const raiz = contenedor.current
+      if (raiz?.dataset.presentando) ancla.current = seccionesDe(raiz)[enVistaDe(raiz, true)] ?? null
+      setNavegador(null)
+      setPresentando(false)
     }
     document.addEventListener('fullscreenchange', alCambiarPantalla)
     return () => document.removeEventListener('fullscreenchange', alCambiarPantalla)
   }, [])
 
-  // El salto se resuelve aquí dentro, leyendo el DOM en el momento de la
-  // tecla: así el efecto no depende de ninguna función del componente (que
-  // cambiaría en cada render) y se suscribe una sola vez por sección.
+  // AL ENTRAR Y AL SALIR cambia quién hace scroll, así que la sección se
+  // recoloca a mano y sin recorrido. Sin `ancla` (nadie ha presentado todavía)
+  // no se toca nada: quien solo lee no ve moverse su página.
+  useEffect(() => {
+    const raiz = contenedor.current
+    const seccion = ancla.current
+    if (!raiz || !seccion) return
+    // Si la sección recordada no se ve en este modo (la agenda, al proyectar), vale la siguiente que sí.
+    const visibles = seccionesDe(raiz)
+    const todas = Array.from(raiz.querySelectorAll<HTMLElement>('[data-layout]'))
+    const lugar = visibles.includes(seccion)
+      ? seccion
+      : todas.slice(todas.indexOf(seccion)).find((s) => visibles.includes(s)) ?? visibles[0]
+    if (!lugar) return
+    destino.current = { indice: -1, hasta: 0 }
+    lugar.scrollIntoView({ behavior: 'instant', block: 'start' })
+  }, [presentando])
+
+  // EL CONTADOR SIGUE A LA PANTALLA. Si quien presenta se mueve con el
+  // trackpad, la rueda o un enlace de la propia lámina, el número y las
+  // flechas tienen que saberlo (ver `mover`).
   useEffect(() => {
     if (!presentando) return
-
-    function saltar(paso: number) {
-      const raiz = contenedor.current
-      if (!raiz) return
-      const lista = Array.from(raiz.querySelectorAll<HTMLElement>('[data-layout]'))
-      if (lista.length === 0) return
-      const destino = Math.max(0, Math.min(actual + paso, lista.length - 1))
-      lista[destino].scrollIntoView({ behavior: 'smooth', block: 'start' })
-      setActual(destino)
+    const raiz = contenedor.current
+    if (!raiz) return
+    let cuadro = 0
+    function sincronizar() {
+      cuadro = 0
+      const visibles = seccionesDe(raiz)
+      setTotal(visibles.length)
+      // Un salto propio va en camino: manda su destino, no la sección que va pasando.
+      if (Date.now() < destino.current.hasta && destino.current.indice >= 0) {
+        setActual(destino.current.indice)
+        return
+      }
+      setActual(enVistaDe(raiz, true))
     }
+    function alDesplazar() {
+      if (!cuadro) cuadro = requestAnimationFrame(sincronizar)
+    }
+    // Quien toma el scroll con la rueda o con el dedo cancela el salto pendiente: desde ahí manda la pantalla.
+    function alTomarElScroll() {
+      destino.current = { indice: -1, hasta: 0 }
+    }
+    // Una primera lectura: la lista visible al proyectar puede no ser la de la lectura.
+    alDesplazar()
+    raiz.addEventListener('scroll', alDesplazar, { passive: true })
+    raiz.addEventListener('wheel', alTomarElScroll, { passive: true })
+    raiz.addEventListener('touchstart', alTomarElScroll, { passive: true })
+    return () => {
+      raiz.removeEventListener('scroll', alDesplazar)
+      raiz.removeEventListener('wheel', alTomarElScroll)
+      raiz.removeEventListener('touchstart', alTomarElScroll)
+      cancelAnimationFrame(cuadro)
+    }
+  }, [presentando])
+
+  // El teclado se suscribe una vez por presentación y resuelve cada tecla con
+  // lo que haya en `acciones` en ese momento (ver arriba).
+  useEffect(() => {
+    if (!presentando) return
 
     function alTeclado(e: KeyboardEvent) {
       // CON EL DIÁLOGO DE REVISIÓN ABIERTO, esta presentación no intercepta
@@ -271,20 +425,31 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
       // tecla. Se deja que el diálogo —y lo que haya dentro— resuelva su
       // propia tecla; esta presentación no decide nada mientras esté abierto.
       if (dialogoMinuta.current?.open) return
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      const a = acciones.current
+      // El espacio sobre un botón es de ese botón (elegir una lámina del navegador, por ejemplo).
+      const enBoton = e.key === ' ' && (e.target as HTMLElement | null)?.closest?.('button, a, input, textarea, select')
+      if ((e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') && !enBoton) {
         e.preventDefault()
-        saltar(1)
+        a.mover(1)
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault()
-        saltar(-1)
+        a.mover(-1)
+      } else if (e.key === 'Home') {
+        e.preventDefault()
+        a.irA(0, 'directo')
+      } else if (e.key === 'End') {
+        e.preventDefault()
+        a.irA(Number.MAX_SAFE_INTEGER, 'directo')
       } else if (e.key === 'Escape') {
-        salir()
+        // El primer Esc cierra el navegador de láminas; el siguiente, la presentación.
+        if (a.navegadorAbierto) a.cerrarNavegador()
+        else a.salir()
       }
     }
 
     window.addEventListener('keydown', alTeclado)
     return () => window.removeEventListener('keydown', alTeclado)
-  }, [presentando, actual])
+  }, [presentando])
 
   return (
     <>
@@ -304,15 +469,48 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
 
         {presentando && (
           <nav className={estilos.controles} aria-label="Controles de presentación">
-            <button type="button" onClick={() => irA(actual - 1)} aria-label="Sección anterior">
+            <button type="button" onClick={() => mover(-1)} aria-label="Sección anterior">
               ←
             </button>
-            <span className={estilos.contador}>
+            {/* EL CONTADOR ES EL NAVEGADOR (Franco, 2-oct-2026): al proyectar no
+                hay índice, y la única forma de llegar a la lámina 17 era pulsar
+                dieciséis veces. Abre la lista de todas, con su título. */}
+            <button
+              type="button"
+              className={estilos.contador}
+              onClick={alternarNavegador}
+              aria-haspopup="true"
+              aria-expanded={navegador !== null}
+              aria-label={`Lámina ${Math.min(actual + 1, total)} de ${total}. Ir a otra lámina`}
+              title="Ir a otra lámina"
+            >
               {Math.min(actual + 1, total)} / {total}
-            </span>
-            <button type="button" onClick={() => irA(actual + 1)} aria-label="Sección siguiente">
+            </button>
+            <button type="button" onClick={() => mover(1)} aria-label="Sección siguiente">
               →
             </button>
+
+            {navegador && (
+              <div className={estilos.navegador} role="group" aria-label="Todas las láminas">
+                <ol>
+                  {navegador.map((titulo, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        aria-current={i === actual ? 'true' : undefined}
+                        onClick={() => {
+                          irA(i, 'directo')
+                          setNavegador(null)
+                        }}
+                      >
+                        <span>{String(i + 1).padStart(2, '0')}</span>
+                        {titulo}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
             <span className={estilos.separadorControl} aria-hidden />
 
