@@ -545,8 +545,21 @@ export const UPAX_ONE = {
     { titulo: 'Ponencia magistral', icono: 'megafono' as const, dato: 'Ricardo Salinas', texto: 'La idea es que dé la conferencia central del encuentro.' },
     { titulo: 'Cierre', icono: 'estrella' as const, dato: 'Concierto', texto: 'En vivo, con coctel al terminar.' },
   ],
-  /** El render del mapa del evento (David, 2-oct-2026): el escenario al centro y un espacio por cada empresa. */
-  mapa: { src: '/estatus-q3/upax-one-mapa.webp', ancho: 1800, alto: 848 },
+  /**
+   * Los tres renders. El primero es el mapa del evento (David, 2-oct-2026): el escenario al centro
+   * y un espacio por cada empresa. `ancho` y `alto` son los del archivo: la vista ampliada los enseña enteros.
+   */
+  renders: [
+    { id: 'mapa', src: '/estatus-q3/upax-one-mapa.webp', ancho: 1800, alto: 848, pie: 'Así se verá el evento · mapa conceptual', alt: 'Render del mapa de UPAX ONE: un escenario central y un espacio para cada una de las siete empresas del grupo' },
+    { id: 'salon', src: '/estatus-q3/upax-one-salon.jpg', ancho: 1600, alto: 902, pie: 'Encuentro de la comunidad', alt: 'Render conceptual del salón de UPAX ONE' },
+    {
+      id: 'tunel', src: '/estatus-q3/upax-one-tunel.jpg', ancho: 1600, alto: 836, pie: 'Experiencia de llegada', alt: 'Render conceptual del túnel de acceso de UPAX ONE',
+      // El archivo trae este párrafo incrustado (con «Tunel» sin acento) y un rótulo de capítulo arriba. Ampliado, el
+      // rótulo se recorta (`alto` es menor que el del archivo) y el párrafo se tapa y se escribe aquí como texto, tal cual.
+      titulo: 'Túnel inmersivo',
+      texto: 'Un túnel anamórfico con imágenes y sonido envolvente sumerge a los invitados en un caso de éxito real, mostrando en menos de dos minutos cómo las distintas capacidades de UPAX se integraron para multiplicar el impacto de una misma campaña.',
+    },
+  ] as { id: string; src: string; ancho: number; alto: number; pie: string; alt: string; titulo?: string; texto?: string }[],
 }
 
 export const LANZAMIENTO_RL_IA = [

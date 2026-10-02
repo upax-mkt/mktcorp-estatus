@@ -56,6 +56,22 @@ describe('presentación Q3', () => {
     expect(one.getAllByRole('img')).toHaveLength(3)
   })
 
+  it('cada render de UPAX ONE tiene su vista ampliada, y la vista ampliada no repite nada a un lector de pantalla', () => {
+    render(<EstatusQ3 />)
+    const lamina = document.getElementById('upax-one')!
+    const miniaturas = [...lamina.querySelectorAll('[data-zoom]')]
+    expect(miniaturas.map(m => m.getAttribute('data-zoom'))).toEqual(['mapa', 'salon', 'tunel'])
+    // Se llega con el teclado, y cada una tiene exactamente una vista ampliada con su misma imagen.
+    for (const m of miniaturas) {
+      expect(m).toHaveAttribute('tabindex', '0')
+      const vista = lamina.querySelectorAll(`[data-de='${m.getAttribute('data-zoom')}']`)
+      expect(vista).toHaveLength(1)
+      expect(vista[0].querySelector('img')).toHaveAttribute('src', m.querySelector('img')!.getAttribute('src')!)
+      expect(vista[0].querySelector('img')).toHaveAttribute('alt', '')
+      expect(vista[0].closest('[aria-hidden="true"]')).not.toBeNull()
+    }
+  })
+
   it('nadie que no presenta aparece como dueño de una lámina', () => {
     const { container } = render(<EstatusQ3 />)
     expect(container.textContent).not.toMatch(/Ileana/)

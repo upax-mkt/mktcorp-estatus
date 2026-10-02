@@ -38,6 +38,18 @@ export function IndiceQ3({ bloques }: { bloques: readonly BloqueQ3[] }) {
     )
     laminas.forEach((l) => observador.observe(l))
 
+    // EL FONDO SOLO SE MUEVE DONDE SE VE. Cada lámina lleva luces que derivan
+    // (ver `.luces` en la hoja de estilos); animadas las veinticuatro a la vez
+    // serían veinticuatro pares de capas vivas que nadie mira. La lámina en
+    // pantalla y sus vecinas llevan `data-en-pantalla`; las demás, quietas.
+    const enPantalla = new IntersectionObserver(
+      (entradas) => {
+        for (const e of entradas) (e.target as HTMLElement).toggleAttribute('data-en-pantalla', e.isIntersecting)
+      },
+      { rootMargin: '25% 0px' },
+    )
+    laminas.forEach((l) => enPantalla.observe(l))
+
     // La UDN elegida en cualquier gráfico vive en <html>: aquí solo se refleja.
     const raiz = document.documentElement
     const leer = () => setFoco(raiz.dataset.udnFoco ?? null)
@@ -77,7 +89,7 @@ export function IndiceQ3({ bloques }: { bloques: readonly BloqueQ3[] }) {
       todas[i].scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
     }
     window.addEventListener('keydown', tecla)
-    return () => { observador.disconnect(); mutaciones.disconnect(); window.removeEventListener('pointermove', seguir); window.removeEventListener('keydown', tecla); cancelAnimationFrame(cuadro) }
+    return () => { observador.disconnect(); enPantalla.disconnect(); mutaciones.disconnect(); window.removeEventListener('pointermove', seguir); window.removeEventListener('keydown', tecla); cancelAnimationFrame(cuadro) }
   }, [])
 
   const indice = Math.max(0, bloques.findIndex((b) => b.id === activo))

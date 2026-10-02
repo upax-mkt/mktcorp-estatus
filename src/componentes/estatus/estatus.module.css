@@ -365,6 +365,23 @@
 .claro::before { background:
     linear-gradient(180deg, #ffffff, transparent 34%),
     radial-gradient(52% 60% at 100% 0%, #5367e11c, transparent 72%); }
+/*
+ * LUCES QUE DERIVAN (Franco, 2-oct-2026: «un sutil movimiento al fondo de cada slide, elegante»).
+ * Dos manchas de luz de marca, detrás de todo, que se desplazan y crecen muy despacio: 34 y 43 s por recorrido, de ida
+ * y vuelta, con periodos distintos para que el conjunto no se repita. Es atmósfera, no animación: baja amplitud, sin
+ * pulso, fuera de la zona donde se lee (nacen en dos esquinas). En las claras van casi transparentes: el blanco sigue
+ * siendo blanco. Solo se anima `transform`; sin movimiento (reducido, impresión, sin JavaScript) quedan quietas donde nacen.
+ */
+.luces { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; --luz-a: #5367e13d; --luz-b: #e347142b; }
+.luces > i { position: absolute; width: 64vmax; height: 64vmax; border-radius: 50%; }
+.luces > i:nth-child(1) { right: -20vmax; top: -30vmax; background: radial-gradient(closest-side, var(--luz-a), transparent); }
+.luces > i:nth-child(2) { left: -24vmax; bottom: -34vmax; background: radial-gradient(closest-side, var(--luz-b), transparent); }
+.foto .luces { --luz-a: #5367e166; --luz-b: #d72a5a4d; }
+.color .luces { --luz-a: #d72a5a57; --luz-b: #0b0a1f8c; }
+.pantalla[data-cumbre] .luces { --luz-a: #e3471457; --luz-b: #d72a5a42; }
+.foto[data-fondo='naranja'] .luces { --luz-a: #5367e161; --luz-b: #e3471452; }
+/* Láminas alternas, en espejo: dos vecinas nunca tienen la luz en el mismo lado. */
+.pantalla:nth-of-type(even) .luces { transform: scaleX(-1); }
 .color .fondo { mix-blend-mode: luminosity; opacity: .34; }
 .color::before { background: radial-gradient(55% 65% at 100% 0%, #d72a5a6b, transparent 70%), radial-gradient(40% 50% at 78% 108%, #e3471452, transparent 70%), radial-gradient(50% 60% at 0% 100%, #0b0a1f99, transparent 70%); }
 .pantalla::after { background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"); opacity: .07; mix-blend-mode: overlay; }
@@ -667,6 +684,14 @@
   [data-animar='true']:not([data-visible='true']) .rayoBrillo { opacity: 0; }
   [data-animar='true'] .rayo svg { transition: opacity 600ms var(--ease) 900ms; }
   [data-animar='true']:not([data-visible='true']) .rayo svg { opacity: 0; }
+  /* El fondo respira solo en la lámina que se ve y en sus vecinas (`data-en-pantalla` lo pone IndiceQ3). */
+  .pantalla[data-en-pantalla] .luces > i:nth-child(1) { animation: derivaA 34s ease-in-out infinite alternate; }
+  .pantalla[data-en-pantalla] .luces > i:nth-child(2) { animation: derivaB 43s ease-in-out infinite alternate; }
+  @keyframes derivaA { to { transform: translate3d(-14vmax, 11vmax, 0) scale(1.2); } }
+  @keyframes derivaB { to { transform: translate3d(13vmax, -10vmax, 0) scale(1.15); } }
+  /* La fotografía de fondo se acerca apenas, como una cámara que no se queda quieta. */
+  .pantalla[data-en-pantalla] .fondo { animation: derivaFoto 52s ease-in-out infinite alternate; }
+  @keyframes derivaFoto { to { transform: scale(1.07) translate3d(-1.4%, -1%, 0); } }
   .rayoForma { animation: fluir 9s ease-in-out infinite alternate; }
   @keyframes fluir { from { background-position: 0 0; } to { background-position: 0 100%; } }
   .rayoChispa { animation: recorrer 6.5s linear infinite; }
@@ -1027,6 +1052,55 @@
 .oneGaleria .one figure::after { inset: 45% .5rem .5rem; }
 .oneGaleria .one img { height: 100%; aspect-ratio: auto; object-fit: cover; }
 .oneGaleria .one figcaption { left: 1.1rem; right: 1.1rem; bottom: .95rem; font-size: clamp(.9rem, 1.1vw, 1.2rem); }
+/*
+ * PASAR EL CURSOR POR UN RENDER LO AMPLÍA (Franco, 2-oct-2026).
+ * Registro: escena que se opera. La respuesta al gesto es de producto (el borde y el cursor cambian en el mismo
+ * cuadro); la consecuencia —la imagen que crece— usa el tiempo de escena, con 80 ms de espera para que cruzar el
+ * cursor de paso no la dispare. Cierra más rápido de lo que abre.
+ *
+ * La vista ampliada va FIJA A LA VENTANA (no a la lámina): es lo que garantiza que nunca se salga de ella, aunque la
+ * lámina sea más alta que la pantalla. Nace encogida y desplazada hacia su miniatura, para que se lea como la misma
+ * imagen que crece y no como otra que aparece. No recibe el cursor: quien manda es la miniatura, así que pasar de una
+ * a otra cambia de imagen sin tener que salir primero.
+ */
+.oneGaleria figure[data-zoom] { cursor: zoom-in; transition: box-shadow var(--respuesta) var(--ease); }
+.oneGaleria figure[data-zoom]:focus-visible { outline: 3px solid var(--acento); outline-offset: 3px; }
+.zoomPista { position: absolute; z-index: 2; top: 1.05rem; right: 1.05rem; width: 2.1rem; height: 2.1rem; padding: .5rem; border-radius: 50%; color: #fff; background: #0b0a1fb8; pointer-events: none; transition: background var(--respuesta) var(--ease), transform var(--respuesta) var(--ease); }
+.oneVistas { position: fixed; z-index: 40; inset: 5vh 4vw 11vh; container-type: size; pointer-events: none; }
+.oneVista { position: absolute; inset: 0; margin: auto; width: min(100cqw, calc(100cqh * var(--prop))); aspect-ratio: var(--prop); overflow: hidden; border-radius: 22px; background: #0b0a1f;
+  box-shadow: 0 0 0 200vmax #0b0a1fb3, 0 50px 120px -30px #000;
+  opacity: 0; visibility: hidden; transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, .5));
+  transition: opacity 200ms var(--ease), transform 200ms var(--ease), visibility 0s linear 200ms; }
+.oneVista img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.oneVista > span { position: absolute; z-index: 1; left: 1.4rem; bottom: 1.3rem; padding: .45rem 1.1rem; border-radius: 100px; background: #0b0a1fd9; color: #fff; font-family: var(--titular); font-weight: 550; letter-spacing: -.01em; font-size: clamp(1rem, 1.35vw, 1.5rem); }
+/* Hacia dónde queda cada miniatura, medido desde el centro de la ventana. */
+.oneVista[data-de='mapa'] { --dx: -20cqw; --dy: 24cqh; --s: .52; }
+.oneVista[data-de='salon'] { --dx: 26cqw; --dy: 9cqh; --s: .42; }
+.oneVista[data-de='tunel'] { --dx: 26cqw; --dy: 34cqh; --s: .42; }
+/* El render del túnel trae un párrafo incrustado abajo y un rótulo arriba. El rótulo se recorta (la caja es más baja
+   que el archivo y la imagen se ancla abajo); el párrafo queda bajo un velo OPACO —a medias se leía sucio— y se
+   escribe encima como texto de verdad. */
+.oneVista[data-de='tunel'] img { object-position: center bottom; }
+.oneVista[data-de='tunel']::after { content: ''; position: absolute; inset: 56% 0 0; background: linear-gradient(180deg, transparent, #0b0a1f 30%); }
+.oneVista > p { position: absolute; z-index: 1; left: clamp(1.4rem, 3cqw, 3.4rem); bottom: clamp(1.3rem, 4cqh, 2.6rem); max-width: 62ch; margin: 0; color: #dcdff0; line-height: 1.45; font-size: clamp(.95rem, 1.2vw, 1.3rem); }
+.oneVista > p > b { display: block; margin-bottom: .35rem; color: #fff; font-family: var(--titular); font-weight: 650; letter-spacing: -.025em; font-size: clamp(1.4rem, 2.3vw, 2.5rem); line-height: 1.1; }
+.oneGaleria:has([data-zoom='mapa']:focus-visible) .oneVista[data-de='mapa'],
+.oneGaleria:has([data-zoom='salon']:focus-visible) .oneVista[data-de='salon'],
+.oneGaleria:has([data-zoom='tunel']:focus-visible) .oneVista[data-de='tunel'] { opacity: 1; visibility: visible; transform: none; transition: opacity 460ms var(--ease), transform 460ms var(--ease), visibility 0s; }
+@media (hover: hover) and (pointer: fine) {
+  .oneGaleria figure[data-zoom]:hover { box-shadow: 0 0 0 2px var(--acento), var(--sombra); }
+  .oneGaleria figure[data-zoom]:hover .zoomPista { background: var(--azul); transform: scale(1.12); }
+  .oneGaleria:has([data-zoom='mapa']:hover) .oneVista[data-de='mapa'],
+  .oneGaleria:has([data-zoom='salon']:hover) .oneVista[data-de='salon'],
+  .oneGaleria:has([data-zoom='tunel']:hover) .oneVista[data-de='tunel'] { opacity: 1; visibility: visible; transform: none; transition: opacity 460ms var(--ease) 80ms, transform 460ms var(--ease) 80ms, visibility 0s linear 80ms; }
+}
+@media (hover: none) {
+  /* Sin cursor, un toque sobre la miniatura la amplía; tocar fuera la cierra. */
+  .oneGaleria:has([data-zoom='mapa']:focus) .oneVista[data-de='mapa'],
+  .oneGaleria:has([data-zoom='salon']:focus) .oneVista[data-de='salon'],
+  .oneGaleria:has([data-zoom='tunel']:focus) .oneVista[data-de='tunel'] { opacity: 1; visibility: visible; transform: none; transition: opacity 320ms var(--ease), transform 320ms var(--ease), visibility 0s; }
+}
+@media print { .oneVistas, .zoomPista { display: none !important; } }
 .pantalla[data-layout='upax-one'] .titulo { max-width: none; font-size: clamp(1.9rem, 3.2vw, 3.7rem); }
 .pantalla[data-layout='upax-one'] .cuerpo { gap: clamp(.7rem, 1.6vh, 1.2rem); }
 .cuerpo > :is(.inner, .oneClaves, .oneGaleria, .camino, .cierreRuta) { flex: 0 1 auto; }

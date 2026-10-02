@@ -117,6 +117,8 @@ function Lamina({ id, bloque, titulo, bajada, children, tono = 'claro', imagen, 
   const pagina = LAMINAS_Q3.indexOf(id) + 1
   return <section id={id} data-layout={id} data-bloque={bloque} data-tono={tono} data-comp={comp} data-cumbre={cumbre || undefined} data-imagen={imagen ? 'si' : undefined} data-luz={imagen?.startsWith('luz') || undefined} data-fondo={fondo} className={`${estilos.pantalla} ${estilos[tono]}`} aria-labelledby={`${id}-titulo`}>
     {imagen && <span className={estilos.fondo} style={foto(imagen)} aria-hidden="true" />}
+    {/* Dos luces de marca que derivan muy despacio detrás de todo (Franco, 2-oct-2026): el fondo respira, no se mueve. */}
+    <span className={estilos.luces} aria-hidden="true"><i /><i /></span>
     <Escena className={estilos.escena}>
       <header className={estilos.cabecera}>
         <p className={estilos.seccion}><IconoQ3 nombre={ICONO_BLOQUE[bloque]} />{ETIQUETA[bloque]}<span>Marketing Corporativo · 2026</span></p>
@@ -204,6 +206,7 @@ export function EstatusQ3() {
   const evaluando = PIPELINE_ETAPAS.find(e => e.etapa === 'Evaluando') ?? PIPELINE_ETAPAS[0]
   const columnas = COLUMNAS_MATERIALES.map((u, i) => ({ u, i })).sort((a, b) => lugarUdn(a.u) - lugarUdn(b.u))
   const temas = [...INNER_CIRCLE.contenidos].sort((a, b) => lugarUdn(a.udn) - lugarUdn(b.udn))
+  const [renderMapa, ...rendersApoyo] = UPAX_ONE.renders
   return <main className={estilos.documento}>
     <IndiceQ3 bloques={BLOQUES_Q3} />
 
@@ -377,9 +380,13 @@ export function EstatusQ3() {
 
     <Lamina id="upax-one" bloque="relacion" titulo={<>UPAX ONE: un día para vivir <em>el ecosistema completo</em></>} bajada="El encuentro mayor de la comunidad: cada empresa muestra su oferta de valor y el grupo se entiende como uno solo." fuente={`${FUENTE} · propuesta conceptual / renders del equipo`}>
       <div className={estilos.oneClaves}>{UPAX_ONE.claves.map((c, i) => <div key={c.titulo} className={`${estilos.panel} ${estilos.entra}`} style={orden(3 + i)}><Rotulo icono={c.icono}>{c.titulo}</Rotulo><strong>{c.dato}</strong><p>{c.texto}</p></div>)}</div>
+      {/* PASAR EL CURSOR POR UN RENDER LO AMPLÍA (Franco, 2-oct-2026): en la lámina van recortados, y así se ven enteros
+          y grandes sin salir de la ventana. Es solo CSS (`:has`): la miniatura es el contenido y la vista ampliada, un
+          duplicado decorativo; sin cursor ni teclado no hace falta, porque las imágenes ya están en la lámina. */}
       <div className={estilos.oneGaleria}>
-        <figure className={`${estilos.panel} ${estilos.oneMapa}`}><Image src={UPAX_ONE.mapa.src} alt="Render del mapa de UPAX ONE: un escenario central y un espacio para cada una de las siete empresas del grupo" width={UPAX_ONE.mapa.ancho} height={UPAX_ONE.mapa.alto} unoptimized /><figcaption>Así se verá el evento · mapa conceptual</figcaption></figure>
-        <div className={estilos.one}><figure><Image src="/estatus-q3/upax-one-salon.jpg" alt="Render conceptual del salón de UPAX ONE" width={1600} height={900} unoptimized /><figcaption>Encuentro de la comunidad</figcaption></figure><figure><Image src="/estatus-q3/upax-one-tunel.jpg" alt="Render conceptual del túnel de acceso de UPAX ONE" width={1600} height={900} unoptimized /><figcaption>Experiencia de llegada</figcaption></figure></div>
+        <figure className={`${estilos.panel} ${estilos.oneMapa}`} data-zoom={renderMapa.id} tabIndex={0}><Image src={renderMapa.src} alt={renderMapa.alt} width={renderMapa.ancho} height={renderMapa.alto} unoptimized /><figcaption>{renderMapa.pie}</figcaption><IconoQ3 nombre="ampliar" className={estilos.zoomPista} /></figure>
+        <div className={estilos.one}>{rendersApoyo.map(r => <figure key={r.id} data-zoom={r.id} tabIndex={0}><Image src={r.src} alt={r.alt} width={r.ancho} height={r.alto} unoptimized /><figcaption>{r.pie}</figcaption><IconoQ3 nombre="ampliar" className={estilos.zoomPista} /></figure>)}</div>
+        <div className={estilos.oneVistas} aria-hidden="true">{UPAX_ONE.renders.map(r => <div key={r.id} className={estilos.oneVista} data-de={r.id} style={{ '--prop': r.ancho / r.alto } as CSSProperties}><Image src={r.src} alt="" width={r.ancho} height={r.alto} unoptimized />{r.texto ? <p><b>{r.titulo}</b>{r.texto}</p> : <span>{r.pie}</span>}</div>)}</div>
       </div>
     </Lamina>
 
