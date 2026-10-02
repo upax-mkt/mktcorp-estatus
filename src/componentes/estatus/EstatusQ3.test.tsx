@@ -83,7 +83,9 @@ describe('presentación Q3', () => {
     expect(seccion('pr').getAllByRole('row')).toHaveLength(7)
     expect(seccion('pr').getByText('212')).toBeInTheDocument()
     expect(screen.getByText(INSIGHTS_WEB[0])).toBeInTheDocument()
-    expect(seccion('materiales').getAllByText(/Sin estado/).length).toBeGreaterThan(0)
+    // La tabla de David del 2-oct ya no deja celdas sin estado: la leyenda solo enseña los estados que existen.
+    expect(seccion('materiales').queryByText(/Sin estado/)).not.toBeInTheDocument()
+    expect(seccion('materiales').getByText('21')).toBeInTheDocument()
     expect(seccion('kaitai').getByText('64')).toBeInTheDocument()
     expect(seccion('kaitai').getByRole('img', { name: 'Banorte' })).toBeInTheDocument()
   })

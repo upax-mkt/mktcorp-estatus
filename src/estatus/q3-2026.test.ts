@@ -88,10 +88,13 @@ describe('PR, Kaitai y materiales', () => {
   it('la matriz de materiales es de 7 × 7 y cada estado cuenta lo que pinta el borrador', () => {
     expect(Q3.MATERIALES).toHaveLength(7)
     for (const f of Q3.MATERIALES) expect(f.estados).toHaveLength(Q3.COLUMNAS_MATERIALES.length)
-    expect(Q3.cuentaMateriales('hecho')).toBe(16)
-    expect(Q3.cuentaMateriales('modificacion')).toBe(9)
-    expect(Q3.cuentaMateriales('aprobacion')).toBe(12)
-    expect(Q3.cuentaMateriales('elaborar')).toBe(10)
+    // Los conteos de la leyenda de David (Materiales UPAX 2.xlsx, 2-oct-2026): 21 + 4 + 20 + 2 + 2 = 49.
+    expect(Q3.cuentaMateriales('hecho')).toBe(21)
+    expect(Q3.cuentaMateriales('aprobacion')).toBe(4)
+    expect(Q3.cuentaMateriales('modificacion')).toBe(20)
+    expect(Q3.cuentaMateriales('elaborar')).toBe(2)
+    expect(Q3.cuentaMateriales('noAplica')).toBe(2)
+    expect(Q3.cuentaMateriales('sinDato')).toBe(0)
   })
 })
 
@@ -142,9 +145,9 @@ describe('las lecturas que concluye cada lámina', () => {
     expect(Q3.sitiosPrimeraPagina()).toBe(4)
   })
 
-  it('materiales listos por empresa suman los 16 hechos; Research Land tiene 6 de 7', () => {
+  it('materiales listos por empresa suman los 21 hechos; Research Land tiene 6 de 7', () => {
     const porUdn = Q3.materialesListosPorUdn()
-    expect(porUdn.reduce((n, f) => n + f.listos, 0)).toBe(16)
+    expect(porUdn.reduce((n, f) => n + f.listos, 0)).toBe(21)
     expect(porUdn.find((f) => f.udn === 'Research Land')).toEqual({ udn: 'Research Land', listos: 6, total: 7 })
     expect(Q3.accionesRoadmap()).toBe(23)
   })

@@ -597,7 +597,12 @@ export const ROADMAP: { carril: 'PR y medios' | 'Contenidos'; acciones: Accion[]
 
 /* ───────────────────────────────── ANEXOS ───────────────────────────────── */
 
-/** Estatus de materiales de venta (David). Orden de columnas: RL, PE, MU, MC, HoF, NC, UiX. */
+/**
+ * Estatus de materiales de venta (David). Orden de columnas: RL, PE, MU, MC, HoF, NC, UiX.
+ * ACTUALIZADA el 2-oct-2026 con «Materiales UPAX 2.xlsx», la tabla que David le pasó a Franco
+ * después de la revisión del equipo. Ojo al transcribirla: en sus celdas «PE» es «Por elaborar»,
+ * no Promo Espacio, y sus columnas vienen en otro orden (NC, PE, MU, RL, UiX, HoF, MC).
+ */
 export type EstadoMaterial = 'hecho' | 'modificacion' | 'aprobacion' | 'elaborar' | 'noAplica' | 'sinDato'
 
 export const ESTADO_MATERIAL: Record<EstadoMaterial, string> = {
@@ -619,16 +624,16 @@ export const COLUMNAS_MATERIALES: Udn[] = [
   'UiX',
 ]
 
-const H = 'hecho', Mo = 'modificacion', A = 'aprobacion', E = 'elaborar', N = 'noAplica', S = 'sinDato'
+const H = 'hecho', Mo = 'modificacion', A = 'aprobacion', E = 'elaborar', N = 'noAplica'
 
 export const MATERIALES: { material: string; estados: EstadoMaterial[] }[] = [
-  { material: 'Credenciales · versión master', estados: [H, H, Mo, Mo, N, A, Mo] },
-  { material: 'Credenciales comerciales · versión larga', estados: [H, H, A, A, E, A, Mo] },
-  { material: 'Credenciales comerciales · versión corta', estados: [H, E, A, A, E, A, Mo] },
-  { material: 'One sheet de la empresa', estados: [E, H, A, Mo, H, H, Mo] },
-  { material: 'One sheets por servicio', estados: [H, E, A, Mo, A, E, A] },
-  { material: 'One sheets por industria', estados: [H, E, A, Mo, E, E, E] },
-  { material: 'Video credencial', estados: [H, H, H, H, H, S, H] },
+  { material: 'Credenciales · versión master', estados: [H, H, H, H, N, H, H] },
+  { material: 'Credenciales comerciales · versión larga', estados: [H, H, Mo, Mo, N, A, Mo] },
+  { material: 'Credenciales comerciales · versión corta', estados: [H, H, Mo, Mo, E, A, Mo] },
+  { material: 'One sheet de la empresa', estados: [Mo, Mo, Mo, Mo, H, H, Mo] },
+  { material: 'One sheets por servicio', estados: [H, Mo, Mo, Mo, A, Mo, A] },
+  { material: 'One sheets por industria', estados: [H, H, Mo, Mo, Mo, E, Mo] },
+  { material: 'Video credencial', estados: [H, Mo, H, H, H, H, H] },
 ]
 
 export const cuentaMateriales = (estado: EstadoMaterial) =>
