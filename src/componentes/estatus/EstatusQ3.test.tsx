@@ -26,6 +26,24 @@ describe('presentación Q3', () => {
     expect(ids.indexOf('pipeline')).toBeLessThan(ids.indexOf('pr'))
     expect(ids.indexOf('pr')).toBeLessThan(ids.indexOf('paid'))
     expect(ids.indexOf('web')).toBeLessThan(ids.indexOf('relacion'))
+    // Lo que se hizo con el equipo va antes de lo que viene: Q4 arranca en Inner Circle (equipo, 2-oct).
+    expect(ids.indexOf('equipo')).toBe(ids.indexOf('relacion') - 1)
+    expect(ids.slice(ids.indexOf('relacion'))).toEqual(['relacion', 'inner-circle', 'upax-one', 'rl-ia', 'agenda-q4', 'cierre'])
+  })
+
+  it('las empresas van en orden alfabético y la demanda abre en MQL, en el orden del funnel', () => {
+    render(<EstatusQ3 />)
+    const demanda = seccion('funnel-empresas')
+    const filas = demanda.getAllByRole('row').slice(1).map(f => f.getAttribute('data-udn'))
+    expect(filas).toEqual(['House of Films', 'Marketing United', 'Mexa Creativa', 'NeraCode', 'Promo Espacio', 'Research Land', 'UiX'])
+    expect(demanda.getAllByRole('button', { pressed: true })[0]).toHaveTextContent('MQL')
+    const web = seccion('web').getAllByRole('button').filter(b => b.hasAttribute('aria-pressed')).map(b => b.textContent)
+    expect(web).toEqual(['Visitas', 'MQL', 'SQL', 'Pipeline', 'Facturado + por facturar'])
+  })
+
+  it('nadie que no presenta aparece como dueño de una lámina', () => {
+    const { container } = render(<EstatusQ3 />)
+    expect(container.textContent).not.toMatch(/Ileana/)
   })
 
   it('ninguna lámina se llama «agenda»: el modo presentar oculta ese nombre', () => {
@@ -39,9 +57,14 @@ describe('presentación Q3', () => {
     // Facturado y ganado son dos cortes: se ven los dos, cada uno con su cifra.
     expect(seccion('venta').getByText('$5.94 M')).toBeInTheDocument()
     expect(seccion('venta').getByText('$5.49 M')).toBeInTheDocument()
-    expect(seccion('funnel').getByText('95')).toBeInTheDocument()
-    expect(seccion('funnel').getByText('103')).toBeInTheDocument()
-    expect(seccion('funnel').queryByText(/meta 30|meta 20|108\.4/)).not.toBeInTheDocument()
+    expect(seccion('venta').getByText('$10.49 M')).toBeInTheDocument()
+    expect(seccion('funnel').getByText('114')).toBeInTheDocument()
+    expect(seccion('funnel').getByText('106')).toBeInTheDocument()
+    // Cada paso lleva su tasa real y la ideal (equipo, 2-oct).
+    expect(seccion('funnel').getByText('31.6%')).toBeInTheDocument()
+    expect(seccion('funnel').getByText('93.0%')).toBeInTheDocument()
+    expect(seccion('funnel').getByText('15.1%')).toBeInTheDocument()
+    expect(seccion('funnel').getByText(/ideal 30%/)).toBeInTheDocument()
   })
 
   it('Paid no pierde UiX al cambiar de una métrica incompleta a su pipeline', async () => {
@@ -56,7 +79,9 @@ describe('presentación Q3', () => {
 
   it('muestra todas las UDN en prensa, conserva el texto IA y distingue estados ausentes', () => {
     render(<EstatusQ3 />)
-    expect(seccion('pr').getAllByRole('row')).toHaveLength(8)
+    // Research Land se lee aparte; las otras seis, en su propia escala.
+    expect(seccion('pr').getAllByRole('row')).toHaveLength(7)
+    expect(seccion('pr').getByText('212')).toBeInTheDocument()
     expect(screen.getByText(INSIGHTS_WEB[0])).toBeInTheDocument()
     expect(seccion('materiales').getAllByText(/Sin estado/).length).toBeGreaterThan(0)
     expect(seccion('kaitai').getByText('64')).toBeInTheDocument()
@@ -67,7 +92,7 @@ describe('presentación Q3', () => {
     render(<EstatusQ3 />)
     expect(seccion('agenda-q4').getByText('Derecho a la información')).toBeInTheDocument()
     expect(seccion('agenda-q4').getByText('Tema por definir')).toBeInTheDocument()
-    expect(screen.getAllByText('342').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('361').length).toBeGreaterThan(0)
     expect(screen.getAllByText('231').length).toBeGreaterThan(0)
     expect(screen.queryByText(/negocios nuevos/)).not.toBeInTheDocument()
   })
@@ -75,7 +100,9 @@ describe('presentación Q3', () => {
   it('la cumbre muestra el pipeline a escala y no lo suma a lo facturado', () => {
     render(<EstatusQ3 />)
     const cumbre = seccion('pipeline')
-    expect(cumbre.getAllByText('$57.16 M').length).toBeGreaterThan(0)
+    expect(cumbre.getAllByText('$57.69 M').length).toBeGreaterThan(0)
+    // El reenfoque del equipo: las tres empresas donde toca generar más demanda van marcadas.
+    expect(cumbre.getAllByRole('row').filter(f => f.hasAttribute('data-alerta')).map(f => f.getAttribute('data-udn'))).toEqual(['House of Films', 'Mexa Creativa', 'UiX'])
     expect(cumbre.getByText(/no se suma al pipeline/)).toBeInTheDocument()
     expect(cumbre.getByRole('img', { name: /Pipeline abierto por etapa, a escala/ })).toBeInTheDocument()
   })

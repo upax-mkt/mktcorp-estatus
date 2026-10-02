@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { LogoUdn, lugarUdn, tieneLogo } from './LogoUdn'
 import estilos from './estatus.module.css'
 
@@ -53,10 +53,14 @@ function useFocoUdn() {
 const lugar = lugarUdn
 
 /** Las filas permanecen al cambiar la métrica: una ausencia nunca elimina una UDN. */
-export function GraficoComparativo({ titulo, metricas, filas }: {
+export function GraficoComparativo({ titulo, metricas, filas, alerta, nota }: {
   titulo: string
   metricas: readonly [MetricaGrafico, ...MetricaGrafico[]]
   filas: FilaGrafico[]
+  /** Empresas que la lámina señala como pendiente propio (dónde falta generar demanda): se marcan, no se resaltan como logro. */
+  alerta?: readonly string[]
+  /** Una línea bajo la tabla: lo que el gráfico no desglosa o lo que hay que leer en él. */
+  nota?: ReactNode
 }) {
   const [indice, setIndice] = useState(0)
   const foco = useFocoUdn()
@@ -82,7 +86,7 @@ export function GraficoComparativo({ titulo, metricas, filas }: {
           {ordenadas.map((fila, i) => {
             const valor = fila.valores[metrica.id]
             const ancho = valor != null && Number.isFinite(valor) && maximo > 0 ? Math.max(0, valor / maximo * 100) : 0
-            return <tr key={fila.nombre} data-udn={fila.nombre} data-mayor={(maximo > 0 && valor === destacado && (!siguiendo || fila.nombre === foco)) || undefined}>
+            return <tr key={fila.nombre} data-udn={fila.nombre} data-alerta={alerta?.includes(fila.nombre) || undefined} data-mayor={(maximo > 0 && valor === destacado && (!siguiendo || fila.nombre === foco)) || undefined}>
               <th scope="row">{tieneLogo(fila.nombre)
                 ? <button type="button" className={estilos.udn} aria-label={fila.nombre} title={`Seguir a ${fila.nombre} en toda la presentación`} onClick={() => alternarFoco(fila.nombre)}><LogoUdn nombre={fila.nombre} /></button>
                 : <span className={estilos.filaTexto}>{fila.nombre}</span>}{fila.detalle && <small>{fila.detalle}</small>}</th>
@@ -94,6 +98,7 @@ export function GraficoComparativo({ titulo, metricas, filas }: {
           })}
         </tbody>
       </table>
+      {nota && <p className={estilos.graficoNota}>{nota}</p>}
       <p className={estilos.soloLectores} role="status">Mostrando {metrica.nombre}.</p>
     </div>
   )

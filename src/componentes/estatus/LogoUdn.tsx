@@ -13,8 +13,12 @@ const SLUG: Record<string, string> = {
   'Grupo UPAX': 'grupo-upax',
 }
 
-/** Un solo orden de empresas en toda la pieza: quien sigue a una la encuentra siempre en el mismo sitio. */
-export const ORDEN_UDN = ['NeraCode', 'Promo Espacio', 'Marketing United', 'Research Land', 'UiX', 'House of Films', 'Mexa Creativa']
+/**
+ * Un solo orden de empresas en toda la pieza: quien sigue a una la encuentra siempre en el mismo sitio.
+ * Es el ALFABÉTICO (decisión de Franco con el equipo, 2-oct-2026): ni por tier ni por el «journey»
+ * que arranca en Research Land, que el propio equipo descartó.
+ */
+export const ORDEN_UDN = ['House of Films', 'Marketing United', 'Mexa Creativa', 'NeraCode', 'Promo Espacio', 'Research Land', 'UiX']
 export const lugarUdn = (nombre: string) => { const i = ORDEN_UDN.indexOf(nombre); return i < 0 ? ORDEN_UDN.length : i }
 
 export const tieneLogo = (nombre: string) => nombre in SLUG

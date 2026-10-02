@@ -1,6 +1,11 @@
 /**
  * Fuente oficial: «CMO - Estatus MKT Corp Q3 2026», Google Slides del equipo,
  * corte 30-sep-2026. Las tablas conservan sus cifras y sus ausencias.
+ *
+ * REVISIÓN DEL EQUIPO, 2-oct-2026: César Mejía leyó de Orbit (vista MBR,
+ * «generado por Marketing», trimestre pasado) las cifras de demanda, pipeline y
+ * paid. Los desgloses que la sesión no dictó completos salen de la misma fuente
+ * de Orbit (hoja «Concentrado_V3» de RevOps, lectura del 2-oct-2026).
  * Los totales derivados se calculan; un KPI reportado conserva la definición
  * de su fuente. Los distintos cortes comerciales no se suman entre sí.
  */
@@ -74,10 +79,14 @@ export const EVENTOS: Evento[] = [
       m('venue-kaitai-5.webp', 'Salón de Onomura', 1280, 720),
       m('venue-kaitai-3.webp', 'Barra de cocina de Onomura', 720, 1280),
     ],
+    // Orden pedido por el equipo (2-oct): invitación física, correo de invitación,
+    // landing y correo de confirmación. El correo de invitación es el que subió Iris
+    // ese día; el anterior era el recordatorio de «nos reuniremos en una semana».
     materiales: [
-      m('inv-kaitai.webp', 'Invitación de Kaitai', 900, 1285),
+      m('inv-kaitai.webp', 'Invitación de Kaitai (física)', 900, 1285),
+      m('correo-kaitai-invitacion.webp', 'Correo de invitación de Kaitai', 597, 1307),
       m('landing-kaitai-registro.webp', 'Landing de registro de Kaitai', 1400, 1088),
-      m('mail-kaitai-invitacion.webp', 'Correo de invitación de Kaitai', 640, 982),
+      m('landing-kaitai-confirmacion.webp', 'Landing de confirmación de Kaitai', 900, 1377),
       m('mail-kaitai-confirmacion.webp', 'Correo de confirmación de Kaitai', 640, 1503),
     ],
   },
@@ -91,7 +100,7 @@ export const EVENTOS: Evento[] = [
     direccion: 'Plaza Río de Janeiro 54, col. Roma, CDMX',
     resumen:
       'Experiencia gastronómica con miracle berry: los mismos sabores, antes y después de transformar su percepción. La dinámica representa a House of Films y Promo Espacio: convertir una gran idea en producción audiovisual y hacerla vivir en el momento, el lugar y el formato adecuados para generar impacto.',
-    keyVisual: m('kv-miracle.webp', 'Miracle Signal: «No es lo que ves, es lo que provoca»', 1600, 900),
+    keyVisual: m('kv-miracle.webp', 'Key visual promocional de Miracle Signal', 1600, 900),
     fotos: [
       m('venue-miracle-1.webp', 'The Midnight Monkey', 1280, 960),
       m('venue-miracle-barra.webp', 'Barra de The Midnight Monkey', 478, 850),
@@ -99,6 +108,8 @@ export const EVENTOS: Evento[] = [
     ],
     materiales: [
       m('mail-miracle-invitacion.webp', 'Correo de invitación de Miracle Signal', 640, 1606),
+      m('landing-miracle-registro.webp', 'Landing de registro de Miracle Signal', 1600, 832),
+      m('landing-miracle-confirmacion.webp', 'Landing de confirmación de Miracle Signal', 1600, 835),
       m('mail-miracle-confirmacion.webp', 'Correo de confirmación de Miracle Signal', 640, 1475),
     ],
   },
@@ -119,6 +130,8 @@ export const EVENTOS: Evento[] = [
     ],
     materiales: [
       m('mail-soledad-invitacion.webp', 'Correo de invitación de Soledad', 640, 1580),
+      m('landing-soledad-registro.webp', 'Landing de registro de Soledad', 1600, 760),
+      m('landing-soledad-confirmacion.webp', 'Landing de confirmación de Soledad', 1600, 835),
       m('mail-soledad-confirmacion.webp', 'Correo de confirmación de Soledad', 640, 1452),
     ],
   },
@@ -201,25 +214,44 @@ export const marcasDestacadas = () => KAITAI_SECTORES.reduce((n, s) => n + s.emp
 export const ejecutivosConfirmados = () =>
   KAITAI_SECTORES.reduce((n, s) => n + personasDe(s), 0) + KAITAI_OTRAS_EMPRESAS
 
-/* ───────────────────── 2 · FUNNEL GDD (César e Ileana) ───────────────────── */
+/* ───────────────────────── 2 · FUNNEL GDD (César Mejía) ───────────────────────── */
 
 export const ETAPAS = ['Contactos', 'MQL', 'SQL', 'Propuestas', 'Ganados'] as const
 export type Etapa = (typeof ETAPAS)[number]
 
 /** La tabla de César, por UDN. Las sumas se calculan (ver `totalEtapa`). */
 export const FUNNEL: Record<Udn, Record<Etapa, number>> = {
-  'House of Films': { Contactos: 100, MQL: 49, SQL: 1, Propuestas: 1, Ganados: 1 },
-  'Marketing United': { Contactos: 624, MQL: 60, SQL: 10, Propuestas: 25, Ganados: 10 },
+  'House of Films': { Contactos: 100, MQL: 51, SQL: 1, Propuestas: 1, Ganados: 1 },
+  'Marketing United': { Contactos: 624, MQL: 62, SQL: 11, Propuestas: 25, Ganados: 10 },
   'Mexa Creativa': { Contactos: 1756, MQL: 80, SQL: 9, Propuestas: 8, Ganados: 0 },
-  NeraCode: { Contactos: 1279, MQL: 36, SQL: 18, Propuestas: 10, Ganados: 0 },
-  'Promo Espacio': { Contactos: 23618, MQL: 77, SQL: 30, Propuestas: 18, Ganados: 1 },
-  'Research Land': { Contactos: 1204, MQL: 32, SQL: 14, Propuestas: 22, Ganados: 1 },
+  NeraCode: { Contactos: 1279, MQL: 37, SQL: 18, Propuestas: 10, Ganados: 0 },
+  'Promo Espacio': { Contactos: 23618, MQL: 77, SQL: 32, Propuestas: 19, Ganados: 1 },
+  'Research Land': { Contactos: 1204, MQL: 36, SQL: 14, Propuestas: 21, Ganados: 1 },
   UiX: { Contactos: 756, MQL: 8, SQL: 13, Propuestas: 19, Ganados: 3 },
 }
 
 export const UDNS_FUNNEL = Object.keys(FUNNEL) as Udn[]
 export const totalEtapa = (e: Etapa) => UDNS_FUNNEL.reduce((n, u) => n + FUNNEL[u][e], 0)
 export const tasa = (de: Etapa, a: Etapa) => totalEtapa(a) / totalEtapa(de)
+
+/**
+ * LOS TOTALES DEL TRIMESTRE, tal como los lee Orbit para todo el grupo (César,
+ * 2-oct-2026). Son mayores que la suma de las siete empresas de la tabla porque
+ * incluyen a las otras unidades del grupo, que aquí no se desglosan: 16 SQL y
+ * 3 propuestas (comprobado en la fuente de Orbit). Las pruebas fijan la diferencia.
+ */
+export const DEMANDA_Q3 = { MQL: 361, SQL: 114, Propuestas: 106, Ganados: 16 } as const
+export type CorteDemanda = keyof typeof DEMANDA_Q3
+
+/** Tasa de conversión ideal por etapa (Forecast 2026; la confirmó el equipo el 2-oct). */
+export const TASA_IDEAL = { mqlASql: 0.3, sqlAPropuesta: 0.8, propuestaAGanado: 0.2 }
+
+/** Las tres conversiones del trimestre: la real sale de los totales; la ideal, del Forecast. */
+export const CONVERSION_Q3: { de: CorteDemanda; a: CorteDemanda; real: number; ideal: number }[] = [
+  { de: 'MQL', a: 'SQL', real: DEMANDA_Q3.SQL / DEMANDA_Q3.MQL, ideal: TASA_IDEAL.mqlASql },
+  { de: 'SQL', a: 'Propuestas', real: DEMANDA_Q3.Propuestas / DEMANDA_Q3.SQL, ideal: TASA_IDEAL.sqlAPropuesta },
+  { de: 'Propuestas', a: 'Ganados', real: DEMANDA_Q3.Ganados / DEMANDA_Q3.Propuestas, ideal: TASA_IDEAL.propuestaAGanado },
+]
 
 /** Conversiones que se muestran: las que salen de la tabla y no pasan de 100%. */
 export const CONVERSIONES: { de: Etapa; a: Etapa }[] = [
@@ -240,9 +272,12 @@ export const KAITAI_CONFIRMADOS_REPORTADOS = 64
 export const FACTURADO_POR_UDN: { udn: Udn; monto: number }[] = [
   { udn: 'Mexa Creativa', monto: 2_970_000 },
   { udn: 'Marketing United', monto: 2_560_000 },
+  { udn: 'Promo Espacio', monto: 286_000 },
+  { udn: 'UiX', monto: 125_000 },
 ]
+export const NEGOCIOS_FACTURADOS_Q3 = 14
 
-/** Empresas destacadas del funnel (Ileana): solo logos, como en el borrador. */
+/** Empresas destacadas del funnel: solo logos, como en el borrador. */
 export const DESTACADAS: { empresa: string; logo: string }[] = [
   ['Toyota', 'toyota'],
   ['Danone', 'danone'],
@@ -279,40 +314,65 @@ export const GANADAS: { empresa: string; valor: number; udn: Udn; etapa: EtapaNe
   { empresa: 'Newfold Digital', valor: 171_000, udn: 'UiX', etapa: 'Ganado (por facturar)' },
   { empresa: 'ASSA ABLOY', valor: 135_000, udn: 'House of Films', etapa: 'Ganado (por facturar)' },
   { empresa: 'Loco Tequila', valor: 97_080, udn: 'Marketing United', etapa: 'Facturado' },
-  { empresa: 'Häfele México', valor: 36_665.64, udn: 'Marketing United', etapa: 'Ganado (por facturar)' },
+  { empresa: 'Häfele México', valor: 36_665.64, udn: 'Marketing United', etapa: 'Facturado' },
   { empresa: 'Grupo Kasa', valor: 35_820, udn: 'Promo Espacio', etapa: 'Facturado' },
   { empresa: 'Corbion', valor: 32_619, udn: 'Marketing United', etapa: 'Facturado' },
   { empresa: 'Corbion', valor: 32_619, udn: 'Marketing United', etapa: 'Facturado' },
-  { empresa: 'Häfele México', valor: 22_049.5, udn: 'Marketing United', etapa: 'Ganado (por facturar)' },
+  { empresa: 'Häfele México', valor: 22_049.5, udn: 'Marketing United', etapa: 'Facturado' },
 ]
 
 export const totalGanado = () => GANADAS.reduce((n, g) => n + g.valor, 0)
 export const empresasGanadas = () => new Set(GANADAS.map((g) => g.empresa)).size
 
+/** De lo ganado en el trimestre, lo que sigue sin facturar: es lo que todavía se va a sumar a la caja. */
+export const ganadoPorFacturar = () => GANADAS.filter((g) => g.etapa === 'Ganado (por facturar)')
+export const montoPorFacturar = () => ganadoPorFacturar().reduce((n, g) => n + g.valor, 0)
+
+/**
+ * LO QUE YA ESTÁ EN LOS DOS CORTES. Seis de los negocios ganados en Q3 también
+ * se facturaron dentro del trimestre, así que ya están en los $5.94 M (fuente de
+ * Orbit, 2-oct-2026). Sumar los dos cortes tal cual los contaría dos veces.
+ */
+export const TRASLAPE_VENTA = { negocios: 6, monto: 945_585.9 }
+/** Venta generada en Q3, sin contar dos veces: facturado + ganado − lo que está en ambos. */
+export const ventaGenerada = () => FACTURADO_Q3 + totalGanado() - TRASLAPE_VENTA.monto
+export const negociosVenta = () => NEGOCIOS_FACTURADOS_Q3 + GANADAS.length - TRASLAPE_VENTA.negocios
+
 /** Pipeline activo: negocios abiertos, de la vista MBR de Orbit al corte. */
 export const PIPELINE_ETAPAS: { etapa: string; negocios: number; monto: number }[] = [
   { etapa: 'Reunión calificada', negocios: 32, monto: 3_110_000 },
-  { etapa: 'Propuesta', negocios: 20, monto: 7_300_000 },
-  { etapa: 'Evaluando', negocios: 58, monto: 57_160_000 },
-  { etapa: 'Cierre', negocios: 1, monto: 200_000 },
+  { etapa: 'Propuesta', negocios: 32, monto: 10_500_000 },
+  { etapa: 'Evaluando', negocios: 66, monto: 57_690_000 },
+  { etapa: 'Cierre', negocios: 2, monto: 250_000 },
 ]
 
 export const PIPELINE_UDN: { udn: Udn; negocios: number; monto: number }[] = [
   { udn: 'NeraCode', negocios: 18, monto: 24_830_000 },
   { udn: 'Promo Espacio', negocios: 38, monto: 11_870_000 },
   { udn: 'Marketing United', negocios: 18, monto: 11_450_000 },
-  { udn: 'Research Land', negocios: 16, monto: 9_180_000 },
-  { udn: 'UiX', negocios: 13, monto: 8_370_000 },
+  { udn: 'Research Land', negocios: 16, monto: 10_470_000 },
+  { udn: 'UiX', negocios: 11, monto: 7_130_000 },
+  { udn: 'Mexa Creativa', negocios: 6, monto: 2_250_000 },
   { udn: 'House of Films', negocios: 3, monto: 1_880_000 },
-  { udn: 'Mexa Creativa', negocios: 5, monto: 190_000 },
 ]
+
+/** Lo que el total de Orbit incluye y esta tabla no desglosa: otra unidad del grupo. */
+export const PIPELINE_OTRAS = { negocios: 22, monto: 1_680_000 }
+
+/**
+ * DÓNDE FALTA DEMANDA (lectura del equipo, 2-oct-2026): las tres empresas donde
+ * Marketing tiene que generar más pipeline. No es un dato de Orbit: es el
+ * compromiso que el equipo decidió poner en el título.
+ */
+export const POR_SEMBRAR: Udn[] = ['House of Films', 'Mexa Creativa', 'UiX']
+export const pipelinePorSembrar = () => PIPELINE_UDN.filter((f) => POR_SEMBRAR.includes(f.udn)).reduce((n, f) => n + f.monto, 0)
 
 /**
  * El encabezado de Orbit, tal cual. Las etapas y las empresas vienen
  * redondeadas a dos decimales de millón, así que su suma puede diferir del
  * total por un redondeo (las pruebas lo acotan); la cifra grande es la de Orbit.
  */
-export const PIPELINE = { total: 67_760_000, negocios: 111, ticketPromedio: 610_470 }
+export const PIPELINE = { total: 71_550_000, negocios: 132, ticketPromedio: 542_050 }
 
 export const negociosAbiertos = () => PIPELINE_ETAPAS.reduce((n, e) => n + e.negocios, 0)
 
@@ -344,21 +404,32 @@ export const PR = {
 }
 
 export const notasEnMedios = () => PR.porUdn.reduce((n, f) => n + f.notas, 0)
+/** Research Land va aparte (equipo, 2-oct): tiene otro mercado y otra cadencia, y aplastaba a las demás. */
+export const notasRL = () => PR.porUdn.find((f) => f.udn === 'Research Land')?.notas ?? 0
+export const notasSinRL = () => PR.porUdn.filter((f) => f.udn !== 'Research Land')
 
 /* ──────────────────────── 5 · ARTEFACTOS (César e Iris) ──────────────────────── */
 
 export const ARTEFACTOS = [
   {
-    nombre: 'Señales de mercado',
-    de: 'Inteligencia comercial',
-    descripcion:
-      'Encuentra la mejor ventana para contactar a cada industria: reúne las señales de lo que está cambiando en su mercado y enseña en el mapa dónde se concentran esas empresas.',
-  },
-  {
+    id: 'simulador' as const,
     nombre: 'Simulador de pantallas',
     de: 'Promo Espacio',
     descripcion:
       'Simulador web sin registro: el anunciante elige ubicación y formatos, sube su creatividad y descarga mockups de cómo lucirá su campaña. Acelera cotizaciones y baja la fricción comercial.',
+    pasos: ['Ubicación y formato', 'Creatividad del anunciante', 'Mockup de campaña'],
+    enlace: 'https://promo-espacio.com/simulador?hs_preview=FJVufziD-218109333423',
+    abrir: 'Abrir simulador',
+  },
+  {
+    id: 'senales' as const,
+    nombre: 'Señales de mercado',
+    de: 'Inteligencia comercial',
+    descripcion:
+      'Encuentra la mejor ventana para contactar a cada industria: reúne las señales de lo que está cambiando en su mercado y enseña en el mapa dónde se concentran esas empresas.',
+    pasos: ['Señales de la industria', 'Empresas en el mapa', 'Ventana de contacto'],
+    enlace: 'https://orbit-mkt.com/brujula',
+    abrir: 'Abrir Señales de mercado',
   },
 ]
 
@@ -372,9 +443,21 @@ export const INNER_CIRCLE = {
   noEs:
     'No es una plataforma comercial ni de comunicación masiva: es una estrategia de relacionamiento para mantener a UPAX relevante entre sus públicos clave y consolidar un ecosistema propio de conocimiento, influencia y conexión.',
   remate: 'La plataforma relacional de Grupo UPAX con su ecosistema de tomadores de decisión.',
+  /** Lo que el equipo explicó en la revisión del 2-oct-2026 y lo que dice la invitación que firma Cecilia. */
+  frase: 'Las mejores conversaciones no terminan con un evento.',
+  meta: 100,
+  metaTexto: 'tomadores de decisión en una comunidad activa al cierre de 2026',
+  claves: [
+    { titulo: 'Qué es', icono: 'personas' as const, texto: 'El círculo exclusivo de Grupo UPAX para líderes y tomadores de decisión de la industria.' },
+    { titulo: 'Cómo se entra', icono: 'documento' as const, texto: 'Al cierre de cada Fire Experience, en la misma cena: la invitación la firma Cecilia y el registro es en ese momento.' },
+    { titulo: 'Qué reciben', icono: 'chispa' as const, texto: 'Tendencias, estudios y data exclusiva de la industria, y acceso preferente a experiencias y encuentros del grupo.' },
+    { titulo: 'Cómo se cuida', icono: 'estrella' as const, texto: 'Relación uno a uno: fechas clave, detalles, invitaciones y la posibilidad de participar como ponentes.' },
+  ],
   contenidos: [
     {
       udn: 'Research Land' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Estudios exclusivos del consumidor mexicano', 'Pulsos trimestrales de confianza y consumo', 'Insight of the Month'],
       ideas: [
         'Resultados exclusivos de estudios sobre el consumidor mexicano y tendencias.',
         'Pulsos trimestrales sobre confianza, consumo y cambios de comportamiento.',
@@ -383,6 +466,8 @@ export const INNER_CIRCLE = {
     },
     {
       udn: 'Promo Espacio' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Tendencias de DOOH y DOOH programático', 'Data de movilidad y audiencias', 'Temporalidades: Buen Fin, Navidad, regreso a clases'],
       ideas: [
         'Tendencias y evolución del DOOH y el DOOH programático.',
         'Data de movilidad, audiencias y comportamiento en puntos de contacto.',
@@ -391,6 +476,8 @@ export const INNER_CIRCLE = {
     },
     {
       udn: 'Marketing United' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Tendencias de experiential marketing y BTL', 'Qué genera engagement de verdad', 'Casos de activaciones en México y otros mercados'],
       ideas: [
         'Tendencias en experiential marketing y BTL.',
         'Qué hace que una experiencia de marca genere engagement de verdad.',
@@ -399,6 +486,8 @@ export const INNER_CIRCLE = {
     },
     {
       udn: 'House of Films' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Tendencias de formatos y consumo audiovisual', 'IA aplicada a producción', 'Behind the content: decisiones de producción'],
       ideas: [
         'Tendencias en formatos y consumo audiovisual.',
         'IA aplicada a producción: qué cambia y qué sigue necesitando talento humano.',
@@ -407,6 +496,8 @@ export const INNER_CIRCLE = {
     },
     {
       udn: 'Mexa Creativa' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Radar del Mexa: tendencias culturales', 'Hallazgos de las expediciones de Mexa', 'Códigos culturales que las marcas deben observar'],
       ideas: [
         'Radar del Mexa: tendencias culturales y comportamientos emergentes del consumidor mexicano.',
         'Hallazgos de las expediciones de Mexa sobre el consumidor «de a pie».',
@@ -415,6 +506,8 @@ export const INNER_CIRCLE = {
     },
     {
       udn: 'NeraCode' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Tendencias de IA y desarrollo de software', 'Tech Briefs para directivos', 'Construir, comprar o evolucionar sistemas'],
       ideas: [
         'Tendencias en IA, desarrollo de software y transformación tecnológica.',
         'Tech Briefs para directivos: tecnologías emergentes sin lenguaje técnico.',
@@ -423,6 +516,8 @@ export const INNER_CIRCLE = {
     },
     {
       udn: 'UiX' as Udn,
+      // Los tres temas a la vista, en corto (equipo, 2-oct: «las tendencias tienen que estar fuera»).
+      corto: ['Tendencias UX/UI y comportamiento digital', 'UX Teardowns', 'Diseño que mueve conversión y adopción'],
       ideas: [
         'Tendencias UX/UI y comportamiento digital.',
         'UX Teardowns: experiencias digitales relevantes y por qué funcionan.',
@@ -437,6 +532,13 @@ export const UPAX_ONE = {
     'Nace como un ecosistema de relacionamiento que conecta a UPAX con líderes y tomadores de decisión a través de experiencias, conversaciones y capacidades que convergen.',
   convergencia:
     'Un encuentro mayor que reúne a la comunidad generada alrededor de los Ignites y presenta a UPAX no como un conjunto de empresas aisladas, sino como un ecosistema de capacidades que entiende y transforma los retos del negocio.',
+  /** Lo que el equipo contó en la revisión del 2-oct-2026. La ponencia magna es una propuesta, no un confirmado. */
+  claves: [
+    { titulo: 'Cuándo', icono: 'calendario' as const, dato: 'Primavera 2027', texto: 'Marzo o abril.' },
+    { titulo: 'Quiénes', icono: 'personas' as const, dato: '150 a 200', texto: 'Líderes y tomadores de decisión de la comunidad que nace en los Ignites.' },
+    { titulo: 'Qué se vive', icono: 'chispa' as const, dato: 'Un día completo', texto: 'Experiencia inmersiva: conferencias, experiencias de cada empresa y speakers externos.' },
+    { titulo: 'Cómo cierra', icono: 'estrella' as const, dato: 'Ponencia magna y concierto', texto: 'Propuesta: ponencia magna de Ricardo Salinas, y cierre con concierto y coctel.' },
+  ],
 }
 
 export const LANZAMIENTO_RL_IA = [
@@ -542,15 +644,23 @@ export const REDES = [
 /** El dato de Q2 contra el que el squad compara el engagement de Instagram (insight de redes). */
 export const REDES_Q2 = { engagementInstagram: 0.0025 }
 
-export const PAID: { udn: Udn; mql: number | null; costoMql: number | null; sql: number | null; pipeline: number; facturado: number }[] = [
-  { udn: 'Research Land', mql: 10, costoMql: 2077.82, sql: 3, pipeline: 1_660_000, facturado: 0 },
-  { udn: 'Promo Espacio', mql: 45, costoMql: 713.03, sql: 19, pipeline: 1_790_000, facturado: 321_000 },
-  { udn: 'Marketing United', mql: 39, costoMql: 1529.04, sql: 24, pipeline: 3_250_000, facturado: 2_710_000 },
-  { udn: 'House of Films', mql: 43, costoMql: 1430.72, sql: 24, pipeline: 375_000, facturado: 135_000 },
-  { udn: 'Mexa Creativa', mql: 58, costoMql: 1102.25, sql: 44, pipeline: 190_000, facturado: 2_970_000 },
-  { udn: 'NeraCode', mql: 19, costoMql: 2126.0, sql: 7, pipeline: 17_850_000, facturado: 0 },
-  { udn: 'UiX', mql: null, costoMql: null, sql: null, pipeline: 1_190_000, facturado: 0 },
+/**
+ * Paid, por empresa (Orbit, 2-oct-2026). `inversion` es lo que se pagó por los MQL
+ * del trimestre: el costo por MQL se calcula, así que cambia solo si cambian los MQL.
+ * UiX no tiene MQL propios de paid: sus 4 SQL llegan por cross-sell con NeraCode.
+ */
+export const PAID: { udn: Udn; mql: number | null; inversion: number | null; sql: number | null; pipeline: number; facturado: number; nota?: string }[] = [
+  { udn: 'Research Land', mql: 14, inversion: 20_778.2, sql: 0, pipeline: 1_660_000, facturado: 0 },
+  { udn: 'Promo Espacio', mql: 47, inversion: 32_086.35, sql: 16, pipeline: 1_790_000, facturado: 286_000 },
+  { udn: 'Marketing United', mql: 41, inversion: 59_632.56, sql: 2, pipeline: 3_250_000, facturado: 2_180_000 },
+  { udn: 'House of Films', mql: 47, inversion: 61_520.96, sql: 0, pipeline: 375_000, facturado: 135_000 },
+  { udn: 'Mexa Creativa', mql: 58, inversion: 63_930.5, sql: 5, pipeline: 2_250_000, facturado: 2_970_000 },
+  { udn: 'NeraCode', mql: 21, inversion: 40_394, sql: 8, pipeline: 17_850_000, facturado: 0 },
+  { udn: 'UiX', mql: null, inversion: null, sql: 4, pipeline: 1_190_000, facturado: 0, nota: 'cross-sell con NeraCode' },
 ]
+export const costoMql = (p: (typeof PAID)[number]) => (p.mql && p.inversion ? p.inversion / p.mql : null)
+/** Lo que el total de pipeline de paid en Orbit incluye de otra unidad del grupo, sin desglosar aquí. */
+export const PAID_PIPELINE_TOTAL = 29_530_000
 
 export const WEB: { udn: Udn; visitas: number; posicion: string; mql: number; sql: number; pipeline: number; facturado: number }[] = [
   { udn: 'Research Land', visitas: 7967, posicion: '2.ª página', mql: 11, sql: 6, pipeline: 3_500_000, facturado: 1_260_000 },
@@ -565,8 +675,8 @@ export const WEB: { udn: Udn; visitas: number; posicion: string; mql: number; sq
 export const suma = <T>(filas: T[], campo: (f: T) => number | null) => filas.reduce((n, f) => n + (campo(f) ?? 0), 0)
 
 export const INSIGHTS_PAID = [
-  'Q3 mejora la calidad del funnel: el trimestre cierra con 214 MQL y 121 SQL, una conversión MQL → SQL de 56.5%. La lectura ya no es solo volumen, sino más oportunidades calificadas.',
-  'Paid Media cierra Q3 con impacto en revenue: las empresas de la tabla suman $26.31 M de pipeline activo y $6.14 M facturados y por facturar. Paid no solo genera MQL; también es fuente de negocio.',
+  'Paid cierra Q3 con 228 MQL y 35 SQL generados por Marketing.',
+  'Paid Media cierra Q3 con impacto en revenue: $29.53 M de pipeline activo y $5.57 M facturados y por facturar. Paid no solo genera MQL; también es fuente de negocio.',
 ]
 
 export const INSIGHTS_REDES = [
@@ -618,9 +728,9 @@ export const parteNotasRL = () => (PR.porUdn.find((f) => f.udn === 'Research Lan
 
 /** Costo promedio por MQL de paid, ponderado por los MQL de cada empresa. */
 export const costoPromedioMqlPaid = () => {
-  const conDato = PAID.filter((p) => p.mql !== null && p.costoMql !== null)
+  const conDato = PAID.filter((p) => p.mql !== null && p.inversion !== null)
   const mql = conDato.reduce((n, p) => n + (p.mql ?? 0), 0)
-  return conDato.reduce((n, p) => n + (p.mql ?? 0) * (p.costoMql ?? 0), 0) / mql
+  return conDato.reduce((n, p) => n + (p.inversion ?? 0), 0) / mql
 }
 
 /** Cociente entre visitas y MQL reportados; no equivale a formularios enviados. */

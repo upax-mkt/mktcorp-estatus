@@ -75,7 +75,7 @@
 .rayoAura::before { content: ''; position: absolute; inset: 0; clip-path: polygon(58% 0, 96% 0, 66% 38.75%, 92% 38.75%, 26% 100%, 44% 55%, 16% 55%); background: linear-gradient(180deg, #ffd0a0, var(--naranja) 26%, var(--magenta) 56%, var(--azul) 84%, #1b1850); background-size: 100% 180%; }
 .portada::before { background: linear-gradient(100deg, #0b0a1fd9 0%, #0b0a1f8c 38%, transparent 66%), linear-gradient(180deg, #0b0a1f66, transparent 28%, transparent 70%, #0b0a1fcc); }
 .lema { margin-top: 1.4rem; font-family: var(--titular); font-weight: 500; letter-spacing: -.02em; font-size: clamp(1.25rem, 2vw, 2.3rem); color: #fff; }
-.agendaPortada { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .6rem; }
+.agendaPortada { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: .5rem; }
 .agendaPortada a { text-decoration: none; padding: .75rem .65rem; display: flex; gap: .4rem; align-items: center; font-size: clamp(.76rem, .92vw, 1.05rem); line-height: 1.15; min-width: 0; white-space: nowrap; }
 .agendaPortada svg { flex: none; width: 18px; height: 18px; color: var(--naranja-luz); }
 .agendaPortada span { color: var(--lila); font-size: .75em; }
@@ -307,12 +307,19 @@
 .equipo h3 { font-size: clamp(1.2rem, 1.8vw, 2rem); line-height: 1.15; font-weight: 550; }
 .equipo p { color: var(--muted); font-size: clamp(.95rem, 1.15vw, 1.2rem); line-height: 1.6; }
 .equipo .micro { font-size: .82rem; color: var(--acento); }
-.cierre { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-.cierre > div { padding: clamp(1.1rem, 1.8vw, 2rem); }
-.cierre p { margin-top: .8rem; font-size: clamp(.98rem, 1.3vw, 1.4rem); color: var(--muted); }
-.cierre b { color: #fff; font-weight: 550; }
-.cierre p[data-pipeline] { font-size: clamp(1.2rem, 1.7vw, 1.9rem); }
-.cierre p[data-pipeline] b { color: var(--naranja-luz); font-size: 1.5em; letter-spacing: -.03em; }
+/* EL CIERRE ES UNA RUTA (equipo, 2-oct-2026): tres tramos que se leen de arriba abajo
+   —lo que deja Q3, lo que activa Q4, la continuidad— y desembocan en «Q⚡4». El rayo y
+   el logo van en su propia columna: antes flotaban encima del tercer módulo. */
+.cierreRuta { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 5rem); align-items: center; }
+.cierre { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: clamp(.7rem, 1.6vh, 1.2rem); }
+.cierre > li { display: grid; grid-template-columns: minmax(150px, .3fr) 1fr; gap: clamp(1rem, 2vw, 2rem); align-items: center; padding: clamp(.9rem, 1.4vw, 1.5rem) clamp(1rem, 1.8vw, 2rem); border-left: 3px solid var(--azul); }
+.cierre > li:nth-child(2) { border-left-color: var(--magenta); }
+.cierre > li:nth-child(3) { border-left-color: var(--naranja); }
+.cierre > li > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.cierre p { font-size: clamp(.88rem, 1.05vw, 1.15rem); color: var(--muted); line-height: 1.3; }
+.cierre b { display: block; color: #fff; font-family: var(--titular); font-weight: 600; font-size: clamp(1.15rem, 1.65vw, 1.85rem); letter-spacing: -.02em; line-height: 1.15; }
+.cierre p[data-pipeline] b { color: var(--naranja-luz); }
+.lemaCierre { color: #eceefa; font-size: clamp(.95rem, 1.2vw, 1.3rem); letter-spacing: .02em; text-align: center; }
 .logoCierre { width: clamp(170px, 15vw, 240px); height: auto; }
 
 /* Detalles nativos, incluidos los que se abren dentro de fullscreen. */
@@ -368,7 +375,7 @@
    detrás, borde de luz y un brillo que sigue al cursor (--mx, --my los pone
    IndiceQ3; sin JavaScript, el brillo queda fijo arriba). */
 .resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article,
-.equipo article, .relacion > div, .cierre > div, .cortes li, .lanzamientoMarca, .one figure, .sectores article,
+.equipo article, .relacion > div, .cierre > li, .cortes li, .lanzamientoMarca, .one figure, .sectores article,
 .cumbre > .comparativo, .cumbreCifra, .llegada, .calendario, .iaLider, .evolucionCaja, .cita, .agendaPortada a,
 .pantalla[data-comp='lado'] .cuerpo > .comparativo, .pantalla[data-comp='arriba'] .cuerpo > .comparativo, .division > .comparativo, .division > div:first-child, .galeriaLateral, .tablaScroll {
   position: relative; isolation: isolate; background: var(--vidrio); border: 1px solid var(--vidrio-borde); border-radius: var(--radio);
@@ -376,10 +383,10 @@
   box-shadow: inset 0 1px 0 var(--filo), var(--sombra); }
 .sectores article, .division > .comparativo, .division > div:first-child, .pantalla[data-comp] .cuerpo > .comparativo, .cumbre > .comparativo, .cumbreCifra, .llegada, .calendario, .galeriaLateral, .tablaScroll, .iaLider, .evolucionCaja, .cita { padding: clamp(1rem, 1.7vw, 1.9rem); }
 @media (hover: hover) and (pointer: fine) {
-  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > div, .cortes li, .sectores article, .agendaPortada a)::before {
+  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > li, .cortes li, .sectores article, .agendaPortada a)::before {
     content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 320ms var(--ease);
     background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 0%), var(--brillo), transparent 62%) fixed; }
-  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > div, .cortes li, .sectores article, .agendaPortada a):hover::before { opacity: 1; }
+  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > li, .cortes li, .sectores article, .agendaPortada a):hover::before { opacity: 1; }
   :is(.resumen article, .eventos article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cortes li, .agendaPortada a) { transition: transform 420ms var(--ease), border-color 320ms var(--ease), box-shadow 420ms var(--ease); }
   :is(.resumen article, .eventos article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cortes li, .agendaPortada a):hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--acento) 55%, transparent); box-shadow: inset 0 1px 0 #ffffff59, 0 40px 70px -34px #1e1b4bb3; }
 }
@@ -462,8 +469,8 @@
 
 /* El cierre: el punto coral llega a Q4. */
 .cierreMarca { display: flex; align-items: center; margin-top: .6rem; }
-.destino { position: absolute; right: clamp(2rem, 6vw, 8rem); top: 7%; display: flex; flex-direction: column; align-items: center; gap: clamp(.8rem, 2.4vh, 2rem); pointer-events: none; }
-.destino .trimestre { font-size: clamp(6rem, 13vw, 15rem); }
+.destino { display: flex; flex-direction: column; align-items: center; gap: clamp(.8rem, 2.2vh, 1.6rem); }
+.destino .trimestre { font-size: clamp(6rem, 12vw, 14rem); }
 #cierre .titulo { font-size: clamp(2.4rem, 4.6vw, 5.4rem); }
 
 /* ───────────── ÍNDICE LATERAL ───────────── */
@@ -471,13 +478,15 @@
 .indice { color: #1E1B4B; }
 .indice[data-tono='foto'], .indice[data-tono='color'] { color: #ffffff; }
 .indice ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-end; pointer-events: auto; }
-.indice a { display: flex; align-items: center; justify-content: flex-end; gap: .7rem; min-height: 26px; padding: 2px 4px; text-decoration: none; border-radius: 4px; }
+/* El enlace mide lo que mide su punto. El nombre va fuera del flujo: cuando ocupaba sitio (invisible), el índice era una
+   franja de ~180 px que se tragaba los clics de lo que quedara debajo — la última pestaña de un gráfico («Visitas», 2-oct-2026). */
+.indice a { position: relative; display: flex; align-items: center; justify-content: flex-end; min-height: 26px; padding: 2px 8px; text-decoration: none; border-radius: 4px; }
 .indicePunto { flex: none; width: 9px; height: 9px; border-radius: 50%; border: 1px solid currentColor; opacity: .5; transition: transform var(--respuesta) var(--ease), background var(--respuesta) var(--ease), opacity var(--respuesta) var(--ease), box-shadow var(--respuesta) var(--ease); }
 .indice li[data-visto='true'] .indicePunto { background: currentColor; opacity: .5; }
 .indice li[data-activo='true'] .indicePunto { transform: scale(1.7); background: var(--naranja-luz); border-color: var(--naranja-luz); opacity: 1; box-shadow: 0 0 0 4px #e3471440, 0 0 20px 3px #e34714b3; }
-.indiceNombre { opacity: 0; transform: translateX(6px); white-space: nowrap; padding: .3rem .7rem; border-radius: 100px; background: #1E1B4B; color: #fff; transition: opacity var(--respuesta) var(--ease), transform var(--respuesta) var(--ease); pointer-events: none; }
+.indiceNombre { position: absolute; right: 100%; top: 50%; margin-right: .2rem; opacity: 0; transform: translate(6px, -50%); white-space: nowrap; padding: .3rem .7rem; border-radius: 100px; background: #1E1B4B; color: #fff; transition: opacity var(--respuesta) var(--ease), transform var(--respuesta) var(--ease); pointer-events: none; }
 .indice:is([data-tono='foto'], [data-tono='color']) .indiceNombre { background: #fff; color: #1E1B4B; }
-.indice a:hover .indiceNombre, .indice a:focus-visible .indiceNombre { opacity: 1; transform: none; }
+.indice a:hover .indiceNombre, .indice a:focus-visible .indiceNombre { opacity: 1; transform: translate(0, -50%); }
 .indice a:hover .indicePunto { opacity: 1; transform: scale(1.4); }
 .indiceCuenta { margin: 0; font-variant-numeric: tabular-nums; opacity: .6; padding-right: 2px; }
 /* El aviso de «siguiendo a»: en la franja del pie, junto al número de página, donde no tapa ningún dato. */
@@ -884,7 +893,7 @@
   .pantalla { padding: 8mm 14mm 6mm !important; }
   .escena, .portadaEscena { gap: 3mm; }
   .cuerpo { gap: 3mm !important; }
-  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > div, .cortes li, .sectores article, .comparativo, .cumbreCifra, .llegada, .calendario, .tablaScroll, .galeriaLateral, .iaLider, .lanzamientoMarca, .estados) { padding: 3mm 4mm !important; }
+  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > li, .cortes li, .sectores article, .comparativo, .cumbreCifra, .llegada, .calendario, .tablaScroll, .galeriaLateral, .iaLider, .lanzamientoMarca, .estados) { padding: 3mm 4mm !important; }
   .portadaCentro { padding-block: 0; }
   .agendaPortada a { padding: 2mm 3mm; }
   .cumbre .tablaBarras th { padding-block: .7mm; font-size: 9pt; }
@@ -898,7 +907,7 @@
   .dosCalendarios .calendarioFila small { font-size: 6.5pt; }
   .calendarioTitulo { font-size: 12pt; margin: 0; }
   .pista { display: none; }
-  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > div, .cortes li, .sectores article, .comparativo, .cumbreCifra, .llegada, .calendario, .tablaScroll, .galeriaLateral, .iaLider, .one figure, .lanzamientoMarca) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; }
+  :is(.resumen article, .eventos article, .dosCortes article, .redes article, .herramientas article, .contenidos article, .equipo article, .relacion > div, .cierre > li, .cortes li, .sectores article, .comparativo, .cumbreCifra, .llegada, .calendario, .tablaScroll, .galeriaLateral, .iaLider, .one figure, .lanzamientoMarca) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; }
   .pantalla[data-comp='lado'] .escena { column-gap: 12mm; }
   .cortes { --D: 52mm; }
   .cuerpo { justify-content: center; padding-bottom: 0; }
@@ -930,4 +939,93 @@
   .agendaPortada a { white-space: normal; }
   .evolucionCaja { grid-template-columns: 1fr; }
   .multiplicador { align-items: flex-start; padding: 1rem 0 0; border-left: 0; }
+}
+
+/* ───────────── REVISIÓN DEL EQUIPO (2-oct-2026) ─────────────
+   Lo que el equipo pidió lámina por lámina en la sesión «Cambios presentación estatus Q3». */
+.panel { position: relative; isolation: isolate; background: var(--vidrio); border: 1px solid var(--vidrio-borde); border-radius: var(--radio);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5);
+  box-shadow: inset 0 1px 0 var(--filo), var(--sombra); padding: clamp(.9rem, 1.5vw, 1.6rem); }
+.panel > p { color: var(--muted); line-height: 1.45; font-size: clamp(.9rem, 1.05vw, 1.15rem); margin-top: .5rem; }
+/* Kaitai: fecha y lugar con su icono. */
+.cuandoDonde { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; font-size: clamp(.95rem, 1.1vw, 1.2rem); color: var(--muted); }
+.cuandoDonde li { display: flex; align-items: center; gap: .6rem; }
+.cuandoDonde b { color: var(--tinta); }
+.cuandoDonde svg { flex: none; width: 2em; height: 2em; padding: .38em; border-radius: 8px; color: var(--acento); background: color-mix(in srgb, var(--acento) 16%, transparent); }
+/* Funnel: la tasa real de cada paso contra la ideal. Sobre la ideal, azul; debajo, magenta. */
+.tasa { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: .1rem .8rem; border-top: 1px solid var(--borde); padding-top: .65rem; margin: 0; }
+.tasa > span { grid-column: 1 / -1; font-size: .78rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.tasa > b { font-family: var(--titular); font-size: clamp(1.4rem, 2vw, 2.3rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.1; color: var(--azul-luz); }
+.tasa[data-cumple='false'] > b { color: var(--magenta-luz); }
+.tasa > small { font-size: clamp(.8rem, .95vw, 1rem); color: var(--muted); text-align: right; }
+.tasa[data-base] > small { grid-column: 1 / -1; text-align: left; }
+.pantalla[data-layout='funnel'] .cortes { --D: clamp(120px, 19vh, 210px); }
+/* Gráficos: nota al pie y filas que la lámina marca como pendiente propio. */
+.graficoNota { margin-top: .7rem; padding-top: .6rem; border-top: 1px solid var(--borde); color: var(--muted); font-size: clamp(.82rem, .98vw, 1.05rem); line-height: 1.4; }
+.graficoNota b { color: var(--tinta); }
+.tablaBarras tr[data-alerta] .relleno { opacity: 1; background: linear-gradient(90deg, var(--magenta), var(--magenta-luz)); }
+.tablaBarras tr[data-alerta] .celdaBarra strong { color: var(--magenta-luz); }
+.tablaBarras tr[data-alerta] th::after { content: 'más demanda'; display: inline-block; margin-left: .7em; padding: .05em .6em; border-radius: 100px; font-size: .66em; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--magenta-luz); box-shadow: inset 0 0 0 1px currentColor; vertical-align: middle; white-space: nowrap; }
+.cumbre .tablaBarras th { width: 38%; }
+.cumbreNota { margin-top: .5rem; color: #eceefa; font-size: clamp(.9rem, 1.05vw, 1.15rem); line-height: 1.4; }
+.pantalla[data-cumbre] .titulo { max-width: 30ch; }
+/* PR: Research Land aparte, para que las otras seis se lean en su propia escala. */
+.prDerecha { display: flex; flex-direction: column; gap: clamp(.7rem, 1.6vh, 1.2rem); min-width: 0; }
+.prDerecha > .comparativo { position: relative; isolation: isolate; background: var(--vidrio); border: 1px solid var(--vidrio-borde); border-radius: var(--radio); -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); box-shadow: inset 0 1px 0 var(--filo), var(--sombra); padding: clamp(1rem, 1.7vw, 1.9rem); }
+.prAparte { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+.panel.prAparte { padding-block: clamp(.6rem, 1.1vh, 1rem); }
+.pantalla[data-layout='pr'] .tablaBarras th { padding-block: clamp(.2rem, .5vh, .42rem); }
+.prAparte > div:first-child { display: flex; flex-direction: column; gap: .6rem; }
+.prAparte .logoUdn img { height: clamp(30px, 3.6vh, 44px); width: auto; }
+.prAparte .dato { text-align: right; }
+.prAparte .dato > span { font-size: clamp(2.3rem, 3.6vw, 4rem); color: var(--azul-luz); }
+.prAparte .dato > p { margin-top: .1rem; }
+/* Redes: de dónde venía Instagram, junto a la cifra. */
+.redAntes { display: flex; align-items: baseline; gap: .5rem; margin-bottom: -.9rem; color: var(--muted); font-size: clamp(.85rem, 1vw, 1.1rem); }
+.redAntes > span { font-size: .78em; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.redAntes > b { font-family: var(--titular); font-size: clamp(1.3rem, 1.9vw, 2.1rem); font-weight: 600; letter-spacing: -.03em; color: var(--tinta); opacity: .62; }
+.redAntes > i { font-style: normal; color: var(--acento); font-size: 1.3em; }
+/* Inner Circle: la invitación y lo que hay que saber. */
+.inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(1rem, 1.8vw, 1.8rem); align-items: stretch; }
+.innerCarta { display: flex; flex-direction: column; gap: .6rem; padding: .7rem; }
+.innerCarta > img { width: 100%; height: 100%; min-height: 0; flex: 1; object-fit: cover; border-radius: 12px; }
+.innerCarta figcaption { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0 .5rem; color: var(--muted); font-size: clamp(.82rem, .95vw, 1rem); }
+.innerCarta .enlaceDetalle { min-height: 32px; padding: .2rem 0; font-size: .9rem; }
+.innerClaves { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(.6rem, 1.1vw, 1.1rem); }
+.innerMeta { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1.5rem; }
+.innerMeta .dato { display: flex; align-items: baseline; gap: 1rem; }
+.innerMeta .dato > span { font-size: clamp(2.6rem, 4.6vw, 5rem); color: var(--naranja-luz); }
+.innerMeta .dato > p { margin: 0; color: var(--tinta); font-size: clamp(.95rem, 1.15vw, 1.25rem); }
+.camino { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+.camino li { display: flex; align-items: baseline; gap: .6rem; padding: .55rem 1rem; border-radius: 100px; border: 1px solid var(--vidrio-borde); background: var(--vidrio); color: var(--tinta); font-weight: 600; font-size: clamp(.9rem, 1.05vw, 1.15rem); white-space: nowrap; overflow: hidden; }
+.camino li b { color: var(--acento); font-size: .8em; }
+.camino li span { color: var(--muted); font-weight: 400; font-size: .88em; overflow: hidden; text-overflow: ellipsis; }
+.camino li[data-activo] { border-color: var(--naranja-luz); box-shadow: inset 0 0 0 1px var(--naranja-luz); }
+.camino li[data-activo] b { color: var(--naranja-luz); }
+.pantalla[data-layout='relacion'] .titulo { max-width: 36ch; font-size: clamp(1.9rem, 3.2vw, 3.7rem); }
+.pantalla[data-layout='relacion'] .cuerpo { gap: clamp(.7rem, 1.6vh, 1.2rem); }
+.pantalla[data-layout='relacion'] .bajada { max-width: 80ch; }
+/* Inner Circle: los tres temas de cada empresa, a la vista. */
+.temasVista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.temasVista li { position: relative; padding-left: 1.05rem; color: var(--muted); line-height: 1.3; font-size: clamp(.82rem, .98vw, 1.08rem); }
+.temasVista li::before { content: ''; position: absolute; left: 0; top: .5em; width: 6px; height: 6px; border-radius: 50%; background: var(--acento); }
+.temasVista li:first-child { color: var(--tinta); font-weight: 600; }
+/* UPAX ONE: cuándo, quiénes, qué se vive y cómo cierra. */
+.oneClaves { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(.6rem, 1.1vw, 1.1rem); }
+.oneClaves strong { display: block; margin-top: .55rem; font-family: var(--titular); font-weight: 600; letter-spacing: -.025em; line-height: 1.12; font-size: clamp(1.15rem, 1.7vw, 1.95rem); color: var(--tinta); }
+.pantalla[data-layout='upax-one'] .one img { aspect-ratio: 21 / 9; }
+.pantalla[data-layout='upax-one'] .cuerpo { gap: clamp(.7rem, 1.6vh, 1.2rem); }
+.cuerpo > :is(.inner, .oneClaves, .camino, .cierreRuta) { flex: 0 1 auto; }
+@media (max-width: 899px) {
+  .cierreRuta, .inner, .innerClaves, .camino { grid-template-columns: 1fr; }
+  .cierre > li, .cierre > li > div { grid-template-columns: 1fr; }
+  .oneClaves { grid-template-columns: 1fr 1fr; }
+  .prAparte { flex-direction: column; align-items: flex-start; }
+  .prAparte .dato { text-align: left; }
+  .innerMeta { grid-template-columns: 1fr; }
+  .innerCarta > img { height: auto; }
+}
+@media print {
+  .tasa, .graficoNota, .panel, .camino, .cierreRuta { break-inside: avoid; }
+  .innerCarta .enlaceDetalle { display: none !important; }
 }

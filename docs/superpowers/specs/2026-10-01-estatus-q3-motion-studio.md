@@ -122,3 +122,24 @@ Nota de la versión anterior: Dirección 7, Coreografía 7, Oficio 7, Interacci�
 - **Menores.** Diálogos en blanco frío con montos a la derecha; chips de portada en una línea; carteles con bordes fundidos; pie de los renders de UPAX ONE sobre un velo que tapa el texto incrustado; PDF de 8.7 MB (imágenes pesadas a JPEG).
 
 **Límite conocido:** con rueda de ratón de un solo paso, el encuadre obligatorio devuelve a la lámina actual; hay que girar más de media pantalla. Con trackpad, teclado e índice avanza bien.
+
+---
+
+## Sexta vuelta, 2-oct-2026 (revisión del equipo, lámina por lámina)
+
+Franco revisó la pieza con el equipo (grabación «Cambios presentación estatus Q3», 46.8 min) y pidió aplicar todo. Esto es lo que cambió y de dónde sale cada dato.
+
+**Cifras.** César leyó de Orbit (vista MBR, «generado por Marketing», trimestre pasado): pipeline $71.55 M en 132 negocios, ticket promedio $542,050; 361 MQL, 114 SQL, 106 propuestas, 16 ganados; paid 228 MQL, 35 SQL y $29.53 M de pipeline. Los desgloses que la sesión no dictó completos (pipeline por etapa y por empresa, SQL de paid por empresa, facturado por empresa) salen de la misma fuente de Orbit: la hoja `Concentrado_V3` de RevOps, leída el 2-oct. Esa lectura reproduce los totales dictados (132 / $71.55 M / $542,052; 114 SQL; 106 propuestas; 16 ganados por $5.49 M; $5.94 M facturados; 228 y 35 de paid; $29.53 M de pipeline de paid).
+
+**Tres cosas que la fuente mostró y la sesión no:**
+1. Los totales de Orbit incluyen a las otras unidades del grupo, que la pieza no desglosa: 22 negocios por $1.68 M de pipeline, 16 SQL, 3 propuestas y $1.17 M del pipeline de paid. Cada lámina lo dice en una línea.
+2. Los dos cortes de venta se traslapan: 6 de los 16 negocios ganados en Q3 también se facturaron en Q3 ($0.95 M), así que ya están en los $5.94 M. La venta generada sin contar dos veces es $10.49 M en 24 negocios, no $11.43 M. De los 16 ganados, 8 siguen por facturar ($4.49 M).
+3. El «facturado y por facturar» de paid, sin duplicar, es $5.57 M (el borrador decía $6.14 M, que suma los dos cortes).
+
+**Sin resolver, porque depende del equipo:** los 361 MQL son la cifra que dictó César; la fuente, leída después, da 351 en las siete empresas y 380 con las otras unidades. Kaitai sigue con el corte del 30-sep (64); el equipo dijo 75 al 2-oct pero no pasó el desglose por empresa. La matriz de materiales espera el archivo de David. La serie de seguidores por mes no existe todavía (César verá cómo guardarla). El 9.4 % de cumplimiento sigue sin meta declarada.
+
+**Cambios de orden y de forma.** Empresas en orden alfabético en toda la pieza (`ORDEN_UDN`). La demanda por empresa abre en MQL y sigue el funnel. El funnel lleva la tasa real de cada paso contra la ideal (30 / 80 / 20 %). La venta lleva el total en el título. El pipeline se reenfoca: lo que avanza (evaluación) y lo que nos toca (más demanda en House of Films, Mexa Creativa y UiX). PR separa a Research Land. Web abre en visitas. Artefactos abre con el simulador. Equipo sube antes de «qué hacemos en Q4». Inner Circle se explica (qué es, cómo se entra, qué reciben, meta de 100) con la invitación a la vista, y los tres temas por empresa ya no se esconden tras un clic. UPAX ONE dice cuándo, para cuántos y qué se vive. El cierre es una ruta de tres tramos que desemboca en «Q⚡4»; el logo ya no se encima.
+
+**El defecto de la pestaña «Visitas».** El índice lateral reservaba el ancho de sus nombres aunque fueran invisibles: una franja de ~175 px, centrada en vertical, que recibía los clics de lo que quedara debajo. La última pestaña de un gráfico caía ahí. Reproducido con el índice anterior a 1366, 1440 y 1920 px; con el nombre fuera del flujo, las 14 pestañas responden a clics reales en los tres anchos.
+
+**Hilo y cumbre.** El rayo sigue siendo el primer gesto y el último. La cumbre sigue en el pipeline, ahora con la tensión que el equipo pidió: no solo la buena noticia.

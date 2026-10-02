@@ -8,13 +8,15 @@ import { IconoQ3, type NombreIcono } from './IconoQ3'
 import { LogoUdn, lugarUdn, udnsEn } from './LogoUdn'
 import { IndiceQ3 } from './IndiceQ3'
 import {
-  ARTEFACTOS, CORTO, COLUMNAS_MATERIALES, CUMPLIMIENTO_REPORTADO_Q3,
-  DESTACADAS, EQUIPO, ESTADO_MATERIAL, EVENTOS, FACTURADO_POR_UDN,
+  ARTEFACTOS, CONVERSION_Q3, CORTO, COLUMNAS_MATERIALES, CUMPLIMIENTO_REPORTADO_Q3,
+  DEMANDA_Q3, DESTACADAS, EQUIPO, ESTADO_MATERIAL, EVENTOS, FACTURADO_POR_UDN,
   FACTURADO_Q3, FUNNEL, GANADAS, INNER_CIRCLE, INSIGHTS_WEB,
   KAITAI_CONFIRMADOS_REPORTADOS, KAITAI_SECTORES, LANZAMIENTO_RL_IA,
-  MATERIALES, PAID, PIPELINE, PIPELINE_ETAPAS, PIPELINE_UDN, PR, REDES,
-  ROADMAP, UDNS_FUNNEL, WEB, accionesRoadmap, cuentaMateriales, empresasGanadas, ganadoPorUdn,
-  marcasDestacadas, notasEnMedios, parteEvaluando, personasDe, suma, totalEtapa, totalGanado,
+  MATERIALES, NEGOCIOS_FACTURADOS_Q3, PAID, PAID_PIPELINE_TOTAL, PIPELINE, PIPELINE_ETAPAS, PIPELINE_OTRAS,
+  PIPELINE_UDN, POR_SEMBRAR, PR, REDES, REDES_Q2, ROADMAP, TRASLAPE_VENTA, UDNS_FUNNEL, UPAX_ONE, WEB,
+  accionesRoadmap, costoMql, cuentaMateriales, empresasGanadas, ganadoPorFacturar, ganadoPorUdn,
+  marcasDestacadas, montoPorFacturar, negociosVenta, notasEnMedios, notasRL, notasSinRL, parteEvaluando,
+  personasDe, pipelinePorSembrar, suma, totalGanado, ventaGenerada,
   type EstadoMaterial,
 } from '@/estatus/q3-2026'
 import estilos from './estatus.module.css'
@@ -23,6 +25,9 @@ const entero = new Intl.NumberFormat('es-MX')
 const pesos = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 })
 const millones = (n: number, d = 2) => `$${(n / 1e6).toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: d })} M`
 const porcentaje = (n: number) => `${(n * 100).toLocaleString('es-MX', { maximumFractionDigits: 2 })}%`
+const porciento = (n: number, d = 0) => `${(n * 100).toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: d })}%`
+/** «House of Films, Mexa Creativa y UiX»: una lista en prosa. */
+const enProsa = (nombres: readonly string[]) => nombres.length < 2 ? nombres.join('') : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
 const LOGO = '/logos/mkt-corp-grupo-upax-blanco-recortado.png'
 const FUENTE = 'Reporte Q3 de Marketing Corporativo · corte 30 sep 2026'
 
@@ -33,6 +38,10 @@ const FUENTE = 'Reporte Q3 de Marketing Corporativo · corte 30 sep 2026'
  * EL ORDEN ES LA AGENDA DEL EQUIPO (pizarrón del 29-sep): lectura, eventos,
  * demanda, pipeline y venta, PR, canales, artefactos, Q4. Los eventos van al
  * principio; no se mueven al final aunque ocurran en octubre y noviembre.
+ *
+ * REVISIÓN DEL EQUIPO (2-oct-2026): lo que se hizo con el equipo cierra el
+ * balance de Q3 y va ANTES de «qué hacemos en Q4»; de Inner Circle en adelante
+ * todo es siguiente paso.
  */
 export const LAMINAS_Q3 = [
   'portada', 'resumen',
@@ -42,7 +51,8 @@ export const LAMINAS_Q3 = [
   'pr',
   'redes', 'paid', 'web', 'ia',
   'artefactos', 'materiales',
-  'relacion', 'inner-circle', 'upax-one', 'rl-ia', 'equipo', 'agenda-q4',
+  'equipo',
+  'relacion', 'inner-circle', 'upax-one', 'rl-ia', 'agenda-q4',
   'cierre',
 ] as const
 
@@ -57,8 +67,9 @@ export const BLOQUES_Q3 = [
   { id: 'pr', numero: '04', nombre: 'PR' },
   { id: 'redes', numero: '05', nombre: 'Canales' },
   { id: 'artefactos', numero: '06', nombre: 'Artefactos' },
-  { id: 'relacion', numero: '07', nombre: 'Q4' },
-  { id: 'cierre', numero: '08', nombre: 'Cierre' },
+  { id: 'equipo', numero: '07', nombre: 'Equipo' },
+  { id: 'relacion', numero: '08', nombre: 'Q4' },
+  { id: 'cierre', numero: '09', nombre: 'Cierre' },
 ] as const
 type BloqueId = (typeof BLOQUES_Q3)[number]['id']
 
@@ -70,7 +81,8 @@ const ETIQUETA: Record<BloqueId, string> = {
   pr: '04 / PR y medios',
   redes: '05 / Canales digitales',
   artefactos: '06 / Artefactos y materiales',
-  relacion: '07 / Qué hacemos en Q4',
+  equipo: '07 / Equipo',
+  relacion: '08 / Qué hacemos en Q4',
   cierre: 'Q3 → Q4',
 }
 /** Fondos: material propio (sede de Kaitai, key visuals y renders desenfocados) y dos fotos CC0. Créditos en public/estatus-q3/fondos/CREDITOS.md. */
@@ -78,7 +90,7 @@ const foto = (nombre: string) => ({ backgroundImage: `url(/estatus-q3/fondos/${n
 
 const ICONO_BLOQUE: Record<BloqueId, NombreIcono> = {
   resumen: 'lectura', eventos: 'copas', funnel: 'embudo', venta: 'dinero', pr: 'periodico',
-  redes: 'canales', artefactos: 'herramienta', relacion: 'cohete', cierre: 'bandera',
+  redes: 'canales', artefactos: 'herramienta', equipo: 'personas', relacion: 'cohete', cierre: 'bandera',
 }
 const MESES = ['Octubre', 'Noviembre', 'Diciembre'] as const
 /** Los banners oficiales de los tres eventos (los entregó Franco el 1-oct-2026): traen el nombre y los logos de quienes presentan. */
@@ -187,9 +199,9 @@ export function EstatusQ3() {
   const ganado = ganadoPorUdn()
   const estados: EstadoMaterial[] = ['hecho', 'aprobacion', 'modificacion', 'elaborar', 'noAplica', 'sinDato']
   const simbolos: Record<EstadoMaterial, string> = { hecho: '✓', aprobacion: 'A', modificacion: 'M', elaborar: '+', noAplica: '—', sinDato: '?' }
-  const facturadoPrincipal = FACTURADO_POR_UDN.reduce((n, f) => n + f.monto, 0)
+  // Lo que concentran las dos empresas que más facturaron (las dos primeras de la tabla).
+  const facturadoPrincipal = FACTURADO_POR_UDN.slice(0, 2).reduce((n, f) => n + f.monto, 0)
   const evaluando = PIPELINE_ETAPAS.find(e => e.etapa === 'Evaluando') ?? PIPELINE_ETAPAS[0]
-  const mayorCorte = totalEtapa('MQL')
   const columnas = COLUMNAS_MATERIALES.map((u, i) => ({ u, i })).sort((a, b) => lugarUdn(a.u) - lugarUdn(b.u))
   const temas = [...INNER_CIRCLE.contenidos].sort((a, b) => lugarUdn(a.udn) - lugarUdn(b.udn))
   return <main className={estilos.documento}>
@@ -210,7 +222,7 @@ export function EstatusQ3() {
           <MarcaRayo izquierda="Q" derecha="3" pie="2026" />
         </div>
         <nav className={`${estilos.agendaPortada} ${estilos.entra}`} style={orden(7)} aria-label="Recorrido de la presentación">
-          {BLOQUES_Q3.slice(0, 8).map(b => <a key={b.id} href={`#${b.id}`}><IconoQ3 nombre={ICONO_BLOQUE[b.id]} />{b.nombre}</a>)}
+          {BLOQUES_Q3.slice(0, 9).map(b => <a key={b.id} href={`#${b.id}`}><IconoQ3 nombre={ICONO_BLOQUE[b.id]} />{b.nombre}</a>)}
         </nav>
         <footer className={`${estilos.pie} ${estilos.entra}`} style={orden(8)}><span>{FUENTE}</span><span>01 / {LAMINAS_Q3.length}</span></footer>
       </Escena>
@@ -218,9 +230,9 @@ export function EstatusQ3() {
 
     <Lamina id="resumen" bloque="resumen" titulo={<>Hay negocio generado.<br />El siguiente reto es <em>convertir la oportunidad.</em></>} tono="foto" imagen="luz-3" bajada="Q3 deja pipeline abierto, venta en curso y demanda calificada. Q4 es para convertir.">
       <div className={estilos.resumen}>
-        <article data-protagonista="true" className={estilos.entra} style={orden(3)}><Rotulo icono="avance">Pipeline abierto / al corte</Rotulo><Dato heroe valor={PIPELINE.total / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="en 111 negocios abiertos" /><p>{millones(evaluando.monto)} ya están en evaluación: a un paso de la decisión del cliente.</p><a href="#pipeline">Ver pipeline <span aria-hidden="true">↗</span></a></article>
-        <article className={estilos.entra} style={orden(5)}><Rotulo icono="recibo">Venta / Q3</Rotulo><Dato valor={FACTURADO_Q3 / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturados de negocios del funnel" /><p>{GANADAS.length} negocios ganados con {empresasGanadas()} clientes durante el trimestre.</p><a href="#venta">Ver la venta <span aria-hidden="true">↗</span></a></article>
-        <article className={estilos.entra} style={orden(7)}><Rotulo icono="embudo">Demanda / Q3</Rotulo><Dato valor={totalEtapa('MQL')} etiqueta="MQL generados" /><p>{entero.format(totalEtapa('SQL'))} SQL y {entero.format(totalEtapa('Propuestas'))} propuestas registradas en el trimestre.</p><a href="#funnel">Ver la demanda <span aria-hidden="true">↗</span></a></article>
+        <article data-protagonista="true" className={estilos.entra} style={orden(3)}><Rotulo icono="avance">Pipeline abierto / al corte</Rotulo><Dato heroe valor={PIPELINE.total / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta={`en ${PIPELINE.negocios} negocios abiertos · ticket promedio de $${entero.format(PIPELINE.ticketPromedio)}`} /><p>{millones(evaluando.monto)} ya están en evaluación: a un paso de la decisión del cliente.</p><a href="#pipeline">Ver pipeline <span aria-hidden="true">↗</span></a></article>
+        <article className={estilos.entra} style={orden(5)}><Rotulo icono="recibo">Venta / Q3</Rotulo><Dato valor={FACTURADO_Q3 / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturados de negocios del funnel" /><p>{GANADAS.length} negocios ganados con {empresasGanadas()} clientes durante el trimestre: {millones(totalGanado())}.</p><a href="#venta">Ver la venta <span aria-hidden="true">↗</span></a></article>
+        <article className={estilos.entra} style={orden(7)}><Rotulo icono="embudo">Demanda / Q3</Rotulo><Dato valor={DEMANDA_Q3.MQL} etiqueta="MQL generados" /><p>{DEMANDA_Q3.SQL} SQL y {DEMANDA_Q3.Propuestas} propuestas registradas en el trimestre.</p><a href="#funnel">Ver la demanda <span aria-hidden="true">↗</span></a></article>
       </div>
     </Lamina>
 
@@ -230,7 +242,7 @@ export function EstatusQ3() {
     </Lamina>
 
     <Lamina id="kaitai" bloque="eventos" titulo={<>Kaitai reúne a líderes de <em>cuatro industrias</em></>} bajada="Tecnología, innovación y experiencia de cliente: una conversación relevante para UiX y NeraCode." fuente={`${FUENTE} · confirmados / David Porchini`}>
-      <div className={estilos.kaitaiCabecera}><div className={estilos.duoCifras}><Dato valor={KAITAI_CONFIRMADOS_REPORTADOS} etiqueta="confirmados al 30 de septiembre" /><Dato valor={marcasDestacadas()} etiqueta="empresas destacadas en la selección" /></div><p><b>8 de octubre · 7:15 pm</b><br />Onomura · Col. Roma, CDMX</p></div>
+      <div className={estilos.kaitaiCabecera}><div className={estilos.duoCifras}><Dato valor={KAITAI_CONFIRMADOS_REPORTADOS} etiqueta="confirmados al 30 de septiembre" /><Dato valor={marcasDestacadas()} etiqueta="empresas destacadas en la selección" /></div><ul className={estilos.cuandoDonde}><li><IconoQ3 nombre="calendario" /><b>Jueves 8 de octubre · 7:15 pm</b></li><li><IconoQ3 nombre="lugar" />Onomura · Col. Roma, CDMX</li></ul></div>
       <div className={estilos.sectores}>{KAITAI_SECTORES.map(s => <article key={s.nombre}><header><h3>{s.nombre}</h3><span>{personasDe(s)} {personasDe(s) === 1 ? 'persona' : 'personas'} · {s.empresas.length} {s.empresas.length === 1 ? 'empresa' : 'empresas'}</span></header><div className={estilos.logosSector}>{s.empresas.map(e => <Image key={e.empresa} src={e.logo} alt={e.empresa} width={200} height={90} unoptimized />)}</div><DetalleQ3 etiqueta="Ver empresas y cargos" titulo={`${s.nombre} · perfiles confirmados`}><ul className={estilos.listaCargos}>{s.empresas.map(e => <li key={e.empresa}><b>{e.empresa}</b>{e.cargos.map(c => <p key={c}>{c}</p>)}</li>)}</ul></DetalleQ3></article>)}</div>
     </Lamina>
 
@@ -239,44 +251,54 @@ export function EstatusQ3() {
     </Lamina>
 
     {/* ── 02 · GENERACIÓN DE DEMANDA ── */}
-    <Lamina id="funnel" bloque="funnel" titulo={<>Del MQL al cierre: <em>{entero.format(totalEtapa('MQL'))} MQL, {entero.format(totalEtapa('Propuestas'))} propuestas y {entero.format(totalEtapa('Ganados'))} negocios ganados</em></>} bajada="Cuatro cortes del trimestre, de la demanda calificada al negocio cerrado." fuente={`${FUENTE} · tabla GDD / César Mejía`}>
-      <ol className={estilos.cortes}>{CORTES_DEMANDA.map((e, i) => <li key={e} data-ganados={e === 'Ganados' || undefined} style={{ '--lado': Math.sqrt(totalEtapa(e) / mayorCorte), '--i': i } as CSSProperties}><span className={estilos.burbuja} aria-hidden="true" /><div><IconoQ3 nombre={(['megafono', 'objetivo', 'documento', 'trofeo'] as const)[i]} /><Dato valor={totalEtapa(e)} etiqueta={e} /><p>{DESCRIPCION_CORTE[e]}</p></div></li>)}</ol>
-      <div className={estilos.definicionFunnel}><span>Cómo leerlo</span><p><b>Son cuatro conteos del trimestre, no un embudo de las mismas cuentas.</b> Cada círculo va a la misma escala de área. Por eso hay más propuestas ({entero.format(totalEtapa('Propuestas'))}) que SQL ({entero.format(totalEtapa('SQL'))}). Base de contactos del periodo: {entero.format(totalEtapa('Contactos'))}.</p></div>
+    <Lamina id="funnel" bloque="funnel" titulo={<>Del MQL al cierre: <em>cuatro cortes de la demanda</em></>} bajada="Lo que generó Marketing en el trimestre, etapa por etapa, y cuánto convierte contra la tasa ideal." fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
+      <ol className={estilos.cortes}>{CORTES_DEMANDA.map((e, i) => {
+        const c = CONVERSION_Q3[i - 1]
+        return <li key={e} data-ganados={e === 'Ganados' || undefined} style={{ '--lado': Math.sqrt(DEMANDA_Q3[e] / DEMANDA_Q3.MQL), '--i': i } as CSSProperties}>
+          <span className={estilos.burbuja} aria-hidden="true" />
+          <div><IconoQ3 nombre={(['megafono', 'objetivo', 'documento', 'trofeo'] as const)[i]} /><Dato valor={DEMANDA_Q3[e]} etiqueta={e} /><p>{DESCRIPCION_CORTE[e]}</p></div>
+          {c
+            ? <p className={estilos.tasa} data-cumple={c.real >= c.ideal}><span>De {c.de} a {c.a}</span><b>{porciento(c.real, 1)}</b><small>real · ideal {porciento(c.ideal)}</small></p>
+            : <p className={estilos.tasa} data-base="true"><span>Punto de partida</span><small>La demanda que califica Marketing</small></p>}
+        </li>
+      })}</ol>
+      <div className={estilos.definicionFunnel}><span>Cómo leerlo</span><p><b>Son cuatro conteos del trimestre, no un embudo de las mismas cuentas.</b> Cada círculo va a la misma escala de área. La tasa real divide un conteo entre el anterior; la ideal es la del Forecast 2026.</p></div>
     </Lamina>
 
-    <Lamina id="funnel-empresas" bloque="funnel" comp="lado" titulo={<>Promo Espacio y NeraCode aportan <em>48 de los 95 SQL</em></>} bajada="La vista abre en SQL. Cambia de etapa para ver MQL, propuestas y ganados, o elige una empresa para seguirla en toda la presentación.">
-      <GraficoComparativo titulo="Generación de demanda por empresa del grupo" metricas={[{ id: 'SQL', nombre: 'SQL', formato: 'entero' }, { id: 'MQL', nombre: 'MQL', formato: 'entero' }, { id: 'Propuestas', nombre: 'Propuestas', formato: 'entero' }, { id: 'Ganados', nombre: 'Ganados', formato: 'entero' }]} filas={UDNS_FUNNEL.map(u => ({ nombre: u, valores: FUNNEL[u] }))} />
-      <Lectura etiqueta="Dónde enfocar la conversación">Promo Espacio lidera los SQL; Mexa Creativa, los MQL; Marketing United, los negocios ganados.</Lectura>
+    <Lamina id="funnel-empresas" bloque="funnel" comp="lado" titulo={<>Promo Espacio y NeraCode aportan <em>{FUNNEL['Promo Espacio'].SQL + FUNNEL.NeraCode.SQL} de los {DEMANDA_Q3.SQL} SQL</em></>} bajada="La vista sigue el orden del funnel: MQL, SQL, propuestas y ganados. Las empresas van en orden alfabético; elige una para seguirla en toda la presentación." fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
+      <GraficoComparativo titulo="Generación de demanda por empresa del grupo" metricas={[{ id: 'MQL', nombre: 'MQL', formato: 'entero' }, { id: 'SQL', nombre: 'SQL', formato: 'entero' }, { id: 'Propuestas', nombre: 'Propuestas', formato: 'entero' }, { id: 'Ganados', nombre: 'Ganados', formato: 'entero' }]} filas={UDNS_FUNNEL.map(u => ({ nombre: u, valores: FUNNEL[u] }))} nota={<>El total del grupo ({DEMANDA_Q3.MQL} MQL, {DEMANDA_Q3.SQL} SQL y {DEMANDA_Q3.Propuestas} propuestas) incluye a otras unidades que aquí no se desglosan.</>} />
+      <Lectura etiqueta="Dónde enfocar la conversación">Mexa Creativa lidera los MQL; Promo Espacio, los SQL; Marketing United, las propuestas y los negocios ganados.</Lectura>
     </Lamina>
 
-    <Lamina id="destacadas" bloque="funnel" tono="color" titulo={<>La conversación ya incluye a <em>estas marcas</em></>} bajada="Selección de empresas destacadas del funnel de Q3. Cada marca representa una conversación comercial, no un cierre atribuido." fuente={`${FUENTE} · empresas destacadas / Ileana Cruz`}>
+    <Lamina id="destacadas" bloque="funnel" tono="color" titulo={<>La conversación ya incluye a <em>estas marcas</em></>} bajada="Selección de empresas destacadas del funnel de Q3. Cada marca representa una conversación comercial, no un cierre atribuido." fuente={`${FUENTE} · empresas destacadas / César Mejía`}>
       <ul className={estilos.muroLogos}>{DESTACADAS.map(d => <li key={d.empresa}><Image src={d.logo} alt={d.empresa} width={260} height={150} unoptimized /></li>)}</ul>
     </Lamina>
 
     {/* ── 03 · PIPELINE Y VENTA ── */}
-    <Lamina id="venta" bloque="venta" titulo={<>La venta ya ocurre, <em>concentrada en pocas empresas</em></>} bajada="Son dos fotos del mismo trimestre: lo facturado (GDD) y los negocios ganados, facturados o por facturar (Orbit). Se leen juntas; no se suman." fuente={`${FUENTE} · insights GDD / Ileana Cruz · Orbit / César Mejía`}>
+    <Lamina id="venta" bloque="venta" titulo={<><em>{millones(ventaGenerada())}</em> de venta generada: facturado y ganado por facturar</>} bajada={`${negociosVenta()} negocios. Lo facturado ya está en caja; lo ganado se suma cuando se factura. ${TRASLAPE_VENTA.negocios} negocios ya pasaron de ganado a facturado dentro del trimestre y se cuentan una sola vez.`} fuente={`${FUENTE} · Orbit, generado por Marketing / César Mejía`}>
       <div className={estilos.dosCortes}>
         <article>
-          <p className={estilos.corteEtiqueta}><IconoQ3 nombre="recibo" /><b>Corte 1</b> Facturado en Q3 · GDD</p>
-          <div className={estilos.heroDato}><Dato valor={FACTURADO_Q3 / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturados de negocios del funnel" /></div>
+          <p className={estilos.corteEtiqueta}><IconoQ3 nombre="recibo" /><b>Corte 1</b> Facturado en Q3 · ya en caja</p>
+          <div className={estilos.heroDato}><Dato valor={FACTURADO_Q3 / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta={`facturados en ${NEGOCIOS_FACTURADOS_Q3} negocios del funnel`} /></div>
           <div className={estilos.cumplimiento}><strong>{porcentaje(CUMPLIMIENTO_REPORTADO_Q3)}</strong><div><b>Cumplimiento de facturación Q3</b><p>Indicador reportado por el equipo de GDD.</p></div></div>
-          <GraficoComparativo titulo="Composición de la facturación" metricas={[{ id: 'monto', nombre: 'Facturado', formato: 'millones' }]} filas={[...FACTURADO_POR_UDN.map(f => ({ nombre: f.udn, valores: { monto: f.monto } })), { nombre: 'Otras empresas', valores: { monto: FACTURADO_Q3 - facturadoPrincipal } }]} />
-          <p className={estilos.corteNota}><b>93%</b> de lo facturado proviene de Mexa Creativa y Marketing United. Extender la contribución comercial a más empresas es el siguiente espacio de crecimiento.</p>
+          <GraficoComparativo titulo="Composición de la facturación" metricas={[{ id: 'monto', nombre: 'Facturado', formato: 'millones' }]} filas={FACTURADO_POR_UDN.map(f => ({ nombre: f.udn, valores: { monto: f.monto } }))} />
+          <p className={estilos.corteNota}><b>{porciento(facturadoPrincipal / FACTURADO_Q3)}</b> de lo facturado proviene de Mexa Creativa y Marketing United. Extender la contribución comercial a más empresas es el siguiente espacio de crecimiento.</p>
         </article>
-        <div className={estilos.noSeSuman} aria-hidden="true"><span>≠</span><p>Dos cortes.<br />No se suman.</p></div>
+        <div className={estilos.noSeSuman} aria-hidden="true"><span>+</span><p>Dos cortes.<br />Aún no se suman<br />completos.</p></div>
         <article>
-          <p className={estilos.corteEtiqueta}><IconoQ3 nombre="trofeo" /><b>Corte 2</b> Negocios ganados · Orbit</p>
-          <div className={estilos.heroDato}><Dato valor={totalGanado() / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturados y por facturar" /></div>
-          <div className={estilos.duoCifras}><Dato valor={GANADAS.length} etiqueta="negocios" /><Dato valor={empresasGanadas()} etiqueta="clientes" /><DetalleQ3 etiqueta="Explorar los 16 negocios" titulo="Negocios ganados · detalle de Orbit"><TablaGanados /></DetalleQ3></div>
+          <p className={estilos.corteEtiqueta}><IconoQ3 nombre="trofeo" /><b>Corte 2</b> Negocios ganados en Q3</p>
+          <div className={estilos.heroDato}><Dato valor={totalGanado() / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta={`ganados en ${GANADAS.length} negocios · ${millones(montoPorFacturar())} aún por facturar`} /></div>
+          <div className={estilos.duoCifras}><Dato valor={ganadoPorFacturar().length} etiqueta="por facturar" /><Dato valor={empresasGanadas()} etiqueta="clientes" /><DetalleQ3 etiqueta="Explorar los 16 negocios" titulo="Negocios ganados · detalle de Orbit"><TablaGanados /></DetalleQ3></div>
           <GraficoComparativo titulo="Monto ganado por empresa del grupo" metricas={[{ id: 'monto', nombre: 'Monto ganado', formato: 'millones' }]} filas={ganado.map(f => ({ nombre: f.udn, detalle: `${f.negocios} ${f.negocios === 1 ? 'negocio' : 'negocios'}`, valores: { monto: f.monto } }))} />
+          <p className={estilos.corteNota}><b>{millones(TRASLAPE_VENTA.monto)}</b> de lo ganado ya se facturó en el trimestre: está en los dos cortes y en el total se cuenta una vez.</p>
         </article>
       </div>
     </Lamina>
 
-    <Lamina id="pipeline" bloque="venta" cumbre titulo={<><em>El {porcentaje(parteEvaluando())} del pipeline</em> ya está en evaluación</>} tono="foto" imagen="pipeline" bajada="111 negocios abiertos en Orbit suman $67.76 M al 30 de septiembre. NeraCode concentra $24.83 M del total." fuente={`${FUENTE} · Orbit, vista MBR / César Mejía`}>
+    <Lamina id="pipeline" bloque="venta" cumbre titulo={<>El pipeline está concentrado: <em>nos toca generar más demanda</em></>} tono="foto" imagen="pipeline" bajada={`${PIPELINE.negocios} negocios abiertos suman ${millones(PIPELINE.total)}. La primera oportunidad es cerrar lo que ya está en evaluación. La segunda es nuestra: más demanda para ${enProsa(POR_SEMBRAR)}.`} fuente={`${FUENTE} · Orbit, vista MBR, generado por Marketing / César Mejía`}>
       <div className={estilos.cumbre}>
-        <div className={estilos.cumbreCifra}><Rotulo icono="avance">En evaluación / al corte</Rotulo><Dato heroe valor={evaluando.monto / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta={`de ${millones(PIPELINE.total)} de pipeline abierto · ${evaluando.negocios} de 111 negocios`} /></div>
-        <GraficoComparativo titulo="Pipeline abierto por empresa del grupo" metricas={[{ id: 'monto', nombre: 'Pipeline', formato: 'millones' }]} filas={PIPELINE_UDN.map(f => ({ nombre: f.udn, valores: { monto: f.monto } }))} />
+        <div className={estilos.cumbreCifra}><Rotulo icono="avance">01 · Lo que avanza / en evaluación</Rotulo><Dato heroe valor={evaluando.monto / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta={`${porciento(parteEvaluando())} del pipeline abierto · ${evaluando.negocios} de ${PIPELINE.negocios} negocios`} /><p className={estilos.cumbreNota}>Están a una decisión del cliente. Aquí la oportunidad es acompañar el cierre.</p></div>
+        <GraficoComparativo titulo="02 · Dónde nos toca generar más demanda" metricas={[{ id: 'monto', nombre: 'Pipeline', formato: 'millones' }]} filas={PIPELINE_UDN.map(f => ({ nombre: f.udn, valores: { monto: f.monto } }))} alerta={POR_SEMBRAR} nota={<><b>{millones(pipelinePorSembrar())}</b> entre {enProsa(POR_SEMBRAR)}: {porciento(pipelinePorSembrar() / PIPELINE.total)} del pipeline. Generar esa demanda es tarea de Marketing.</>} />
       </div>
       <div className={estilos.llegada}>
         <div className={estilos.pista} style={{ '--inicio': FACTURADO_Q3 / PIPELINE.total } as CSSProperties} aria-hidden="true"><i className={estilos.astro} /></div>
@@ -284,31 +306,36 @@ export function EstatusQ3() {
           {PIPELINE_ETAPAS.map((e, i) => <span key={e.etapa} data-etapa={i} data-destacado={e.etapa === 'Evaluando' || undefined} style={{ '--parte': e.monto / PIPELINE.total } as CSSProperties} />)}
         </div>
         <ol className={estilos.tiraLeyenda}>{PIPELINE_ETAPAS.map((e, i) => <li key={e.etapa} data-etapa={i} data-destacado={e.etapa === 'Evaluando' || undefined}><span className={estilos.muestra} aria-hidden="true" /><b>{e.etapa}</b><span>{e.negocios} {e.negocios === 1 ? 'negocio' : 'negocios'}</span><strong>{millones(e.monto)}</strong></li>)}</ol>
-        <div className={estilos.mismaEscala}><span className={estilos.bloqueFacturado} style={{ '--parte': FACTURADO_Q3 / PIPELINE.total } as CSSProperties} aria-hidden="true" /><p><b>A la misma escala:</b> lo facturado en Q3, {millones(FACTURADO_Q3)}. Es otro corte y no se suma al pipeline.</p></div>
+        <div className={estilos.mismaEscala}><span className={estilos.bloqueFacturado} style={{ '--parte': FACTURADO_Q3 / PIPELINE.total } as CSSProperties} aria-hidden="true" /><p><b>A la misma escala:</b> lo facturado en Q3, {millones(FACTURADO_Q3)}. Es otro corte y no se suma al pipeline. El total incluye {millones(PIPELINE_OTRAS.monto)} de otra unidad del grupo que no se desglosa por empresa.</p></div>
       </div>
-      <Lectura>La principal oportunidad está en dar avance a la evaluación: propuesta, objeciones y siguiente paso con cada cuenta.</Lectura>
+      <Lectura>Acompañar el cierre de lo que está en evaluación y subir la generación de demanda en {enProsa(POR_SEMBRAR)}.</Lectura>
     </Lamina>
 
     {/* ── 04 · PR ── */}
-    <Lamina id="pr" bloque="pr" tono="foto" fondo="azul" titulo={<>Research Land lidera <em>la conversación en medios</em></>} bajada="212 de las 231 notas corresponden a Research Land. Q4 abre temas para las siete empresas." fuente={`${FUENTE} · monitoreo de medios / Carolina Rojas`}>
-      <div className={estilos.division}><div><div className={estilos.heroDato}><Dato valor={notasEnMedios()} etiqueta="notas en medios" /></div><div className={estilos.duoCifras}><Dato valor={149} sufijo=" M" etiqueta="alcance estimado" /><Dato valor={3.9} prefijo="$" sufijo=" M" decimales={1} etiqueta="valor publicitario equivalente" /></div><div className={estilos.medios}>{PR.medios.map(m => <Image key={m.medio} src={m.logo} alt={m.medio} width={160} height={60} unoptimized />)}</div></div><GraficoComparativo titulo="Notas por empresa" metricas={[{ id: 'notas', nombre: 'Notas', formato: 'entero' }]} filas={PR.porUdn.map(f => ({ nombre: f.udn, valores: { notas: f.notas } }))} /></div>
+    <Lamina id="pr" bloque="pr" tono="foto" fondo="azul" titulo={<>Las siete empresas tuvieron <em>presencia en medios</em></>} bajada={`${notasEnMedios()} notas en el trimestre. Research Land se lee aparte: su mercado y su cadencia de publicación son distintos a los de las demás.`} fuente={`${FUENTE} · monitoreo de medios / Carolina Rojas`}>
+      <div className={estilos.division}><div><div className={estilos.heroDato}><Dato valor={notasEnMedios()} etiqueta="notas en medios" /></div><div className={estilos.duoCifras}><Dato valor={149} sufijo=" M" etiqueta="alcance estimado" /><Dato valor={3.9} prefijo="$" sufijo=" M" decimales={1} etiqueta="valor publicitario equivalente" /></div><div className={estilos.medios}>{PR.medios.map(m => <Image key={m.medio} src={m.logo} alt={m.medio} width={160} height={60} unoptimized />)}</div></div>
+        <div className={estilos.prDerecha}>
+          <div className={`${estilos.panel} ${estilos.prAparte}`}><div><span className={estilos.micro}>Aparte, por su cadencia</span><LogoUdn nombre="Research Land" /></div><Dato valor={notasRL()} etiqueta="notas en el trimestre" /></div>
+          <GraficoComparativo titulo="Notas de las otras seis empresas" metricas={[{ id: 'notas', nombre: 'Notas', formato: 'entero' }]} filas={notasSinRL().map(f => ({ nombre: f.udn, valores: { notas: f.notas } }))} />
+        </div>
+      </div>
     </Lamina>
 
     {/* ── 05 · CANALES DIGITALES ── */}
     <Lamina id="redes" bloque="redes" titulo={<>LinkedIn concentra la interacción; <em>Instagram mejora su tasa</em></>} bajada="Los canales cumplen papeles distintos: alcance, conversación y presencia audiovisual." fuente={`${FUENTE} · squad de presencia digital`}>
-      <div className={estilos.redes}>{REDES.map((r, i) => <article key={r.red} data-lider={r.red === 'LinkedIn'}><div className={estilos.redEncabezado}><span className={estilos.redIcono}><IconoQ3 nombre={(['instagram', 'linkedin', 'youtube'] as const)[i]} /></span><h3>{r.red}</h3></div><Dato valor={r.engagement * 100} sufijo="%" decimales={r.red === 'LinkedIn' ? 1 : 2} etiqueta="engagement reportado" /><dl><div><dt>Interacciones</dt><dd>{entero.format(r.interacciones)}</dd></div><div><dt>Impresiones</dt><dd>{entero.format(r.impresiones)}</dd></div><div><dt>Seguidores</dt><dd>{entero.format(r.seguidores)}</dd></div></dl><p className={estilos.redLectura}>{['Instagram pasó de ≈0.25% en Q2 a 2.26% en Q3.', '11,688 interacciones: el mayor volumen entre las tres redes.', 'Presencia audiovisual con una comunidad de 22 seguidores.'][i]}</p></article>)}</div>
+      <div className={estilos.redes}>{REDES.map((r, i) => <article key={r.red} data-lider={r.red === 'LinkedIn'}><div className={estilos.redEncabezado}><span className={estilos.redIcono}><IconoQ3 nombre={(['instagram', 'linkedin', 'youtube'] as const)[i]} /></span><h3>{r.red}</h3></div>{r.red === 'Instagram' && <p className={estilos.redAntes}><span>Q2</span><b>{porciento(REDES_Q2.engagementInstagram, 2)}</b><i aria-hidden="true">→</i><span>Q3</span></p>}<Dato valor={r.engagement * 100} sufijo="%" decimales={r.red === 'LinkedIn' ? 1 : 2} etiqueta={r.red === 'Instagram' ? `engagement · ×${Math.round(r.engagement / REDES_Q2.engagementInstagram)} contra Q2` : 'engagement reportado'} /><dl><div><dt>Interacciones</dt><dd>{entero.format(r.interacciones)}</dd></div><div><dt>Impresiones</dt><dd>{entero.format(r.impresiones)}</dd></div><div><dt>Seguidores</dt><dd>{entero.format(r.seguidores)}</dd></div></dl><p className={estilos.redLectura}>{['Crecimiento orgánico: la pauta solo busca alcance.', '11,688 interacciones: el mayor volumen entre las tres redes.', 'Presencia audiovisual con una comunidad de 22 seguidores.'][i]}</p></article>)}</div>
       <Lectura>Profundizar la conversación de negocio en LinkedIn y trasladar el aprendizaje de interacción a los demás formatos.</Lectura>
     </Lamina>
 
-    <Lamina id="paid" bloque="redes" comp="lado" tono="color" titulo={<>Paid aporta 214 MQL y <em>$26.31{'\u00A0'}M de pipeline</em></>} bajada="Mexa Creativa aporta más MQL; Promo Espacio tiene el menor costo por MQL reportado." fuente={`${FUENTE} · reporte Paid / Fernando e Iris`}>
-      <div className={estilos.franjaCifras}><Dato valor={214} etiqueta="MQL" /><Dato valor={121} etiqueta="SQL" /><Dato valor={suma(PAID, f => f.pipeline) / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="pipeline del canal" /><Dato valor={suma(PAID, f => f.facturado) / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturado y por facturar" /></div>
-      <GraficoComparativo titulo="Paid por empresa" metricas={[{ id: 'mql', nombre: 'MQL', formato: 'entero' }, { id: 'costoMql', nombre: 'Costo por MQL', formato: 'dinero', mejor: 'menor' }, { id: 'sql', nombre: 'SQL', formato: 'entero' }, { id: 'pipeline', nombre: 'Pipeline', formato: 'millones' }, { id: 'facturado', nombre: 'Facturado + por facturar', formato: 'millones' }]} filas={PAID.map(p => ({ nombre: p.udn, valores: { mql: p.mql, costoMql: p.costoMql, sql: p.sql, pipeline: p.pipeline, facturado: p.facturado } }))} />
-      <Lectura etiqueta="Cómo leerlo">Es el corte que reporta el canal. No se suma al de web ni al pipeline de Orbit.</Lectura>
+    <Lamina id="paid" bloque="redes" comp="lado" tono="color" titulo={<>Paid aporta {suma(PAID, f => f.mql)} MQL y <em>{millones(PAID_PIPELINE_TOTAL)} de pipeline</em></>} bajada="Mexa Creativa aporta más MQL; Promo Espacio tiene el menor costo por MQL y el mayor número de SQL." fuente={`${FUENTE} · Orbit, fuente Paid Media / Fernando Borges e Iris Mugica`}>
+      <div className={estilos.franjaCifras}><Dato valor={suma(PAID, f => f.mql)} etiqueta="MQL" /><Dato valor={suma(PAID, f => f.sql)} etiqueta="SQL" /><Dato valor={PAID_PIPELINE_TOTAL / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="pipeline del canal" /><Dato valor={suma(PAID, f => f.facturado) / 1e6} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturado y por facturar" /></div>
+      <GraficoComparativo titulo="Paid por empresa" metricas={[{ id: 'mql', nombre: 'MQL', formato: 'entero' }, { id: 'costoMql', nombre: 'Costo por MQL', formato: 'dinero', mejor: 'menor' }, { id: 'sql', nombre: 'SQL', formato: 'entero' }, { id: 'pipeline', nombre: 'Pipeline', formato: 'millones' }, { id: 'facturado', nombre: 'Facturado + por facturar', formato: 'millones' }]} filas={PAID.map(p => ({ nombre: p.udn, detalle: p.nota, valores: { mql: p.mql, costoMql: costoMql(p), sql: p.sql, pipeline: p.pipeline, facturado: p.facturado } }))} />
+      <Lectura etiqueta="Cómo leerlo">UiX no tiene MQL propios de paid: sus SQL llegan por cross-sell con NeraCode. El pipeline del canal incluye {millones(PAID_PIPELINE_TOTAL - suma(PAID, f => f.pipeline))} de otra unidad del grupo.</Lectura>
     </Lamina>
 
     <Lamina id="web" bloque="redes" tono="foto" fondo="naranja" titulo={<>La web aporta 54 MQL y <em>$24.21{'\u00A0'}M de pipeline</em></>} bajada="Los siete sitios suman 25 SQL. NeraCode y UiX reúnen el mayor pipeline del canal; el siguiente paso es convertir mejor las 42,375 visitas." fuente={`${FUENTE} · reporte web del equipo`}>
       <div className={estilos.franjaCifras}><Dato valor={54} etiqueta="MQL reportados" /><Dato valor={25} etiqueta="SQL" /><Dato valor={24.212} prefijo="$" sufijo=" M" decimales={2} etiqueta="pipeline del canal" /><Dato valor={3.108} prefijo="$" sufijo=" M" decimales={2} etiqueta="facturado y por facturar" /></div>
-      <GraficoComparativo titulo="Web por empresa" metricas={[{ id: 'pipeline', nombre: 'Pipeline', formato: 'millones' }, { id: 'mql', nombre: 'MQL', formato: 'entero' }, { id: 'sql', nombre: 'SQL', formato: 'entero' }, { id: 'facturado', nombre: 'Facturado + por facturar', formato: 'millones' }, { id: 'visitas', nombre: 'Visitas', formato: 'entero' }]} filas={WEB.map(w => ({ nombre: w.udn, valores: { visitas: w.visitas, mql: w.mql, sql: w.sql, pipeline: w.pipeline, facturado: w.facturado } }))} />
+      <GraficoComparativo titulo="Web por empresa" metricas={[{ id: 'visitas', nombre: 'Visitas', formato: 'entero' }, { id: 'mql', nombre: 'MQL', formato: 'entero' }, { id: 'sql', nombre: 'SQL', formato: 'entero' }, { id: 'pipeline', nombre: 'Pipeline', formato: 'millones' }, { id: 'facturado', nombre: 'Facturado + por facturar', formato: 'millones' }]} filas={WEB.map(w => ({ nombre: w.udn, valores: { visitas: w.visitas, mql: w.mql, sql: w.sql, pipeline: w.pipeline, facturado: w.facturado } }))} />
       <Lectura etiqueta="Cómo leerlo">Es el corte que reporta el canal. No se suma al de paid ni al pipeline de Orbit.</Lectura>
     </Lamina>
 
@@ -318,8 +345,8 @@ export function EstatusQ3() {
     </Lamina>
 
     {/* ── 06 · ARTEFACTOS Y MATERIALES ── */}
-    <Lamina id="artefactos" bloque="artefactos" tono="foto" imagen="luz-4" titulo={<>Dos herramientas acercan la conversación <em>a una propuesta</em></>} bajada="Inteligencia para encontrar el momento de contacto. Visualización para mostrar cómo viviría una campaña." fuente={`${FUENTE} · César Mejía e Iris Mugica`}>
-      <div className={estilos.herramientas}>{ARTEFACTOS.map((a, i) => <article key={a.nombre}><IconoQ3 nombre={i === 0 ? 'señal' : 'pantalla'} /><span className={estilos.micro}>{a.de}</span><h3>{a.nombre}</h3><p>{a.descripcion}</p><ol>{(i === 0 ? ['Señales de la industria', 'Empresas en el mapa', 'Ventana de contacto'] : ['Ubicación y formato', 'Creatividad del anunciante', 'Mockup de campaña']).map((s, j) => <li key={s}><span>0{j + 1}</span>{s}</li>)}</ol><a className={estilos.enlaceDetalle} href={i === 0 ? 'https://orbit-mkt.com/brujula' : 'https://promo-espacio.com/simulador?hs_preview=FJVufziD-218109333423'} target="_blank" rel="noreferrer">Abrir {i === 0 ? 'Señales de mercado' : 'simulador'} <span aria-hidden="true">↗</span></a></article>)}</div>
+    <Lamina id="artefactos" bloque="artefactos" tono="foto" imagen="luz-4" titulo={<>Dos herramientas acercan la conversación <em>a una propuesta</em></>} bajada="Visualización para mostrar cómo viviría una campaña. Inteligencia para encontrar el momento de contacto." fuente={`${FUENTE} · César Mejía e Iris Mugica`}>
+      <div className={estilos.herramientas}>{ARTEFACTOS.map(a => <article key={a.id}><IconoQ3 nombre={a.id === 'senales' ? 'señal' : 'pantalla'} /><span className={estilos.micro}>{a.de}</span><h3>{a.nombre}</h3><p>{a.descripcion}</p><ol>{a.pasos.map((s, j) => <li key={s}><span>0{j + 1}</span>{s}</li>)}</ol><a className={estilos.enlaceDetalle} href={a.enlace} target="_blank" rel="noreferrer">{a.abrir} <span aria-hidden="true">↗</span></a></article>)}</div>
     </Lamina>
 
     <Lamina id="materiales" bloque="artefactos" titulo={<>16 materiales están listos; el siguiente paso es <em>completar el kit</em></>} bajada="Las siete empresas tienen necesidades distintas. Esta matriz hace visible qué falta para acompañar la venta." fuente={`${FUENTE} · matriz de materiales / David Porchini`}>
@@ -327,17 +354,29 @@ export function EstatusQ3() {
       <div className={estilos.tablaScroll}><table className={estilos.matriz}><caption className={estilos.soloLectores}>Estatus de materiales de venta por UDN</caption><thead><tr><th scope="col">Material</th>{columnas.map(({ u }) => <th key={u} scope="col"><LogoUdn nombre={u} /><small>{CORTO[u]}</small></th>)}</tr></thead><tbody>{MATERIALES.map(m => <tr key={m.material}><th scope="row">{m.material}</th>{columnas.map(({ u, i }) => { const e = m.estados[i]; return <td key={u}><span className={estilos.estado} data-estado={e} aria-label={ESTADO_MATERIAL[e]} title={ESTADO_MATERIAL[e]}>{simbolos[e]}</span></td> })}</tr>)}</tbody></table></div>
     </Lamina>
 
-    {/* ── 07 · QUÉ HACEMOS EN Q4 ── */}
-    <Lamina id="relacion" bloque="relacion" titulo={<>El encuentro abre la puerta.<br /><em>La comunidad mantiene la relación.</em></>} tono="foto" imagen="venue-2" bajada={INNER_CIRCLE.definicion}>
-      <div className={estilos.relacion}><div className={estilos.entra} style={orden(3)}><span className={estilos.numeroPaso}>01</span><IconoQ3 nombre="personas" /><h3>Fire Experience</h3><p>La experiencia crea el primer espacio de conversación.</p></div><span className={`${estilos.flecha} ${estilos.entra}`} style={orden(5)} aria-hidden="true">→</span><div className={estilos.entra} style={orden(6)}><span className={estilos.numeroPaso}>02</span><IconoQ3 nombre="mensaje" /><h3>Inner Circle</h3><p>Insights, contenido y encuentros dan continuidad al vínculo.</p></div><span className={`${estilos.flecha} ${estilos.entra}`} style={orden(8)} aria-hidden="true">→</span><div className={estilos.entra} style={orden(9)}><span className={estilos.numeroPaso}>03</span><IconoQ3 nombre="objetivo" /><h3>UPAX ONE</h3><p>Un concepto de encuentro mayor que reúne las capacidades del grupo.</p></div></div>
-      <Lectura etiqueta="Propuesta de relación">{INNER_CIRCLE.beneficio}</Lectura>
+    {/* ── 07 · EQUIPO: lo que se hizo, antes de lo que viene ── */}
+    <Lamina id="equipo" bloque="equipo" tono="foto" imagen="equipo" titulo={<>La ejecución también empieza <em>dentro del equipo</em></>} bajada={EQUIPO.intro} fuente={`${FUENTE} · acciones derivadas del bootcamp de julio`}>
+      <div className={estilos.equipo}>{EQUIPO.acciones.map((a, i) => <article key={a.titulo}><IconoQ3 nombre={(['personas', 'mensaje', 'estrella', 'objetivo'] as const)[i]} /><span className={estilos.micro}>{a.eje}</span><h3>{a.titulo}</h3><p>{a.texto}</p></article>)}</div>
     </Lamina>
 
-    <Lamina id="inner-circle" bloque="relacion" titulo={<>Siete especialidades para sostener <em>una conversación útil</em></>} bajada="Inner Circle convierte las capacidades de cada empresa en contenido relevante para quienes deciden.">
-      <div className={estilos.contenidos}><article data-intro="true"><IconoQ3 nombre="personas" /><h3>Inner Circle</h3><p>{INNER_CIRCLE.beneficio}</p></article>{temas.map(c => <article key={c.udn}><h3><LogoUdn nombre={c.udn} /></h3><p>{c.ideas[0]}</p><DetalleQ3 etiqueta="Ver los tres temas" titulo={`${c.udn} · agenda Inner Circle`}><ol className={estilos.temasDetalle}>{c.ideas.map(t => <li key={t}>{t}</li>)}</ol></DetalleQ3></article>)}</div>
+    {/* ── 08 · QUÉ HACEMOS EN Q4: de Inner Circle en adelante, todo es siguiente paso ── */}
+    <Lamina id="relacion" bloque="relacion" titulo={<>Inner Circle: las mejores conversaciones <em>no terminan con un evento</em></>} tono="foto" imagen="venue-2" bajada={INNER_CIRCLE.definicion} fuente={`${FUENTE} · Inner Circle / David Porchini`}>
+      <div className={estilos.inner}>
+        <figure className={`${estilos.panel} ${estilos.innerCarta} ${estilos.entra}`} style={orden(3)}><Image src="/estatus-q3/inner-invitacion.webp" alt="Invitación a UPAX Inner Circle, firmada por Cecilia Fallabrino, con su estuche y tarjeta" width={1600} height={900} unoptimized /><figcaption>La invitación que se entrega en la cena <DetalleQ3 etiqueta="Ver pieza completa" titulo="Invitación a UPAX Inner Circle"><Image src="/estatus-q3/inner-invitacion.webp" alt="Invitación a UPAX Inner Circle" width={1600} height={900} unoptimized className={estilos.imagenCompleta} /></DetalleQ3></figcaption></figure>
+        <div className={estilos.innerClaves}>
+          <div className={`${estilos.panel} ${estilos.innerMeta} ${estilos.entra}`} style={orden(4)}><Rotulo icono="objetivo">Objetivo a diciembre</Rotulo><Dato valor={INNER_CIRCLE.meta} etiqueta={INNER_CIRCLE.metaTexto} /></div>
+          {INNER_CIRCLE.claves.map((c, i) => <div key={c.titulo} className={`${estilos.panel} ${estilos.entra}`} style={orden(5 + i)}><Rotulo icono={c.icono}>{c.titulo}</Rotulo><p>{c.texto}</p></div>)}
+        </div>
+      </div>
+      <ol className={`${estilos.camino} ${estilos.entra}`} style={orden(10)}><li><b>01</b>Fire Experience<span>abre la conversación</span></li><li data-activo="true"><b>02</b>Inner Circle<span>la sostiene todo el año</span></li><li><b>03</b>UPAX ONE<span>reúne a la comunidad</span></li></ol>
     </Lamina>
 
-    <Lamina id="upax-one" bloque="relacion" titulo={<>UPAX ONE: las capacidades del grupo <em>en un mismo encuentro</em></>} bajada="Concepto de experiencia para reunir a la comunidad construida alrededor de estos encuentros." fuente={`${FUENTE} · propuesta conceptual / renders del equipo`}>
+    <Lamina id="inner-circle" bloque="relacion" titulo={<>Lo que recibe un miembro: <em>tendencias y data de cada industria</em></>} bajada="Cada empresa del grupo aporta tres líneas de contenido exclusivo para quienes deciden.">
+      <div className={estilos.contenidos}><article data-intro="true"><IconoQ3 nombre="personas" /><h3>Inner Circle</h3><p>{INNER_CIRCLE.beneficio}</p></article>{temas.map(c => <article key={c.udn}><h3><LogoUdn nombre={c.udn} /></h3><ul className={estilos.temasVista}>{c.corto.map(t => <li key={t}>{t}</li>)}</ul></article>)}</div>
+    </Lamina>
+
+    <Lamina id="upax-one" bloque="relacion" titulo={<>UPAX ONE: un día para vivir <em>el ecosistema completo</em></>} bajada="El encuentro mayor de la comunidad: cada empresa muestra su oferta de valor y el grupo se entiende como uno solo." fuente={`${FUENTE} · propuesta conceptual / renders del equipo`}>
+      <div className={estilos.oneClaves}>{UPAX_ONE.claves.map((c, i) => <div key={c.titulo} className={`${estilos.panel} ${estilos.entra}`} style={orden(3 + i)}><Rotulo icono={c.icono}>{c.titulo}</Rotulo><strong>{c.dato}</strong><p>{c.texto}</p></div>)}</div>
       <div className={estilos.one}><figure><Image src="/estatus-q3/upax-one-salon.jpg" alt="Render conceptual del salón de UPAX ONE" width={1600} height={900} unoptimized /><figcaption>Encuentro de la comunidad · visual conceptual</figcaption></figure><figure><Image src="/estatus-q3/upax-one-tunel.jpg" alt="Render conceptual del túnel de acceso de UPAX ONE" width={1600} height={900} unoptimized /><figcaption>Experiencia de llegada · visual conceptual</figcaption></figure></div>
     </Lamina>
 
@@ -345,17 +384,21 @@ export function EstatusQ3() {
       <div className={estilos.lanzamiento}><div className={estilos.lanzamientoMarca}><span className={estilos.micro}>Plan de lanzamiento</span><strong>Research<br />Land<span>+ IA</span></strong><p>Siete frentes para presentar<br />la evolución de la marca.</p></div><ol>{LANZAMIENTO_RL_IA.map((t, i) => <li key={t}><span>0{i + 1}</span><p>{t}</p></li>)}</ol></div>
     </Lamina>
 
-    <Lamina id="equipo" bloque="relacion" tono="foto" imagen="equipo" titulo={<>La ejecución también empieza <em>dentro del equipo</em></>} bajada={EQUIPO.intro} fuente={`${FUENTE} · acciones derivadas del bootcamp de julio`}>
-      <div className={estilos.equipo}>{EQUIPO.acciones.map((a, i) => <article key={a.titulo}><IconoQ3 nombre={(['personas', 'mensaje', 'estrella', 'objetivo'] as const)[i]} /><span className={estilos.micro}>{a.eje}</span><h3>{a.titulo}</h3><p>{a.texto}</p></article>)}</div>
-    </Lamina>
+
 
     <Lamina id="agenda-q4" bloque="relacion" titulo={<>{accionesRoadmap()} acciones sostienen la conversación <em>hasta diciembre</em></>} bajada="13 de PR y 10 de contenido, por el mes en que arrancan. Octubre abre conversación; noviembre activa servicios y estudios; diciembre prepara 2027." fuente={`${FUENTE} · roadmap PR / Carolina Rojas · roadmap contenidos / Iris Mugica`}>
       <AgendaPorMes />
     </Lamina>
 
     <Lamina id="cierre" bloque="cierre" titulo={<>Más oportunidades.<br />Más continuidad.<br /><em>Más avance comercial.</em></>} tono="foto" fondo="rayo" bajada="El siguiente trimestre conecta la demanda que ya existe con las relaciones y capacidades que estamos construyendo.">
-      <div className={estilos.cierre}><div><Rotulo icono="avance">Lo que deja Q3</Rotulo><p data-pipeline="true"><b>{millones(PIPELINE.total)}</b> de pipeline abierto</p><p><b>{millones(FACTURADO_Q3)}</b> facturados</p><p><b>{notasEnMedios()}</b> notas en medios</p></div><div><Rotulo icono="copas">Lo que activa Q4</Rotulo><p><b>08 OCT</b> Kaitai</p><p><b>05 NOV</b> Miracle Signal</p><p><b>19 NOV</b> Soledad</p></div><div><Rotulo icono="cohete">La continuidad</Rotulo><p>Inner Circle</p><p>Research Land + IA</p><p>PR, contenido y materiales comerciales</p></div></div>
-      <div className={estilos.destino}><MarcaRayo izquierda="Q" derecha="4" /><Image src={LOGO} alt="Marketing Corp · Grupo UPAX" width={660} height={160} className={estilos.logoCierre} unoptimized /></div>
+      <div className={estilos.cierreRuta}>
+        <ol className={estilos.cierre}>
+          <li className={estilos.entra} style={orden(3)}><Rotulo icono="avance">Lo que deja Q3</Rotulo><div><p data-pipeline="true"><b>{millones(PIPELINE.total)}</b> de pipeline abierto</p><p><b>{millones(ventaGenerada())}</b> de venta generada</p><p><b>{notasEnMedios()}</b> notas en medios</p></div></li>
+          <li className={estilos.entra} style={orden(5)}><Rotulo icono="copas">Lo que activa Q4</Rotulo><div><p><b>08 OCT</b> Kaitai</p><p><b>05 NOV</b> Miracle Signal</p><p><b>19 NOV</b> Soledad</p></div></li>
+          <li className={estilos.entra} style={orden(7)}><Rotulo icono="cohete">La continuidad</Rotulo><div><p><b>Inner Circle</b> {INNER_CIRCLE.meta} tomadores de decisión</p><p><b>Research Land + IA</b> lanzamiento</p><p><b>{accionesRoadmap()} acciones</b> de PR y contenido</p></div></li>
+        </ol>
+        <div className={`${estilos.destino} ${estilos.entra}`} style={orden(9)}><MarcaRayo izquierda="Q" derecha="4" /><Image src={LOGO} alt="Marketing Corp · Grupo UPAX" width={660} height={160} className={estilos.logoCierre} unoptimized /><p className={estilos.lemaCierre}>Somos la chispa que inicia la llama.</p></div>
+      </div>
     </Lamina>
   </main>
 }
