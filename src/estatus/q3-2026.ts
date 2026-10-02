@@ -1,21 +1,8 @@
 /**
- * EL ESTATUS DE MARKETING CORPORATIVO, Q3 2026 — todo lo que dice la pestaña /estatus.
- *
- * FUENTE: el borrador que escribió el equipo, «CMO - Estatus MKT Corp Q3 2026»
- * (Google Slides, 1-oct-2026), con la agenda que definieron en el pizarrón el
- * 29-sep, y su carpeta de imágenes «estatus ceci». Cada bloque dice quién lo
- * escribió. El texto es del equipo; aquí solo se corrigen nombres oficiales y
- * erratas.
- *
- * LO DERIVADO SE CALCULA, NO SE COPIA. El borrador traía porcentajes que no
- * salían de sus propias tablas (Contactos → MQL decía 1.76% y da 1.17%; SQL →
- * Propuesta pasaba de 100%). Aquí los totales y las conversiones salen de las
- * cifras de cada tabla, y las pruebas (`q3-2026.test.ts`) fallan si una tabla
- * y su total dejan de cuadrar.
- *
- * Las cifras que el borrador contradecía entre láminas (SQL de Paid contra
- * SQL del funnel, facturado por UDN) quedan como las entregó cada dueño y
- * marcadas para que el equipo las cuadre antes de la junta (Franco, 1-oct).
+ * Fuente oficial: «CMO - Estatus MKT Corp Q3 2026», Google Slides del equipo,
+ * corte 30-sep-2026. Las tablas conservan sus cifras y sus ausencias.
+ * Los totales derivados se calculan; un KPI reportado conserva la definición
+ * de su fuente. Los distintos cortes comerciales no se suman entre sí.
  */
 
 export const CORTE = '30 de septiembre de 2026'
@@ -244,16 +231,11 @@ export const CONVERSIONES: { de: Etapa; a: Etapa }[] = [
 /** Referencias del Forecast 2026 («% de conversión por etapa», columna Proyectada). */
 export const REFERENCIA = { mqlASql: 0.3, oportunidadACliente: 0.2 }
 
-/**
- * Lo facturado en el trimestre por negocios del funnel (insight de Ileana) y
- * su BASE (Franco, 1-oct: «sí, con su base»): la meta de venta externa de las
- * siete empresas en Q3 según el Forecast 2026, sin Zeus — jul $23,040,068 +
- * ago $18,906,851 + sep $24,022,392, menos Zeus $729,457 por mes. El borrador
- * decía 9.4%; con esta base da 9.3%. Si Ileana usó otra, se cambia aquí.
- */
+/** Facturación y cumplimiento reportados por el equipo, lámina 6. */
 export const FACTURADO_Q3 = 5_940_000
-export const META_FACTURADO_Q3 = 23_040_068 + 18_906_851 + 24_022_392 - 3 * 729_457
-export const cumplimientoFacturacion = () => FACTURADO_Q3 / META_FACTURADO_Q3
+export const CUMPLIMIENTO_REPORTADO_Q3 = 0.094
+/** Encabezado oficial de las láminas 2 y 3; el brief interno contiene otro total. */
+export const KAITAI_CONFIRMADOS_REPORTADOS = 64
 
 export const FACTURADO_POR_UDN: { udn: Udn; monto: number }[] = [
   { udn: 'Mexa Creativa', monto: 2_970_000 },
@@ -641,7 +623,7 @@ export const costoPromedioMqlPaid = () => {
   return conDato.reduce((n, p) => n + (p.mql ?? 0) * (p.costoMql ?? 0), 0) / mql
 }
 
-/** Visitas al sitio por cada MQL que dejó sus datos. */
+/** Cociente entre visitas y MQL reportados; no equivale a formularios enviados. */
 export const visitasPorMql = () => suma(WEB, (w) => w.visitas) / suma(WEB, (w) => w.mql)
 
 /** Sitios que aparecen en la primera página de Google. */

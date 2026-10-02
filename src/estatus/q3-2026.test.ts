@@ -26,9 +26,7 @@ describe('funnel de generación de demanda (tabla de César)', () => {
     for (const c of Q3.CONVERSIONES) expect(Q3.tasa(c.de, c.a)).toBeLessThanOrEqual(1)
   })
 
-  it('el cumplimiento de facturación se calcula contra su base: la meta externa de Q3 sin Zeus', () => {
-    expect(Q3.META_FACTURADO_Q3).toBe(63_780_940)
-    expect(Q3.cumplimientoFacturacion()).toBeCloseTo(0.0931, 4)
+  it('el desglose de facturación permite calcular su concentración', () => {
     const mexaYMu = Q3.FACTURADO_POR_UDN.reduce((n, f) => n + f.monto, 0)
     expect(mexaYMu / Q3.FACTURADO_Q3).toBeCloseTo(0.93, 2)
   })
@@ -109,7 +107,7 @@ describe('las lecturas que concluye cada lámina', () => {
     expect(Q3.parteNotasRL()).toBeCloseTo(0.918, 3)
   })
 
-  it('paid: $1,300 por MQL en promedio; web: una de cada 785 visitas deja sus datos', () => {
+  it('paid: $1,300 por MQL en promedio; web: 785 visitas por MQL reportado', () => {
     expect(Q3.costoPromedioMqlPaid()).toBeCloseTo(1300.67, 1)
     expect(Q3.visitasPorMql()).toBeCloseTo(784.7, 1)
     expect(Q3.sitiosPrimeraPagina()).toBe(4)

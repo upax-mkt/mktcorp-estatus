@@ -1,99 +1,93 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { EstatusQ3, LAMINAS_Q3 } from './EstatusQ3'
+import { INSIGHTS_WEB } from '@/estatus/q3-2026'
 
-/**
- * EL ESTATUS Q3, TAL COMO LO VE CECI.
- *
- * Sin `IntersectionObserver`, como un navegador que no anima: cada cifra en su
- * valor final y nada escondido. Una animación perdida se perdona; una cifra
- * en cero delante de la CEO, no.
- *
- * Y la regla de la segunda versión (Franco, 1-oct-2026: «sin insights, no es
- * autoexplicativa»): cada lámina dice su sección y su conclusión en el título.
- */
 const observadorOriginal = globalThis.IntersectionObserver
+beforeEach(() => { Reflect.deleteProperty(globalThis, 'IntersectionObserver') })
+afterEach(() => { Object.defineProperty(globalThis, 'IntersectionObserver', { value: observadorOriginal, writable: true, configurable: true }) })
 
-beforeEach(() => {
-  Reflect.deleteProperty(globalThis, 'IntersectionObserver')
-})
+function seccion(id: string) {
+  const nodo = document.getElementById(id)
+  if (!nodo) throw new Error(`Falta la sección ${id}`)
+  return within(nodo)
+}
 
-afterEach(() => {
-  Object.defineProperty(globalThis, 'IntersectionObserver', {
-    value: observadorOriginal,
-    writable: true,
-    configurable: true,
-  })
-})
-
-const lamina = (contenedor: HTMLElement, layout: string) =>
-  within(contenedor.querySelector<HTMLElement>(`[data-layout="${layout}"]`)!)
-
-describe('EstatusQ3', () => {
-  it('cuenta la historia en orden: resumen, eventos, demanda y venta, marca y digital, herramientas, Q4 y equipo', () => {
+describe('presentación Q3', () => {
+  it('sigue la agenda del equipo: los eventos van al principio y la venta antes de los canales', () => {
     const { container } = render(<EstatusQ3 />)
-    const pantallas = [...container.querySelectorAll('[data-layout]')].map((p) => p.getAttribute('data-layout'))
-    expect(pantallas).toEqual([...LAMINAS_Q3])
+    const ids = [...container.querySelectorAll('[data-layout]')].map(s => s.getAttribute('data-layout'))
+    expect(ids).toEqual([...LAMINAS_Q3])
+    expect(ids.indexOf('eventos')).toBe(2)
+    expect(ids.indexOf('eventos')).toBeLessThan(ids.indexOf('funnel'))
+    expect(ids.indexOf('funnel')).toBeLessThan(ids.indexOf('venta'))
+    expect(ids.indexOf('venta')).toBeLessThan(ids.indexOf('pipeline'))
+    expect(ids.indexOf('pipeline')).toBeLessThan(ids.indexOf('pr'))
+    expect(ids.indexOf('pr')).toBeLessThan(ids.indexOf('paid'))
+    expect(ids.indexOf('web')).toBeLessThan(ids.indexOf('relacion'))
   })
 
-  it('cada lámina de contenido lleva su sección numerada y un título que es la conclusión', () => {
-    const { container } = render(<EstatusQ3 />)
-    for (const id of LAMINAS_Q3.filter((l) => !['portada', 'gracias', 'resumen'].includes(l))) {
-      const seccion = container.querySelector(`[data-layout="${id}"] header p`)
-      expect(seccion?.textContent, id).toMatch(/^0[1-6] · /)
-      expect(container.querySelector(`[data-layout="${id}"] h2`)?.textContent?.length, id).toBeGreaterThan(15)
-    }
+  it('ninguna lámina se llama «agenda»: el modo presentar oculta ese nombre', () => {
+    expect(LAMINAS_Q3 as readonly string[]).not.toContain('agenda')
   })
 
-  it('redes, paid y el sitio van en el cuerpo, cada uno con su conclusión', () => {
-    const { container } = render(<EstatusQ3 />)
-    expect(lamina(container, 'redes').getByRole('heading', { level: 2, name: 'LinkedIn es donde nos responden' })).toBeInTheDocument()
-    expect(lamina(container, 'paid').getByRole('heading', { level: 2, name: /^Paid trajo 214 MQL a \$1,301 en promedio y \$26\.3 M de pipeline$/ })).toBeInTheDocument()
-    expect(lamina(container, 'web').getByRole('heading', { level: 2, name: 'Los sitios atraen 42 mil visitas; convertirlas es el reto' })).toBeInTheDocument()
-  })
-
-  it('el funnel: la conversión de cada etapa contra su meta, calculada de la tabla', () => {
-    const { container } = render(<EstatusQ3 />)
-    const funnel = lamina(container, 'funnel')
-    expect(funnel.getByText('27.8% de los MQL · meta 30%')).toBeInTheDocument()
-    expect(funnel.getByText('16 de 103 propuestas: 15.5% · meta 20%')).toBeInTheDocument()
-    expect(funnel.queryByText(/108|1\.76/)).not.toBeInTheDocument()
-  })
-
-  it('la facturación va con su base, como pidió Franco', () => {
-    const { container } = render(<EstatusQ3 />)
-    const f = lamina(container, 'facturacion')
-    expect(f.getByRole('heading', { level: 2, name: 'Facturamos $5.9 M de negocios del funnel' })).toBeInTheDocument()
-    expect(f.getAllByText(/9\.3%/).length).toBeGreaterThan(0)
-    expect(f.getByText(/meta de venta externa del grupo en Q3 \(\$63\.8 M\)/)).toBeInTheDocument()
-  })
-
-  it('lo ganado y lo abierto, cada uno con su lectura', () => {
-    const { container } = render(<EstatusQ3 />)
-    expect(lamina(container, 'ganados').getByRole('heading', { level: 2, name: 'Ganamos 16 negocios nuevos por $5.5 M' })).toBeInTheDocument()
-    expect(lamina(container, 'ganados').getByText(/El más grande del trimestre: Virbac, \$1\.3 M, de Marketing United/)).toBeInTheDocument()
-    expect(lamina(container, 'pipeline').getByRole('heading', { level: 2, name: 'Quedan $67.8 M por cerrar y 84% ya está en evaluación' })).toBeInTheDocument()
-    expect(lamina(container, 'pr').getByRole('heading', { level: 2, name: '231 notas en medios; 9 de cada 10 fueron de Research Land' })).toBeInTheDocument()
-  })
-
-  it('Kaitai: 65 ejecutivos confirmados, con logo y cargo', () => {
-    const { container } = render(<EstatusQ3 />)
-    const kaitai = lamina(container, 'kaitai')
-    expect(kaitai.getByRole('heading', { level: 2, name: 'Kaitai ya tiene 65 ejecutivos confirmados' })).toBeInTheDocument()
-    expect(kaitai.getByRole('img', { name: 'Banorte' })).toBeInTheDocument()
-    expect(kaitai.getByText('Head of UX Design')).toBeInTheDocument()
-  })
-
-  it('ningún nombre de empresa del grupo va mal escrito y Zeus no aparece', () => {
-    const { container } = render(<EstatusQ3 />)
-    const texto = container.textContent ?? ''
-    expect(texto).not.toMatch(/Neracode|ResearchLand|House Of Films|Mexa creativa|Zeus|Cheff|Engament/)
-  })
-
-  it('las cifras se ven en su valor final sin JavaScript de animación', () => {
+  it('usa el cumplimiento oficial sin importar otra meta y mantiene los cinco cortes del funnel', () => {
     render(<EstatusQ3 />)
-    expect(screen.getAllByText('65').length).toBeGreaterThan(0)
+    expect(seccion('venta').getByText('9.4%')).toBeInTheDocument()
+    expect(seccion('venta').queryByText(/63\.8|9\.3%/)).not.toBeInTheDocument()
+    // Facturado y ganado son dos cortes: se ven los dos, cada uno con su cifra.
+    expect(seccion('venta').getByText('$5.94 M')).toBeInTheDocument()
+    expect(seccion('venta').getByText('$5.49 M')).toBeInTheDocument()
+    expect(seccion('funnel').getByText('95')).toBeInTheDocument()
+    expect(seccion('funnel').getByText('103')).toBeInTheDocument()
+    expect(seccion('funnel').queryByText(/meta 30|meta 20|108\.4/)).not.toBeInTheDocument()
+  })
+
+  it('Paid no pierde UiX al cambiar de una métrica incompleta a su pipeline', async () => {
+    const user = userEvent.setup()
+    render(<EstatusQ3 />)
+    const paid = seccion('paid')
+    await user.click(paid.getByRole('button', { name: 'MQL' }))
+    expect(paid.getByRole('row', { name: /UiX/ })).toHaveTextContent('Sin dato')
+    await user.click(paid.getByRole('button', { name: 'Pipeline' }))
+    expect(paid.getByRole('row', { name: /UiX/ })).toHaveTextContent('$1.19 M')
+  })
+
+  it('muestra todas las UDN en prensa, conserva el texto IA y distingue estados ausentes', () => {
+    render(<EstatusQ3 />)
+    expect(seccion('pr').getAllByRole('row')).toHaveLength(8)
+    expect(screen.getByText(INSIGHTS_WEB[0])).toBeInTheDocument()
+    expect(seccion('materiales').getAllByText(/Sin estado/).length).toBeGreaterThan(0)
+    expect(seccion('kaitai').getByText('64')).toBeInTheDocument()
+    expect(seccion('kaitai').getByRole('img', { name: 'Banorte' })).toBeInTheDocument()
+  })
+
+  it('incluye los 23 temas del roadmap y conserva cifras visibles sin animación', () => {
+    render(<EstatusQ3 />)
+    expect(seccion('agenda-q4').getByText('Derecho a la información')).toBeInTheDocument()
+    expect(seccion('agenda-q4').getByText('Tema por definir')).toBeInTheDocument()
     expect(screen.getAllByText('342').length).toBeGreaterThan(0)
     expect(screen.getAllByText('231').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/negocios nuevos/)).not.toBeInTheDocument()
+  })
+
+  it('la cumbre muestra el pipeline a escala y no lo suma a lo facturado', () => {
+    render(<EstatusQ3 />)
+    const cumbre = seccion('pipeline')
+    expect(cumbre.getAllByText('$57.16 M').length).toBeGreaterThan(0)
+    expect(cumbre.getByText(/no se suma al pipeline/)).toBeInTheDocument()
+    expect(cumbre.getByRole('img', { name: /Pipeline abierto por etapa, a escala/ })).toBeInTheDocument()
+  })
+
+  it('las siete empresas siguen en el cuerpo y cualquiera se puede seguir', async () => {
+    const user = userEvent.setup()
+    render(<EstatusQ3 />)
+    const demanda = seccion('funnel-empresas')
+    expect(demanda.getAllByRole('row')).toHaveLength(8)
+    await user.click(demanda.getByRole('button', { name: 'NeraCode' }))
+    expect(document.documentElement.dataset.udnFoco).toBe('NeraCode')
+    await user.click(demanda.getByRole('button', { name: 'NeraCode' }))
+    expect(document.documentElement.dataset.udnFoco).toBeUndefined()
   })
 })

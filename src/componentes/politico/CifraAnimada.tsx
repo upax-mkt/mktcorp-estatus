@@ -20,6 +20,10 @@ interface Props {
   prefijo?: string
   sufijo?: string
   className?: string
+  /** Cuánto dura la cuenta. Por defecto, 1400 ms. */
+  duracion?: number
+  /** Espera antes de arrancar, para que varias cifras cuenten de una en una. */
+  retraso?: number
 }
 
 const DURACION = 1400
@@ -32,7 +36,7 @@ function formatear(n: number, decimales: number): string {
   }).format(n)
 }
 
-export function CifraAnimada({ valor, decimales = 0, prefijo = '', sufijo = '', className }: Props) {
+export function CifraAnimada({ valor, decimales = 0, prefijo = '', sufijo = '', className, duracion = DURACION, retraso = 0 }: Props) {
   const referencia = useRef<HTMLSpanElement>(null)
   const final = `${prefijo}${formatear(valor, decimales)}${sufijo}`
 
@@ -47,21 +51,23 @@ export function CifraAnimada({ valor, decimales = 0, prefijo = '', sufijo = '', 
     if (typeof IntersectionObserver === 'undefined' || sinMovimiento) return
 
     let cuadro = 0
+    let espera: ReturnType<typeof setTimeout> | undefined
     let arrancada = false
     texto.nodeValue = `${prefijo}${formatear(0, decimales)}${sufijo}`
 
     const contar = () => {
       if (arrancada) return
       arrancada = true
-      const inicio = performance.now()
+      let inicio = 0
       const paso = (ahora: number) => {
-        const avance = Math.min(1, (ahora - inicio) / DURACION)
+        if (!inicio) inicio = ahora
+        const avance = Math.min(1, (ahora - inicio) / duracion)
         // Sale rápido y frena al llegar: el número se asienta, no choca.
         const curva = 1 - Math.pow(1 - avance, 3)
         texto.nodeValue = `${prefijo}${formatear(valor * curva, decimales)}${sufijo}`
         if (avance < 1) cuadro = requestAnimationFrame(paso)
       }
-      cuadro = requestAnimationFrame(paso)
+      espera = setTimeout(() => { cuadro = requestAnimationFrame(paso) }, retraso)
     }
 
     const observador = new IntersectionObserver(
@@ -86,6 +92,7 @@ export function CifraAnimada({ valor, decimales = 0, prefijo = '', sufijo = '', 
     }, ESPERA_RESCATE)
 
     const alImprimir = () => {
+      clearTimeout(espera)
       cancelAnimationFrame(cuadro)
       texto.nodeValue = `${prefijo}${formatear(valor, decimales)}${sufijo}`
     }
@@ -94,10 +101,11 @@ export function CifraAnimada({ valor, decimales = 0, prefijo = '', sufijo = '', 
     return () => {
       observador.disconnect()
       clearTimeout(rescate)
+      clearTimeout(espera)
       cancelAnimationFrame(cuadro)
       window.removeEventListener('beforeprint', alImprimir)
     }
-  }, [valor, decimales, prefijo, sufijo])
+  }, [valor, decimales, prefijo, sufijo, duracion, retraso])
 
   return (
     <span ref={referencia} className={className}>
