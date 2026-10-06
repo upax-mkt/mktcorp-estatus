@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { PresentacionRl } from './PresentacionRl'
 
 /**
@@ -27,12 +27,11 @@ const pantalla = (container: HTMLElement, capa: string) =>
   container.querySelector(`[data-layout="${capa}"]`)?.textContent ?? ''
 
 describe('PresentacionRl', () => {
-  it('son doce pantallas: el diagnóstico cabe en una y el resto es propuesta', () => {
+  it('son diez pantallas, todas de propuesta: sin realidad ni números actuales', () => {
     const { container } = render(<PresentacionRl />)
     const capas = Array.from(container.querySelectorAll('[data-layout]')).map((p) => p.getAttribute('data-layout'))
     expect(capas).toEqual([
       'portada',
-      'partida',
       'principios',
       'estructura',
       'roles-comerciales',
@@ -40,19 +39,9 @@ describe('PresentacionRl', () => {
       'journey',
       'candidatos',
       'ejecutiva',
-      'meta',
       'precio',
       'plan',
     ])
-  })
-
-  it('el punto de partida es su número en el valor final y los motivos de los 120 perdidos', () => {
-    const { container } = render(<PresentacionRl />)
-    const partida = pantalla(container, 'partida')
-    expect(partida).toContain('2de 95')
-    for (const valor of ['32%', '23%', '18%', '3%']) {
-      expect(partida).toContain(valor)
-    }
   })
 
   it('la estructura pone a cada persona en su puesto', () => {
@@ -79,13 +68,9 @@ describe('PresentacionRl', () => {
     expect(container.querySelectorAll('[data-recomendada="true"]').length).toBe(1)
   })
 
-  it('la meta se traduce con los supuestos del plan: 84 proyectos, 420 propuestas, 35 al mes', () => {
+  it('no trae la realidad ni números actuales', () => {
     const { container } = render(<PresentacionRl />)
-    const meta = pantalla(container, 'meta')
-    expect(meta).toContain('$34.8M')
-    expect(meta).toContain('84')
-    expect(meta).toContain('420')
-    expect(screen.getByText('La meta pide 35 presentaciones al mes')).toBeTruthy()
+    expect(container.textContent).not.toMatch(/de 95|perdidos|facturaron|\$34\.8M/)
   })
 
   it('no trae cifras por persona', () => {

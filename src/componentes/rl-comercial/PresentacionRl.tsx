@@ -2,20 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import Image from 'next/image'
 import estilos from './rl.module.css'
 import { Escena } from '../politico/Escena'
-import { CifraAnimada } from '../politico/CifraAnimada'
-import {
-  CIERRE_PLAN,
-  CORTE,
-  CUOTA_EJECUTIVO,
-  FACTURADO_EXTERNO_2025,
-  META_PLAN_2027,
-  PERDIDOS_2026,
-  PROPUESTAS_2026,
-  PROPUESTAS_ENE_JUL,
-  TICKET_PLAN,
-  capacidadDeLaMeta,
-  porcentaje,
-} from '@/rl-comercial/corte-2026-10-06'
+import { CORTE, CUOTA_EJECUTIVO } from '@/rl-comercial/corte-2026-10-06'
 
 /**
  * LA PROPUESTA DE MARKETING CORPORATIVO PARA EL ÁREA COMERCIAL DE RESEARCH LAND (6-oct-2026).
@@ -42,10 +29,6 @@ function millones(n: number): string {
   return `$${(n / 1_000_000).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M`
 }
 
-function miles(n: number): string {
-  return `$${Math.round(n / 1000).toLocaleString('es-MX')}K`
-}
-
 function Pie({ children }: { children: ReactNode }) {
   return <p className={estilos.pie}>{children}</p>
 }
@@ -67,8 +50,6 @@ function Cabecera({ antetitulo, titulo, nota }: { antetitulo: string; titulo: st
     </header>
   )
 }
-
-const COMPETIDOR = 'Contra un competidor'
 
 const PRINCIPIOS = [
   { que: 'Se vende el problema del cliente.', detalle: 'La metodología viene después, y la explica quien la va a ejecutar.' },
@@ -224,9 +205,6 @@ const CANDIDATOS = [
 ]
 
 export function PresentacionRl() {
-  const maximo = Math.max(...PERDIDOS_2026.motivos.map((m) => m.negocios))
-  const meta = capacidadDeLaMeta()
-
   return (
     <div className={estilos.documento}>
       {/* 1 · PORTADA */}
@@ -256,53 +234,6 @@ export function PresentacionRl() {
           </p>
         </Escena>
         <Pie>Franco Cruzat · {CORTE}</Pie>
-      </section>
-
-      {/* 2 · PUNTO DE PARTIDA. El diagnóstico entero, en una sola lámina. */}
-      <section data-layout="partida" className={`${estilos.pantalla} ${estilos.clara}`}>
-        <Escena className={estilos.escena}>
-          <Cabecera antetitulo="Punto de partida" titulo="Se cotiza mucho y se cierra poco" />
-          <div className={`${estilos.cuerpo} ${estilos.partida}`}>
-            <div className={estilos.aparece} style={orden(2)}>
-              <p className={`${estilos.cifra} ${estilos.cifraClara}`}>
-                <CifraAnimada valor={PROPUESTAS_ENE_JUL.ganadas} className={estilos.cifraValor} />
-                <span className={estilos.cifraDe}>de {PROPUESTAS_ENE_JUL.total}</span>
-              </p>
-              <p className={estilos.cifraRotulo}>propuestas ganadas entre enero y julio</p>
-              <p className={estilos.nota}>
-                {PROPUESTAS_2026} propuestas en lo que va del año. {PROPUESTAS_ENE_JUL.perdidas} de las 95 se perdieron.
-              </p>
-            </div>
-            <div>
-              <p className={`${estilos.subtitulo} ${estilos.aparece}`} style={orden(3)}>
-                Por qué se perdieron los {PERDIDOS_2026.total} negocios de 2026
-              </p>
-              <ul className={estilos.motivos}>
-                {PERDIDOS_2026.motivos.map((m, i) => (
-                  <li
-                    key={m.motivo}
-                    className={`${estilos.motivo} ${estilos.aparece}`}
-                    style={orden(i + 4)}
-                    data-competidor={m.motivo === COMPETIDOR ? 'true' : undefined}
-                  >
-                    <span className={estilos.motivoNombre}>{m.motivo}</span>
-                    <span className={estilos.motivoCarril}>
-                      <span
-                        className={estilos.motivoBarra}
-                        style={{ ...orden(i + 4), width: `${(m.negocios / maximo) * 100}%` }}
-                      />
-                    </span>
-                    <span className={estilos.motivoValor}>{porcentaje(m.negocios)}%</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </Escena>
-        <Pie>
-          Fuente: HubSpot, pipeline de Research Land; el {porcentaje(PERDIDOS_2026.otros)}% restante de los perdidos dice
-          otro, desconocido o cancelado. Corte al {CORTE}.
-        </Pie>
       </section>
 
       {/* 3 · LOS PRINCIPIOS. La tesis de su plan, convertida en reglas de operación. */}
@@ -541,47 +472,6 @@ export function PresentacionRl() {
             </div>
           </div>
         </Escena>
-      </section>
-
-      {/* 10 · LA META Y LA CAPACIDAD. Con los supuestos del propio plan. */}
-      <section data-layout="meta" className={`${estilos.pantalla} ${estilos.oscura}`}>
-        <Escena className={estilos.escena}>
-          <Cabecera
-            antetitulo="Lo que implica la meta"
-            titulo={`La meta pide ${meta.alMes} presentaciones al mes`}
-            nota="Con los supuestos de su propio plan."
-          />
-          <div className={estilos.cuerpo}>
-            <ol className={estilos.ecuacion}>
-              <li className={`${estilos.termino} ${estilos.aparece}`} style={orden(3)}>
-                <span className={estilos.terminoValor}>{millones(META_PLAN_2027)}</span>
-                <span className={estilos.terminoRotulo}>meta externa 2027</span>
-              </li>
-              <li className={`${estilos.termino} ${estilos.aparece}`} style={orden(4)}>
-                <span className={estilos.terminoValor}>{meta.proyectos}</span>
-                <span className={estilos.terminoRotulo}>proyectos, con ticket de {miles(TICKET_PLAN)}</span>
-              </li>
-              <li className={`${estilos.termino} ${estilos.aparece}`} style={orden(5)}>
-                <span className={estilos.terminoValor}>{meta.propuestas}</span>
-                <span className={estilos.terminoRotulo}>
-                  propuestas presentadas, al {Math.round(CIERRE_PLAN * 100)}% de cierre
-                </span>
-              </li>
-              <li className={`${estilos.termino} ${estilos.aparece}`} style={orden(6)}>
-                <span className={estilos.terminoValor}>{meta.alMes}</span>
-                <span className={estilos.terminoRotulo}>presentaciones en persona cada mes</span>
-              </li>
-            </ol>
-            <ul className={`${estilos.lista} ${estilos.aparece}`} style={orden(7)}>
-              <li>Una PM sola no presenta {meta.alMes} propuestas al mes: presentan también los gerentes de operación.</li>
-              <li>
-                Para medir el salto: en 2025 se facturaron {millones(FACTURADO_EXTERNO_2025)} a clientes externos. Las cuotas
-                de cada puesto tienen que sumar la meta.
-              </li>
-            </ul>
-          </div>
-        </Escena>
-        <Pie>Fuentes: plan de Research Land (meta, ticket y tasa de cierre) y Forecast 2026. Corte al {CORTE}.</Pie>
       </section>
 
       {/* 11 · PRECIO Y COMISIONES */}
