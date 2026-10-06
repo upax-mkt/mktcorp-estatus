@@ -47,6 +47,17 @@ export const META_PLAN_2027 = 34_800_000
 /** Cuota anual que el plan le asigna al Ejecutivo Comercial. */
 export const CUOTA_EJECUTIVO = 19_800_000
 
+/** Supuestos del propio plan de RL: ticket promedio 2026 y cierre de propuesta a venta del embudo ideal. */
+export const TICKET_PLAN = 413_000
+export const CIERRE_PLAN = 0.2
+
+/** Lo que implica la meta del plan, con sus propios supuestos. */
+export function capacidadDeLaMeta() {
+  const proyectos = Math.round(META_PLAN_2027 / TICKET_PLAN)
+  const propuestas = Math.round(proyectos / CIERRE_PLAN)
+  return { proyectos, propuestas, alMes: Math.round(propuestas / 12) }
+}
+
 /** Porcentaje entero de un motivo sobre el total de perdidos. */
 export function porcentaje(parte: number, total: number = PERDIDOS_2026.total): number {
   return Math.round((parte / total) * 100)

@@ -16,12 +16,13 @@ export const metadata: Metadata = {
 }
 
 /**
- * LA REVISIÓN DE LA PROPUESTA COMERCIAL 2027 DE RESEARCH LAND (6-oct-2026).
+ * LA PROPUESTA PARA EL ÁREA COMERCIAL DE RESEARCH LAND, ESTRATEGIA 2027 (6-oct-2026).
  *
- * Franco la presenta a Pablo Levy y Giovanni Sanabria el 6-oct: su número,
- * dónde se pierde, PM, ejecutiva en piloto, ajustes al plan y lo que sigue.
- * Mismo patrón que `/politico`: una página propia del equipo que se lee con
- * scroll y se proyecta con `ModoPresentar`.
+ * Franco la presenta a Pablo Levy y Giovanni Sanabria: punto de partida,
+ * principios, estructura, roles comerciales y de las áreas, journey,
+ * candidatos a PM, ejecutiva en piloto, capacidad que pide la meta, precio y
+ * comisiones, y plan de 90 días. Mismo patrón que `/politico`: una página
+ * propia del equipo que se lee con scroll y se proyecta con `ModoPresentar`.
  *
  * SOLO EQUIPO. Nombra a la persona recomendada para PM y a la que entra a
  * prueba como ejecutiva; no se comparte como las salas. `puedeVerRuta`
