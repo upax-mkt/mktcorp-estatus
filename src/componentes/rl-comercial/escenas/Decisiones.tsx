@@ -5,7 +5,7 @@ import { Escena } from '../../politico/Escena'
 import { orden, Punto, Luz } from '../comun'
 
 /**
- * 10 · EL CIERRE. Tres decisiones para hoy.
+ * 10 · EL CIERRE. Tres decisiones (hasta el 6-oct-2026, «para hoy»: la pieza ya no es para la junta, es la que se queda RL).
  *
  * El cliente vuelve al centro: el punto, arriba y al medio, y de él baja una
  * línea fina que se abre en tres ramas, una por decisión. Tapando los textos
@@ -38,7 +38,7 @@ export function Decisiones() {
             Lo que necesitamos de ustedes
           </p>
           <h2 className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
-            Tres decisiones para hoy
+            Tres decisiones
           </h2>
         </header>
         <div className={`${base.cuerpo} ${estilos.cuerpo}`}>

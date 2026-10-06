@@ -100,6 +100,12 @@ function esSalaPublica(partes: string[]): boolean {
   if (partes.length === 3 && partes[0] === 'cliente') {
     return HIJAS_DE_SALA_PUBLICAS.includes(partes[2])
   }
+  // `/cliente/<slug>/presentaciones/<id>` — una presentación web que vive en la
+  // sala (reorganización del 6-oct-2026). Responde sin sesión como el resto de
+  // la sala, pero la PÁGINA no le enseña nada a quien no es del equipo sin el
+  // pase de su clave (`src/presentaciones/pase.ts`), y cierra del todo si la
+  // presentación no declara clave. Exactamente cuatro segmentos.
+  if (partes.length === 4 && partes[0] === 'cliente' && partes[2] === 'presentaciones') return true
   // `/reunion/<id>` — el documento de una junta. Lleva un id, así que aquí no
   // se sabe de qué cliente es: pasa el filtro y la PÁGINA comprueba contra la
   // sala real. Una reunión sin sala sigue siendo de equipo.

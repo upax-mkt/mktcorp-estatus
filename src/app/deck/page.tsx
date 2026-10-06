@@ -12,6 +12,7 @@ import { fueDada, documentoCuentaComoPresentacion, type Reunion } from '@/domini
 import { diaCivil, fechaBreveConAnio } from '@/lib/fecha'
 import { AccionesReunion } from '@/componentes/AccionesReunion'
 import { BorrarBorrador } from '@/componentes/BorrarBorrador'
+import { PRESENTACIONES, rutaDePresentacion } from '@/presentaciones/registro'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
 
 export const dynamic = 'force-dynamic'
@@ -316,6 +317,34 @@ export default async function PagPreparar() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* PRESENTACIONES WEB (reorganización del hub, 6-oct-2026): las hechas a mano no se arman aquí, viven con su
+            cliente —los estatus de grupo en Estatus, la de una UDN en su sala—. Esta lista solo dice dónde está cada
+            una, para que nadie las busque aquí y no las encuentre. Sale del registro único. */}
+        <section style={{ marginTop: '2.5rem' }}>
+          <h2 className={estilos.rotuloSeccion}>Presentaciones web</h2>
+          <p className={estilos.rotuloNota}>Hechas a mano. Viven en Estatus o en la sala de su cliente.</p>
+          <div className={estilos.lista}>
+            {[...PRESENTACIONES].sort((a, b) => b.fecha.localeCompare(a.fecha)).map((p) => {
+              const sala = p.lugar.tipo === 'sala' ? clientes.find((c) => c.slug === (p.lugar as { sala: string }).sala) : undefined
+              return (
+                <div key={p.id} className={estilos.fila}>
+                  <Link href={rutaDePresentacion(p)} className={estilos.filaIzq}>
+                    <div className={estilos.filaNombre}>
+                      {sala && <span className={estilos.filaPunto} style={{ background: sala.color }} />}
+                      {p.titulo}
+                    </div>
+                    <div className={estilos.filaMeta}>
+                      <span>{p.lugar.tipo === 'estatus' ? 'En Estatus' : `En la sala de ${sala?.nombre ?? p.lugar.sala}`}</span>
+                      <span className={estilos.sep}>·</span>
+                      <span>{fechaBreveConAnio(p.fecha)}</span>
+                    </div>
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
         </section>
       </main>
     </div>

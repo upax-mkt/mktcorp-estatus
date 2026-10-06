@@ -3012,3 +3012,23 @@ a.presFila:hover { background: var(--superficie-2); padding-inline: 0.6rem; }
     scroll-padding-inline: 1rem 2.5rem;
   }
 }
+
+/* PRESENTACIONES DE LA SALA (reorganización del hub, 6-oct-2026): una fila por presentación web, enlace entero. */
+.presentaciones { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.presentacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--linea);
+  border-radius: var(--r-3, 10px);
+  color: var(--tinta);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.presentacion:hover { border-color: var(--linea-fuerte); background: var(--lienzo); }
+.presentacion:focus-visible { outline: 2px solid var(--marca, var(--tinta)); outline-offset: 2px; }
+.presentacionTitulo { font-weight: 600; }
+.presentacionMeta { font-size: 0.85rem; color: var(--tinta-3); }

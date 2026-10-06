@@ -1,40 +1,35 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { exigirLectura, esAdmin } from '@/auth/roles'
 import { cerrarSesion } from '@/auth/sesion'
 import { BarraNavegacion, clientesParaBarra } from '@/componentes/BarraNavegacion'
-import { ProveedorTema } from '@/componentes/ProveedorTema'
-import { ModoPresentar } from '@/componentes/sesion/ModoPresentar'
-import { EstatusQ3 } from '@/componentes/estatus/EstatusQ3'
-import { grupoUpax } from '@/temas/grupo-upax'
+import { estatusDeGrupo, rutaDePresentacion } from '@/presentaciones/registro'
+import { fechaCompleta } from '@/lib/fecha'
+import estilos from '@/app/deck/deck.module.css'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Estatus Q3',
+  title: 'Estatus',
 }
 
 /**
- * EL ESTATUS DE MARKETING CORPORATIVO CON CECI, Q3 2026, como pestaña (1-oct-2026).
+ * ESTATUS (reorganización del hub, 6-oct-2026): los estatus de grupo, los que no son de una UDN. Antes cada uno era
+ * una pestaña de la barra (Político, Estatus Q3); ahora la pestaña es una y la lista crece aquí, desde el registro
+ * (`src/presentaciones/registro.ts`). Mismo aspecto que Presentaciones (`/deck`), a propósito.
  *
- * Franco (29-sep): la agenda y el contenido los pone el equipo —se juntaron
- * en el pizarrón y escribieron el borrador— y la presentación se produce aquí,
- * animada, como pestaña propia del equipo, igual que el concurso y /politico.
- * La proyecta Franco en la junta del viernes 2-oct.
- *
- * SOLO EQUIPO. Trae pipeline, negocios ganados con montos, confirmados con
- * nombre de empresa y cargo: `puedeVerRuta` (src/auth/politica.ts) es lista
- * blanca para una sesión de sala y `/estatus` no está en ella, y aquí
- * `exigirLectura()` es la verificación que manda, pegada al dato.
+ * `/estatus` era el Q3 hasta esta fecha; `?anexo=1` (su anexo para PDF) se manda a su nuevo lugar.
  */
 export default async function PaginaEstatus({ searchParams }: { searchParams: Promise<{ anexo?: string }> }) {
   await exigirLectura()
-  // `?anexo=1` es la versión para el PDF: las mismas láminas más el anexo con todo desplegado (ver AnexoQ3).
   const { anexo } = await searchParams
+  if (anexo === '1') redirect('/estatus/q3-2026?anexo=1')
   await connection()
   const hoy = new Date()
   const [admin, clientes] = await Promise.all([esAdmin(), clientesParaBarra()])
+  const estatus = estatusDeGrupo()
 
   async function salir() {
     'use server'
@@ -43,13 +38,36 @@ export default async function PaginaEstatus({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <div>
+    <div className={estilos.app}>
       <BarraNavegacion seccionActiva="estatus" hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
-      <ProveedorTema tema={grupoUpax} superficie="clara">
-        <ModoPresentar personas={[]}>
-          <EstatusQ3 anexo={anexo === '1'} />
-        </ModoPresentar>
-      </ProveedorTema>
+      <main className={estilos.main}>
+        <div className={estilos.encabezado}>
+          <div>
+            <h1 className={estilos.titulo}>Estatus</h1>
+            <p className={estilos.subtitulo}>Los estatus de grupo: el del área y los de cada vertical.</p>
+          </div>
+        </div>
+        <section>
+          <div className={estilos.lista}>
+            {estatus.map((p) => (
+              <div key={p.id} className={estilos.fila}>
+                <Link href={rutaDePresentacion(p)} className={estilos.filaIzq}>
+                  <div className={estilos.filaNombre}>{p.titulo}</div>
+                  {/* La bajada en su renglón y la fecha en el suyo: juntas en una línea, al partirse en el celular el «·»
+                      quedaba suelto al principio del segundo renglón. */}
+                  <div className={estilos.filaMeta}>{p.bajada}</div>
+                  <div className={estilos.filaMeta}>{fechaCompleta(p.fecha)}</div>
+                </Link>
+                <div className={estilos.filaDcha}>
+                  <Link href={rutaDePresentacion(p)} className={estilos.boton}>
+                    Abrir
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
     </div>
   )
 }

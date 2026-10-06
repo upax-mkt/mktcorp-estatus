@@ -74,6 +74,16 @@ describe('esRutaPublica', () => {
    * de una sala guardan su clave y su enlace firmado, y todo lo de Marketing
    * Corp es de Marketing Corp.
    */
+  it('abre la ruta de una presentación de sala (la página pide la clave), y solo con esa forma exacta', () => {
+    expect(esRutaPublica('/cliente/research-land/presentaciones/nueva-estructura-comercial-2027')).toBe(true)
+    expect(puedeVerRuta(null, '/cliente/research-land/presentaciones/nueva-estructura-comercial-2027')).toBe(true)
+    expect(esRutaPublica('/cliente/research-land/presentaciones')).toBe(false)
+    expect(esRutaPublica('/cliente/research-land/presentaciones/x/editar')).toBe(false)
+    expect(esRutaPublica('/cliente/research-land/otra-cosa/x')).toBe(false)
+    expect(esRutaPublica('/estatus/q3-2026')).toBe(false)
+    expect(puedeVerRuta(null, '/estatus')).toBe(false)
+  })
+
   it('NO abre los ajustes de una sala: ahí viven su clave y su enlace firmado', () => {
     expect(esRutaPublica('/cliente/neracode/ajustes')).toBe(false)
     expect(puedeVerRuta(null, '/cliente/neracode/ajustes')).toBe(false)

@@ -54,6 +54,7 @@ import {
 } from '@/db/documentos'
 import { destacarAction } from '@/app/acuerdos/acciones'
 import { fechaCompleta, textoDiasDesde, diaCivil } from '@/lib/fecha'
+import { presentacionesDeSala, rutaDePresentacion } from '@/presentaciones/registro'
 import { puedeVerEstaSala, sesionActual } from '@/auth/sesion'
 import { esAdmin, esEditor, esLector } from '@/auth/roles'
 import { slugsDeSalasPausadas } from '@/db/salas'
@@ -501,10 +502,14 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
    * condición cambia allí abajo, tiene que cambiar aquí: son la misma
    * decisión escrita dos veces, y por eso van pegadas.
    */
+  // Las presentaciones web de este cliente (reorganización del hub, 6-oct-2026). Misma condición aquí y en su
+  // <Seccion>: solo si tiene alguna.
+  const presentaciones = presentacionesDeSala(slug)
   const seccionesDeLaSala: EntradaDeMenu[] = [
     ...(tema?.analyticsUrl ? [{ id: 's-analytics', titulo: 'Data & Analytics' }] : []),
     { id: 's-acuerdos', titulo: 'Acuerdos', conteo: abiertos > 0 ? `${abiertos}` : undefined },
     { id: 's-reuniones', titulo: 'Reuniones', conteo: s.reuniones.length > 0 ? `${s.reuniones.length}` : undefined },
+    ...(presentaciones.length > 0 ? [{ id: 's-presentaciones', titulo: 'Presentaciones', conteo: `${presentaciones.length}` }] : []),
     ...(benchmark || equipo ? [{ id: 's-benchmark', titulo: 'Benchmark' }] : []),
     ...(materialesComerciales.length > 0 || equipo
       ? [{ id: 's-comercial', titulo: 'Materiales', conteo: materialesComerciales.length > 0 ? `${materialesComerciales.length}` : undefined }]
@@ -1008,6 +1013,27 @@ export default async function VistaSala({ params }: { params: Promise<{ slug: st
           )}
 
         </Seccion>
+
+        {/* PRESENTACIONES (reorganización del hub, 6-oct-2026): las presentaciones web que se le hicieron a este
+            cliente, desde el registro (`src/presentaciones/registro.ts`). Solo si tiene alguna. La sala es pública:
+            la que lleva clave se lista, pero fuera del equipo no se abre sin ella (ver su página). */}
+        {presentaciones.length > 0 && (
+          <Seccion id="s-presentaciones" icono="presentacion" titulo="Presentaciones" conteo={presentaciones.length}>
+            <ul className={estilos.presentaciones}>
+              {presentaciones.map((p) => (
+                <li key={p.id}>
+                  <Link href={rutaDePresentacion(p)} className={estilos.presentacion}>
+                    <span className={estilos.presentacionTitulo}>{p.titulo}</span>
+                    <span className={estilos.presentacionMeta}>
+                      {fechaCompleta(p.fecha)}
+                      {p.claveEnv && !equipo ? ' · se abre con clave' : ''}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Seccion>
+        )}
 
         {/* Benchmark competitivo — vive a nivel de sala, se nutre en el tiempo (spec §5).
             SOLO SI HAY BENCHMARK O SI QUIEN MIRA PUEDE CARGARLO. Franco: *"si

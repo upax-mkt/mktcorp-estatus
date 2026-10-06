@@ -102,7 +102,7 @@ export function Orbita() {
       <Escena className={base.escena}>
         <header className={base.cabecera}>
           <p className={`${base.antetitulo} ${base.aparece}`} style={orden(0)}>
-            Estructura propuesta
+            Estructura
           </p>
           <h2 className={`${base.titulo} ${base.aparece}`} style={orden(1)}>
             Cuatro puestos, cada uno con un momento del cliente

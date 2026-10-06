@@ -5,7 +5,8 @@ import { Escena } from '../../politico/Escena'
 import { orden, Punto, Luz } from '../comun'
 
 /**
- * 1 · PORTADA. La respuesta, primero: un área comercial con el cliente al centro.
+ * 1 · PORTADA. La respuesta, primero: un área comercial con el cliente al centro. Título genérico desde el
+ * 6-oct-2026, «Nueva estructura comercial 2027», igual que la PPT que se le entregó a Pablo (antes: «Proponemos…»).
  *
  * El cliente (el punto amarillo, hilo conductor de la pieza) nace aquí, a la
  * derecha del título, como la fuente de luz de la escena: su halo es la única
@@ -36,7 +37,7 @@ export function Portada() {
               Estrategia comercial 2027 · Marketing Corporativo
             </p>
             <h1 className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(2)}>
-              Proponemos un área comercial con el cliente al centro
+              Nueva estructura comercial 2027
             </h1>
             <p className={`${base.nota} ${estilos.nota} ${base.aparece}`} style={orden(3)}>
               Cuatro puestos, un journey con dueño en cada paso y las personas para ocuparlos.

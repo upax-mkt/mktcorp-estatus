@@ -49,7 +49,11 @@ tiene alguna. Cada una con fecha y, si lleva clave, el aviso de que la pide.
   `tipo: 'pase'`: no sirve como sesión, y una sesión no sirve como pase.
 - La clave vive en Vercel (`CLAVE_PRESENTACION_RL`), nunca en el repo. Sin la variable, nadie entra por clave
   (cerrado por defecto).
-- El director de otra sala no la ve nunca: el proxy y la página lo cortan.
+- **La sala es pública** (decisión de Franco: los directores entran sin login), así que esta ruta también responde sin
+  sesión. La clave es la única puerta para todo el que no es del equipo: el director de RL, el de otra sala o
+  cualquiera con la liga. La lista de la sala muestra el título y avisa que se abre con clave; el contenido, no.
+- Una presentación de sala sin clave declarada no se abre fuera del equipo (cerrado por defecto). Cada intento fallido
+  espera casi un segundo, para frenar el tanteo de una clave sencilla.
 
 **Texto de la de RL** igual que la PPT que se le entregó a Pablo: portada «Nueva estructura comercial 2027», órbita
 «Estructura», cierre «Tres decisiones».

@@ -53,7 +53,7 @@ import { cargarTemas, slugsDeSalas } from '@/db/temas'
  */
 
 /** Las cinco pestañas del ciclo — mismo orden que la barra siempre tuvo. */
-export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'concurso' | 'politico' | 'estatus' | 'salas' | 'personas'
+export type SeccionBarra = 'reuniones' | 'deck' | 'acuerdos' | 'estatus' | 'concurso' | 'salas' | 'personas'
 
 /** Un cliente del desplegable: lo justo para pintar su fila. */
 export interface ClienteBarra {
@@ -187,32 +187,18 @@ export function BarraNavegacion({
         >
           Acuerdos
         </Link>
-        <Link
-          href="/concurso"
-          className={estilos.barraLink}
-          aria-current={seccionActiva === 'concurso' ? 'page' : undefined}
-        >
-          Concurso
-        </Link>
-        {/* POLÍTICO (29-sep-2026): el estatus de la vertical político-electoral
-            para la junta con Ceci. Visible para todo el equipo, como el
-            concurso; la página exige sesión de equipo por dentro. */}
-        <Link
-          href="/politico"
-          className={estilos.barraLink}
-          aria-current={seccionActiva === 'politico' ? 'page' : undefined}
-        >
-          Político
-        </Link>
-        {/* ESTATUS Q3 (1-oct-2026): el estatus del área con Ceci, con la
-            agenda y el contenido del equipo. Mismo criterio que Político:
-            visible para todo el equipo; la página exige sesión de equipo. */}
+        {/* ESTATUS (reorganización del hub, 6-oct-2026): una sola pestaña para
+            los estatus de grupo —el Q3 del área, el de la vertical política y
+            los que vengan—, que hasta esta fecha se sumaban cada uno como
+            pestaña propia (Político, Estatus Q3). Visible para todo el
+            equipo; la página exige sesión de equipo por dentro. El Concurso
+            se mudó al desplegable «Más», al final. */}
         <Link
           href="/estatus"
           className={estilos.barraLink}
           aria-current={seccionActiva === 'estatus' ? 'page' : undefined}
         >
-          Estatus Q3
+          Estatus
         </Link>
         {/* /salas y /personas son las dos únicas secciones solo-admin
             (`SECCIONES_SOLO_ADMIN`, src/auth/politica.ts) — las dos con el
@@ -260,15 +246,43 @@ export function BarraNavegacion({
             </div>
           </details>
         )}
-        {admin && (
-          <Link
-            href="/personas"
+        {/* MÁS (reorganización del hub, 6-oct-2026): lo que no es trabajo de
+            todos los días —el Concurso y, para admin, Personas— en un
+            desplegable al final, con el mismo `details`/`summary` de servidor
+            que Clientes. Franco: «solo ordenar la barra», nada se archiva: los
+            dos siguen a un clic. */}
+        <details className={estilos.clientes}>
+          <summary
             className={estilos.barraLink}
-            aria-current={seccionActiva === 'personas' ? 'page' : undefined}
+            aria-current={seccionActiva === 'concurso' || seccionActiva === 'personas' ? 'page' : undefined}
           >
-            Personas
-          </Link>
-        )}
+            Más
+          </summary>
+          <div className={estilos.clientesPanel}>
+            <ul className={estilos.clientesLista}>
+              <li>
+                <Link
+                  href="/concurso"
+                  className={estilos.clienteEnlace}
+                  aria-current={seccionActiva === 'concurso' ? 'page' : undefined}
+                >
+                  Concurso
+                </Link>
+              </li>
+              {admin && (
+                <li>
+                  <Link
+                    href="/personas"
+                    className={estilos.clienteEnlace}
+                    aria-current={seccionActiva === 'personas' ? 'page' : undefined}
+                  >
+                    Personas
+                  </Link>
+                </li>
+              )}
+            </ul>
+          </div>
+        </details>
         <span className={estilos.barraFecha}>{fechaLarga(hoy)}</span>
         <form action={salirAction}>
           <button type="submit" className={estilos.barraSalir}>Salir</button>

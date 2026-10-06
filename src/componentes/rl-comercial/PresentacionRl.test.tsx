@@ -46,11 +46,15 @@ describe('PresentacionRl', () => {
 
   it('los títulos, leídos seguidos, cuentan la propuesta', () => {
     const { container } = render(<PresentacionRl />)
-    expect(texto(container, 'portada')).toContain('con el cliente al centro')
+    // Título genérico desde el 6-oct-2026, igual que la PPT que se le entregó a Pablo: ya no «Proponemos…».
+    expect(texto(container, 'portada')).toContain('Nueva estructura comercial 2027')
+    expect(texto(container, 'portada')).not.toContain('Proponemos')
+    expect(texto(container, 'orbita')).not.toContain('Estructura propuesta')
     expect(texto(container, 'idea')).toContain('El cliente le compra a quien sabe')
     expect(texto(container, 'journey')).toContain('nunca se queda sin dueño')
     expect(texto(container, 'candidatos')).toContain('Rocío Cervantes')
-    expect(texto(container, 'decisiones')).toContain('Tres decisiones para hoy')
+    expect(texto(container, 'decisiones')).toContain('Tres decisiones')
+    expect(texto(container, 'decisiones')).not.toContain('para hoy')
   })
 
   it('la estructura pone a cada persona en su puesto', () => {

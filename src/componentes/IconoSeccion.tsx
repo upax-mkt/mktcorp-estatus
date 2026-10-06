@@ -31,6 +31,7 @@ const COMUNES = {
 }
 
 export type NombreIcono =
+  | 'presentacion'
   | 'acuerdos'
   | 'reuniones'
   | 'benchmark'
@@ -61,6 +62,15 @@ export function IconoSeccion({ nombre, className }: { nombre: NombreIcono; class
 
     // Una reunión: gente alrededor de algo. Dos siluetas, no un calendario —
     // el calendario ya es la agenda, y significaría otra cosa.
+    // Una presentación: la pantalla y su pie.
+    case 'presentacion':
+      return (
+        <svg {...COMUNES} className={className}>
+          <rect x="3.5" y="4.5" width="17" height="11" rx="1.5" />
+          <path d="M12 15.5v4M8.5 19.5h7" />
+        </svg>
+      )
+
     case 'reuniones':
       return (
         <svg {...COMUNES} className={className}>

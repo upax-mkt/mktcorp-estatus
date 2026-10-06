@@ -99,6 +99,35 @@ function esSesion(valor: unknown): valor is Sesion {
 }
 
 /** Sella una sesión. El resultado es lo que viaja en la cookie o en el link. */
+/**
+ * FIRMA DE UN DATO CUALQUIERA con el mismo HMAC de la sesión (6-oct-2026, para el pase de las presentaciones con
+ * clave, `src/presentaciones/pase.ts`).
+ *
+ * `verificarDato` solo garantiza que la firma es buena y que el contenido es JSON: la FORMA la valida quien lo usa.
+ * Por eso cada cosa que se firma con este secreto lleva su discriminador —la sesión, `rol`; el pase, `tipo: 'pase'`
+ * y ningún `rol`— y así un pase nunca pasa `esSesion` ni una sesión pasa por pase.
+ */
+export async function firmarDato(dato: object, secreto: string): Promise<string> {
+  const cuerpo = textoABase64Url(JSON.stringify(dato))
+  const firma = await crypto.subtle.sign('HMAC', await clave(secreto), new TextEncoder().encode(cuerpo))
+  return `${cuerpo}.${aBase64Url(new Uint8Array(firma))}`
+}
+
+export async function verificarDato(token: string | undefined, secreto: string): Promise<unknown | null> {
+  if (!token) return null
+  const partes = token.split('.')
+  if (partes.length !== 2) return null
+  const [cuerpo, firma] = partes
+  if (!cuerpo || !firma) return null
+  try {
+    const valida = await crypto.subtle.verify('HMAC', await clave(secreto), deBase64Url(firma), new TextEncoder().encode(cuerpo))
+    if (!valida) return null
+    return JSON.parse(new TextDecoder().decode(deBase64Url(cuerpo))) as unknown
+  } catch {
+    return null
+  }
+}
+
 export async function firmar(sesion: Sesion, secreto: string): Promise<string> {
   const cuerpo = textoABase64Url(JSON.stringify(sesion))
   const firma = await crypto.subtle.sign(
