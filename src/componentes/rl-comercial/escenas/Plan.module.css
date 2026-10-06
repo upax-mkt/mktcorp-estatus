@@ -1,0 +1,161 @@
+/* 9 · EL PLAN DE 90 DÍAS. Morado sólido, texto blanco, sin degradado bajo el texto.
+   El calendario domina: una línea blanca con cuatro marcas y los textos colgando de
+   cada una. El cliente (el punto) va en la punta de la línea y termina en el último
+   hito, que es su posición por defecto (visible sin JS, impreso y en movimiento
+   reducido). La línea es un SVG de alto fijo (24 px = alto del viewBox). */
+
+.calendario {
+  --zona: clamp(2.25rem, 4.6vh, 3.25rem);
+  position: relative;
+}
+
+.via {
+  position: absolute;
+  left: 0;
+  top: calc(var(--zona) / 2 - 12px);
+  width: 100%;
+  height: 24px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.carril {
+  fill: none;
+  stroke: oklch(1 0 0 / 0.24);
+  stroke-width: 3;
+}
+
+.recorrido {
+  fill: none;
+  stroke: oklch(1 0 0);
+  stroke-width: 3;
+  stroke-linecap: butt;
+}
+
+/* Cuatro columnas iguales y sin hueco: cada hito empieza en 0, 25, 50 y 75 %. */
+.hitos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.hito {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: var(--zona);
+}
+
+.marca {
+  position: absolute;
+  left: -1.5px;
+  top: calc(var(--zona) * 0.2);
+  width: 3px;
+  height: calc(var(--zona) * 0.6);
+  border-radius: 1px;
+  background: oklch(1 0 0);
+}
+
+/* Del ancho de su columna: trasladarlo -300 % es recorrer tres columnas, del primer hito al último. */
+.viajero {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--zona);
+  pointer-events: none;
+}
+
+.viajero .cliente {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  margin-left: calc(var(--punto) * -0.5);
+  margin-top: calc(var(--punto) * -0.5);
+}
+
+/* Lo que cuelga de cada hito: un hilo fino y, a su derecha, el texto. */
+.texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.6rem, 1.4vh, 1rem);
+  padding: clamp(0.85rem, 2vh, 1.35rem) clamp(1rem, 2.2vw, 2.25rem) 0.2rem clamp(0.85rem, 1.15vw, 1.35rem);
+  border-left: 1px solid oklch(1 0 0 / 0.32);
+}
+
+.cuando {
+  margin: 0;
+  font-family: var(--fuente-display, inherit);
+  font-weight: 400;
+  font-size: clamp(1.6rem, 2.4vw, 2.9rem);
+  line-height: 1.04;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+  color: oklch(1 0 0);
+}
+
+.tareas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: clamp(0.45rem, 1.1vh, 0.8rem);
+  font-size: clamp(1rem, 1.22vw, 1.4rem);
+  line-height: 1.35;
+  color: oklch(1 0 0 / 0.88);
+}
+
+.tareas li {
+  position: relative;
+  padding-left: 1.05em;
+}
+
+.tareas li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.66em;
+  width: 0.5em;
+  height: 2px;
+  background: oklch(1 0 0 / 0.55);
+}
+
+/* EL VIAJE DEL CLIENTE: misma curva, duración y arranque que el trazo, así va en su punta.
+   Solo en pantalla ancha; el estado oculto solo existe bajo data-animar (lo pone Escena). */
+@keyframes plan-recorrer {
+  from { transform: translateX(-300%); }
+  to { transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-width: 900px) {
+  :global([data-animar='true']:not([data-visible='true'])) .viajero {
+    transform: translateX(-300%);
+  }
+  :global([data-visible='true']) .viajero {
+    animation: plan-recorrer var(--mov-trazo) var(--mov-ease-in-out) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+}
+
+/* Bajo 900 px el calendario se vuelve vertical: los hilos forman el riel, las marcas
+   quedan al inicio de cada hito y el punto brota en el último. */
+@media (max-width: 899px) {
+  .via { display: none; }
+  .hitos { grid-template-columns: minmax(0, 1fr); }
+  .hito { padding-top: 0; }
+  .marca {
+    top: 0;
+    left: -1px;
+    height: 2.25rem;
+  }
+  .viajero { height: 2.25rem; }
+  .texto {
+    padding: 0.25rem 0 clamp(1.25rem, 3vh, 2rem) 1.5rem;
+    border-left-width: 2px;
+  }
+}

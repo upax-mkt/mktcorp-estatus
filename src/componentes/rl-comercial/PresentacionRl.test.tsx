@@ -5,9 +5,9 @@ import { PresentacionRl } from './PresentacionRl'
 /**
  * LA PROPUESTA PARA EL ÁREA COMERCIAL DE RESEARCH LAND, tal como la ven Pablo y Gio.
  *
- * Sin `IntersectionObserver`, como un navegador que no puede animar: cada
- * cifra en su valor final y nada escondido. Una animación perdida se perdona;
- * una cifra en cero frente al director de la unidad, no.
+ * Sin `IntersectionObserver`, como un navegador que no puede animar: todo
+ * visible y en su estado final. Una animación perdida se perdona; una escena
+ * vacía frente al director de la unidad, no.
  */
 const observadorOriginal = globalThis.IntersectionObserver
 
@@ -23,58 +23,82 @@ afterEach(() => {
   })
 })
 
-const pantalla = (container: HTMLElement, capa: string) =>
+const texto = (container: HTMLElement, capa: string) =>
   container.querySelector(`[data-layout="${capa}"]`)?.textContent ?? ''
 
 describe('PresentacionRl', () => {
-  it('son diez pantallas, todas de propuesta: sin realidad ni números actuales', () => {
+  it('son diez escenas en el orden del guion: la respuesta primero y las decisiones al final', () => {
     const { container } = render(<PresentacionRl />)
     const capas = Array.from(container.querySelectorAll('[data-layout]')).map((p) => p.getAttribute('data-layout'))
     expect(capas).toEqual([
       'portada',
-      'principios',
-      'estructura',
-      'roles-comerciales',
-      'roles-areas',
+      'idea',
+      'orbita',
+      'organigrama',
       'journey',
+      'kpis',
       'candidatos',
-      'ejecutiva',
-      'precio',
+      'piloto',
       'plan',
+      'decisiones',
     ])
+  })
+
+  it('los títulos, leídos seguidos, cuentan la propuesta', () => {
+    const { container } = render(<PresentacionRl />)
+    expect(texto(container, 'portada')).toContain('con el cliente al centro')
+    expect(texto(container, 'idea')).toContain('El cliente le compra a quien sabe')
+    expect(texto(container, 'journey')).toContain('nunca se queda sin dueño')
+    expect(texto(container, 'candidatos')).toContain('Rocío Cervantes')
+    expect(texto(container, 'decisiones')).toContain('Tres decisiones para hoy')
   })
 
   it('la estructura pone a cada persona en su puesto', () => {
     const { container } = render(<PresentacionRl />)
-    const estructura = pantalla(container, 'estructura')
+    const organigrama = texto(container, 'organigrama')
     for (const persona of ['Pablo Levy', 'Giovanni Sanabria', 'Elizabeth Gómez', 'Rocío Cervantes', 'Juan Carlos Hesles']) {
-      expect(estructura).toContain(persona)
+      expect(organigrama).toContain(persona)
     }
   })
 
-  it('el journey tiene doce pasos y dos puertas', () => {
+  it('el journey nombra sus doce pasos', () => {
     const { container } = render(<PresentacionRl />)
-    const journey = container.querySelector('[data-layout="journey"]')
-    expect(journey?.querySelectorAll('ol > li[data-puerta], ol > li:not([data-puerta])').length).toBe(12)
-    expect(journey?.querySelectorAll('[data-puerta="true"]').length).toBe(2)
+    const journey = texto(container, 'journey')
+    for (const paso of [
+      'Prospección',
+      'Reunión de diagnóstico',
+      'Calificación',
+      'Diseño y cotización',
+      'Autorización',
+      'Presentación en persona',
+      'Seguimiento',
+      'Alta y arranque',
+      'Ejecución',
+      'Entrega de resultados',
+      'Facturación y cobro',
+      'Recompra',
+    ]) {
+      expect(journey).toContain(paso)
+    }
   })
 
-  it('analiza a los tres candidatos y recomienda a uno', () => {
+  it('analiza a las tres candidaturas', () => {
     const { container } = render(<PresentacionRl />)
-    const candidatos = pantalla(container, 'candidatos')
+    const candidatos = texto(container, 'candidatos')
     for (const nombre of ['Rocío Cervantes', 'Violeta Hernández', 'Juan Carlos Gutiérrez']) {
       expect(candidatos).toContain(nombre)
     }
-    expect(container.querySelectorAll('[data-recomendada="true"]').length).toBe(1)
   })
 
-  it('no trae la realidad ni números actuales', () => {
+  it('el cliente (el punto) está en cada escena: es el hilo conductor', () => {
     const { container } = render(<PresentacionRl />)
-    expect(container.textContent).not.toMatch(/de 95|perdidos|facturaron|\$34\.8M/)
+    for (const escena of Array.from(container.querySelectorAll('[data-layout]'))) {
+      expect(escena.querySelector('span[aria-hidden="true"]')).not.toBeNull()
+    }
   })
 
-  it('no trae cifras por persona', () => {
+  it('no trae la realidad ni números actuales, ni nombres que no van', () => {
     const { container } = render(<PresentacionRl />)
-    expect(container.textContent).not.toMatch(/Nahum/)
+    expect(container.textContent).not.toMatch(/de 95|perdidos|facturaron|\$\d|Nahum/)
   })
 })

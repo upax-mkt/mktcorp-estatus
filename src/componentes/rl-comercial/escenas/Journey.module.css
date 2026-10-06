@@ -1,0 +1,329 @@
+/* 5 · LA CUMBRE — «El cliente nunca se queda sin dueño» (6-oct-2026, motion-studio).
+
+   ESCENARIO: 1600 × 760 unidades, la misma caja que el viewBox del SVG. Lo HTML se
+   coloca en porcentajes de esas constantes (x / 16 = % del ancho; la pista, y = 400,
+   cae en 52.6316 % del alto) y la letra va en cqw del escenario (unidades / 16): a
+   cualquier tamaño, el dibujo y los textos escalan juntos. Nada se mide en JS.
+
+   CRONOLOGÍA (ms desde data-visible; reposo total 2480 ≤ 2500):
+     0–590      cabecera (base: antetítulo y título)
+     100–520    pista, corchetes, paradas y puertas en reposo
+     120–760    fases y pasos entran al 45 % (escalón de 70 ms por fase)
+     140–400    el punto brota en la parada 1
+     400–2060   viaje, --mov-ease-in-out POR TRAMO: 1→3 (280) · puerta 3, 240 quieto ·
+                3→6 (340) · puerta 6, 240 quieto · 6→9 (280) · 9→12 (280).
+                El rastro se traza detrás del punto con los mismos fotogramas; al pasar
+                por cada parada (--t) se traza su tallo y su paso y sus dueños suben al 100 %.
+     2060–2400  el arco tenue de regreso, de la 12 a la 1
+     2220–2480  «nunca» pasa a amarillo: el único remate de la pieza
+   Nada se mueve después. Estado final = CSS por defecto (sin JS, impreso, movimiento
+   reducido y bajo 900 px, donde se apila y no hay viaje). */
+
+/* El título cabe en una línea: deja sitio al camino. */
+.cabecera > h2 { max-width: none; }
+
+/* La palabra que remata la pieza: amarilla en reposo. */
+.nunca { color: var(--rl-amarillo); }
+
+/* El cuerpo es contenedor de tamaño: el escenario toma el mayor tamaño que cabe
+   en ancho Y en alto, con su proporción fija, sin desbordar 100svh. */
+/* Las unidades de contenedor (cqw/cqh) daban 0 en Chrome dentro de este flex: el
+   lienzo se pinta en absoluto, centrado, con su proporción y topado en ancho y alto
+   (el tope de alto se transfiere al ancho por la proporción): el mayor que cabe. */
+.cuerpo {
+  min-height: 0;
+  position: relative;
+}
+
+.escenario {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  aspect-ratio: 1600 / 760;
+  max-width: 100%;
+  max-height: 100%;
+  container-type: inline-size;
+}
+
+/* ---- el dibujo ---- */
+
+.plano {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pista { fill: none; stroke: oklch(1 0 0 / 0.16); stroke-width: 2; stroke-linecap: round; }
+.corchete { fill: none; stroke: oklch(1 0 0 / 0.3); stroke-width: 1.5; }
+
+.rastro {
+  fill: none;
+  stroke: color-mix(in oklch, var(--rl-morado) 26%, white);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.regreso {
+  fill: none;
+  stroke: oklch(1 0 0 / 0.3);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.tallo { fill: none; stroke: oklch(1 0 0 / 0.42); stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 0; }
+
+.parada { fill: oklch(0.99 0 0); stroke: oklch(0.99 0 0); stroke-width: 2.5; }
+
+/* LAS DOS PUERTAS: lo único amarillo además del cliente. */
+.puerta { fill: none; stroke: var(--rl-amarillo); stroke-width: 2.5; }
+.puertaHalo { fill: none; stroke: var(--rl-amarillo); stroke-width: 9; opacity: 0.22; }
+
+/* ---- los textos ---- */
+
+.fases, .pasos, .duenos { list-style: none; margin: 0; padding: 0; }
+
+.faseNombre {
+  position: absolute;
+  top: 0;
+  left: var(--cx);
+  translate: -50% 0;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 0.9375cqw;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: oklch(1 0 0 / 0.72);
+}
+
+.paso {
+  position: absolute;
+  left: var(--x);
+  width: 13.75%;
+  translate: -50% 0;
+}
+.paso[data-lado='arriba'] { bottom: 55.7895%; }
+.paso[data-lado='abajo'] { top: 61.0526%; }
+
+.luz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4cqw;
+  text-align: center;
+}
+
+.numero {
+  margin: 0;
+  font-size: 0.875cqw;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: oklch(1 0 0 / 0.55);
+}
+
+.tituloPaso {
+  margin: 0;
+  font-family: var(--fuente-display, inherit);
+  font-weight: 400;
+  font-size: 1.9375cqw;
+  line-height: 1.04;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+  color: oklch(0.99 0 0);
+}
+
+.detalle {
+  margin: 0;
+  font-size: 1.2188cqw;
+  line-height: 1.3;
+  text-wrap: pretty;
+  color: oklch(1 0 0 / 0.8);
+}
+
+.duenos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35cqw;
+  margin-top: 0.15cqw;
+}
+
+.dueno {
+  font-size: 0.9063cqw;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  padding: 0.3em 0.8em;
+  border-radius: 999px;
+  border: 1.5px solid oklch(1 0 0 / 0.55);
+  background-color: oklch(1 0 0 / 0.14);
+  color: oklch(0.99 0 0);
+}
+
+.puertaEtiqueta {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.9375cqw;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--rl-amarillo);
+}
+/* La puerta en miniatura, junto a su regla. */
+.puertaEtiqueta::before {
+  content: '';
+  flex: none;
+  width: 0.55em;
+  height: 1em;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+}
+/* Abajo de la pista, la regla queda junto a su puerta: arriba del paso. */
+.paso[data-lado='abajo'] .puertaEtiqueta { order: -1; }
+
+/* EL CLIENTE: una caja sin tamaño en la parada 1; viaja en cqw (= % del escenario). */
+.viajero {
+  position: absolute;
+  z-index: 1;
+  left: 6.875%;
+  top: 52.6316%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  transform: translateX(86.25cqw);
+}
+.viajero .punto {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -50%;
+}
+
+/* ---- la cumbre ---- */
+
+@keyframes fundir { from { opacity: 0; } to { opacity: 1; } }
+@keyframes entrar { from { opacity: 0; transform: translateY(1cqw); } to { opacity: 1; transform: none; } }
+@keyframes brotar { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+@keyframes trazar { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes encender { from { opacity: 0.45; } to { opacity: 1; } }
+
+/* Mismos fotogramas para el punto y su rastro: 0 · llega a la 3 · sale de la 3 ·
+   llega a la 6 · sale de la 6 · toca la 9 · llega a la 12. La curva se aplica por tramo. */
+@keyframes viajar {
+  0% { transform: translateX(0); }
+  16.8675% { transform: translateX(15cqw); }
+  31.3253% { transform: translateX(15cqw); }
+  51.8072% { transform: translateX(38.75cqw); }
+  66.2651% { transform: translateX(38.75cqw); }
+  83.1325% { transform: translateX(62.5cqw); }
+  100% { transform: translateX(86.25cqw); }
+}
+@keyframes trazarRastro {
+  0% { stroke-dashoffset: 1; }
+  16.8675% { stroke-dashoffset: 0.82609; }
+  31.3253% { stroke-dashoffset: 0.82609; }
+  51.8072% { stroke-dashoffset: 0.55072; }
+  66.2651% { stroke-dashoffset: 0.55072; }
+  83.1325% { stroke-dashoffset: 0.27536; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes encenderParada {
+  from { fill: var(--rl-noche); stroke: oklch(1 0 0 / 0.45); }
+  to { fill: oklch(0.99 0 0); stroke: oklch(0.99 0 0); }
+}
+@keyframes encenderPuerta { from { stroke: oklch(1 0 0 / 0.35); } to { stroke: var(--rl-amarillo); } }
+@keyframes encenderHalo { from { opacity: 0; } to { opacity: 0.22; } }
+@keyframes encenderEtiqueta { from { color: oklch(1 0 0 / 0.7); } to { color: var(--rl-amarillo); } }
+@keyframes encenderDueno {
+  from { background-color: transparent; border-color: oklch(1 0 0 / 0.28); color: oklch(1 0 0 / 0.7); }
+  to { background-color: oklch(1 0 0 / 0.14); border-color: oklch(1 0 0 / 0.55); color: oklch(0.99 0 0); }
+}
+@keyframes rematar { from { color: oklch(0.99 0 0); } to { color: var(--rl-amarillo); } }
+
+/* Solo en pantalla ancha y con movimiento permitido. El estado oculto solo existe
+   bajo data-animar, que pone `Escena` ya montado. */
+@media screen and (prefers-reduced-motion: no-preference) and (min-width: 901px) {
+  :global([data-animar='true']:not([data-visible='true'])) :is(.capaBase, .faseNombre, .paso) { opacity: 0; }
+  :global([data-animar='true']:not([data-visible='true'])) :is(.rastro, .regreso, .tallo) { stroke-dashoffset: 1; }
+  :global([data-animar='true']:not([data-visible='true'])) .viajero { transform: none; }
+  :global([data-animar='true']:not([data-visible='true'])) .viajero .punto { opacity: 0; }
+  :global([data-animar='true']:not([data-visible='true'])) .nunca { color: inherit; }
+
+  :global([data-visible='true']) .capaBase { animation: fundir 420ms var(--mov-ease-escena) 100ms both; }
+  :global([data-visible='true']) :is(.faseNombre, .paso) {
+    animation: entrar 450ms var(--mov-ease-escena) both;
+    animation-delay: calc(120ms + var(--i, 0) * 70ms);
+  }
+
+  :global([data-visible='true']) .viajero .punto { animation: brotar 260ms var(--mov-ease-escena) 140ms both; }
+  :global([data-visible='true']) .viajero { animation: viajar 1660ms var(--mov-ease-in-out) 400ms both; }
+  :global([data-visible='true']) .rastro { animation: trazarRastro 1660ms var(--mov-ease-in-out) 400ms both; }
+
+  /* Lo que reacciona al paso del cliente, en cascada desde su llegada (--t). */
+  :global([data-visible='true']) .parada { animation: encenderParada 220ms ease-out var(--t) both; }
+  :global([data-visible='true']) .tallo { animation: trazar 260ms var(--mov-ease-escena) var(--t) both; }
+  :global([data-visible='true']) .puerta { animation: encenderPuerta 240ms ease-out var(--t) both; }
+  :global([data-visible='true']) .puertaHalo { animation: encenderHalo 240ms ease-out var(--t) both; }
+  :global([data-visible='true']) .luz {
+    animation: encender 280ms var(--mov-ease-escena) both;
+    animation-delay: calc(var(--t) + 40ms);
+  }
+  :global([data-visible='true']) .puertaEtiqueta {
+    animation: encenderEtiqueta 240ms ease-out both;
+    animation-delay: calc(var(--t) + 60ms);
+  }
+  :global([data-visible='true']) .dueno {
+    animation: encenderDueno 240ms ease-out both;
+    animation-delay: calc(var(--t) + 110ms + var(--k, 0) * 70ms);
+  }
+
+  /* El camino se cierra y, con él, el remate. */
+  :global([data-visible='true']) .regreso { animation: trazar 340ms var(--mov-ease-in-out) 2060ms both; }
+  :global([data-visible='true']) .nunca { animation: rematar 260ms ease-out 2220ms both; }
+}
+
+@media print {
+  .cuerpo { position: static; }
+  .escenario { position: relative; inset: auto; margin: 0; width: 100%; max-height: none; }
+}
+
+/* BAJO 900 PX SE APILA: fase por fase, sin dibujo ni viaje; el cliente reposa al final. */
+@media (max-width: 900px) {
+  .cuerpo { position: static; }
+  .escenario { position: relative; inset: auto; margin: 0; width: 100%; max-height: none; aspect-ratio: auto; container-type: normal; }
+  .plano { display: none; }
+
+  .fases { display: grid; gap: 1.75rem; }
+  .fase { display: grid; gap: 0.9rem; }
+  .pasos { display: grid; gap: 1rem; }
+
+  .faseNombre { position: static; translate: none; font-size: 0.8rem; }
+  .paso {
+    position: static;
+    translate: none;
+    width: auto;
+    padding-left: 1rem;
+    border-left: 2px solid oklch(1 0 0 / 0.3);
+  }
+  .paso[data-puerta='true'] { border-left-color: var(--rl-amarillo); }
+  .luz { align-items: flex-start; gap: 0.35rem; text-align: left; }
+  .paso[data-lado='abajo'] .puertaEtiqueta { order: 0; }
+
+  .numero { font-size: 0.75rem; }
+  .tituloPaso { font-size: 1.5rem; }
+  .detalle { font-size: 1rem; }
+  .duenos { justify-content: flex-start; gap: 0.35rem; }
+  .dueno { font-size: 0.75rem; }
+  .puertaEtiqueta { font-size: 0.85rem; }
+
+  .viajero { position: static; width: auto; height: auto; margin-top: 1.25rem; transform: none; }
+  .viajero .punto { position: relative; translate: none; }
+}

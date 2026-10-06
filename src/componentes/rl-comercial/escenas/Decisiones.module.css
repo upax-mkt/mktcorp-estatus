@@ -1,0 +1,114 @@
+/* 10 · EL CIERRE — el cliente vuelve al centro, sobre las tres decisiones.
+   Composición simétrica alrededor del punto. Las columnas van sin hueco (el aire
+   es padding interno) para que su centro caiga justo en 1/6, 1/2 y 5/6 del
+   ancho, donde terminan las ramas del SVG. */
+
+.escena { --lila: color-mix(in oklch, var(--rl-morado) 34%, white); }
+
+.cabecera {
+  align-items: center;
+  text-align: center;
+}
+
+.titulo {
+  max-width: none;
+  font-size: clamp(2.6rem, 5.2vw, 6rem);
+}
+
+.cuerpo { justify-content: center; }
+
+.mapa {
+  display: flex;
+  flex-direction: column;
+}
+
+.origen {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+}
+
+/* La línea nace bajo el centro del punto (la mitad de 28 px). */
+.ramas {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: -14px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--lila);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.decisiones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.decision {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.5rem, 1.4vh, 1rem);
+  padding-inline: clamp(0.75rem, 2.2vw, 2.5rem);
+  text-align: center;
+}
+
+.numero {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(4.5rem, 9.5vw, 11rem);
+  line-height: 0.9;
+  color: var(--lila);
+}
+
+.texto {
+  margin: 0;
+  max-width: 24ch;
+  font-size: clamp(1.25rem, 1.56vw, 1.8rem);
+  font-weight: 500;
+  line-height: 1.35;
+  color: oklch(1 0 0 / 0.84);
+  text-wrap: balance;
+}
+.texto strong { font-weight: 700; color: oklch(1 0 0); }
+
+.logo {
+  position: absolute;
+  z-index: 1;
+  /* A la izquierda: a la derecha lo tapaba el botón Presentar en modo lectura. */
+  left: clamp(1.25rem, 7vw, 8rem);
+  bottom: clamp(1.1rem, 3.4vh, 2.2rem);
+  width: 160px;
+  height: auto;
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* El trazo baja en 600 ms (no los 900 de la casa) para llegar a las
+     decisiones mientras suben y dejar la escena quieta en 1200 ms. */
+  .escena[data-visible='true'] .ramas path { animation-duration: 600ms; }
+}
+
+@media (max-width: 900px) {
+  .origen { justify-content: flex-start; }
+  .ramas { display: none; }
+  .decisiones {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1rem, 3vh, 1.75rem);
+    margin-top: clamp(1rem, 3vh, 1.5rem);
+  }
+  .decision {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 1rem;
+    padding-inline: 0;
+    text-align: left;
+  }
+  .numero { font-size: clamp(3rem, 12vw, 4.5rem); }
+  .texto { max-width: none; }
+}

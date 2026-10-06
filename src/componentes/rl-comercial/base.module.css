@@ -1,0 +1,178 @@
+/* LA BASE DE LA PROPUESTA COMERCIAL DE RESEARCH LAND (6-oct-2026, motion-studio).
+   Identidad RL: noche #1A0B33, morado #770EB3, azul #1E0FF2. El amarillo #F7BB11 es
+   SOLO del cliente (el punto, hilo conductor de la pieza) y de las dos puertas nuevas
+   del journey: en nada más.
+   Escena (presentación proyectada): paso 500 ms, trazo 900 ms, escalón 90 ms, cumbre
+   ≤ 2500 ms; curva de firma --mov-ease-escena; personalidad premium, sin rebote.
+   VISIBLE SIN JAVASCRIPT: el estado oculto solo existe bajo
+   `.escena[data-animar='true']:not([data-visible='true'])`, que pone `Escena` ya montado. */
+
+.documento {
+  --rl-noche: #1a0b33;
+  --rl-morado: #770eb3;
+  --rl-azul: #1e0ff2;
+  --rl-amarillo: #f7bb11;
+  --mov-ease-escena: cubic-bezier(0.16, 1, 0.3, 1);
+  --mov-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --mov-paso: 500ms;
+  --mov-trazo: 900ms;
+  --mov-escalon: 90ms;
+  font-family: var(--fuente-texto, inherit);
+  color: var(--tinta);
+}
+
+.pantalla {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(4.5rem, 10vh, 7rem) clamp(1.25rem, 7vw, 8rem) clamp(4rem, 9vh, 6.5rem);
+}
+
+:global([data-presentando='true']) .pantalla.pantalla {
+  padding-top: clamp(3rem, 8vh, 6rem);
+}
+
+/* Tres superficies, para que vecinas no se repitan. */
+.noche { color: oklch(0.99 0 0); background: var(--rl-noche); }
+.morado { color: oklch(0.99 0 0); background: var(--rl-morado); }
+.clara { color: var(--tinta); background: var(--lienzo); }
+
+/* LUZ Y PROFUNDIDAD (piso de motion-studio): dos fuentes de luz, viñeta y grano.
+   Quietas y fuera de la zona de lectura: son acabado, no movimiento. */
+.luz {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 60% at 88% 6%, color-mix(in oklch, var(--rl-morado) 72%, transparent) 0%, transparent 62%),
+    radial-gradient(60% 55% at 4% 100%, color-mix(in oklch, var(--rl-azul) 42%, transparent) 0%, transparent 64%),
+    radial-gradient(130% 100% at 50% 45%, transparent 55%, oklch(0 0 0 / 0.5) 100%);
+}
+
+.grano {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.escena {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2.4vh, 1.75rem);
+}
+
+.cabecera { display: flex; flex-direction: column; gap: clamp(0.45rem, 1.1vh, 0.8rem); }
+
+.antetitulo {
+  margin: 0;
+  font-size: clamp(0.8rem, 0.9vw, 1.05rem);
+  font-weight: 700;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--rl-morado);
+}
+.noche .antetitulo, .morado .antetitulo { color: oklch(1 0 0 / 0.72); }
+
+/* Anton es condensada: sin el tracking negativo del sistema. */
+.titulo {
+  margin: 0;
+  max-width: 24ch;
+  font-family: var(--fuente-display, inherit);
+  font-weight: 400;
+  font-size: clamp(2.3rem, 4.4vw, 5rem);
+  line-height: 1.02;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+}
+
+.nota {
+  margin: 0;
+  max-width: 58ch;
+  font-size: clamp(1rem, 1.25vw, 1.4rem);
+  line-height: 1.4;
+  color: var(--tinta-2);
+}
+.noche .nota, .morado .nota { color: oklch(1 0 0 / 0.78); }
+
+.cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1rem, 2.6vh, 1.9rem);
+}
+
+.pie {
+  position: absolute;
+  z-index: 1;
+  left: clamp(1.25rem, 7vw, 8rem);
+  bottom: clamp(1rem, 3vh, 2rem);
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--tinta-3);
+}
+.noche .pie, .morado .pie { color: oklch(1 0 0 / 0.55); }
+
+/* EL CLIENTE: el hilo conductor. Un punto amarillo que emite su propia luz. */
+.punto {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--punto, 22px);
+  height: var(--punto, 22px);
+  border-radius: 50%;
+  background: var(--rl-amarillo);
+  box-shadow:
+    0 0 0 calc(var(--punto, 22px) * 0.28) color-mix(in oklch, var(--rl-amarillo) 22%, transparent),
+    0 0 calc(var(--punto, 22px) * 1.8) calc(var(--punto, 22px) * 0.35) color-mix(in oklch, var(--rl-amarillo) 45%, transparent);
+}
+
+/* .trazo: un trazo SVG con pathLength="1" que se dibuja al entrar. */
+.trazo { stroke-dasharray: 1; stroke-dashoffset: 0; }
+
+/* LA ENTRADA DE LA CASA (una sola forma de entrar): subir con fundido, escalonado por --i.
+   .brota: lo que aparece en su sitio (el punto). .trazo: líneas que se dibujan. */
+@keyframes rl-aparecer { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes rl-brotar { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+@keyframes rl-trazar { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .escena[data-animar='true']:not([data-visible='true']) :is(.aparece, .brota) { opacity: 0; }
+  .escena[data-animar='true']:not([data-visible='true']) .trazo { stroke-dashoffset: 1; }
+
+  .escena[data-visible='true'] .aparece {
+    animation: rl-aparecer var(--mov-paso) var(--mov-ease-escena) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+  .escena[data-visible='true'] .brota {
+    animation: rl-brotar 700ms var(--mov-ease-escena) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+  .escena[data-visible='true'] .trazo {
+    animation: rl-trazar var(--mov-trazo) var(--mov-ease-in-out) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+}
+
+@media print {
+  .pantalla { min-height: auto; break-after: page; }
+  .grano { display: none; }
+}
+
+@media (max-width: 700px) {
+  .pantalla { min-height: auto; }
+}

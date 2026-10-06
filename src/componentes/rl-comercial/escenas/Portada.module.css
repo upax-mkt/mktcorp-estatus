@@ -1,0 +1,96 @@
+/* 1 · PORTADA — el cliente nace como la fuente de luz de la escena.
+   Título a la izquierda; el punto, al centro de la columna derecha, con su halo
+   cálido detrás (quieto una vez abierto). Estado final = estado por defecto:
+   el halo solo se oculta bajo `.escena[data-animar]` sin `data-visible`. */
+
+.escena { justify-content: flex-start; }
+
+.logo {
+  display: block;
+  width: clamp(200px, 18vw, 320px);
+  height: auto;
+}
+
+.composicion {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: center;
+  column-gap: clamp(1.5rem, 4vw, 5rem);
+}
+
+.cabecera { gap: clamp(0.7rem, 1.8vh, 1.3rem); }
+
+.titulo {
+  max-width: 15ch;
+  font-size: clamp(3rem, 6.4vw, 7rem);
+  line-height: 0.98;
+}
+
+.nota {
+  max-width: 36ch;
+  margin-top: clamp(0.3rem, 1.2vh, 0.9rem);
+  font-size: clamp(1.05rem, 1.45vw, 1.6rem);
+}
+
+/* LA FUENTE DE LUZ: el punto en el centro de su columna y el halo centrado en él. */
+.fuente {
+  position: relative;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  min-height: clamp(220px, 34vh, 420px);
+}
+
+/* z-index -1: queda detrás del texto dentro de la escena y encima de la luz de fondo.
+   `translate` centra; `transform` queda libre para que el halo se abra. */
+.halo {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 50%;
+  width: clamp(420px, 54vw, 1000px);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--rl-amarillo) 30%, transparent) 0%,
+    color-mix(in oklch, var(--rl-amarillo) 16%, transparent) 13%,
+    color-mix(in oklch, var(--rl-amarillo) 7%, transparent) 32%,
+    color-mix(in oklch, var(--rl-amarillo) 2.5%, transparent) 58%,
+    transparent 100%
+  );
+}
+
+/* Dos órbitas apenas visibles: el punto es un centro, no un adorno. */
+.halo::before,
+.halo::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid oklch(1 0 0 / 0.09);
+}
+.halo::before { inset: 33%; }
+.halo::after { inset: 19%; border-color: oklch(1 0 0 / 0.055); }
+
+@keyframes abrir {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .escena[data-animar='true']:not([data-visible='true']) .halo { opacity: 0; }
+  .escena[data-visible='true'] .halo { animation: abrir 680ms var(--mov-ease-escena) 520ms both; }
+}
+
+@media (max-width: 900px) {
+  .composicion {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: clamp(1rem, 4vh, 2rem);
+    align-content: center;
+  }
+  .fuente { min-height: clamp(180px, 30vh, 280px); }
+  .halo { width: clamp(320px, 90vw, 560px); }
+}

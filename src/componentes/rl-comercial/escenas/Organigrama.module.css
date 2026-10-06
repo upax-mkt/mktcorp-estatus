@@ -1,0 +1,122 @@
+/* ESCENA 4 · EL ORGANIGRAMA. Clara; el amarillo solo en el punto (el cliente).
+   Los puestos nuevos se marcan con contorno morado grueso, nunca amarillo.
+   Todo el movimiento sale de las clases de la base (.aparece, .brota, .trazo). */
+
+/* El cuerpo es un contenedor de tamaño: aporta 0 al alto y se estira con flex. */
+/* Las unidades de contenedor (cqw/cqh) daban 0 en Chrome dentro de este flex: el
+   lienzo se pinta en absoluto, centrado, con su proporción y topado en ancho y alto
+   (el tope de alto se transfiere al ancho por la proporción): el mayor que cabe. */
+.cuerpo {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* Misma proporción que el viewBox (1248 × 612): el ancla del punto va en %. */
+.lienzo {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  aspect-ratio: 1248 / 612;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  font-family: var(--fuente-texto, inherit);
+}
+
+.ancla {
+  position: absolute;
+  display: flex;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  pointer-events: none;
+}
+
+/* Cajas */
+.caja { fill: oklch(1 0 0); stroke: var(--linea-fuerte); stroke-width: 1.5; }
+.cajaDireccion { stroke: var(--tinta); }
+.cajaNueva { stroke: var(--rl-morado); stroke-width: 3.5; }
+
+.rol {
+  font-family: var(--fuente-display, inherit);
+  font-size: 25px;
+  letter-spacing: 0.01em;
+  fill: var(--tinta);
+}
+.rolDireccion { font-size: 28px; }
+.persona { font-size: 16px; font-weight: 600; fill: var(--tinta); }
+.tarea { font-size: 14.5px; font-weight: 500; fill: var(--tinta-2); }
+
+.marca { fill: var(--rl-morado); }
+.marcaTexto {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  fill: oklch(1 0 0);
+}
+
+/* Líneas */
+.conector { fill: none; stroke: var(--tinta-3); stroke-width: 1.5; stroke-linejoin: round; }
+.converge { fill: none; stroke: var(--rl-morado); stroke-width: 2; stroke-linecap: round; }
+
+/* Inteligencia de Negocio */
+.hijo { font-size: 15px; font-weight: 500; fill: var(--tinta); }
+.hijoTarea { font-size: 13.5px; font-weight: 500; fill: var(--tinta-2); }
+.fuerte { font-weight: 700; }
+
+.cliente {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  fill: var(--tinta);
+}
+
+/* Operación */
+.banda {
+  fill: color-mix(in oklch, var(--rl-morado) 7%, oklch(1 0 0));
+  stroke: color-mix(in oklch, var(--rl-morado) 22%, transparent);
+  stroke-width: 1;
+}
+.bandaTitulo {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: var(--rl-morado);
+}
+.bandaLinea { font-size: 16px; font-weight: 500; fill: var(--tinta); }
+.division { stroke: color-mix(in oklch, var(--rl-morado) 25%, transparent); stroke-width: 1; }
+.area {
+  font-family: var(--fuente-display, inherit);
+  font-size: 24px;
+  letter-spacing: 0.01em;
+  fill: var(--tinta);
+}
+.quien { font-size: 15px; font-weight: 500; fill: var(--tinta-2); }
+
+/* Apoyos */
+.apoyo { fill: none; stroke: var(--tinta-3); stroke-width: 1.5; stroke-dasharray: 6 6; }
+.apoyoTexto { font-size: 15px; font-weight: 500; fill: var(--tinta); }
+.apoyoTarea { font-size: 14px; font-weight: 500; fill: var(--tinta-2); }
+
+/* Bajo 900 px se apila: el lienzo toma el ancho y su alto sale de la proporción. */
+@media (max-width: 899px) {
+  .cuerpo { flex: none; position: static; }
+  .lienzo { position: relative; inset: auto; margin: 0; width: 100%; max-height: none; }
+}
+
+@media print {
+  .cuerpo { flex: none; position: static; }
+  .lienzo { position: relative; inset: auto; margin: 0; width: 100%; max-height: none; }
+}

@@ -1,0 +1,239 @@
+/* CANDIDATOS (escena 7, energía 6): comparar → destacar.
+   Tres retratos editoriales con las filas alineadas entre columnas (subgrid).
+   MOVIMIENTO (quieta a los 1160 ms):
+   · 0 y 90 ms: antetítulo y título (.aparece de base).
+   · 180 / 225 / 270 ms: las tres columnas entran iguales, en escalón corto (.aparece).
+   · 360 ms: la línea de condiciones.
+   · 680 ms: el cliente brota sobre la columna de Rocío (.brota de base, acortado a 450 ms).
+   · 740 ms: en el mismo gesto, Violeta y Juan Carlos bajan al 55 % y Rocío se eleva 8 px
+     con el contorno encendido (420 ms, curva de lo que se mueve a la vista).
+   ESTADO FINAL = ESTADO POR DEFECTO: lo atenuado, lo elevado y el contorno están en el
+   CSS base; las animaciones solo existen bajo prefers-reduced-motion: no-preference y
+   arrancan con data-visible (lo pone Escena). Sin amarillo salvo el punto. */
+
+.terna {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(5, auto);
+  column-gap: clamp(1rem, 2.2vw, 2.5rem);
+  row-gap: 0;
+}
+
+.candidatura {
+  grid-row: span 5;
+  display: grid;
+  grid-template-rows: subgrid;
+}
+
+.retrato {
+  position: relative;
+  isolation: isolate;
+  grid-row: span 5;
+  display: grid;
+  grid-template-rows: subgrid;
+  padding: clamp(1rem, 2.4vh, 1.6rem) clamp(1rem, 1.6vw, 1.75rem) clamp(1rem, 2.6vh, 1.75rem);
+  border: 1px solid oklch(1 0 0 / 0.16);
+  background: oklch(1 0 0 / 0.03);
+}
+
+@supports not (grid-template-rows: subgrid) {
+  .candidatura { display: block; }
+  .retrato { display: flex; flex-direction: column; height: 100%; }
+}
+
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+/* El retrato: las iniciales en Anton, solo el trazo. */
+.monograma {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(3.2rem, min(5.6vw, 8.6vh), 7rem);
+  line-height: 0.82;
+  letter-spacing: 0.02em;
+  color: oklch(1 0 0 / 0.3);
+}
+
+@supports (-webkit-text-stroke: 1px) {
+  .monograma {
+    color: transparent;
+    -webkit-text-stroke: clamp(1px, 0.1vw, 2px) oklch(1 0 0 / 0.62);
+  }
+}
+
+.veredicto {
+  margin: 0;
+  padding: 0.38em 0.8em 0.42em;
+  border: 1px solid oklch(1 0 0 / 0.38);
+  border-radius: 999px;
+  font-size: clamp(0.8rem, min(0.95vw, 1.6vh), 1.05rem);
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: oklch(1 0 0 / 0.94);
+  background: color-mix(in oklch, var(--rl-morado) 34%, transparent);
+}
+
+.nombre {
+  margin: clamp(0.5rem, 1.3vh, 0.9rem) 0 0;
+  font-family: var(--fuente-display, inherit);
+  font-weight: 400;
+  font-size: clamp(1.6rem, min(2.4vw, 3.9vh), 3rem);
+  line-height: 1.02;
+  letter-spacing: 0.005em;
+  color: oklch(1 0 0);
+}
+
+.dato,
+.desarrollarEtiqueta,
+.condicionesEtiqueta {
+  font-weight: 600;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+}
+
+.dato {
+  margin: 0.4rem 0 0;
+  font-size: clamp(0.8rem, min(0.9vw, 1.5vh), 1.05rem);
+  color: oklch(1 0 0 / 0.62);
+}
+
+.fortalezas {
+  list-style: none;
+  margin: clamp(0.8rem, 2vh, 1.3rem) 0 0;
+  padding: clamp(0.8rem, 2vh, 1.3rem) 0 0;
+  border-top: 1px solid oklch(1 0 0 / 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  font-size: clamp(0.92rem, min(1.08vw, 1.75vh), 1.3rem);
+  line-height: 1.32;
+  color: oklch(1 0 0 / 0.9);
+}
+
+.fortalezas li {
+  position: relative;
+  padding-left: 1.05em;
+}
+
+.fortalezas li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 0.5em;
+  height: 2px;
+  background: color-mix(in oklch, var(--rl-morado) 50%, white);
+}
+
+.desarrollar {
+  margin-top: clamp(0.8rem, 2vh, 1.3rem);
+  padding-top: clamp(0.7rem, 1.6vh, 1.1rem);
+  border-top: 1px solid oklch(1 0 0 / 0.14);
+}
+
+.desarrollarEtiqueta {
+  margin: 0 0 0.35rem;
+  font-size: clamp(0.8rem, min(0.9vw, 1.5vh), 1.05rem);
+  color: color-mix(in oklch, var(--rl-morado) 40%, white);
+}
+
+.desarrollarTexto {
+  margin: 0;
+  font-size: clamp(0.92rem, min(1.08vw, 1.75vh), 1.3rem);
+  line-height: 1.32;
+  color: oklch(1 0 0 / 0.78);
+}
+
+/* DESTACAR. Estado final por defecto: las otras dos al 55 %; Rocío elevada, con el
+   contorno blanco/morado encendido (en ::before, detrás del texto). */
+.atenuada {
+  opacity: 0.55;
+}
+
+.destacada {
+  transform: translateY(-0.5rem);
+}
+
+.destacada::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  pointer-events: none;
+  border: 1.5px solid oklch(1 0 0 / 0.82);
+  background: color-mix(in oklch, var(--rl-morado) 24%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--rl-morado) 55%, transparent),
+    0 1.75rem 4rem -1.25rem color-mix(in oklch, var(--rl-morado) 85%, transparent);
+}
+
+/* El cliente, posado en lo alto de la columna de Rocío. Se coloca con top/left y no con
+   transform: el transform es de .brota. */
+.retrato > .punto {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--punto, 20px) * -0.5);
+  left: calc(50% - var(--punto, 20px) * 0.5);
+}
+
+.condiciones {
+  margin: 0;
+  font-size: clamp(0.85rem, min(0.98vw, 1.65vh), 1.15rem);
+  line-height: 1.45;
+  color: oklch(1 0 0 / 0.66);
+}
+
+.condicionesEtiqueta {
+  margin-right: 0.35em;
+  font-size: 0.86em;
+  color: oklch(1 0 0 / 0.86);
+}
+
+@keyframes atenuar { from { opacity: 1; } to { opacity: 0.55; } }
+@keyframes elevar { from { transform: none; } to { transform: translateY(-0.5rem); } }
+@keyframes encender { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Mientras las columnas entran, las tres están iguales (fill both sostiene el `from`). */
+  .escena[data-visible='true'] .atenuada {
+    animation: atenuar 420ms var(--mov-ease-in-out) 740ms both;
+  }
+  .escena[data-visible='true'] .destacada {
+    animation: elevar 420ms var(--mov-ease-in-out) 740ms both;
+  }
+  .escena[data-visible='true'] .destacada::before {
+    animation: encender 420ms var(--mov-ease-in-out) 740ms both;
+  }
+  /* El punto usa .brota de base; aquí solo su momento: tras la comparación, antes del destacado. */
+  .escena[data-visible='true'] .retrato > .punto {
+    animation-duration: 450ms;
+    animation-delay: 680ms;
+  }
+}
+
+@media (max-width: 900px) {
+  .terna {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    row-gap: 1.5rem;
+  }
+
+  .candidatura {
+    grid-row: auto;
+    display: block;
+  }
+
+  .retrato {
+    grid-row: auto;
+    display: flex;
+    flex-direction: column;
+  }
+}

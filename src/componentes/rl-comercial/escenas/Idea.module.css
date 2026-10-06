@@ -1,0 +1,51 @@
+/* 2 · LA IDEA — una cita gigante cuyo punto final es el cliente.
+   Morado sólido: el texto nunca va sobre el degradado de marca. La viñeta es
+   del mismo tono (oscurece hacia la noche, no vira al azul) y deja limpio el
+   centro, donde se lee. */
+
+.vineta {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(125% 100% at 50% 45%, transparent 58%, color-mix(in oklch, var(--rl-noche) 45%, transparent) 100%);
+}
+
+/* El ritmo de la cita: escalón de palabra (60 ms) y paso corto (420 ms), para
+   que la frase completa, la pausa y el punto quepan en 1200 ms. */
+.cuerpo {
+  --mov-escalon: 60ms;
+  --mov-paso: 420ms;
+  justify-content: center;
+  gap: clamp(1.4rem, 4vh, 3rem);
+}
+
+.cita {
+  max-width: none;
+  font-size: clamp(3.4rem, 8.4vw, 9.4rem);
+  line-height: 0.96;
+  letter-spacing: 0.004em;
+}
+
+.linea { display: block; }
+.palabra { display: inline-block; }
+
+/* «sabe» y su punto nunca se separan. */
+.final { white-space: nowrap; }
+
+/* El punto final: en la línea base (un inline-block vacío apoya su borde
+   inferior en ella), con el aire de un punto tipográfico. */
+.punto { margin-left: 0.05em; }
+
+.explicacion {
+  max-width: 44ch;
+  font-size: clamp(1.15rem, 1.7vw, 1.95rem);
+  line-height: 1.38;
+  font-weight: 500;
+  color: oklch(1 0 0 / 0.88);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* El punto es un sello: brota en 300 ms, después de la pausa (900 → 1200 ms). */
+  .escena[data-visible='true'] .punto.punto { animation-duration: 300ms; }
+}
