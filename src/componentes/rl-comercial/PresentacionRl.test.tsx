@@ -49,7 +49,7 @@ describe('PresentacionRl', () => {
     for (const valor of ['32%', '23%', '18%', '3%']) {
       expect(screen.getAllByText(valor).length).toBeGreaterThan(0)
     }
-    expect(screen.getByText(/Contra un competidor, solo el 3%/)).toBeTruthy()
+    expect(screen.getByText('Contra un competidor')).toBeTruthy()
   })
 
   it('la meta se lee contra lo facturado: $10.2M en 2025 y $34.8M en el plan', () => {

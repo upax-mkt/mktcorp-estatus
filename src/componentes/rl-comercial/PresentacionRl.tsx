@@ -47,7 +47,6 @@ const COMPETIDOR = 'Contra un competidor'
 
 export function PresentacionRl() {
   const maximo = Math.max(...PERDIDOS_2026.motivos.map((m) => m.negocios))
-  const competidor = PERDIDOS_2026.motivos.find((m) => m.motivo === COMPETIDOR)?.negocios ?? 0
 
   return (
     <div className={estilos.documento}>
@@ -122,9 +121,6 @@ export function PresentacionRl() {
                 </li>
               ))}
             </ul>
-            <p className={`${estilos.nota} ${estilos.aparece}`} style={orden(7)}>
-              Contra un competidor, solo el {porcentaje(competidor)}%.
-            </p>
           </div>
         </Escena>
         <Pie>
