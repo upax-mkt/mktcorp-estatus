@@ -96,17 +96,22 @@ export const EVENTOS: Evento[] = [
     presentan: ['House of Films', 'Promo Espacio'],
     fecha: 'Jueves 5 de noviembre',
     hora: '7:15 pm',
-    sede: 'The Midnight Monkey',
-    direccion: 'Plaza Río de Janeiro 54, col. Roma, CDMX',
+    // La sede cambió a Casa Nahua, la misma de Soledad (David, #mkt-fire-experiences, 8-oct-2026).
+    sede: 'Casa Nahua',
+    direccion: 'Barcelona 27, col. Juárez, CDMX',
     resumen:
       'Experiencia gastronómica con miracle berry: los mismos sabores, antes y después de transformar su percepción. La dinámica representa a House of Films y Promo Espacio: convertir una gran idea en producción audiovisual y hacerla vivir en el momento, el lugar y el formato adecuados para generar impacto.',
     keyVisual: m('kv-miracle.webp', 'Key visual promocional de Miracle Signal', 1600, 900),
     fotos: [
-      m('venue-miracle-1.webp', 'The Midnight Monkey', 1280, 960),
-      m('venue-miracle-barra.webp', 'Barra de The Midnight Monkey', 478, 850),
-      m('venue-miracle-3.webp', 'Salón de The Midnight Monkey', 1280, 960),
+      m('venue-soledad-1.webp', 'Casa Nahua', 464, 832),
+      m('venue-soledad-2.webp', 'Patio de Casa Nahua', 464, 832),
+      m('venue-soledad-3.webp', 'Escalera de Casa Nahua', 464, 832),
     ],
+    // Las dos invitaciones digitales con la sede nueva (Santiago Arango; César las reenvió el 15-oct-2026):
+    // 3:4 para el WhatsApp de los SDR y 1:1 para LinkedIn, que va sin sede.
     materiales: [
+      m('inv-miracle-whatsapp.webp', 'Invitación de Miracle Signal (WhatsApp)', 1080, 1440),
+      m('inv-miracle-linkedin.webp', 'Invitación de Miracle Signal (LinkedIn)', 1200, 1200),
       m('mail-miracle-invitacion.webp', 'Correo de invitación de Miracle Signal', 640, 1606),
       m('landing-miracle-registro.webp', 'Landing de registro de Miracle Signal', 1600, 832),
       m('landing-miracle-confirmacion.webp', 'Landing de confirmación de Miracle Signal', 1600, 835),

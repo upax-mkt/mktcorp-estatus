@@ -94,7 +94,7 @@ describe('presentación Q3', () => {
     // Y el anexo trae lo que en pantalla no se ve de un vistazo: las cuatro etapas, los 16 negocios y todas las piezas.
     expect(within(container.querySelector('#anexo-demanda')!).getAllByRole('row')).toHaveLength(1 + 7 + 1 + 1)
     expect(within(container.querySelector('#anexo-ganados')!).getAllByRole('row')).toHaveLength(2 + 16)
-    expect(container.querySelectorAll('#anexo-piezas-kaitai img, #anexo-piezas-miracle img, #anexo-piezas-soledad img')).toHaveLength(5 + 5 + 4)
+    expect(container.querySelectorAll('#anexo-piezas-kaitai img, #anexo-piezas-miracle img, #anexo-piezas-soledad img')).toHaveLength(5 + 7 + 4)
   })
 
   it('nadie que no presenta aparece como dueño de una lámina', () => {
