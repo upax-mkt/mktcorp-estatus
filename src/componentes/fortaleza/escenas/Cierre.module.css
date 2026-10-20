@@ -1,0 +1,76 @@
+/* 16 · CIERRE — la petición (ronda 2, 20-oct-2026). Lámina tranquila: nada se anima.
+
+   La misma foto de la cumbre, con el mismo encuadre (object-position 50% 4%, igual que Lleno.module.css) y un velo
+   más pesado sobre el bloque de texto; el teatro lleno sigue a la vista hacia el escenario (derecha y abajo).
+
+   TAMAÑOS DE PROYECCIÓN, y grandes: la propuesta y los alcances a 1.35 veces la nota (≈ 42 px a 1920); la pregunta,
+   a 0.8 veces el título de lámina (64 px a 1920). Escalan con la pantalla. */
+
+.pantalla { background: var(--fm-fondo); }
+
+.foto {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.foto img {
+  object-fit: cover;
+  object-position: 50% 4%;
+}
+
+/* Oscuro detrás del texto (arriba a la izquierda), más claro hacia el escenario: la foto se sostiene. */
+.velo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(85% 80% at 20% 28%, #0b0a1ffa 0%, #0b0a1feb 42%, #0b0a1fa6 72%, #0b0a1f66 100%),
+    linear-gradient(180deg, #0b0a1fb3 0%, #0b0a1f73 55%, #0b0a1fcc 100%);
+}
+
+.escena { gap: 0; }
+
+.peticion {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.35rem, 1vh, 0.75rem);
+}
+.propuesta,
+.alcances {
+  margin: 0;
+  max-width: 30em;
+  font-size: calc(var(--fm-t-nota) * 1.35);
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+.propuesta { font-weight: 700; color: var(--fm-tinta); }
+.alcances { font-weight: 500; color: var(--fm-tinta-2); }
+
+/* El filo, en naranja: el único acento de la lámina, el color de las butacas llenas, sobre la pregunta de qué llenar
+   primero. (El magenta y el azul del degradado de marca se quedan en la cumbre y en las luces de fondo.) */
+.filo {
+  display: block;
+  width: clamp(5rem, 9vw, 10rem);
+  height: clamp(4px, 0.6vh, 8px);
+  margin: clamp(1.4rem, 4vh, 3rem) 0;
+  border-radius: 99px;
+  background: var(--fm-naranja);
+  box-shadow: 0 0 14px color-mix(in oklch, var(--fm-naranja) 60%, transparent);
+}
+
+.pregunta {
+  margin: 0;
+  max-width: 19em;
+  font-family: var(--fuente-display, inherit);
+  font-size: calc(var(--fm-t-titulo) * 0.8);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+/* La pregunta abre su propio renglón; las tres opciones, debajo. */
+.preguntaInicio { display: block; }

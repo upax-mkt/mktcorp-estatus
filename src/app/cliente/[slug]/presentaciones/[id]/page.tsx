@@ -29,11 +29,32 @@ type Params = Promise<{ slug: string; id: string }>
  *   variable no existe en este despliegue, no se abre para nadie de fuera.
  *
  * La de Research Land trae la evaluación de las candidatas a PM, que trabajan en RL: por eso la clave.
+ * Una presentación `abierta` (la de Fortaleza Mexicana, 20-oct-2026) se ve con la liga, sin clave y sin el enlace
+ * de regreso a la sala: es para alguien de fuera del hub.
  */
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug, id } = await params
   const p = presentacionDeSala(slug, id)
-  return { title: p?.titulo ?? 'Presentación', robots: { index: false, follow: false } }
+  const robots = { index: false, follow: false }
+  // Una presentación abierta se manda a alguien de fuera: su liga enseña la pieza, no la sala ni el hub.
+  if (p?.abierta && p.vistaPrevia) {
+    const titulo = `${p.titulo} · Grupo UPAX`
+    return {
+      title: { absolute: titulo },
+      description: p.vistaPrevia.descripcion,
+      robots,
+      openGraph: {
+        title: titulo,
+        description: p.vistaPrevia.descripcion,
+        siteName: 'Grupo UPAX',
+        locale: 'es_MX',
+        type: 'website',
+        images: [{ url: p.vistaPrevia.imagen, width: 1200, height: 630, alt: p.titulo }],
+      },
+      twitter: { card: 'summary_large_image', title: titulo, description: p.vistaPrevia.descripcion, images: [p.vistaPrevia.imagen] },
+    }
+  }
+  return { title: p?.titulo ?? 'Presentación', robots }
 }
 
 async function abrirConClave(slug: string, id: string, formData: FormData): Promise<void> {
@@ -84,7 +105,19 @@ export default async function PaginaPresentacionDeSala({
       <div>
         <BarraNavegacion hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
         <ProveedorTema tema={tema} superficie="clara">
-          <ModoPresentar personas={[]}>
+          <ModoPresentar personas={[]} transiciones={vista.transiciones}>
+            <Componente />
+          </ModoPresentar>
+        </ProveedorTema>
+      </div>
+    )
+  }
+
+  if (p.abierta) {
+    return (
+      <div>
+        <ProveedorTema tema={tema} superficie="clara">
+          <ModoPresentar personas={[]} botonArriba transiciones={vista.transiciones}>
             <Componente />
           </ModoPresentar>
         </ProveedorTema>
@@ -101,7 +134,7 @@ export default async function PaginaPresentacionDeSala({
           <Link href={`/cliente/${slug}`}>← Sala de {tema.nombre}</Link>
         </nav>
         <ProveedorTema tema={tema} superficie="clara">
-          <ModoPresentar personas={[]}>
+          <ModoPresentar personas={[]} transiciones={vista.transiciones}>
             <Componente />
           </ModoPresentar>
         </ProveedorTema>

@@ -1,0 +1,104 @@
+/* 7 · CIUDAD — Frente 1 · «Que la ciudad lo vea», las pantallas (ronda 2).
+   Una sala a oscuras con un solo objeto encendido. Arriba, la cabecera (las unidades del frente en el renglón del
+   título). Debajo, dos columnas que arrancan a la misma altura: las tres tarjetas, una debajo de otra, con su unidad
+   en el renglón del título; y el poster de Malinche, alto, con la luz que echa, que se funde justo encima del aforo
+   chico (`base.aforoEsquina`, que no se mueve de su esquina). Sin foto de fondo: la luz es la del poster y la base.
+   Estado final = estado por defecto: lo oculto solo existe bajo `.escena[data-animar='true']:not([data-visible])`
+   en pantalla y con movimiento permitido (las entradas son las de la base). Impreso, todo en su estado final. */
+
+.composicion {
+  /* El ancho del poster sigue a la pantalla y a su alto: 383 px a 1920 × 1080, 273 a 1366 × 768. Así cabe la cabecera
+     con sus logos en un renglón, y el poster (recortado de una foto) no se amplía de más. */
+  --ancho-cartel: clamp(12rem, min(20vw, 35.5vh), 25rem);
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ancho-cartel);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'cab   .'
+    'lista cartel';
+  gap: clamp(1.5rem, 5vh, 3.5rem) clamp(1.5rem, 3.5vw, 4.5rem);
+}
+
+/* La cabecera: antetítulo y título; las unidades del frente firman junto al título, a su pie. La 8 la repite igual
+   (mismo frente): el título se queda quieto en el corte y solo cambian los logos, en el mismo lugar. */
+.cabecera {
+  grid-area: cab;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: clamp(0.5rem, 1.2vh, 0.9rem) clamp(1.5rem, 3vw, 3rem);
+}
+.titulo { max-width: none; }
+.cabecera .firma {
+  flex-wrap: nowrap;
+  padding-bottom: clamp(0.4rem, 1vh, 0.75rem);
+}
+
+/* ---- el poster: la pantalla encendida ---- */
+
+/* Arranca a la altura de la primera tarjeta y su pie se funde justo encima del aforo: la pantalla alumbra la sala. */
+.cartel {
+  grid-area: cartel;
+  align-self: start;
+  position: relative;
+}
+/* La luz que echa la pantalla en la sala a oscuras: un halo detrás del poster, del color de su arte (verde dorado) y
+   suave. Sin naranja: es de las butacas. */
+.cartel::before {
+  content: '';
+  position: absolute;
+  inset: -12% -42% 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, oklch(0.78 0.12 128 / 0.3), oklch(0.78 0.12 128 / 0.09) 60%, transparent);
+}
+.cartel .foto {
+  width: 100%;
+  aspect-ratio: 865 / 1210;
+  border: 0;
+  border-radius: 14px 14px 0 0;
+  background: transparent;
+  /* Abajo, el corte del poster se funde con la noche: queda la pantalla encendida, no un recorte. */
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
+  mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
+}
+
+/* ---- las tarjetas: una debajo de otra, con quién lo hace en el renglón del título ---- */
+
+.lista {
+  grid-area: lista;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.7rem, 1.8vh, 1.25rem);
+}
+.lista .tarjeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: clamp(1rem, 2vw, 2rem);
+}
+.lista .tarjeta > :nth-child(2) { grid-column: 1 / -1; }
+.lista .tarjeta > :nth-child(3) {
+  grid-row: 1;
+  grid-column: 2;
+  margin: 0;
+  padding: 0;
+}
+
+/* BAJO 760 PX SE APILA: cabecera (con los logos debajo del título), el poster y las tres tarjetas; el aforo queda al
+   final (base). */
+@media (max-width: 760px) {
+  .composicion {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: 'cab' 'cartel' 'lista';
+    row-gap: 1.25rem;
+  }
+  .cartel { justify-self: center; width: min(100%, 22rem); }
+  .cabecera .firma { flex-wrap: wrap; padding-bottom: 0; }
+  .lista .tarjeta { grid-template-columns: minmax(0, 1fr); }
+  .lista .tarjeta > :nth-child(3) { grid-row: auto; grid-column: 1; }
+}

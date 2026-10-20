@@ -1,0 +1,183 @@
+/* 4 · SUMAR — «Dónde podemos sumar»: cinco oportunidades en vidrio sobre la tienda de Malinche, con velo.
+
+   Composición (tablero, no rejilla): tres columnas y tres filas que llenan la escena. A la izquierda, Pantallas a
+   todo lo alto con una pantalla vertical encendida (dibujada, rotulada «Ilustración»); al centro, Empresas, El venue
+   y Lunes a miércoles, una sobre otra; a la derecha, Pelota Mestiza con su mesa servida y, debajo, el aforo (la mitad
+   vacía en contorno, quieta), que es la celda de abajo a la derecha.
+
+   Ronda 2 (20-oct-2026): letra de proyección de la base (título de tarjeta 36 px a 1920, texto 28, rótulo 22); aquí ya
+   no hay tamaños propios. El tablero baja hasta la línea de abajo del aforo: la de las demás escenas, que cuelga
+   bajo la escena lo que dice `.aforoEsquina` en la base. La tercera columna mide lo que el aforo chico
+   (Aforo.module.css) más un aire, y la tercera fila, lo que él: Pelota Mestiza termina justo encima.
+
+   Movimiento: la entrada de la casa en las tarjetas; las dos fotos se asientan (escala × 1.08 → × 1) con la misma
+   curva y duración, con el resguardo de la base (solo bajo `data-animar`, en pantalla y sin movimiento reducido).
+   Las reglas que cambian algo de la base llevan dos clases, para no depender del orden de las hojas. */
+
+.pantalla {
+  --u: min(1vw, 1.7778vh);
+  /* Las dos medidas del aforo de la esquina, tal como las fija lo compartido: su ancho (`data-tam='chico'` en
+     Aforo.module.css) y lo que cuelga bajo la escena (`.aforoEsquina` en base.module.css). */
+  --sumar-aforo: clamp(190px, min(16vw, 28.4vh), 320px);
+  --sumar-cuelga: clamp(1.5rem, 4vh, 3.2rem);
+}
+
+.escena { justify-content: flex-start; }
+
+.cuerpo { min-height: 0; }
+
+.tablero {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) calc(var(--sumar-aforo) + 1.5 * var(--u));
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: clamp(0.65rem, calc(0.95 * var(--u)), 1.2rem);
+  /* Hasta la línea de abajo del aforo. */
+  margin-bottom: calc(-1 * var(--sumar-cuelga));
+}
+
+/* Vidrio hondo: velo de luz en diagonal, filo arriba, sombra larga, y el fondo refractado con más vida. */
+.tablero .tarjeta {
+  border-color: oklch(1 0 0 / 0.17);
+  background-image: linear-gradient(135deg, oklch(1 0 0 / 0.1) 0%, oklch(1 0 0 / 0.025) 42%, transparent 70%);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5) brightness(1.08);
+  backdrop-filter: blur(20px) saturate(1.5) brightness(1.08);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.2),
+    0 34px 70px -38px oklch(0 0 0 / 0.85);
+}
+
+.tablero .pantallas { grid-column: 1; grid-row: 1 / span 3; gap: clamp(0.5rem, 1.1vh, 0.8rem); }
+.tablero .empresas { grid-column: 2; grid-row: 1; }
+.tablero .venue { grid-column: 2; grid-row: 2; }
+.tablero .semana { grid-column: 2; grid-row: 3; }
+.tablero .pelota { grid-column: 3; grid-row: 1 / span 2; gap: clamp(0.5rem, 1.1vh, 0.8rem); }
+
+/* EL AFORO: la celda de abajo a la derecha, pegado a su esquina (como `.aforoEsquina`, a la misma altura). */
+.tablero .aforo {
+  grid-column: 3;
+  grid-row: 3;
+  justify-self: end;
+  align-self: end;
+}
+
+/* Las tarjetas de texto: la idea al centro de su vidrio. */
+.empresas, .venue, .semana { justify-content: center; }
+
+/* LA PANTALLA ENCENDIDA: llena lo que deja el texto. Un poster LED dibujado (marco grafito, el arte de Malinche y su
+   logo) con el halo de la luz que da; rotulado «Ilustración», como el teléfono del Frente 2. */
+.vitrina {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 0 clamp(0.15rem, 0.5vh, 0.4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.45rem, 1.1vh, 0.8rem);
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--fm-vidrio-borde);
+  background:
+    radial-gradient(52% 42% at 50% 44%, color-mix(in oklch, var(--fm-naranja) 30%, transparent), transparent 72%),
+    radial-gradient(90% 55% at 50% 105%, color-mix(in oklch, var(--fm-azul) 26%, transparent), transparent 70%),
+    var(--fm-fondo);
+}
+.totem {
+  position: relative;
+  height: 76%;
+  aspect-ratio: 0.42;
+  padding: clamp(5px, 0.45vw, 8px) clamp(5px, 0.45vw, 8px) clamp(9px, 0.8vw, 14px);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #2c2a44, #141329);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.2),
+    0 0 52px -8px color-mix(in oklch, var(--fm-naranja) 60%, transparent),
+    0 26px 44px -14px oklch(0 0 0 / 0.85);
+}
+.totemPantalla {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #000;
+}
+.totemPantalla img { object-fit: cover; }
+.totemPantalla::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 48%, #0b0a1fe0 88%);
+}
+.totemPantalla .totemLogo {
+  position: absolute;
+  z-index: 1;
+  left: 9%;
+  bottom: 7%;
+  width: 82%;
+  height: auto;
+  object-fit: contain;
+}
+.rotulo {
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fm-tinta-3);
+}
+
+.pelota .mesa {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 0 clamp(0.15rem, 0.5vh, 0.4rem);
+  border-radius: 12px;
+}
+
+/* ---- movimiento propio ---- */
+
+@keyframes asentar {
+  from { scale: calc(var(--zoom, 1) * 1.08); }
+  to { scale: var(--zoom, 1); }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .escena[data-animar='true']:not([data-visible='true']) .asienta img { scale: calc(var(--zoom, 1) * 1.08); }
+  .escena[data-visible='true'] .asienta img {
+    animation: asentar var(--mov-paso) var(--mov-ease-escena) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+}
+
+/* Impresa: estado final aunque la escena llegue a la pantalla en el mismo `beforeprint`. */
+@media print {
+  .escena *,
+  .escena *::before,
+  .escena *::after { animation: none !important; transition: none !important; }
+  .tablero .tarjeta {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-image: none;
+    box-shadow: none;
+  }
+}
+
+/* BAJO 760 PX SE APILA: una tarjeta tras otra, en el orden del guion; el aforo al final, a la derecha. */
+@media (max-width: 760px) {
+  .tablero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    margin-bottom: 0;
+  }
+  .tablero .pantallas,
+  .tablero .empresas,
+  .tablero .venue,
+  .tablero .semana,
+  .tablero .pelota,
+  .tablero .aforo { grid-column: 1; grid-row: auto; }
+  .empresas, .venue, .semana { justify-content: flex-start; }
+  .vitrina { flex: none; aspect-ratio: 1.1; }
+  .pelota .mesa { flex: none; aspect-ratio: 1.6; }
+}

@@ -1,0 +1,140 @@
+/* 13 · MEDIR — Frente 5 · «Entender y medir» (ronda 2, 20-oct-2026, motion-studio).
+
+   COMPOSICIÓN: arriba, tres piezas en fila — el título con sus logos a la izquierda, la cara del guitarrista libre al
+   centro y la premisa a la derecha, sobre el negro de la foto. Abajo, anclados, los estudios en dos filas: «Quién más
+   puede venir» y «Lo que se dice»; el podcast con su foto y «Cada semana», que termina donde empieza el aforo.
+
+   LA FOTO: acercada 1.25 desde la esquina de abajo a la derecha (transform en la imagen, no en el marco). En 16:9 y en
+   16:10 la cara del guitarrista cae entre el 47 y el 58 % del ancho y entre el 19 y el 38 % del alto: entre el título
+   y la premisa, por encima de los estudios. El músico de la izquierda queda fuera de cuadro.
+
+   TAMAÑOS DE PROYECCIÓN: los de la base; la frase de la premisa, a 1.45 veces el título de tarjeta. Nada se achica.
+
+   Las reglas que tocan a Tarjeta y a Foto (piezas de comun.tsx) van con un nivel más de especificidad que las de
+   base.module.css, para no depender del orden en que se cargan las hojas.
+
+   MOVIMIENTO: solo .aparece de la base, escalonado con orden(i). Estado final = estado por defecto. */
+
+.pantalla {
+  /* El ancho del aforo chico de la esquina (Aforo.module.css, data-tam='chico') y el aire que lo separa. */
+  --aforo-ancho: clamp(190px, min(16vw, 28.4vh), 320px);
+  --aire: clamp(0.7rem, 1.1vw, 1.25rem);
+  background: #050409;
+}
+
+/* ---- la foto y su velo ---- */
+
+.foto {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.foto img {
+  object-fit: cover;
+  object-position: 60% 50%;
+  transform: scale(1.25);
+  transform-origin: 100% 100%;
+}
+
+/* Oscuro bajo el título (izquierda), bajo la premisa (derecha) y bajo los estudios (abajo); el guitarrista, al centro,
+   con velo ligero. */
+.pantalla > .velo {
+  background:
+    linear-gradient(90deg, #0b0a1ff2 0%, #0b0a1fc2 28%, #0b0a1f4d 46%, #0b0a1f4d 60%, #0b0a1fb3 76%, #0b0a1fe6 100%),
+    linear-gradient(180deg, #0b0a1f73 0%, transparent 24%, transparent 42%, #0b0a1f99 62%, #0b0a1ff2 100%);
+}
+
+.escena { gap: clamp(0.8rem, 2vh, 1.5rem); }
+
+/* ---- arriba: título | cara | premisa ---- */
+
+.arriba {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: clamp(1rem, 3vw, 3rem);
+}
+
+.titulo { max-width: none; white-space: nowrap; }
+
+.firma { margin-top: clamp(0.2rem, 0.8vh, 0.55rem); }
+
+/* La premisa: la etiqueta pegada a la frase, sin caja; un filo a la izquierda la ancla. */
+.premisa {
+  flex: none;
+  width: min(36%, 35rem);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.45rem, 1.2vh, 0.85rem);
+  padding-left: clamp(0.9rem, 1.5vw, 1.75rem);
+  border-left: 2px solid oklch(1 0 0 / 0.32);
+}
+.premisaEtiqueta {
+  margin: 0;
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fm-tinta-2);
+}
+.premisaFrase {
+  margin: 0;
+  font-size: calc(var(--fm-t-tarjeta) * 1.45);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--fm-tinta);
+  text-shadow: 0 2px 24px oklch(0 0 0 / 0.45);
+}
+.premisa .quien { margin-top: 0.15rem; }
+
+/* ---- abajo: los estudios, en dos filas ---- */
+
+/* Tres columnas: la ancha (quién más puede venir y el podcast), la angosta («Cada semana») y la del aforo, que en la
+   segunda fila queda libre. «Lo que se dice» ocupa la angosta y la del aforo: arriba no hay aforo. */
+.estudios {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.55fr) var(--aforo-ancho);
+  gap: var(--aire);
+}
+.estudios .quienMas { grid-column: 1; }
+.estudios .seDice { grid-column: 2 / -1; }
+
+/* «Noche de Jueves»: la foto y su tarjeta, una sola pieza. */
+.jueves {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.45fr) minmax(0, 1fr);
+}
+.jueves .juevesFoto {
+  margin: 0;
+  border-radius: 18px 0 0 18px;
+  border-right: 0;
+}
+.jueves .juevesTarjeta { border-radius: 0 18px 18px 0; }
+
+.estudios .semana { grid-column: 2; }
+
+@media (max-width: 1000px) {
+  .arriba { flex-direction: column; }
+  .premisa { width: auto; }
+  .estudios { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .estudios .quienMas,
+  .estudios .seDice { grid-column: auto; }
+  .jueves { grid-column: 1 / -1; }
+  .estudios .semana { grid-column: 1 / -1; margin-right: calc(var(--aforo-ancho) + var(--aire)); }
+}
+
+/* BAJO 760 PX SE APILA: todo en una columna; el aforo, al final. */
+@media (max-width: 760px) {
+  .titulo { white-space: normal; }
+  .estudios { grid-template-columns: minmax(0, 1fr); }
+  .jueves { grid-template-columns: minmax(0, 1fr); grid-template-rows: 11rem auto; }
+  .jueves .juevesFoto { border-radius: 18px 18px 0 0; border-right: 1px solid var(--fm-vidrio-borde); border-bottom: 0; }
+  .jueves .juevesTarjeta { border-radius: 0 0 18px 18px; }
+  .estudios .semana { margin-right: 0; }
+}

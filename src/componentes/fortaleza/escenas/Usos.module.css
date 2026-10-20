@@ -1,0 +1,70 @@
+/* 11 · USOS — Frente 3, segunda pantalla · las cinco acciones (ronda 2, 20-oct-2026).
+   UN PROGRAMA DE MANO: dos columnas de entradas separadas por filetes, sin cajas. La izquierda, más ancha, lleva tres
+   (clientes, kit, sedes); la derecha, dos (Pelota Mestiza, media days) y deja debajo el lugar del aforo. Los filetes
+   de arriba de las dos columnas caen en la misma línea.
+   TAMAÑOS DE PROYECCIÓN: los de la base (título 36, texto 28, «quién» 22 a 1920), sin reglas propias que los bajen.
+   Sin foto: la luz y el grano de la base, más una luz cálida de sala detrás del programa. Quieta.
+   Sin movimiento propio: solo `.aparece` de la base. Estado final = estado por defecto. */
+
+.escena .titulo { max-width: none; }
+
+/* Los logos, bajo el título, como en las demás escenas de frente. */
+.firma { margin-top: clamp(0.15rem, 0.5vh, 0.4rem); }
+
+/* La luz de sala: un baño cálido y muy bajo detrás del programa, y un poco de magenta al pie (luces de fondo). */
+.sala {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 60% at 30% 62%, color-mix(in oklch, var(--fm-naranja) 10%, transparent) 0%, transparent 70%),
+    radial-gradient(45% 45% at 78% 96%, color-mix(in oklch, var(--fm-magenta) 14%, transparent) 0%, transparent 72%);
+}
+
+/* ---------- EL PROGRAMA ---------- */
+
+.programa {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: start;
+  align-content: center;
+  column-gap: clamp(2rem, 4.2vw, 5.5rem);
+}
+
+.columna {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Una entrada: filete arriba, título, texto y quién. */
+.accion {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.3rem, min(0.5vw, 0.9vh), 0.7rem);
+  padding-block: clamp(0.75rem, min(1vw, 1.8vh), 1.35rem);
+  border-top: 1px solid oklch(1 0 0 / 0.2);
+}
+/* El filete de cabecera de cada columna, más firme, como en un programa impreso: los dos caen en la misma línea. */
+.accion:first-child {
+  padding-top: clamp(0.9rem, min(1.2vw, 2.1vh), 1.6rem);
+  border-top: 2px solid oklch(1 0 0 / 0.38);
+}
+/* En la entrada, el «quién» va pegado al texto (en una tarjeta de la base cae al fondo de la caja). */
+.accion .quien { margin-top: 0; }
+
+/* ---------- RESPALDOS ---------- */
+
+/* Teléfono angosto: una sola columna. */
+@media (max-width: 760px) {
+  .programa { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Impreso: el cuadro final, sin animaciones a medio camino. */
+@media print {
+  .escena *,
+  .escena *::before,
+  .escena *::after { animation: none !important; }
+}

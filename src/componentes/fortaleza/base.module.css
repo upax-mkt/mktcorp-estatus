@@ -1,0 +1,320 @@
+/* LA BASE DE «LO QUEREMOS LLENO» (20-oct-2026, motion-studio).
+   Propuesta de Grupo UPAX para la Sra. María Laura Medina de Salinas: Fortaleza Mexicana, Malinche,
+   el Frontón México y Pelota Mestiza. Guion técnico: `~/CMO Copilot/sesiones/2026-10-20-fortaleza-presentacion/guion-tecnico.md`.
+
+   Identidad Grupo UPAX (src/temas/grupo-upax.ts): noche #1E1B4B, naranja #E34714, magenta #D72A5A, azul #5367E1,
+   Outfit. El NARANJA es del hilo conductor (las butacas encendidas del aforo) y de un solo acento por escena.
+   Magenta y azul, solo en la luz de fondo y en la cumbre. Las superficies son las del estatus Q3, que Franco aprobó:
+   fondo #0b0a1f bajo las fotos y vidrio índigo #14124073 con borde blanco al 14 %.
+
+   Escena (presentación proyectada): paso 500 ms, trazo 900 ms, escalón 90 ms; curva de firma --mov-ease-escena;
+   personalidad premium, sin rebote; un solo remate en toda la pieza (la cumbre).
+
+   VISIBLE SIN JAVASCRIPT: el estado oculto solo existe bajo `.escena[data-animar='true']:not([data-visible='true'])`,
+   que pone `Escena` ya montado, y solo sin movimiento reducido. Impreso, todo está en su estado final. */
+
+.documento {
+  --fm-noche: #1e1b4b;
+  --fm-fondo: #0b0a1f;
+  --fm-naranja: #e34714;
+  --fm-naranja-luz: #ff8a4c;
+  --fm-magenta: #d72a5a;
+  --fm-azul: #5367e1;
+  --fm-vidrio: #14124073;
+  --fm-vidrio-borde: oklch(1 0 0 / 0.14);
+  --fm-tinta: oklch(0.99 0 0);
+  --fm-tinta-2: oklch(1 0 0 / 0.8);
+  --fm-tinta-3: oklch(1 0 0 / 0.58);
+  --mov-ease-escena: cubic-bezier(0.16, 1, 0.3, 1);
+  --mov-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --mov-paso: 500ms;
+  --mov-trazo: 900ms;
+  --mov-escalon: 90ms;
+  /* TAMAÑOS DE PROYECCIÓN (motion-studio 04 §2), medidos en una pantalla de 1920 × 1080 y escalados con ella; el
+     tope por alto cuida las ventanas más bajas. Cuerpo 28 px (nunca menos), título de tarjeta 36, etiqueta 22,
+     nota 31, título de lámina 80. Si un texto no cabe a este tamaño, la escena se parte: no se achica. */
+  --fm-t-cuerpo: clamp(1.05rem, min(1.46vw, 2.6vh), 2.2rem);
+  --fm-t-tarjeta: clamp(1.25rem, min(1.9vw, 3.38vh), 2.7rem);
+  --fm-t-etiqueta: clamp(0.8rem, min(1.15vw, 2.05vh), 1.6rem);
+  --fm-t-nota: clamp(1.1rem, min(1.6vw, 2.85vh), 2.3rem);
+  --fm-t-titulo: clamp(2.4rem, min(4.2vw, 7.47vh), 6rem);
+  font-family: var(--fuente-texto, inherit);
+  color: var(--fm-tinta);
+  background: var(--fm-fondo);
+}
+
+/* UNA PANTALLA = una sección. Oscura siempre: la pieza es inmersiva. */
+.pantalla {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(4rem, 9vh, 6.5rem) clamp(1.25rem, 6vw, 7rem) clamp(3.5rem, 8vh, 6rem);
+  color: var(--fm-tinta);
+  background: var(--fm-noche);
+}
+
+/* Al presentar, el hub le pone a cada sección su propio relleno, más corto abajo: el aforo de la esquina quedaba a
+   8 px del borde a 1366×768. Aquí se recupera el nuestro, salvo arriba, que se acorta porque no hay barra. */
+:global([data-presentando='true']) .pantalla.pantalla {
+  padding: clamp(2.75rem, 7vh, 5.5rem) clamp(1.25rem, 6vw, 7rem) clamp(3.5rem, 8vh, 6rem);
+}
+
+/* LA FOTO DE FONDO: a sangre, debajo de todo. El velo da la lectura; tres direcciones. */
+.fondo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.fondo img { object-fit: cover; }
+.velo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.velo[data-velo='izquierda'] {
+  background:
+    linear-gradient(100deg, #0b0a1ff2 0%, #0b0a1fcc 38%, #0b0a1f66 66%, #0b0a1f4d 100%),
+    linear-gradient(180deg, #0b0a1f80, transparent 26%, transparent 64%, #0b0a1fd9);
+}
+.velo[data-velo='total'] {
+  background:
+    linear-gradient(180deg, #0b0a1fcc, #0b0a1fb3 40%, #0b0a1fe6),
+    radial-gradient(90% 80% at 50% 40%, transparent 30%, #0b0a1f99 100%);
+}
+.velo[data-velo='abajo'] {
+  background: linear-gradient(180deg, #0b0a1f40 0%, #0b0a1f73 40%, #0b0a1ff2 82%);
+}
+
+/* LUZ Y PROFUNDIDAD (piso de motion-studio): dos luces de marca, viñeta y grano. Quietas: son acabado. */
+.luz {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 92% 4%, color-mix(in oklch, var(--fm-naranja) 34%, transparent) 0%, transparent 62%),
+    radial-gradient(55% 50% at 2% 100%, color-mix(in oklch, var(--fm-azul) 38%, transparent) 0%, transparent 64%),
+    radial-gradient(130% 100% at 50% 45%, transparent 55%, oklch(0 0 0 / 0.5) 100%);
+}
+
+.grano {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.escena {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  width: 100%;
+  max-width: 1500px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.9rem, 2.2vh, 1.6rem);
+}
+
+.cabecera { display: flex; flex-direction: column; gap: clamp(0.4rem, 1vh, 0.75rem); }
+
+.antetitulo {
+  margin: 0;
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* Neutro: el naranja es de las butacas ocupadas y de un solo acento por escena. */
+  color: var(--fm-tinta-2);
+}
+
+.titulo {
+  margin: 0;
+  max-width: 22ch;
+  font-family: var(--fuente-display, inherit);
+  font-weight: 800;
+  font-size: var(--fm-t-titulo);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.nota {
+  margin: 0;
+  max-width: 48ch;
+  font-size: var(--fm-t-nota);
+  line-height: 1.42;
+  color: var(--fm-tinta-2);
+  text-wrap: pretty;
+}
+
+.cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.9rem, 2.2vh, 1.6rem);
+}
+
+.pie {
+  position: absolute;
+  z-index: 1;
+  left: clamp(1.25rem, 6vw, 7rem);
+  bottom: clamp(0.9rem, 2.6vh, 1.8rem);
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--fm-tinta-3);
+}
+
+/* VIDRIO (como el estatus Q3): índigo translúcido, borde fino, desenfoque. */
+.vidrio {
+  background: var(--fm-vidrio);
+  border: 1px solid var(--fm-vidrio-borde);
+  border-radius: 18px;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+
+/* UNA TARJETA de frente: título corto, texto, y quién lo hace. */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.4rem, min(0.6vw, 1.07vh), 0.9rem);
+  padding: clamp(0.9rem, min(1.45vw, 2.6vh), 2rem) clamp(1rem, min(1.6vw, 2.85vh), 2.2rem);
+}
+.tarjetaTitulo {
+  margin: 0;
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+.tarjetaTexto {
+  margin: 0;
+  font-size: var(--fm-t-cuerpo);
+  line-height: 1.4;
+  color: var(--fm-tinta-2);
+  text-wrap: pretty;
+}
+.quien {
+  margin: auto 0 0;
+  padding-top: 0.35rem;
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fm-tinta-3);
+}
+
+/* EL ACENTO: una palabra o cifra por escena, en naranja. */
+.acento { color: var(--fm-naranja-luz); }
+
+/* UNA FOTO dentro de la escena: recortada, con borde de vidrio. */
+.foto {
+  margin: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--fm-vidrio-borde);
+  background: var(--fm-fondo);
+}
+.foto img { object-fit: cover; }
+.fotoPie {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 1.6rem 0.9rem 0.65rem;
+  font-size: clamp(0.72rem, 0.8vw, 0.9rem);
+  font-weight: 600;
+  background: linear-gradient(180deg, transparent, #0b0a1fe6 70%);
+}
+
+/* LAS MARCAS: logos blancos a la altura de una línea. */
+.firma { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(0.9rem, 1.8vw, 1.8rem); }
+.firma img {
+  height: calc(clamp(20px, min(1.75vw, 3.1vh), 40px) * var(--logo-escala, 1));
+  width: auto;
+  /* Todos en blanco (el guion lo pide así): sin el lima de Marketing United ni el coral de NeraCode. */
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+/* Marketing Corporativo va escrito, no con su monograma «MC»: dentro de UPAX se confunde con Mexa Creativa. */
+.firmaTexto {
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  color: oklch(1 0 0 / 0.9);
+}
+
+/* EL AFORO CHICO: abajo a la derecha, mismo tamaño y lugar en cada escena (objeto que viaja). */
+.aforoEsquina {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: calc(-1 * clamp(1.5rem, 4vh, 3.2rem));
+}
+
+/* LA ENTRADA DE LA CASA (una sola forma de entrar): subir con fundido, escalonado por --i.
+   .brota: lo que aparece en su sitio. .trazo: líneas SVG con pathLength="1" que se dibujan. */
+.trazo { stroke-dasharray: 1; stroke-dashoffset: 0; }
+
+@keyframes fm-aparecer { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes fm-brotar { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes fm-trazar { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .escena[data-animar='true']:not([data-visible='true']) :is(.aparece, .brota) { opacity: 0; }
+  .escena[data-animar='true']:not([data-visible='true']) .trazo { stroke-dashoffset: 1; }
+
+  .escena[data-visible='true'] .aparece {
+    animation: fm-aparecer var(--mov-paso) var(--mov-ease-escena) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+  .escena[data-visible='true'] .brota {
+    animation: fm-brotar 700ms var(--mov-ease-escena) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+  .escena[data-visible='true'] .trazo {
+    animation: fm-trazar var(--mov-trazo) var(--mov-ease-in-out) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+}
+
+/* ESCENA CON VIAJE (2, 6, 7 y la cumbre): mientras el aforo viaja desde la escena anterior, lo demás entra solo con
+   opacidad, sin desplazarse (04 §5: «salida sostenida y entrada solo de opacidad»), para que no compitan. */
+@keyframes fm-fundir-escena { from { opacity: 0; } to { opacity: 1; } }
+@media screen and (prefers-reduced-motion: no-preference) {
+  .escena.conViaje[data-visible='true'] .aparece { animation-name: fm-fundir-escena; }
+  /* El rótulo del aforo no viaja con el dibujo: espera a que aterrice (el viaje dura 800 ms) y se funde. */
+  .escena.conViaje[data-animar='true']:not([data-visible='true']) [data-aforo-rotulo] { opacity: 0; }
+  .escena.conViaje[data-visible='true'] [data-aforo-rotulo] { animation: fm-fundir-escena 400ms var(--mov-ease-escena) 600ms both; }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .escena[data-animar='true']:not([data-visible='true']) :is(.aparece, .brota) { opacity: 0; }
+  .escena[data-visible='true'] :is(.aparece, .brota) { animation: fm-fundir 200ms linear both; }
+}
+@keyframes fm-fundir { from { opacity: 0; } to { opacity: 1; } }
+
+@media print {
+  .pantalla { min-height: auto; height: 100vh; break-after: page; break-inside: avoid; }
+  .grano { display: none; }
+  .vidrio { -webkit-backdrop-filter: none; backdrop-filter: none; background: #15134a; }
+}
+
+@media (max-width: 760px) {
+  .pantalla { min-height: auto; }
+  .aforoEsquina { position: static; align-self: flex-end; }
+}

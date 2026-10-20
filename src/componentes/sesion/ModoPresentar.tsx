@@ -43,6 +43,54 @@ interface Props {
    * este componente.
    */
   registrarPresentacionAction?: (reunionId: string) => Promise<void>
+  /**
+   * Sube el botón «Presentar» a la esquina de arriba. Para una pieza que se abre sin la barra del hub y que ocupa
+   * su esquina de abajo con contenido propio: la de Fortaleza Mexicana lleva ahí el aforo (20-oct-2026).
+   */
+  botonArriba?: boolean
+  /**
+   * EL CORTE CON OBJETO QUE VIAJA (motion-studio 04 §4–§5), solo donde la pieza lo pide: la de Fortaleza Mexicana,
+   * 20-oct-2026. Al avanzar o retroceder con las flechas, en vez del scroll suave, una transición de vista: la
+   * escena que sale se sostiene, la que entra sube 6 px con un fundido de 260 ms, y el elemento marcado con
+   * `data-viajero` en una escena viaja hasta el de la siguiente en 800 ms (el aforo: de la portada a la esquina, de
+   * la esquina al centro). Sin soporte del navegador o con movimiento reducido, se navega como siempre.
+   */
+  transiciones?: boolean
+}
+
+/**
+ * Las reglas del corte con objeto que viaja. Van en una hoja global porque los pseudo-elementos de una transición
+ * de vista viven en el documento, no en un componente; solo actúan mientras `html[data-corte='sube']` está puesto,
+ * es decir, durante un corte pedido por `transiciones`. El nombre solo existe en la escena activa: cada nombre de
+ * transición tiene que ser único entre lo que está a la vista.
+ */
+const CSS_CORTE = `
+[data-presentando='true'] [data-layout][data-activa] [data-viajero] { view-transition-name: viajero; }
+html[data-corte='sube']::view-transition-old(root) { animation: none; }
+html[data-corte='sube']::view-transition-new(root) { animation: corte-sube 260ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+@keyframes corte-sube { from { opacity: 0; transform: translateY(6px); } }
+html[data-corte='sube']::view-transition-group(viajero) { animation-duration: 800ms; animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1); }
+html[data-corte='sube']::view-transition-old(viajero),
+html[data-corte='sube']::view-transition-new(viajero) { height: 100%; animation-duration: 800ms; }
+html[data-corte='sube']::view-transition-old(viajero):only-child,
+html[data-corte='sube']::view-transition-new(viajero):only-child { animation-duration: 260ms; }
+`
+
+/** Si este navegador puede hacer el corte con transición de vista, y quien mira no pidió menos movimiento. */
+function puedeTransicionar(): boolean {
+  return (
+    typeof document !== 'undefined' &&
+    typeof document.startViewTransition === 'function' &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
+
+/** Marca la escena activa: es la única cuyo `data-viajero` lleva nombre de transición. */
+function marcarActiva(lista: HTMLElement[], indice: number) {
+  lista.forEach((seccion, i) => {
+    if (i === indice) seccion.dataset.activa = 'true'
+    else delete seccion.dataset.activa
+  })
 }
 
 /**
@@ -86,7 +134,15 @@ function tituloDe(seccion: HTMLElement, i: number): string {
   return texto || seccion.dataset.layout || `Sección ${i + 1}`
 }
 
-export function ModoPresentar({ children, reunionId, equipo, personas, registrarPresentacionAction }: Props) {
+export function ModoPresentar({
+  children,
+  reunionId,
+  equipo,
+  personas,
+  registrarPresentacionAction,
+  botonArriba,
+  transiciones,
+}: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
   const [actual, setActual] = useState(0)
@@ -293,6 +349,22 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
     const lista = secciones()
     if (lista.length === 0) return
     const i = Math.max(0, Math.min(indice, lista.length - 1))
+    if (transiciones && modo === 'suave' && presentando && puedeTransicionar()) {
+      // El corte con objeto que viaja: la foto de salida es lo que se ve ahora; el salto, instantáneo, va dentro.
+      const raiz = document.documentElement
+      marcarActiva(lista, enVistaDe(contenedor.current, true))
+      destino.current = { indice: i, hasta: Date.now() + 400 }
+      raiz.dataset.corte = 'sube'
+      const corte = document.startViewTransition(() => {
+        lista[i].scrollIntoView({ behavior: 'instant', block: 'start' })
+        marcarActiva(lista, i)
+      })
+      corte.finished.finally(() => {
+        if (document.documentElement.dataset.corte === 'sube') delete document.documentElement.dataset.corte
+      })
+      setActual(i)
+      return
+    }
     // Un salto directo ya llegó cuando esta línea termina: no deja nada pendiente. El suave tarda.
     destino.current = modo === 'directo' ? { indice: -1, hasta: 0 } : { indice: i, hasta: Date.now() + 900 }
     lista[i].scrollIntoView({ behavior: modo === 'directo' ? 'instant' : 'smooth', block: 'start' })
@@ -458,6 +530,7 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
         className={presentando ? estilos.presentando : undefined}
         data-presentando={presentando ? 'true' : undefined}
       >
+        {transiciones ? <style>{CSS_CORTE}</style> : null}
         {children}
 
         {/* EL LÁSER VA DENTRO DEL CONTENEDOR, y no es un detalle de orden:
@@ -633,7 +706,7 @@ export function ModoPresentar({ children, reunionId, equipo, personas, registrar
       )}
 
       {!presentando && (
-        <button type="button" onClick={entrar} className={estilos.boton}>
+        <button type="button" onClick={entrar} className={botonArriba ? `${estilos.boton} ${estilos.botonArriba}` : estilos.boton}>
           Presentar
         </button>
       )}

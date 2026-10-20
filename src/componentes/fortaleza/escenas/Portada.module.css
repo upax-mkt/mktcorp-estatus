@@ -1,0 +1,118 @@
+/* 1 · PORTADA — el título sobre la noche, a la izquierda; los tres protagonistas de Malinche, enteros, a la derecha.
+   Se muestra entera, sin animar (motion-studio 04 §8): aquí no hay entradas ni estado oculto.
+
+   Ronda 2 (20-oct-2026): ninguna letra sobre una cara, en pantalla ni impresa. La foto es 16:9 y sus tres caras
+   cruzan todo el ancho, así que a sangre el texto siempre caía sobre alguna. El elenco va ahora en su proporción
+   (sin recorte), en un marco que se funde con la noche, y su tamaño y lugar salen de la misma unidad que el texto. */
+
+/* LA UNIDAD DEL LIENZO: 1 % del ancho de un 16:9 que cabe en la pantalla (o en la hoja impresa). Es la proporción con
+   la que escalan los tamaños de la base (--fm-t-*): el elenco y el texto crecen juntos, y las caras quedan fuera de
+   la columna de texto a 1920 × 1080, 1440 × 900, 1366 × 768 y en el PDF. */
+.pantalla { --u: min(1vw, 1.7778vh); }
+.pantalla.pantalla { background: var(--fm-fondo); }
+
+/* EL ELENCO: la foto entera, anclada abajo a la derecha y un poco fuera de cuadro (solo cuerpos: las piernas y el
+   brazo del guerrero). Cifras medidas contra las caras de la foto: el hombre queda a la derecha de la nota y debajo
+   del primer renglón del título; el guerrero, dentro de cuadro. Se funde con la noche por la izquierda y por arriba. */
+.elenco {
+  position: absolute;
+  z-index: 0;
+  right: calc(-8.3 * var(--u));
+  bottom: calc(-10 * var(--u));
+  width: calc(84 * var(--u));
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent 0%, #000000b3 13%, #000 25%),
+    linear-gradient(180deg, transparent 0%, #000 13%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, transparent 0%, #000000b3 13%, #000 25%),
+    linear-gradient(180deg, transparent 0%, #000 13%);
+  mask-composite: intersect;
+}
+
+/* El velo, suave: sobre la foto no hay texto. Hunde los cuerpos en la noche hacia el borde de abajo, que en el marco
+   cae al 79 % de su alto (el resto queda fuera de cuadro), y la mano del hombre, que caía junto a las marcas. */
+.elenco [data-velo] {
+  background:
+    radial-gradient(36% 31% at 6% 79%, #0b0a1f 0%, #0b0a1f 42%, #0b0a1fb3 70%, transparent 100%),
+    linear-gradient(180deg, transparent 46%, #0b0a1f8c 70%, #0b0a1fe0 80%);
+}
+
+.escena { justify-content: space-between; }
+
+.logo {
+  display: block;
+  width: clamp(140px, calc(12 * var(--u)), 240px);
+  height: auto;
+}
+
+.centro {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.9rem, 2.6vh, 2rem);
+}
+
+.cabecera { gap: clamp(0.7rem, 1.8vh, 1.2rem); }
+
+/* El título de portada (04 §2: 140–200 px a 1920), en dos renglones: «Lo queremos» / «lleno.». */
+.titulo.titulo {
+  max-width: none;
+  font-size: clamp(3rem, calc(7.4 * var(--u)), 9rem);
+  line-height: 0.94;
+  letter-spacing: -0.035em;
+}
+.renglon { display: block; }
+
+/* La nota, al tamaño de la base (31 px a 1920), en tres renglones parejos: así la columna de texto no llega al
+   hombre de la izquierda, que asoma a su derecha. */
+.nota.nota {
+  max-width: calc(27 * var(--u));
+  text-wrap: balance;
+}
+
+.centro .aforo.aforo {
+  align-items: flex-start;
+  width: clamp(220px, calc(20 * var(--u)), 380px);
+}
+
+/* SUS MARCAS: Malinche, el Frontón y Pelota Mestiza, a su color. Entre una y otra, una raya del mismo alto (antes
+   el borde de cada una medía lo que su logo: 48 y 22 px). */
+.marcas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.marcas li { display: flex; align-items: center; }
+.marcas li + li::before {
+  content: '';
+  flex: none;
+  width: 1px;
+  height: clamp(28px, calc(2.6 * var(--u)), 56px);
+  margin-inline: clamp(1rem, calc(2.2 * var(--u)), 2.75rem);
+  background: oklch(1 0 0 / 0.3);
+}
+.malinche { width: auto; height: clamp(20px, calc(1.75 * var(--u)), 38px); }
+.fronton { width: auto; height: clamp(36px, calc(3.3 * var(--u)), 70px); }
+.pelota { width: auto; height: clamp(20px, calc(1.75 * var(--u)), 38px); }
+
+/* BAJO 760 PX SE APILA: el elenco es una banda arriba, a sangre y entera; el texto, debajo. */
+@media (max-width: 760px) {
+  .elenco {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    flex: none;
+    width: auto;
+    margin: calc(-1 * clamp(4rem, 9vh, 6.5rem)) calc(-1 * clamp(1.25rem, 6vw, 7rem)) 1.25rem;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+  }
+  .nota.nota { max-width: none; }
+}

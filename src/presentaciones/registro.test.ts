@@ -45,6 +45,20 @@ describe('registro de presentaciones web', () => {
     expect(rl?.titulo).toBe('Nueva estructura comercial 2027')
   })
 
+  it('la de Fortaleza Mexicana vive en la sala de Ceci y se abre con la liga, sin clave (decisión de Franco)', () => {
+    const fm = presentacionDeSala('ceci', 'lo-queremos-lleno')
+    expect(fm?.titulo).toBe('Lo queremos lleno')
+    expect(fm?.abierta).toBe(true)
+    expect(fm?.claveEnv).toBeUndefined()
+  })
+
+  it('la liga de Fortaleza enseña su propia vista previa, no la de la sala', () => {
+    const fm = presentacionDeSala('ceci', 'lo-queremos-lleno')
+    expect(fm?.vistaPrevia?.descripcion).toMatch(/Fortaleza Mexicana/)
+    expect(fm?.vistaPrevia?.imagen).toBe('/fortaleza/vista-previa.jpg')
+    expect(existsSync(join(process.cwd(), 'public', fm!.vistaPrevia!.imagen))).toBe(true)
+  })
+
   it('cada ruta vieja sigue existiendo como redirección a su nuevo lugar', () => {
     for (const p of PRESENTACIONES.filter((x) => x.rutaVieja)) {
       expect(existsSync(join(APP, p.rutaVieja!.slice(1), 'page.tsx')), p.rutaVieja).toBe(true)

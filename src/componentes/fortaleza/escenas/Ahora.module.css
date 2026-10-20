@@ -1,0 +1,249 @@
+/* 5 · AHORA — «La temporada cierra el 30 de enero.»
+   La temporada como una regla de semanas: retícula de cuatro meses con las proporciones de sus días
+   (31 · 30 · 31 · 29), la línea en la fila del medio; arriba, los meses y la fecha del tope; abajo, lo que pasa:
+   el texto de diciembre, dentro de su columna de vidrio, y «cierra la temporada», bajo el tope. El aforo chico, en
+   su esquina.
+
+   Ronda 2 (20-oct-2026), contra la foto: el guerrero señala arriba a la izquierda. El título va arriba a la derecha,
+   sobre el cielo (no le cruza el brazo), y la regla baja hasta su torso (no le corta el cuello); las dos cosas
+   salen de `--u`, la misma unidad con la que escala la letra, así que se sostienen a 1920, 1440 y 1366. Letra de
+   proyección de la base: meses 22 px a 1920, texto 28, fecha 36.
+
+   Estado final = estado por defecto: lo oculto solo existe bajo `.escena[data-animar='true']:not([data-visible])`
+   en pantalla y con movimiento permitido. Impreso, todo en su estado final. */
+
+.pantalla { --u: min(1vw, 1.7778vh); }
+
+/* Velo fuerte (guion): el guerrero se adivina detrás; la regla se lee sin pelear con él. */
+.pantalla.pantalla > [data-velo='total'] {
+  background:
+    linear-gradient(180deg, #0b0a1fcc 0%, #0b0a1fc2 34%, #0b0a1fd6 62%, #0b0a1ff0 100%),
+    radial-gradient(90% 80% at 50% 45%, transparent 35%, #0b0a1fa6 100%);
+}
+
+/* EL TÍTULO, arriba a la derecha y alineado a ese borde: la misma vertical que el tope del 30 de enero y el aforo. */
+.escena .cabecera {
+  align-items: flex-end;
+  text-align: right;
+}
+.escena .titulo { max-width: none; }
+.renglon { display: block; }
+
+/* LA REGLA, abajo: a la altura del torso del guerrero, por encima del aforo. */
+.escena .cuerpo {
+  justify-content: flex-end;
+  padding-bottom: calc(8 * var(--u));
+}
+
+.temporada {
+  position: relative;
+  display: grid;
+  grid-template-columns: 31fr 30fr 31fr 29fr;
+  grid-template-rows: auto auto auto;
+}
+
+/* Diciembre y el tope: un solo párrafo cada uno, cuyas partes se reparten arriba y abajo de la línea. */
+.partido { display: contents; }
+
+/* ---- arriba de la línea: los meses y la fecha del tope ---- */
+
+.mes {
+  grid-row: 1;
+  grid-column: var(--col);
+  justify-self: start;
+  align-self: end;
+  z-index: 1;
+  margin: 0;
+  padding: 0 0 clamp(0.55rem, 1.2vh, 0.9rem) clamp(0.6rem, calc(0.9 * var(--u)), 1.15rem);
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--fm-tinta-2);
+}
+
+/* Diciembre: el único mes en naranja, dentro de su columna. */
+.mes.mesDiciembre {
+  grid-column: 3;
+  padding-left: clamp(0.6rem, calc(0.9 * var(--u)), 1.15rem);
+  color: var(--fm-naranja-luz);
+}
+
+/* La fecha del tope, a plomo con él: su borde derecho es el del tope. */
+.finFecha {
+  grid-row: 1;
+  grid-column: 4;
+  justify-self: end;
+  align-self: end;
+  z-index: 1;
+  padding-bottom: clamp(0.4rem, 0.9vh, 0.7rem);
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  text-align: right;
+  color: var(--fm-tinta);
+}
+
+/* El «·» del párrafo queda para el lector de pantalla. */
+.finSeparador {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- abajo de la línea: lo que pasa ---- */
+
+.diciembreTexto {
+  grid-row: 3;
+  grid-column: 3;
+  align-self: start;
+  z-index: 1;
+  padding: clamp(0.5rem, 1.1vh, 0.85rem) clamp(0.6rem, calc(0.9 * var(--u)), 1.15rem) clamp(0.9rem, 2vh, 1.4rem);
+  font-size: var(--fm-t-cuerpo);
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+  color: var(--fm-tinta);
+}
+
+.finTexto {
+  grid-row: 3;
+  grid-column: 4;
+  justify-self: end;
+  align-self: start;
+  z-index: 1;
+  padding-top: clamp(0.4rem, 0.9vh, 0.7rem);
+  font-size: var(--fm-t-cuerpo);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: right;
+  color: var(--fm-tinta-2);
+}
+
+/* ---- diciembre: la columna de vidrio ---- */
+
+.ventana {
+  grid-row: 1 / -1;
+  grid-column: 3;
+  align-self: stretch;
+  z-index: 0;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 60% at 50% 58%, color-mix(in oklch, var(--fm-naranja) 16%, transparent), transparent 70%),
+    var(--fm-vidrio);
+}
+
+/* ---- la regla ---- */
+
+.regla {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.carril { fill: none; stroke: oklch(1 0 0 / 0.16); stroke-width: 2; }
+.semana { fill: none; stroke: oklch(1 0 0 / 0.62); stroke-width: 2; }
+.semanaDiciembre { stroke: var(--fm-naranja-luz); }
+.recorrido { fill: none; stroke: oklch(1 0 0 / 0.92); stroke-width: 3; }
+.encendido {
+  fill: none;
+  stroke: var(--fm-naranja);
+  stroke-width: 7;
+  filter: drop-shadow(0 0 5px color-mix(in oklch, var(--fm-naranja) 85%, transparent));
+}
+.tope { fill: none; stroke: oklch(0.99 0 0); stroke-width: 3.5; }
+
+/* LA PUNTA: una caja del ancho de la regla, con el punto en su extremo derecho. Trasladarla -100 % es ponerla al
+   principio de la temporada; reposa en el tope. */
+.viajero {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  align-self: center;
+  z-index: 2;
+  position: relative;
+  height: 0;
+  pointer-events: none;
+}
+.punta {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: clamp(11px, 0.85vw, 16px);
+  aspect-ratio: 1;
+  translate: 50% -50%;
+  border-radius: 50%;
+  background: oklch(0.99 0 0);
+  box-shadow:
+    0 0 0 clamp(3px, 0.3vw, 5px) oklch(1 0 0 / 0.16),
+    0 0 18px oklch(1 0 0 / 0.55);
+}
+
+/* La punta asoma al arrancar la línea (no antes del título) y la acompaña hasta el tope. */
+@keyframes ahora-viajar {
+  from { transform: translateX(-100%); opacity: 0; }
+  8% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .escena[data-animar='true']:not([data-visible='true']) .viajero { transform: translateX(-100%); opacity: 0; }
+  .escena[data-visible='true'] .viajero {
+    animation: ahora-viajar var(--mov-trazo) var(--mov-ease-in-out) both;
+    animation-delay: calc(var(--i, 0) * var(--mov-escalon));
+  }
+}
+
+/* Impreso no hay desenfoque: la columna de diciembre lleva fondo sólido, como el vidrio de la base. */
+@media print {
+  .ventana {
+    background:
+      radial-gradient(120% 60% at 50% 58%, color-mix(in oklch, var(--fm-naranja) 16%, transparent), transparent 70%),
+      #15134a;
+  }
+}
+
+/* BAJO 760 PX SE APILA: el título a la izquierda; la temporada como lista, el riel a la izquierda y diciembre con su
+   tramo naranja. */
+@media (max-width: 760px) {
+  .escena .cabecera { align-items: flex-start; text-align: left; }
+  .escena .cuerpo { padding-bottom: 0; }
+  .temporada {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    row-gap: 0.85rem;
+    padding-left: 1.1rem;
+    border-left: 2px solid oklch(1 0 0 / 0.3);
+  }
+  .regla,
+  .viajero,
+  .ventana { display: none; }
+  .mes,
+  .mes.mesDiciembre,
+  .finFecha,
+  .finTexto,
+  .diciembreTexto {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    text-align: left;
+    padding: 0;
+  }
+  .diciembreTexto {
+    margin: -0.45rem 0 0 calc(-1.1rem - 2px);
+    padding-left: calc(1.1rem - 1px);
+    border-left: 3px solid var(--fm-naranja);
+  }
+  .finFecha { margin-top: 0.4rem; }
+  .finSeparador { display: none; }
+  .finTexto { margin-top: -0.6rem; }
+}

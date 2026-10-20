@@ -26,6 +26,16 @@ export interface PresentacionWeb {
    * (vive en Vercel, nunca en el repo). El equipo nunca la escribe. Sin la variable, nadie entra por clave.
    */
   claveEnv?: string
+  /**
+   * Se abre para quien tenga la liga, sin clave y sin enlace de regreso a la sala. Solo para piezas que se le
+   * mandan a alguien de fuera del hub. La de Fortaleza Mexicana va así por decisión de Franco (20-oct-2026).
+   */
+  abierta?: boolean
+  /**
+   * Lo que enseña la liga al compartirla (WhatsApp, correo): descripción e imagen de 1200 × 630 en `public/`. Sin
+   * esto, una presentación `abierta` heredaría la vista previa de la sala («Acuerdos, reuniones, minutas…»).
+   */
+  vistaPrevia?: { descripcion: string; imagen: string }
   /** Ruta de antes de la reorganización: redirige aquí, para que las ligas viejas sigan sirviendo. */
   rutaVieja?: string
 }
@@ -54,6 +64,18 @@ export const PRESENTACIONES: readonly PresentacionWeb[] = [
     lugar: { tipo: 'sala', sala: 'research-land' },
     claveEnv: 'CLAVE_PRESENTACION_RL',
     rutaVieja: '/rl-comercial',
+  },
+  {
+    id: 'lo-queremos-lleno',
+    titulo: 'Lo queremos lleno',
+    bajada: 'Grupo UPAX con Fortaleza Mexicana, Malinche, el Frontón México y Pelota Mestiza',
+    fecha: '2026-10-20',
+    lugar: { tipo: 'sala', sala: 'ceci' },
+    abierta: true,
+    vistaPrevia: {
+      descripcion: 'Una propuesta de Grupo UPAX para Fortaleza Mexicana, Malinche, el Frontón México y Pelota Mestiza.',
+      imagen: '/fortaleza/vista-previa.jpg',
+    },
   },
 ]
 

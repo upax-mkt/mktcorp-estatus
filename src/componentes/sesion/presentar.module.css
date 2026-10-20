@@ -42,6 +42,12 @@
   filter: brightness(1.08);
 }
 
+/* Arriba a la derecha (prop `botonArriba`): solo donde no hay barra del hub encima. */
+.botonArriba {
+  top: 1.5rem;
+  bottom: auto;
+}
+
 /* ---- estado presentando ---- */
 
 .presentando {

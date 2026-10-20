@@ -1,0 +1,375 @@
+/* 9 · GRUPO — Frente 2 · «Que el grupo lo viva» (ronda 2, 20-oct-2026).
+   Tres columnas: lo que hace el grupo (izquierda), el teléfono del colaborador con su boleto (centro) y lo que pone
+   Fortaleza (derecha, «De su lado»). Fondo: la escalera de los atlantes (la entrada), con velo total.
+   TAMAÑOS DE PROYECCIÓN: los de la base, sin reglas propias que los bajen (cuerpo 28 px a 1920, título de tarjeta 36,
+   «quién» y rótulo 22). Los logos van en la cabecera, a la derecha del título: debajo no caben, la columna de tres
+   tarjetas ya ocupa el alto que queda.
+   UN EJE EXACTO: una retícula de tres filas. «De su lado» comparte la fila de «Comunicados» y se estira con ella: los
+   dos bordes y la línea del «quién» caen en el mismo pixel. El teléfono se centra en esa misma fila.
+   EL TELÉFONO ESTÁ DIBUJADO EN CSS: marco con luz de borde, isla, barra de la app, boleto con talón perforado (muescas
+   por máscara) y QR de patrón fijo en SVG. Todo se mide contra `--alto`, así escala entero con la pantalla.
+   ÚNICO ACENTO NARANJA: la mira del QR, el naranja de las butacas.
+   Sin movimiento propio: solo `.aparece` de la base. Estado final = estado por defecto. */
+
+/* Seis pasos de entrada y, después, una pausa y el tramo 2 solo: con el escalón corto de la casa (60 ms; la ley admite
+   de 60 a 120) todo asienta antes de que se encienda el tramo y la escena queda quieta antes de 1200 ms. */
+.escena { --mov-escalon: 60ms; }
+
+.escena .titulo { max-width: none; }
+
+/* EL ENCUADRE DE LA FOTO: anclada abajo y 25 % más cerca desde el pie, quieta. Las cabezas de los atlantes (caras de
+   piedra) salen por arriba del cuadro también en 16:10; quedan sus cuerpos, a los lados, y la escalera al centro. */
+.encuadre {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform: scale(1.25);
+  transform-origin: 50% 100%;
+}
+
+/* LA CABECERA: título a la izquierda, logos a la derecha sobre la línea del título. */
+.escena .cabecera {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: last baseline;
+  justify-content: space-between;
+  column-gap: clamp(1.5rem, 4vw, 5rem);
+  row-gap: clamp(0.6rem, 1.4vh, 1rem);
+}
+.titulos {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.4rem, 1vh, 0.75rem);
+}
+/* Los tres logos en una sola línea, pegados al borde derecho (el mismo del aforo y de «De su lado»). */
+.firma { flex-wrap: nowrap; }
+
+/* ---------- EL CUERPO: tres columnas, tres filas ---------- */
+
+.cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 0.8fr);
+  grid-template-rows: repeat(3, auto);
+  align-content: center;
+  column-gap: clamp(1.5rem, 4.2vw, 5.5rem);
+  row-gap: clamp(0.6rem, 1.5vh, 1rem);
+}
+
+/* Las tarjetas un poco más compactas por dentro (el aire, no la letra). */
+.cuerpo .tarjeta { padding-block: clamp(0.75rem, 2vh, 1.35rem); }
+
+.boletos { grid-area: 1 / 1; }
+.comunicados { grid-area: 2 / 1; }
+.capsulas { grid-area: 3 / 1; }
+/* Misma fila que «Comunicados» y estirada con ella (el valor por omisión de la retícula): bordes idénticos. */
+.suyo { grid-area: 2 / 3; }
+
+/* ---------- EL TELÉFONO ---------- */
+
+/* La figura ocupa el alto de las tres filas: el teléfono va en su centro exacto (filas 1fr · auto · 1fr) y el rótulo
+   abajo, con el mismo aire que el «quién» de la última tarjeta: los dos rótulos quedan en la misma línea. */
+.ilustracion {
+  /* Escala como la letra de la base, con min(ancho, alto): en 16:10 la columna de tarjetas es más baja y el teléfono
+     también (605 px a 1920 × 1080, 454 a 1440 × 900). */
+  --alto: clamp(300px, min(31.5vw, 56vh), 640px);
+  grid-area: 1 / 2 / 4 / 3;
+  position: relative;
+  margin: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  justify-items: center;
+}
+.telefono { grid-row: 2; }
+
+/* La luz detrás del teléfono: azul y un poco de magenta (luces de fondo). Quieta. */
+.halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--alto) * 1.4);
+  height: calc(var(--alto) * 1.1);
+  translate: -50% -50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--fm-azul) 48%, transparent) 0%,
+    color-mix(in oklch, var(--fm-magenta) 18%, transparent) 56%,
+    transparent 100%
+  );
+}
+
+.telefono {
+  position: relative;
+  height: var(--alto);
+  aspect-ratio: 9 / 19.3;
+  padding: calc(var(--alto) * 0.014);
+  border-radius: calc(var(--alto) * 0.075);
+  /* Grafito, no morado: el color lo pone el boleto. */
+  background: linear-gradient(150deg, #64637a 0%, #2a2934 16%, #0d0d13 46%, #1e1d28 78%, #55546a 100%);
+  box-shadow:
+    inset 0 0 0 1px oklch(1 0 0 / 0.4),
+    inset 0 0 0 calc(var(--alto) * 0.0055) #050508,
+    0 calc(var(--alto) * 0.05) calc(var(--alto) * 0.1) calc(var(--alto) * -0.03) #000000d9,
+    0 0 0 1px #00000080;
+  transform: perspective(1600px) rotateY(-9deg) rotateX(3deg);
+}
+
+/* Botones laterales. */
+.telefono::before,
+.telefono::after {
+  content: '';
+  position: absolute;
+  width: calc(var(--alto) * 0.0075);
+  border-radius: 2px;
+  background: linear-gradient(90deg, #2a2934, #6a6980);
+}
+.telefono::before { right: calc(var(--alto) * -0.0065); top: 27%; height: 12%; }
+.telefono::after {
+  left: calc(var(--alto) * -0.0065);
+  top: 21%;
+  height: 6.5%;
+  box-shadow: 0 calc(var(--alto) * 0.085) 0 #3a3948;
+}
+
+.pantallaTel {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--alto) * 0.062);
+  background:
+    radial-gradient(120% 50% at 50% 0%, #221f55 0%, transparent 60%),
+    linear-gradient(180deg, #100e2b 0%, #07061a 100%);
+}
+
+/* El reflejo del vidrio de la pantalla. */
+.pantallaTel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(118deg, oklch(1 0 0 / 0.11) 0%, oklch(1 0 0 / 0.025) 30%, transparent 46%);
+}
+
+.isla {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--alto) * 0.018);
+  left: 50%;
+  translate: -50% 0;
+  width: 31%;
+  height: calc(var(--alto) * 0.03);
+  border-radius: 999px;
+  background: #000;
+}
+
+.barraApp {
+  position: absolute;
+  top: 7.4%;
+  left: 9%;
+  right: 9%;
+  height: 3%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.atras {
+  position: absolute;
+  left: 2%;
+  top: 50%;
+  width: calc(var(--alto) * 0.013);
+  height: calc(var(--alto) * 0.013);
+  border-left: 2px solid oklch(1 0 0 / 0.72);
+  border-bottom: 2px solid oklch(1 0 0 / 0.72);
+  transform: translateY(-50%) rotate(45deg);
+}
+.tituloApp {
+  width: 36%;
+  height: calc(var(--alto) * 0.0105);
+  border-radius: 99px;
+  background: oklch(1 0 0 / 0.5);
+}
+
+.inicio {
+  position: absolute;
+  z-index: 2;
+  bottom: 1.5%;
+  left: 50%;
+  translate: -50% 0;
+  width: 34%;
+  height: calc(var(--alto) * 0.0075);
+  border-radius: 99px;
+  background: oklch(1 0 0 / 0.6);
+}
+
+/* EL BOLETO: arte arriba, talón perforado abajo. Las muescas del corte salen de una máscara: dos medias lunas. */
+.boleto {
+  --muesca: calc(var(--alto) * 0.018);
+  --corte: 49%;
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 12.5%;
+  bottom: 5.5%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: calc(var(--alto) * 0.028);
+  background: linear-gradient(180deg, #2c2463 0%, #1d184b 55%, #15123b 100%);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
+  -webkit-mask:
+    radial-gradient(circle var(--muesca) at 0 var(--corte), #0000 97%, #000) left / 50.5% 100% no-repeat,
+    radial-gradient(circle var(--muesca) at 100% var(--corte), #0000 97%, #000) right / 50.5% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--muesca) at 0 var(--corte), #0000 97%, #000) left / 50.5% 100% no-repeat,
+    radial-gradient(circle var(--muesca) at 100% var(--corte), #0000 97%, #000) right / 50.5% 100% no-repeat;
+}
+
+.arte {
+  position: relative;
+  flex: 0 0 var(--corte);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 9% 8%;
+}
+.foto {
+  position: absolute;
+  inset: 0;
+}
+.foto img { object-fit: cover; }
+.foto::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #2c246300 28%, #2c2463b3 72%, #2c2463 100%);
+}
+.logoMalinche {
+  position: relative;
+  width: 84%;
+  height: auto;
+  filter: drop-shadow(0 2px 10px #000000b3);
+}
+
+.talon {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--alto) * 0.014);
+  border-top: 2px dashed oklch(1 0 0 / 0.26);
+  padding: 8% 10% 7%;
+}
+
+/* El margen deja sitio a la mira, que sobresale 12 % del QR por cada lado (los % del margen son del ancho del talón). */
+.qr {
+  position: relative;
+  display: block;
+  width: 58%;
+  aspect-ratio: 1;
+  margin: 6% 0 10%;
+}
+.placa {
+  position: absolute;
+  inset: 0;
+  padding: 6%;
+  border-radius: 9%;
+  background: #fff;
+}
+.modulos {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.modulos path { fill: #0e0c2a; }
+
+/* La mira: el acento naranja de la escena. Un poco fuera de la placa, como al escanear en la puerta. */
+.mira {
+  position: absolute;
+  left: -12%;
+  top: -12%;
+  width: 124%;
+  height: 124%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--fm-naranja);
+  stroke-width: 3.4;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px color-mix(in oklch, var(--fm-naranja) 75%, transparent));
+}
+
+.renglon {
+  display: block;
+  width: 66%;
+  height: calc(var(--alto) * 0.009);
+  border-radius: 99px;
+  background: oklch(1 0 0 / 0.26);
+}
+.renglon + .renglon {
+  width: 40%;
+  background: oklch(1 0 0 / 0.14);
+}
+
+/* El rótulo que dice lo que es (un dibujo, no una captura de la app), con el tamaño de etiqueta de la base. Al pie de
+   la figura y con el relleno de abajo de una tarjeta (más su borde): su línea es la del «quién» de «Cápsulas». */
+.rotulo {
+  grid-row: 3;
+  align-self: end;
+  padding-bottom: calc(clamp(0.75rem, 2vh, 1.35rem) + 1px);
+  white-space: nowrap;
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fm-tinta-3);
+}
+
+/* ---------- RESPALDOS ---------- */
+
+/* Pantalla mediana: el teléfono a la derecha y las cuatro tarjetas en una columna. */
+@media (max-width: 1100px) {
+  .cuerpo {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: repeat(4, auto);
+  }
+  .suyo { grid-area: 4 / 1; }
+  .ilustracion { grid-area: 1 / 2 / 5 / 3; }
+}
+
+/* Teléfono angosto: todo apilado, el teléfono de frente y con su rótulo debajo, en el flujo. */
+@media (max-width: 760px) {
+  .cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+  .boletos,
+  .comunicados,
+  .capsulas,
+  .suyo,
+  .ilustracion { grid-area: auto; }
+  .ilustracion {
+    --alto: clamp(320px, 62vh, 520px);
+    grid-template-rows: auto auto;
+    row-gap: 0.75rem;
+  }
+  .telefono {
+    grid-row: 1;
+    transform: none;
+  }
+  .rotulo {
+    grid-row: 2;
+    padding-bottom: 0;
+  }
+}
+
+/* Impreso: el cuadro final, sin animaciones a medio camino. */
+@media print {
+  .escena *,
+  .escena *::before,
+  .escena *::after { animation: none !important; }
+}

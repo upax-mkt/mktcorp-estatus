@@ -1,0 +1,102 @@
+/* 2 · ESCUCHAMOS — sus palabras, en vidrio, sobre la escena de humo (muy oscura).
+
+   Composición: cabecera arriba a la izquierda; las tres voces en cascada, cada una un paso más adentro, como se
+   fueron diciendo. Detrás de las voces, un halo magenta y azul quieto (luz de fondo, no acento) que el vidrio
+   refracta: así el vidrio se lee como vidrio y no como una caja oscura. La esquina de abajo a la derecha queda libre
+   para el aforo.
+
+   Movimiento: solo la entrada de la casa (`.aparece` de la base) con `orden(i)`, que aquí es solo opacidad porque el
+   aforo llega viajando desde la portada (`conViaje`, en la base); no hay keyframes propios.
+   Nunca `opacity: 0` en este archivo: el estado oculto lo pone la base, bajo `data-animar`. Las reglas que cambian
+   algo de la base llevan dos clases, para no depender del orden de las hojas. */
+
+.escena { justify-content: flex-start; }
+
+.voces {
+  position: relative;
+  flex: 1;
+  margin: 0;
+  padding: clamp(0.5rem, 2.5vh, 2rem) 0 clamp(2.5rem, 8vh, 6rem);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(0.8rem, 2.6vh, 1.8rem);
+}
+
+/* La luz que el vidrio refracta: quieta y detrás de las voces. */
+.voces::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -10%;
+  top: 0;
+  width: 92%;
+  height: 92%;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side at 38% 42%, color-mix(in oklch, var(--fm-magenta) 34%, transparent) 0%, transparent 72%),
+    radial-gradient(closest-side at 72% 66%, color-mix(in oklch, var(--fm-azul) 30%, transparent) 0%, transparent 70%);
+}
+
+/* UNA VOZ: del ancho de su frase, con sus comillas dentro. */
+.voz {
+  position: relative;
+  max-width: 100%;
+  padding:
+    clamp(0.75rem, 2.2vh, 1.5rem)
+    clamp(1.6rem, 2.8vw, 3rem)
+    clamp(0.85rem, 2.4vh, 1.65rem);
+}
+
+/* Vidrio de verdad: el humo de atrás se refracta más claro, un velo de luz en diagonal, filo arriba, sombra larga. */
+.voces .voz {
+  border-radius: 24px;
+  border-color: oklch(1 0 0 / 0.18);
+  background-color: color-mix(in oklch, var(--fm-noche) 42%, transparent);
+  background-image: linear-gradient(115deg, oklch(1 0 0 / 0.12) 0%, oklch(1 0 0 / 0.03) 38%, transparent 66%);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35) brightness(1.12);
+  backdrop-filter: blur(24px) saturate(1.35) brightness(1.12);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.24),
+    0 40px 80px -42px oklch(0 0 0 / 0.9);
+}
+
+/* La cascada: cada voz un paso más adentro que la anterior. */
+.voces .voz:nth-child(2) { margin-left: clamp(1.5rem, 6.5vw, 7.5rem); }
+.voces .voz:nth-child(3) { margin-left: clamp(3rem, 13vw, 15rem); }
+
+.cita { margin: 0; }
+
+.cita p {
+  margin: 0;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.9rem, min(4.2vw, 7.1vh), 5rem);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+/* Impresa: estado final aunque la escena llegue a la pantalla en el mismo `beforeprint`. */
+@media print {
+  .escena *,
+  .escena *::before,
+  .escena *::after { animation: none !important; transition: none !important; }
+  .voces::before { display: none; }
+  .voces .voz {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-image: none;
+    box-shadow: none;
+  }
+}
+
+/* BAJO 760 PX SE APILA: sin cascada, cada voz a lo ancho; el aforo (base) baja al final. */
+@media (max-width: 760px) {
+  .voces { padding-bottom: 1rem; align-items: stretch; }
+  .voces::before { left: -20%; width: 130%; }
+  .voces .voz:nth-child(n) { margin-left: 0; }
+}
