@@ -1,30 +1,56 @@
-/* 2 Y 3 · LO QUE DESCUBRIMOS — cuatro hallazgos por pantalla, en una cuadrícula de dos por dos. Cada tarjeta: su
-   número a la izquierda (el mismo que usa «Cómo podemos ayudar» para decir qué resuelve cada unidad), el hallazgo en
-   una línea, la explicación y quién lo atiende. */
+/* LO QUE DESCUBRIMOS (ronda 6) — una pantalla por parte de Fortaleza Mexicana. Cada problema en su tarjeta: su número a
+   la izquierda (el mismo que usa «Lo que proponemos» para decir qué resuelve cada propuesta), el problema en una
+   línea y la explicación. Sin «cómo lo resolvemos»: eso va después. Con foto (el Frontón por fuera, Pelota Mestiza),
+   la foto a la izquierda y los problemas en una columna a la derecha. */
 
 .escena { justify-content: flex-start; }
 
 .titulo.titulo { max-width: 26ch; }
-.nota.nota { max-width: 60ch; }
+.nota.nota { max-width: 62ch; }
+
+.cuerpo {
+  flex: 1;
+  min-height: 0;
+  margin-top: clamp(0.8rem, 2.4vh, 2rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+.conFoto .cuerpo {
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+  align-items: stretch;
+  gap: clamp(1rem, 2.4vw, 3rem);
+}
+
+.foto.foto {
+  height: 100%;
+  min-height: clamp(220px, 40vh, 640px);
+  border-radius: 16px;
+}
 
 .dolores {
   list-style: none;
-  margin: auto 0;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(0.8rem, min(1.4vw, 2.4vh), 1.6rem);
+  align-content: center;
+  gap: clamp(0.7rem, min(1.2vw, 2vh), 1.4rem);
 }
+/* Con foto al lado, los problemas en una sola columna y más compactos. */
+.conFoto .dolores { grid-template-columns: minmax(0, 1fr); gap: clamp(0.5rem, min(0.9vw, 1.4vh), 1rem); }
+.conFoto .dolor { padding: clamp(0.6rem, min(1vw, 1.6vh), 1.1rem) clamp(0.9rem, min(1.4vw, 2.4vh), 1.7rem); }
+.conFoto .dolorTitulo { font-size: calc(var(--fm-t-tarjeta) * 0.9); }
 
 .dolor {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: clamp(0.8rem, 1.4vw, 1.5rem);
-  padding: clamp(1rem, min(1.6vw, 2.8vh), 2rem) clamp(1.1rem, min(1.8vw, 3.2vh), 2.2rem);
+  padding: clamp(0.85rem, min(1.4vw, 2.3vh), 1.7rem) clamp(1rem, min(1.6vw, 2.8vh), 2rem);
 }
 
-/* El número: un círculo con borde naranja. Es el mismo número que lleva el hallazgo en el resto de la pieza. */
+/* El número: un círculo con borde naranja. Es el mismo número que lleva el problema en el resto de la pieza. */
 .numero {
   display: grid;
   place-items: center;
@@ -39,7 +65,7 @@
   color: var(--fm-tinta);
 }
 
-.texto { display: flex; flex-direction: column; gap: clamp(0.3rem, 0.6vh, 0.55rem); min-width: 0; }
+.texto { display: flex; flex-direction: column; gap: clamp(0.25rem, 0.5vh, 0.5rem); min-width: 0; }
 
 .dolorTitulo {
   margin: 0;
@@ -53,37 +79,23 @@
 .dolorTexto {
   margin: 0;
   font-size: var(--fm-t-cuerpo);
-  line-height: 1.38;
+  line-height: 1.36;
   color: var(--fm-tinta-2);
   text-wrap: pretty;
 }
 
-.atienden {
-  margin: 0.15rem 0 0;
-  font-size: var(--fm-t-etiqueta);
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--fm-tinta);
-}
-.atiendenRotulo {
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fm-tinta-3);
-}
-
-@media (max-width: 900px) {
-  .dolores { grid-template-columns: 1fr; }
-}
-
-/* EL HALLAZGO CON PRUEBA: la foto real a la derecha, del alto de la tarjeta. */
-.dolor[data-con-prueba='true'] { grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.62fr); }
+/* EL PROBLEMA CON PRUEBA: la foto real a la derecha, del alto de la tarjeta. */
+.dolor[data-con-prueba='true'] { grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.42fr); }
 .prueba.prueba {
   align-self: stretch;
-  min-height: clamp(110px, 16vh, 220px);
+  min-height: clamp(90px, 13vh, 190px);
   border-radius: 12px;
 }
+
 @media (max-width: 900px) {
+  .dolores,
+  .conFoto .cuerpo { grid-template-columns: minmax(0, 1fr); }
+  .foto.foto { min-height: 0; height: auto; aspect-ratio: 4 / 3; }
   .dolor[data-con-prueba='true'] { grid-template-columns: auto minmax(0, 1fr); }
   .dolor[data-con-prueba='true'] .prueba { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
 }

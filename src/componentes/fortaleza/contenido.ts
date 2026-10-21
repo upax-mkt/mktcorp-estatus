@@ -1,34 +1,54 @@
 import type { Unidad } from './comun'
 
 /**
- * EL TEXTO DE LA PIEZA, en un solo lugar (rondas 4 y 5, 21-oct-2026).
+ * EL TEXTO DE LA PIEZA, en un solo lugar (ronda 6, 21-oct-2026).
  *
- * Ceci vio la versión anterior el 20-oct y pidió otra cosa (Notas de Voz «Feedback Ceci Fortaleza Mexicana 1» y
- * «UPAX GS 10»): primero el dolor, «si no conoces el antecedente y el dolor, no sabes qué arreglar»; después por qué
- * creemos en Fortaleza Mexicana; y al final cómo ayuda cada unidad, en un dibujo con Fortaleza al centro y cada
- * unidad alrededor. Sin jerga, que se entienda sin que nadie lo explique, con ejemplos y sin prometer el lleno: «mi
- * trabajo es ofrecerte todas estas herramientas».
+ * Ceci revisó la ronda 5 con las unidades (Notas de Voz «UPAX GS 11», 21-oct) y pidió:
+ * - «Primero qué descubrimos y luego qué resolvemos, no todo junto»: el diagnóstico lleva solo los problemas, mejor
+ *   definidos, uno por idea («no se venden» y «se cambian a mano» son dos cosas distintas).
+ * - Ordenar la propuesta por las cuatro partes que Marketing United propuso impulsar («4 propiedades a impulsar»,
+ *   20-oct): Malinche, el Frontón como venue, Pelota Mestiza y las experiencias gastronómicas. «Para cada una, te
+ *   proponemos esto». Ceci lo aprobó en la sala.
+ * - Palabras llanas («videoactivaciones, la compra… no sé qué hablas»), y que cada propuesta diga lo que mandó su unidad.
+ * - Lo de Promo Espacio en la ciudad no está conseguido: es una oferta («no conseguimos, lo que les ofrecimos»).
+ * - El Frontón es monumento: la fachada no se toca. Afuera, todo va en la plancha y en la ciudad.
  *
- * Ronda 5 (21-oct): Franco, «no está wow, no es claro lo que harán las UDNs, debe ser autoexplicativa». Cada unidad
- * tiene su propia pantalla, en orden, con qué es, lo que hará en una frase y lo que produce en grande («que ponga lo
- * que produce… así se ve Malinche montada», Ceci). Ajustada con una revisión independiente contra las palabras de
- * Ceci y con el complemento digital que mandó Marketing United el 20-oct (Antonio Santos).
- *
- * Fuente de cada dolor y de cada acción: `~/CMO Copilot/sesiones/2026-10-20-fortaleza-presentacion/guion-tecnico.md`,
- * secciones «Ronda 4» y «Ronda 5». Nada lleva precio. Solo se compromete lo que cada unidad mandó o acordó.
+ * Fuentes: el material de cada unidad en `~/Downloads/Fortaleza Mexicana/` y las grabaciones, en
+ * `~/CMO Copilot/sesiones/2026-10-20-fortaleza-presentacion/guion-tecnico.md` («Ronda 6»). Nada lleva precio. Solo se
+ * compromete lo que cada unidad mandó o dijo en la sala.
  */
 
 /** Una imagen: foto real, montaje o ilustración generada, con lo que es escrito en su esquina. */
-export type Imagen = { src: string; alt: string; pie: string; marca: string; posicion?: string }
+export type Imagen = {
+  src: string
+  alt: string
+  pie: string
+  marca: string
+  posicion?: string
+  /** Si la imagen se ve completa, a su proporción (por ejemplo «16 / 9»), en vez de recortarse para llenar el cuadro. */
+  proporcion?: string
+}
 
+const F = '/fortaleza/'
+
+/** Las cuatro partes de Fortaleza Mexicana que hay que impulsar (Marketing United, 20-oct; Ceci, 21-oct). */
+export type Propiedad = 'malinche' | 'fronton' | 'pelota' | 'experiencias'
+
+export const PROPIEDADES: readonly { id: Propiedad; nombre: string; que: string; promesa: string }[] = [
+  { id: 'malinche', nombre: 'Malinche', que: 'El musical', promesa: 'Que toda la ciudad lo sepa y comprar sea fácil' },
+  { id: 'fronton', nombre: 'El Frontón México', que: 'El venue', promesa: 'Que sus pantallas trabajen y se rente toda la semana' },
+  { id: 'pelota', nombre: 'Pelota Mestiza', que: 'El restaurante', promesa: 'Que sea destino, con o sin función' },
+  { id: 'experiencias', nombre: 'Experiencias gastronómicas', que: 'Las cenas con chefs invitados', promesa: 'Que sus cenas se llenen' },
+]
+
+/** Un problema: solo lo que pasa, sin cómo se resuelve (eso va después, en la propuesta). */
 export type Dolor = {
   n: number
+  propiedad: Propiedad
   titulo: string
-  /** Una frase corta: así se nombra en el «Resuelve» de cada unidad. */
+  /** Una frase corta: así se nombra en el «Resuelve» de cada propuesta. */
   corto: string
   texto: string
-  /** Las unidades que lo atienden, en el orden en que aparecen en sus pantallas. */
-  atienden: readonly Unidad[]
   /** La prueba, cuando hay una foto real. */
   evidencia?: Imagen
 }
@@ -36,65 +56,115 @@ export type Dolor = {
 export const DOLORES: readonly Dolor[] = [
   {
     n: 1,
-    titulo: 'Casi nadie se entera',
+    propiedad: 'malinche',
+    titulo: 'Casi nadie se entera de Malinche',
     corto: 'Casi nadie se entera',
-    texto: 'Malinche se ve poco fuera del Frontón y le falta material para anunciarse.',
-    atienden: ['promo-espacio', 'house-of-films', 'marketing-united', 'grupo-upax'],
+    texto: 'Le falta difusión y no tiene material para hacer su publicidad.',
   },
   {
     n: 2,
-    titulo: 'Las pantallas del Frontón no venden',
-    corto: 'Las pantallas no venden',
-    texto: 'Las del lobby y la taquilla se cambian a mano, con una memoria USB, y las del escenario no se aprovechan.',
-    atienden: ['promo-espacio'],
-    evidencia: {
-      src: '/fortaleza/pe-taquilla-hoy.jpg',
-      alt: 'Foto real: la pantalla de la taquilla del Frontón, apagada.',
-      pie: 'La pantalla de taquilla, hoy',
-      marca: 'Foto real',
-    },
+    propiedad: 'malinche',
+    titulo: 'A una empresa le cuesta comprar',
+    corto: 'A las empresas les cuesta comprar',
+    texto: 'No hay paquetes para empresas a la vista, y en línea se venden hasta 8 boletos por compra.',
   },
   {
     n: 3,
-    titulo: 'Pocos saben que el Frontón se renta',
-    corto: 'Pocos rentan el Frontón',
-    texto: 'Casi nadie lo piensa como sede de eventos, y de lunes a miércoles el teatro no se usa.',
-    atienden: ['house-of-films', 'marketing-united', 'uix'],
-  },
-  {
-    n: 4,
-    titulo: 'A una empresa le cuesta comprar',
-    corto: 'A las empresas les cuesta comprar',
-    texto: 'No hay paquetes para empresas a la vista y en línea se venden hasta 8 boletos por compra.',
-    atienden: ['marketing-united', 'grupo-upax', 'uix'],
-  },
-  {
-    n: 5,
-    titulo: 'La boletera propia todavía no está lista',
-    corto: 'La boletera no está lista',
-    texto: 'Para competir con Ticketmaster necesita seguridad, aguantar mucha venta a la vez y una compra fácil.',
-    atienden: ['uix', 'neracode'],
-  },
-  {
-    n: 6,
+    propiedad: 'malinche',
     titulo: 'Los colaboradores de Grupo Salinas no se enteran',
     corto: 'Los colaboradores no se enteran',
     texto: 'No hay un canal para ofrecerles boletos con beneficio ni para saber si el aviso les llegó.',
-    atienden: ['house-of-films', 'zeus', 'neracode'],
   },
   {
-    n: 7,
+    n: 4,
+    propiedad: 'malinche',
+    titulo: 'La boletera propia todavía no está lista',
+    corto: 'La boletera no está lista',
+    texto: 'Para competir con Ticketmaster necesita seguridad, aguantar mucha venta a la vez y una compra fácil.',
+  },
+  {
+    n: 5,
+    propiedad: 'malinche',
     titulo: 'Falta saber quién más vendría',
     corto: 'Falta saber quién más vendría',
     texto: 'La obra gusta a quien la ve, pero no se sabe a quién invitar ni qué detiene a los demás.',
-    atienden: ['research-land'],
+  },
+  {
+    n: 6,
+    propiedad: 'fronton',
+    titulo: 'Desde afuera, nadie sabe qué hay adentro',
+    corto: 'Nadie sabe qué hay adentro',
+    texto: 'El Frontón México todavía no se reconoce como un lugar de espectáculos y de eventos.',
+  },
+  {
+    n: 7,
+    propiedad: 'fronton',
+    titulo: 'Pocos saben que se renta',
+    corto: 'Pocos saben que se renta',
+    texto: 'Casi nadie lo piensa como sede de eventos, y de lunes a miércoles el teatro no se usa.',
   },
   {
     n: 8,
+    propiedad: 'fronton',
+    titulo: 'Las pantallas no se venden',
+    corto: 'Las pantallas no se venden',
+    texto: 'Nadie las ofrece a patrocinadores, así que hoy no dejan ingresos.',
+  },
+  {
+    n: 9,
+    propiedad: 'fronton',
+    titulo: 'Las del lobby, la taquilla y las barras se cambian a mano',
+    corto: 'Se cambian a mano',
+    texto: 'Con una memoria USB. No pueden mostrar el menú ni al patrocinador del día.',
+  },
+  {
+    n: 10,
+    propiedad: 'fronton',
+    titulo: 'Las dos pantallas grandes del escenario están apagadas',
+    corto: 'Las del escenario, apagadas',
+    texto: 'No tienen con qué programarse: no se usan ni antes de la función ni en el intermedio.',
+  },
+  {
+    n: 11,
+    propiedad: 'pelota',
     titulo: 'Pelota Mestiza todavía no es destino',
     corto: 'Pelota Mestiza no es destino',
-    texto: 'Los restaurantes de enfrente se llenan, y las cenas de los miércoles buscan quién ocupe sus mesas.',
-    atienden: ['marketing-united'],
+    texto: 'Pocos saben que adentro hay un restaurante. Se ve como complemento del show, y los de enfrente se llenan.',
+  },
+  {
+    n: 12,
+    propiedad: 'experiencias',
+    titulo: 'Las cenas con chefs invitados tienen que llenarse',
+    corto: 'Las cenas tienen que llenarse',
+    texto: 'Las cenas a cuatro manos de los miércoles son su gran apuesta, y cada semana hay que llenar sus mesas.',
+  },
+]
+
+/** Las pantallas de «Lo que descubrimos»: una por parte (Pelota Mestiza y sus cenas comparten), con su foto si la hay. */
+export const DESCUBRIMOS: readonly { id: string; titulo: string; propiedades: readonly Propiedad[]; foto?: Imagen }[] = [
+  { id: 'malinche', titulo: 'En Malinche', propiedades: ['malinche'] },
+  {
+    id: 'fronton',
+    titulo: 'En el Frontón México',
+    propiedades: ['fronton'],
+    foto: {
+      src: F + 'fachada.jpg',
+      alt: 'Foto real: la fachada roja del Frontón México, sola, sin nada que diga lo que pasa adentro.',
+      pie: 'El Frontón México, por fuera. Es monumento con valor artístico: su fachada no se toca.',
+      marca: 'Foto real',
+      posicion: '50% 40%',
+    },
+  },
+  {
+    id: 'pelota',
+    titulo: 'En Pelota Mestiza y sus cenas',
+    propiedades: ['pelota', 'experiencias'],
+    foto: {
+      src: F + 'pelota-mestiza-salon.jpg',
+      alt: 'Foto real: el salón de Pelota Mestiza.',
+      pie: 'Pelota Mestiza, dentro del Frontón',
+      marca: 'Foto real',
+    },
   },
 ]
 
@@ -130,62 +200,150 @@ export const FORTALEZAS: readonly Fortaleza[] = [
   },
 ]
 
-/** Lo que se ve de cada unidad, en grande. */
+/** Qué es cada unidad, en tres o cuatro palabras, junto a su logo: la Sra. María Laura no conoce las marcas. */
+export const QUE_ES: Readonly<Partial<Record<Unidad, string>>> = {
+  'promo-espacio': 'Pantallas y publicidad',
+  'house-of-films': 'Producción de video',
+  'marketing-united': 'Activaciones y experiencias',
+  'grupo-upax': 'Marketing Corporativo',
+  zeus: 'App de colaboradores',
+  uix: 'Diseño de experiencia',
+  neracode: 'Software a la medida',
+  'research-land': 'Investigación de mercado',
+}
+
+/** Lo que se ve de cada propuesta, en grande. */
 export type Visual =
-  /** Hoy y con la unidad, el mismo encuadre lado a lado; debajo, una tira de imágenes. */
+  /** Hoy y con la propuesta, el mismo encuadre lado a lado; debajo, una tira de imágenes. */
   | { tipo: 'antesDespues'; hoy: Imagen; con: Imagen; tira: readonly Imagen[] }
   /** Una imagen principal y, si hace falta, una tira debajo. */
   | { tipo: 'foto'; principal: Imagen; tira?: readonly Imagen[] }
   /** Un dibujo hecho en la página (rotulado «Ilustración»). */
   | { tipo: 'dibujo'; dibujo: 'telefono' | 'invitacion' | 'boletera' | 'uix' | 'encuesta'; pie: string }
-  /** Las simulaciones que mandó la unidad, a su tamaño, sobre un escenario: el teléfono y dos tarjetas. */
+  /** Las simulaciones que mandó la unidad, a su tamaño, sobre un escenario: el teléfono y sus tarjetas. */
   | { tipo: 'maquetas'; telefono: Imagen; tarjetas: readonly Imagen[]; pie: string }
 
-/** «Ya conseguido» cuando la unidad ya lo logró; «Listo para arrancar» cuando está acordado pero no corre. */
-export type Accion = { titulo: string; texto: string; estado?: 'conseguido' | 'listo' }
+/**
+ * Lo que aporta una unidad. `estado`: «listo» (acordado y listo para arrancar), «curso» (ya empezó) o «siguiente» (para
+ * la siguiente temporada). Nada va como «ya conseguido»: Promo Espacio aclaró que lo de la ciudad es una oferta.
+ */
+export type Aporte = { unidad: Unidad; titulo: string; texto: string; estado?: 'listo' | 'curso' | 'siguiente' }
 
-export type PaginaDeUnidad = {
-  /** Identificador de la pantalla (una unidad puede tener varias: Marketing United). */
+export type Propuesta = {
+  /** Identificador de la pantalla. */
   id: string
-  unidad: Unidad
-  /** Qué es la unidad, en tres o cuatro palabras, junto a su logo: la Sra. María Laura no conoce las marcas. */
-  queEs: string
-  /** Lo que hará, en una frase llana: es el titular de su pantalla. */
+  propiedad: Propiedad
+  /** Lo que buscamos para esa parte, en una frase llana: es el titular de la pantalla. */
   titulo: string
-  produce: readonly Accion[]
+  aportes: readonly Aporte[]
+  /** Los problemas que atiende, por número. */
   resuelve: readonly number[]
-  cuando: string
   nota?: string
   visual: Visual
 }
 
-const F = '/fortaleza/'
-
-/** Una pantalla por unidad, en el orden de la historia: que se vea, que se use, que se compre, que se entienda. */
-export const PAGINAS: readonly PaginaDeUnidad[] = [
+/** Lo que proponemos, por parte: Malinche, el Frontón, Pelota Mestiza y las experiencias gastronómicas. */
+export const PROPUESTAS: readonly Propuesta[] = [
   {
-    id: 'promo-espacio',
-    unidad: 'promo-espacio',
-    queEs: 'Pantallas y publicidad en la ciudad',
-    titulo: 'Encendemos las pantallas del Frontón y ponemos a Malinche en toda la ciudad.',
-    produce: [
+    id: 'malinche-ciudad',
+    propiedad: 'malinche',
+    titulo: 'Que toda la ciudad sepa que Malinche está en el Frontón.',
+    aportes: [
       {
-        titulo: 'Las pantallas del Frontón',
-        texto: 'Las 10 de las barras y la de taquilla, programadas a distancia, sin memorias USB.',
+        unidad: 'promo-espacio',
+        titulo: 'Malinche en nuestras pantallas',
+        texto: 'Con sus días y horarios, en los paraderos CETRAM, Forum Buenavista, TeleUrban y las 1,211 sucursales de Banco Azteca y Elektra.',
+        estado: 'listo',
       },
       {
-        titulo: 'El escenario y las suites',
-        texto: 'Las pantallas laterales, con Malinche en movimiento y espacio para patrocinadores.',
+        unidad: 'marketing-united',
+        titulo: 'Personajes y un stand donde está la gente',
+        texto: 'En la plancha del Monumento, corporativos, escuelas y plazas; para turistas, embajadas, hoteles y recorridos de Turibus.',
       },
-      { titulo: 'En todas las tiendas', texto: 'Malinche en las pantallas de 1,211 tiendas Elektra y Banco Azteca.' },
       {
-        titulo: 'En la ciudad',
-        texto: 'En las pantallas de nuestros socios: Forum, los paraderos CETRAM y TeleUrban.',
-        estado: 'conseguido',
+        unidad: 'house-of-films',
+        titulo: 'El spot y la publicidad de Malinche',
+        texto: 'El guion, el spot y las piezas para redes; y revisar y ajustar lo que hoy publica.',
+      },
+      {
+        unidad: 'grupo-upax',
+        titulo: 'Nuestros clientes y la prensa',
+        texto: 'Una invitación con un beneficio para ver Malinche, y los editores que nos publican, invitados a una función.',
       },
     ],
-    resuelve: [1, 2],
-    cuando: 'Desde esta semana',
+    resuelve: [1, 6],
+    nota: 'La fachada del Frontón no se toca: afuera, todo va en la plancha y en la ciudad.',
+    visual: {
+      tipo: 'foto',
+      principal: {
+        src: F + 'anuncio-malinche.jpg',
+        alt: 'Simulación: el anuncio de Malinche para pantallas, con la protagonista, el logo, los días y horarios de función y dónde comprar boletos.',
+        pie: 'El anuncio de Malinche, como iría en nuestras pantallas',
+        marca: 'Simulación',
+        proporcion: '16 / 9',
+      },
+    },
+  },
+  {
+    id: 'malinche-compra',
+    propiedad: 'malinche',
+    titulo: 'Que comprar Malinche sea fácil para todos.',
+    aportes: [
+      {
+        unidad: 'uix',
+        titulo: 'Cómo se compra, paso por paso',
+        texto: 'Revisamos cómo se entera la gente, cómo compra y qué vive en la función, y proponemos mejoras.',
+        estado: 'curso',
+      },
+      {
+        unidad: 'marketing-united',
+        titulo: 'Un kit para empresas',
+        texto: 'Boletos para su gente, un rally y una muestra de la obra en sus oficinas.',
+      },
+      {
+        unidad: 'zeus',
+        titulo: 'En el teléfono de los colaboradores',
+        texto: 'Boletos con beneficio y avisos dentro de Zeus, la app de Grupo Salinas. Lo construye NeraCode.',
+      },
+      { unidad: 'neracode', titulo: 'Su boletera, reforzada', texto: 'Segura, que no se caiga y fácil de usar.', estado: 'siguiente' },
+      {
+        unidad: 'research-land',
+        titulo: 'Quién más puede venir',
+        texto: 'A quién invitar, qué lo detiene y qué se dice de la obra.',
+        estado: 'siguiente',
+      },
+    ],
+    resuelve: [2, 3, 4, 5],
+    visual: { tipo: 'dibujo', dibujo: 'telefono', pie: 'El boleto, en el teléfono del colaborador' },
+  },
+  {
+    id: 'fronton-pantallas',
+    propiedad: 'fronton',
+    titulo: 'Que las pantallas del Frontón trabajen y dejen ingresos.',
+    aportes: [
+      {
+        unidad: 'promo-espacio',
+        titulo: 'Lobby, taquilla y barras',
+        texto: 'Conectamos sus pantallas a nuestros reproductores: el menú, la función y el patrocinador del día, cambiados a distancia.',
+      },
+      {
+        unidad: 'promo-espacio',
+        titulo: 'Las pantallas grandes del escenario',
+        texto: 'Les ponemos nuestra plataforma para anunciar marcas antes de la función y en el intermedio.',
+      },
+      {
+        unidad: 'promo-espacio',
+        titulo: 'Patrocinadores que paguen',
+        texto: 'Vendemos esos espacios a marcas: las pantallas empiezan a dejar ingresos.',
+      },
+      {
+        unidad: 'promo-espacio',
+        titulo: 'Posters LED, suites y algo distinto',
+        texto: 'Posters LED en el acceso, pantallas en las suites y, para lo innovador que pidieron, banners que simulan fuego.',
+      },
+    ],
+    resuelve: [8, 9, 10],
+    nota: 'Todo con equipo que ya tenemos. Primero, una revisión técnica con su equipo de tecnología.',
     visual: {
       tipo: 'antesDespues',
       hoy: {
@@ -196,131 +354,59 @@ export const PAGINAS: readonly PaginaDeUnidad[] = [
       },
       con: {
         src: F + 'pe-taquilla.jpg',
-        alt: 'Simulación: la misma pantalla de taquilla, encendida con Malinche.',
-        pie: 'La misma pantalla, con Malinche · simulación',
+        alt: 'Simulación: la misma pantalla de taquilla, encendida con el anuncio de Malinche: días, horarios y dónde comprar.',
+        pie: 'La misma pantalla, vendiendo la función · simulación',
         marca: 'Con Promo Espacio',
       },
       tira: [
         {
-          src: F + 'pe-escenario.jpg',
-          alt: 'Simulación: la pantalla lateral del escenario del Frontón, encendida con Malinche, sobre una foto real del teatro.',
-          pie: 'La pantalla lateral del escenario',
-          marca: 'Simulación',
-          posicion: '70% 40%',
-        },
-        {
           src: F + 'pe-barra.jpg',
-          alt: 'Simulación: las pantallas de las barras del lobby del Frontón, encendidas con Malinche.',
-          pie: 'Las pantallas de las barras',
+          alt: 'Simulación: las pantallas de las barras del lobby, encendidas con el menú y la función del día.',
+          pie: 'Las barras, con su menú',
           marca: 'Simulación',
         },
         {
-          src: F + 'pe-tienda.jpg',
-          alt: 'Ilustración: Malinche en una pantalla dentro de una tienda.',
-          pie: 'En las tiendas',
-          marca: 'Ilustración',
+          src: F + 'pe-poster.jpg',
+          alt: 'Simulación: un poster LED de Promo Espacio con el anuncio de Malinche.',
+          pie: 'Un poster LED como los que instalaríamos',
+          marca: 'Simulación',
         },
       ],
     },
   },
   {
-    id: 'house-of-films',
-    unidad: 'house-of-films',
-    queEs: 'Producción de video',
-    titulo: 'Hacemos el spot de Malinche y el contenido para sus redes.',
-    produce: [
-      { titulo: 'El spot de Malinche', texto: 'Del guion a la producción, para redes, pantallas y aeropuertos.' },
-      { titulo: 'Piezas para redes', texto: 'Material del show, listo para publicar.' },
+    id: 'fronton-renta',
+    propiedad: 'fronton',
+    titulo: 'Que el Frontón se rente toda la semana.',
+    aportes: [
       {
-        titulo: 'Cápsulas «¿Sabías que?»',
-        texto: 'Con Juan Miguel Zunzunegui, para redes y para los colaboradores de Grupo Salinas.',
+        unidad: 'marketing-united',
+        titulo: 'Cada espacio, frente a quien lo puede rentar',
+        texto: 'El teatro para convenciones, Templo Canalla para lanzamientos, los bares para celebraciones y la Sala de Consejo para juntas, cada uno con su página para pedirlo.',
       },
-      { titulo: 'El Frontón, locación', texto: 'Traemos a nuestros clientes a filmar en sus espacios.' },
-    ],
-    resuelve: [1, 3, 6],
-    cuando: 'Noviembre',
-    visual: {
-      tipo: 'foto',
-      principal: {
-        src: F + 'hof-rodaje.jpg',
-        alt: 'Ilustración: un rodaje en el escenario del Frontón.',
-        pie: 'Un rodaje en el escenario del Frontón',
-        marca: 'Ilustración',
-      },
-    },
-  },
-  {
-    id: 'marketing-united',
-    unidad: 'marketing-united',
-    queEs: 'Activaciones y experiencias',
-    titulo: 'Llevamos a los personajes de Malinche a donde está la gente.',
-    produce: [
       {
-        titulo: 'Un stand que viaja',
-        texto: 'Con pantallas y personajes, vende boletos en corporativos, escuelas y plazas. Ya montamos uno en un evento de Grupo Salinas.',
+        unidad: 'marketing-united',
+        titulo: 'De lunes a miércoles',
+        texto: 'Exámenes de escuelas de música y de arte dramático, cine, catas y noches prehispánicas.',
       },
-      { titulo: 'Turistas y visitantes', texto: 'Embajadas, hoteles, agencias de viaje y rutas de Turibus que terminen en el Frontón.' },
       {
-        titulo: 'En los autos',
-        texto: 'Volantes de Malinche en autos y motos de Uber, DiDi y Rappi en Pedregal, Lomas y Polanco.',
+        unidad: 'promo-espacio',
+        titulo: 'El Frontón, en nuestras pantallas',
+        texto: 'Lo anunciamos como sede para eventos de empresas, con nuestros socios.',
         estado: 'listo',
       },
-    ],
-    resuelve: [1],
-    cuando: 'Noviembre',
-    visual: {
-      tipo: 'foto',
-      principal: {
-        src: F + 'mu-cetram.jpg',
-        alt: 'Ilustración: personajes de Malinche y una taquilla móvil en un CETRAM, bajo una pantalla que anuncia la obra.',
-        pie: 'Personajes y taquilla móvil, bajo una pantalla del CETRAM',
-        marca: 'Ilustración',
-        posicion: '50% 45%',
-      },
-    },
-  },
-  {
-    id: 'marketing-united-semana',
-    unidad: 'marketing-united',
-    queEs: 'Activaciones y experiencias',
-    titulo: 'Hacemos que el Frontón y Pelota Mestiza se usen toda la semana.',
-    produce: [
       {
-        titulo: 'Para empresas',
-        texto: 'Un paquete para su gente: boletos, un recorrido por el Frontón, una muestra de la obra y cena.',
+        unidad: 'house-of-films',
+        titulo: 'Locación para nuestros clientes',
+        texto: 'Traemos a filmar a nuestros clientes y grabamos ahí contenido de entretenimiento.',
       },
-      { titulo: 'El Track Day de motos', texto: 'Malinche y una taquilla móvil en el Track Day del 8 de noviembre.' },
-      { titulo: 'De lunes a miércoles', texto: 'Escuelas de música y de arte dramático, cine, catas y noches prehispánicas.' },
-      { titulo: 'Pelota Mestiza', texto: 'Menús de temporada y una cena con la historia de Malinche proyectada sobre la mesa.' },
-    ],
-    resuelve: [3, 4, 8],
-    cuando: 'Noviembre y diciembre',
-    visual: {
-      tipo: 'foto',
-      principal: {
-        src: F + 'pelota-le-petit-malinche.jpg',
-        alt: 'Ilustración: una cena en Pelota Mestiza con la historia de Malinche proyectada sobre la mesa.',
-        pie: 'La historia de Malinche, proyectada sobre la mesa',
-        marca: 'Ilustración',
-      },
-    },
-  },
-  {
-    id: 'marketing-united-renta',
-    unidad: 'marketing-united',
-    queEs: 'Activaciones y experiencias',
-    titulo: 'Ponemos cada espacio del Frontón frente a quien lo puede rentar.',
-    produce: [
       {
-        titulo: 'Cada espacio, su cliente',
-        texto: 'El teatro de lunes a miércoles, para convenciones; los bares, para celebraciones; la sala, para juntas.',
+        unidad: 'uix',
+        titulo: 'Su presentación comercial, rediseñada',
+        texto: 'Los documentos con los que se vende el Frontón, a la altura del lugar.',
       },
-      { titulo: 'Una página para pedirlo', texto: 'Fotos, montajes y capacidad de cada espacio, con formulario y WhatsApp.' },
-      { titulo: 'Seguimiento hasta el contrato', texto: 'Cada solicitud se atiende hasta la visita y la firma.' },
-      { titulo: 'Que lo encuentren', texto: 'Eventos y recorridos en LinkedIn e Instagram; Pelota Mestiza, en Google Maps.' },
     ],
-    resuelve: [3, 8],
-    cuando: 'Noviembre y diciembre',
+    resuelve: [6, 7],
     visual: {
       tipo: 'maquetas',
       telefono: {
@@ -333,13 +419,7 @@ export const PAGINAS: readonly PaginaDeUnidad[] = [
         {
           src: F + 'mu-formulario.jpg',
           alt: 'Simulación de Marketing United: el formulario para pedir disponibilidad de un espacio, con fecha, horario, asistentes y WhatsApp.',
-          pie: 'Pedir disponibilidad',
-          marca: 'Simulación',
-        },
-        {
-          src: F + 'mu-grupos.jpg',
-          alt: 'Simulación de Marketing United: la tarjeta para pedir una experiencia de grupo en Pelota Mestiza.',
-          pie: 'Grupos en Pelota Mestiza',
+          pie: 'Pedir disponibilidad de un espacio',
           marca: 'Simulación',
         },
       ],
@@ -347,103 +427,88 @@ export const PAGINAS: readonly PaginaDeUnidad[] = [
     },
   },
   {
-    id: 'grupo-upax',
-    unidad: 'grupo-upax',
-    queEs: 'Marketing Corporativo de Grupo UPAX',
-    titulo: 'Abrimos nuestra red: invitamos a nuestros clientes y a la prensa.',
-    produce: [
+    id: 'pelota',
+    propiedad: 'pelota',
+    titulo: 'Que Pelota Mestiza sea destino, con o sin función.',
+    aportes: [
       {
-        titulo: 'Nuestros clientes',
-        texto: 'Una invitación de Grupo UPAX con un beneficio para ver Malinche; nuestros vendedores la llevan.',
+        unidad: 'marketing-united',
+        titulo: 'Celebraciones y reuniones',
+        texto: 'Aniversarios, fin de año, comidas de negocios y reuniones de empresas.',
       },
-      { titulo: 'La prensa', texto: 'Los editores que publican a Grupo UPAX, invitados a ver Malinche.' },
-    ],
-    resuelve: [1, 4],
-    cuando: 'Noviembre',
-    visual: { tipo: 'dibujo', dibujo: 'invitacion', pie: 'La invitación a nuestros clientes' },
-  },
-  {
-    id: 'zeus',
-    unidad: 'zeus',
-    queEs: 'La app de los colaboradores de Grupo Salinas',
-    titulo: 'Ponemos a Malinche en el teléfono de los colaboradores de Grupo Salinas, con un beneficio para ir.',
-    produce: [
-      { titulo: 'Boletos con beneficio', texto: 'Funciones, compra y boleto digital con QR, dentro de Zeus.' },
-      { titulo: 'Avisos que sí llegan', texto: 'Por empresa, área o ubicación, sabiendo quién los leyó.' },
-    ],
-    resuelve: [6],
-    cuando: 'Diciembre',
-    nota: 'Lo construye NeraCode dentro de Zeus.',
-    visual: { tipo: 'dibujo', dibujo: 'telefono', pie: 'El boleto, en el teléfono del colaborador' },
-  },
-  {
-    id: 'uix',
-    unidad: 'uix',
-    queEs: 'Diseño de experiencia',
-    titulo: 'Hacemos fácil comprar Malinche y rentar el Frontón.',
-    produce: [
       {
-        titulo: 'Comprar Malinche',
-        texto: 'Revisamos paso por paso cómo se entera la gente, cómo compra y qué vive en la función.',
+        unidad: 'marketing-united',
+        titulo: 'Que la encuentren y reserven',
+        texto: 'En Instagram y Google Maps, con menú y fotos, y reservación por WhatsApp u OpenTable.',
       },
-      { titulo: 'Rentar el Frontón', texto: 'La presentación comercial del Frontón y sus paquetes para empresas, rediseñados.' },
+      {
+        unidad: 'marketing-united',
+        titulo: 'Menús de temporada y clientes frecuentes',
+        texto: 'Un motivo nuevo para volver, avisado por correo y WhatsApp a quienes ya fueron.',
+      },
+      {
+        unidad: 'house-of-films',
+        titulo: '«Noche de Jueves»',
+        texto: 'El podcast con Juan Miguel Zunzunegui, grabado ahí y con Pelota Mestiza como patrocinador.',
+      },
     ],
-    resuelve: [3, 4, 5],
-    cuando: 'Desde esta semana',
-    visual: { tipo: 'dibujo', dibujo: 'uix', pie: 'La presentación del Frontón, rediseñada, y el recorrido de quien compra' },
+    resuelve: [11],
+    visual: {
+      tipo: 'foto',
+      principal: {
+        src: F + 'mu-pelota.jpg',
+        alt: 'Simulación de Marketing United: Pelota Mestiza en Instagram y Google Maps, con menú, reservación de mesa y experiencias para grupos.',
+        pie: 'Así lo propone Marketing United',
+        marca: 'Simulación',
+        proporcion: '16 / 10',
+      },
+    },
   },
   {
-    id: 'neracode',
-    unidad: 'neracode',
-    queEs: 'Software a la medida',
-    titulo: 'Reforzamos su boletera: segura, que no se caiga y fácil de usar.',
-    produce: [
-      { titulo: 'Segura', texto: 'Con los protocolos de seguridad que hoy le faltan.' },
-      { titulo: 'Que no se caiga', texto: 'Lista para mucha venta a la vez.' },
-      { titulo: 'Fácil de usar', texto: 'Comprar en pocos pasos, desde el celular.' },
-      { titulo: 'Dentro de Zeus', texto: 'El módulo de boletos para los colaboradores de Grupo Salinas.' },
+    id: 'experiencias',
+    propiedad: 'experiencias',
+    titulo: 'Que sus cenas y experiencias se llenen.',
+    aportes: [
+      {
+        unidad: 'marketing-united',
+        titulo: 'Una cena con la historia de Malinche',
+        texto: 'La historia, proyectada sobre la mesa mientras se cena.',
+      },
+      {
+        unidad: 'marketing-united',
+        titulo: 'Escuelas de gastronomía',
+        texto: 'Concursos y cierres de curso con la chef Lula: cocinar en la cocina de Pelota Mestiza.',
+      },
+      {
+        unidad: 'marketing-united',
+        titulo: 'Grupos y empresas',
+        texto: 'Una forma sencilla de pedir una cena para grupo, y reuniones y offsites de corporativos.',
+      },
+      {
+        unidad: 'marketing-united',
+        titulo: 'Recorridos de noche',
+        texto: 'Recorridos que terminen en una cena o en el bar.',
+      },
     ],
-    resuelve: [5, 6],
-    cuando: 'Para la siguiente temporada',
-    visual: { tipo: 'dibujo', dibujo: 'boletera', pie: 'Comprar, en tres pasos' },
-  },
-  {
-    id: 'research-land',
-    unidad: 'research-land',
-    queEs: 'Investigación de mercado',
-    titulo: 'Averiguamos quién más puede venir a ver Malinche y qué lo haría volver.',
-    produce: [
-      { titulo: 'A quién invitar', texto: 'Qué públicos conviene invitar y qué los detiene hoy.' },
-      { titulo: 'Quién regresaría', texto: 'Qué tan contentos salen y si la recomiendan.' },
-      { titulo: 'Qué se dice', texto: 'Lo que se habla de Malinche en redes y en medios.' },
-      { titulo: '«Noche de Jueves»', texto: 'Nuestro podcast, grabado en el Frontón con Juan Miguel Zunzunegui.' },
-    ],
-    resuelve: [7],
-    cuando: 'Para la siguiente temporada',
-    visual: { tipo: 'dibujo', dibujo: 'encuesta', pie: 'Tres preguntas a la salida de la función' },
+    resuelve: [12],
+    visual: {
+      tipo: 'foto',
+      principal: {
+        src: F + 'pelota-le-petit-malinche.jpg',
+        alt: 'Ilustración: una cena en Pelota Mestiza con la historia de Malinche proyectada sobre la mesa.',
+        pie: 'La historia de Malinche, proyectada sobre la mesa',
+        marca: 'Ilustración',
+      },
+    },
   },
 ]
-
-/** Lo que va en el dibujo de «Fortaleza Mexicana, al centro»: cada unidad una vez, con lo que hace en dos palabras. */
-export const INDICE: readonly { unidad: Unidad; rotulo: string; pagina: string }[] = [
-  { unidad: 'promo-espacio', rotulo: 'Pantallas', pagina: 'promo-espacio' },
-  { unidad: 'house-of-films', rotulo: 'Video', pagina: 'house-of-films' },
-  { unidad: 'marketing-united', rotulo: 'Activaciones', pagina: 'marketing-united' },
-  { unidad: 'grupo-upax', rotulo: 'Clientes y prensa', pagina: 'grupo-upax' },
-  { unidad: 'zeus', rotulo: 'Colaboradores', pagina: 'zeus' },
-  { unidad: 'uix', rotulo: 'La compra', pagina: 'uix' },
-  { unidad: 'neracode', rotulo: 'Boletera', pagina: 'neracode' },
-  { unidad: 'research-land', rotulo: 'El público', pagina: 'research-land' },
-]
-
-/** El nombre llano de lo que hace cada unidad (el del índice): así se dice en «Lo resolvemos con». */
-export const ROTULO: Readonly<Partial<Record<Unidad, string>>> = Object.fromEntries(INDICE.map((i) => [i.unidad, i.rotulo]))
 
 export type Paso = { que: string; quien: readonly Unidad[]; conseguido?: boolean }
 
 /**
  * EL PLAN DE ACCIÓN, por tiempo: lo de esta semana, cada mes hasta el cierre de temporada y, aparte, lo que es para la
  * siguiente. Sobre la ruta que Ceci aprobó el 20-oct («está bueno»); en la sala pidieron «un plan de acción rápido».
+ * Nada va como «ya corre»: lo de Promo Espacio en la ciudad es una oferta lista para arrancar (21-oct).
  */
 export const PLAN: {
   columnas: readonly { cuando: string; etapa: string; pasos: readonly Paso[] }[]
@@ -454,8 +519,7 @@ export const PLAN: {
       cuando: 'Esta semana',
       etapa: 'Arranque',
       pasos: [
-        { que: 'Malinche en Forum, los CETRAM y TeleUrban', quien: ['promo-espacio'], conseguido: true },
-        { que: 'Las pantallas del Frontón, conectadas', quien: ['promo-espacio'] },
+        { que: 'Revisión técnica de las pantallas del Frontón con su equipo', quien: ['promo-espacio'] },
         { que: 'Revisión de cómo se compra Malinche', quien: ['uix'] },
         { que: 'Un responsable por unidad', quien: ['grupo-upax'] },
       ],
@@ -464,9 +528,9 @@ export const PLAN: {
       cuando: 'Noviembre',
       etapa: 'Que se vea',
       pasos: [
-        { que: 'Malinche en las tiendas', quien: ['promo-espacio'] },
+        { que: 'Malinche en nuestras pantallas, y las del Frontón encendidas', quien: ['promo-espacio'] },
         { que: 'El spot y las piezas para redes', quien: ['house-of-films'] },
-        { que: 'Stand, personajes y Track Day (8 de noviembre)', quien: ['marketing-united'] },
+        { que: 'Personajes, stand y Track Day (8 de noviembre)', quien: ['marketing-united'] },
         { que: 'Invitación a nuestros clientes y a la prensa', quien: ['grupo-upax'] },
       ],
     },
@@ -474,7 +538,7 @@ export const PLAN: {
       cuando: 'Diciembre',
       etapa: 'Fin de año',
       pasos: [
-        { que: 'Funciones y fiestas de empresas', quien: ['marketing-united', 'grupo-upax'] },
+        { que: 'Funciones, cenas y fiestas de empresas', quien: ['marketing-united', 'grupo-upax'] },
         { que: 'Cada espacio del Frontón, con su página para rentarlo', quien: ['marketing-united', 'uix'] },
         { que: 'Aviso y beneficio para colaboradores', quien: ['zeus', 'neracode'] },
       ],

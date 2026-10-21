@@ -17,7 +17,7 @@ export function Cierre() {
   return (
     <section data-layout="cierre" aria-labelledby="cierre-titulo" className={`${base.pantalla} ${estilos.pantalla}`}>
       <div className={estilos.foto} aria-hidden="true">
-        <Image src="/fortaleza/teatro-pantalla.jpg" alt="" fill sizes="100vw" unoptimized />
+        <Image src="/fortaleza/teatro-lleno.jpg" alt="" fill sizes="100vw" unoptimized />
       </div>
       <div className={estilos.velo} aria-hidden="true" />
       <Luz />

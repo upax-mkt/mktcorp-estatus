@@ -36,7 +36,7 @@
 
 /* El alto del teléfono sale de la caja: su lienzo. */
 .marcoTelefono {
-  --alto: clamp(260px, min(36vw, 70vh), 760px);
+  --alto: var(--alto-telefono, clamp(260px, min(36vw, 70vh), 760px));
   position: relative;
   display: grid;
   place-items: center;

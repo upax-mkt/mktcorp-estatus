@@ -1,5 +1,5 @@
-/* 5 · FORTALEZA MEXICANA, AL CENTRO — el dibujo de Ceci: Fortaleza al centro y cada unidad alrededor. Es el índice:
-   cada unidad lleva a su pantalla, que viene después en orden (ronda 5, 21-oct-2026). */
+/* FORTALEZA MEXICANA, AL CENTRO — el dibujo de Ceci: Fortaleza al centro y sus cuatro partes alrededor. Es el índice:
+   cada parte lleva a lo que proponemos para ella, que viene después en orden (ronda 6, 21-oct-2026). */
 
 .escena { justify-content: center; }
 
@@ -85,13 +85,13 @@
 .centroFronton { width: auto; height: 5cqi; }
 .centroPelota { width: auto; height: 2.4cqi; }
 
-/* CADA UNIDAD, en el aro: un botón con su logo y lo que hace en dos palabras. */
+/* CADA PARTE, en el aro: un botón con qué es, su nombre y lo que buscamos para ella. */
 .nodo {
   position: absolute;
   left: var(--x);
   top: var(--y);
   translate: -50% -50%;
-  width: 23%;
+  width: 29%;
   margin: 0;
   padding: 0;
   border: 0;
@@ -102,15 +102,16 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.nodoCirculo {
+.nodoCaja {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.2cqi;
-  min-height: 12cqi;
-  padding: 1.8cqi 1.6cqi;
+  gap: 0.7cqi;
+  min-height: 13cqi;
+  padding: 2cqi 1.8cqi;
   border-radius: 3cqi;
+  text-align: center;
   background: #17154a;
   border: 1px solid oklch(1 0 0 / 0.24);
   box-shadow: 0 1.2cqi 3cqi -1.2cqi #000000b3;
@@ -119,27 +120,34 @@
     border-color 220ms ease,
     box-shadow 220ms ease;
 }
-.nodo:hover .nodoCirculo,
-.nodo:focus-visible .nodoCirculo {
-  transform: scale(1.05);
+.nodo:hover .nodoCaja,
+.nodo:focus-visible .nodoCaja {
+  transform: scale(1.04);
   border-color: var(--fm-naranja);
   box-shadow:
     0 0 0 0.8cqi color-mix(in oklch, var(--fm-naranja) 30%, transparent),
     0 1.2cqi 3cqi -1.2cqi #000000b3;
 }
 .nodo:focus-visible { outline: none; }
-.nodoLogo {
-  display: block;
-  width: auto;
-  max-width: 88%;
-  height: calc(3.6cqi * var(--logo-escala, 1));
-  object-fit: contain;
-  filter: brightness(0) invert(1);
-}
-.nodoRotulo {
-  font-size: var(--fm-t-etiqueta);
+.nodoQue {
+  font-size: max(11px, 1.9cqi);
   font-weight: 700;
-  line-height: 1.12;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fm-naranja-luz);
+}
+.nodoNombre {
+  font-family: var(--fuente-display, inherit);
+  font-size: 3.5cqi;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.nodoPromesa {
+  font-size: max(12px, 2.1cqi);
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--fm-tinta-2);
   text-wrap: balance;
 }
@@ -175,6 +183,8 @@
   .centroFronton { height: 36px; }
   .centroPelota { height: 16px; }
   .nodo { position: static; translate: none; width: auto; }
-  .nodoCirculo { min-height: 96px; gap: 0.5rem; padding: 0.9rem 0.6rem; border-radius: 14px; }
-  .nodoLogo { height: calc(22px * var(--logo-escala, 1)); }
+  .nodoCaja { min-height: 96px; gap: 0.35rem; padding: 0.9rem 0.6rem; border-radius: 14px; }
+  .nodoQue { font-size: 0.68rem; }
+  .nodoNombre { font-size: 1.05rem; }
+  .nodoPromesa { font-size: 0.8rem; }
 }

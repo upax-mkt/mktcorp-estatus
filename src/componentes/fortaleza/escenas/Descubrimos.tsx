@@ -2,58 +2,65 @@ import base from '../base.module.css'
 import estilos from './Descubrimos.module.css'
 import { Escena } from '../../politico/Escena'
 import { Foto, Luz, orden } from '../comun'
-import { DOLORES, ROTULO } from '../contenido'
+import { DESCUBRIMOS, DOLORES } from '../contenido'
 
 /**
- * 2 Y 3 · LO QUE HAY QUE ARREGLAR (rondas 4 y 5, 21-oct-2026). Lo primero que pidió Ceci: el dolor, dicho con todas
- * sus letras («María es como Ricardo: ¿qué tengo que arreglar?»), porque «si no conoces el antecedente y el dolor, no
- * sabes qué arreglar» y la Sra. María Laura no sabe lo que pasa adentro. Ocho hallazgos en dos pantallas de cuatro (a
- * tamaño de proyección no caben ocho en una: la escena se parte, no se achica).
+ * LO QUE DESCUBRIMOS (ronda 6, 21-oct-2026), una pantalla por parte de Fortaleza Mexicana: Malinche, el Frontón
+ * México, y Pelota Mestiza con sus cenas.
  *
- * Cada hallazgo dice con qué lo resolvemos en palabras llanas (las del índice: pantallas, video, activaciones…), no
- * con marcas que ella todavía no conoce. Donde hay una foto real que lo prueba, va al lado.
+ * Solo los problemas. Ceci, al ver la ronda 5 con las unidades: «primero qué descubrimos y luego qué resolvemos, no
+ * todo junto», y cada problema por separado («no se venden» y «se cambian a mano» son dos cosas). Cómo se resuelve
+ * viene después, en «Lo que proponemos», que nombra cada problema por su número.
  *
+ * El Frontón lleva su foto por fuera, sola: «afuera nadie sabe que existe ese venue» (pedido en la sala).
  * Sin cifras de butacas vacías (regla del guion que aprobó Franco el 20-oct): el dolor se dice por sus causas.
  */
-export function Descubrimos({ parte }: { parte: 1 | 2 }) {
-  const dolores = DOLORES.slice((parte - 1) * 4, parte * 4)
+export function Descubrimos({ grupo, parte }: { grupo: (typeof DESCUBRIMOS)[number]; parte: number }) {
+  const dolores = DOLORES.filter((d) => grupo.propiedades.includes(d.propiedad))
+  const titulo = `descubrimos-${grupo.id}-titulo`
   return (
     <section
-      data-layout={`descubrimos-${parte}`}
-      aria-labelledby={`descubrimos-${parte}-titulo`}
+      data-layout={`descubrimos-${grupo.id}`}
+      aria-labelledby={titulo}
       className={base.pantalla}
     >
       <Luz />
-      <Escena className={`${base.escena} ${estilos.escena}`}>
+      <Escena className={`${base.escena} ${estilos.escena} ${grupo.foto ? estilos.conFoto : ''}`}>
         <header className={base.cabecera}>
           <p className={`${base.antetitulo} ${base.aparece}`} style={orden(0)}>
-            Lo que descubrimos · {parte} de 2
+            Lo que descubrimos · {parte} de {DESCUBRIMOS.length}
           </p>
+          <h2 id={titulo} className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
+            {grupo.titulo}
+          </h2>
           {parte === 1 ? (
-            <>
-              <h2 id="descubrimos-1-titulo" className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
-                Lo que hay que arreglar
-              </h2>
-              <p className={`${base.nota} ${estilos.nota} ${base.aparece}`} style={orden(2)}>
-                Recorrimos el Frontón, escuchamos a su equipo y revisamos cómo se vende hoy.
-              </p>
-            </>
-          ) : (
-            <h2 id="descubrimos-2-titulo" className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
-              Y cuatro cosas más
-            </h2>
-          )}
+            <p className={`${base.nota} ${estilos.nota} ${base.aparece}`} style={orden(2)}>
+              Recorrimos el Frontón, escuchamos a su equipo y revisamos cómo se vende hoy. Primero, lo que hay que
+              arreglar; después, lo que proponemos.
+            </p>
+          ) : null}
         </header>
 
-        <ol className={estilos.dolores} start={dolores[0].n}>
-          {dolores.map((d, i) => {
-            const con = [...new Set(d.atienden.map((u) => ROTULO[u]).filter(Boolean))]
-            return (
+        <div className={estilos.cuerpo}>
+          {grupo.foto ? (
+            <Foto
+              src={grupo.foto.src}
+              alt={grupo.foto.alt}
+              marca={grupo.foto.marca}
+              pie={grupo.foto.pie}
+              posicion={grupo.foto.posicion}
+              className={`${estilos.foto} ${base.aparece}`}
+              style={orden(2)}
+            />
+          ) : null}
+
+          <ol className={estilos.dolores} start={dolores[0].n} data-cuantos={dolores.length}>
+            {dolores.map((d, i) => (
               <li
                 key={d.n}
                 className={`${base.vidrio} ${estilos.dolor} ${base.aparece}`}
                 data-con-prueba={d.evidencia ? 'true' : undefined}
-                style={orden(3 + i)}
+                style={orden(3 + i * 0.7)}
               >
                 <span className={estilos.numero} aria-hidden="true">
                   {d.n}
@@ -61,9 +68,6 @@ export function Descubrimos({ parte }: { parte: 1 | 2 }) {
                 <div className={estilos.texto}>
                   <h3 className={estilos.dolorTitulo}>{d.titulo}</h3>
                   <p className={estilos.dolorTexto}>{d.texto}</p>
-                  <p className={estilos.atienden}>
-                    <span className={estilos.atiendenRotulo}>Lo resolvemos con:</span> {con.join(' · ').toLowerCase()}
-                  </p>
                 </div>
                 {d.evidencia ? (
                   <Foto
@@ -75,9 +79,9 @@ export function Descubrimos({ parte }: { parte: 1 | 2 }) {
                   />
                 ) : null}
               </li>
-            )
-          })}
-        </ol>
+            ))}
+          </ol>
+        </div>
       </Escena>
     </section>
   )

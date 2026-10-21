@@ -1,12 +1,14 @@
-/* UNA PANTALLA POR UNIDAD (ronda 5, 21-oct-2026): el texto a la izquierda y, en grande a la derecha, cómo se verá lo
-   que produce. La misma forma en las nueve unidades. */
+/* LO QUE PROPONEMOS, por parte (ronda 6, 21-oct-2026): el texto a la izquierda —lo que buscamos y lo que aporta cada
+   unidad— y, en grande a la derecha, cómo se verá. La misma forma en todas las pantallas de propuestas. */
 
 .escena {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(1.5rem, 3.2vw, 4.5rem);
+  gap: clamp(1.5rem, 3vw, 4.2rem);
 }
+/* Con un dibujo (el teléfono), la imagen pide menos ancho: el texto se lleva más. */
+.escena:has(.visual[data-tipo='dibujo']) { grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr); }
 
 /* ---------- EL TEXTO ---------- */
 
@@ -15,83 +17,99 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(0.55rem, 1.4vh, 1rem);
+  gap: clamp(0.5rem, 1.3vh, 0.95rem);
 }
 
-/* EL LOGO Y QUÉ ES LA UNIDAD, en una línea: la Sra. María Laura no conoce las marcas. */
-.marca { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem clamp(0.8rem, 1.2vw, 1.4rem); }
-.queEs {
-  padding-left: clamp(0.8rem, 1.2vw, 1.4rem);
-  border-left: 1px solid oklch(1 0 0 / 0.3);
-  font-size: var(--fm-t-etiqueta);
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--fm-tinta-2);
-}
-.logo {
-  display: block;
-  width: auto;
-  max-width: 70%;
-  height: calc(var(--fm-t-titulo) * 0.5 * var(--logo-escala, 1));
-  object-fit: contain;
-  object-position: left center;
-  filter: brightness(0) invert(1);
-}
-
-/* El titular: lo que hará la unidad, en una frase. Es lo primero que se lee después del logo. */
+/* El titular: lo que buscamos para esa parte, en una frase. */
 .titulo {
   margin: 0;
   font-family: var(--fuente-display, inherit);
   font-weight: 800;
-  font-size: calc(var(--fm-t-titulo) * 0.55);
+  font-size: calc(var(--fm-t-titulo) * 0.5);
   line-height: 1.08;
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
-.produce {
+/* LO QUE APORTA CADA UNIDAD: su logo y qué es (una vez por unidad), el título y una línea. */
+.aportes {
   list-style: none;
-  margin: clamp(0.2rem, 0.6vh, 0.5rem) 0 0;
+  margin: clamp(0.15rem, 0.5vh, 0.4rem) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.55rem, 1.4vh, 1rem);
+  gap: clamp(0.4rem, 0.9vh, 0.75rem);
 }
-.item {
+.aporte {
+  display: grid;
+  grid-template-columns: clamp(110px, 9.6vw, 190px) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: clamp(0.8rem, 1.2vw, 1.4rem);
+  row-gap: 0.1rem;
+  align-items: start;
+}
+/* Quién lo hace, a la izquierda y una sola vez por unidad; las demás filas de esa unidad dejan la columna vacía. */
+.aporte > :first-child { grid-row: 1 / span 2; }
+.aporte[data-otra-unidad='true']:not(:first-child) {
+  margin-top: clamp(0.1rem, 0.4vh, 0.3rem);
+  padding-top: clamp(0.4rem, 0.85vh, 0.7rem);
+  border-top: 1px solid oklch(1 0 0 / 0.14);
+}
+
+.quien {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding-left: clamp(0.7rem, 1vw, 1rem);
-  border-left: 2px solid oklch(1 0 0 / 0.3);
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding-top: 0.15rem;
 }
-.item[data-estado='conseguido'] { border-left-color: var(--fm-naranja); }
-.item[data-estado='listo'] { border-left-color: color-mix(in oklch, var(--fm-naranja) 55%, transparent); }
-.itemTitulo {
+.logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: calc(var(--fm-t-etiqueta) * 1.5 * var(--logo-escala, 1));
+  object-fit: contain;
+  object-position: left center;
+  filter: brightness(0) invert(1);
+}
+.queEs {
   font-size: var(--fm-t-etiqueta);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--fm-tinta-3);
 }
-.hecho {
+.aporteTitulo {
+  grid-column: 2;
+  font-size: var(--fm-t-cuerpo);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--fm-tinta);
+}
+.estado {
   display: inline-block;
-  margin-right: 0.6em;
-  padding: 0.12em 0.55em;
+  margin-left: 0.5em;
+  padding: 0.08em 0.5em;
   border-radius: 99px;
-  font-size: 0.82em;
-  letter-spacing: 0.06em;
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  vertical-align: 0.12em;
   color: #fff;
   background: var(--fm-naranja);
-  vertical-align: 0.08em;
 }
-.hecho[data-estado='listo'] { color: var(--fm-tinta); background: none; box-shadow: inset 0 0 0 1.5px var(--fm-naranja); }
-.itemTexto {
-  font-size: var(--fm-t-cuerpo);
-  line-height: 1.34;
+.estado[data-estado='curso'] { color: var(--fm-tinta); background: none; box-shadow: inset 0 0 0 1.5px var(--fm-naranja); }
+.estado[data-estado='siguiente'] { color: var(--fm-tinta-2); background: oklch(1 0 0 / 0.1); }
+.aporteTexto {
+  grid-column: 2;
+  font-size: calc(var(--fm-t-cuerpo) * 0.94);
+  line-height: 1.32;
   color: var(--fm-tinta-2);
   text-wrap: pretty;
 }
 
-/* QUÉ RESUELVE Y CUÁNDO: dos datos, al pie del texto. */
+/* QUÉ RESUELVE: los problemas que atiende, por su número, al pie del texto. */
 .datos {
   margin: clamp(0.3rem, 1vh, 0.8rem) 0 0;
   padding-top: clamp(0.6rem, 1.4vh, 1rem);
@@ -117,7 +135,7 @@
   color: var(--fm-tinta);
 }
 /* QUÉ RESUELVE: el número del hallazgo y su frase corta. */
-.resuelve { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; }
+.resuelve { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; font-size: 0.92em; }
 .resuelveItem { display: inline-flex; align-items: center; gap: 0.4em; }
 .resuelveNumero {
   display: grid;
@@ -146,6 +164,9 @@
   gap: clamp(0.6rem, 1vw, 1rem);
 }
 .cuadro.cuadro { width: 100%; height: 100%; min-height: 0; }
+/* Una imagen que se ve completa (el anuncio, la simulación de una unidad): a su proporción, centrada. */
+.cuadro.cuadro.completa { height: auto; }
+.visual[data-tipo='foto']:has(.completa) { grid-template-rows: auto; align-content: center; }
 
 /* Una imagen principal que llena la columna. */
 .visual[data-tipo='foto'] { grid-template-rows: minmax(0, 1fr); }
@@ -171,13 +192,13 @@
 .tira {
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
   gap: clamp(0.6rem, 1vw, 1rem);
 }
 
 /* Un dibujo: en su escenario de luz, centrado. */
 .visual[data-tipo='dibujo'] { grid-template-rows: minmax(0, 1fr); }
-.dibujoCaja { min-height: 0; display: grid; }
+.dibujoCaja { min-height: 0; display: grid; --alto-telefono: clamp(240px, min(30vw, 60vh), 640px); }
 .dibujoCaja > figure { height: 100%; }
 
 /* LAS SIMULACIONES DE LA UNIDAD: el teléfono y dos tarjetas a su tamaño, sobre un escenario de luz. */
