@@ -83,7 +83,14 @@ export function Ruta() {
               ))}
             </ol>
 
-            <svg className={estilos.regla} viewBox={`0 0 ${X(DIAS)} ${ALTO}`} aria-hidden="true" focusable="false">
+            {/* La vía entra después del título, como en la escena 5 (antes se veía desde el cuadro 0). */}
+            <svg
+              className={`${estilos.regla} ${base.aparece}`}
+              style={orden(1)}
+              viewBox={`0 0 ${X(DIAS)} ${ALTO}`}
+              aria-hidden="true"
+              focusable="false"
+            >
               <path className={estilos.carril} d={`M0 ${LINEA_Y}H${X(DIAS)}`} />
               {/* El corte de cada mes: la misma marca alta y quieta de la escena 5, más la del arranque. */}
               {INICIO.map((dia) => (

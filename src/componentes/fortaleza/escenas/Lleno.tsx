@@ -72,7 +72,9 @@ const tiempos = {
 
 export function Lleno() {
   return (
-    <section data-layout="lleno" className={`${base.pantalla} ${estilos.pantalla}`} style={tiempos}>
+    // `data-retener`: si quien presenta avanza antes de que termine el remate, el primer clic lo completa y lo deja
+    // en pantalla (ModoPresentar); el siguiente pasa al cierre.
+    <section data-layout="lleno" data-retener="" className={`${base.pantalla} ${estilos.pantalla}`} style={tiempos}>
       <Escena className={`${base.escena} ${base.conViaje} ${estilos.escena}`}>
         {/* El dibujo va debajo de la foto: la foto, al descubrirse desde su escenario, lo tapa fila por fila. */}
         <div className={estilos.momento} aria-hidden="true">

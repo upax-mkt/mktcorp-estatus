@@ -42,6 +42,15 @@
   filter: brightness(1.08);
 }
 
+/* Sin ratón encima, invisible (prop `controlesOcultos`): la sala no la ve. Con el ratón, el foco o sin puntero fino,
+   aparece como siempre; las reglas de abajo (:hover, :focus-within, sin hover) le ganan por especificidad o por orden. */
+.controles.controlesOcultos { opacity: 0; }
+.controles.controlesOcultos:hover,
+.controles.controlesOcultos:focus-within { opacity: 1; }
+@media (hover: none) {
+  .controles.controlesOcultos { opacity: 1; }
+}
+
 /* Arriba a la derecha (prop `botonArriba`): solo donde no hay barra del hub encima. */
 .botonArriba {
   top: 1.5rem;

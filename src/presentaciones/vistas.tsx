@@ -10,9 +10,13 @@ import { grupoUpax } from '@/temas/grupo-upax'
  * de su cliente. Va aparte del registro porque el registro es solo datos y lo leen pantallas que no deben cargar
  * estos componentes. Los estatus de grupo no pasan por aquí: tienen su página propia bajo `src/app/estatus/`.
  */
-export const VISTAS_DE_SALA: Record<string, { Componente: ComponentType; tema: Tema; transiciones?: boolean }> = {
+export const VISTAS_DE_SALA: Record<
+  string,
+  { Componente: ComponentType; tema: Tema; transiciones?: boolean; controlesOcultos?: boolean }
+> = {
   'nueva-estructura-comercial-2027': { Componente: PresentacionRl, tema: researchLand },
   // La propuesta para la Sra. María Laura de Salinas vive en la sala de Ceci (ella la presenta), con la identidad de Grupo UPAX.
   // Al presentarla, el aforo viaja de una escena a la siguiente (corte con transición de vista, `ModoPresentar`).
-  'lo-queremos-lleno': { Componente: PresentacionFortaleza, tema: grupoUpax, transiciones: true },
+  // y la barra de controles no se ve en reposo.
+  'lo-queremos-lleno': { Componente: PresentacionFortaleza, tema: grupoUpax, transiciones: true, controlesOcultos: true },
 }

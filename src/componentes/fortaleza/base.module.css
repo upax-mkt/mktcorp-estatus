@@ -293,13 +293,19 @@
 }
 
 /* ESCENA CON VIAJE (2, 6, 7 y la cumbre): mientras el aforo viaja desde la escena anterior, lo demás entra solo con
-   opacidad, sin desplazarse (04 §5: «salida sostenida y entrada solo de opacidad»), para que no compitan. */
+   opacidad, sin desplazarse (04 §5: «salida sostenida y entrada solo de opacidad»), para que no compitan.
+   `.esperaViaje`: lo que el aforo cruzaría en su viaje entra cuando ya aterrizó (el viaje dura 600 ms), con un fundido
+   corto; solo al presentar, que es cuando viaja. Leída con scroll, entra a su hora de siempre. */
 @keyframes fm-fundir-escena { from { opacity: 0; } to { opacity: 1; } }
 @media screen and (prefers-reduced-motion: no-preference) {
   .escena.conViaje[data-visible='true'] .aparece { animation-name: fm-fundir-escena; }
-  /* El rótulo del aforo no viaja con el dibujo: espera a que aterrice (el viaje dura 800 ms) y se funde. */
+  :global([data-presentando='true']) .escena.conViaje[data-visible='true'] .esperaViaje {
+    animation-duration: 260ms;
+    animation-delay: calc(var(--viaje-espera, 620ms) + var(--i-viaje, 0) * 30ms);
+  }
+  /* El rótulo del aforo no viaja con el dibujo: espera a que aterrice y se funde. */
   .escena.conViaje[data-animar='true']:not([data-visible='true']) [data-aforo-rotulo] { opacity: 0; }
-  .escena.conViaje[data-visible='true'] [data-aforo-rotulo] { animation: fm-fundir-escena 400ms var(--mov-ease-escena) 600ms both; }
+  .escena.conViaje[data-visible='true'] [data-aforo-rotulo] { animation: fm-fundir-escena 300ms var(--mov-ease-escena) 600ms both; }
 }
 
 @media screen and (prefers-reduced-motion: reduce) {

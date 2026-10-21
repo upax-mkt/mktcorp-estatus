@@ -52,10 +52,15 @@ interface Props {
    * EL CORTE CON OBJETO QUE VIAJA (motion-studio 04 §4–§5), solo donde la pieza lo pide: la de Fortaleza Mexicana,
    * 20-oct-2026. Al avanzar o retroceder con las flechas, en vez del scroll suave, una transición de vista: la
    * escena que sale se sostiene, la que entra sube 6 px con un fundido de 260 ms, y el elemento marcado con
-   * `data-viajero` en una escena viaja hasta el de la siguiente en 800 ms (el aforo: de la portada a la esquina, de
+   * `data-viajero` en una escena viaja hasta el de la siguiente en 600 ms (el aforo: de la portada a la esquina, de
    * la esquina al centro). Sin soporte del navegador o con movimiento reducido, se navega como siempre.
    */
   transiciones?: boolean
+  /**
+   * La barra de controles no se ve en reposo al proyectar: aparece con el ratón encima o con el foco (las flechas
+   * siguen funcionando). Para una pieza que la sala no debe ver con la barra encima.
+   */
+  controlesOcultos?: boolean
 }
 
 /**
@@ -69,9 +74,9 @@ const CSS_CORTE = `
 html[data-corte='sube']::view-transition-old(root) { animation: none; }
 html[data-corte='sube']::view-transition-new(root) { animation: corte-sube 260ms cubic-bezier(0.23, 1, 0.32, 1) both; }
 @keyframes corte-sube { from { opacity: 0; transform: translateY(6px); } }
-html[data-corte='sube']::view-transition-group(viajero) { animation-duration: 800ms; animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1); }
+html[data-corte='sube']::view-transition-group(viajero) { animation-duration: 600ms; animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1); }
 html[data-corte='sube']::view-transition-old(viajero),
-html[data-corte='sube']::view-transition-new(viajero) { height: 100%; animation-duration: 800ms; }
+html[data-corte='sube']::view-transition-new(viajero) { height: 100%; animation-duration: 600ms; }
 html[data-corte='sube']::view-transition-old(viajero):only-child,
 html[data-corte='sube']::view-transition-new(viajero):only-child { animation-duration: 260ms; }
 `
@@ -83,6 +88,29 @@ function puedeTransicionar(): boolean {
     typeof document.startViewTransition === 'function' &&
     !window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
+}
+
+/**
+ * AVANZAR DURANTE UNA ANIMACIÓN LA COMPLETA (motion-studio, invariante 5): con `transiciones`, antes de cortar se
+ * llevan a su final las animaciones de la escena que se ve, para que la foto de salida no quede a medio camino. Si la
+ * escena lleva `data-retener` (la cumbre de Fortaleza), ese primer clic solo la completa y la deja en pantalla: el
+ * remate no se pierde por un clic adelantado, y el siguiente clic ya avanza. Devuelve si había algo corriendo.
+ */
+function completarAnimaciones(seccion: HTMLElement | undefined): boolean {
+  if (!seccion) return false
+  let habia = false
+  for (const animacion of seccion.getAnimations({ subtree: true })) {
+    if (animacion.playState !== 'running' && !animacion.pending) continue
+    // Una animación sin fin (un bucle de atmósfera) no tiene final al que saltar.
+    if (animacion.effect?.getComputedTiming().endTime === Infinity) continue
+    habia = true
+    try {
+      animacion.finish()
+    } catch {
+      // Si el navegador no la deja terminar, se corta como siempre.
+    }
+  }
+  return habia
 }
 
 /** Marca la escena activa: es la única cuyo `data-viajero` lleva nombre de transición. */
@@ -142,6 +170,7 @@ export function ModoPresentar({
   registrarPresentacionAction,
   botonArriba,
   transiciones,
+  controlesOcultos,
 }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [presentando, setPresentando] = useState(false)
@@ -385,10 +414,13 @@ export function ModoPresentar({
    */
   function mover(paso: number) {
     const pendiente = destino.current
-    const desde =
-      pendiente.indice >= 0 && Date.now() < pendiente.hasta
-        ? pendiente.indice
-        : enVistaDe(contenedor.current, true)
+    const enCamino = pendiente.indice >= 0 && Date.now() < pendiente.hasta
+    const desde = enCamino ? pendiente.indice : enVistaDe(contenedor.current, true)
+    if (transiciones && !enCamino) {
+      const seccion = secciones()[desde]
+      const habia = completarAnimaciones(seccion)
+      if (habia && paso > 0 && seccion?.dataset.retener !== undefined) return
+    }
     irA(desde + paso)
   }
 
@@ -541,7 +573,10 @@ export function ModoPresentar({
         {presentando && laser && <PunteroLaser />}
 
         {presentando && (
-          <nav className={estilos.controles} aria-label="Controles de presentación">
+          <nav
+            className={controlesOcultos ? `${estilos.controles} ${estilos.controlesOcultos}` : estilos.controles}
+            aria-label="Controles de presentación"
+          >
             <button type="button" onClick={() => mover(-1)} aria-label="Sección anterior">
               ←
             </button>

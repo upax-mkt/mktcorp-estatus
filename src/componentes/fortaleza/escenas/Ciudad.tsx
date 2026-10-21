@@ -45,7 +45,8 @@ export function Ciudad() {
             />
           </header>
 
-          <div className={`${estilos.cartel} ${base.aparece}`} style={orden(3)}>
+          {/* El poster y las tarjetas están en el camino del aforo que baja del centro: entran cuando aterriza. */}
+          <div className={`${estilos.cartel} ${base.aparece} ${base.esperaViaje}`} style={orden(3)}>
             <Foto
               src="/fortaleza/poster-led-malinche-recorte.jpg"
               alt="Malinche en un poster LED de Promo Espacio."
@@ -55,15 +56,15 @@ export function Ciudad() {
           </div>
 
           <div className={estilos.lista}>
-            <Tarjeta i={4} titulo="Pantallas encendidas" quien="Promo Espacio" className={estilos.tarjeta}>
+            <Tarjeta i={4} titulo="Pantallas encendidas" quien="Promo Espacio" className={`${estilos.tarjeta} ${base.esperaViaje}`}>
               Con SIDI, las pantallas del lobby, la taquilla, las suites y el escenario, y posters LED de nuestro inventario
               en el acceso, abiertas a patrocinadores.
             </Tarjeta>
-            <Tarjeta i={5} titulo="La red de Promo Espacio" quien="Promo Espacio" className={estilos.tarjeta}>
+            <Tarjeta i={5} titulo="La red de Promo Espacio" quien="Promo Espacio" className={`${estilos.tarjeta} ${base.esperaViaje}`}>
               Malinche, el Frontón y Pelota Mestiza en sus pantallas, como las de sucursales de Banco Azteca, y en las de sus
               socios: Forum, CETRAM y TeleUrban. Más un mapa de visibilidad en vía pública.
             </Tarjeta>
-            <Tarjeta i={6} titulo="Publicidad audiovisual" quien="House of Films" className={estilos.tarjeta}>
+            <Tarjeta i={6} titulo="Publicidad audiovisual" quien="House of Films" className={`${estilos.tarjeta} ${base.esperaViaje}`}>
               Spot, video del venue y contenido para las pantallas.
             </Tarjeta>
           </div>

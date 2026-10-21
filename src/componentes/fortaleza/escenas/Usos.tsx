@@ -44,12 +44,9 @@ export function Usos() {
       <Luz />
       <Escena className={`${base.escena} ${estilos.escena}`}>
         <header className={base.cabecera}>
-          <p className={`${base.antetitulo} ${base.aparece}`} style={orden(0)}>
-            Frente 3
-          </p>
-          <h2 className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
-            Que lo usen toda la semana
-          </h2>
+          {/* Sin entrada: es la misma cabecera de la 10, en el mismo lugar. En el corte se queda quieta (como 7 → 8). */}
+          <p className={base.antetitulo}>Frente 3</p>
+          <h2 className={`${base.titulo} ${estilos.titulo}`}>Que lo usen toda la semana</h2>
           <Firma
             unidades={['marketing-corporativo', 'marketing-united', 'promo-espacio', 'house-of-films']}
             className={`${estilos.firma} ${base.aparece}`}

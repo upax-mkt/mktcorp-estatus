@@ -129,7 +129,9 @@ export function Joya() {
               </div>
             </div>
 
-            <p className={`${estilos.cierre} ${base.aparece}`} style={orden(6)}>
+            {/* Entra con el texto de arriba, antes que la galería: así la cifra es lo último en llegar y aterriza sola,
+                con sus estrellas, y después todo queda quieto. */}
+            <p className={`${estilos.cierre} ${base.aparece}`} style={orden(2.4)}>
               Fortaleza Mexicana, que hace del Frontón un bastión cultural.
             </p>
           </div>

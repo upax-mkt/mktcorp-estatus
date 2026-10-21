@@ -122,7 +122,8 @@ export function Comprar() {
           <Firma unidades={['uix', 'neracode']} className={`${estilos.firma} ${base.aparece}`} style={en(120)} />
         </header>
 
-        <div className={`${base.vidrio} ${estilos.panel}`}>
+        {/* El panel entra después del título (antes aparecía vacío desde el cuadro 0, primero que todo). */}
+        <div className={`${base.vidrio} ${estilos.panel} ${base.aparece}`} style={en(120)}>
           <div className={estilos.recorrido} style={vars({ '--base-etiqueta': BASE_ETIQUETA })}>
             <svg
               className={estilos.dibujo}

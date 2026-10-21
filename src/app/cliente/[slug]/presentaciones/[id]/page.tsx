@@ -105,7 +105,7 @@ export default async function PaginaPresentacionDeSala({
       <div>
         <BarraNavegacion hoy={hoy} admin={admin} clientes={clientes} salirAction={salir} />
         <ProveedorTema tema={tema} superficie="clara">
-          <ModoPresentar personas={[]} transiciones={vista.transiciones}>
+          <ModoPresentar personas={[]} transiciones={vista.transiciones} controlesOcultos={vista.controlesOcultos}>
             <Componente />
           </ModoPresentar>
         </ProveedorTema>
@@ -117,7 +117,7 @@ export default async function PaginaPresentacionDeSala({
     return (
       <div>
         <ProveedorTema tema={tema} superficie="clara">
-          <ModoPresentar personas={[]} botonArriba transiciones={vista.transiciones}>
+          <ModoPresentar personas={[]} botonArriba transiciones={vista.transiciones} controlesOcultos={vista.controlesOcultos}>
             <Componente />
           </ModoPresentar>
         </ProveedorTema>
@@ -134,7 +134,7 @@ export default async function PaginaPresentacionDeSala({
           <Link href={`/cliente/${slug}`}>← Sala de {tema.nombre}</Link>
         </nav>
         <ProveedorTema tema={tema} superficie="clara">
-          <ModoPresentar personas={[]} transiciones={vista.transiciones}>
+          <ModoPresentar personas={[]} transiciones={vista.transiciones} controlesOcultos={vista.controlesOcultos}>
             <Componente />
           </ModoPresentar>
         </ProveedorTema>

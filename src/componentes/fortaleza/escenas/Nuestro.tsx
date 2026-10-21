@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import base from '../base.module.css'
 import estilos from './Nuestro.module.css'
 import { Escena } from '../../politico/Escena'
@@ -68,9 +69,14 @@ export function Nuestro() {
           {/* Sin entrada propia: es el objeto que viaja (04 §5). */}
           <Aforo tam="grande" frentes={0} marcarFrentes rotulo="Hoy, la mitad" className={estilos.aforo} />
 
-          <ol className={`${base.vidrio} ${estilos.frentes} ${base.aparece}`} style={orden(2)}>
+          {/* La leyenda y el equipo están en el camino del aforo que llega de la esquina: entran cuando aterriza. */}
+          <ol className={`${base.vidrio} ${estilos.frentes} ${base.aparece} ${base.esperaViaje}`} style={orden(2)}>
             {FRENTES.map((frente, k) => (
-              <li key={frente} className={`${estilos.frente} ${base.aparece}`} style={orden(2.5 + k * 0.7)}>
+              <li
+                key={frente}
+                className={`${estilos.frente} ${base.aparece} ${base.esperaViaje}`}
+                style={{ ...orden(2.5 + k * 0.7), '--i-viaje': k } as CSSProperties}
+              >
                 <span className={estilos.numero}>{k + 1}</span>
                 <span className={estilos.frenteTexto}>{frente}</span>
               </li>
@@ -78,7 +84,10 @@ export function Nuestro() {
           </ol>
         </div>
 
-        <footer className={`${estilos.equipo} ${base.aparece}`} style={orden(6)}>
+        <footer
+          className={`${estilos.equipo} ${base.aparece} ${base.esperaViaje}`}
+          style={{ ...orden(6), '--i-viaje': 5 } as CSSProperties}
+        >
           <Firma unidades={EQUIPO} className={estilos.firma} />
           <p className={estilos.coordinan}>
             Coordinan Héctor Ibarra, por UPAX, y Eucario González, por Fortaleza.
