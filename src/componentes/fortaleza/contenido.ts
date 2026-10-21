@@ -168,6 +168,13 @@ export const AYUDA: readonly Ayuda[] = [
       },
       {
         tipo: 'foto',
+        src: '/fortaleza/pe-tienda.jpg',
+        alt: 'Ilustración: Malinche en una pantalla dentro de una tienda.',
+        pie: 'Malinche en la pantalla de una tienda',
+        marca: 'Ilustración',
+      },
+      {
+        tipo: 'foto',
         src: '/fortaleza/pe-taquilla.jpg',
         alt: 'Simulación: la pantalla de la taquilla del Frontón, encendida con Malinche.',
         pie: 'La pantalla de taquilla',
@@ -241,6 +248,14 @@ export const AYUDA: readonly Ayuda[] = [
       },
     ],
     ejemplos: [
+      {
+        tipo: 'foto',
+        src: '/fortaleza/mu-cetram.jpg',
+        alt: 'Ilustración: personajes de Malinche y una taquilla móvil en un CETRAM, bajo una pantalla que anuncia la obra.',
+        pie: 'Personajes y taquilla móvil bajo una pantalla del CETRAM',
+        marca: 'Ilustración',
+        posicion: '50% 40%',
+      },
       {
         tipo: 'foto',
         src: '/fortaleza/pelota-le-petit-malinche.jpg',
