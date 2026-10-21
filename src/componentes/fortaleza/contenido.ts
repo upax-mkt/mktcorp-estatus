@@ -364,6 +364,7 @@ export const PROPUESTAS: readonly Propuesta[] = [
           alt: 'Simulación: las pantallas de las barras del lobby, encendidas con el menú y la función del día.',
           pie: 'Las barras, con su menú',
           marca: 'Simulación',
+          posicion: '16% 50%',
         },
         {
           src: F + 'pe-poster.jpg',
