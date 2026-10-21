@@ -53,8 +53,8 @@ export function Fondo({
 
 /**
  * UNA FOTO dentro de la escena, recortada, con pie opcional. El alto lo pone quien la usa (clase o estilo).
- * `marca`: lo que es la imagen cuando no es una foto tal cual: «Simulación» (un montaje sobre una foto real, como las
- * pantallas encendidas) o «Ilustración» (una imagen generada). Va en una esquina, siempre visible.
+ * `marca`: lo que es la imagen, en una esquina y siempre visible: «Simulación» (un montaje sobre una foto real, como las
+ * pantallas encendidas), «Ilustración» (una imagen generada) o lo que la pantalla necesite decir («Hoy · foto real»).
  */
 export function Foto({
   src,
@@ -68,7 +68,7 @@ export function Foto({
   src: string
   alt: string
   pie?: ReactNode
-  marca?: 'Simulación' | 'Ilustración'
+  marca?: string
   posicion?: string
   className?: string
   style?: CSSProperties

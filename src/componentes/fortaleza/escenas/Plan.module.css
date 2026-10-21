@@ -1,29 +1,27 @@
-/* 6 · EL PLAN — cuatro meses en columnas, como una tabla: qué se hace y quién. Una línea naranja une los meses por
-   arriba y termina en el cierre de temporada. */
+/* EL PLAN DE ACCIÓN — cuatro columnas por tiempo (esta semana, noviembre, diciembre, 30 de enero) y, abajo, una franja
+   con lo que es para la siguiente temporada. Cada paso dice quién lo hace. */
 
 .escena { justify-content: flex-start; }
-.titulo.titulo { max-width: 24ch; }
-.nota.nota { max-width: 56ch; }
+.titulo.titulo { max-width: 26ch; }
+.nota.nota { max-width: 62ch; }
 
-.meses {
-  position: relative;
+.columnas {
   list-style: none;
-  margin: auto 0;
+  margin: auto 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(0.8rem, 1.4vw, 1.6rem);
+  gap: clamp(0.7rem, 1.2vw, 1.4rem);
 }
-
-.mes {
+.columna {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.3rem, 0.7vh, 0.6rem);
-  padding: clamp(1rem, min(1.6vw, 2.8vh), 2rem) clamp(1rem, min(1.5vw, 2.7vh), 1.8rem);
+  gap: clamp(0.25rem, 0.6vh, 0.5rem);
+  padding: clamp(0.9rem, min(1.4vw, 2.5vh), 1.7rem) clamp(0.9rem, min(1.3vw, 2.3vh), 1.6rem);
 }
-/* El borde de arriba de cada mes: la línea del tiempo, naranja en el último (el cierre de temporada). */
-.mes::before {
+/* El filo de arriba: la línea del tiempo; naranja en el cierre de temporada. */
+.columna::before {
   content: '';
   position: absolute;
   left: 18px;
@@ -33,16 +31,11 @@
   border-radius: 0 0 3px 3px;
   background: oklch(1 0 0 / 0.35);
 }
-.mes:last-child::before { background: var(--fm-naranja); }
+.columna:last-child::before { background: var(--fm-naranja); }
 
-.mesNombre {
-  margin: 0;
-  font-size: var(--fm-t-tarjeta);
-  font-weight: 800;
-  line-height: 1.1;
-}
+.cuando { margin: 0; font-size: var(--fm-t-tarjeta); font-weight: 800; line-height: 1.1; }
 .etapa {
-  margin: 0 0 clamp(0.3rem, 0.8vh, 0.7rem);
+  margin: 0 0 clamp(0.25rem, 0.7vh, 0.6rem);
   font-size: var(--fm-t-etiqueta);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -50,23 +43,49 @@
   color: var(--fm-tinta-3);
 }
 
-.pasos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: clamp(0.55rem, 1.3vh, 0.95rem); }
-.paso { display: flex; flex-direction: column; gap: 0.15rem; padding-left: 0.8rem; border-left: 2px solid oklch(1 0 0 / 0.28); }
-.que {
-  font-size: var(--fm-t-cuerpo);
-  line-height: 1.3;
-  color: var(--fm-tinta);
-  text-wrap: pretty;
+.pasos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: clamp(0.5rem, 1.2vh, 0.85rem); }
+.paso { display: flex; flex-direction: column; gap: 0.12rem; padding-left: 0.75rem; border-left: 2px solid oklch(1 0 0 / 0.28); }
+.paso[data-conseguido='true'] { border-left-color: var(--fm-naranja); }
+.que { font-size: var(--fm-t-cuerpo); line-height: 1.28; color: var(--fm-tinta); text-wrap: pretty; }
+.ya {
+  display: inline-block;
+  margin-right: 0.5em;
+  padding: 0.1em 0.5em;
+  border-radius: 99px;
+  font-size: 0.66em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--fm-naranja);
+  vertical-align: 0.15em;
 }
-.quien {
+.quien { font-size: var(--fm-t-etiqueta); font-weight: 600; color: var(--fm-tinta-3); }
+
+/* LO QUE ES PARA LA SIGUIENTE TEMPORADA: una franja aparte, sin vidrio. */
+.siguiente {
+  margin: clamp(0.8rem, 2vh, 1.4rem) 0 auto;
+  padding-top: clamp(0.7rem, 1.6vh, 1.1rem);
+  border-top: 1px dashed oklch(1 0 0 / 0.3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem clamp(1.2rem, 2.4vw, 2.8rem);
+}
+.siguienteRotulo {
+  margin: 0;
   font-size: var(--fm-t-etiqueta);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--fm-tinta-3);
 }
+.siguientePasos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem clamp(1.2rem, 2.4vw, 2.8rem); }
+.siguientePasos li { display: flex; align-items: baseline; gap: 0.6rem; }
 
 @media (max-width: 1100px) {
-  .meses { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
-  .meses { grid-template-columns: 1fr; }
+  .columnas { grid-template-columns: 1fr; }
 }

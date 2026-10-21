@@ -1,46 +1,41 @@
 import Image from 'next/image'
-import type { CSSProperties } from 'react'
 import base from './base.module.css'
 import estilos from './Ejemplos.module.css'
-import { Foto, MARCAS } from './comun'
-import type { Ejemplo } from './contenido'
+import { MARCAS } from './comun'
 
 /**
- * LOS EJEMPLOS DE CADA UNIDAD (ronda 4, 21-oct-2026). Ceci: «puras letras, no hay ejemplos de nada». Cada unidad
- * enseña cómo se vería lo que propone: una foto (montaje sobre una foto real, rotulado «Simulación», o una imagen
- * generada, rotulada «Ilustración») o un dibujo hecho aquí mismo, con su rótulo «Ilustración»: el boleto en el
- * teléfono de un colaborador (Zeus), la invitación a nuestros clientes (Grupo UPAX), el recorrido de quien compra (UiX)
- * y la compra en tres pasos (NeraCode). Ningún dibujo lleva precios.
+ * LOS DIBUJOS DE LAS UNIDADES (rondas 4 y 5, 21-oct-2026). Ceci: «puras letras, no hay ejemplos de nada». Lo que
+ * produce una unidad que no es una foto se dibuja aquí mismo y lleva su rótulo «Ilustración»: el boleto en el teléfono
+ * de un colaborador (Zeus), la invitación a nuestros clientes (Grupo UPAX), la presentación del Frontón y el recorrido
+ * de quien compra (UiX), la compra en tres pasos (NeraCode) y la encuesta a la salida (Research Land). Ningún dibujo
+ * lleva precios. Llenan la caja que les da su pantalla.
  */
-export function EjemploVista({ ejemplo, className = '', style }: { ejemplo: Ejemplo; className?: string; style?: CSSProperties }) {
-  if (ejemplo.tipo === 'foto') {
-    return (
-      <Foto
-        src={ejemplo.src}
-        alt={ejemplo.alt}
-        marca={ejemplo.marca}
-        pie={ejemplo.pie}
-        posicion={ejemplo.posicion}
-        className={`${estilos.foto} ${className}`}
-        style={style}
-      />
-    )
-  }
+export function Dibujo({
+  tipo,
+  pie,
+  className = '',
+}: {
+  tipo: 'telefono' | 'invitacion' | 'boletera' | 'uix' | 'encuesta'
+  pie: string
+  className?: string
+}) {
   const dibujo =
-    ejemplo.tipo === 'telefono' ? (
+    tipo === 'telefono' ? (
       <Telefono />
-    ) : ejemplo.tipo === 'invitacion' ? (
+    ) : tipo === 'invitacion' ? (
       <Invitacion />
-    ) : ejemplo.tipo === 'recorrido' ? (
-      <Recorrido />
+    ) : tipo === 'encuesta' ? (
+      <Encuesta />
+    ) : tipo === 'uix' ? (
+      <PresentacionUix />
     ) : (
       <Boletera />
     )
   return (
-    <figure className={`${estilos.dibujo} ${className}`} style={style} data-tipo={ejemplo.tipo}>
+    <figure className={`${estilos.dibujo} ${className}`} data-tipo={tipo}>
       <span className={base.fotoMarca}>Ilustración</span>
       <div className={estilos.lienzo}>{dibujo}</div>
-      <figcaption className={estilos.pie}>{ejemplo.pie}</figcaption>
+      <figcaption className={estilos.pie}>{pie}</figcaption>
     </figure>
   )
 }
@@ -152,6 +147,66 @@ function Telefono() {
   )
 }
 
+/** RESEARCH LAND: la encuesta a la salida de la función, en el teléfono de quien la contesta. Sin cifras. */
+const PREGUNTAS = [
+  { p: '¿Cómo te enteraste de Malinche?', o: ['Redes', 'Un amigo', 'En la calle'] },
+  { p: '¿Qué te detuvo para venir antes?', o: ['No sabía', 'El horario', 'Otro plan'] },
+] as const
+
+function Encuesta() {
+  return (
+    <div className={estilos.marcoTelefono}>
+      <span className={estilos.halo} aria-hidden="true" />
+      <div
+        className={estilos.telefono}
+        role="img"
+        aria-label="Un teléfono con la encuesta de Malinche: cómo se enteró, qué lo detuvo y si la recomendaría."
+      >
+        <div className={estilos.pantallaTel} aria-hidden="true">
+          <span className={estilos.isla} />
+          <div className={estilos.encuesta}>
+            <Image
+              src={MARCAS.malinche.src}
+              alt=""
+              width={MARCAS.malinche.ancho}
+              height={MARCAS.malinche.alto}
+              unoptimized
+              className={estilos.encLogo}
+            />
+            <span className={estilos.encTitulo}>Tu opinión, en un minuto</span>
+            {PREGUNTAS.map((q, k) => (
+              <span key={q.p} className={estilos.encPregunta}>
+                <span className={estilos.encTexto}>
+                  {k + 1}. {q.p}
+                </span>
+                <span className={estilos.encOpciones}>
+                  {q.o.map((o, j) => (
+                    <span key={o} className={estilos.encOpcion} data-elegida={j === 0 ? 'true' : undefined}>
+                      {o}
+                    </span>
+                  ))}
+                </span>
+              </span>
+            ))}
+            <span className={estilos.encPregunta}>
+              <span className={estilos.encTexto}>3. ¿La recomendarías?</span>
+              <span className={estilos.encEscala}>
+                {Array.from({ length: 11 }, (_, n) => (
+                  <span key={n} data-elegida={n === 10 ? 'true' : undefined}>
+                    {n}
+                  </span>
+                ))}
+              </span>
+            </span>
+            <span className={estilos.encBoton}>Enviar</span>
+          </div>
+          <span className={estilos.inicio} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** GRUPO UPAX: la invitación a nuestros clientes, con la foto del elenco y su logo. */
 function Invitacion() {
   return (
@@ -170,7 +225,7 @@ function Invitacion() {
       <div className={estilos.invTexto} aria-hidden="true">
         <span className={estilos.invPara}>Para nuestros clientes</span>
         <span className={estilos.invTitulo}>Una noche en el Frontón México</span>
-        <span className={estilos.invCuerpo}>Por ser cliente de Grupo UPAX, lo invitamos a Malinche con un beneficio para usted y su equipo.</span>
+        <span className={estilos.invCuerpo}>Por ser cliente de Grupo UPAX, un beneficio para que usted y su equipo vean Malinche.</span>
         <span className={estilos.invPie}>
           <span className={estilos.invBoton}>Reservar</span>
           <Image src="/logos/grupo-upax-blanco.png" alt="" width={639} height={164} unoptimized className={estilos.invLogo} />
@@ -181,16 +236,20 @@ function Invitacion() {
 }
 
 const PASOS_RECORRIDO = [
-  { paso: 'Lo descubre', texto: 'Dónde se entera' },
-  { paso: 'Lo compra', texto: 'En línea o en taquilla' },
-  { paso: 'Lo vive', texto: 'La función y la cena' },
-  { paso: 'Regresa', texto: 'Y lo recomienda' },
+  { paso: 'Lo descubre', texto: 'Dónde se entera de Malinche' },
+  { paso: 'Lo compra', texto: 'En línea, en taquilla o para un grupo' },
+  { paso: 'Lo vive', texto: 'La función, el intermedio y la cena' },
+  { paso: 'Regresa', texto: 'Si vuelve y la recomienda' },
 ] as const
 
-/** UIX: el recorrido de quien compra, en cuatro momentos. */
-function Recorrido() {
+/** UIX: el recorrido de quien compra, en cuatro momentos (en columna o, debajo de la presentación, en fila). */
+function Recorrido({ horizontal = false }: { horizontal?: boolean }) {
   return (
-    <ol className={estilos.recorrido} aria-label="El recorrido de quien compra: lo descubre, lo compra, lo vive y regresa.">
+    <ol
+      className={estilos.recorrido}
+      data-horizontal={horizontal ? 'true' : undefined}
+      aria-label="El recorrido de quien compra: lo descubre, lo compra, lo vive y regresa."
+    >
       {PASOS_RECORRIDO.map((p, i) => (
         <li key={p.paso} className={estilos.recPaso}>
           <span className={estilos.recNumero} aria-hidden="true">
@@ -201,6 +260,55 @@ function Recorrido() {
         </li>
       ))}
     </ol>
+  )
+}
+
+/**
+ * Los espacios del Frontón, con las fotos de su brochure comercial (los nombres, también de ahí). Sin capacidades: el
+ * brochure y la junta del 14-oct no dan las mismas, y la presentación rediseñada las fija con ellos.
+ */
+const ESPACIOS = [
+  { nombre: 'Teatro', foto: '/fortaleza/teatro-lleno.jpg', posicion: '50% 40%' },
+  { nombre: 'Templo Canalla', foto: '/fortaleza/lobby-templo-canalla.jpg' },
+  { nombre: 'Última Noche', foto: '/fortaleza/ultima-noche.jpg' },
+  { nombre: 'Templo Mayor', foto: '/fortaleza/templo-mayor.jpg' },
+  { nombre: 'Sala de Consejo', foto: '/fortaleza/sala-consejo.jpg' },
+  { nombre: 'Pelota Mestiza', foto: '/fortaleza/pelota-mestiza-salon.jpg' },
+] as const
+
+/** UIX: lo que produce. Arriba, la presentación comercial del Frontón rediseñada; abajo, el recorrido de quien compra. */
+function PresentacionUix() {
+  return (
+    <div className={estilos.uix}>
+      <div className={estilos.doc} role="img" aria-label="La presentación comercial del Frontón México, rediseñada: sus espacios para empresas y eventos.">
+        <div className={estilos.docBarra} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className={estilos.docPortada} aria-hidden="true">
+          <Image src="/fortaleza/fachada.jpg" alt="" fill sizes="600px" unoptimized style={{ objectPosition: '50% 35%' }} />
+          <span className={estilos.docTitulo}>
+            Frontón México
+            <span>Espacios para su evento</span>
+          </span>
+        </div>
+        <ul className={estilos.docEspacios} aria-hidden="true">
+          {ESPACIOS.map((e) => (
+            <li key={e.nombre}>
+              <span className={estilos.docFoto}>
+                <Image src={e.foto} alt="" fill sizes="200px" unoptimized style={{ objectPosition: 'posicion' in e ? e.posicion : 'center' }} />
+              </span>
+              <span className={estilos.docNombre}>{e.nombre}</span>
+            </li>
+          ))}
+        </ul>
+        <span className={estilos.docBoton} aria-hidden="true">
+          Reservar una visita
+        </span>
+      </div>
+      <Recorrido horizontal />
+    </div>
   )
 }
 

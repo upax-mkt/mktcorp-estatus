@@ -9,14 +9,15 @@ import { Luz } from '../comun'
  * herramientas para que sí tengas un lleno total». El lleno es la meta de ellos; lo nuestro son las herramientas. Debajo
  * de un filo naranja, el primer paso y quién cierra los detalles.
  *
- * Lámina tranquila (motion-studio 04 §8): se muestra entera, sin animar. La foto del teatro lleno, con velo: es a lo que
- * apuntan ellos. La frase es el titular de la lámina (h2): así la nombra el navegador del modo presentar.
+ * Lámina tranquila (motion-studio 04 §8): se muestra entera, sin animar. De fondo, el teatro con la pantalla lateral
+ * encendida con Malinche (simulación sobre la foto real): el primer paso que se propone. La frase es el titular de la
+ * lámina (h2): así la nombra el navegador del modo presentar.
  */
 export function Cierre() {
   return (
     <section data-layout="cierre" aria-labelledby="cierre-titulo" className={`${base.pantalla} ${estilos.pantalla}`}>
       <div className={estilos.foto} aria-hidden="true">
-        <Image src="/fortaleza/teatro-lleno.jpg" alt="" fill sizes="100vw" unoptimized />
+        <Image src="/fortaleza/teatro-pantalla.jpg" alt="" fill sizes="100vw" unoptimized />
       </div>
       <div className={estilos.velo} aria-hidden="true" />
       <Luz />

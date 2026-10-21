@@ -43,7 +43,7 @@ export function Portada() {
               Fortaleza <span className={estilos.renglon}>Mexicana</span>
             </h1>
             <p className={`${base.nota} ${estilos.nota}`}>
-              Lo que descubrimos y cómo podemos ayudar a Malinche, el Frontón México y Pelota Mestiza.
+              El bastión cultural de Malinche, el Frontón México y Pelota Mestiza: lo que descubrimos y cómo podemos ayudar.
             </p>
           </header>
         </div>

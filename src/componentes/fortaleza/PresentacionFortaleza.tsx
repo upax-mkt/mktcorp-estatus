@@ -2,9 +2,11 @@ import base from './base.module.css'
 import { Portada } from './escenas/Portada'
 import { Descubrimos } from './escenas/Descubrimos'
 import { Creemos } from './escenas/Creemos'
-import { Ayudamos } from './escenas/Ayudamos'
+import { Indice } from './escenas/Indice'
+import { Unidad } from './escenas/Unidad'
 import { Plan } from './escenas/Plan'
 import { Cierre } from './escenas/Cierre'
+import { PAGINAS } from './contenido'
 
 /**
  * FORTALEZA MEXICANA (ronda 4, 21-oct-2026): lo que descubrimos y cómo puede ayudar Grupo UPAX a Fortaleza Mexicana
@@ -19,6 +21,10 @@ import { Cierre } from './escenas/Cierre'
  * Sin jerga, sin el aforo («eso no es mi trabajo, mi trabajo es ofrecerte todas estas herramientas»), con ejemplos de
  * lo que haría cada unidad y con la ruta de octubre a enero, que sí le gustó.
  *
+ * Ronda 5 (21-oct-2026, Franco: «no está wow, no es claro lo que harán las UDNs, debe ser una presentación
+ * autoexplicativa»): cada unidad tiene su pantalla, en orden, con lo que hará en una frase y cómo se verá en grande. El
+ * dibujo de Fortaleza al centro queda como índice. Al final, el plan de acción en una tabla.
+ *
  * El texto vive en `contenido.ts`; el guion y la fuente de cada dato, en
  * `~/CMO Copilot/sesiones/2026-10-20-fortaleza-presentacion/guion-tecnico.md` (sección «Ronda 4»).
  *
@@ -31,7 +37,10 @@ export function PresentacionFortaleza() {
       <Descubrimos parte={1} />
       <Descubrimos parte={2} />
       <Creemos />
-      <Ayudamos />
+      <Indice />
+      {PAGINAS.map((p, i) => (
+        <Unidad key={p.id} pagina={p} numero={i + 1} total={PAGINAS.length} />
+      ))}
       <Plan />
       <Cierre />
     </div>

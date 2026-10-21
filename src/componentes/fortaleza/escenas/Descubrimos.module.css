@@ -75,3 +75,15 @@
 @media (max-width: 900px) {
   .dolores { grid-template-columns: 1fr; }
 }
+
+/* EL HALLAZGO CON PRUEBA: la foto real a la derecha, del alto de la tarjeta. */
+.dolor[data-con-prueba='true'] { grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.62fr); }
+.prueba.prueba {
+  align-self: stretch;
+  min-height: clamp(110px, 16vh, 220px);
+  border-radius: 12px;
+}
+@media (max-width: 900px) {
+  .dolor[data-con-prueba='true'] { grid-template-columns: auto minmax(0, 1fr); }
+  .dolor[data-con-prueba='true'] .prueba { grid-column: 1 / -1; aspect-ratio: 4 / 3; }
+}

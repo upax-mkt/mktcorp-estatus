@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { PresentacionFortaleza } from './PresentacionFortaleza'
-import { AYUDA, DOLORES } from './contenido'
+import { DOLORES, INDICE, PAGINAS } from './contenido'
 
 /**
- * «FORTALEZA MEXICANA», tal como la ven Ceci y la Sra. María Laura de Salinas (ronda 4, 21-oct-2026: la estructura
- * que dictó Ceci el 20-oct).
+ * «FORTALEZA MEXICANA», tal como la ven Ceci y la Sra. María Laura de Salinas: la estructura que dictó Ceci el 20-oct
+ * y, desde la ronda 5 (21-oct), una pantalla por unidad que se lee sola.
  *
  * Sin `IntersectionObserver`, como un navegador que no puede animar: todo visible y en su estado final. Una
  * animación perdida se perdona; una escena vacía frente a ella, no.
@@ -27,49 +27,50 @@ afterEach(() => {
 const todo = (container: HTMLElement) => container.textContent ?? ''
 
 describe('PresentacionFortaleza', () => {
-  it('sigue el orden de Ceci: el bastión, lo que descubrimos, por qué creemos, cómo ayudamos, el plan y el cierre', () => {
+  it('sigue el orden de Ceci: el bastión, lo que descubrimos, por qué creemos, el índice, una pantalla por unidad, el plan y el cierre', () => {
     const { container } = render(<PresentacionFortaleza />)
     const capas = Array.from(container.querySelectorAll('[data-layout]')).map((p) => p.getAttribute('data-layout'))
-    expect(capas).toEqual(['portada', 'descubrimos-1', 'descubrimos-2', 'creemos', 'ayudamos', 'plan', 'cierre'])
+    expect(capas).toEqual([
+      'portada',
+      'descubrimos-1',
+      'descubrimos-2',
+      'creemos',
+      'indice',
+      ...PAGINAS.map((p) => `unidad-${p.id}`),
+      'plan',
+      'cierre',
+    ])
   })
 
-  it('los ocho hallazgos van numerados y cada uno dice quién lo atiende', () => {
+  it('cada unidad dice en su titular lo que hará, lista lo que produce y enseña cómo se verá', () => {
     const { container } = render(<PresentacionFortaleza />)
-    const texto = todo(container)
-    for (const d of DOLORES) expect(texto).toContain(d.titulo)
-    expect(DOLORES.map((d) => d.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    for (const p of PAGINAS) {
+      const pantalla = container.querySelector(`[data-layout="unidad-${p.id}"]`)!
+      expect(pantalla.querySelector('h2')?.textContent, p.id).toBe(p.titulo)
+      expect(p.produce.length, p.id).toBeGreaterThan(1)
+      // Ceci: «que ponga lo que produce». Ninguna unidad sin una imagen o un dibujo de lo que hará.
+      expect(pantalla.querySelectorAll('figure').length, p.id).toBeGreaterThan(0)
+    }
+  })
+
+  it('cada botón del índice lleva a la pantalla de su unidad', () => {
+    const { container } = render(<PresentacionFortaleza />)
+    const ligas = Array.from(container.querySelectorAll<HTMLAnchorElement>('[data-layout="indice"] a'))
+    expect(ligas).toHaveLength(INDICE.length)
+    for (const a of ligas) {
+      const destino = a.getAttribute('href')!.slice(1)
+      expect(container.querySelector(`#${destino}`), destino).not.toBeNull()
+    }
   })
 
   it('lo que atiende cada unidad cuadra en las dos direcciones: el hallazgo la nombra y ella lo resuelve', () => {
+    const resuelve = (u: string) => PAGINAS.filter((p) => p.unidad === u).flatMap((p) => p.resuelve)
     for (const d of DOLORES) {
-      for (const u of d.atienden) {
-        const ayuda = AYUDA.find((a) => a.unidad === u)
-        expect(ayuda, `${u} en el hallazgo ${d.n}`).toBeDefined()
-        expect(ayuda?.resuelve, `${u} resuelve el ${d.n}`).toContain(d.n)
-      }
+      for (const u of d.atienden) expect(resuelve(u), `${u} resuelve el ${d.n}`).toContain(d.n)
     }
-    for (const a of AYUDA) {
-      expect(a.resuelve.length, a.unidad).toBeGreaterThan(0)
-      for (const n of a.resuelve) expect(DOLORES[n - 1].atienden, `${a.unidad} en el ${n}`).toContain(a.unidad)
+    for (const p of PAGINAS) {
+      for (const n of p.resuelve) expect(DOLORES[n - 1].atienden, `${p.id} en el ${n}`).toContain(p.unidad)
     }
-  })
-
-  it('sin JavaScript se leen el dibujo y las ocho unidades completas', () => {
-    const { container } = render(<PresentacionFortaleza />)
-    const ayudamos = container.querySelector('[data-layout="ayudamos"]')
-    expect(ayudamos?.querySelectorAll('article')).toHaveLength(AYUDA.length)
-    for (const a of AYUDA) expect(ayudamos?.textContent).toContain(a.frase)
-  })
-
-  it('al tocar una unidad se despliega la suya, y «Volver al dibujo» regresa', () => {
-    const { container, getAllByText } = render(<PresentacionFortaleza />)
-    const ayudamos = container.querySelector<HTMLElement>('[data-layout="ayudamos"]')!
-    const nodo = ayudamos.querySelector<HTMLButtonElement>('button[aria-label^="UiX"]')!
-    fireEvent.click(nodo)
-    expect(ayudamos.dataset.vista).toBe('unidad')
-    expect(ayudamos.querySelector('article[data-elegida="true"]')?.id).toBe('ayuda-uix')
-    fireEvent.click(getAllByText('Volver al dibujo')[0])
-    expect(ayudamos.dataset.vista).toBe('dibujo')
   })
 
   it('habla claro: sin jerga, sin el aforo, sin transmisiones y sin cifras que no podamos enseñar', () => {
@@ -84,6 +85,18 @@ describe('PresentacionFortaleza', () => {
     expect(texto).not.toMatch(/360/)
     // Ceci: no nos comprometemos a comprar mesas; se ofrecen a los directivos del grupo.
     expect(texto).not.toMatch(/cenas a cuatro manos con nuestros clientes/i)
+    // Ceci: «¿Cuál grupo? No se entiende». Se dice Grupo Salinas o Grupo UPAX, nunca «el grupo» a secas.
+    expect(texto).not.toMatch(/\bdel grupo\b/i)
+    // Ceci: «las mejores que salgan de esa revisión… ¿De qué habla?».
+    expect(texto).not.toMatch(/revisi[oó]n de UiX|salgan de (esa|la) revisi/i)
+    // Revisión independiente: «lo invitamos» suena a que paga UPAX; y el nombre en francés no va en una pieza mexicana.
+    expect(texto).not.toMatch(/lo invitamos|Le Petit/i)
+  })
+
+  it('lo ya conseguido y lo listo para arrancar se distinguen', () => {
+    const texto = todo(render(<PresentacionFortaleza />).container)
+    expect(texto).toContain('Ya conseguido')
+    expect(texto).toContain('Listo para arrancar')
   })
 
   it('nunca lleva precios, montos ni «inversión» (decisión de Franco: ella no es una prospecta)', () => {

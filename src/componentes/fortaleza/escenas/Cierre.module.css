@@ -13,7 +13,7 @@
 }
 .foto img {
   object-fit: cover;
-  object-position: 50% 4%;
+  object-position: 50% 32%;
 }
 
 /* Oscuro detrás del texto (arriba a la izquierda), más claro hacia el escenario: la foto se sostiene. */
@@ -22,9 +22,10 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  /* Oscuro detrás del texto (izquierda) y casi nada sobre la pantalla encendida (derecha). */
   background:
-    radial-gradient(85% 80% at 20% 28%, #0b0a1ffa 0%, #0b0a1feb 42%, #0b0a1fa6 72%, #0b0a1f66 100%),
-    linear-gradient(180deg, #0b0a1fb3 0%, #0b0a1f73 55%, #0b0a1fcc 100%);
+    linear-gradient(90deg, #0b0a1ffa 0%, #0b0a1fe6 38%, #0b0a1f80 62%, #0b0a1f1a 82%, transparent 100%),
+    linear-gradient(180deg, #0b0a1f99 0%, transparent 30%, transparent 70%, #0b0a1fcc 100%);
 }
 
 .escena { gap: 0; }

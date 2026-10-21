@@ -1,7 +1,5 @@
-/* LOS EJEMPLOS DE CADA UNIDAD (ronda 4, 21-oct-2026): fotos con su rótulo y cuatro dibujos hechos aquí (teléfono,
-   invitación, recorrido y boletera). Todos llenan la caja que les da el panel; el alto lo pone quien los usa. */
-
-.foto.foto { width: 100%; height: 100%; min-height: 0; }
+/* LOS DIBUJOS DE LAS UNIDADES (rondas 4 y 5, 21-oct-2026): teléfono, invitación, recorrido y boletera. Llenan la
+   caja que les da su pantalla (media pantalla a lo ancho); el alto lo pone quien los usa. */
 
 /* UN DIBUJO: su rótulo «Ilustración» arriba, el dibujo al centro y su pie abajo. */
 .dibujo {
@@ -25,6 +23,8 @@
   place-items: center;
   padding: clamp(2.6rem, 5.5vh, 3.6rem) clamp(0.9rem, 1.6vw, 1.6rem) clamp(0.5rem, 1.2vh, 1rem);
 }
+/* La presentación de UiX llena su caja, no se centra. */
+.dibujo[data-tipo='uix'] .lienzo { place-items: stretch; }
 .pie {
   padding: 0.55rem 0.9rem 0.75rem;
   font-size: clamp(0.72rem, 0.8vw, 0.9rem);
@@ -36,7 +36,7 @@
 
 /* El alto del teléfono sale de la caja: su lienzo. */
 .marcoTelefono {
-  --alto: clamp(220px, min(24vw, 42vh), 460px);
+  --alto: clamp(260px, min(36vw, 70vh), 760px);
   position: relative;
   display: grid;
   place-items: center;
@@ -272,10 +272,70 @@
   background: linear-gradient(180deg, #2c246300 28%, #2c2463b3 72%, #2c2463 100%);
 }
 
+/* ---------- RESEARCH LAND: LA ENCUESTA EN EL TELÉFONO ---------- */
+
+.encuesta {
+  position: absolute;
+  inset: 9% 7% 5%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--alto) * 0.016);
+  font-size: calc(var(--alto) * 0.021);
+  color: var(--fm-tinta);
+}
+.encLogo { width: 62%; height: auto; align-self: center; margin-bottom: calc(var(--alto) * 0.006); }
+.encTitulo {
+  align-self: center;
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--fm-tinta-2);
+  margin-bottom: calc(var(--alto) * 0.01);
+}
+.encPregunta {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--alto) * 0.009);
+  padding: calc(var(--alto) * 0.014);
+  border-radius: calc(var(--alto) * 0.016);
+  background: oklch(1 0 0 / 0.07);
+  border: 1px solid oklch(1 0 0 / 0.12);
+}
+.encTexto { font-weight: 700; line-height: 1.25; }
+.encOpciones { display: flex; flex-wrap: wrap; gap: calc(var(--alto) * 0.007); }
+.encOpcion {
+  padding: 0.25em 0.7em;
+  border-radius: 99px;
+  font-size: 0.9em;
+  border: 1px solid oklch(1 0 0 / 0.25);
+  color: var(--fm-tinta-2);
+}
+.encOpcion[data-elegida='true'] { color: #fff; border-color: var(--fm-naranja); background: color-mix(in oklch, var(--fm-naranja) 35%, transparent); }
+.encEscala { display: grid; grid-template-columns: repeat(11, 1fr); gap: 2px; }
+.encEscala span {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 700;
+  background: oklch(1 0 0 / 0.08);
+  color: var(--fm-tinta-2);
+}
+.encEscala span[data-elegida='true'] { color: #fff; background: var(--fm-naranja); }
+.encBoton {
+  margin-top: auto;
+  padding: 0.55em;
+  border-radius: calc(var(--alto) * 0.014);
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+  background: var(--fm-naranja);
+}
+
 /* ---------- GRUPO UPAX: LA INVITACIÓN ---------- */
 
 .invitacion {
-  width: min(100%, 420px);
+  width: min(100%, 600px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -312,7 +372,7 @@
   padding: clamp(0.9rem, 1.4vw, 1.4rem);
 }
 .invPara {
-  font-size: clamp(0.62rem, 0.7vw, 0.8rem);
+  font-size: clamp(0.7rem, min(0.8vw, 1.4vh), 1rem);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -320,12 +380,12 @@
 }
 .invTitulo {
   font-family: var(--fuente-display, inherit);
-  font-size: clamp(1.1rem, 1.5vw, 1.8rem);
+  font-size: clamp(1.2rem, min(1.8vw, 3.2vh), 2.3rem);
   font-weight: 800;
   line-height: 1.08;
 }
 .invCuerpo {
-  font-size: clamp(0.8rem, 0.95vw, 1.1rem);
+  font-size: clamp(0.9rem, min(1.1vw, 1.95vh), 1.4rem);
   line-height: 1.4;
   color: #3b3767;
 }
@@ -339,7 +399,7 @@
 .invBoton {
   padding: 0.45em 1em;
   border-radius: 99px;
-  font-size: clamp(0.68rem, 0.75vw, 0.85rem);
+  font-size: clamp(0.75rem, min(0.85vw, 1.5vh), 1.05rem);
   font-weight: 700;
   color: #fff;
   background: #e34714;
@@ -357,7 +417,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  width: min(100%, 420px);
+  width: min(100%, 560px);
   display: flex;
   flex-direction: column;
   gap: clamp(1rem, 3vh, 2rem);
@@ -407,10 +467,121 @@
   color: var(--fm-tinta-2);
 }
 
+/* El recorrido en fila, debajo de la presentación de UiX: la línea va de lado. */
+.recorrido[data-horizontal='true'] {
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: clamp(0.4rem, 1vw, 1rem);
+}
+.recorrido[data-horizontal='true']::before {
+  left: calc(var(--fm-t-tarjeta) * 0.8);
+  right: calc(var(--fm-t-tarjeta) * 0.8);
+  top: calc(var(--fm-t-tarjeta) * 0.8 - 1px);
+  bottom: auto;
+  width: auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--fm-naranja), color-mix(in oklch, var(--fm-naranja) 30%, transparent));
+}
+.recorrido[data-horizontal='true'] .recPaso {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+.recorrido[data-horizontal='true'] .recTitulo { font-size: var(--fm-t-etiqueta); align-self: auto; margin-top: 0.15rem; }
+.recorrido[data-horizontal='true'] .recTexto { align-self: auto; }
+.recorrido[data-horizontal='true'] .recTexto { font-size: calc(var(--fm-t-etiqueta) * 0.85); }
+
+/* ---------- UIX: LA PRESENTACIÓN DEL FRONTÓN, REDISEÑADA ---------- */
+
+.uix {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(1rem, 2.4vh, 1.8rem);
+}
+.doc {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  gap: clamp(0.4rem, 1vh, 0.7rem);
+  padding: 0 clamp(0.6rem, 1vw, 1rem) clamp(0.6rem, 1vw, 1rem);
+  border-radius: 14px;
+  background: #f7f3ee;
+  color: #1e1b4b;
+  overflow: hidden;
+  box-shadow: 0 22px 50px -22px #000000d9;
+}
+.docBarra { display: flex; gap: 6px; padding: 10px 2px 2px; }
+.docBarra span { width: 10px; height: 10px; border-radius: 50%; background: #d9d2c8; }
+.docPortada { position: relative; min-height: 0; border-radius: 8px; overflow: hidden; }
+.docPortada img { object-fit: cover; }
+.docPortada::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #1e1b4be6 0%, #1e1b4b80 45%, transparent 75%); }
+.docTitulo {
+  position: absolute;
+  z-index: 1;
+  left: 6%;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.1rem, min(2.2vw, 3.9vh), 2.6rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+.docTitulo span {
+  font-family: var(--fuente-texto, inherit);
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: oklch(1 0 0 / 0.85);
+}
+.docEspacios {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.35rem, 0.6vw, 0.6rem);
+}
+.docEspacios li { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; }
+.docFoto { position: absolute; inset: 0; }
+.docFoto img { object-fit: cover; }
+.docNombre {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.2em 0.6em 0.45em;
+  font-size: clamp(0.62rem, min(0.78vw, 1.4vh), 0.95rem);
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, transparent, #1e1b4bd9);
+}
+.docBoton {
+  justify-self: start;
+  padding: 0.45em 1.1em;
+  border-radius: 99px;
+  font-size: clamp(0.66rem, min(0.8vw, 1.4vh), 0.95rem);
+  font-weight: 700;
+  color: #fff;
+  background: #e34714;
+}
+
 /* ---------- NERACODE: LA BOLETERA ---------- */
 
 .boletera {
-  width: min(100%, 560px);
+  width: min(100%, 720px);
   display: flex;
   flex-direction: column;
   gap: clamp(0.5rem, 1.1vh, 0.85rem);
@@ -419,7 +590,7 @@
   background: linear-gradient(180deg, #221e58, #16133f);
   border: 1px solid oklch(1 0 0 / 0.16);
   box-shadow: 0 18px 40px -18px #000000cc;
-  font-size: clamp(0.72rem, 0.84vw, 1rem);
+  font-size: clamp(0.8rem, min(0.95vw, 1.7vh), 1.2rem);
 }
 .bolCabeza { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
 .bolLogo { width: 48%; height: auto; }
