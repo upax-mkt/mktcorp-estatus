@@ -1,104 +1,78 @@
-/* 7 · CIUDAD — Frente 1 · «Que la ciudad lo vea», las pantallas (ronda 2).
-   Una sala a oscuras con un solo objeto encendido. Arriba, la cabecera (las unidades del frente en el renglón del
-   título). Debajo, dos columnas que arrancan a la misma altura: las tres tarjetas, una debajo de otra, con su unidad
-   en el renglón del título; y el poster de Malinche, alto, con la luz que echa, que se funde justo encima del aforo
-   chico (`base.aforoEsquina`, que no se mueve de su esquina). Sin foto de fondo: la luz es la del poster y la base.
-   Estado final = estado por defecto: lo oculto solo existe bajo `.escena[data-animar='true']:not([data-visible])`
-   en pantalla y con movimiento permitido (las entradas son las de la base). Impreso, todo en su estado final. */
+/* 7 · CIUDAD — Frente 1 · «Que la ciudad lo vea»: Promo Espacio (ronda 3).
+   Dos columnas. A la izquierda, la cabecera del frente y, debajo, la propuesta de Promo Espacio (logo, frase y sus
+   cuatro acciones); a la derecha, desde la línea del antetítulo, el mosaico de lo que se va a ver: la barra del lobby a
+   todo el ancho y, debajo, la taquilla y el poster, del mismo tamaño. Cada foto con su pie debajo. El mosaico termina
+   antes del aforo chico (`base.aforoEsquina`, que no se mueve de su esquina). Sin foto de fondo: la luz es la de la base.
+   Composición distinta de la 6 (el aforo grande al centro) y de la 8 (una foto grande a la izquierda, a sangre).
+   Estado final = estado por defecto: las entradas son las de la base. Impreso, todo en su estado final. */
 
 .composicion {
-  /* El ancho del poster sigue a la pantalla y a su alto: 383 px a 1920 × 1080, 273 a 1366 × 768. Así cabe la cabecera
-     con sus logos en un renglón, y el poster (recortado de una foto) no se amplía de más. */
-  --ancho-cartel: clamp(12rem, min(20vw, 35.5vh), 25rem);
+  /* El ancho del mosaico: 562 px a 1920 × 1080, 468 a 1440 × 900 y 399 a 1366 × 768 (en las tres manda el alto; el
+     38 % cuida las pantallas más altas). Así la propuesta, a la izquierda, tiene el ancho que su texto pide a tamaño de
+     proyección, y el mosaico (barra, pies, taquilla y poster) termina antes del aforo de la esquina. */
+  --ancho-mosaico: min(38%, 52vh);
+  --aire: clamp(0.6rem, 1.5vh, 1rem);
+  --aire-pie: clamp(0.3rem, 0.8vh, 0.6rem);
+  --alto-pie: calc(var(--fm-t-etiqueta) * 1.2 + var(--aire-pie));
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--ancho-cartel);
+  grid-template-columns: minmax(0, 1fr) var(--ancho-mosaico);
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
-    'cab   .'
-    'lista cartel';
-  gap: clamp(1.5rem, 5vh, 3.5rem) clamp(1.5rem, 3.5vw, 4.5rem);
+    'cab  mosaico'
+    'prop mosaico';
+  gap: clamp(1.2rem, 3.4vh, 2.6rem) clamp(1.5rem, 3.6vw, 4rem);
+  align-items: start;
 }
 
-/* La cabecera: antetítulo y título; las unidades del frente firman junto al título, a su pie. La 8 la repite igual
-   (mismo frente): el título se queda quieto en el corte y solo cambian los logos, en el mismo lugar. */
-.cabecera {
-  grid-area: cab;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: clamp(0.5rem, 1.2vh, 0.9rem) clamp(1.5rem, 3vw, 3rem);
-}
+.cabecera { grid-area: cab; }
 .titulo { max-width: none; }
-.cabecera .firma {
-  flex-wrap: nowrap;
-  padding-bottom: clamp(0.4rem, 1vh, 0.75rem);
-}
+.propuesta { grid-area: prop; }
 
-/* ---- el poster: la pantalla encendida ---- */
+/* ---- el mosaico: lo que se va a ver ---- */
 
-/* Arranca a la altura de la primera tarjeta y su pie se funde justo encima del aforo: la pantalla alumbra la sala. */
-.cartel {
-  grid-area: cartel;
-  align-self: start;
-  position: relative;
-}
-/* La luz que echa la pantalla en la sala a oscuras: un halo detrás del poster, del color de su arte (verde dorado) y
-   suave. Sin naranja: es de las butacas. */
-.cartel::before {
-  content: '';
-  position: absolute;
-  inset: -12% -42% 0;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(closest-side, oklch(0.78 0.12 128 / 0.3), oklch(0.78 0.12 128 / 0.09) 60%, transparent);
-}
-.cartel .foto {
-  width: 100%;
-  aspect-ratio: 865 / 1210;
-  border: 0;
-  border-radius: 14px 14px 0 0;
-  background: transparent;
-  /* Abajo, el corte del poster se funde con la noche: queda la pantalla encendida, no un recorte. */
-  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
-  mask-image: linear-gradient(180deg, #000 70%, transparent 98%);
-}
-
-/* ---- las tarjetas: una debajo de otra, con quién lo hace en el renglón del título ---- */
-
-.lista {
-  grid-area: lista;
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: clamp(0.7rem, 1.8vh, 1.25rem);
-}
-.lista .tarjeta {
+.mosaico {
+  grid-area: mosaico;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  column-gap: clamp(1rem, 2vw, 2rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--aire);
+  /* El pie va debajo de cada foto: la fila deja su lugar. */
+  row-gap: calc(var(--aire) + var(--alto-pie));
+  padding-bottom: var(--alto-pie);
 }
-.lista .tarjeta > :nth-child(2) { grid-column: 1 / -1; }
-.lista .tarjeta > :nth-child(3) {
-  grid-row: 1;
-  grid-column: 2;
-  margin: 0;
-  padding: 0;
+/* La barra, protagonista, a todo el ancho; la taquilla y el poster, del mismo tamaño, debajo. La barra pierde un 4 %
+   por lado (2.2 contra 2.39 de la foto) sin tocar las tres pantallas; el poster se recorta a la derecha para que no
+   entre la persona de la tienda de al lado. */
+.mosaico .barra { grid-column: 1 / -1; aspect-ratio: 2.2; }
+.mosaico .taquilla,
+.mosaico .poster { aspect-ratio: 0.8; }
+
+/* El pie, fuera de la foto (abajo) y no encima: en el poster taparía el nombre de la obra. */
+.mosaico figure { overflow: visible; }
+.mosaico figure img { border-radius: 15px; }
+.mosaico figcaption {
+  top: 100%;
+  bottom: auto;
+  padding: var(--aire-pie) 0 0;
+  background: none;
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--fm-tinta-2);
+}
+/* «Simulación», arriba a la derecha en las tres: arriba a la izquierda de la barra caía sobre las caras de la
+   pantalla grande. */
+.mosaico figure > span {
+  left: auto;
+  right: clamp(0.5rem, 0.8vw, 0.8rem);
 }
 
-/* BAJO 760 PX SE APILA: cabecera (con los logos debajo del título), el poster y las tres tarjetas; el aforo queda al
-   final (base). */
+/* BAJO 760 PX SE APILA: cabecera, propuesta y el mosaico; el aforo queda al final (base). */
 @media (max-width: 760px) {
   .composicion {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
-    grid-template-areas: 'cab' 'cartel' 'lista';
-    row-gap: 1.25rem;
+    grid-template-areas: 'cab' 'prop' 'mosaico';
   }
-  .cartel { justify-self: center; width: min(100%, 22rem); }
-  .cabecera .firma { flex-wrap: wrap; padding-bottom: 0; }
-  .lista .tarjeta { grid-template-columns: minmax(0, 1fr); }
-  .lista .tarjeta > :nth-child(3) { grid-row: auto; grid-column: 1; }
 }

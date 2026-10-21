@@ -51,11 +51,16 @@ export function Fondo({
   )
 }
 
-/** UNA FOTO dentro de la escena, recortada, con pie opcional. El alto lo pone quien la usa (clase o estilo). */
+/**
+ * UNA FOTO dentro de la escena, recortada, con pie opcional. El alto lo pone quien la usa (clase o estilo).
+ * `marca`: lo que es la imagen cuando no es una foto tal cual: «Simulación» (un montaje sobre una foto real, como las
+ * pantallas encendidas) o «Ilustración» (una imagen generada). Va en una esquina, siempre visible.
+ */
 export function Foto({
   src,
   alt,
   pie,
+  marca,
   posicion = 'center',
   className = '',
   style,
@@ -63,12 +68,14 @@ export function Foto({
   src: string
   alt: string
   pie?: ReactNode
+  marca?: 'Simulación' | 'Ilustración'
   posicion?: string
   className?: string
   style?: CSSProperties
 }) {
   return (
     <figure className={`${base.foto} ${className}`} style={style}>
+      {marca ? <span className={base.fotoMarca}>{marca}</span> : null}
       <Image
         src={src}
         alt={alt}
@@ -108,7 +115,7 @@ export const LOGOS = {
     src: '/logos/marketing-united-blanco.png',
     ancho: 395,
     nombre: 'Marketing United',
-    escala: 1.35,
+    escala: 1.6,
   },
   uix: { src: '/logos/uix-blanco.png', ancho: 387, nombre: 'UiX' },
   neracode: {
@@ -189,6 +196,41 @@ export const MARCAS = {
     nombre: 'Pelota Mestiza',
   },
 } as const
+
+/**
+ * LA PROPUESTA DE UNA UNIDAD (ronda 3, 20-oct-2026): la misma forma en todos los frentes, para que se lea qué hace
+ * cada una. Arriba, su logo; luego qué hace, en una frase; debajo, sus acciones, cada una con su título corto.
+ */
+export function Propuesta({
+  unidades,
+  frase,
+  acciones,
+  i,
+  className = '',
+  style,
+}: {
+  unidades: readonly Unidad[]
+  frase?: ReactNode
+  acciones: readonly { titulo: string; texto: ReactNode }[]
+  i: number
+  className?: string
+  style?: CSSProperties
+}) {
+  return (
+    <article className={`${base.propuesta} ${base.aparece} ${className}`} style={{ ...orden(i), ...style }}>
+      <Firma unidades={unidades} className={base.propuestaFirma} />
+      {frase ? <p className={base.propuestaFrase}>{frase}</p> : null}
+      <ul className={base.acciones}>
+        {acciones.map((a) => (
+          <li key={a.titulo} className={base.accion}>
+            <span className={base.accionTitulo}>{a.titulo}</span>
+            <span className={base.accionTexto}>{a.texto}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  )
+}
 
 /**
  * UNA TARJETA DE FRENTE: título corto, texto y quién lo hace. Es la pieza que más se repite:

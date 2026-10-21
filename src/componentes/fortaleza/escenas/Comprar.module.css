@@ -1,16 +1,21 @@
-/* 12 · COMPRAR — Frente 4 · «Que comprar sea fácil» (ronda 2, 20-oct-2026, motion-studio).
+/* 14 · COMPRAR — Frente 4 · «Que comprar sea fácil» (ronda 3, 20-oct-2026, motion-studio).
 
-   COMPOSICIÓN: la bailarina a sangre, con la foto anclada abajo (su cara queda arriba, libre); el título a la
-   izquierda sobre el negro de la foto, en dos renglones para que «fácil» no caiga sobre su pelo. Abajo, un solo panel
-   de vidrio con el recorrido y las tres acciones: el vidrio difumina lo que queda debajo, así ningún texto se lee
-   encima de la bailarina. El panel termina donde empieza el aforo de la esquina.
+   COMPOSICIÓN (la de la ronda 2, ajustada): la bailarina a sangre, con la foto anclada abajo (su cara queda arriba,
+   libre); el título a la izquierda sobre el negro de la foto, en dos renglones para que «fácil» no caiga sobre su pelo.
+   Abajo, dos columnas que arrancan en la misma línea: el panel de UiX (su propuesta y, al pie, el recorrido) y, en la
+   columna del aforo, la tarjeta de NeraCode. El vidrio difumina lo que queda debajo: ningún texto se lee encima de la
+   bailarina. El panel termina donde empieza el aforo; la tarjeta de NeraCode, antes de que empiece.
 
    TAMAÑOS DE PROYECCIÓN (motion-studio 04 §2): todo sale de los de la base; las paradas van al tamaño de título de
-   tarjeta. Nada se achica.
+   tarjeta. Nada se achica: para que el panel no suba hasta la cara, las dos acciones de UiX van lado a lado y la pista
+   del recorrido es más baja que en la ronda 2 (lienzo de 162 unidades en vez de 210).
 
-   EL RECORRIDO: lienzo de 1600 × 210 unidades (el viewBox). Lo HTML se coloca en % de esas constantes:
+   EL RECORRIDO: lienzo de 1600 × 162 unidades (el viewBox). Lo HTML se coloca en % de esas constantes:
    x / 16 = % del ancho; la base de los nombres llega en --base-etiqueta. La pista es un solo trazo: la ida brilla y el
    regreso, por debajo, es tenue (un degradado vertical del propio trazo).
+
+   Las reglas que tocan a Propuesta (pieza de comun.tsx) van por su clase propia o con un elemento de más, para no
+   depender del orden en que se cargan las hojas.
 
    MOVIMIENTO: .aparece, .brota y .trazo de la base, escalonados con orden(i). Las paradas y las flechas brotan con la
    duración rápida de la casa (420 ms), no con la de un bloque. Estado final = estado por defecto (sin JS, impreso,
@@ -20,6 +25,8 @@
   /* El ancho del aforo chico de la esquina (Aforo.module.css, data-tam='chico') y el aire que lo separa del panel. */
   --aforo-ancho: clamp(190px, min(16vw, 28.4vh), 320px);
   --aforo-aire: clamp(1rem, 1.7vw, 2rem);
+  /* El relleno del vidrio: el mismo en el panel de UiX y en la tarjeta de NeraCode. */
+  --relleno-vidrio: clamp(0.8rem, min(1.5vw, 2.65vh), 1.9rem) clamp(1rem, min(1.9vw, 3.4vh), 2.3rem);
 }
 
 .escena { gap: clamp(0.7rem, 1.9vh, 1.5rem); }
@@ -27,23 +34,46 @@
 .titulo { max-width: none; }
 .renglon { display: block; }
 
-.firma { margin-top: clamp(0.2rem, 0.8vh, 0.55rem); }
+/* ---- abajo: UiX en el panel y NeraCode en la columna del aforo, arriba en la misma línea ---- */
 
-/* ---- el panel: el recorrido arriba y las tres acciones debajo ---- */
+.abajo {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--aforo-ancho);
+  column-gap: var(--aforo-aire);
+  align-items: start;
+}
 
 .panel {
-  margin-top: auto;
-  width: calc(100% - var(--aforo-ancho) - var(--aforo-aire));
   display: flex;
   flex-direction: column;
-  gap: clamp(0.8rem, 2vh, 1.5rem);
-  padding: clamp(0.8rem, min(1.5vw, 2.65vh), 1.9rem) clamp(1rem, min(1.9vw, 3.4vh), 2.3rem);
+  gap: clamp(0.7rem, 1.6vh, 1.2rem);
+  padding: var(--relleno-vidrio);
+}
+
+/* UiX: sus dos acciones lado a lado. Una debajo de otra, el panel subiría hasta la cara de la bailarina. La primera
+   dice más: con 57/43 las dos caben en tres renglones a 1440 × 900 y a 1366 × 768 (a 1920 van en cuatro, en las dos
+   columnas parejas). */
+.uix ul {
+  display: grid;
+  grid-template-columns: minmax(0, 57fr) minmax(0, 43fr);
+  column-gap: clamp(1rem, 1.9vw, 2.3rem);
+}
+
+/* NeraCode: su tarjeta de vidrio, del ancho del aforo. */
+.neracode { padding: var(--relleno-vidrio); }
+
+/* ---- el recorrido, al pie del panel, con un filo que lo separa de la propuesta ---- */
+
+.ruta {
+  padding-top: clamp(0.5rem, 1.2vh, 0.9rem);
+  border-top: 1px solid var(--fm-vidrio-borde);
 }
 
 .recorrido {
   position: relative;
   width: 100%;
-  aspect-ratio: 1600 / 210;
+  aspect-ratio: 1600 / 162;
 }
 
 .dibujo {
@@ -114,38 +144,24 @@
   letter-spacing: -0.01em;
 }
 
-/* ---- las tres acciones: columnas con un filo entre ellas ---- */
-
-/* Anchos según lo que dice cada una, para que ninguna pase de cuatro renglones: la del medio cabe con su título
-   («Documentos oficiales») en un renglón; la última es la más corta. Más renglones subirían el panel hasta la cara. */
-.acciones {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.53fr) minmax(0, 1fr);
-  border-top: 1px solid var(--fm-vidrio-borde);
-}
-
-.accion {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(0.35rem, min(0.55vw, 1vh), 0.8rem);
-  padding: clamp(0.8rem, 2vh, 1.5rem) clamp(0.9rem, 1.5vw, 1.8rem) 0;
-}
-.accion:first-child { padding-left: 0; }
-.accion:last-child { padding-right: 0; }
-.accion + .accion { border-left: 1px solid var(--fm-vidrio-borde); }
-
 @media screen and (prefers-reduced-motion: no-preference) {
   /* Paradas y flechas: puntos que se encienden, con la duración rápida de la casa. */
   .escena[data-visible='true'] .recorrido :is(.estacion, .flecha) { animation-duration: 420ms; }
 }
 
+/* BAJO 1000 PX: una columna; NeraCode debajo de UiX, y abajo queda el lugar del aforo. */
 @media (max-width: 1000px) {
-  .panel { width: 100%; margin-bottom: calc(var(--aforo-ancho) * 0.62); }
+  .abajo {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--aforo-aire);
+    margin-bottom: calc(var(--aforo-ancho) * 0.62);
+  }
 }
 
 /* BAJO 760 PX SE APILA: el dibujo se va y las paradas quedan en lista, con su pista vertical. */
 @media (max-width: 760px) {
-  .panel { margin-bottom: 0; }
+  .abajo { margin-bottom: 0; }
+  .uix ul { grid-template-columns: minmax(0, 1fr); }
   .recorrido { aspect-ratio: auto; }
   .dibujo { display: none; }
   .paradas {
@@ -155,9 +171,4 @@
     border-left: 2px solid oklch(1 0 0 / 0.4);
   }
   .parada { position: static; translate: none; }
-  .acciones { grid-template-columns: minmax(0, 1fr); }
-  .accion,
-  .accion:first-child,
-  .accion:last-child { padding: 1rem 0 0; }
-  .accion + .accion { border-left: 0; border-top: 1px solid var(--fm-vidrio-borde); margin-top: 1rem; }
 }

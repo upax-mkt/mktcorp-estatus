@@ -1,17 +1,19 @@
-/* 9 · GRUPO — Frente 2 · «Que el grupo lo viva» (ronda 2, 20-oct-2026).
-   Tres columnas: lo que hace el grupo (izquierda), el teléfono del colaborador con su boleto (centro) y lo que pone
-   Fortaleza (derecha, «De su lado»). Fondo: la escalera de los atlantes (la entrada), con velo total.
-   TAMAÑOS DE PROYECCIÓN: los de la base, sin reglas propias que los bajen (cuerpo 28 px a 1920, título de tarjeta 36,
-   «quién» y rótulo 22). Los logos van en la cabecera, a la derecha del título: debajo no caben, la columna de tres
-   tarjetas ya ocupa el alto que queda.
-   UN EJE EXACTO: una retícula de tres filas. «De su lado» comparte la fila de «Comunicados» y se estira con ella: los
-   dos bordes y la línea del «quién» caen en el mismo pixel. El teléfono se centra en esa misma fila.
+/* 10 · GRUPO — Frente 2 · «Que el grupo lo viva» (ronda 3, 20-oct-2026).
+   Tres columnas: lo que hace el grupo, por unidad (izquierda: NeraCode en Zeus y, debajo, House of Films), el teléfono
+   del colaborador con su boleto (centro) y lo que pone Fortaleza (derecha, «De su lado»). Fondo: la escalera de los
+   atlantes (la entrada), con velo total.
+   TAMAÑOS DE PROYECCIÓN: los de la base, sin reglas propias que los bajen (cuerpo 28 px a 1920, frase y título de
+   tarjeta 36, etiquetas y rótulo 22). La columna de la izquierda es la más ancha: las dos acciones de NeraCode y la de
+   House of Films, a 28 px, son lo que pide alto; «De su lado» cabe en una columna angosta.
+   UN EJE ARRIBA Y UNO ABAJO: el bloque de NeraCode y «De su lado» arrancan en la misma línea (la primera fila de la
+   retícula); el rótulo del teléfono cae en la última línea del bloque de House of Films. La esquina de abajo a la
+   derecha es del aforo: «De su lado» termina, con aire, antes de que empiece.
    EL TELÉFONO ESTÁ DIBUJADO EN CSS: marco con luz de borde, isla, barra de la app, boleto con talón perforado (muescas
    por máscara) y QR de patrón fijo en SVG. Todo se mide contra `--alto`, así escala entero con la pantalla.
    ÚNICO ACENTO NARANJA: la mira del QR, el naranja de las butacas.
    Sin movimiento propio: solo `.aparece` de la base. Estado final = estado por defecto. */
 
-/* Seis pasos de entrada y, después, una pausa y el tramo 2 solo: con el escalón corto de la casa (60 ms; la ley admite
+/* Cinco pasos de entrada y, después, una pausa y el tramo 2 solo: con el escalón corto de la casa (60 ms; la ley admite
    de 60 a 120) todo asienta antes de que se encienda el tramo y la escena queda quieta antes de 1200 ms. */
 .escena { --mov-escalon: 60ms; }
 
@@ -28,58 +30,46 @@
   transform-origin: 50% 100%;
 }
 
-/* LA CABECERA: título a la izquierda, logos a la derecha sobre la línea del título. */
-.escena .cabecera {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: last baseline;
-  justify-content: space-between;
-  column-gap: clamp(1.5rem, 4vw, 5rem);
-  row-gap: clamp(0.6rem, 1.4vh, 1rem);
-}
-.titulos {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(0.4rem, 1vh, 0.75rem);
-}
-/* Los tres logos en una sola línea, pegados al borde derecho (el mismo del aforo y de «De su lado»). */
-.firma { flex-wrap: nowrap; }
-
-/* ---------- EL CUERPO: tres columnas, tres filas ---------- */
+/* ---------- EL CUERPO: tres columnas, dos filas ---------- */
 
 .cuerpo {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 0.8fr);
-  grid-template-rows: repeat(3, auto);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 0.5fr);
+  grid-template-rows: auto auto;
   align-content: center;
-  column-gap: clamp(1.5rem, 4.2vw, 5.5rem);
+  column-gap: clamp(1.25rem, 2.9vw, 4rem);
   row-gap: clamp(0.6rem, 1.5vh, 1rem);
 }
 
-/* Las tarjetas un poco más compactas por dentro (el aire, no la letra). */
-.cuerpo .tarjeta { padding-block: clamp(0.75rem, 2vh, 1.35rem); }
+/* Los bloques de las unidades, en vidrio y con el relleno de la tarjeta de «De su lado»: el texto de los tres arranca
+   a la misma distancia de su borde. */
+.bloque,
+.cuerpo .tarjeta { padding: clamp(0.75rem, 2vh, 1.35rem) clamp(1rem, min(1.6vw, 2.85vh), 2.2rem); }
 
-.boletos { grid-area: 1 / 1; }
-.comunicados { grid-area: 2 / 1; }
-.capsulas { grid-area: 3 / 1; }
-/* Misma fila que «Comunicados» y estirada con ella (el valor por omisión de la retícula): bordes idénticos. */
-.suyo { grid-area: 2 / 3; }
+.neracode { grid-area: 1 / 1; }
+.hof { grid-area: 2 / 1; }
+/* Arriba, en la línea del bloque de NeraCode; sin estirarse: debajo queda el aire del aforo. */
+.suyo {
+  grid-area: 1 / 3;
+  align-self: start;
+}
 
 /* ---------- EL TELÉFONO ---------- */
 
-/* La figura ocupa el alto de las tres filas: el teléfono va en su centro exacto (filas 1fr · auto · 1fr) y el rótulo
-   abajo, con el mismo aire que el «quién» de la última tarjeta: los dos rótulos quedan en la misma línea. */
+/* La figura ocupa el alto de las dos filas: el teléfono va en su centro (filas 1fr · auto · 1fr) y el rótulo abajo,
+   en la línea del bloque de House of Films. Las filas 1fr guardan su mínimo de contenido: si falta alto, el teléfono
+   sube un poco y el rótulo nunca queda debajo de él. */
 .ilustracion {
-  /* Escala como la letra de la base, con min(ancho, alto): en 16:10 la columna de tarjetas es más baja y el teléfono
-     también (605 px a 1920 × 1080, 454 a 1440 × 900). */
-  --alto: clamp(300px, min(31.5vw, 56vh), 640px);
-  grid-area: 1 / 2 / 4 / 3;
+  /* Escala como la letra de la base, con min(ancho, alto): 538 px a 1920 × 1080, 403 a 1440 × 900 y 382 a 1366 × 768,
+     siempre más bajo que la columna de la izquierda. */
+  --alto: clamp(280px, min(28vw, 50vh), 600px);
+  grid-area: 1 / 2 / 3 / 3;
   position: relative;
   margin: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: 1fr auto 1fr;
   justify-items: center;
 }
 .telefono { grid-row: 2; }
@@ -316,7 +306,7 @@
 }
 
 /* El rótulo que dice lo que es (un dibujo, no una captura de la app), con el tamaño de etiqueta de la base. Al pie de
-   la figura y con el relleno de abajo de una tarjeta (más su borde): su línea es la del «quién» de «Cápsulas». */
+   la figura y con el relleno de abajo de un bloque (más su borde): cae en la última línea del de House of Films. */
 .rotulo {
   grid-row: 3;
   align-self: end;
@@ -331,14 +321,14 @@
 
 /* ---------- RESPALDOS ---------- */
 
-/* Pantalla mediana: el teléfono a la derecha y las cuatro tarjetas en una columna. */
+/* Pantalla mediana: el teléfono a la derecha y los tres bloques en una columna. */
 @media (max-width: 1100px) {
   .cuerpo {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: repeat(4, auto);
+    grid-template-rows: repeat(3, auto);
   }
-  .suyo { grid-area: 4 / 1; }
-  .ilustracion { grid-area: 1 / 2 / 5 / 3; }
+  .suyo { grid-area: 3 / 1; }
+  .ilustracion { grid-area: 1 / 2 / 4 / 3; }
 }
 
 /* Teléfono angosto: todo apilado, el teléfono de frente y con su rótulo debajo, en el flujo. */
@@ -347,9 +337,8 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
   }
-  .boletos,
-  .comunicados,
-  .capsulas,
+  .neracode,
+  .hof,
   .suyo,
   .ilustracion { grid-area: auto; }
   .ilustracion {

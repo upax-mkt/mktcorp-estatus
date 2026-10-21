@@ -2,30 +2,30 @@ import Image from 'next/image'
 import base from '../base.module.css'
 import estilos from './Grupo.module.css'
 import { Escena } from '../../politico/Escena'
-import { orden, Luz, Fondo, Firma, Tarjeta, MARCAS } from '../comun'
+import { orden, Luz, Fondo, Propuesta, Tarjeta, MARCAS } from '../comun'
 import { Aforo } from '../Aforo'
 
 /**
- * 9 · GRUPO — Frente 2 · «Que el grupo lo viva» (ronda 2, 20-oct-2026).
+ * 10 · GRUPO — Frente 2 · «Que el grupo lo viva» (ronda 3, 20-oct-2026: cada unidad se cuenta con su `Propuesta`).
  *
- * Dos lados y, en medio, el teléfono de un colaborador. A la izquierda, lo que hace el grupo (boletos con beneficios
- * en Zeus, comunicados, cápsulas); a la derecha, lo que pone Fortaleza («De su lado»). Al centro, el boleto de
- * Malinche con su QR, dibujado en CSS y rotulado «Ilustración». De fondo, la escalera de los atlantes: la entrada del
- * Frontón, por donde sube quien trae su boleto. Los logos van con la cabecera, a la derecha del título.
+ * La composición de la ronda 2, ajustada. A la izquierda, lo que hace el grupo, ahora por unidad: arriba, NeraCode en
+ * Zeus (los dos logos, qué hace en una frase y sus dos acciones: Boletos con beneficio y Comunicados); debajo, House of
+ * Films con sus cápsulas. En medio, el teléfono de un colaborador: es la imagen de lo que hace NeraCode, el boleto de
+ * Malinche con su QR dentro de Zeus, dibujado en CSS y rotulado «Ilustración». A la derecha, lo que pone Fortaleza («De
+ * su lado»). De fondo, la escalera de los atlantes: la entrada del Frontón, por donde sube quien trae su boleto. Los
+ * logos ya no van en la cabecera: cada bloque lleva el suyo.
  *
- * UN SOLO EJE: las tarjetas viven en una retícula de tres filas. «De su lado» ocupa la misma fila que «Comunicados»
- * (mismo borde de arriba, mismo de abajo, la misma línea del «quién») y el teléfono se centra en esa fila. Nada queda
- * casi alineado.
+ * UN EJE ARRIBA Y UNO ABAJO: el bloque de NeraCode y «De su lado» arrancan en la misma línea; el rótulo del teléfono cae
+ * en la última línea del bloque de House of Films. La esquina de abajo a la derecha es del aforo.
  *
  * El único acento naranja de la escena es la mira del QR: el mismo naranja de las butacas que este frente enciende.
  *
- * Movimiento (escalón corto de la casa, 60 ms; quieta a los 1185 ms): antetítulo 0 · título y logos 60 · «Boletos con
- * beneficios» y el teléfono que la ilustra 120 · «Comunicados» 180 · «Cápsulas» 240 · «De su lado» 300 (todo
- * aterrizado a los ~550) · pausa · AL FINAL, SOLO, el aforo enciende el tramo 2 butaca por butaca de 720 a 1185. Solo
- * las clases de la base; estado final = estado por defecto.
+ * Movimiento (escalón corto de la casa, 60 ms; quieta a los 1185 ms): antetítulo 0 · título 60 · NeraCode y el teléfono
+ * que lo ilustra 120 · House of Films 180 · «De su lado» 240 (a los ~490 ya asentó) · pausa · AL FINAL, SOLO, el aforo
+ * enciende el tramo 2 butaca por butaca de 720 a 1185. Solo las clases de la base; estado final = estado por defecto.
  */
 
-/** Cuándo empieza a encenderse el tramo 2: «De su lado» arranca a los 300 ms y a los ~550 ya aterrizó. */
+/** Cuándo empieza a encenderse el tramo 2: «De su lado» arranca a los 240 ms y a los ~490 ya asentó. */
 const TRAMO_RETARDO = 720
 
 /**
@@ -84,47 +84,49 @@ export function Grupo() {
   return (
     <section data-layout="grupo" className={base.pantalla}>
       {/* Encuadre: la foto anclada abajo y un poco más cerca, para que las caras de piedra de los atlantes salgan
-          del cuadro y no queden bajo el título ni bajo los logos (quedan sus cuerpos y la escalera). */}
+          del cuadro y no queden bajo el título (quedan sus cuerpos y la escalera). */}
       <div className={estilos.encuadre} aria-hidden="true">
         <Fondo src="/fortaleza/escalera-atlantes.jpg" velo="total" posicion="50% 100%" />
       </div>
       <Luz />
       <Escena className={`${base.escena} ${estilos.escena}`}>
-        <header className={`${base.cabecera} ${estilos.cabecera}`}>
-          <div className={estilos.titulos}>
-            <p className={`${base.antetitulo} ${base.aparece}`} style={orden(0)}>
-              Frente 2
-            </p>
-            <h2 className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
-              Que el grupo lo viva
-            </h2>
-          </div>
-          <Firma
-            unidades={['neracode', 'zeus', 'house-of-films']}
-            className={`${estilos.firma} ${base.aparece}`}
-            style={orden(1)}
-          />
+        <header className={base.cabecera}>
+          <p className={`${base.antetitulo} ${base.aparece}`} style={orden(0)}>
+            Frente 2
+          </p>
+          <h2 className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={orden(1)}>
+            Que el grupo lo viva
+          </h2>
         </header>
 
         <div className={estilos.cuerpo}>
-          {/* Lo que hace el grupo: la columna de la izquierda, una tarjeta por fila. */}
-          <Tarjeta i={2} titulo="Boletos con beneficios" quien="NeraCode" className={`${estilos.tarjeta} ${estilos.boletos}`}>
-            Para los colaboradores, en Zeus: catálogo, compra y boleto digital con QR.
-          </Tarjeta>
-          <Tarjeta i={3} titulo="Comunicados" quien="NeraCode" className={`${estilos.tarjeta} ${estilos.comunicados}`}>
-            Por empresa, área o ubicación, con notificaciones y medición de lectura.
-          </Tarjeta>
-          <Tarjeta
-            i={4}
-            titulo="Cápsulas «¿Sabías que?»"
-            quien="House of Films"
-            className={`${estilos.tarjeta} ${estilos.capsulas}`}
-          >
-            Con Juan Miguel Zunzunegui, para los colaboradores.
-          </Tarjeta>
+          {/* Lo que hace el grupo, por unidad: la columna de la izquierda. */}
+          <Propuesta
+            i={2}
+            unidades={['neracode', 'zeus']}
+            frase="Un módulo de boletos y comunicados dentro de Zeus, la plataforma que ya usan los colaboradores del grupo."
+            acciones={[
+              {
+                titulo: 'Boletos con beneficio',
+                texto:
+                  'Catálogo de funciones, disponibilidad, compra y boleto digital con QR, con los beneficios para colaboradores.',
+              },
+              {
+                titulo: 'Comunicados',
+                texto: 'Por empresa, área o ubicación, programados, con notificación y evidencia de lectura.',
+              },
+            ]}
+            className={`${base.vidrio} ${estilos.bloque} ${estilos.neracode}`}
+          />
+          <Propuesta
+            i={3}
+            unidades={['house-of-films']}
+            acciones={[{ titulo: 'Cápsulas «¿Sabías que?»', texto: 'Con Juan Miguel Zunzunegui, para los colaboradores.' }]}
+            className={`${base.vidrio} ${estilos.bloque} ${estilos.hof}`}
+          />
 
-          {/* En medio, el colaborador: su teléfono con el boleto, centrado en la fila del eje. Entra con «Boletos con
-              beneficios», que es lo que ilustra. */}
+          {/* En medio, el colaborador: su teléfono con el boleto. Entra con el bloque de NeraCode, que es lo que
+              ilustra. */}
           <figure className={`${estilos.ilustracion} ${base.aparece}`} style={orden(2)}>
             <span className={estilos.halo} aria-hidden="true" />
             <div className={estilos.telefono} role="img" aria-label="Un teléfono con un boleto de Malinche y su código QR.">
@@ -142,7 +144,7 @@ export function Grupo() {
                         src="/fortaleza/elenco-principal.jpg"
                         alt=""
                         fill
-                        sizes="(max-width: 760px) 70vw, 320px"
+                        sizes="(max-width: 760px) 70vw, 300px"
                         unoptimized
                         style={{ objectPosition: '50% 30%' }}
                       />
@@ -179,8 +181,8 @@ export function Grupo() {
             <figcaption className={estilos.rotulo}>Ilustración</figcaption>
           </figure>
 
-          {/* Lo que pone Fortaleza: del otro lado del teléfono, en la fila de «Comunicados». */}
-          <Tarjeta i={5} titulo="De su lado" quien="Fortaleza" className={`${estilos.tarjeta} ${estilos.suyo}`}>
+          {/* Lo que pone Fortaleza: del otro lado del teléfono, en la línea de arriba del bloque de NeraCode. */}
+          <Tarjeta i={4} titulo="De su lado" quien="Fortaleza" className={`${estilos.tarjeta} ${estilos.suyo}`}>
             El beneficio navideño desde el Buen Fin y una invitación suya a los directores del grupo.
           </Tarjeta>
         </div>

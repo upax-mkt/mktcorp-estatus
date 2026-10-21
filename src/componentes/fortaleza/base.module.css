@@ -227,6 +227,66 @@
   background: var(--fm-fondo);
 }
 .foto img { object-fit: cover; }
+/* «Simulación» o «Ilustración»: qué es la imagen, en su esquina. */
+.fotoMarca {
+  position: absolute;
+  z-index: 2;
+  top: clamp(0.5rem, 1vh, 0.8rem);
+  left: clamp(0.5rem, 0.8vw, 0.8rem);
+  padding: 0.3em 0.7em;
+  border-radius: 99px;
+  font-size: calc(var(--fm-t-etiqueta) * 0.82);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: oklch(1 0 0 / 0.92);
+  background: #0b0a1fb8;
+  border: 1px solid oklch(1 0 0 / 0.22);
+}
+
+/* LA PROPUESTA DE UNA UNIDAD: su logo, qué hace en una frase y sus acciones (título corto y texto). */
+.propuesta {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.5rem, min(0.8vw, 1.4vh), 1rem);
+}
+.propuestaFirma { gap: clamp(0.8rem, 1.4vw, 1.4rem); }
+.propuestaFrase {
+  margin: 0;
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+.acciones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.45rem, min(0.75vw, 1.3vh), 0.95rem);
+}
+.accion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-left: clamp(0.7rem, 1vw, 1rem);
+  border-left: 2px solid oklch(1 0 0 / 0.28);
+}
+.accionTitulo {
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fm-tinta);
+}
+.accionTexto {
+  font-size: var(--fm-t-cuerpo);
+  line-height: 1.36;
+  color: var(--fm-tinta-2);
+  text-wrap: pretty;
+}
 .fotoPie {
   position: absolute;
   left: 0;

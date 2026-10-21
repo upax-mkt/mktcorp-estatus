@@ -6,10 +6,12 @@ import { Sumar } from './escenas/Sumar'
 import { Ahora } from './escenas/Ahora'
 import { Nuestro } from './escenas/Nuestro'
 import { Ciudad } from './escenas/Ciudad'
+import { Hof } from './escenas/Hof'
 import { Calle } from './escenas/Calle'
 import { Grupo } from './escenas/Grupo'
 import { Semana } from './escenas/Semana'
 import { Usos } from './escenas/Usos'
+import { Pelota } from './escenas/Pelota'
 import { Comprar } from './escenas/Comprar'
 import { Medir } from './escenas/Medir'
 import { Ruta } from './escenas/Ruta'
@@ -31,6 +33,10 @@ import { Cierre } from './escenas/Cierre'
  * mismo texto y el mismo orden. A tamaño de proyección, la 7 (ciudad) y la 9 (semana) se parten en dos; la 12 se
  * parte en ruta, cumbre y cierre, para que la cumbre quede sola y la siga una lámina tranquila.
  *
+ * Ronda 3 (20-oct-2026, Franco: «no viene bien explicado la propuesta de cada UDN sin alterar el storytelling»): el
+ * Frente 1 suma una pantalla de House of Films y el Frente 3 una de Pelota Mestiza; cada unidad se cuenta con su
+ * logo, qué hace en una frase y sus acciones (`Propuesta`), con una imagen de lo que va a hacer. Dieciocho pantallas.
+ *
  * Hilo conductor: el aforo (`Aforo`), el teatro visto desde arriba. Abre a la mitad, cada frente enciende su tramo y
  * la cumbre lo llena; ahí el dibujo se vuelve la foto real del teatro lleno.
  *
@@ -47,10 +53,12 @@ export function PresentacionFortaleza() {
       <Ahora />
       <Nuestro />
       <Ciudad />
+      <Hof />
       <Calle />
       <Grupo />
       <Semana />
       <Usos />
+      <Pelota />
       <Comprar />
       <Medir />
       <Ruta />

@@ -1,54 +1,31 @@
-/* 13 · MEDIR — Frente 5 · «Entender y medir» (ronda 2, 20-oct-2026, motion-studio).
+/* 15 · MEDIR — Frente 5 · «Entender y medir» (ronda 3, 20-oct-2026, motion-studio).
 
-   COMPOSICIÓN: arriba, tres piezas en fila — el título con sus logos a la izquierda, la cara del guitarrista libre al
-   centro y la premisa a la derecha, sobre el negro de la foto. Abajo, anclados, los estudios en dos filas: «Quién más
-   puede venir» y «Lo que se dice»; el podcast con su foto y «Cada semana», que termina donde empieza el aforo.
+   COMPOSICIÓN: arriba, el título a la izquierda y la premisa a la derecha, alineada con la columna de la imagen.
+   Abajo, anclado, una rejilla de dos columnas: Research Land (su propuesta, con las cuatro partes en dos por dos) y su
+   imagen; debajo, «Noche de Jueves» con su foto y «Cada semana», que termina donde empieza el aforo.
 
-   LA FOTO: acercada 1.25 desde la esquina de abajo a la derecha (transform en la imagen, no en el marco). En 16:9 y en
-   16:10 la cara del guitarrista cae entre el 47 y el 58 % del ancho y entre el 19 y el 38 % del alto: entre el título
-   y la premisa, por encima de los estudios. El músico de la izquierda queda fuera de cuadro.
+   LA IMAGEN: `rl-encuesta.jpg`, PROVISIONAL, en un marco 16:9 horizontal del ancho de la columna derecha (640 px a
+   1920). La foto nueva entra en el mismo marco sin tocar nada.
 
-   TAMAÑOS DE PROYECCIÓN: los de la base; la frase de la premisa, a 1.45 veces el título de tarjeta. Nada se achica.
+   TAMAÑOS DE PROYECCIÓN: los de la base; la premisa, a 1.2 veces el título de tarjeta (en la ronda 2 iba a 1.45, sola
+   en su columna; ahora comparte la pantalla con la propuesta de Research Land). Nada baja de los tamaños de la base.
 
-   Las reglas que tocan a Tarjeta y a Foto (piezas de comun.tsx) van con un nivel más de especificidad que las de
-   base.module.css, para no depender del orden en que se cargan las hojas.
+   Las reglas que tocan a Propuesta y a Foto (piezas de comun.tsx) van por su clase propia o con un nivel más de
+   especificidad que las de base.module.css, para no depender del orden en que se cargan las hojas.
 
    MOVIMIENTO: solo .aparece de la base, escalonado con orden(i). Estado final = estado por defecto. */
 
 .pantalla {
   /* El ancho del aforo chico de la esquina (Aforo.module.css, data-tam='chico') y el aire que lo separa. */
   --aforo-ancho: clamp(190px, min(16vw, 28.4vh), 320px);
-  --aire: clamp(0.7rem, 1.1vw, 1.25rem);
-  background: #050409;
-}
-
-/* ---- la foto y su velo ---- */
-
-.foto {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.foto img {
-  object-fit: cover;
-  object-position: 60% 50%;
-  transform: scale(1.25);
-  transform-origin: 100% 100%;
-}
-
-/* Oscuro bajo el título (izquierda), bajo la premisa (derecha) y bajo los estudios (abajo); el guitarrista, al centro,
-   con velo ligero. */
-.pantalla > .velo {
-  background:
-    linear-gradient(90deg, #0b0a1ff2 0%, #0b0a1fc2 28%, #0b0a1f4d 46%, #0b0a1f4d 60%, #0b0a1fb3 76%, #0b0a1fe6 100%),
-    linear-gradient(180deg, #0b0a1f73 0%, transparent 24%, transparent 42%, #0b0a1f99 62%, #0b0a1ff2 100%);
+  --aforo-aire: clamp(1rem, 1.7vw, 2rem);
+  /* La columna de la derecha: la imagen, y arriba la premisa. */
+  --col-derecha: 42.7%;
 }
 
 .escena { gap: clamp(0.8rem, 2vh, 1.5rem); }
 
-/* ---- arriba: título | cara | premisa ---- */
+/* ---- arriba: título | premisa ---- */
 
 .arriba {
   display: flex;
@@ -59,12 +36,10 @@
 
 .titulo { max-width: none; white-space: nowrap; }
 
-.firma { margin-top: clamp(0.2rem, 0.8vh, 0.55rem); }
-
 /* La premisa: la etiqueta pegada a la frase, sin caja; un filo a la izquierda la ancla. */
 .premisa {
   flex: none;
-  width: min(36%, 35rem);
+  width: var(--col-derecha);
   display: flex;
   flex-direction: column;
   gap: clamp(0.45rem, 1.2vh, 0.85rem);
@@ -81,60 +56,78 @@
 }
 .premisaFrase {
   margin: 0;
-  font-size: calc(var(--fm-t-tarjeta) * 1.45);
+  font-size: calc(var(--fm-t-tarjeta) * 1.2);
   font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.02em;
   text-wrap: balance;
   color: var(--fm-tinta);
-  text-shadow: 0 2px 24px oklch(0 0 0 / 0.45);
 }
-.premisa .quien { margin-top: 0.15rem; }
 
-/* ---- abajo: los estudios, en dos filas ---- */
+/* ---- abajo: Research Land y su imagen; el podcast y «Cada semana» ---- */
 
-/* Tres columnas: la ancha (quién más puede venir y el podcast), la angosta («Cada semana») y la del aforo, que en la
-   segunda fila queda libre. «Lo que se dice» ocupa la angosta y la del aforo: arriba no hay aforo. */
-.estudios {
+.cuerpo {
   margin-top: auto;
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.55fr) var(--aforo-ancho);
-  gap: var(--aire);
+  grid-template-columns: minmax(0, 1fr) var(--col-derecha);
+  grid-template-areas:
+    'estudio encuesta'
+    'jueves semana';
+  column-gap: clamp(1.25rem, 2.5vw, 3rem);
+  row-gap: clamp(1rem, 2.4vh, 1.75rem);
+  align-items: start;
 }
-.estudios .quienMas { grid-column: 1; }
-.estudios .seDice { grid-column: 2 / -1; }
 
-/* «Noche de Jueves»: la foto y su tarjeta, una sola pieza. */
-.jueves {
-  grid-column: 1;
+.estudio { grid-area: estudio; }
+/* Las cuatro partes del estudio en una sola rejilla, de dos por dos, bajo la frase que las anuncia. */
+.estudio ul {
   display: grid;
-  grid-template-columns: minmax(0, 0.45fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.8rem, 2vh, 1.5rem) clamp(1rem, 2.1vw, 2.5rem);
 }
-.jueves .juevesFoto {
-  margin: 0;
-  border-radius: 18px 0 0 18px;
-  border-right: 0;
-}
-.jueves .juevesTarjeta { border-radius: 0 18px 18px 0; }
 
-.estudios .semana { grid-column: 2; }
+.cuerpo .encuesta {
+  grid-area: encuesta;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+/* «Noche de Jueves»: la foto a la izquierda, del alto del texto. */
+.jueves {
+  grid-area: jueves;
+  display: grid;
+  grid-template-columns: 32% minmax(0, 1fr);
+  column-gap: clamp(1rem, 1.6vw, 1.9rem);
+  align-items: stretch;
+}
+.jueves .juevesFoto { margin: 0; }
+
+/* «Cada semana», a la izquierda del aforo. Su título queda en la línea del de «Noche de Jueves»: baja lo que miden los
+   logos de esa propuesta (el de House of Films, el más alto, va a 1.55: LOGOS en comun.tsx) más el aire de Propuesta. */
+.semana {
+  grid-area: semana;
+  width: calc(100% - var(--aforo-ancho) - var(--aforo-aire));
+  margin-top: calc(clamp(20px, min(1.75vw, 3.1vh), 40px) * 1.55 + clamp(0.5rem, min(0.8vw, 1.4vh), 1rem));
+}
+.semana h3,
+.semana p { margin: 0; }
 
 @media (max-width: 1000px) {
   .arriba { flex-direction: column; }
   .premisa { width: auto; }
-  .estudios { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .estudios .quienMas,
-  .estudios .seDice { grid-column: auto; }
-  .jueves { grid-column: 1 / -1; }
-  .estudios .semana { grid-column: 1 / -1; margin-right: calc(var(--aforo-ancho) + var(--aire)); }
+  .cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'estudio' 'encuesta' 'jueves' 'semana';
+    margin-bottom: calc(var(--aforo-ancho) * 0.62);
+  }
+  .semana { margin-top: 0; }
 }
 
 /* BAJO 760 PX SE APILA: todo en una columna; el aforo, al final. */
 @media (max-width: 760px) {
   .titulo { white-space: normal; }
-  .estudios { grid-template-columns: minmax(0, 1fr); }
-  .jueves { grid-template-columns: minmax(0, 1fr); grid-template-rows: 11rem auto; }
-  .jueves .juevesFoto { border-radius: 18px 18px 0 0; border-right: 1px solid var(--fm-vidrio-borde); border-bottom: 0; }
-  .jueves .juevesTarjeta { border-radius: 0 0 18px 18px; }
-  .estudios .semana { margin-right: 0; }
+  .cuerpo { margin-bottom: 0; }
+  .estudio ul { grid-template-columns: minmax(0, 1fr); }
+  .jueves { grid-template-columns: minmax(0, 1fr); grid-template-rows: 11rem auto; row-gap: 1rem; }
+  .semana { width: auto; }
 }

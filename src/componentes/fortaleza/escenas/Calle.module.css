@@ -1,92 +1,62 @@
-/* 8 · CALLE — Frente 1 · «Que la ciudad lo vea», en la calle (ronda 2).
-   La foto a sangre y la gente a la vista, a la derecha. La cabecera arriba (las unidades del frente junto al título)
-   y el frente abajo, en dos alturas: la destacada a lo ancho y, debajo, dos tarjetas lado a lado. El bloque ocupa
-   dos tercios del ancho: el tercio de la derecha es de la gente y, abajo, del aforo (`base.aforoEsquina`).
-   Composición distinta de la 7 (columna de tarjetas junto a un objeto alto, sin foto de fondo).
+/* 9 · CALLE — Frente 1 · «Que la ciudad lo vea»: Marketing United y Marketing Corporativo (ronda 3).
+   A la izquierda, la cabecera del frente (la de la 7, en el mismo lugar) y, debajo, las dos propuestas, separadas por
+   un filo. A la derecha, desde la línea del antetítulo y hasta antes del aforo chico (`base.aforoEsquina`), la foto.
+   Sin foto de fondo: la luz es la de la base. Composición distinta de la 8 (la imagen grande a la izquierda).
    Estado final = estado por defecto: las entradas son las de la base. Impreso, todo en su estado final. */
 
-/* El velo: oscuro detrás de la cabecera y de las tarjetas (izquierda, arriba y abajo), abierto sobre la gente, y un
-   pozo oscuro bajo el aforo para que se lea sobre el piso. Otro pozo apaga el anuncio ajeno del poster LED y a los dos
-   empleados de cara pixelada, que en pantallas bajas asomaban por encima de la destacada. */
-.pantalla.pantalla > [data-velo='izquierda'] {
-  background:
-    radial-gradient(18% 17% at 46% 42%, #0b0a1ff2 40%, transparent),
-    radial-gradient(24% 32% at 90% 95%, #0b0a1fd9, transparent),
-    linear-gradient(90deg, #0b0a1ff2 0%, #0b0a1fe6 32%, #0b0a1fb3 54%, #0b0a1f59 70%, #0b0a1f40 86%, #0b0a1f66 100%),
-    linear-gradient(180deg, #0b0a1fb3 0%, transparent 30%, transparent 58%, #0b0a1fbf 100%);
-}
-
 .composicion {
+  /* EL MARCO DE LA FOTO cabe en una caja de `--ancho-foto` × `--alto-foto` con la proporción de la foto, sea
+     horizontal o vertical: 562 × 696 px a 1920 × 1080 (468 × 579 a 1440 × 900, 399 × 494 a 1366 × 768). El alto
+     termina antes del aforo de la esquina; la columna mide lo que mide la foto y el texto toma el resto. */
+  --ancho-foto: min(33vw, 52vh);
+  --alto-foto: calc(65vh - 0.35rem);
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: clamp(1rem, 3vh, 2.5rem);
-}
-
-/* La cabecera: antetítulo y título; las unidades del frente, junto al título, a su pie. */
-.cabecera {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: clamp(0.5rem, 1.2vh, 0.9rem) clamp(1.5rem, 3vw, 3rem);
-}
-.titulo { max-width: none; }
-.cabecera .firma {
-  flex-wrap: nowrap;
-  padding-bottom: clamp(0.4rem, 1vh, 0.75rem);
-}
-
-/* ---- el frente: la destacada a lo ancho y dos tarjetas debajo ---- */
-
-.frente {
-  width: 68%;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(0.7rem, 1.8vh, 1.25rem) clamp(0.7rem, 1.2vw, 1.25rem);
-}
-.frente .tarjeta { min-width: 0; }
-
-/* LA DESTACADA: a lo ancho, vidrio más claro, filo de luz arriba, título mayor y su unidad en el renglón del título.
-   Sin naranja: el de esta escena es el del aforo. */
-.frente .destacada {
-  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  column-gap: clamp(1rem, 2vw, 2rem);
-  border-color: oklch(1 0 0 / 0.3);
-  background:
-    linear-gradient(160deg, oklch(1 0 0 / 0.13), oklch(1 0 0 / 0.04) 55%),
-    var(--fm-vidrio);
-  box-shadow:
-    inset 0 1px 0 oklch(1 0 0 / 0.38),
-    0 24px 60px -28px oklch(0 0 0 / 0.7);
-}
-.frente .destacada > h3 { font-size: calc(var(--fm-t-tarjeta) * 1.3); }
-.frente .destacada > :nth-child(2) { grid-column: 1 / -1; }
-.frente .destacada > :nth-child(3) {
-  grid-row: 1;
-  grid-column: 2;
-  margin: 0;
-  padding: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'cab   foto'
+    'texto foto';
+  gap: clamp(1.2rem, 3.4vh, 2.6rem) clamp(1.5rem, 3.6vw, 4rem);
+  align-items: start;
 }
 
-/* Impreso no hay desenfoque: la destacada lleva fondo sólido, como el vidrio de la base, para que el texto no se
-   lea sobre la foto. */
-@media print {
-  .frente .destacada { background: #1d1a5c; }
+.cabecera { grid-area: cab; }
+.titulo { max-width: none; }
+
+/* ---- las dos propuestas ---- */
+
+.texto {
+  grid-area: texto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.1rem, 3vh, 2.2rem);
+}
+/* Marketing Corporativo es el área de marketing del grupo, no una unidad: va tras un filo, escrita y sin frase. */
+.corporativo {
+  padding-top: clamp(0.9rem, 2.4vh, 1.8rem);
+  border-top: 1px solid var(--fm-vidrio-borde);
 }
 
-/* BAJO 760 PX SE APILA: cabecera (con los logos debajo del título) y las tres tarjetas a todo lo ancho; el aforo queda
-   al final (base). */
+/* ---- la foto ---- */
+
+.composicion .marco {
+  grid-area: foto;
+  justify-self: end;
+  width: min(var(--ancho-foto), var(--alto-foto) * var(--proporcion, 0.62));
+  aspect-ratio: var(--proporcion, 0.62);
+}
+
+/* BAJO 760 PX SE APILA: cabecera, las dos propuestas y la foto; el aforo queda al final (base). */
 @media (max-width: 760px) {
-  .frente {
-    width: 100%;
+  .composicion {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: 'cab' 'texto' 'foto';
   }
-  .cabecera .firma { flex-wrap: wrap; padding-bottom: 0; }
-  .frente .destacada { grid-template-columns: minmax(0, 1fr); }
-  .frente .destacada > :nth-child(3) { grid-row: auto; grid-column: 1; }
+  .composicion .marco {
+    justify-self: center;
+    width: min(100%, 60vh * var(--proporcion, 0.62));
+  }
 }

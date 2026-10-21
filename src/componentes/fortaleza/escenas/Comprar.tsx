@@ -2,38 +2,42 @@ import type { CSSProperties } from 'react'
 import base from '../base.module.css'
 import estilos from './Comprar.module.css'
 import { Escena } from '../../politico/Escena'
-import { orden, Luz, Fondo, Firma } from '../comun'
+import { orden, Luz, Fondo, Propuesta } from '../comun'
 import { Aforo } from '../Aforo'
 
 /**
- * 12 · COMPRAR. Frente 4 · «Que comprar sea fácil» (ronda 2, 20-oct-2026).
+ * 14 · COMPRAR. Frente 4 · «Que comprar sea fácil» (ronda 3, 20-oct-2026).
  *
- * Arriba, a sangre, la función: la bailarina de Malinche es lo que se compra. El título va a la izquierda, sobre el
- * negro de la foto, en dos renglones («Que comprar / sea fácil»): así «fácil» ya no cae sobre su pelo. Abajo, un solo
- * panel de vidrio con todo el frente: el recorrido de quien va a Malinche, cuatro paradas en una pista que no se corta
- * (Lo descubre → Compra → En la función → Regresa) y que, al llegar a la última, da la vuelta por debajo y regresa al
- * principio; debajo, lo que hacen UiX y NeraCode. Un panel y no cuatro cajas: ningún texto queda sobre la cara ni el
- * pelo de la bailarina, y la foto respira. «Compra» es el único acento naranja: la parada que el título pide hacer
- * fácil. En la esquina, el aforo enciende el tramo del frente 4.
+ * La composición de la ronda 2 se queda: la bailarina de Malinche a sangre, el título a la izquierda sobre el negro de
+ * la foto, en dos renglones («Que comprar / sea fácil», así «fácil» no cae sobre su pelo), y abajo un panel de vidrio
+ * que no sube hasta su cara. Cambia cómo se cuenta cada unidad (`Propuesta`, ronda 3): el panel es UiX —su logo, qué
+ * hace en una frase y sus dos acciones, lado a lado— y cierra con su imagen, el recorrido de quien va a Malinche:
+ * cuatro paradas en una pista que no se corta (Lo descubre → Compra → En la función → Regresa) y que, al llegar a la
+ * última, da la vuelta por debajo y regresa al principio. Al lado, en la columna del aforo, NeraCode con su única
+ * acción, la boletera. Los dos logos quedan en la misma línea y se leen en orden, de izquierda a derecha. «Compra» es el
+ * único acento naranja: la parada que el título pide hacer fácil, y la que toca la boletera. En la esquina, el aforo
+ * enciende el tramo del frente 4.
  *
- * GEOMETRÍA FIJA: el recorrido es un lienzo de 1600 × 210 unidades (el viewBox) que conserva esa proporción; los
+ * GEOMETRÍA FIJA: el recorrido es un lienzo de 1600 × 162 unidades (el viewBox) que conserva esa proporción; los
  * nombres de las paradas son HTML colocado en porcentajes de esas constantes. Nada se mide en JS.
  *
  * MOVIMIENTO (ms desde que llega la escena; quieta en ≤ 1200; solo las clases de la base y `orden`):
- *   0–620      antetítulo, título y logos suben (escalón de 60 ms)
- *   120–720    la pista se traza (600 ms, --mov-ease-in-out); cada parada brota (420 ms, la duración rápida de la
- *              casa) y su nombre sube cuando la línea llega a ella: 120, 336, 379 y 402 (CAUSA VISIBLE)
- *   330–950    las tres acciones suben (escalón de 60 ms)
+ *   0–560      antetítulo y título suben (escalón de 60 ms)
+ *   120        el panel de vidrio sube
+ *   180        UiX sube (logo, frase y acciones juntos) y la pista empieza a trazarse (480 ms, --mov-ease-in-out); cada
+ *              parada brota (420 ms, la duración rápida de la casa) y su nombre sube cuando la línea llega a ella:
+ *              180, 355, 389 y 407 (CAUSA VISIBLE); la flecha del regreso, a los 440
+ *   355        cuando la línea llega a «Compra», sube NeraCode: la boletera es esa parada
  *   730–1195   AL FINAL, SOLO, el aforo enciende el tramo 4 butaca por butaca: lo demás ya asentó
  * Sin JS, impreso o con movimiento reducido: el cuadro final.
  */
 
 const ANCHO = 1600
-const ALTO = 210
-/** La pista de ida: las cuatro paradas. */
-const IDA = 104
+const ALTO = 162
+/** La pista de ida: las cuatro paradas. Los nombres van encima, con su base 24 unidades sobre la pista. */
+const IDA = 88
 /** La vuelta: media circunferencia en cada extremo y la pista de regreso, por debajo. */
-const RADIO = 46
+const RADIO = 30
 const VUELTA = IDA + 2 * RADIO
 const X = [150, 583, 1017, 1450] as const
 
@@ -67,8 +71,9 @@ function fraccionDeTiempo(p: number): number {
 }
 
 const ESCALON = 90
-const PISTA_INICIO = 120
-const PISTA_DURACION = 600
+/** La pista arranca con UiX: lo que hace UiX es justo ese recorrido. */
+const PISTA_INICIO = 180
+const PISTA_DURACION = 480
 /** Cuándo llega la línea a un punto de la pista, a `largo` unidades de «Lo descubre» (ms desde que llega la escena). */
 const llega = (largo: number) => Math.round(PISTA_INICIO + fraccionDeTiempo(largo / LARGO) * PISTA_DURACION)
 
@@ -88,24 +93,6 @@ const en = (ms: number) => vars({ '--i': ms / ESCALON })
 /** La base de los nombres de las paradas, 24 unidades sobre la pista, en % del alto del lienzo. */
 const BASE_ETIQUETA = `${((ALTO - (IDA - 24)) / ALTO) * 100}%`
 
-const ACCIONES = [
-  {
-    titulo: 'Todo el recorrido',
-    texto: 'UiX revisa cómo descubren Malinche, cómo compran, qué encuentran durante la función y qué pasa después.',
-    quien: 'UiX',
-  },
-  {
-    titulo: 'Documentos oficiales',
-    texto: 'UiX los renueva, empezando por la presentación comercial del venue.',
-    quien: 'UiX',
-  },
-  {
-    titulo: 'La boletera',
-    texto: 'NeraCode hace las mejoras que hagan falta, según esa revisión.',
-    quien: 'NeraCode',
-  },
-] as const
-
 export function Comprar() {
   return (
     <section data-layout="comprar" className={`${base.pantalla} ${estilos.pantalla}`}>
@@ -119,79 +106,105 @@ export function Comprar() {
           <h2 className={`${base.titulo} ${estilos.titulo} ${base.aparece}`} style={en(60)}>
             Que comprar <span className={estilos.renglon}>sea fácil</span>
           </h2>
-          <Firma unidades={['uix', 'neracode']} className={`${estilos.firma} ${base.aparece}`} style={en(120)} />
         </header>
 
-        {/* El panel entra después del título (antes aparecía vacío desde el cuadro 0, primero que todo). */}
-        <div className={`${base.vidrio} ${estilos.panel} ${base.aparece}`} style={en(120)}>
-          <div className={estilos.recorrido} style={vars({ '--base-etiqueta': BASE_ETIQUETA })}>
-            <svg
-              className={estilos.dibujo}
-              viewBox={`0 0 ${ANCHO} ${ALTO}`}
-              role="img"
-              aria-label="Recorrido de ida y vuelta por cuatro paradas."
-            >
-              <defs>
-                {/* La ida brilla; el regreso, por debajo, es más tenue. */}
-                <linearGradient id="fm-comprar-pista" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#fff" stopOpacity="0.92" />
-                  <stop offset="0.5" stopColor="#fff" stopOpacity="0.5" />
-                  <stop offset="1" stopColor="#fff" stopOpacity="0.26" />
-                </linearGradient>
-              </defs>
+        <div className={estilos.abajo}>
+          {/* El panel entra después del título y antes que lo que lleva dentro: nunca se ve vacío en el cuadro 0. */}
+          <div className={`${base.vidrio} ${estilos.panel} ${base.aparece}`} style={en(120)}>
+            <Propuesta
+              unidades={['uix']}
+              frase="Revisamos el recorrido de quien compra Malinche y rediseñamos lo que lo acompaña."
+              acciones={[
+                {
+                  titulo: 'El recorrido',
+                  texto:
+                    'Cómo descubren Malinche, cómo compran, qué encuentran durante la función y qué pasa después: un diagnóstico con propuestas de mejora.',
+                },
+                {
+                  titulo: 'Los documentos oficiales',
+                  texto:
+                    'Rediseñados para representar la experiencia del evento, empezando por la presentación comercial del venue.',
+                },
+              ]}
+              i={PISTA_INICIO / ESCALON}
+              className={estilos.uix}
+            />
 
-              <path
-                className={`${estilos.pista} ${base.trazo}`}
-                d={PISTA}
-                pathLength={1}
-                stroke="url(#fm-comprar-pista)"
-                style={vars({ '--i': PISTA_INICIO / ESCALON, '--mov-trazo': `${PISTA_DURACION}ms` })}
-              />
-
-              {IDA_FLECHAS.map((x, k) => (
-                <path key={x} className={`${estilos.flecha} ${base.brota}`} d={flechaDerecha(x, IDA)} style={en(LLEGA.flechas[k])} />
-              ))}
-              <path
-                className={`${estilos.flecha} ${estilos.flechaRegreso} ${base.brota}`}
-                d={flechaIzquierda(REGRESO_X, VUELTA)}
-                style={en(LLEGA.regreso)}
-              />
-
-              {X.map((x, k) => (
-                <g
-                  key={x}
-                  className={`${estilos.estacion} ${base.brota}`}
-                  data-acento={k === ACENTO || undefined}
-                  style={en(LLEGA.paradas[k])}
+            {/* La imagen de lo que hace UiX: el recorrido, con su ida y su vuelta. */}
+            <div className={estilos.ruta}>
+              <div className={estilos.recorrido} style={vars({ '--base-etiqueta': BASE_ETIQUETA })}>
+                <svg
+                  className={estilos.dibujo}
+                  viewBox={`0 0 ${ANCHO} ${ALTO}`}
+                  role="img"
+                  aria-label="Recorrido de ida y vuelta por cuatro paradas."
                 >
-                  <circle className={estilos.anillo} cx={x} cy={IDA} r={k === ACENTO ? 19 : 15} />
-                  <circle className={estilos.nucleo} cx={x} cy={IDA} r={k === ACENTO ? 7 : 5.5} />
-                </g>
-              ))}
-            </svg>
+                  <defs>
+                    {/* La ida brilla; el regreso, por debajo, es más tenue. */}
+                    <linearGradient id="fm-comprar-pista" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor="#fff" stopOpacity="0.92" />
+                      <stop offset="0.5" stopColor="#fff" stopOpacity="0.5" />
+                      <stop offset="1" stopColor="#fff" stopOpacity="0.26" />
+                    </linearGradient>
+                  </defs>
 
-            <ol className={estilos.paradas}>
-              {PARADAS.map((nombre, k) => (
-                <li
-                  key={nombre}
-                  className={`${estilos.parada} ${base.aparece} ${k === ACENTO ? base.acento : ''}`}
-                  style={vars({ '--i': LLEGA.paradas[k] / ESCALON, '--x': `${(X[k] / ANCHO) * 100}%` })}
-                >
-                  {nombre}
-                </li>
-              ))}
-            </ol>
+                  <path
+                    className={`${estilos.pista} ${base.trazo}`}
+                    d={PISTA}
+                    pathLength={1}
+                    stroke="url(#fm-comprar-pista)"
+                    style={vars({ '--i': PISTA_INICIO / ESCALON, '--mov-trazo': `${PISTA_DURACION}ms` })}
+                  />
+
+                  {IDA_FLECHAS.map((x, k) => (
+                    <path
+                      key={x}
+                      className={`${estilos.flecha} ${base.brota}`}
+                      d={flechaDerecha(x, IDA)}
+                      style={en(LLEGA.flechas[k])}
+                    />
+                  ))}
+                  <path
+                    className={`${estilos.flecha} ${estilos.flechaRegreso} ${base.brota}`}
+                    d={flechaIzquierda(REGRESO_X, VUELTA)}
+                    style={en(LLEGA.regreso)}
+                  />
+
+                  {X.map((x, k) => (
+                    <g
+                      key={x}
+                      className={`${estilos.estacion} ${base.brota}`}
+                      data-acento={k === ACENTO || undefined}
+                      style={en(LLEGA.paradas[k])}
+                    >
+                      <circle className={estilos.anillo} cx={x} cy={IDA} r={k === ACENTO ? 19 : 15} />
+                      <circle className={estilos.nucleo} cx={x} cy={IDA} r={k === ACENTO ? 7 : 5.5} />
+                    </g>
+                  ))}
+                </svg>
+
+                <ol className={estilos.paradas}>
+                  {PARADAS.map((nombre, k) => (
+                    <li
+                      key={nombre}
+                      className={`${estilos.parada} ${base.aparece} ${k === ACENTO ? base.acento : ''}`}
+                      style={vars({ '--i': LLEGA.paradas[k] / ESCALON, '--x': `${(X[k] / ANCHO) * 100}%` })}
+                    >
+                      {nombre}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
           </div>
 
-          <div className={estilos.acciones}>
-            {ACCIONES.map((a, k) => (
-              <article key={a.titulo} className={`${estilos.accion} ${base.aparece}`} style={en(330 + k * 60)}>
-                <h3 className={base.tarjetaTitulo}>{a.titulo}</h3>
-                <p className={base.tarjetaTexto}>{a.texto}</p>
-                <p className={base.quien}>{a.quien}</p>
-              </article>
-            ))}
-          </div>
+          {/* NeraCode, en la columna del aforo: sube cuando la línea llega a «Compra». */}
+          <Propuesta
+            unidades={['neracode']}
+            acciones={[{ titulo: 'La boletera', texto: 'Las mejoras que salgan de esa revisión.' }]}
+            i={LLEGA.paradas[ACENTO] / ESCALON}
+            className={`${base.vidrio} ${estilos.neracode}`}
+          />
         </div>
 
         <Aforo tam="chico" frentes={4} enciende={4} retardo={ENCIENDE} rotulo="Frente 4 de 5" className={base.aforoEsquina} />

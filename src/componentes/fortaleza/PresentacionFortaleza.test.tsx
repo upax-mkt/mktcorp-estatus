@@ -26,12 +26,12 @@ afterEach(() => {
 const todo = (container: HTMLElement) => container.textContent ?? ''
 
 describe('PresentacionFortaleza', () => {
-  it('son dieciséis pantallas en el orden del guion: la cumbre sola y, después, la petición', () => {
+  it('son dieciocho pantallas en el orden del guion: la cumbre sola y, después, la petición', () => {
     const { container } = render(<PresentacionFortaleza />)
     const capas = Array.from(container.querySelectorAll('[data-layout]')).map((p) => p.getAttribute('data-layout'))
     expect(capas).toEqual([
       'portada', 'escuchamos', 'joya', 'sumar', 'ahora', 'nuestro',
-      'ciudad', 'calle', 'grupo', 'semana', 'usos', 'comprar', 'medir',
+      'ciudad', 'hof', 'calle', 'grupo', 'semana', 'usos', 'pelota', 'comprar', 'medir',
       'ruta', 'lleno', 'cierre',
     ])
   })
