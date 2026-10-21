@@ -1,0 +1,488 @@
+/* LOS EJEMPLOS DE CADA UNIDAD (ronda 4, 21-oct-2026): fotos con su rótulo y cuatro dibujos hechos aquí (teléfono,
+   invitación, recorrido y boletera). Todos llenan la caja que les da el panel; el alto lo pone quien los usa. */
+
+.foto.foto { width: 100%; height: 100%; min-height: 0; }
+
+/* UN DIBUJO: su rótulo «Ilustración» arriba, el dibujo al centro y su pie abajo. */
+.dibujo {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--fm-vidrio-borde);
+  background:
+    radial-gradient(80% 70% at 50% 35%, color-mix(in oklch, var(--fm-azul) 22%, transparent), transparent 70%),
+    #110f33;
+}
+.lienzo {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(2.6rem, 5.5vh, 3.6rem) clamp(0.9rem, 1.6vw, 1.6rem) clamp(0.5rem, 1.2vh, 1rem);
+}
+.pie {
+  padding: 0.55rem 0.9rem 0.75rem;
+  font-size: clamp(0.72rem, 0.8vw, 0.9rem);
+  font-weight: 600;
+  color: var(--fm-tinta-2);
+}
+
+/* ---------- ZEUS: EL TELÉFONO ---------- */
+
+/* El alto del teléfono sale de la caja: su lienzo. */
+.marcoTelefono {
+  --alto: clamp(220px, min(24vw, 42vh), 460px);
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+/* La luz detrás del teléfono: azul y un poco de magenta (luces de fondo). Quieta. */
+.halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--alto) * 1.4);
+  height: calc(var(--alto) * 1.1);
+  translate: -50% -50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--fm-azul) 48%, transparent) 0%,
+    color-mix(in oklch, var(--fm-magenta) 18%, transparent) 56%,
+    transparent 100%
+  );
+}
+
+.telefono {
+  position: relative;
+  height: var(--alto);
+  aspect-ratio: 9 / 19.3;
+  padding: calc(var(--alto) * 0.014);
+  border-radius: calc(var(--alto) * 0.075);
+  /* Grafito, no morado: el color lo pone el boleto. */
+  background: linear-gradient(150deg, #64637a 0%, #2a2934 16%, #0d0d13 46%, #1e1d28 78%, #55546a 100%);
+  box-shadow:
+    inset 0 0 0 1px oklch(1 0 0 / 0.4),
+    inset 0 0 0 calc(var(--alto) * 0.0055) #050508,
+    0 calc(var(--alto) * 0.05) calc(var(--alto) * 0.1) calc(var(--alto) * -0.03) #000000d9,
+    0 0 0 1px #00000080;
+  transform: perspective(1600px) rotateY(-9deg) rotateX(3deg);
+}
+
+/* Botones laterales. */
+.telefono::before,
+.telefono::after {
+  content: '';
+  position: absolute;
+  width: calc(var(--alto) * 0.0075);
+  border-radius: 2px;
+  background: linear-gradient(90deg, #2a2934, #6a6980);
+}
+.telefono::before { right: calc(var(--alto) * -0.0065); top: 27%; height: 12%; }
+.telefono::after {
+  left: calc(var(--alto) * -0.0065);
+  top: 21%;
+  height: 6.5%;
+  box-shadow: 0 calc(var(--alto) * 0.085) 0 #3a3948;
+}
+
+.pantallaTel {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--alto) * 0.062);
+  background:
+    radial-gradient(120% 50% at 50% 0%, #221f55 0%, transparent 60%),
+    linear-gradient(180deg, #100e2b 0%, #07061a 100%);
+}
+
+/* El reflejo del vidrio de la pantalla. */
+.pantallaTel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(118deg, oklch(1 0 0 / 0.11) 0%, oklch(1 0 0 / 0.025) 30%, transparent 46%);
+}
+
+.isla {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--alto) * 0.018);
+  left: 50%;
+  translate: -50% 0;
+  width: 31%;
+  height: calc(var(--alto) * 0.03);
+  border-radius: 999px;
+  background: #000;
+}
+
+.barraApp {
+  position: absolute;
+  top: 7.4%;
+  left: 9%;
+  right: 9%;
+  height: 3%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.atras {
+  position: absolute;
+  left: 2%;
+  top: 50%;
+  width: calc(var(--alto) * 0.013);
+  height: calc(var(--alto) * 0.013);
+  border-left: 2px solid oklch(1 0 0 / 0.72);
+  border-bottom: 2px solid oklch(1 0 0 / 0.72);
+  transform: translateY(-50%) rotate(45deg);
+}
+.tituloApp {
+  width: 36%;
+  height: calc(var(--alto) * 0.0105);
+  border-radius: 99px;
+  background: oklch(1 0 0 / 0.5);
+}
+
+.inicio {
+  position: absolute;
+  z-index: 2;
+  bottom: 1.5%;
+  left: 50%;
+  translate: -50% 0;
+  width: 34%;
+  height: calc(var(--alto) * 0.0075);
+  border-radius: 99px;
+  background: oklch(1 0 0 / 0.6);
+}
+
+/* EL BOLETO: arte arriba, talón perforado abajo. Las muescas del corte salen de una máscara: dos medias lunas. */
+.boleto {
+  --muesca: calc(var(--alto) * 0.018);
+  --corte: 49%;
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 12.5%;
+  bottom: 5.5%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: calc(var(--alto) * 0.028);
+  background: linear-gradient(180deg, #2c2463 0%, #1d184b 55%, #15123b 100%);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.14);
+  -webkit-mask:
+    radial-gradient(circle var(--muesca) at 0 var(--corte), #0000 97%, #000) left / 50.5% 100% no-repeat,
+    radial-gradient(circle var(--muesca) at 100% var(--corte), #0000 97%, #000) right / 50.5% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--muesca) at 0 var(--corte), #0000 97%, #000) left / 50.5% 100% no-repeat,
+    radial-gradient(circle var(--muesca) at 100% var(--corte), #0000 97%, #000) right / 50.5% 100% no-repeat;
+}
+
+.arte {
+  position: relative;
+  flex: 0 0 var(--corte);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 9% 8%;
+}
+.logoMalinche {
+  position: relative;
+  width: 84%;
+  height: auto;
+  filter: drop-shadow(0 2px 10px #000000b3);
+}
+
+.talon {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--alto) * 0.014);
+  border-top: 2px dashed oklch(1 0 0 / 0.26);
+  padding: 8% 10% 7%;
+}
+
+/* El margen deja sitio a la mira, que sobresale 12 % del QR por cada lado (los % del margen son del ancho del talón). */
+.qr {
+  position: relative;
+  display: block;
+  width: 58%;
+  aspect-ratio: 1;
+  margin: 6% 0 10%;
+}
+.placa {
+  position: absolute;
+  inset: 0;
+  padding: 6%;
+  border-radius: 9%;
+  background: #fff;
+}
+.modulos {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.modulos path { fill: #0e0c2a; }
+
+/* La mira: el acento naranja de la escena. Un poco fuera de la placa, como al escanear en la puerta. */
+.mira {
+  position: absolute;
+  left: -12%;
+  top: -12%;
+  width: 124%;
+  height: 124%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--fm-naranja);
+  stroke-width: 3.4;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px color-mix(in oklch, var(--fm-naranja) 75%, transparent));
+}
+
+.renglon {
+  display: block;
+  width: 66%;
+  height: calc(var(--alto) * 0.009);
+  border-radius: 99px;
+  background: oklch(1 0 0 / 0.26);
+}
+.renglon + .renglon {
+  width: 40%;
+  background: oklch(1 0 0 / 0.14);
+}
+
+/* El teléfono de frente, sin giro: en el panel convive con texto y se lee mejor derecho. */
+.telefono.telefono { transform: none; }
+.fotoBoleto { position: absolute; inset: 0; }
+.fotoBoleto img { object-fit: cover; }
+.fotoBoleto::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #2c246300 28%, #2c2463b3 72%, #2c2463 100%);
+}
+
+/* ---------- GRUPO UPAX: LA INVITACIÓN ---------- */
+
+.invitacion {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f7f3ee;
+  color: #1e1b4b;
+  box-shadow: 0 18px 40px -18px #000000cc;
+}
+.invArte {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 14% 6%;
+}
+.invArte img:first-child { object-fit: cover; }
+.invArte::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, #1e1b4bd9 100%);
+}
+.invMalinche {
+  position: relative;
+  z-index: 1;
+  width: 72%;
+  height: auto;
+}
+.invTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: clamp(0.9rem, 1.4vw, 1.4rem);
+}
+.invPara {
+  font-size: clamp(0.62rem, 0.7vw, 0.8rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e34714;
+}
+.invTitulo {
+  font-family: var(--fuente-display, inherit);
+  font-size: clamp(1.1rem, 1.5vw, 1.8rem);
+  font-weight: 800;
+  line-height: 1.08;
+}
+.invCuerpo {
+  font-size: clamp(0.8rem, 0.95vw, 1.1rem);
+  line-height: 1.4;
+  color: #3b3767;
+}
+.invPie {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.invBoton {
+  padding: 0.45em 1em;
+  border-radius: 99px;
+  font-size: clamp(0.68rem, 0.75vw, 0.85rem);
+  font-weight: 700;
+  color: #fff;
+  background: #e34714;
+}
+.invLogo {
+  width: clamp(64px, 6vw, 96px);
+  height: auto;
+  /* El logo blanco, en índigo sobre el papel. */
+  filter: brightness(0) saturate(100%) invert(11%) sepia(39%) saturate(4212%) hue-rotate(234deg) brightness(88%);
+}
+
+/* ---------- UIX: EL RECORRIDO ---------- */
+
+.recorrido {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 3vh, 2rem);
+  position: relative;
+}
+/* La línea que une los cuatro momentos, por el centro de los números. */
+.recorrido::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--fm-t-tarjeta) * 0.8 - 1px);
+  top: calc(var(--fm-t-tarjeta) * 0.8);
+  bottom: calc(var(--fm-t-tarjeta) * 0.8);
+  width: 2px;
+  background: linear-gradient(180deg, var(--fm-naranja), color-mix(in oklch, var(--fm-naranja) 30%, transparent));
+}
+.recPaso {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: clamp(0.8rem, 1.2vw, 1.2rem);
+  align-items: center;
+}
+.recNumero {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: calc(var(--fm-t-tarjeta) * 1.6);
+  height: calc(var(--fm-t-tarjeta) * 1.6);
+  border-radius: 50%;
+  border: 2px solid var(--fm-naranja);
+  background: #110f33;
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 800;
+  line-height: 1;
+}
+.recTitulo {
+  align-self: end;
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.recTexto {
+  align-self: start;
+  font-size: var(--fm-t-etiqueta);
+  line-height: 1.3;
+  color: var(--fm-tinta-2);
+}
+
+/* ---------- NERACODE: LA BOLETERA ---------- */
+
+.boletera {
+  width: min(100%, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.5rem, 1.1vh, 0.85rem);
+  padding: clamp(0.9rem, 1.4vw, 1.3rem);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #221e58, #16133f);
+  border: 1px solid oklch(1 0 0 / 0.16);
+  box-shadow: 0 18px 40px -18px #000000cc;
+  font-size: clamp(0.72rem, 0.84vw, 1rem);
+}
+.bolCabeza { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
+.bolLogo { width: 48%; height: auto; }
+.bolLugar { font-weight: 600; color: var(--fm-tinta-2); }
+.bolPasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+}
+.bolPasos li {
+  padding: 0.35em 0.4em;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--fm-tinta-3);
+  background: oklch(1 0 0 / 0.06);
+}
+.bolPasos li[data-hecho='true'] { color: var(--fm-tinta-2); }
+.bolPasos li[data-actual='true'] { color: #fff; background: color-mix(in oklch, var(--fm-naranja) 70%, #16133f); }
+.bolFunciones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
+.bolFuncion {
+  padding: 0.4em 0.3em;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--fm-tinta-2);
+  border: 1px solid oklch(1 0 0 / 0.16);
+}
+.bolFuncion[data-elegida='true'] { color: #fff; border-color: var(--fm-naranja); background: color-mix(in oklch, var(--fm-naranja) 22%, transparent); }
+.bolEscenario {
+  margin-top: 0.2rem;
+  padding: 0.25em;
+  border-radius: 6px 6px 40% 40% / 6px 6px 100% 100%;
+  text-align: center;
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fm-tinta-3);
+  background: oklch(1 0 0 / 0.08);
+}
+.bolButacas {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: clamp(3px, 0.32vw, 6px);
+  padding-inline: 4%;
+}
+.bolButaca {
+  aspect-ratio: 1;
+  border-radius: 30% 30% 22% 22%;
+  background: oklch(1 0 0 / 0.22);
+}
+.bolButaca[data-estado='ocupada'] { background: oklch(1 0 0 / 0.07); }
+.bolButaca[data-estado='elegida'] { background: var(--fm-naranja); box-shadow: 0 0 6px color-mix(in oklch, var(--fm-naranja) 70%, transparent); }
+.bolBoton {
+  margin-top: 0.2rem;
+  padding: 0.6em;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 700;
+  color: #fff;
+  background: var(--fm-naranja);
+}

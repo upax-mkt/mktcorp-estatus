@@ -1,0 +1,77 @@
+/* 2 Y 3 · LO QUE DESCUBRIMOS — cuatro hallazgos por pantalla, en una cuadrícula de dos por dos. Cada tarjeta: su
+   número a la izquierda (el mismo que usa «Cómo podemos ayudar» para decir qué resuelve cada unidad), el hallazgo en
+   una línea, la explicación y quién lo atiende. */
+
+.escena { justify-content: flex-start; }
+
+.titulo.titulo { max-width: 26ch; }
+.nota.nota { max-width: 60ch; }
+
+.dolores {
+  list-style: none;
+  margin: auto 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.8rem, min(1.4vw, 2.4vh), 1.6rem);
+}
+
+.dolor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(0.8rem, 1.4vw, 1.5rem);
+  padding: clamp(1rem, min(1.6vw, 2.8vh), 2rem) clamp(1.1rem, min(1.8vw, 3.2vh), 2.2rem);
+}
+
+/* El número: un círculo con borde naranja. Es el mismo número que lleva el hallazgo en el resto de la pieza. */
+.numero {
+  display: grid;
+  place-items: center;
+  width: calc(var(--fm-t-tarjeta) * 1.6);
+  height: calc(var(--fm-t-tarjeta) * 1.6);
+  border-radius: 50%;
+  border: 2px solid var(--fm-naranja);
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--fm-tinta);
+}
+
+.texto { display: flex; flex-direction: column; gap: clamp(0.3rem, 0.6vh, 0.55rem); min-width: 0; }
+
+.dolorTitulo {
+  margin: 0;
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 700;
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.dolorTexto {
+  margin: 0;
+  font-size: var(--fm-t-cuerpo);
+  line-height: 1.38;
+  color: var(--fm-tinta-2);
+  text-wrap: pretty;
+}
+
+.atienden {
+  margin: 0.15rem 0 0;
+  font-size: var(--fm-t-etiqueta);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fm-tinta);
+}
+.atiendenRotulo {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fm-tinta-3);
+}
+
+@media (max-width: 900px) {
+  .dolores { grid-template-columns: 1fr; }
+}

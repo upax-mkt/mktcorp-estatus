@@ -66,15 +66,16 @@ export const PRESENTACIONES: readonly PresentacionWeb[] = [
     rutaVieja: '/rl-comercial',
   },
   {
+    // El id se queda: es la liga que ya se compartió. El título cambió el 21-oct-2026 (ronda 4, con la estructura de Ceci).
     id: 'lo-queremos-lleno',
-    titulo: 'Lo queremos lleno',
-    bajada: 'Grupo UPAX con Fortaleza Mexicana, Malinche, el Frontón México y Pelota Mestiza',
+    titulo: 'Fortaleza Mexicana',
+    bajada: 'Lo que descubrimos y cómo puede ayudar Grupo UPAX',
     fecha: '2026-10-20',
     lugar: { tipo: 'sala', sala: 'ceci' },
     abierta: true,
     vistaPrevia: {
-      descripcion: 'Una propuesta de Grupo UPAX para Fortaleza Mexicana, Malinche, el Frontón México y Pelota Mestiza.',
-      imagen: '/fortaleza/vista-previa.jpg',
+      descripcion: 'Lo que descubrimos y cómo puede ayudar Grupo UPAX a Fortaleza Mexicana: Malinche, el Frontón México y Pelota Mestiza.',
+      imagen: '/fortaleza/vista-previa-fortaleza.jpg',
     },
   },
 ]

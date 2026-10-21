@@ -1,0 +1,43 @@
+/* 4 · POR QUÉ CREEMOS — cuatro razones en fila, cada una con su foto arriba. */
+
+.escena { justify-content: flex-start; }
+
+.razones {
+  list-style: none;
+  margin: auto 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.9rem, min(1.6vw, 2.8vh), 1.8rem);
+}
+
+.razon { display: flex; flex-direction: column; gap: clamp(0.45rem, 1vh, 0.8rem); }
+
+.foto.foto {
+  aspect-ratio: 4 / 3;
+  margin-bottom: clamp(0.2rem, 0.6vh, 0.5rem);
+}
+
+.razonTitulo {
+  margin: 0;
+  font-size: var(--fm-t-tarjeta);
+  font-weight: 700;
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.razonTexto {
+  margin: 0;
+  font-size: var(--fm-t-cuerpo);
+  line-height: 1.38;
+  color: var(--fm-tinta-2);
+  text-wrap: pretty;
+}
+
+@media (max-width: 1100px) {
+  .razones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .razones { grid-template-columns: 1fr; }
+}

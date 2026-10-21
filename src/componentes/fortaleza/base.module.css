@@ -1,9 +1,10 @@
-/* LA BASE DE «LO QUEREMOS LLENO» (20-oct-2026, motion-studio).
-   Propuesta de Grupo UPAX para la Sra. María Laura Medina de Salinas: Fortaleza Mexicana, Malinche,
-   el Frontón México y Pelota Mestiza. Guion técnico: `~/CMO Copilot/sesiones/2026-10-20-fortaleza-presentacion/guion-tecnico.md`.
+/* LA BASE DE «FORTALEZA MEXICANA» (20-oct-2026, motion-studio; ronda 4 del 21-oct, con la estructura de Ceci).
+   Para la Sra. María Laura Medina de Salinas: lo que descubrimos y cómo puede ayudar Grupo UPAX a Fortaleza Mexicana,
+   Malinche, el Frontón México y Pelota Mestiza. Guion técnico:
+   `~/CMO Copilot/sesiones/2026-10-20-fortaleza-presentacion/guion-tecnico.md`.
 
    Identidad Grupo UPAX (src/temas/grupo-upax.ts): noche #1E1B4B, naranja #E34714, magenta #D72A5A, azul #5367E1,
-   Outfit. El NARANJA es del hilo conductor (las butacas encendidas del aforo) y de un solo acento por escena.
+   Outfit. El NARANJA marca lo que importa: los números de los hallazgos, lo ya conseguido y un acento por escena.
    Magenta y azul, solo en la luz de fondo y en la cumbre. Las superficies son las del estatus Q3, que Franco aprobó:
    fondo #0b0a1f bajo las fotos y vidrio índigo #14124073 con borde blanco al 14 %.
 
@@ -56,8 +57,8 @@
   background: var(--fm-noche);
 }
 
-/* Al presentar, el hub le pone a cada sección su propio relleno, más corto abajo: el aforo de la esquina quedaba a
-   8 px del borde a 1366×768. Aquí se recupera el nuestro, salvo arriba, que se acorta porque no hay barra. */
+/* Al presentar, el hub le pone a cada sección su propio relleno, más corto abajo. Aquí se recupera el nuestro, salvo
+   arriba, que se acorta porque no hay barra. */
 :global([data-presentando='true']) .pantalla.pantalla {
   padding: clamp(2.75rem, 7vh, 5.5rem) clamp(1.25rem, 6vw, 7rem) clamp(3.5rem, 8vh, 6rem);
 }
@@ -318,14 +319,6 @@
   color: oklch(1 0 0 / 0.9);
 }
 
-/* EL AFORO CHICO: abajo a la derecha, mismo tamaño y lugar en cada escena (objeto que viaja). */
-.aforoEsquina {
-  position: absolute;
-  z-index: 2;
-  right: 0;
-  bottom: calc(-1 * clamp(1.5rem, 4vh, 3.2rem));
-}
-
 /* LA ENTRADA DE LA CASA (una sola forma de entrar): subir con fundido, escalonado por --i.
    .brota: lo que aparece en su sitio. .trazo: líneas SVG con pathLength="1" que se dibujan. */
 .trazo { stroke-dasharray: 1; stroke-dashoffset: 0; }
@@ -352,22 +345,6 @@
   }
 }
 
-/* ESCENA CON VIAJE (2, 6, 7 y la cumbre): mientras el aforo viaja desde la escena anterior, lo demás entra solo con
-   opacidad, sin desplazarse (04 §5: «salida sostenida y entrada solo de opacidad»), para que no compitan.
-   `.esperaViaje`: lo que el aforo cruzaría en su viaje entra cuando ya aterrizó (el viaje dura 600 ms), con un fundido
-   corto; solo al presentar, que es cuando viaja. Leída con scroll, entra a su hora de siempre. */
-@keyframes fm-fundir-escena { from { opacity: 0; } to { opacity: 1; } }
-@media screen and (prefers-reduced-motion: no-preference) {
-  .escena.conViaje[data-visible='true'] .aparece { animation-name: fm-fundir-escena; }
-  :global([data-presentando='true']) .escena.conViaje[data-visible='true'] .esperaViaje {
-    animation-duration: 260ms;
-    animation-delay: calc(var(--viaje-espera, 620ms) + var(--i-viaje, 0) * 30ms);
-  }
-  /* El rótulo del aforo no viaja con el dibujo: espera a que aterrice y se funde. */
-  .escena.conViaje[data-animar='true']:not([data-visible='true']) [data-aforo-rotulo] { opacity: 0; }
-  .escena.conViaje[data-visible='true'] [data-aforo-rotulo] { animation: fm-fundir-escena 300ms var(--mov-ease-escena) 600ms both; }
-}
-
 @media screen and (prefers-reduced-motion: reduce) {
   .escena[data-animar='true']:not([data-visible='true']) :is(.aparece, .brota) { opacity: 0; }
   .escena[data-visible='true'] :is(.aparece, .brota) { animation: fm-fundir 200ms linear both; }
@@ -382,5 +359,4 @@
 
 @media (max-width: 760px) {
   .pantalla { min-height: auto; }
-  .aforoEsquina { position: static; align-self: flex-end; }
 }

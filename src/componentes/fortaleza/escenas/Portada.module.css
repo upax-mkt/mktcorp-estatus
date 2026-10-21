@@ -59,7 +59,7 @@
 
 .cabecera { gap: clamp(0.7rem, 1.8vh, 1.2rem); }
 
-/* El título de portada (04 §2: 140–200 px a 1920), en dos renglones: «Lo queremos» / «lleno.». */
+/* El título de portada (04 §2: 140–200 px a 1920), en dos renglones: «Fortaleza» / «Mexicana». */
 .titulo.titulo {
   max-width: none;
   font-size: clamp(3rem, calc(7.4 * var(--u)), 9rem);
@@ -73,11 +73,6 @@
 .nota.nota {
   max-width: calc(27 * var(--u));
   text-wrap: balance;
-}
-
-.centro .aforo.aforo {
-  align-items: flex-start;
-  width: clamp(220px, calc(20 * var(--u)), 380px);
 }
 
 /* SUS MARCAS: Malinche, el Frontón y Pelota Mestiza, a su color. Entre una y otra, una raya del mismo alto (antes

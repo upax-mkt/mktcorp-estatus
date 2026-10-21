@@ -15,8 +15,8 @@ export const VISTAS_DE_SALA: Record<
   { Componente: ComponentType; tema: Tema; transiciones?: boolean; controlesOcultos?: boolean }
 > = {
   'nueva-estructura-comercial-2027': { Componente: PresentacionRl, tema: researchLand },
-  // La propuesta para la Sra. María Laura de Salinas vive en la sala de Ceci (ella la presenta), con la identidad de Grupo UPAX.
-  // Al presentarla, el aforo viaja de una escena a la siguiente (corte con transición de vista, `ModoPresentar`).
-  // y la barra de controles no se ve en reposo.
+  // La de Fortaleza Mexicana para la Sra. María Laura de Salinas vive en la sala de Ceci (ella la presenta), con la
+  // identidad de Grupo UPAX. Al presentarla, el corte entre pantallas es el de la casa y la barra de controles no se ve
+  // en reposo.
   'lo-queremos-lleno': { Componente: PresentacionFortaleza, tema: grupoUpax, transiciones: true, controlesOcultos: true },
 }
